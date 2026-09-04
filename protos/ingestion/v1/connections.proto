@@ -33,12 +33,11 @@ message Connection {
 }
 
 message CreateConnectionRequest {
-  string tenant_id = 1;
-  ConnectorKind kind = 2;
-  string name = 3;
-  string connector = 4;
-  google.protobuf.Struct config = 5;
-  map<string, string> secret_refs = 6;
+  ConnectorKind kind = 1;
+  string name = 2;
+  string connector = 3;
+  google.protobuf.Struct config = 4;
+  map<string, string> secret_refs = 5;
 }
 
 message CreateConnectionResponse {
@@ -46,8 +45,7 @@ message CreateConnectionResponse {
 }
 
 message UpdateConnectionRequest {
-  string tenant_id = 1;
-  Connection connection = 2;
+  Connection connection = 1;
 }
 
 message UpdateConnectionResponse {
@@ -55,8 +53,7 @@ message UpdateConnectionResponse {
 }
 
 message GetConnectionRequest {
-  string tenant_id = 1;
-  string id = 2;
+  string id = 1;
 }
 
 message GetConnectionResponse {
@@ -66,12 +63,11 @@ message GetConnectionResponse {
 // ListConnections filters by tenant; kind UNSPECIFIED returns both sources and
 // sinks.
 message ListConnectionsRequest {
-  string tenant_id = 1;
-  ConnectorKind kind = 2;
-  bool include_deleted = 3;
-  PaginationRequest pagination = 4;
-  string search = 5;
-  SortingRequest sorting = 6;
+  ConnectorKind kind = 1;
+  bool include_deleted = 2;
+  PaginationRequest pagination = 3;
+  string search = 4;
+  SortingRequest sorting = 5;
 }
 
 message ListConnectionsResponse {
@@ -80,8 +76,7 @@ message ListConnectionsResponse {
 }
 
 message DeleteConnectionRequest {
-  string tenant_id = 1;
-  string id = 2;
+  string id = 1;
 }
 
 message DeleteConnectionResponse {}

@@ -13,11 +13,16 @@ import (
 
 const countPipelineVersions = `-- name: CountPipelineVersions :one
 SELECT count(*) FROM pipeline_versions
-WHERE pipeline_id = $1
+WHERE tenant_id = $1 AND pipeline_id = $2
 `
 
-func (q *Queries) CountPipelineVersions(ctx context.Context, pipelineID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countPipelineVersions, pipelineID)
+type CountPipelineVersionsParams struct {
+	TenantID   string
+	PipelineID string
+}
+
+func (q *Queries) CountPipelineVersions(ctx context.Context, arg CountPipelineVersionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPipelineVersions, arg.TenantID, arg.PipelineID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -25,7 +30,7 @@ func (q *Queries) CountPipelineVersions(ctx context.Context, pipelineID string) 
 
 const countPipelines = `-- name: CountPipelines :one
 SELECT count(*) FROM pipelines
-WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+WHERE tenant_id = $1
   AND ($2::boolean OR NOT is_deleted)
   AND (nullif($3::text, '') IS NULL
        OR name ILIKE '%' || $3 || '%' ESCAPE '\'
@@ -74,23 +79,26 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 
 const createPipelineVersion = `-- name: CreatePipelineVersion :one
 WITH locked AS MATERIALIZED (
-  SELECT id FROM pipelines WHERE id = $1 AND NOT is_deleted FOR UPDATE
+  SELECT id FROM pipelines
+  WHERE tenant_id = $1 AND id = $2 AND NOT is_deleted
+  FOR UPDATE
 ), next AS (
   SELECT coalesce(max(v.version), 0) + 1 AS version
   FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
 ), inserted AS (
   INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
-  SELECT $2, p.tenant_id, $1, next.version, $3
+  SELECT $3, p.tenant_id, $2, next.version, $4
   FROM next
-  JOIN pipelines p ON p.id = $1
+  JOIN pipelines p ON p.tenant_id = $1 AND p.id = $2
   RETURNING id, version, created_at
 )
 UPDATE pipelines p SET current_version_id = inserted.id, updated_at = now()
-FROM inserted WHERE p.id = $1
+FROM inserted WHERE p.tenant_id = $1 AND p.id = $2
 RETURNING inserted.id, inserted.version, inserted.created_at
 `
 
 type CreatePipelineVersionParams struct {
+	TenantID   string
 	PipelineID string
 	ID         string
 	Graph      []byte
@@ -103,7 +111,12 @@ type CreatePipelineVersionRow struct {
 }
 
 func (q *Queries) CreatePipelineVersion(ctx context.Context, arg CreatePipelineVersionParams) (*CreatePipelineVersionRow, error) {
-	row := q.db.QueryRow(ctx, createPipelineVersion, arg.PipelineID, arg.ID, arg.Graph)
+	row := q.db.QueryRow(ctx, createPipelineVersion,
+		arg.TenantID,
+		arg.PipelineID,
+		arg.ID,
+		arg.Graph,
+	)
 	var i CreatePipelineVersionRow
 	err := row.Scan(&i.ID, &i.Version, &i.CreatedAt)
 	return &i, err
@@ -115,11 +128,16 @@ UPDATE pipelines SET
   deleted_at = now(),
   name = name || '__deleted__' || to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
   updated_at = now()
-WHERE id = $1 AND NOT is_deleted
+WHERE tenant_id = $1 AND id = $2 AND NOT is_deleted
 `
 
-func (q *Queries) DeletePipeline(ctx context.Context, pipelineID string) error {
-	_, err := q.db.Exec(ctx, deletePipeline, pipelineID)
+type DeletePipelineParams struct {
+	TenantID   string
+	PipelineID string
+}
+
+func (q *Queries) DeletePipeline(ctx context.Context, arg DeletePipelineParams) error {
+	_, err := q.db.Exec(ctx, deletePipeline, arg.TenantID, arg.PipelineID)
 	return err
 }
 
@@ -127,8 +145,13 @@ const getPipeline = `-- name: GetPipeline :one
 SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
        created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
-FROM pipelines WHERE id = $1
+FROM pipelines WHERE tenant_id = $1 AND id = $2
 `
+
+type GetPipelineParams struct {
+	TenantID   string
+	PipelineID string
+}
 
 type GetPipelineRow struct {
 	ID                  string
@@ -145,8 +168,8 @@ type GetPipelineRow struct {
 	DeletedByUserID     pgtype.Text
 }
 
-func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipelineRow, error) {
-	row := q.db.QueryRow(ctx, getPipeline, pipelineID)
+func (q *Queries) GetPipeline(ctx context.Context, arg GetPipelineParams) (*GetPipelineRow, error) {
+	row := q.db.QueryRow(ctx, getPipeline, arg.TenantID, arg.PipelineID)
 	var i GetPipelineRow
 	err := row.Scan(
 		&i.ID,
@@ -168,13 +191,15 @@ func (q *Queries) GetPipeline(ctx context.Context, pipelineID string) (*GetPipel
 const getPipelineVersion = `-- name: GetPipelineVersion :one
 SELECT id, pipeline_id, version, graph, created_at, updated_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id FROM pipeline_versions
-WHERE pipeline_id = $1
-  AND (($2::bigint = 0 AND id = (SELECT current_version_id FROM pipelines WHERE pipelines.id = $1))
-    OR version = $2)
+WHERE pipeline_versions.pipeline_id = $1
+  AND pipeline_versions.tenant_id = $2
+  AND (($3::bigint = 0 AND pipeline_versions.id = (SELECT current_version_id FROM pipelines WHERE pipelines.tenant_id = $2 AND pipelines.id = $1))
+    OR pipeline_versions.version = $3)
 `
 
 type GetPipelineVersionParams struct {
 	PipelineID string
+	TenantID   string
 	Version    int64
 }
 
@@ -191,7 +216,7 @@ type GetPipelineVersionRow struct {
 }
 
 func (q *Queries) GetPipelineVersion(ctx context.Context, arg GetPipelineVersionParams) (*GetPipelineVersionRow, error) {
-	row := q.db.QueryRow(ctx, getPipelineVersion, arg.PipelineID, arg.Version)
+	row := q.db.QueryRow(ctx, getPipelineVersion, arg.PipelineID, arg.TenantID, arg.Version)
 	var i GetPipelineVersionRow
 	err := row.Scan(
 		&i.ID,
@@ -210,21 +235,22 @@ func (q *Queries) GetPipelineVersion(ctx context.Context, arg GetPipelineVersion
 const listPipelineVersions = `-- name: ListPipelineVersions :many
 SELECT id, pipeline_id, version, graph, created_at, updated_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id FROM pipeline_versions
-WHERE pipeline_id = $1
+WHERE tenant_id = $1 AND pipeline_id = $2
 ORDER BY
-  CASE WHEN $2::text IN ('', 'version') AND NOT $3::boolean THEN version END ASC,
-  CASE WHEN $2::text IN ('', 'version') AND $3::boolean THEN version END DESC,
-  CASE WHEN $2::text = 'created_at' AND NOT $3::boolean THEN created_at END ASC,
-  CASE WHEN $2::text = 'created_at' AND $3::boolean THEN created_at END DESC,
-  CASE WHEN $2::text = 'updated_at' AND NOT $3::boolean THEN updated_at END ASC,
-  CASE WHEN $2::text = 'updated_at' AND $3::boolean THEN updated_at END DESC,
-  CASE WHEN NOT $3::boolean THEN id END ASC,
-  CASE WHEN $3::boolean THEN id END DESC
-LIMIT NULLIF($5::int, 0)
-OFFSET $4::int
+  CASE WHEN $3::text IN ('', 'version') AND NOT $4::boolean THEN version END ASC,
+  CASE WHEN $3::text IN ('', 'version') AND $4::boolean THEN version END DESC,
+  CASE WHEN $3::text = 'created_at' AND NOT $4::boolean THEN created_at END ASC,
+  CASE WHEN $3::text = 'created_at' AND $4::boolean THEN created_at END DESC,
+  CASE WHEN $3::text = 'updated_at' AND NOT $4::boolean THEN updated_at END ASC,
+  CASE WHEN $3::text = 'updated_at' AND $4::boolean THEN updated_at END DESC,
+  CASE WHEN NOT $4::boolean THEN id END ASC,
+  CASE WHEN $4::boolean THEN id END DESC
+LIMIT NULLIF($6::int, 0)
+OFFSET $5::int
 `
 
 type ListPipelineVersionsParams struct {
+	TenantID   string
 	PipelineID string
 	SortBy     string
 	SortDesc   bool
@@ -246,6 +272,7 @@ type ListPipelineVersionsRow struct {
 
 func (q *Queries) ListPipelineVersions(ctx context.Context, arg ListPipelineVersionsParams) ([]*ListPipelineVersionsRow, error) {
 	rows, err := q.db.Query(ctx, listPipelineVersions,
+		arg.TenantID,
 		arg.PipelineID,
 		arg.SortBy,
 		arg.SortDesc,
@@ -285,7 +312,7 @@ SELECT id, tenant_id, name, description, current_version_id, worker_configuratio
        created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines
-WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+WHERE tenant_id = $1
   AND ($2::boolean OR NOT is_deleted)
   AND (nullif($3::text, '') IS NULL
        OR name ILIKE '%' || $3 || '%' ESCAPE '\'
@@ -375,13 +402,14 @@ const updatePipeline = `-- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = $1, description = $2,
   worker_configuration = COALESCE($3::jsonb, worker_configuration),
   updated_at = now()
-WHERE id = $4 AND NOT is_deleted
+WHERE tenant_id = $4 AND id = $5 AND NOT is_deleted
 `
 
 type UpdatePipelineParams struct {
 	Name                string
 	Description         string
 	WorkerConfiguration []byte
+	TenantID            string
 	PipelineID          string
 }
 
@@ -390,6 +418,7 @@ func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) 
 		arg.Name,
 		arg.Description,
 		arg.WorkerConfiguration,
+		arg.TenantID,
 		arg.PipelineID,
 	)
 	if err != nil {

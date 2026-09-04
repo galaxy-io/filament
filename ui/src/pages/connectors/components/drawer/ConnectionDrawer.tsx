@@ -8,17 +8,16 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
-import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import Dialog from "@/components/Dialog";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -31,7 +30,7 @@ import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/Conn
 
 import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
 
-import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
@@ -54,7 +53,7 @@ interface ConnectionDrawerProps {
 
 const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
-  const { connectionId } = useSearch({ from: "__root__" });
+  const { connectionId } = useSearch({ from: "/_app" });
 
   const { data, isError } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
@@ -64,17 +63,15 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
 
   const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
 
-  const { handleOpen, isOpen, handleClose, handleConfirm } = useDeleteConfirm({
+  const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Connection>({
     entityLabel: "Connection",
-    entityName: connection?.name ?? "",
-    onDelete: ({ onSuccess, onError }) => {
-      if (!connection) return;
-      deleteConnection({ id: connection.id }, { onSuccess, onError });
-    },
-    onDeleted: () => {
+    entityName: (c) => c.name,
+    onConfirm: (c, { onSuccess, onError }) =>
+      deleteConnection({ id: c.id }, { onSuccess, onError }),
+    onConfirmed: (c) => {
       onClose();
       navigate({
-        to: connection?.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
+        to: c.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
       });
     },
   });
@@ -169,23 +166,22 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
         <DangerZone
           title="Delete connection"
           description="This will permanently delete this connection."
-          onDelete={handleOpen}
+          onDelete={() => handleOpen(connection)}
           isDisabled={!!connection.deletedAt}
         />
       </FlexItem>
 
-      <Modal open={isOpen} onClose={handleClose}>
-        <DeleteConfirmDialog
-          open={isOpen}
-          onClose={handleClose}
-          onConfirm={handleConfirm}
-          title="Delete connection"
-          body="Are you sure you want to delete this connection? This is a destructive action and cannot be undone."
-          confirmationPhrase={connection.name || ""}
-          confirmLabel="Delete connection"
-          isPending={isDeleting}
-        />
-      </Modal>
+      <Dialog
+        open={isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title="Delete connection"
+        body="Are you sure you want to delete this connection? This is a destructive action and cannot be undone."
+        confirmationPhrase={target?.name}
+        confirmLabel="Delete connection"
+        confirmVariant={ButtonVariant.ERROR}
+        isPending={isDeleting}
+      />
     </DrawerWrapper>
   );
 };

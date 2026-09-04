@@ -69,7 +69,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
 
-	err = q.SaveRun(ctx, sqlcgen.SaveRunParams{
+	rows, err := q.SaveRun(ctx, sqlcgen.SaveRunParams{
 		RunID:             string(r.Run),
 		TenantID:          string(r.Tenant),
 		PipelineID:        r.Request.PipelineID,
@@ -90,6 +90,9 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save run: %w", err)
 	}
+	if rows == 0 {
+		return fmt.Errorf("save run %q: %w", r.Run, filament.ErrNotFound)
+	}
 
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
@@ -108,6 +111,7 @@ func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 // only when the current status belongs to from.
 func (s *Store) TransitionRun(
 	ctx context.Context,
+	tenant filament.TenantID,
 	id filament.RunID,
 	from []filament.RunStatus,
 	to filament.RunStatus,
@@ -123,7 +127,7 @@ func (s *Store) TransitionRun(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
-	current, err := q.LockRunStatus(ctx, string(id))
+	current, err := q.LockRunStatus(ctx, sqlcgen.LockRunStatusParams{TenantID: string(tenant), RunID: string(id)})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.RunState{}, fmt.Errorf("transition run %q: %w", id, filament.ErrNotFound)
@@ -135,24 +139,24 @@ func (s *Store) TransitionRun(
 	}
 	if opts.ResetExecution {
 		if err := q.ResetRunExecution(ctx, sqlcgen.ResetRunExecutionParams{
-			RunID: string(id), Status: status, PreserveProgress: opts.PreserveProgress,
+			TenantID: string(tenant), RunID: string(id), Status: status, PreserveProgress: opts.PreserveProgress,
 		}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset run transition: %w", err)
 		}
 		if err := q.ResetRunResources(ctx, sqlcgen.ResetRunResourcesParams{
-			RunID: string(id), Status: int16(filament.RunRequested), PreserveProgress: opts.PreserveProgress,
+			TenantID: string(tenant), RunID: string(id), Status: int16(filament.RunRequested), PreserveProgress: opts.PreserveProgress,
 		}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: reset resource transition: %w", err)
 		}
 	} else {
-		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{RunID: string(id), Status: status, StampEnded: opts.Ended}); err != nil {
+		if err := q.TransitionRun(ctx, sqlcgen.TransitionRunParams{TenantID: string(tenant), RunID: string(id), Status: status, StampEnded: opts.Ended}); err != nil {
 			return filament.RunState{}, fmt.Errorf("datastore/postgres: run transition: %w", err)
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return filament.RunState{}, fmt.Errorf("datastore/postgres: commit run transition: %w", err)
 	}
-	return s.LoadRun(ctx, id)
+	return s.LoadRun(ctx, tenant, id)
 }
 
 func runStatusValue(status filament.RunStatus) (int16, error) {
@@ -242,16 +246,16 @@ func replicationRouteConflict(err error) bool {
 
 // DeleteRun removes the run; resources, checkpoints, and dedup rows cascade.
 // Missing is a no-op.
-func (s *Store) DeleteRun(ctx context.Context, id filament.RunID) error {
-	if err := s.q.DeleteRun(ctx, string(id)); err != nil {
+func (s *Store) DeleteRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) error {
+	if err := s.q.DeleteRun(ctx, sqlcgen.DeleteRunParams{TenantID: string(tenant), RunID: string(id)}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete run: %w", err)
 	}
 	return nil
 }
 
 // LoadRun returns the run with its current resource states reattached.
-func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunState, error) {
-	row, err := s.q.LoadRun(ctx, string(id))
+func (s *Store) LoadRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) (filament.RunState, error) {
+	row, err := s.q.LoadRun(ctx, sqlcgen.LoadRunParams{TenantID: string(tenant), RunID: string(id)})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.RunState{}, fmt.Errorf("load run %q: %w", id, filament.ErrNotFound)
@@ -272,7 +276,7 @@ func (s *Store) LoadRun(ctx context.Context, id filament.RunID) (filament.RunSta
 		return filament.RunState{}, err
 	}
 
-	resources, err := s.ListResources(ctx, id)
+	resources, err := s.ListResources(ctx, tenant, id)
 	if err != nil {
 		return filament.RunState{}, err
 	}
@@ -323,7 +327,7 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	}
 
 	for i, id := range ids {
-		resources, err := s.ListResources(ctx, id)
+		resources, err := s.ListResources(ctx, out[i].Tenant, id)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -334,12 +338,13 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 
 func listRunsQuery(f filament.RunFilter) (string, []any) {
 	q := `SELECT r.id, r.tenant_id, coalesce(r.schedule_id::text, ''), r.status, r.request, r.records, r.bytes, r.created_at, r.scheduled_at, r.requested_at, r.started_at, r.ended_at, r.updated_at, coalesce(r.error, ''), r.cpu_seconds, r.memory_peak_bytes, count(*) OVER ()
-	      FROM runs r LEFT JOIN pipelines p ON p.id = r.pipeline_id WHERE 1=1`
+	      FROM runs r LEFT JOIN pipelines p ON p.tenant_id = r.tenant_id AND p.id = r.pipeline_id`
 	args := []any{}
 	arg := func(v any) string {
 		args = append(args, v)
 		return fmt.Sprintf("$%d", len(args))
 	}
+	q += " WHERE true"
 	if f.Tenant != "" {
 		q += " AND r.tenant_id = " + arg(string(f.Tenant))
 	}
@@ -486,7 +491,7 @@ func (s *Store) UpsertResource(ctx context.Context, rs filament.ResourceState) e
 }
 
 func upsertResource(ctx context.Context, q *sqlcgen.Queries, rs filament.ResourceState) error {
-	err := q.UpsertResource(ctx, sqlcgen.UpsertResourceParams{
+	rows, err := q.UpsertResource(ctx, sqlcgen.UpsertResourceParams{
 		RunID:        string(rs.Run),
 		ResourceName: rs.Resource,
 		TenantID:     string(rs.Tenant),
@@ -498,12 +503,15 @@ func upsertResource(ctx context.Context, q *sqlcgen.Queries, rs filament.Resourc
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: upsert resource: %w", err)
 	}
+	if rows == 0 {
+		return fmt.Errorf("upsert resource for run %q: %w", rs.Run, filament.ErrNotFound)
+	}
 	return nil
 }
 
 // ListResources returns a run's resource states.
-func (s *Store) ListResources(ctx context.Context, id filament.RunID) ([]filament.ResourceState, error) {
-	rows, err := s.q.ListResources(ctx, string(id))
+func (s *Store) ListResources(ctx context.Context, tenant filament.TenantID, id filament.RunID) ([]filament.ResourceState, error) {
+	rows, err := s.q.ListResources(ctx, sqlcgen.ListResourcesParams{TenantID: string(tenant), RunID: string(id)})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list resources: %w", err)
 	}
@@ -524,12 +532,13 @@ func (s *Store) ListResources(ctx context.Context, id filament.RunID) ([]filamen
 }
 
 // SaveCheckpoint upserts a resource's cursor for the run.
-func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filament.Checkpoint) error {
+func (s *Store) SaveCheckpoint(ctx context.Context, tenant filament.TenantID, id filament.RunID, cp filament.Checkpoint) error {
 	cursor, err := json.Marshal(cp.Raw())
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: marshal checkpoint: %w", err)
 	}
-	err = s.q.SaveCheckpoint(ctx, sqlcgen.SaveCheckpointParams{
+	rows, err := s.q.SaveCheckpoint(ctx, sqlcgen.SaveCheckpointParams{
+		TenantID:     string(tenant),
 		RunID:        string(id),
 		ResourceName: cp.Resource(),
 		Cursor:       cursor,
@@ -537,12 +546,15 @@ func (s *Store) SaveCheckpoint(ctx context.Context, id filament.RunID, cp filame
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save checkpoint: %w", err)
 	}
+	if rows == 0 {
+		return fmt.Errorf("save checkpoint for run %q: %w", id, filament.ErrNotFound)
+	}
 	return nil
 }
 
 // LoadCheckpoint returns a resource's saved cursor for the run.
-func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource string) (filament.Checkpoint, error) {
-	cursor, err := s.q.LoadCheckpoint(ctx, sqlcgen.LoadCheckpointParams{RunID: string(id), ResourceName: resource})
+func (s *Store) LoadCheckpoint(ctx context.Context, tenant filament.TenantID, id filament.RunID, resource string) (filament.Checkpoint, error) {
+	cursor, err := s.q.LoadCheckpoint(ctx, sqlcgen.LoadCheckpointParams{TenantID: string(tenant), RunID: string(id), ResourceName: resource})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("load checkpoint %q/%q: %w", id, resource, filament.ErrNotFound)
@@ -558,7 +570,7 @@ func (s *Store) LoadCheckpoint(ctx context.Context, id filament.RunID, resource 
 
 // SaveResourceCheckpoint upserts durable cross-run progress for one immutable
 // pipeline route and resource.
-func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.ResourceCheckpointState) error {
+func (s *Store) SaveResourceCheckpoint(ctx context.Context, tenant filament.TenantID, state filament.ResourceCheckpointState) error {
 	if state.Checkpoint == nil || state.Checkpoint.Resource() != state.Key.Resource {
 		return fmt.Errorf("datastore/postgres: save resource checkpoint: resource mismatch")
 	}
@@ -566,8 +578,8 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: marshal resource checkpoint: %w", err)
 	}
+	var rows int64
 	if state.Key.ReplicationStreamID != "" {
-		var rows int64
 		rows, err = s.q.SaveStreamResourceCheckpoint(ctx, sqlcgen.SaveStreamResourceCheckpointParams{
 			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
 			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
@@ -578,7 +590,8 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 			return fmt.Errorf("save resource checkpoint %q/%q: %w", state.Key.ReplicationStreamID, state.Key.Resource, filament.ErrNotFound)
 		}
 	} else {
-		err = s.q.SaveResourceCheckpoint(ctx, sqlcgen.SaveResourceCheckpointParams{
+		rows, err = s.q.SaveResourceCheckpoint(ctx, sqlcgen.SaveResourceCheckpointParams{
+			TenantID:   string(tenant),
 			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
 			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
 			Cursor: cursor, LastRunID: string(state.Run),
@@ -587,12 +600,15 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, state filament.Resou
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: save resource checkpoint: %w", err)
 	}
+	if rows == 0 {
+		return fmt.Errorf("save resource checkpoint for pipeline %q: %w", state.Key.PipelineID, filament.ErrNotFound)
+	}
 	return nil
 }
 
 // LoadResourceCheckpoint returns durable cross-run progress for one route and
 // resource.
-func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
+func (s *Store) LoadResourceCheckpoint(ctx context.Context, tenant filament.TenantID, key filament.ResourceCheckpointKey) (filament.ResourceCheckpointState, error) {
 	var cursor []byte
 	var lastRunID string
 	var updatedAt pgtype.Timestamptz
@@ -607,6 +623,7 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 		}
 	} else {
 		row, loadErr := s.q.LoadResourceCheckpoint(ctx, sqlcgen.LoadResourceCheckpointParams{
+			TenantID:   string(tenant),
 			PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
 			RouteKey: key.Route, ResourceName: key.Resource,
 		})
@@ -633,7 +650,7 @@ func (s *Store) LoadResourceCheckpoint(ctx context.Context, key filament.Resourc
 
 // ListResourceCheckpoints returns every durable cursor under one route,
 // ordered by resource.
-func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
+func (s *Store) ListResourceCheckpoints(ctx context.Context, tenant filament.TenantID, route filament.ResourceCheckpointRoute) ([]filament.ResourceCheckpointState, error) {
 	type checkpointRow struct {
 		resourceName string
 		cursor       []byte
@@ -651,6 +668,7 @@ func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.Reso
 		}
 	} else {
 		versionRows, err := s.q.ListResourceCheckpoints(ctx, sqlcgen.ListResourceCheckpointsParams{
+			TenantID:   string(tenant),
 			PipelineID: route.PipelineID, PipelineVersionID: route.PipelineVersionID, RouteKey: route.Route,
 		})
 		if err != nil {
@@ -679,7 +697,7 @@ func (s *Store) ListResourceCheckpoints(ctx context.Context, route filament.Reso
 }
 
 // DeleteResourceCheckpoint resets durable progress for one route/resource.
-func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.ResourceCheckpointKey) error {
+func (s *Store) DeleteResourceCheckpoint(ctx context.Context, tenant filament.TenantID, key filament.ResourceCheckpointKey) error {
 	var err error
 	if key.ReplicationStreamID != "" {
 		err = s.q.DeleteStreamResourceCheckpoint(ctx, sqlcgen.DeleteStreamResourceCheckpointParams{
@@ -687,6 +705,7 @@ func (s *Store) DeleteResourceCheckpoint(ctx context.Context, key filament.Resou
 		})
 	} else {
 		err = s.q.DeleteResourceCheckpoint(ctx, sqlcgen.DeleteResourceCheckpointParams{
+			TenantID:   string(tenant),
 			PipelineID: key.PipelineID, PipelineVersionID: key.PipelineVersionID,
 			RouteKey: key.Route, ResourceName: key.Resource,
 		})
@@ -745,8 +764,8 @@ func saveSchedule(ctx context.Context, q *sqlcgen.Queries, st filament.ScheduleS
 }
 
 // LoadSchedule returns one schedule by id.
-func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filament.ScheduleState, error) {
-	row, err := s.q.LoadSchedule(ctx, string(id))
+func (s *Store) LoadSchedule(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) (filament.ScheduleState, error) {
+	row, err := s.q.LoadSchedule(ctx, sqlcgen.LoadScheduleParams{TenantID: string(tenant), ScheduleID: string(id)})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.ScheduleState{}, fmt.Errorf("load schedule %q: %w", id, filament.ErrNotFound)
@@ -758,8 +777,8 @@ func (s *Store) LoadSchedule(ctx context.Context, id filament.ScheduleID) (filam
 }
 
 // LoadPipelineSchedule returns the schedule attached to pipelineID.
-func (s *Store) LoadPipelineSchedule(ctx context.Context, pipelineID string) (filament.ScheduleState, error) {
-	row, err := s.q.LoadPipelineSchedule(ctx, pipelineID)
+func (s *Store) LoadPipelineSchedule(ctx context.Context, tenant filament.TenantID, pipelineID string) (filament.ScheduleState, error) {
+	row, err := s.q.LoadPipelineSchedule(ctx, sqlcgen.LoadPipelineScheduleParams{TenantID: string(tenant), PipelineID: pipelineID})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return filament.ScheduleState{}, fmt.Errorf("load pipeline schedule %q: %w", pipelineID, filament.ErrNotFound)
@@ -800,7 +819,7 @@ func (s *Store) ListSchedules(ctx context.Context, f filament.ScheduleFilter) ([
 // runs, so nothing lingers as upcoming work. The runs reap goes first: deleting
 // the schedules row SET-NULLs runs.schedule_id, after which the rows are
 // unreachable by schedule id even inside this transaction.
-func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) error {
+func (s *Store) DeleteSchedule(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: begin schedule delete: %w", err)
@@ -808,12 +827,13 @@ func (s *Store) DeleteSchedule(ctx context.Context, id filament.ScheduleID) erro
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
 	if err := q.DeleteScheduleScheduledRuns(ctx, sqlcgen.DeleteScheduleScheduledRunsParams{
+		TenantID:   string(tenant),
 		ScheduleID: toText(string(id)),
 		Status:     int16(filament.RunScheduled), //nolint:gosec // small enum
 	}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete schedule scheduled runs: %w", err)
 	}
-	if err := q.DeleteSchedule(ctx, string(id)); err != nil {
+	if err := q.DeleteSchedule(ctx, sqlcgen.DeleteScheduleParams{TenantID: string(tenant), ScheduleID: string(id)}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete schedule: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -875,8 +895,8 @@ func (s *Store) ClaimDue(ctx context.Context, now time.Time, limit int) ([]filam
 }
 
 // ReleaseScheduleClaim makes a claimed occurrence eligible for retry.
-func (s *Store) ReleaseScheduleClaim(ctx context.Context, id filament.ScheduleID) error {
-	err := s.q.ReleaseScheduleClaim(ctx, string(id))
+func (s *Store) ReleaseScheduleClaim(ctx context.Context, tenant filament.TenantID, id filament.ScheduleID) error {
+	err := s.q.ReleaseScheduleClaim(ctx, sqlcgen.ReleaseScheduleClaimParams{TenantID: string(tenant), ScheduleID: string(id)})
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: release schedule claim: %w", err)
 	}

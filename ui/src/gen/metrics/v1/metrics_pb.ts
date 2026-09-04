@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file metrics/v1/metrics.proto.
  */
 export const file_metrics_v1_metrics: GenFile = /*@__PURE__*/
-  fileDesc("ChhtZXRyaWNzL3YxL21ldHJpY3MucHJvdG8SCm1ldHJpY3MudjEiTgoMTWV0cmljRmlsdGVyEi4KCWRpbWVuc2lvbhgBIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEg4KBnZhbHVlcxgCIAMoCSKdAgoWUXVlcnlUaW1lc2VyaWVzUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSIwoHbWV0cmljcxgCIAMoDjISLm1ldHJpY3MudjEuTWV0cmljEhAKCHNpbmNlX21zGAMgASgDEhAKCHVudGlsX21zGAQgASgDEjIKC2dyYW51bGFyaXR5GAUgASgOMh0ubWV0cmljcy52MS5NZXRyaWNHcmFudWxhcml0eRIZChF0el9vZmZzZXRfbWludXRlcxgGIAEoBRItCghncm91cF9ieRgHIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEikKB2ZpbHRlcnMYCCADKAsyGC5tZXRyaWNzLnYxLk1ldHJpY0ZpbHRlciI6Cg9UaW1lc2VyaWVzUG9pbnQSFwoPYnVja2V0X3N0YXJ0X21zGAEgASgDEg4KBnZhbHVlcxgCIAMoASJGCgpUaW1lc2VyaWVzEgsKA2tleRgBIAEoCRIrCgZwb2ludHMYAiADKAsyGy5tZXRyaWNzLnYxLlRpbWVzZXJpZXNQb2ludCJBChdRdWVyeVRpbWVzZXJpZXNSZXNwb25zZRImCgZzZXJpZXMYASADKAsyFi5tZXRyaWNzLnYxLlRpbWVzZXJpZXMizQEKFVF1ZXJ5QWdncmVnYXRlUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSIwoHbWV0cmljcxgCIAMoDjISLm1ldHJpY3MudjEuTWV0cmljEhAKCHNpbmNlX21zGAMgASgDEhAKCHVudGlsX21zGAQgASgDEi0KCGdyb3VwX2J5GAUgASgOMhsubWV0cmljcy52MS5NZXRyaWNEaW1lbnNpb24SKQoHZmlsdGVycxgGIAMoCzIYLm1ldHJpY3MudjEuTWV0cmljRmlsdGVyIisKDEFnZ3JlZ2F0ZVJvdxILCgNrZXkYASABKAkSDgoGdmFsdWVzGAIgAygBIkAKFlF1ZXJ5QWdncmVnYXRlUmVzcG9uc2USJgoEcm93cxgBIAMoCzIYLm1ldHJpY3MudjEuQWdncmVnYXRlUm93KrQBCgZNZXRyaWMSFgoSTUVUUklDX1VOU1BFQ0lGSUVEEAASFAoQTUVUUklDX1JVTl9DT1VOVBABEhYKEk1FVFJJQ19SVU5fUkVDT1JEUxACEhQKEE1FVFJJQ19SVU5fQllURVMQAxIXChNNRVRSSUNfUlVOX0RVUkFUSU9OEAQSGwoXTUVUUklDX1JVTl9NRU1PUllfVVNBR0UQBRIYChRNRVRSSUNfUlVOX0NQVV9VU0FHRRAGKpIBCg9NZXRyaWNEaW1lbnNpb24SIAocTUVUUklDX0RJTUVOU0lPTl9VTlNQRUNJRklFRBAAEh4KGk1FVFJJQ19ESU1FTlNJT05fVEVOQU5UX0lEEAESIAocTUVUUklDX0RJTUVOU0lPTl9QSVBFTElORV9JRBACEhsKF01FVFJJQ19ESU1FTlNJT05fU1RBVFVTEAMqcAoRTWV0cmljR3JhbnVsYXJpdHkSIgoeTUVUUklDX0dSQU5VTEFSSVRZX1VOU1BFQ0lGSUVEEAASGwoXTUVUUklDX0dSQU5VTEFSSVRZX0hPVVIQARIaChZNRVRSSUNfR1JBTlVMQVJJVFlfREFZEAIyxQEKDk1ldHJpY3NTZXJ2aWNlEloKD1F1ZXJ5VGltZXNlcmllcxIiLm1ldHJpY3MudjEuUXVlcnlUaW1lc2VyaWVzUmVxdWVzdBojLm1ldHJpY3MudjEuUXVlcnlUaW1lc2VyaWVzUmVzcG9uc2USVwoOUXVlcnlBZ2dyZWdhdGUSIS5tZXRyaWNzLnYxLlF1ZXJ5QWdncmVnYXRlUmVxdWVzdBoiLm1ldHJpY3MudjEuUXVlcnlBZ2dyZWdhdGVSZXNwb25zZWIGcHJvdG8z");
+  fileDesc("ChhtZXRyaWNzL3YxL21ldHJpY3MucHJvdG8SCm1ldHJpY3MudjEiTgoMTWV0cmljRmlsdGVyEi4KCWRpbWVuc2lvbhgBIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEg4KBnZhbHVlcxgCIAMoCSKKAgoWUXVlcnlUaW1lc2VyaWVzUmVxdWVzdBIjCgdtZXRyaWNzGAEgAygOMhIubWV0cmljcy52MS5NZXRyaWMSEAoIc2luY2VfbXMYAiABKAMSEAoIdW50aWxfbXMYAyABKAMSMgoLZ3JhbnVsYXJpdHkYBCABKA4yHS5tZXRyaWNzLnYxLk1ldHJpY0dyYW51bGFyaXR5EhkKEXR6X29mZnNldF9taW51dGVzGAUgASgFEi0KCGdyb3VwX2J5GAYgASgOMhsubWV0cmljcy52MS5NZXRyaWNEaW1lbnNpb24SKQoHZmlsdGVycxgHIAMoCzIYLm1ldHJpY3MudjEuTWV0cmljRmlsdGVyIjoKD1RpbWVzZXJpZXNQb2ludBIXCg9idWNrZXRfc3RhcnRfbXMYASABKAMSDgoGdmFsdWVzGAIgAygBIkYKClRpbWVzZXJpZXMSCwoDa2V5GAEgASgJEisKBnBvaW50cxgCIAMoCzIbLm1ldHJpY3MudjEuVGltZXNlcmllc1BvaW50IkEKF1F1ZXJ5VGltZXNlcmllc1Jlc3BvbnNlEiYKBnNlcmllcxgBIAMoCzIWLm1ldHJpY3MudjEuVGltZXNlcmllcyK6AQoVUXVlcnlBZ2dyZWdhdGVSZXF1ZXN0EiMKB21ldHJpY3MYASADKA4yEi5tZXRyaWNzLnYxLk1ldHJpYxIQCghzaW5jZV9tcxgCIAEoAxIQCgh1bnRpbF9tcxgDIAEoAxItCghncm91cF9ieRgEIAEoDjIbLm1ldHJpY3MudjEuTWV0cmljRGltZW5zaW9uEikKB2ZpbHRlcnMYBSADKAsyGC5tZXRyaWNzLnYxLk1ldHJpY0ZpbHRlciIrCgxBZ2dyZWdhdGVSb3cSCwoDa2V5GAEgASgJEg4KBnZhbHVlcxgCIAMoASJAChZRdWVyeUFnZ3JlZ2F0ZVJlc3BvbnNlEiYKBHJvd3MYASADKAsyGC5tZXRyaWNzLnYxLkFnZ3JlZ2F0ZVJvdyq0AQoGTWV0cmljEhYKEk1FVFJJQ19VTlNQRUNJRklFRBAAEhQKEE1FVFJJQ19SVU5fQ09VTlQQARIWChJNRVRSSUNfUlVOX1JFQ09SRFMQAhIUChBNRVRSSUNfUlVOX0JZVEVTEAMSFwoTTUVUUklDX1JVTl9EVVJBVElPThAEEhsKF01FVFJJQ19SVU5fTUVNT1JZX1VTQUdFEAUSGAoUTUVUUklDX1JVTl9DUFVfVVNBR0UQBiqSAQoPTWV0cmljRGltZW5zaW9uEiAKHE1FVFJJQ19ESU1FTlNJT05fVU5TUEVDSUZJRUQQABIeChpNRVRSSUNfRElNRU5TSU9OX1RFTkFOVF9JRBABEiAKHE1FVFJJQ19ESU1FTlNJT05fUElQRUxJTkVfSUQQAhIbChdNRVRSSUNfRElNRU5TSU9OX1NUQVRVUxADKnAKEU1ldHJpY0dyYW51bGFyaXR5EiIKHk1FVFJJQ19HUkFOVUxBUklUWV9VTlNQRUNJRklFRBAAEhsKF01FVFJJQ19HUkFOVUxBUklUWV9IT1VSEAESGgoWTUVUUklDX0dSQU5VTEFSSVRZX0RBWRACMsUBCg5NZXRyaWNzU2VydmljZRJaCg9RdWVyeVRpbWVzZXJpZXMSIi5tZXRyaWNzLnYxLlF1ZXJ5VGltZXNlcmllc1JlcXVlc3QaIy5tZXRyaWNzLnYxLlF1ZXJ5VGltZXNlcmllc1Jlc3BvbnNlElcKDlF1ZXJ5QWdncmVnYXRlEiEubWV0cmljcy52MS5RdWVyeUFnZ3JlZ2F0ZVJlcXVlc3QaIi5tZXRyaWNzLnYxLlF1ZXJ5QWdncmVnYXRlUmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * MetricFilter narrows a query; values are dimension values as strings
@@ -42,37 +42,29 @@ export const MetricFilterSchema: GenMessage<MetricFilter> = /*@__PURE__*/
  */
 export type QueryTimeseriesRequest = Message<"metrics.v1.QueryTimeseriesRequest"> & {
   /**
-   * tenant_id scopes the query; "" matches every tenant. Mirrors
-   * ListRunsRequest.tenant_id (ingestion.v1).
-   *
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
    * metrics are computed together per bucket; point values align with this
    * order positionally.
    *
-   * @generated from field: repeated metrics.v1.Metric metrics = 2;
+   * @generated from field: repeated metrics.v1.Metric metrics = 1;
    */
   metrics: Metric[];
 
   /**
    * inclusive
    *
-   * @generated from field: int64 since_ms = 3;
+   * @generated from field: int64 since_ms = 2;
    */
   sinceMs: bigint;
 
   /**
    * exclusive; unset = now
    *
-   * @generated from field: int64 until_ms = 4;
+   * @generated from field: int64 until_ms = 3;
    */
   untilMs: bigint;
 
   /**
-   * @generated from field: metrics.v1.MetricGranularity granularity = 5;
+   * @generated from field: metrics.v1.MetricGranularity granularity = 4;
    */
   granularity: MetricGranularity;
 
@@ -80,19 +72,19 @@ export type QueryTimeseriesRequest = Message<"metrics.v1.QueryTimeseriesRequest"
    * tz_offset_minutes shifts bucket boundaries east of UTC so DAY buckets
    * match the viewer's local calendar day.
    *
-   * @generated from field: int32 tz_offset_minutes = 6;
+   * @generated from field: int32 tz_offset_minutes = 5;
    */
   tzOffsetMinutes: number;
 
   /**
    * UNSPECIFIED = one total series, key ""
    *
-   * @generated from field: metrics.v1.MetricDimension group_by = 7;
+   * @generated from field: metrics.v1.MetricDimension group_by = 6;
    */
   groupBy: MetricDimension;
 
   /**
-   * @generated from field: repeated metrics.v1.MetricFilter filters = 8;
+   * @generated from field: repeated metrics.v1.MetricFilter filters = 7;
    */
   filters: MetricFilter[];
 };
@@ -178,41 +170,33 @@ export const QueryTimeseriesResponseSchema: GenMessage<QueryTimeseriesResponse> 
  */
 export type QueryAggregateRequest = Message<"metrics.v1.QueryAggregateRequest"> & {
   /**
-   * tenant_id scopes the query; "" matches every tenant. Mirrors
-   * ListRunsRequest.tenant_id (ingestion.v1).
-   *
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: repeated metrics.v1.Metric metrics = 2;
+   * @generated from field: repeated metrics.v1.Metric metrics = 1;
    */
   metrics: Metric[];
 
   /**
    * inclusive
    *
-   * @generated from field: int64 since_ms = 3;
+   * @generated from field: int64 since_ms = 2;
    */
   sinceMs: bigint;
 
   /**
    * exclusive; unset = now
    *
-   * @generated from field: int64 until_ms = 4;
+   * @generated from field: int64 until_ms = 3;
    */
   untilMs: bigint;
 
   /**
    * UNSPECIFIED = single total row, key ""
    *
-   * @generated from field: metrics.v1.MetricDimension group_by = 5;
+   * @generated from field: metrics.v1.MetricDimension group_by = 4;
    */
   groupBy: MetricDimension;
 
   /**
-   * @generated from field: repeated metrics.v1.MetricFilter filters = 6;
+   * @generated from field: repeated metrics.v1.MetricFilter filters = 5;
    */
   filters: MetricFilter[];
 };

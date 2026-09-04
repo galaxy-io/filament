@@ -37,6 +37,19 @@ func (s *Store) EnsureTenant(ctx context.Context, id filament.TenantID, name str
 	return nil
 }
 
+// ResolveTenant maps a provider organization id onto filament's tenant id,
+// minting the row on first sight and refreshing the display name.
+func (s *Store) ResolveTenant(ctx context.Context, externalID, name string) (filament.TenantID, error) {
+	if externalID == "" {
+		return "", fmt.Errorf("datastore/postgres: tenant external id is required")
+	}
+	id, err := s.q.ResolveTenant(ctx, sqlcgen.ResolveTenantParams{ExternalID: externalID, Name: name})
+	if err != nil {
+		return "", fmt.Errorf("datastore/postgres: resolve tenant: %w", err)
+	}
+	return filament.TenantID(id), nil
+}
+
 // LoadTenant returns a tenant row by id.
 func (s *Store) LoadTenant(ctx context.Context, id filament.TenantID) (Tenant, error) {
 	row, err := s.q.LoadTenant(ctx, string(id))

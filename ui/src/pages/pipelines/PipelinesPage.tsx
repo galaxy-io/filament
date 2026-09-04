@@ -8,6 +8,7 @@ import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
 
 import DocsButton from "@/components/DocsButton";
 
+import { Flow } from "@/layouts/app/types";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
@@ -18,8 +19,6 @@ import {
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
 
-import { Flow } from "@/routes/__root";
-
 import {
   createListPipelinesInput,
   useSuspenseListPipelinesInfiniteQuery,
@@ -27,7 +26,7 @@ import {
 
 const PipelinesPage = () => {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/_main/pipelines" });
+  const search = useSearch({ from: "/_app/_main/pipelines" });
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useSuspenseListPipelinesInfiniteQuery({

@@ -33,7 +33,7 @@ func TestDeleteScheduleReapsScheduledRuns(t *testing.T) {
 		}
 	}
 
-	if err := store.DeleteSchedule(ctx, "s-1"); err != nil {
+	if err := store.DeleteSchedule(ctx, "t-1", "s-1"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -44,7 +44,7 @@ func TestDeleteScheduleReapsScheduledRuns(t *testing.T) {
 	if len(pending) != 0 {
 		t.Fatalf("expected pending scheduled runs reaped on schedule delete, got %+v", pending)
 	}
-	promoted, err := store.LoadRun(ctx, "r-promoted")
+	promoted, err := store.LoadRun(ctx, "t-1", "r-promoted")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -90,17 +90,12 @@ func (b *queryBuilder) arg(v any) string {
 	return fmt.Sprintf("$%d", len(b.args))
 }
 
-// whereClause builds "WHERE started_at >= $1 AND started_at < $2 [AND
-// tenant_id = $n] [AND col IN ($n, ...)]*" — runs that never started are
-// excluded, and an empty tenant omits the tenant filter entirely (matches
-// every tenant), both matching ListRuns's own filter semantics
-// (datastore/postgres.Store.ListRuns's "if f.Tenant != \"\"" guard).
+// whereClause builds "WHERE started_at >= $1 AND started_at < $2 AND
+// tenant_id = $3 [AND col IN ($n, ...)]*". Runs that never started are
+// excluded, and tenant scope is mandatory.
 func (b *queryBuilder) whereClause(tenant filament.TenantID, since, until time.Time, filters []filament.MetricsFilter) (string, error) {
 	var s strings.Builder
-	fmt.Fprintf(&s, "WHERE started_at >= %s AND started_at < %s", b.arg(since), b.arg(until))
-	if tenant != "" {
-		fmt.Fprintf(&s, " AND tenant_id = %s", b.arg(string(tenant)))
-	}
+	fmt.Fprintf(&s, "WHERE started_at >= %s AND started_at < %s AND tenant_id = %s", b.arg(since), b.arg(until), b.arg(string(tenant)))
 	for _, f := range filters {
 		col, ok := dimensionColumn(f.Dimension)
 		if !ok || len(f.Values) == 0 {

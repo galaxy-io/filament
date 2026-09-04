@@ -6,8 +6,8 @@ import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 export const usePipelinePreviewVersion = (): PipelineVersion | undefined => {
-  const { id } = useParams({ from: "/pipelines/$id" });
-  const { version: searchVersion } = useSearch({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { version: searchVersion } = useSearch({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),

@@ -19,6 +19,15 @@ data:
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"
 
+  # Auth
+  {{- if .Values.auth.enabled }}
+  AUTH_PROVIDER: {{ .Values.auth.type | quote }}
+  {{- if eq .Values.auth.type "zitadel" }}
+  AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}
+  {{- end }}
+  AUTH_UI_ORIGIN: {{ .Values.auth.uiOrigin | quote }}
+  {{- end }}
+
   # Observability
   LOG_LEVEL: {{ .Values.server.logLevel | quote }}
   {{- with .Values.observability.otel.endpoint }}

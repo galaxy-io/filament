@@ -77,20 +77,30 @@ func (q *Queries) ClaimDue(ctx context.Context, arg ClaimDueParams) ([]*ClaimDue
 }
 
 const deletePipelineSchedules = `-- name: DeletePipelineSchedules :exec
-DELETE FROM schedules WHERE pipeline_id = $1
+DELETE FROM schedules WHERE tenant_id = $1 AND pipeline_id = $2
 `
 
-func (q *Queries) DeletePipelineSchedules(ctx context.Context, pipelineID string) error {
-	_, err := q.db.Exec(ctx, deletePipelineSchedules, pipelineID)
+type DeletePipelineSchedulesParams struct {
+	TenantID   string
+	PipelineID string
+}
+
+func (q *Queries) DeletePipelineSchedules(ctx context.Context, arg DeletePipelineSchedulesParams) error {
+	_, err := q.db.Exec(ctx, deletePipelineSchedules, arg.TenantID, arg.PipelineID)
 	return err
 }
 
 const deleteSchedule = `-- name: DeleteSchedule :exec
-DELETE FROM schedules WHERE id = $1
+DELETE FROM schedules WHERE tenant_id = $1 AND id = $2
 `
 
-func (q *Queries) DeleteSchedule(ctx context.Context, scheduleID string) error {
-	_, err := q.db.Exec(ctx, deleteSchedule, scheduleID)
+type DeleteScheduleParams struct {
+	TenantID   string
+	ScheduleID string
+}
+
+func (q *Queries) DeleteSchedule(ctx context.Context, arg DeleteScheduleParams) error {
+	_, err := q.db.Exec(ctx, deleteSchedule, arg.TenantID, arg.ScheduleID)
 	return err
 }
 
@@ -112,7 +122,7 @@ const listSchedules = `-- name: ListSchedules :many
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
-WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+WHERE tenant_id = $1
   AND ($2::boolean IS NULL OR enabled = $2)
 ORDER BY id
 LIMIT NULLIF($3::int, 0)
@@ -173,8 +183,13 @@ func (q *Queries) ListSchedules(ctx context.Context, arg ListSchedulesParams) ([
 const loadPipelineSchedule = `-- name: LoadPipelineSchedule :one
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE pipeline_id = $1
+FROM schedules WHERE tenant_id = $1 AND pipeline_id = $2
 `
+
+type LoadPipelineScheduleParams struct {
+	TenantID   string
+	PipelineID string
+}
 
 type LoadPipelineScheduleRow struct {
 	ID            string
@@ -190,8 +205,8 @@ type LoadPipelineScheduleRow struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
-func (q *Queries) LoadPipelineSchedule(ctx context.Context, pipelineID string) (*LoadPipelineScheduleRow, error) {
-	row := q.db.QueryRow(ctx, loadPipelineSchedule, pipelineID)
+func (q *Queries) LoadPipelineSchedule(ctx context.Context, arg LoadPipelineScheduleParams) (*LoadPipelineScheduleRow, error) {
+	row := q.db.QueryRow(ctx, loadPipelineSchedule, arg.TenantID, arg.PipelineID)
 	var i LoadPipelineScheduleRow
 	err := row.Scan(
 		&i.ID,
@@ -212,8 +227,13 @@ func (q *Queries) LoadPipelineSchedule(ctx context.Context, pipelineID string) (
 const loadSchedule = `-- name: LoadSchedule :one
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE id = $1
+FROM schedules WHERE tenant_id = $1 AND id = $2
 `
+
+type LoadScheduleParams struct {
+	TenantID   string
+	ScheduleID string
+}
 
 type LoadScheduleRow struct {
 	ID            string
@@ -229,8 +249,8 @@ type LoadScheduleRow struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
-func (q *Queries) LoadSchedule(ctx context.Context, scheduleID string) (*LoadScheduleRow, error) {
-	row := q.db.QueryRow(ctx, loadSchedule, scheduleID)
+func (q *Queries) LoadSchedule(ctx context.Context, arg LoadScheduleParams) (*LoadScheduleRow, error) {
+	row := q.db.QueryRow(ctx, loadSchedule, arg.TenantID, arg.ScheduleID)
 	var i LoadScheduleRow
 	err := row.Scan(
 		&i.ID,
@@ -249,11 +269,17 @@ func (q *Queries) LoadSchedule(ctx context.Context, scheduleID string) (*LoadSch
 }
 
 const releaseScheduleClaim = `-- name: ReleaseScheduleClaim :exec
-UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE id = $1
+UPDATE schedules SET claimed_at = NULL, updated_at = now()
+WHERE tenant_id = $1 AND id = $2
 `
 
-func (q *Queries) ReleaseScheduleClaim(ctx context.Context, scheduleID string) error {
-	_, err := q.db.Exec(ctx, releaseScheduleClaim, scheduleID)
+type ReleaseScheduleClaimParams struct {
+	TenantID   string
+	ScheduleID string
+}
+
+func (q *Queries) ReleaseScheduleClaim(ctx context.Context, arg ReleaseScheduleClaimParams) error {
+	_, err := q.db.Exec(ctx, releaseScheduleClaim, arg.TenantID, arg.ScheduleID)
 	return err
 }
 
@@ -262,9 +288,8 @@ INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, ov
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
 SELECT $1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, NULL, $11, now()
-FROM pipelines WHERE id = $3 AND NOT is_deleted
+FROM pipelines WHERE tenant_id = $2 AND id = $3 AND NOT is_deleted
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     name = EXCLUDED.name,
     cron_expr = EXCLUDED.cron_expr,
@@ -275,6 +300,7 @@ ON CONFLICT (id) DO UPDATE SET
     next_fire_at = EXCLUDED.next_fire_at,
     claimed_at = NULL,
     updated_at = now()
+WHERE schedules.tenant_id = EXCLUDED.tenant_id
 `
 
 type SaveScheduleParams struct {

@@ -39,7 +39,7 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	stored, exists := s.connections[c.ID]
-	if !exists {
+	if !exists || stored.Tenant != c.Tenant {
 		return filament.Connection{}, fmt.Errorf("connection %q: %w", c.ID, filament.ErrNotFound)
 	}
 	if stored.Version != c.Version {
@@ -55,14 +55,14 @@ func (s *Store) UpdateConnection(ctx context.Context, c filament.Connection) (fi
 // LoadConnection returns the connection with the given ID, including
 // soft-deleted ones so callers can still read a deleted connection's metadata.
 // DeletedAt tells them apart.
-func (s *Store) LoadConnection(ctx context.Context, id string) (filament.Connection, error) {
+func (s *Store) LoadConnection(ctx context.Context, tenant filament.TenantID, id string) (filament.Connection, error) {
 	if err := ctx.Err(); err != nil {
 		return filament.Connection{}, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	c, exists := s.connections[id]
-	if !exists {
+	if !exists || c.Tenant != string(tenant) {
 		c, exists = s.deletedConnections[id]
 	}
 	if !exists {
@@ -81,7 +81,7 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 	var out []filament.Connection
 	appendMatching := func(connections map[string]filament.Connection) {
 		for _, c := range connections {
-			if f.Tenant != "" && c.Tenant != f.Tenant {
+			if c.Tenant != f.Tenant {
 				continue
 			}
 			if f.Kind != filament.ConnectorKindUnspecified && c.Kind != f.Kind {
@@ -124,13 +124,13 @@ func (s *Store) ListConnections(ctx context.Context, f filament.ConnectionFilter
 // missing ID is a no-op. The name is stamped with the delete time to match the
 // postgres store, which mangles it so a restored row can't collide in the
 // partial unique index.
-func (s *Store) DeleteConnection(ctx context.Context, id string) error {
+func (s *Store) DeleteConnection(ctx context.Context, tenant filament.TenantID, id string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if c, exists := s.connections[id]; exists {
+	if c, exists := s.connections[id]; exists && c.Tenant == string(tenant) {
 		now := time.Now()
 		c.DeletedAt = now.UnixMilli()
 		c.Name = stampDeletedName(c.Name, now)

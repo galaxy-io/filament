@@ -115,7 +115,7 @@ func TestNATSPostgresTPCHToIceberg(t *testing.T) {
 		t.Fatalf("submit run: %v", err)
 	}
 
-	final := waitRunStatus(t, ctx, store, runID, filament.RunCompleted, filament.RunFailed, filament.RunPartial)
+	final := waitRunStatus(t, ctx, store, "t1", runID, filament.RunCompleted, filament.RunFailed, filament.RunPartial)
 	if final.Status != filament.RunCompleted {
 		t.Fatalf("run %s status = %v, error = %q", runID, final.Status, final.Error)
 	}
@@ -142,7 +142,7 @@ func icebergRESTURI(t *testing.T, ctx context.Context, lake *gxtc.DataLake) stri
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func waitRunStatus(t *testing.T, ctx context.Context, store filament.DataStore, id filament.RunID, statuses ...filament.RunStatus) filament.RunState {
+func waitRunStatus(t *testing.T, ctx context.Context, store filament.DataStore, tenant filament.TenantID, id filament.RunID, statuses ...filament.RunStatus) filament.RunState {
 	t.Helper()
 	want := map[filament.RunStatus]bool{}
 	for _, status := range statuses {
@@ -151,7 +151,7 @@ func waitRunStatus(t *testing.T, ctx context.Context, store filament.DataStore, 
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		state, err := store.LoadRun(ctx, id)
+		state, err := store.LoadRun(ctx, tenant, id)
 		if err == nil && want[state.Status] {
 			return state
 		}

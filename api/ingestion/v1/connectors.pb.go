@@ -83,11 +83,11 @@ type ConnectorSpec struct {
 	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	Modes         []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
 	ConfigSchema  *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
-	Description   string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	DarkLogoUrl   string                 `protobuf:"bytes,9,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
-	LightLogoUrl  string                 `protobuf:"bytes,10,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
-	SchemaField   string                 `protobuf:"bytes,11,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
-	Maturity      ConnectorMaturity      `protobuf:"varint,12,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
+	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	DarkLogoUrl   string                 `protobuf:"bytes,8,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
+	LightLogoUrl  string                 `protobuf:"bytes,9,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
+	SchemaField   string                 `protobuf:"bytes,10,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	Maturity      ConnectorMaturity      `protobuf:"varint,11,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,11 +201,10 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 
 type ListConnectorsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Pagination    *PaginationRequest     `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	Search        string                 `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
-	Sorting       *SortingRequest        `protobuf:"bytes,5,opt,name=sorting,proto3" json:"sorting,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Pagination    *PaginationRequest     `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	Search        string                 `protobuf:"bytes,3,opt,name=search,proto3" json:"search,omitempty"`
+	Sorting       *SortingRequest        `protobuf:"bytes,4,opt,name=sorting,proto3" json:"sorting,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -238,13 +237,6 @@ func (x *ListConnectorsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListConnectorsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectorsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ListConnectorsRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *ListConnectorsRequest) GetKind() ConnectorKind {
@@ -329,9 +321,8 @@ func (x *ListConnectorsResponse) GetPagination() *PaginationResponse {
 
 type GetConnectorRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -364,13 +355,6 @@ func (x *GetConnectorRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetConnectorRequest.ProtoReflect.Descriptor instead.
 func (*GetConnectorRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetConnectorRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *GetConnectorRequest) GetConnector() string {
@@ -433,11 +417,10 @@ func (x *GetConnectorResponse) GetConnector() *ConnectorSpec {
 
 type ValidateConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Connector     string                 `protobuf:"bytes,3,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
-	ConnectionId  string                 `protobuf:"bytes,6,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Kind          ConnectorKind          `protobuf:"varint,1,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -470,13 +453,6 @@ func (x *ValidateConfigRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ValidateConfigRequest.ProtoReflect.Descriptor instead.
 func (*ValidateConfigRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *ValidateConfigRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *ValidateConfigRequest) GetKind() ConnectorKind {
@@ -613,11 +589,10 @@ func (x *ValidateConfigResponse) GetErrors() []*ValidationError {
 
 type DiscoverResourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
-	Refresh       bool                   `protobuf:"varint,4,opt,name=refresh,proto3" json:"refresh,omitempty"`
-	ConnectionId  string                 `protobuf:"bytes,5,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	Refresh       bool                   `protobuf:"varint,3,opt,name=refresh,proto3" json:"refresh,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -650,13 +625,6 @@ func (x *DiscoverResourcesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DiscoverResourcesRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverResourcesRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *DiscoverResourcesRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *DiscoverResourcesRequest) GetConnector() string {
@@ -692,9 +660,9 @@ type Resource struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	IsSelectable  bool                   `protobuf:"varint,2,opt,name=is_selectable,json=isSelectable,proto3" json:"is_selectable,omitempty"`
 	PrimaryKey    []string               `protobuf:"bytes,3,rep,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
-	Selector      string                 `protobuf:"bytes,5,opt,name=selector,proto3" json:"selector,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Selector      string                 `protobuf:"bytes,4,opt,name=selector,proto3" json:"selector,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -817,11 +785,10 @@ func (x *DiscoverResourcesResponse) GetResources() []*Resource {
 
 type GetResourceColumnsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Connector     string                 `protobuf:"bytes,2,opt,name=connector,proto3" json:"connector,omitempty"`
-	Config        *structpb.Struct       `protobuf:"bytes,3,opt,name=config,proto3" json:"config,omitempty"`
-	ConnectionId  string                 `protobuf:"bytes,4,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
-	Resources     []string               `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
+	Connector     string                 `protobuf:"bytes,1,opt,name=connector,proto3" json:"connector,omitempty"`
+	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,3,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Resources     []string               `protobuf:"bytes,4,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -854,13 +821,6 @@ func (x *GetResourceColumnsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetResourceColumnsRequest.ProtoReflect.Descriptor instead.
 func (*GetResourceColumnsRequest) Descriptor() ([]byte, []int) {
 	return file_ingestion_v1_connectors_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *GetResourceColumnsRequest) GetTenantId() string {
-	if x != nil {
-		return x.TenantId
-	}
-	return ""
 }
 
 func (x *GetResourceColumnsRequest) GetConnector() string {
@@ -1123,70 +1083,65 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x123\n" +
 	"\x05modes\x18\x05 \x03(\x0e2\x1d.ingestion.v1.ReplicationModeR\x05modes\x12?\n" +
 	"\rconfig_schema\x18\x06 \x01(\v2\x1a.ingestion.v1.ConfigSchemaR\fconfigSchema\x12 \n" +
-	"\vdescription\x18\b \x01(\tR\vdescription\x12\"\n" +
-	"\rdark_logo_url\x18\t \x01(\tR\vdarkLogoUrl\x12$\n" +
-	"\x0elight_logo_url\x18\n" +
-	" \x01(\tR\flightLogoUrl\x12!\n" +
-	"\fschema_field\x18\v \x01(\tR\vschemaField\x12;\n" +
-	"\bmaturity\x18\f \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xf6\x01\n" +
-	"\x15ListConnectorsRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12\"\n" +
+	"\rdark_logo_url\x18\b \x01(\tR\vdarkLogoUrl\x12$\n" +
+	"\x0elight_logo_url\x18\t \x01(\tR\flightLogoUrl\x12!\n" +
+	"\fschema_field\x18\n" +
+	" \x01(\tR\vschemaField\x12;\n" +
+	"\bmaturity\x18\v \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xd9\x01\n" +
+	"\x15ListConnectorsRequest\x12/\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +
-	"pagination\x18\x03 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
+	"pagination\x18\x02 \x01(\v2\x1f.ingestion.v1.PaginationRequestR\n" +
 	"pagination\x12\x16\n" +
-	"\x06search\x18\x04 \x01(\tR\x06search\x126\n" +
-	"\asorting\x18\x05 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x97\x01\n" +
+	"\x06search\x18\x03 \x01(\tR\x06search\x126\n" +
+	"\asorting\x18\x04 \x01(\v2\x1c.ingestion.v1.SortingRequestR\asorting\"\x97\x01\n" +
 	"\x16ListConnectorsResponse\x12;\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x1b.ingestion.v1.ConnectorSpecR\n" +
 	"connectors\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"\x81\x01\n" +
-	"\x13GetConnectorRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
-	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
+	"pagination\"d\n" +
+	"\x13GetConnectorRequest\x12\x1c\n" +
+	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\"Q\n" +
 	"\x14GetConnectorResponse\x129\n" +
-	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xd9\x01\n" +
-	"\x15ValidateConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
-	"\tconnector\x18\x03 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
-	"\rconnection_id\x18\x06 \x01(\tR\fconnectionId\"A\n" +
+	"\tconnector\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\tconnector\"\xbc\x01\n" +
+	"\x15ValidateConfigRequest\x12/\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12\x1c\n" +
+	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
+	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\"A\n" +
 	"\x0fValidationError\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"e\n" +
 	"\x16ValidateConfigResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
-	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\xc5\x01\n" +
-	"\x18DiscoverResourcesRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
-	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
-	"\arefresh\x18\x04 \x01(\bR\arefresh\x12#\n" +
-	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\"\xa2\x02\n" +
+	"\x06errors\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06errors\"\xa8\x01\n" +
+	"\x18DiscoverResourcesRequest\x12\x1c\n" +
+	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x18\n" +
+	"\arefresh\x18\x03 \x01(\bR\arefresh\x12#\n" +
+	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\"\xa2\x02\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\ris_selectable\x18\x02 \x01(\bR\fisSelectable\x12\x1f\n" +
 	"\vprimary_key\x18\x03 \x03(\tR\n" +
 	"primaryKey\x12\x1a\n" +
-	"\bselector\x18\x05 \x01(\tR\bselector\x12!\n" +
-	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12@\n" +
-	"\bmetadata\x18\a \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bselector\x18\x04 \x01(\tR\bselector\x12!\n" +
+	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\x12@\n" +
+	"\bmetadata\x18\x06 \x03(\v2$.ingestion.v1.Resource.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
 	"\x19DiscoverResourcesResponse\x124\n" +
-	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xca\x01\n" +
-	"\x19GetResourceColumnsRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1c\n" +
-	"\tconnector\x18\x02 \x01(\tR\tconnector\x12/\n" +
-	"\x06config\x18\x03 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
-	"\rconnection_id\x18\x04 \x01(\tR\fconnectionId\x12\x1c\n" +
-	"\tresources\x18\x05 \x03(\tR\tresources\"\xb2\x03\n" +
+	"\tresources\x18\x01 \x03(\v2\x16.ingestion.v1.ResourceR\tresources\"\xad\x01\n" +
+	"\x19GetResourceColumnsRequest\x12\x1c\n" +
+	"\tconnector\x18\x01 \x01(\tR\tconnector\x12/\n" +
+	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12#\n" +
+	"\rconnection_id\x18\x03 \x01(\tR\fconnectionId\x12\x1c\n" +
+	"\tresources\x18\x04 \x03(\tR\tresources\"\xb2\x03\n" +
 	"\x0eResourceColumn\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\x12\x1f\n" +

@@ -14,11 +14,11 @@ func TestEscapeLikePattern(t *testing.T) {
 }
 
 func TestListRunsQueryUsesLiteralSubstringSearch(t *testing.T) {
-	query, args := listRunsQuery(filament.RunFilter{Search: `dev%`})
-	if !strings.Contains(query, "ILIKE '%' || $2 || '%' ESCAPE '\\'") {
+	query, args := listRunsQuery(filament.RunFilter{Tenant: "t1", Search: `dev%`})
+	if !strings.Contains(query, "ILIKE '%' || $3 || '%' ESCAPE '\\'") {
 		t.Fatalf("query does not use escaped substring search: %s", query)
 	}
-	if len(args) != 2 || args[0] != `dev%` || args[1] != `dev\%` {
+	if len(args) != 3 || args[0] != "t1" || args[1] != `dev%` || args[2] != `dev\%` {
 		t.Fatalf("args = %#v", args)
 	}
 }

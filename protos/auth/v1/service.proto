@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "auth/v1/members.proto";
+import "auth/v1/service_accounts.proto";
+import "auth/v1/session.proto";
+
+// AuthService is filament's identity surface. It is optional: with no
+// provider configured the server leaves it unimplemented and the API is
+// unauthenticated.
+//
+// The session RPCs run before the caller holds a bearer token, so they are
+// the server's only public procedures and carry no tenant_id — there is no
+// tenant until sign-in completes. Everything else is authenticated and
+// scoped to the caller's own tenant.
+service AuthService {
+  // Session; pre-token, public. An empty issuer means auth is disabled.
+  rpc GetAuthConfig(GetAuthConfigRequest) returns (GetAuthConfigResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse);
+
+  // Session; authenticated. The UI's sign-in check.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+
+  // Members; authenticated tenant administration.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc InviteMember(InviteMemberRequest) returns (InviteMemberResponse);
+  rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+
+  // Service accounts; authenticated tenant administration. Secrets are only
+  // returned by create and rotate and cannot be retrieved later.
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
+  rpc RotateServiceAccountSecret(RotateServiceAccountSecretRequest) returns (RotateServiceAccountSecretResponse);
+  rpc RemoveServiceAccount(RemoveServiceAccountRequest) returns (RemoveServiceAccountResponse);
+}

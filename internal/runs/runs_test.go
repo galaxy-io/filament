@@ -34,12 +34,12 @@ type failDeleteStore struct {
 	failures int
 }
 
-func (s *failDeleteStore) DeleteRun(ctx context.Context, id filament.RunID) error {
+func (s *failDeleteStore) DeleteRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) error {
 	if s.failures > 0 {
 		s.failures--
 		return errors.New("delete unavailable")
 	}
-	return s.DataStore.DeleteRun(ctx, id)
+	return s.DataStore.DeleteRun(ctx, tenant, id)
 }
 
 func TestIDForReturnsUUID(t *testing.T) {
@@ -77,7 +77,7 @@ func TestSubmitRetryRedispatchesStrandedRequestedRun(t *testing.T) {
 	if _, err := Submit(ctx, bus, store, filament.RunSubmission{Request: req}); err == nil || !strings.Contains(err.Error(), "delete undispatched") {
 		t.Fatalf("first Submit error = %v, want joined dispatch/delete failure", err)
 	}
-	state, err := store.LoadRun(ctx, id)
+	state, err := store.LoadRun(ctx, req.Tenant, id)
 	if err != nil || state.Status != filament.RunRequested {
 		t.Fatalf("stranded state = %#v, err = %v", state, err)
 	}

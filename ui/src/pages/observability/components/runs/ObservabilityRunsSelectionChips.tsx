@@ -12,7 +12,7 @@ const ObservabilityRunsSelectionChips = () => {
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
     runsBucket,
     runsStatus,
-  } = useSearch({ from: "/_main/observability" });
+  } = useSearch({ from: "/_app/_main/observability" });
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 

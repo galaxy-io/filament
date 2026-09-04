@@ -113,7 +113,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 		t.Fatalf("SaveRun: %v", err)
 	}
 
-	got, err := store.LoadRun(ctx, runOne)
+	got, err := store.LoadRun(ctx, tenantA, runOne)
 	if err != nil {
 		t.Fatalf("LoadRun: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestStore_RunLifecycle(t *testing.T) {
 		t.Fatalf("unexpected resources: %+v", got.Resources)
 	}
 
-	if _, err := store.LoadRun(ctx, missingRun); err == nil {
+	if _, err := store.LoadRun(ctx, tenantA, missingRun); err == nil {
 		t.Fatal("expected ErrNotFound for missing run")
 	}
 
@@ -137,10 +137,10 @@ func TestStore_RunLifecycle(t *testing.T) {
 	}
 
 	cp := filament.NewCheckpoint("orders").Set("page", 3)
-	if err := store.SaveCheckpoint(ctx, runOne, cp); err != nil {
+	if err := store.SaveCheckpoint(ctx, tenantA, runOne, cp); err != nil {
 		t.Fatalf("SaveCheckpoint: %v", err)
 	}
-	loaded, err := store.LoadCheckpoint(ctx, runOne, "orders")
+	loaded, err := store.LoadCheckpoint(ctx, tenantA, runOne, "orders")
 	if err != nil {
 		t.Fatalf("LoadCheckpoint: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 		t.Fatalf("expected leased schedule to be excluded from a second claim, got %+v", due2)
 	}
 
-	if err := store.ReleaseScheduleClaim(ctx, scheduleOne); err != nil {
+	if err := store.ReleaseScheduleClaim(ctx, tenantA, scheduleOne); err != nil {
 		t.Fatalf("ReleaseScheduleClaim: %v", err)
 	}
 	due3, err := store.ClaimDue(ctx, time.Now(), 0)
@@ -266,10 +266,10 @@ func TestStore_ScheduleClaimDue(t *testing.T) {
 		t.Fatalf("expected released schedule to be claimable, got %+v", due3)
 	}
 
-	if err := store.DeleteSchedule(ctx, scheduleOne); err != nil {
+	if err := store.DeleteSchedule(ctx, tenantA, scheduleOne); err != nil {
 		t.Fatalf("DeleteSchedule: %v", err)
 	}
-	if _, err := store.LoadSchedule(ctx, scheduleOne); err == nil {
+	if _, err := store.LoadSchedule(ctx, tenantA, scheduleOne); err == nil {
 		t.Fatal("expected ErrNotFound after DeleteSchedule")
 	}
 }
@@ -292,10 +292,10 @@ func TestStore_ConnectionSoftDelete(t *testing.T) {
 		t.Fatalf("CreateConnection: %v", err)
 	}
 
-	if err := store.DeleteConnection(ctx, connectionOne); err != nil {
+	if err := store.DeleteConnection(ctx, tenantA, connectionOne); err != nil {
 		t.Fatalf("DeleteConnection: %v", err)
 	}
-	loaded, err := store.LoadConnection(ctx, connectionOne)
+	loaded, err := store.LoadConnection(ctx, tenantA, connectionOne)
 	if err != nil {
 		t.Fatalf("expected deleted connection to stay loadable, got %v", err)
 	}
@@ -377,7 +377,7 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if created.GetCreatedAt() == 0 {
 		t.Fatalf("expected created_at on the create response, got %+v", created)
 	}
-	if _, err := store.CreatePipelineVersion(ctx, pipelineDeleted, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); err != nil {
+	if _, err := store.CreatePipelineVersion(ctx, tenantA, pipelineDeleted, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
 	if err := store.SaveSchedule(ctx, filament.ScheduleState{
@@ -389,10 +389,10 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 		t.Fatalf("SaveSchedule: %v", err)
 	}
 
-	if err := store.DeletePipeline(ctx, pipelineDeleted); err != nil {
+	if err := store.DeletePipeline(ctx, tenantA, pipelineDeleted); err != nil {
 		t.Fatalf("DeletePipeline: %v", err)
 	}
-	loaded, err := store.LoadPipeline(ctx, pipelineDeleted)
+	loaded, err := store.LoadPipeline(ctx, tenantA, pipelineDeleted)
 	if err != nil {
 		t.Fatalf("expected deleted pipeline to stay loadable, got %v", err)
 	}
@@ -428,15 +428,15 @@ func TestStore_PipelineSoftDelete(t *testing.T) {
 	if withDeleted[0].GetCreatedAt() == 0 || withDeleted[0].GetDeletedAt() == 0 {
 		t.Fatalf("expected created_at and deleted_at set, got %+v", withDeleted[0])
 	}
-	if _, err := store.CreatePipelineVersion(ctx, pipelineDeleted, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.CreatePipelineVersion(ctx, tenantA, pipelineDeleted, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}}); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound creating version on deleted pipeline, got %v", err)
 	}
-	if _, err := store.LoadPipelineSchedule(ctx, pipelineDeleted); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.LoadPipelineSchedule(ctx, tenantA, pipelineDeleted); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected schedule removed with pipeline, got %v", err)
 	}
 
 	// History survives for run views.
-	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: pipelineDeleted})
+	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: tenantA, PipelineID: pipelineDeleted})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions: %v", err)
 	}
@@ -457,7 +457,7 @@ func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineReaped, TenantId: tenantA, Name: "reaped"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, pipelineReaped, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	version, err := store.CreatePipelineVersion(ctx, tenantA, pipelineReaped, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -487,7 +487,7 @@ func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CreateRun: %v", err)
 	}
-	pending, _, err := store.ListRuns(ctx, filament.RunFilter{PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
+	pending, _, err := store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA, PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
 	if err != nil {
 		t.Fatalf("ListRuns before delete: %v", err)
 	}
@@ -495,11 +495,11 @@ func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
 		t.Fatalf("expected 1 pending scheduled run before delete, got %d", len(pending))
 	}
 
-	if err := store.DeletePipeline(ctx, pipelineReaped); err != nil {
+	if err := store.DeletePipeline(ctx, tenantA, pipelineReaped); err != nil {
 		t.Fatalf("DeletePipeline: %v", err)
 	}
 
-	pending, _, err = store.ListRuns(ctx, filament.RunFilter{PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
+	pending, _, err = store.ListRuns(ctx, filament.RunFilter{Tenant: tenantA, PipelineID: pipelineReaped, Status: []filament.RunStatus{filament.RunScheduled}})
 	if err != nil {
 		t.Fatalf("ListRuns after delete: %v", err)
 	}
@@ -513,7 +513,7 @@ func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
 	if len(orphans) != 0 {
 		t.Fatalf("expected no scheduled runs left for the tenant, got %+v", orphans)
 	}
-	if _, err := store.LoadPipelineSchedule(ctx, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.LoadPipelineSchedule(ctx, tenantA, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected schedule removed with pipeline, got %v", err)
 	}
 
@@ -522,7 +522,7 @@ func TestStore_DeletePipelineReapsScheduledRuns(t *testing.T) {
 	if err := store.SaveSchedule(ctx, schedule); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound saving a schedule for a deleted pipeline, got %v", err)
 	}
-	if _, err := store.LoadPipelineSchedule(ctx, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.LoadPipelineSchedule(ctx, tenantA, pipelineReaped); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected schedule to stay deleted after stale save, got %v", err)
 	}
 }
@@ -563,7 +563,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	version, err := store.CreatePipelineVersion(ctx, tenantA, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -571,7 +571,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected version 1, got %d", version.Version)
 	}
 
-	second, err := store.CreatePipelineVersion(ctx, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	second, err := store.CreatePipelineVersion(ctx, tenantA, created.Id, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion second: %v", err)
 	}
@@ -579,7 +579,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected version 2, got %d", second.Version)
 	}
 
-	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: created.Id})
+	versions, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: tenantA, PipelineID: created.Id})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions: %v", err)
 	}
@@ -592,7 +592,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	if versions[0].CreatedAt == 0 {
 		t.Fatalf("expected nonzero CreatedAt")
 	}
-	unknown, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: missingPipeline})
+	unknown, _, err := store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: tenantA, PipelineID: missingPipeline})
 	if err != nil {
 		t.Fatalf("ListPipelineVersions unknown: %v", err)
 	}
@@ -609,7 +609,7 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("expected updated name, got %q", updated.Name)
 	}
 
-	fetched, err := store.LoadPipeline(ctx, pipelineOne)
+	fetched, err := store.LoadPipeline(ctx, tenantA, pipelineOne)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -618,6 +618,73 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 	}
 	if fetched.GetCurrentVersion().GetId() != second.Id {
 		t.Fatalf("expected current version %q, got %q", second.Id, fetched.GetCurrentVersion().GetId())
+	}
+}
+
+func TestStore_EnsureUserIdempotent(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	first, err := store.EnsureUser(ctx, tenantA, "zitadel-user-1")
+	if err != nil {
+		t.Fatalf("EnsureUser: %v", err)
+	}
+	if first == "" {
+		t.Fatal("EnsureUser returned an empty id")
+	}
+	again, err := store.EnsureUser(ctx, tenantA, "zitadel-user-1")
+	if err != nil {
+		t.Fatalf("EnsureUser again: %v", err)
+	}
+	if again != first {
+		t.Fatalf("EnsureUser minted a second id %q for the same subject, want %q", again, first)
+	}
+	other, err := store.EnsureUser(ctx, tenantA, "zitadel-user-2")
+	if err != nil {
+		t.Fatalf("EnsureUser other: %v", err)
+	}
+	if other == first {
+		t.Fatalf("EnsureUser reused id %q across distinct subjects", first)
+	}
+	if _, err := store.EnsureUser(ctx, tenantA, ""); err == nil {
+		t.Fatal("EnsureUser accepted an empty external id")
+	}
+}
+
+func TestStore_ResolveTenantIdempotent(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	first, err := store.ResolveTenant(ctx, "zitadel-org-1", "Org One")
+	if err != nil {
+		t.Fatalf("ResolveTenant: %v", err)
+	}
+	if first == "" {
+		t.Fatal("ResolveTenant returned an empty id")
+	}
+	again, err := store.ResolveTenant(ctx, "zitadel-org-1", "")
+	if err != nil {
+		t.Fatalf("ResolveTenant again: %v", err)
+	}
+	if again != first {
+		t.Fatalf("ResolveTenant minted a second id %q for the same org, want %q", again, first)
+	}
+	loaded, err := store.LoadTenant(ctx, first)
+	if err != nil {
+		t.Fatalf("LoadTenant: %v", err)
+	}
+	if loaded.Name != "Org One" {
+		t.Fatalf("empty name overwrote %q with %q", "Org One", loaded.Name)
+	}
+	other, err := store.ResolveTenant(ctx, "zitadel-org-2", "Org Two")
+	if err != nil {
+		t.Fatalf("ResolveTenant other: %v", err)
+	}
+	if other == first {
+		t.Fatalf("ResolveTenant reused id %q across distinct orgs", first)
+	}
+	if _, err := store.ResolveTenant(ctx, "", "Nameless"); err == nil {
+		t.Fatal("ResolveTenant accepted an empty external id")
 	}
 }
 
@@ -694,7 +761,7 @@ func TestStore_TransitionRunCancelStampsEndedAt(t *testing.T) {
 		}
 	}
 
-	cancelled, err := store.TransitionRun(ctx, runCancelStamp,
+	cancelled, err := store.TransitionRun(ctx, tenantA, runCancelStamp,
 		[]filament.RunStatus{filament.RunRequested}, filament.RunCanceled, filament.RunTransitionOptions{Ended: true})
 	if err != nil {
 		t.Fatalf("TransitionRun cancel: %v", err)
@@ -709,7 +776,7 @@ func TestStore_TransitionRunCancelStampsEndedAt(t *testing.T) {
 	if err := store.SaveRun(ctx, cancelled); err != nil {
 		t.Fatalf("SaveRun after cancel: %v", err)
 	}
-	got, err := store.LoadRun(ctx, runCancelStamp)
+	got, err := store.LoadRun(ctx, tenantA, runCancelStamp)
 	if err != nil {
 		t.Fatalf("LoadRun: %v", err)
 	}
@@ -717,7 +784,7 @@ func TestStore_TransitionRunCancelStampsEndedAt(t *testing.T) {
 		t.Fatalf("expected ended_at first-write-wins at %v, got %v", stamp, got.EndedAt)
 	}
 
-	paused, err := store.TransitionRun(ctx, runPauseStamp,
+	paused, err := store.TransitionRun(ctx, tenantA, runPauseStamp,
 		[]filament.RunStatus{filament.RunRequested}, filament.RunPaused, filament.RunTransitionOptions{})
 	if err != nil {
 		t.Fatalf("TransitionRun pause: %v", err)
@@ -738,7 +805,7 @@ func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelinePruned, TenantId: tenantA, Name: "pruned"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, pipelinePruned, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	version, err := store.CreatePipelineVersion(ctx, tenantA, pipelinePruned, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -767,7 +834,7 @@ func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
 		}
 	}
 
-	if err := store.DeleteSchedule(ctx, schedulePruned); err != nil {
+	if err := store.DeleteSchedule(ctx, tenantA, schedulePruned); err != nil {
 		t.Fatalf("DeleteSchedule: %v", err)
 	}
 
@@ -778,14 +845,14 @@ func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
 	if len(pending) != 0 {
 		t.Fatalf("expected pending scheduled runs reaped on schedule delete, got %+v", pending)
 	}
-	promoted, err := store.LoadRun(ctx, runPromoted)
+	promoted, err := store.LoadRun(ctx, tenantA, runPromoted)
 	if err != nil {
 		t.Fatalf("LoadRun promoted: %v", err)
 	}
 	if promoted.Status != filament.RunRequested {
 		t.Fatalf("expected promoted run to survive schedule delete, got %+v", promoted)
 	}
-	if _, err := store.LoadSchedule(ctx, schedulePruned); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.LoadSchedule(ctx, tenantA, schedulePruned); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected schedule removed, got %v", err)
 	}
 }
@@ -805,11 +872,11 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineOne, TenantId: tenantA, Name: "cdc"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	versionOne, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	versionOne, err := store.CreatePipelineVersion(ctx, tenantA, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
-	versionTwo, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	versionTwo, err := store.CreatePipelineVersion(ctx, tenantA, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion second: %v", err)
 	}
@@ -862,12 +929,12 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}
 	legacyKey := key
 	legacyKey.ReplicationStreamID = ""
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+	if err := store.SaveResourceCheckpoint(ctx, tenantA, filament.ResourceCheckpointState{
 		Key: legacyKey, Run: runOne, Checkpoint: checkpoint.NewStreamDelta("customers", "0/10", 2),
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint legacy: %v", err)
 	}
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+	if err := store.SaveResourceCheckpoint(ctx, tenantA, filament.ResourceCheckpointState{
 		Key: key, Run: runOne, Checkpoint: checkpoint.NewStreamDelta("customers", "0/20", 4),
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint: %v", err)
@@ -878,12 +945,12 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveRun second: %v", err)
 	}
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+	if err := store.SaveResourceCheckpoint(ctx, tenantA, filament.ResourceCheckpointState{
 		Key: key, Run: runHighWater, Checkpoint: checkpoint.NewStreamDelta("customers", "0/30", 5),
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint second: %v", err)
 	}
-	loaded, err := store.LoadResourceCheckpoint(ctx, key)
+	loaded, err := store.LoadResourceCheckpoint(ctx, tenantA, key)
 	if err != nil {
 		t.Fatalf("LoadResourceCheckpoint: %v", err)
 	}
@@ -908,7 +975,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}
 	missingKey := key
 	missingKey.Resource = "orders"
-	if _, err := store.LoadResourceCheckpoint(ctx, missingKey); !errors.Is(err, filament.ErrNotFound) {
+	if _, err := store.LoadResourceCheckpoint(ctx, tenantA, missingKey); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("pending resource checkpoint error = %v, want ErrNotFound", err)
 	}
 
@@ -926,7 +993,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 		statuses["orders"] != filament.ReplicationStreamResourceRetired {
 		t.Fatalf("updated resource statuses = %+v", statuses)
 	}
-	listed, err := store.ListResourceCheckpoints(ctx, filament.ResourceCheckpointRoute{
+	listed, err := store.ListResourceCheckpoints(ctx, tenantA, filament.ResourceCheckpointRoute{
 		PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId(), Route: stream.Route,
 		ReplicationStreamID: stream.ID,
 	})
@@ -996,7 +1063,7 @@ func TestStore_ReplicationStreamAdmissionRollsBackOnRouteOverlap(t *testing.T) {
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineOne, TenantId: tenantA, Name: "cdc-overlap"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	version, err := store.CreatePipelineVersion(ctx, tenantA, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}

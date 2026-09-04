@@ -22,7 +22,7 @@ func (s *ackTestSource) AcknowledgeChanges(_ context.Context, cps map[string]fil
 
 func ackTestSpec() filament.RunSpec {
 	return filament.RunSpec{
-		Run: "run", PipelineID: "pipeline", PipelineVersionID: "version",
+		Tenant: "tenant", Run: "run", PipelineID: "pipeline", PipelineVersionID: "version",
 		CheckpointRoute: "route", Resources: []string{"users"},
 	}
 }
@@ -30,7 +30,7 @@ func ackTestSpec() filament.RunSpec {
 func saveRouteCheckpoint(t *testing.T, store *memory.Store, spec filament.RunSpec, resource string, run filament.RunID, cp filament.Checkpoint) {
 	t.Helper()
 	key, _ := spec.ResourceCheckpointKey(resource)
-	if err := store.SaveResourceCheckpoint(context.Background(), filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp}); err != nil {
+	if err := store.SaveResourceCheckpoint(context.Background(), spec.Tenant, filament.ResourceCheckpointState{Key: key, Run: run, Checkpoint: cp}); err != nil {
 		t.Fatal(err)
 	}
 }

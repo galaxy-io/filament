@@ -53,7 +53,7 @@ const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
 
 const ObservabilityMetricsWidget = () => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_main/observability",
+    from: "/_app/_main/observability",
   });
 
   const { totalsInput, statusCountsInput } = useMemo(() => {

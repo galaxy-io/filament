@@ -17,6 +17,8 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import DocsButton from "@/components/DocsButton";
 import GithubButton from "@/components/GithubButton";
 
+import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
+
 import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
 
 const MAIN_NAVBAR_HEIGHT = 52;
@@ -121,6 +123,9 @@ const MainLayoutNavbar = () => {
       >
         <FlexItem shrink={0}>
           <GithubButton />
+        </FlexItem>
+        <FlexItem shrink={0}>
+          <MainLayoutSettingsButton />
         </FlexItem>
       </FlexWrapper>
     </NavbarWrapper>

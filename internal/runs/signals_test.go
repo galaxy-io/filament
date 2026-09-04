@@ -67,7 +67,7 @@ func TestCancelStampsEndedAt(t *testing.T) {
 	if _, err := Signal(ctx, inproc.New(), store, cancelled, filament.SignalCancel); err != nil {
 		t.Fatal(err)
 	}
-	got, err := store.LoadRun(ctx, cancelled.Run)
+	got, err := store.LoadRun(ctx, cancelled.Tenant, cancelled.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestCancelStampsEndedAt(t *testing.T) {
 	if _, err := Signal(ctx, inproc.New(), store, paused, filament.SignalPause); err != nil {
 		t.Fatal(err)
 	}
-	got, err = store.LoadRun(ctx, paused.Run)
+	got, err = store.LoadRun(ctx, paused.Tenant, paused.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestResumePreservesOnlyCheckpointedProgress(t *testing.T) {
 			if _, err := Signal(ctx, inproc.New(), store, state, filament.SignalResume); err != nil {
 				t.Fatal(err)
 			}
-			got, err := store.LoadRun(ctx, state.Run)
+			got, err := store.LoadRun(ctx, state.Tenant, state.Run)
 			if err != nil {
 				t.Fatal(err)
 			}

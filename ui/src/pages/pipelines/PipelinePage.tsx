@@ -19,7 +19,7 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelinePage = () => {
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
   const navigate = useNavigate();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({

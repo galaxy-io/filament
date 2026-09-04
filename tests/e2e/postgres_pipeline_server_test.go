@@ -19,6 +19,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/memory"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
+	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
@@ -42,6 +43,7 @@ import (
 // (schema, mode) that merges over the connection config at run time.
 func TestPostgresPipelineThroughServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx = identity.WithTenant(ctx, "t1")
 	defer cancel()
 
 	registerTPCHSmokeScenario()
@@ -84,14 +86,12 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	// 1. Create the source and sink Connections through the API. dsn is
 	//    CONNECTION-scoped, so it belongs in the connection config.
 	srcConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		TenantId:  "t1",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Name:      "tpch-source",
 		Connector: "postgres",
 		Config:    mustStruct(t, map[string]any{"dsn": src.DSN()}),
 	})
 	sinkConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
-		TenantId:  "t1",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Name:      "warehouse",
 		Connector: "postgres",
@@ -120,8 +120,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 		})
 	}
 	created, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
-		TenantId: "t1",
-		Name:     "tpch-sync",
+		Name: "tpch-sync",
 	}))
 	if err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
@@ -148,7 +147,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 
 	for _, er := range runResp.Msg.GetEdgeRuns() {
 		run := er.GetRun().GetId()
-		final := waitRunStatus(t, ctx, store, filament.RunID(run),
+		final := waitRunStatus(t, ctx, store, "t1", filament.RunID(run),
 			filament.RunCompleted, filament.RunFailed, filament.RunPartial)
 		if final.Status != filament.RunCompleted {
 			t.Fatalf("run %s status = %v, error = %q", run, final.Status, final.Error)

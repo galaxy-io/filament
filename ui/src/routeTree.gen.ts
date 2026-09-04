@@ -9,114 +9,150 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as MainRouteRouteImport } from './routes/_main/route'
-import { Route as MainIndexRouteImport } from './routes/_main/index'
-import { Route as PipelinesIdRouteImport } from './routes/pipelines/$id'
-import { Route as MainSourcesRouteImport } from './routes/_main/sources'
-import { Route as MainSinksRouteImport } from './routes/_main/sinks'
-import { Route as MainPipelinesRouteImport } from './routes/_main/pipelines'
-import { Route as MainObservabilityRouteImport } from './routes/_main/observability'
-import { Route as PipelinesIdIndexRouteImport } from './routes/pipelines/$id/index'
-import { Route as PipelinesIdSettingsRouteImport } from './routes/pipelines/$id/settings'
-import { Route as PipelinesIdHistoryRouteImport } from './routes/pipelines/$id/history'
-import { Route as PipelinesIdCanvasRouteImport } from './routes/pipelines/$id/canvas'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteRouteImport } from './routes/_app/route'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as AppMainRouteRouteImport } from './routes/_app/_main/route'
+import { Route as AppMainIndexRouteImport } from './routes/_app/_main/index'
+import { Route as AppPipelinesIdRouteImport } from './routes/_app/pipelines/$id'
+import { Route as AppMainSourcesRouteImport } from './routes/_app/_main/sources'
+import { Route as AppMainSinksRouteImport } from './routes/_app/_main/sinks'
+import { Route as AppMainPipelinesRouteImport } from './routes/_app/_main/pipelines'
+import { Route as AppMainObservabilityRouteImport } from './routes/_app/_main/observability'
+import { Route as AppPipelinesIdIndexRouteImport } from './routes/_app/pipelines/$id/index'
+import { Route as AppPipelinesIdSettingsRouteImport } from './routes/_app/pipelines/$id/settings'
+import { Route as AppPipelinesIdHistoryRouteImport } from './routes/_app/pipelines/$id/history'
+import { Route as AppPipelinesIdCanvasRouteImport } from './routes/_app/pipelines/$id/canvas'
 
-const MainRouteRoute = MainRouteRouteImport.update({
-  id: '/_main',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MainIndexRoute = MainIndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppMainRouteRoute = AppMainRouteRouteImport.update({
+  id: '/_main',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppMainIndexRoute = AppMainIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => MainRouteRoute,
+  getParentRoute: () => AppMainRouteRoute,
 } as any)
-const PipelinesIdRoute = PipelinesIdRouteImport.update({
+const AppPipelinesIdRoute = AppPipelinesIdRouteImport.update({
   id: '/pipelines/$id',
   path: '/pipelines/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRouteRoute,
 } as any)
-const MainSourcesRoute = MainSourcesRouteImport.update({
+const AppMainSourcesRoute = AppMainSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
-  getParentRoute: () => MainRouteRoute,
+  getParentRoute: () => AppMainRouteRoute,
 } as any)
-const MainSinksRoute = MainSinksRouteImport.update({
+const AppMainSinksRoute = AppMainSinksRouteImport.update({
   id: '/sinks',
   path: '/sinks',
-  getParentRoute: () => MainRouteRoute,
+  getParentRoute: () => AppMainRouteRoute,
 } as any)
-const MainPipelinesRoute = MainPipelinesRouteImport.update({
+const AppMainPipelinesRoute = AppMainPipelinesRouteImport.update({
   id: '/pipelines',
   path: '/pipelines',
-  getParentRoute: () => MainRouteRoute,
+  getParentRoute: () => AppMainRouteRoute,
 } as any)
-const MainObservabilityRoute = MainObservabilityRouteImport.update({
+const AppMainObservabilityRoute = AppMainObservabilityRouteImport.update({
   id: '/observability',
   path: '/observability',
-  getParentRoute: () => MainRouteRoute,
+  getParentRoute: () => AppMainRouteRoute,
 } as any)
-const PipelinesIdIndexRoute = PipelinesIdIndexRouteImport.update({
+const AppPipelinesIdIndexRoute = AppPipelinesIdIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => PipelinesIdRoute,
+  getParentRoute: () => AppPipelinesIdRoute,
 } as any)
-const PipelinesIdSettingsRoute = PipelinesIdSettingsRouteImport.update({
+const AppPipelinesIdSettingsRoute = AppPipelinesIdSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => PipelinesIdRoute,
+  getParentRoute: () => AppPipelinesIdRoute,
 } as any)
-const PipelinesIdHistoryRoute = PipelinesIdHistoryRouteImport.update({
+const AppPipelinesIdHistoryRoute = AppPipelinesIdHistoryRouteImport.update({
   id: '/history',
   path: '/history',
-  getParentRoute: () => PipelinesIdRoute,
+  getParentRoute: () => AppPipelinesIdRoute,
 } as any)
-const PipelinesIdCanvasRoute = PipelinesIdCanvasRouteImport.update({
+const AppPipelinesIdCanvasRoute = AppPipelinesIdCanvasRouteImport.update({
   id: '/canvas',
   path: '/canvas',
-  getParentRoute: () => PipelinesIdRoute,
+  getParentRoute: () => AppPipelinesIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof MainIndexRoute
-  '/observability': typeof MainObservabilityRoute
-  '/pipelines': typeof MainPipelinesRoute
-  '/sinks': typeof MainSinksRoute
-  '/sources': typeof MainSourcesRoute
-  '/pipelines/$id': typeof PipelinesIdRouteWithChildren
-  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
-  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
-  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
-  '/pipelines/$id/': typeof PipelinesIdIndexRoute
+  '/': typeof AppMainIndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/observability': typeof AppMainObservabilityRoute
+  '/pipelines': typeof AppMainPipelinesRoute
+  '/sinks': typeof AppMainSinksRoute
+  '/sources': typeof AppMainSourcesRoute
+  '/pipelines/$id': typeof AppPipelinesIdRouteWithChildren
+  '/pipelines/$id/canvas': typeof AppPipelinesIdCanvasRoute
+  '/pipelines/$id/history': typeof AppPipelinesIdHistoryRoute
+  '/pipelines/$id/settings': typeof AppPipelinesIdSettingsRoute
+  '/pipelines/$id/': typeof AppPipelinesIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/observability': typeof MainObservabilityRoute
-  '/pipelines': typeof MainPipelinesRoute
-  '/sinks': typeof MainSinksRoute
-  '/sources': typeof MainSourcesRoute
-  '/': typeof MainIndexRoute
-  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
-  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
-  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
-  '/pipelines/$id': typeof PipelinesIdIndexRoute
+  '/': typeof AppMainIndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/observability': typeof AppMainObservabilityRoute
+  '/pipelines': typeof AppMainPipelinesRoute
+  '/sinks': typeof AppMainSinksRoute
+  '/sources': typeof AppMainSourcesRoute
+  '/pipelines/$id/canvas': typeof AppPipelinesIdCanvasRoute
+  '/pipelines/$id/history': typeof AppPipelinesIdHistoryRoute
+  '/pipelines/$id/settings': typeof AppPipelinesIdSettingsRoute
+  '/pipelines/$id': typeof AppPipelinesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_main': typeof MainRouteRouteWithChildren
-  '/_main/observability': typeof MainObservabilityRoute
-  '/_main/pipelines': typeof MainPipelinesRoute
-  '/_main/sinks': typeof MainSinksRoute
-  '/_main/sources': typeof MainSourcesRoute
-  '/pipelines/$id': typeof PipelinesIdRouteWithChildren
-  '/_main/': typeof MainIndexRoute
-  '/pipelines/$id/canvas': typeof PipelinesIdCanvasRoute
-  '/pipelines/$id/history': typeof PipelinesIdHistoryRoute
-  '/pipelines/$id/settings': typeof PipelinesIdSettingsRoute
-  '/pipelines/$id/': typeof PipelinesIdIndexRoute
+  '/_app': typeof AppRouteRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/_app/_main': typeof AppMainRouteRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
+  '/_app/_main/observability': typeof AppMainObservabilityRoute
+  '/_app/_main/pipelines': typeof AppMainPipelinesRoute
+  '/_app/_main/sinks': typeof AppMainSinksRoute
+  '/_app/_main/sources': typeof AppMainSourcesRoute
+  '/_app/pipelines/$id': typeof AppPipelinesIdRouteWithChildren
+  '/_app/_main/': typeof AppMainIndexRoute
+  '/_app/pipelines/$id/canvas': typeof AppPipelinesIdCanvasRoute
+  '/_app/pipelines/$id/history': typeof AppPipelinesIdHistoryRoute
+  '/_app/pipelines/$id/settings': typeof AppPipelinesIdSettingsRoute
+  '/_app/pipelines/$id/': typeof AppPipelinesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/register'
+    | '/invite/$token'
     | '/observability'
     | '/pipelines'
     | '/sinks'
@@ -128,158 +164,211 @@ export interface FileRouteTypes {
     | '/pipelines/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/invite/$token'
     | '/observability'
     | '/pipelines'
     | '/sinks'
     | '/sources'
-    | '/'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
     | '/pipelines/$id/settings'
     | '/pipelines/$id'
   id:
     | '__root__'
-    | '/_main'
-    | '/_main/observability'
-    | '/_main/pipelines'
-    | '/_main/sinks'
-    | '/_main/sources'
-    | '/pipelines/$id'
-    | '/_main/'
-    | '/pipelines/$id/canvas'
-    | '/pipelines/$id/history'
-    | '/pipelines/$id/settings'
-    | '/pipelines/$id/'
+    | '/_app'
+    | '/login'
+    | '/register'
+    | '/_app/_main'
+    | '/invite/$token'
+    | '/_app/_main/observability'
+    | '/_app/_main/pipelines'
+    | '/_app/_main/sinks'
+    | '/_app/_main/sources'
+    | '/_app/pipelines/$id'
+    | '/_app/_main/'
+    | '/_app/pipelines/$id/canvas'
+    | '/_app/pipelines/$id/history'
+    | '/_app/pipelines/$id/settings'
+    | '/_app/pipelines/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  MainRouteRoute: typeof MainRouteRouteWithChildren
-  PipelinesIdRoute: typeof PipelinesIdRouteWithChildren
+  AppRouteRoute: typeof AppRouteRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+  InviteTokenRoute: typeof InviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_main': {
-      id: '/_main'
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof MainRouteRouteImport
+      preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_main/': {
-      id: '/_main/'
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/_main': {
+      id: '/_app/_main'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppMainRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/_main/': {
+      id: '/_app/_main/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof MainIndexRouteImport
-      parentRoute: typeof MainRouteRoute
+      preLoaderRoute: typeof AppMainIndexRouteImport
+      parentRoute: typeof AppMainRouteRoute
     }
-    '/pipelines/$id': {
-      id: '/pipelines/$id'
+    '/_app/pipelines/$id': {
+      id: '/_app/pipelines/$id'
       path: '/pipelines/$id'
       fullPath: '/pipelines/$id'
-      preLoaderRoute: typeof PipelinesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppPipelinesIdRouteImport
+      parentRoute: typeof AppRouteRoute
     }
-    '/_main/sources': {
-      id: '/_main/sources'
+    '/_app/_main/sources': {
+      id: '/_app/_main/sources'
       path: '/sources'
       fullPath: '/sources'
-      preLoaderRoute: typeof MainSourcesRouteImport
-      parentRoute: typeof MainRouteRoute
+      preLoaderRoute: typeof AppMainSourcesRouteImport
+      parentRoute: typeof AppMainRouteRoute
     }
-    '/_main/sinks': {
-      id: '/_main/sinks'
+    '/_app/_main/sinks': {
+      id: '/_app/_main/sinks'
       path: '/sinks'
       fullPath: '/sinks'
-      preLoaderRoute: typeof MainSinksRouteImport
-      parentRoute: typeof MainRouteRoute
+      preLoaderRoute: typeof AppMainSinksRouteImport
+      parentRoute: typeof AppMainRouteRoute
     }
-    '/_main/pipelines': {
-      id: '/_main/pipelines'
+    '/_app/_main/pipelines': {
+      id: '/_app/_main/pipelines'
       path: '/pipelines'
       fullPath: '/pipelines'
-      preLoaderRoute: typeof MainPipelinesRouteImport
-      parentRoute: typeof MainRouteRoute
+      preLoaderRoute: typeof AppMainPipelinesRouteImport
+      parentRoute: typeof AppMainRouteRoute
     }
-    '/_main/observability': {
-      id: '/_main/observability'
+    '/_app/_main/observability': {
+      id: '/_app/_main/observability'
       path: '/observability'
       fullPath: '/observability'
-      preLoaderRoute: typeof MainObservabilityRouteImport
-      parentRoute: typeof MainRouteRoute
+      preLoaderRoute: typeof AppMainObservabilityRouteImport
+      parentRoute: typeof AppMainRouteRoute
     }
-    '/pipelines/$id/': {
-      id: '/pipelines/$id/'
+    '/_app/pipelines/$id/': {
+      id: '/_app/pipelines/$id/'
       path: '/'
       fullPath: '/pipelines/$id/'
-      preLoaderRoute: typeof PipelinesIdIndexRouteImport
-      parentRoute: typeof PipelinesIdRoute
+      preLoaderRoute: typeof AppPipelinesIdIndexRouteImport
+      parentRoute: typeof AppPipelinesIdRoute
     }
-    '/pipelines/$id/settings': {
-      id: '/pipelines/$id/settings'
+    '/_app/pipelines/$id/settings': {
+      id: '/_app/pipelines/$id/settings'
       path: '/settings'
       fullPath: '/pipelines/$id/settings'
-      preLoaderRoute: typeof PipelinesIdSettingsRouteImport
-      parentRoute: typeof PipelinesIdRoute
+      preLoaderRoute: typeof AppPipelinesIdSettingsRouteImport
+      parentRoute: typeof AppPipelinesIdRoute
     }
-    '/pipelines/$id/history': {
-      id: '/pipelines/$id/history'
+    '/_app/pipelines/$id/history': {
+      id: '/_app/pipelines/$id/history'
       path: '/history'
       fullPath: '/pipelines/$id/history'
-      preLoaderRoute: typeof PipelinesIdHistoryRouteImport
-      parentRoute: typeof PipelinesIdRoute
+      preLoaderRoute: typeof AppPipelinesIdHistoryRouteImport
+      parentRoute: typeof AppPipelinesIdRoute
     }
-    '/pipelines/$id/canvas': {
-      id: '/pipelines/$id/canvas'
+    '/_app/pipelines/$id/canvas': {
+      id: '/_app/pipelines/$id/canvas'
       path: '/canvas'
       fullPath: '/pipelines/$id/canvas'
-      preLoaderRoute: typeof PipelinesIdCanvasRouteImport
-      parentRoute: typeof PipelinesIdRoute
+      preLoaderRoute: typeof AppPipelinesIdCanvasRouteImport
+      parentRoute: typeof AppPipelinesIdRoute
     }
   }
 }
 
-interface MainRouteRouteChildren {
-  MainObservabilityRoute: typeof MainObservabilityRoute
-  MainPipelinesRoute: typeof MainPipelinesRoute
-  MainSinksRoute: typeof MainSinksRoute
-  MainSourcesRoute: typeof MainSourcesRoute
-  MainIndexRoute: typeof MainIndexRoute
+interface AppMainRouteRouteChildren {
+  AppMainObservabilityRoute: typeof AppMainObservabilityRoute
+  AppMainPipelinesRoute: typeof AppMainPipelinesRoute
+  AppMainSinksRoute: typeof AppMainSinksRoute
+  AppMainSourcesRoute: typeof AppMainSourcesRoute
+  AppMainIndexRoute: typeof AppMainIndexRoute
 }
 
-const MainRouteRouteChildren: MainRouteRouteChildren = {
-  MainObservabilityRoute: MainObservabilityRoute,
-  MainPipelinesRoute: MainPipelinesRoute,
-  MainSinksRoute: MainSinksRoute,
-  MainSourcesRoute: MainSourcesRoute,
-  MainIndexRoute: MainIndexRoute,
+const AppMainRouteRouteChildren: AppMainRouteRouteChildren = {
+  AppMainObservabilityRoute: AppMainObservabilityRoute,
+  AppMainPipelinesRoute: AppMainPipelinesRoute,
+  AppMainSinksRoute: AppMainSinksRoute,
+  AppMainSourcesRoute: AppMainSourcesRoute,
+  AppMainIndexRoute: AppMainIndexRoute,
 }
 
-const MainRouteRouteWithChildren = MainRouteRoute._addFileChildren(
-  MainRouteRouteChildren,
+const AppMainRouteRouteWithChildren = AppMainRouteRoute._addFileChildren(
+  AppMainRouteRouteChildren,
 )
 
-interface PipelinesIdRouteChildren {
-  PipelinesIdCanvasRoute: typeof PipelinesIdCanvasRoute
-  PipelinesIdHistoryRoute: typeof PipelinesIdHistoryRoute
-  PipelinesIdSettingsRoute: typeof PipelinesIdSettingsRoute
-  PipelinesIdIndexRoute: typeof PipelinesIdIndexRoute
+interface AppPipelinesIdRouteChildren {
+  AppPipelinesIdCanvasRoute: typeof AppPipelinesIdCanvasRoute
+  AppPipelinesIdHistoryRoute: typeof AppPipelinesIdHistoryRoute
+  AppPipelinesIdSettingsRoute: typeof AppPipelinesIdSettingsRoute
+  AppPipelinesIdIndexRoute: typeof AppPipelinesIdIndexRoute
 }
 
-const PipelinesIdRouteChildren: PipelinesIdRouteChildren = {
-  PipelinesIdCanvasRoute: PipelinesIdCanvasRoute,
-  PipelinesIdHistoryRoute: PipelinesIdHistoryRoute,
-  PipelinesIdSettingsRoute: PipelinesIdSettingsRoute,
-  PipelinesIdIndexRoute: PipelinesIdIndexRoute,
+const AppPipelinesIdRouteChildren: AppPipelinesIdRouteChildren = {
+  AppPipelinesIdCanvasRoute: AppPipelinesIdCanvasRoute,
+  AppPipelinesIdHistoryRoute: AppPipelinesIdHistoryRoute,
+  AppPipelinesIdSettingsRoute: AppPipelinesIdSettingsRoute,
+  AppPipelinesIdIndexRoute: AppPipelinesIdIndexRoute,
 }
 
-const PipelinesIdRouteWithChildren = PipelinesIdRoute._addFileChildren(
-  PipelinesIdRouteChildren,
+const AppPipelinesIdRouteWithChildren = AppPipelinesIdRoute._addFileChildren(
+  AppPipelinesIdRouteChildren,
+)
+
+interface AppRouteRouteChildren {
+  AppMainRouteRoute: typeof AppMainRouteRouteWithChildren
+  AppPipelinesIdRoute: typeof AppPipelinesIdRouteWithChildren
+}
+
+const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppMainRouteRoute: AppMainRouteRouteWithChildren,
+  AppPipelinesIdRoute: AppPipelinesIdRouteWithChildren,
+}
+
+const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
+  AppRouteRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  MainRouteRoute: MainRouteRouteWithChildren,
-  PipelinesIdRoute: PipelinesIdRouteWithChildren,
+  AppRouteRoute: AppRouteRouteWithChildren,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
+  InviteTokenRoute: InviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

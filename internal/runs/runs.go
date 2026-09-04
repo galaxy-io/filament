@@ -57,7 +57,7 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, submis
 	if createErr != nil {
 		err := createErr
 		if errors.Is(err, filament.ErrVersionConflict) {
-			state, loadErr := ds.LoadRun(ctx, id)
+			state, loadErr := ds.LoadRun(ctx, req.Tenant, id)
 			if loadErr != nil {
 				return "", fmt.Errorf("runs: inspect existing run %q: %w", id, loadErr)
 			}
@@ -83,7 +83,7 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, submis
 	if err := dispatch(ctx, bus, req.Tenant, id, now); err != nil {
 		// A row with no trigger would sit Requested forever — reap it and
 		// surface the failure so the caller retries the whole submit.
-		if derr := ds.DeleteRun(ctx, id); derr != nil {
+		if derr := ds.DeleteRun(ctx, req.Tenant, id); derr != nil {
 			err = errors.Join(err, fmt.Errorf("runs: delete undispatched run %q: %w", id, derr))
 		}
 		return "", err

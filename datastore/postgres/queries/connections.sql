@@ -6,19 +6,19 @@ VALUES (@connection_id, @tenant_id, @kind, @name, @connector, @config, @secret_r
 UPDATE connections
 SET name = @name, connector = @connector, config = @config, secret_refs = @secret_refs,
     version = version + 1, updated_at = now()
-WHERE id = @connection_id AND version = @expected_version AND NOT is_deleted
+WHERE tenant_id = @tenant_id AND id = @connection_id AND version = @expected_version AND NOT is_deleted
 RETURNING version;
 
 -- name: GetConnection :one
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
-FROM connections WHERE id = @connection_id;
+FROM connections WHERE tenant_id = @tenant_id AND id = @connection_id;
 
 -- name: ListConnections :many
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
-WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
+WHERE tenant_id = @tenant_id
   AND (sqlc.narg('kind')::connector_kind IS NULL OR kind = sqlc.narg('kind'))
   AND (@include_deleted::boolean OR NOT is_deleted)
   AND (nullif(@search::text, '') IS NULL
@@ -40,7 +40,7 @@ OFFSET @offset_rows::int;
 
 -- name: CountConnections :one
 SELECT count(*) FROM connections
-WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
+WHERE tenant_id = @tenant_id
   AND (sqlc.narg('kind')::connector_kind IS NULL OR kind = sqlc.narg('kind'))
   AND (@include_deleted::boolean OR NOT is_deleted)
   AND (nullif(@search::text, '') IS NULL
@@ -54,4 +54,4 @@ SET
   is_deleted = true,
   deleted_at = now(),
   updated_at = now()
-WHERE id = @connection_id AND NOT is_deleted;
+WHERE tenant_id = @tenant_id AND id = @connection_id AND NOT is_deleted;

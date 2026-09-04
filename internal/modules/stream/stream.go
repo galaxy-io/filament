@@ -39,8 +39,8 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 }
 
 // Snapshot returns the run's current persisted state and resource states.
-func (m *Module) Snapshot(ctx context.Context, run filament.RunID) (filament.SyncSnapshot, error) {
-	rs, err := m.ds.LoadRun(ctx, run)
+func (m *Module) Snapshot(ctx context.Context, tenant filament.TenantID, run filament.RunID) (filament.SyncSnapshot, error) {
+	rs, err := m.ds.LoadRun(ctx, tenant, run)
 	if err != nil {
 		return filament.SyncSnapshot{}, err
 	}

@@ -14,3 +14,7 @@ dependencies:
     version: 2.14.2
     repository: https://nats-io.github.io/k8s/helm/charts
     condition: nats.enabled
+  - name: zitadel
+    version: 10.0.4
+    repository: https://charts.zitadel.com
+    condition: zitadel.enabled

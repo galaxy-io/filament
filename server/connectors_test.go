@@ -82,7 +82,7 @@ func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
 	})
 	api := New(registry.NewSources(), sinks, memory.New(), nil, nil)
 
-	response, err := api.ValidateConfig(context.Background(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
+	response, err := api.ValidateConfig(testCtx(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
 		Connector: "live-sink",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 	}))
@@ -263,7 +263,7 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	sources.Register("columns", func() filament.Source { return &columnSource{counts: counts} })
 	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
 
-	response, err := api.GetResourceColumns(context.Background(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
+	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
 		Connector: "columns",
 		Resources: []string{"orders", "users"},
 	}))
