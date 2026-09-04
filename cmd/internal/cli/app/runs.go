@@ -58,9 +58,14 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.Run
 		return model.RunSubmission{}, fmt.Errorf("sink %q: %w", pipeline.Sink.Ref, err)
 	}
 	sinkConfig = applySinkSchemaDefault(sinkConfig, catalog.Sinks[sink.Type], pipeline.Source.Ref)
-	spec, err := makeRunSpec(request.Pipeline, source.Type, sink.Type, sourceConfig, sinkConfig, pipeline.Resources, pipeline.SyncMode, pipeline.WriteMode)
-	if err != nil {
-		return model.RunSubmission{}, err
+	spec := makeRunSpec(request.Pipeline, source.Type, sink.Type, sourceConfig, sinkConfig, pipeline.Resources)
+	// A saved pipeline runs on the deployment, which derives ingestion from
+	// the stored pipeline and keeps its checkpoints. An override runs in
+	// process with no state, so it takes only the full modes.
+	if override {
+		if spec, err = withDirectIngestion(spec, pipeline.SyncMode, pipeline.WriteMode); err != nil {
+			return model.RunSubmission{}, err
+		}
 	}
 	return model.RunSubmission{
 		Pipeline: &model.EntityReference{Name: request.Pipeline, Metadata: pipeline.Metadata},
@@ -112,26 +117,32 @@ func prepareInlineRun(run InlineRun, catalog model.Catalog) (filament.RunSpec, e
 		return filament.RunSpec{}, err
 	}
 	sinkConfig = applySinkSchemaDefault(sinkConfig, sinkSpec, run.Source.Connector)
-	return makeRunSpec("", run.Source.Connector, run.Sink.Connector, sourceConfig, sinkConfig, run.Resources, run.SyncMode, run.WriteMode)
+	spec := makeRunSpec("", run.Source.Connector, run.Sink.Connector, sourceConfig, sinkConfig, run.Resources)
+	return withDirectIngestion(spec, run.SyncMode, run.WriteMode)
 }
 
-func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConfig map[string]any, resources []string, syncName, writeName string) (filament.RunSpec, error) {
-	syncMode := filament.ModeFull
-	if syncName != "" && syncName != "full" {
-		return filament.RunSpec{}, fmt.Errorf("sync mode %q is not supported; use full", syncName)
+func makeRunSpec(pipelineID, sourceName, sinkName string, sourceConfig, sinkConfig map[string]any, resources []string) filament.RunSpec {
+	return filament.RunSpec{
+		PipelineID: pipelineID,
+		Source:     filament.Ref{Connector: sourceName, Config: sourceConfig},
+		Sink:       filament.Ref{Connector: sinkName, Config: sinkConfig},
+		Resources:  append([]string(nil), resources...),
 	}
-	writeMode := filament.WriteMode(writeName)
-	ingestionType, err := filament.IngestionFor(syncMode, writeMode)
+}
+
+// withDirectIngestion sets the ingestion for a run the CLI executes in
+// process. That runner keeps no state between runs, so incremental and cdc
+// have nothing to resume from and only full is accepted.
+func withDirectIngestion(spec filament.RunSpec, syncName, writeName string) (filament.RunSpec, error) {
+	if syncName != "" && syncName != "full" {
+		return filament.RunSpec{}, fmt.Errorf("sync mode %q is not supported for in-process runs; use full", syncName)
+	}
+	ingestionType, err := filament.IngestionFor(filament.ModeFull, filament.WriteMode(writeName))
 	if err != nil {
 		return filament.RunSpec{}, err
 	}
-	return filament.RunSpec{
-		PipelineID:     pipelineID,
-		Source:         filament.Ref{Connector: sourceName, Config: sourceConfig},
-		Sink:           filament.Ref{Connector: sinkName, Config: sinkConfig},
-		Resources:      append([]string(nil), resources...),
-		IngestionTypes: map[string]filament.IngestionType{"": ingestionType},
-	}, nil
+	spec.IngestionTypes = map[string]filament.IngestionType{"": ingestionType}
+	return spec, nil
 }
 
 func applySinkSchemaDefault(config map[string]any, spec filament.SinkSpec, sourceName string) map[string]any {
