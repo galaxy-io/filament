@@ -87,15 +87,18 @@ func WithUI(h http.Handler) Option { return func(c *Config) { c.UI = h } }
 // WithLogger sets the structured logger used by the API and runtime modules.
 func WithLogger(log filament.Logger) Option { return func(c *Config) { c.Log = log } }
 
+// newConfig applies opts, then fills what they left unset. Defaults are
+// built only when needed so an overridden store is never opened and leaked.
 func newConfig(opts ...Option) Config {
-	c := Config{
-		Bus:     inproc.New(),
-		Store:   sqlite.NewMemory(),
-		Sources: registry.DefaultSources,
-		Sinks:   registry.DefaultSinks,
-	}
+	c := Config{Sources: registry.DefaultSources, Sinks: registry.DefaultSinks}
 	for _, o := range opts {
 		o(&c)
+	}
+	if c.Bus == nil {
+		c.Bus = inproc.New()
+	}
+	if c.Store == nil {
+		c.Store = sqlite.NewMemory()
 	}
 	return c
 }
