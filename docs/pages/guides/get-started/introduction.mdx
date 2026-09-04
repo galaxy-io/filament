@@ -3,15 +3,6 @@ title: "Introduction"
 description: "What Filament is and how its pieces fit together"
 ---
 
-<video
-  autoPlay
-  muted
-  loop
-  playsInline
-  className="w-full rounded-2xl border border-gray-950/10 dark:border-white/10"
-  src="https://cdn.getgalaxy.io/filament/introduction.mp4"
-></video>
-
 Filament is a data replication engine written in Go. It supports full loads,
 incremental replication, and change data capture (CDC). As data moves through
 the engine, Filament verifies Arrow batches at the sink handoff and, where the
@@ -25,6 +16,23 @@ Runs that carry resumable progress (incremental and checkpointed full reads)
 pick up from their last durable checkpoint instead of starting over. The
 requirements and recovery behavior are covered in
 [Runs and recovery](/pages/guides/concepts/runs-and-recovery).
+
+<Frame caption="Welcome to Filament">
+  <div className="w-full">
+    <iframe
+      src="/assets/introduction.html"
+      title="Filament onboarding walkthrough"
+      className="hidden md:block w-full rounded-xl"
+      style={{ height: "660px", border: 0, colorScheme: "dark" }}
+    />
+    <iframe
+      src="/assets/introduction-mobile.html"
+      title="Filament onboarding walkthrough"
+      className="block md:hidden w-full rounded-xl"
+      style={{ height: "700px", border: 0, colorScheme: "dark" }}
+    />
+  </div>
+</Frame>
 
 ## How it's put together
 
