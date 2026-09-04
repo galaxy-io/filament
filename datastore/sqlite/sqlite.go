@@ -45,8 +45,15 @@ func Open(path string) (*Store, error) {
 			return nil, fmt.Errorf("datastore/sqlite: create directory: %w", err)
 		}
 	}
-	pragmas := url.Values{"_pragma": []string{"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)", "synchronous(NORMAL)"}}
-	dsn := (&url.URL{Scheme: "file", OmitHost: true, Path: path, RawQuery: pragmas.Encode()}).String()
+	return open(path, true)
+}
+
+func open(path string, foreignKeys bool) (*Store, error) {
+	pragmas := []string{"busy_timeout(5000)", "journal_mode(WAL)", "synchronous(NORMAL)"}
+	if foreignKeys {
+		pragmas = append(pragmas, "foreign_keys(1)")
+	}
+	dsn := (&url.URL{Scheme: "file", OmitHost: true, Path: path, RawQuery: url.Values{"_pragma": pragmas}.Encode()}).String()
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: open: %w", err)
