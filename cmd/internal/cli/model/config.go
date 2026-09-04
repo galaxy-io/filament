@@ -42,6 +42,9 @@ type Pipeline struct {
 	Resources []string       `json:"resources,omitempty" yaml:"resources,omitempty"`
 	SyncMode  string         `json:"sync_mode" yaml:"sync_mode"`
 	WriteMode string         `json:"write_mode" yaml:"write_mode"`
+	// Graph retains the target's complete graph. It never reaches YAML, which
+	// stays a simple source-to-sink pipeline.
+	Graph *PipelineGraph `json:"-" yaml:"-"`
 }
 
 // NamedPipeline identifies a pipeline returned by a target query.
@@ -53,8 +56,9 @@ type NamedPipeline struct {
 // PipelineNode references a connection and supplies pipeline-scoped
 // connector configuration.
 type PipelineNode struct {
-	Ref    string         `json:"ref" yaml:"ref"`
-	Config map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
+	Ref        string            `json:"ref" yaml:"ref"`
+	Config     map[string]any    `json:"config,omitempty" yaml:"config,omitempty"`
+	SecretRefs map[string]string `json:"-" yaml:"-"`
 }
 
 // NewDocument returns an initialized empty configuration document.

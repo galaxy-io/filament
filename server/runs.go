@@ -225,7 +225,8 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 		if state, ok, err := a.loadRunSnapshot(ctx, run); err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		} else if ok && runStatusTerminal(state.Status) {
-			return nil
+			// Terminal since replay; emit the terminal event replay skipped.
+			return send(tailResponse(runSnapshotEvent(state, true)))
 		}
 	}
 
@@ -259,13 +260,37 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 			if err != nil {
 				continue
 			}
+			switch f.Data.(type) {
+			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPausedEvent, events.RunCanceledEvent, events.RunPartialEvent:
+				// The client acts on the terminal event the moment it arrives,
+				// so it must not leave before the tracker has persisted it.
+				if err := a.awaitTerminalPersisted(ctx, run); err != nil {
+					return err
+				}
+				return send(tailResponse(eventToProto(f, false)))
+			}
 			if err := send(tailResponse(eventToProto(f, false))); err != nil {
 				return err
 			}
-			switch f.Data.(type) {
-			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPausedEvent, events.RunCanceledEvent:
-				return nil
-			}
+		}
+	}
+}
+
+func (a *Server) awaitTerminalPersisted(ctx context.Context, run filament.RunID) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		state, ok, err := a.loadRunSnapshot(ctx, run)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, err)
+		}
+		if ok && runStatusTerminal(state.Status) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
 		}
 	}
 }

@@ -50,8 +50,8 @@ func BuildPipeline(request SavePipelineRequest, existing *model.Pipeline, docume
 	oldSourceType, oldSinkType := "", ""
 	if existing != nil {
 		pipeline = *existing
-		pipeline.Source.Config = cloneConfigMap(existing.Source.Config)
-		pipeline.Sink.Config = cloneConfigMap(existing.Sink.Config)
+		pipeline.Source.Config = model.CloneConfig(existing.Source.Config)
+		pipeline.Sink.Config = model.CloneConfig(existing.Sink.Config)
 		oldSourceType = document.Sources[existing.Source.Ref].Type
 		oldSinkType = document.Sinks[existing.Sink.Ref].Type
 	}
