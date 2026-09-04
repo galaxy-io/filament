@@ -32,12 +32,12 @@ data:
   {{- end }}
 
   # Secrets
-  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
-  {{- if eq .Values.secrets.type "postgres" }}
-  {{- with .Values.secrets.postgres.encryptionKeyId }}
+  {{- if eq .Values.secrets.type "datastore" }}
+  {{- with .Values.secrets.datastore.encryptionKeyId }}
   ENCRYPTION_KEY_ID: {{ . | quote }}
   {{- end }}
   {{- else }}
+  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
   {{- with .Values.secrets.prefix }}
   SECRETS_PREFIX: {{ . | quote }}
   {{- end }}

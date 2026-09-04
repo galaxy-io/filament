@@ -59,7 +59,7 @@ helm upgrade --install filament \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \
   --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
-  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
+  --set-string secrets.datastore.encryptionKey="$ENC_KEY" \
   --set-string eventBus.nats.url='nats://filament-nats:4222'
 ```
 
@@ -145,7 +145,7 @@ helm upgrade --install filament \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| metrics.type | string | `"postgresql"` | Metrics backend for the dashboard query API, stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the datastore's own pool. |
+| metrics.type | string | `"datastore"` | Metrics backend for the dashboard query API. `datastore` answers from the persistence store and emits no `METRICSSTORE_PROVIDER`; any other value is stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. |
 
 ## Persistence parameters
 
@@ -160,10 +160,10 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | secrets.aws.region | string | `""` | AWS region for Secrets Manager, stored in the ConfigMap as `AWS_REGION`. Leave empty to use the SDK default chain (env, IMDS). |
-| secrets.postgres.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
-| secrets.postgres.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
-| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by postgres. |
-| secrets.type | string | `"postgres"` | Secret storage provider. Valid values are `postgres` and `aws-secrets-manager`. |
+| secrets.datastore.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
+| secrets.datastore.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
+| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by datastore. |
+| secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; `aws-secrets-manager` is stored in the ConfigMap as `SECRET_PROVIDER`. |
 
 ## Event bus parameters
 

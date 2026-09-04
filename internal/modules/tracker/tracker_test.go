@@ -7,7 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
@@ -24,10 +24,10 @@ func (m fakeMsg) Seq() uint64     { return m.seq }
 func (m fakeMsg) Ack() error      { return nil }
 func (m fakeMsg) Nak() error      { return nil }
 
-func mounted(t *testing.T) (*Module, *memory.Store) {
+func mounted(t *testing.T) (*Module, *sqlite.Store) {
 	t.Helper()
 	m := New()
-	ds := memory.New()
+	ds := sqlite.NewMemory()
 	if err := m.Mount(context.Background(), module.Deps{DataStore: ds}); err != nil {
 		t.Fatalf("mount: %v", err)
 	}
@@ -98,7 +98,8 @@ func TestTrackerDedupsRedeliveredFacts(t *testing.T) {
 func TestTrackerTerminalStampIsFirstWriteWins(t *testing.T) {
 	m, ds := mounted(t)
 	ctx := context.Background()
-	first := time.Now().Add(-time.Minute)
+	// Truncated to the store's stamp precision (unix milliseconds).
+	first := time.Now().Add(-time.Minute).Truncate(time.Millisecond)
 	env := events.Envelope{Tenant: "t1", Run: "r1", At: first}
 
 	deliver(t, m, 1, events.RunCompleted, env, events.RunCompletedEvent{})

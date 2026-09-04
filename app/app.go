@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
@@ -63,7 +63,7 @@ type Option func(*Config)
 // WithBus sets the event-plane transport (default: inproc.New()).
 func WithBus(b eventbus.Bus) Option { return func(c *Config) { c.Bus = b } }
 
-// WithDataStore sets the run/checkpoint store (default: memory.New()).
+// WithDataStore sets the run/checkpoint store (default: sqlite.NewMemory()).
 func WithDataStore(s filament.DataStore) Option { return func(c *Config) { c.Store = s } }
 
 // WithMetricsStore sets the run metrics query backend (default: none —
@@ -87,15 +87,18 @@ func WithUI(h http.Handler) Option { return func(c *Config) { c.UI = h } }
 // WithLogger sets the structured logger used by the API and runtime modules.
 func WithLogger(log filament.Logger) Option { return func(c *Config) { c.Log = log } }
 
+// newConfig applies opts, then fills what they left unset. Defaults are
+// built only when needed so an overridden store is never opened and leaked.
 func newConfig(opts ...Option) Config {
-	c := Config{
-		Bus:     inproc.New(),
-		Store:   memory.New(),
-		Sources: registry.DefaultSources,
-		Sinks:   registry.DefaultSinks,
-	}
+	c := Config{Sources: registry.DefaultSources, Sinks: registry.DefaultSinks}
 	for _, o := range opts {
 		o(&c)
+	}
+	if c.Bus == nil {
+		c.Bus = inproc.New()
+	}
+	if c.Store == nil {
+		c.Store = sqlite.NewMemory()
 	}
 	return c
 }

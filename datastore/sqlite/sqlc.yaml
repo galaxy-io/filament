@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "queries"
+    schema: "migrations"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "sqlcgen"
+        emit_json_tags: false
+        emit_result_struct_pointers: true

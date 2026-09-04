@@ -115,9 +115,11 @@ the worker through its Secret and ConfigMap. The default
 |---|---|---|
 | `INGESTION_ADDR` | `:8080` | API and UI listen address (also used by library embeds) |
 | `NATS_STORE_DIR` | `$TMPDIR/filament-standalone` | Embedded JetStream storage directory |
+| `STORE_PATH` | `$NATS_STORE_DIR/filament.db` | SQLite datastore file |
 
-The standalone binary uses an in-memory datastore (state does not survive a
-restart) and reads secrets from environment variables via the `env` provider.
+The standalone binary keeps runs, pipelines, and connections in a SQLite file
+next to the JetStream store, so state survives a restart as long as that
+directory does. It reads secrets from environment variables via the `env` provider.
 
 ## Secret providers
 

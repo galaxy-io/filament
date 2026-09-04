@@ -65,6 +65,7 @@ proto:
 # generate sqlc Go code
 sqlc:
     sqlc generate -f datastore/postgres/sqlc.yaml
+    sqlc generate -f datastore/sqlite/sqlc.yaml
 
 # lint protobuf definitions
 proto-lint:
