@@ -4,11 +4,11 @@ package text
 import (
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
@@ -21,7 +21,7 @@ func Contexts(w io.Writer, result model.ContextList, location string) error {
 		if item.Current {
 			marker = p.Accent("●")
 		}
-		rows = append(rows, []string{marker, item.Name, titleCase(item.Kind), item.Location})
+		rows = append(rows, []string{marker, item.Name, present.TitleCase(item.Kind), item.Location})
 	}
 	columns := []style.Column{{Title: " "}, {Title: "Name", Role: style.RolePrimary}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}}
 	return table(w, p.Title("Contexts in", location), p.Table(columns, rows))
@@ -39,17 +39,8 @@ func Connections(w io.Writer, result model.ConnectionList, location string, used
 		_, err := fmt.Fprintf(w, "No saved %ss.\n", result.Kind)
 		return err
 	}
-	p := style.New(w)
-	rows := make([][]string, 0, len(result.Items))
-	for _, connection := range result.Items {
-		rows = append(rows, []string{connection.Name, connection.Connector, dash(strings.Join(usedBy[connection.Name], ", "))})
-	}
-	columns := []style.Column{{Title: "Name", Role: style.RolePrimary}, {Title: "Connector", Role: style.RoleSecondary}, {Title: "Used by"}}
 	title := strings.ToUpper(result.Kind[:1]) + result.Kind[1:] + "s in"
-	if err := table(w, p.Title(title, location), p.Table(columns, rows)); err != nil {
-		return err
-	}
-	return pageFooter(w, p, len(rows), result.Page)
+	return page(w, title, location, present.ConnectionColumns(), present.ConnectionRows(result.Items, usedBy), result.Page)
 }
 
 // Pipelines renders saved pipelines.
@@ -58,27 +49,7 @@ func Pipelines(w io.Writer, result model.PipelineList, location string) error {
 		_, err := fmt.Fprintln(w, "No saved pipelines.")
 		return err
 	}
-	p := style.New(w)
-	rows := make([][]string, 0, len(result.Items))
-	for _, pipeline := range result.Items {
-		resources := strconv.Itoa(pipeline.ResourceCount)
-		if pipeline.AllResources {
-			resources = "all"
-		}
-		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink, titleCase(resources), titleCase(dash(pipeline.SyncMode)), titleCase(dash(pipeline.WriteMode))})
-	}
-	columns := []style.Column{
-		{Title: "Name", Role: style.RolePrimary},
-		{Title: "Source", Role: style.RoleSecondary},
-		{Title: "Sink", Role: style.RoleSecondary},
-		{Title: "Resources", Role: style.RoleNumber},
-		{Title: "Sync", Role: style.RoleSecondary},
-		{Title: "Write", Role: style.RoleSecondary},
-	}
-	if err := table(w, p.Title("Pipelines in", location), p.Table(columns, rows)); err != nil {
-		return err
-	}
-	return pageFooter(w, p, len(rows), result.Page)
+	return page(w, "Pipelines in", location, present.PipelineColumns(), present.PipelineRows(result.Items), result.Page)
 }
 
 // Runs renders one page of run history.
@@ -87,36 +58,24 @@ func Runs(w io.Writer, result model.RunList) error {
 		_, err := fmt.Fprintln(w, "No runs yet.")
 		return err
 	}
-	p := style.New(w)
-	rows := make([][]string, 0, len(result.Items))
-	for _, run := range result.Items {
-		duration := "–"
-		if !run.StartedAt.IsZero() && !run.EndedAt.IsZero() {
-			duration = style.Elapsed(run.EndedAt.Sub(run.StartedAt))
-		}
-		rows = append(rows, []string{
-			run.ID, run.Pipeline, dash(run.Version), titleCase(dash(run.Status)),
-			style.Count(run.Records), style.Bytes(run.Bytes), stamp(run.StartedAt), duration,
-		})
-	}
-	columns := []style.Column{
-		{Title: "Run", Role: style.RolePrimary},
-		{Title: "Pipeline", Role: style.RoleSecondary},
-		{Title: "Version", Role: style.RoleSecondary},
-		{Title: "Status"},
-		{Title: "Records", Role: style.RoleNumber},
-		{Title: "Volume", Role: style.RoleNumber},
-		{Title: "Started", Role: style.RoleSecondary},
-		{Title: "Duration", Role: style.RoleNumber},
-	}
 	subject := "all pipelines"
 	if result.Pipeline != "" {
 		subject = result.Pipeline
 	}
-	if err := table(w, p.Title("Runs of", subject), p.Table(columns, rows)); err != nil {
+	return page(w, "Runs of", subject, present.RunColumns(), present.RunRows(result.Items), result.Page)
+}
+
+// page renders one titled table and its paging footer.
+func page(w io.Writer, prefix, subject string, columns []present.Column, rows []present.Row, info model.PageInfo) error {
+	p := style.New(w)
+	styled := make([]style.Column, 0, len(columns))
+	for _, column := range columns {
+		styled = append(styled, style.Column{Title: column.Title, Role: column.Role})
+	}
+	if err := table(w, p.Title(prefix, subject), p.Table(styled, present.Cells(rows))); err != nil {
 		return err
 	}
-	return pageFooter(w, p, len(rows), result.Page)
+	return pageFooter(w, p, len(rows), info)
 }
 
 // pageFooter says how much of the collection this page shows and how to get
@@ -134,13 +93,6 @@ func pageFooter(w io.Writer, p style.Painter, shown int, page model.PageInfo) er
 	}
 	_, err := fmt.Fprintln(w, p.Muted(summary))
 	return err
-}
-
-func stamp(t time.Time) string {
-	if t.IsZero() {
-		return "–"
-	}
-	return t.Local().Format("2006-01-02 15:04")
 }
 
 // Resources renders discovered resources and how long discovery took.
@@ -164,7 +116,7 @@ func Resources(w io.Writer, result model.ResourceList, elapsed time.Duration) er
 		if resource.Selectable {
 			selectable = p.Success("✓")
 		}
-		rows = append(rows, []string{resource.Name, dash(display), selectable, dash(strings.Join(resource.PrimaryKey, ", ")), estimated})
+		rows = append(rows, []string{resource.Name, present.Dash(display), selectable, present.Dash(strings.Join(resource.PrimaryKey, ", ")), estimated})
 	}
 	columns := []style.Column{
 		{Title: "Resource", Role: style.RolePrimary},
@@ -180,19 +132,4 @@ func Resources(w io.Writer, result model.ResourceList, elapsed time.Duration) er
 func table(w io.Writer, title, grid string) error {
 	_, err := fmt.Fprintf(w, "%s\n\n%s", title, grid)
 	return err
-}
-
-// titleCase capitalizes an enumerated value for display only.
-func titleCase(value string) string {
-	if value == "" || value == "–" {
-		return value
-	}
-	return strings.ToUpper(value[:1]) + value[1:]
-}
-
-func dash(value string) string {
-	if value == "" {
-		return "–"
-	}
-	return value
 }

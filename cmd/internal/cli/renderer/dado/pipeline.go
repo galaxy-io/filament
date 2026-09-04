@@ -10,43 +10,50 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 )
 
 func (r *Renderer) managePipelines(ctx context.Context) error {
 	for {
-		listed, err := r.service.Pipelines(ctx)
-		if err != nil {
+		done, err := r.managePipelinesOnce(ctx)
+		if done || err != nil {
 			return err
-		}
-		options := make([]interactiveOption, 0, len(listed.Items)+3)
-		options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
-		options = append(options, pipelineMenuOptions(listed.Items)...)
-		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-		selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
-		if interactiveCancelled(err) || selected == interactiveBack {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if selected == "__create__" {
-			if err := r.pipelineWizard(ctx, "", nil); err != nil && !interactiveCancelled(err) {
-				if showErr := r.showInteractiveMessage(ctx, "Unable to create pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-					return showErr
-				}
-			}
-			continue
-		}
-		doc, err := r.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		if err := r.managePipeline(ctx, selected, doc); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to manage pipeline", err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return showErr
-			}
 		}
 	}
+}
+
+// managePipelinesOnce runs one pass of the pipelines menu; done reports that
+// the user backed out.
+func (r *Renderer) managePipelinesOnce(ctx context.Context) (bool, error) {
+	listed, err := r.service.Pipelines(ctx)
+	if err != nil {
+		return true, err
+	}
+	options := make([]interactiveOption, 0, len(listed.Items)+3)
+	options = append(options, interactiveOption{label: "+ Create pipeline", value: "__create__", tone: inline.ChoiceToneSuccess})
+	options = append(options, pipelineMenuOptions(listed.Items)...)
+	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
+	selected, err := r.chooseInteractive(ctx, "Pipelines", "Create or manage reusable transfers", options)
+	if interactiveCancelled(err) || selected == interactiveBack {
+		return true, nil
+	}
+	if err != nil {
+		return true, err
+	}
+	if selected == "__create__" {
+		if err := r.pipelineWizard(ctx, "", nil); err != nil && !interactiveCancelled(err) {
+			_ = r.notice(false, "Unable to create pipeline: "+err.Error())
+		}
+		return false, nil
+	}
+	doc, err := r.service.Configuration(ctx)
+	if err != nil {
+		return true, err
+	}
+	if err := r.managePipeline(ctx, selected, doc); err != nil && !interactiveCancelled(err) {
+		_ = r.notice(false, "Unable to manage pipeline: "+err.Error())
+	}
+	return false, nil
 }
 
 func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Document) error {
@@ -56,7 +63,7 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 		{label: "View", value: "view"},
 		{label: "Edit", value: "edit"},
 		{label: "Delete", value: "delete"},
-		{label: "Back", value: interactiveBack},
+		{label: "Exit", value: interactiveBack},
 	})
 	if err != nil || action == interactiveBack {
 		return err
@@ -65,7 +72,7 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 	case "run":
 		return r.runInteractivePipeline(ctx, name)
 	case "view":
-		return r.showInteractiveMessage(ctx, name, pipelineDescription(pipeline))
+		return r.showDetail(ctx, name, pipelinePairs(pipeline))
 	case "edit":
 		return r.pipelineWizard(ctx, name, &pipeline)
 	case "delete":
@@ -80,6 +87,9 @@ func (r *Renderer) managePipeline(ctx context.Context, name string, doc model.Do
 }
 
 func (r *Renderer) pipelineWizard(ctx context.Context, name string, existing *model.Pipeline) error {
+	if existing != nil && existing.Info.EditBlockedReason != "" {
+		return fmt.Errorf("pipeline %q cannot be edited by the CLI without losing data: %s; edit it in the UI", name, existing.Info.EditBlockedReason)
+	}
 	doc, err := r.service.Configuration(ctx)
 	if err != nil {
 		return err
@@ -97,57 +107,10 @@ func (r *Renderer) pipelineWizard(ctx context.Context, name string, existing *mo
 		}
 	}
 
-	source := doc.Sources[sourceRef]
-	sink := doc.Sinks[sinkRef]
-	var sourceInitial, sinkInitial map[string]any
-	base := existing
-	if existing != nil {
-		updated := *existing
-		if existing.Source.Ref == sourceRef {
-			sourceInitial = existing.Source.Config
-		} else {
-			updated.Source.Config = nil
-		}
-		if existing.Sink.Ref == sinkRef {
-			sinkInitial = existing.Sink.Config
-		} else {
-			updated.Sink.Config = nil
-		}
-		base = &updated
-	}
-	sourceWizard := newSchemaWizard(r.catalog.Sources[source.Type].Config, filament.ScopePipeline, sourceInitial)
-	if err := sourceWizard.run(ctx, r, pipelineSteps.at(0)); err != nil {
-		return err
-	}
-	sinkWizard := newSchemaWizard(r.catalog.Sinks[sink.Type].Config, filament.ScopePipeline, sinkInitial)
-	if err := sinkWizard.run(ctx, r, pipelineSteps.at(1)); err != nil {
-		return err
-	}
-
-	writeMode := "replace"
-	if existing != nil && existing.WriteMode != "" {
-		writeMode = existing.WriteMode
-	}
-	writeMode, err = r.choosePipelineWriteMode(ctx, sinkRef, sink, writeMode)
+	request, err := r.configurePipeline(ctx, name, sourceRef, sinkRef, existing, doc)
 	if err != nil {
 		return err
 	}
-
-	request := cliapp.SavePipelineRequest{
-		Create: existing == nil, Name: name, Source: sourceRef, Sink: sinkRef,
-		SyncMode: "full", WriteMode: writeMode,
-		SourceConfig: sourceWizard.patch(), SinkConfig: sinkWizard.patch(),
-	}
-	preview, err := cliapp.BuildPipeline(request, base, doc, r.catalog)
-	if err != nil {
-		return err
-	}
-	resources, discoverErr := r.discoverPipelineResources(ctx, preview)
-	selected, err := r.selectPipelineResources(ctx, existingResources(existing), resources, discoverErr)
-	if err != nil {
-		return err
-	}
-	request.Resources = &selected
 	if _, err := r.service.SavePipeline(ctx, request); err != nil {
 		return err
 	}
@@ -158,15 +121,117 @@ func (r *Renderer) pipelineWizard(ctx context.Context, name string, existing *mo
 	return r.announce("pipeline", request.Name, verb)
 }
 
-func (r *Renderer) choosePipelineWriteMode(ctx context.Context, sinkRef string, sink model.Connection, preferred string) (string, error) {
+func (r *Renderer) configurePipeline(
+	ctx context.Context,
+	name, sourceRef, sinkRef string,
+	existing *model.Pipeline,
+	doc model.Document,
+) (cliapp.SavePipelineRequest, error) {
+	source, sink := doc.Sources[sourceRef], doc.Sinks[sinkRef]
+	var sourceInitial, sinkInitial map[string]any
+	base := existing
+	if existing != nil {
+		updated := *existing
+		if existing.Source.Ref == sourceRef {
+			sourceInitial = cliapp.ConfigWithSecretPlaceholders(existing.Source.Config, existing.Source.SecretRefs)
+		} else {
+			updated.Source.Config = nil
+		}
+		if existing.Sink.Ref == sinkRef {
+			sinkInitial = cliapp.ConfigWithSecretPlaceholders(existing.Sink.Config, existing.Sink.SecretRefs)
+		} else {
+			updated.Sink.Config = nil
+		}
+		base = &updated
+	}
+	sourceWizard := newSchemaWizard(r.catalog.Sources[source.Type].Config, filament.ScopePipeline, sourceInitial)
+	if err := sourceWizard.run(ctx, r, pipelineSteps.at(0)); err != nil {
+		return cliapp.SavePipelineRequest{}, err
+	}
+	sinkWizard := newSchemaWizard(r.catalog.Sinks[sink.Type].Config, filament.ScopePipeline, sinkInitial)
+	if err := sinkWizard.run(ctx, r, pipelineSteps.at(1)); err != nil {
+		return cliapp.SavePipelineRequest{}, err
+	}
+
+	syncMode := "full"
+	if existing != nil && existing.SyncMode != "" {
+		syncMode = existing.SyncMode
+	}
+	writeMode := "replace"
+	if existing != nil && existing.WriteMode != "" {
+		writeMode = existing.WriteMode
+	}
+	request := cliapp.SavePipelineRequest{
+		Create: existing == nil, Name: name, Source: sourceRef, Sink: sinkRef,
+		SyncMode: syncMode, WriteMode: writeMode,
+		SourceConfig: sourceWizard.patch(), SinkConfig: sinkWizard.patch(),
+	}
+	preview, err := cliapp.BuildPipeline(request, base, doc, r.catalog)
+	if err != nil {
+		return request, err
+	}
+	modes, err := r.service.PipelineModes(ctx, preview)
+	if err != nil {
+		return request, err
+	}
+	syncMode, err = r.choosePipelineReadMode(ctx, sourceRef, modes, syncMode)
+	if err != nil {
+		return request, err
+	}
+	writeMode, err = r.choosePipelineWriteMode(ctx, sinkRef, modes, syncMode, writeMode)
+	if err != nil {
+		return request, err
+	}
+	request.SyncMode, request.WriteMode = syncMode, writeMode
+	preview, err = cliapp.BuildPipeline(request, base, doc, r.catalog)
+	if err != nil {
+		return request, err
+	}
+	resources, discoverErr := r.discoverPipelineResources(ctx, preview)
+	selected, err := r.selectPipelineResources(ctx, existingResources(existing), resources, discoverErr)
+	if err != nil {
+		return request, err
+	}
+	request.Resources = &selected
+	return request, nil
+}
+
+func (r *Renderer) choosePipelineReadMode(ctx context.Context, sourceRef string, modes model.PipelineModes, preferred string) (string, error) {
+	options := make([]interactiveOption, 0, len(modes.ReadModes))
+	for _, mode := range modes.ReadModes {
+		options = append(options, interactiveOption{label: mode, value: mode})
+	}
+	if len(options) == 0 {
+		return "", fmt.Errorf("source %q has no supported read mode", sourceRef)
+	}
+	if len(options) == 1 {
+		return options[0].value, nil
+	}
+	result, err := r.runInteractiveForm(ctx, inline.NewForm("Transfer behavior").Add(
+		inline.NewSelectField("sync-mode", "Read mode", preferredChoices(preferred, options)...).Required(),
+	))
+	if err != nil {
+		return "", err
+	}
+	mode, _ := result["sync-mode"].(string)
+	return mode, nil
+}
+
+func (r *Renderer) choosePipelineWriteMode(ctx context.Context, sinkRef string, modes model.PipelineModes, syncMode, preferred string) (string, error) {
 	writeOptions := []interactiveOption{}
-	for _, mode := range filament.WriteModesFor(filament.ModeFull) {
-		if cliapp.SinkSupports(r.catalog.Sinks[sink.Type], mode) {
-			writeOptions = append(writeOptions, interactiveOption{label: string(mode), value: string(mode)})
+	for _, mode := range filament.WriteModesFor(readMode(syncMode)) {
+		for _, supported := range modes.WriteModes {
+			if string(mode) == supported {
+				writeOptions = append(writeOptions, interactiveOption{label: supported, value: supported})
+				break
+			}
 		}
 	}
 	if len(writeOptions) == 0 {
-		return "", fmt.Errorf("sink %q has no full-sync write mode", sinkRef)
+		return "", fmt.Errorf("sink %q has no write mode compatible with %s reads", sinkRef, syncMode)
+	}
+	if len(writeOptions) == 1 {
+		return writeOptions[0].value, nil
 	}
 	result, err := r.runInteractiveForm(ctx, inline.NewForm("Transfer behavior").Add(
 		inline.NewSelectField("write-mode", "Write mode", preferredChoices(preferred, writeOptions)...).Required(),
@@ -176,6 +241,16 @@ func (r *Renderer) choosePipelineWriteMode(ctx context.Context, sinkRef string, 
 	}
 	writeMode, _ := result["write-mode"].(string)
 	return writeMode, nil
+}
+
+func readMode(value string) filament.ReadMode {
+	if value == "incremental" {
+		return filament.ModeIncremental
+	}
+	if value == model.SyncModeCDC {
+		return filament.ModeCDC
+	}
+	return filament.ModeFull
 }
 
 func (r *Renderer) pipelineTopologyForm(ctx context.Context, name string, existing *model.Pipeline, doc model.Document) (string, string, string, error) {
@@ -308,25 +383,26 @@ func existingResources(pipeline *model.Pipeline) []string {
 	return pipeline.Resources
 }
 
-func pipelineDescription(pipeline model.Pipeline) string {
+func pipelinePairs(pipeline model.Pipeline) [][2]string {
 	resources := "all discovered resources"
 	if len(pipeline.Resources) > 0 {
 		resources = strings.Join(pipeline.Resources, ", ")
 	}
-	return fmt.Sprintf("Source: %s\nSink: %s\nResources: %s\nSync mode: %s\nWrite mode: %s",
-		pipeline.Source.Ref, pipeline.Sink.Ref, resources, pipeline.SyncMode, pipeline.WriteMode)
+	return [][2]string{
+		{"Source", pipeline.Source.Ref},
+		{"Sink", pipeline.Sink.Ref},
+		{"Resources", resources},
+		{"Sync mode", pipeline.SyncMode},
+		{"Write mode", pipeline.WriteMode},
+	}
 }
 
-// pipelineMenuOptions lists pipelines as the boxed Name, Source, Sink table.
+// pipelineMenuOptions lists pipelines as the boxed table every renderer
+// shows.
 func pipelineMenuOptions(items []model.PipelineSummary) []interactiveOption {
 	if len(items) == 0 {
 		return nil
 	}
-	rows := make([][]string, 0, len(items))
-	values := make([]string, 0, len(items))
-	for _, pipeline := range items {
-		rows = append(rows, []string{pipeline.Name, pipeline.Source, pipeline.Sink})
-		values = append(values, pipeline.Name)
-	}
-	return boxedMenu([]string{"Name", "Source", "Sink"}, rows, values)
+	rows := present.PipelineRows(items)
+	return boxedMenu(present.Titles(present.PipelineColumns()), present.Cells(rows), present.Keys(rows))
 }

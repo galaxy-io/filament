@@ -113,7 +113,7 @@ func TestRunProgressViewRendersGrid(t *testing.T) {
 		t.Errorf("scrollback lines =\n%s", lines)
 	}
 	summary := runSummaryLine(p, 2, model.RunResult{Records: 2_400_000}, 39*time.Second, nil)
-	if summary != "✓ synced 2 resources · 2.4M rows · 39s" {
+	if summary != "✓ Synced 2 resources · 2.4M rows · 39s" {
 		t.Errorf("summary = %q", summary)
 	}
 }

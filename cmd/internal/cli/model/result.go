@@ -88,6 +88,9 @@ type ConnectionSummary struct {
 	Name        string
 	Connector   string
 	Description string
+	Replication string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // PipelineList is the result of listing saved pipelines.
@@ -106,6 +109,10 @@ type PipelineSummary struct {
 	AllResources  bool
 	SyncMode      string
 	WriteMode     string
+	Schedule      string
+	LastRunStatus string
+	LastRunAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // ResourceList is the result of discovering resources for a source.

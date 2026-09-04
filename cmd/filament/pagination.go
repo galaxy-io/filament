@@ -8,8 +8,6 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-const defaultListLimit int32 = 25
-
 // listPageFlags are the paging flags every list command shares.
 type listPageFlags struct {
 	limit int32
@@ -17,7 +15,7 @@ type listPageFlags struct {
 }
 
 func (f *listPageFlags) add(command *cobra.Command) {
-	command.Flags().Int32Var(&f.limit, "limit", defaultListLimit, "Number of items to show")
+	command.Flags().Int32Var(&f.limit, "limit", model.DefaultPageSize, "Number of items to show")
 	command.Flags().StringVar(&f.next, "next", "", "Show the page after this `CURSOR`")
 }
 
@@ -31,7 +29,7 @@ func (f listPageFlags) request() (model.PageRequest, error) {
 // pageRequestFromFlags reads --limit and --next out of a dynamic command's
 // parsed flags.
 func pageRequestFromFlags(flags map[string][]string) (model.PageRequest, error) {
-	page := listPageFlags{limit: defaultListLimit, next: lastFlag(flags, "next")}
+	page := listPageFlags{limit: model.DefaultPageSize, next: lastFlag(flags, "next")}
 	if raw, present := flagValue(flags, "limit"); present {
 		if _, err := fmt.Sscanf(raw, "%d", &page.limit); err != nil {
 			return model.PageRequest{}, fmt.Errorf("--limit must be a positive integer")

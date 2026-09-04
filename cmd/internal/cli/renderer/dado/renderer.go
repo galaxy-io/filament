@@ -11,6 +11,8 @@ import (
 	"github.com/atterpac/dado/inline"
 	"golang.org/x/term"
 
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
 
@@ -72,8 +74,11 @@ func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
 	}
 	if len(args) == 1 {
 		switch args[0] {
-		case "source", "sink", "pipeline", "config", "run":
+		case "source", "sink", "pipeline", "config":
 			return interactiveEntry{section: args[0]}, true
+		case "run":
+			// Bare run is an operation: pick a pipeline, run it, exit.
+			return interactiveEntry{section: "run", operation: "run"}, true
 		}
 		return interactiveEntry{}, false
 	}
@@ -92,6 +97,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 	renderer := inline.NewRenderer(inline.WithOutput(r.statusWriter()))
 	r.interactiveRenderer = renderer
 	defer func() {
+		r.flushNotice()
 		runErr = errors.Join(runErr, renderer.Clear(), renderer.Close())
 		r.interactiveRenderer = nil
 	}()
@@ -116,15 +122,12 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 	}
 
 	for {
-		description := "Selected target"
-		if r.targetName != "" {
-			description = r.targetName + " target"
-		}
-		action, err := r.chooseInteractive(ctx, "Filament", description, []interactiveOption{
+		action, err := r.chooseInteractive(ctx, r.titled("Filament"), "", []interactiveOption{
 			{label: "Run", value: "run"},
 			{label: "Sources", value: "sources"},
 			{label: "Sinks", value: "sinks"},
 			{label: "Pipelines", value: "pipelines"},
+			{label: "Runs", value: "runs"},
 			{label: "Configuration", value: "config"},
 			{label: "Exit", value: interactiveBack},
 		})
@@ -147,6 +150,8 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			err = r.manageConnections(ctx, "sink")
 		case "pipelines":
 			err = r.managePipelines(ctx)
+		case "runs":
+			err = r.showRuns(ctx)
 		case "config":
 			err = r.manageInteractiveConfig(ctx)
 		}
@@ -201,6 +206,67 @@ func (r *Renderer) acknowledgeInteractiveError(err error) error {
 	return r.notice(false, err.Error())
 }
 
+// titled appends the target name to a menu title so the header stays one line.
+func (r *Renderer) titled(base string) string {
+	if r.targetName == "" {
+		return base
+	}
+	return base + " (" + r.targetName + ")"
+}
+
+// menuHeader is the heading above a menu form: an accent title and, when an
+// operation just finished, its outcome line.
+type menuHeader struct {
+	theme    inline.InlineTheme
+	title    string
+	notice   string
+	noticeOK bool
+	// pairs are detail lines rendered under the heading; an empty key is a
+	// plain line.
+	pairs [][2]string
+	// gap appends a blank row so a following field label is not glued to
+	// the heading.
+	gap bool
+}
+
+func (h menuHeader) Frame(width int) *inline.Frame {
+	height := 1 + len(h.pairs)
+	if h.notice != "" {
+		height++
+	}
+	if h.gap {
+		height++
+	}
+	frame := inline.NewFrame(max(width, 0), height)
+	draw(frame, 0, 0, h.title, h.theme.Accent.Bold(true))
+	y := 1
+	if h.notice != "" {
+		marker, tone := "✗", h.theme.Error
+		if h.noticeOK {
+			marker, tone = "✓", h.theme.Success
+		}
+		x := draw(frame, 0, y, marker+" ", tone)
+		draw(frame, x, y, h.notice, h.theme.Text)
+		y++
+	}
+	keyWidth := 0
+	for _, pair := range h.pairs {
+		keyWidth = max(keyWidth, utf8.RuneCountInString(pair[0]))
+	}
+	for _, pair := range h.pairs {
+		if pair[0] == "" {
+			draw(frame, len(style.Indent), y, pair[1], h.theme.Text)
+			y++
+			continue
+		}
+		padding := strings.Repeat(" ", keyWidth-utf8.RuneCountInString(pair[0])+style.Gutter)
+		x := draw(frame, len(style.Indent), y, pair[0]+padding, h.theme.Label)
+		draw(frame, x, y, pair[1], h.theme.Text)
+		y++
+	}
+	return frame
+}
+
 func (r *Renderer) chooseInteractive(ctx context.Context, title, description string, options []interactiveOption) (string, error) {
 	if len(options) == 0 {
 		return "", fmt.Errorf("%s has no available options", title)
@@ -215,9 +281,12 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 			Disabled:    option.disabled,
 		})
 	}
-	form := inline.NewForm(title).Add(
-		inline.NewSelectField("selection", description, choices...).Required(),
-	)
+	field := inline.NewSelectField("selection", description, choices...).Required()
+	// Every menu renders its heading as a header frame: it keeps the layout
+	// compact and gives a queued outcome line a stable home under the title.
+	notice, noticeOK := r.takeNotice()
+	header := menuHeader{theme: r.theme, title: title, notice: notice, noticeOK: noticeOK, gap: description != ""}
+	form := inline.NewForm("").SetHeader(header).Add(field)
 	result, err := r.runInteractiveForm(ctx, form)
 	if err != nil {
 		return "", err
@@ -226,31 +295,98 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 	return selected, nil
 }
 
-// showInteractiveMessage keeps a titled block in scrollback and returns to the menu.
-func (r *Renderer) showInteractiveMessage(_ context.Context, title, description string) error {
-	if r.interactiveRenderer == nil {
-		return nil
-	}
-	p := r.painter()
-	lines := []string{p.Label(title)}
-	for _, line := range strings.Split(strings.TrimSpace(description), "\n") {
-		if strings.TrimSpace(line) != "" {
-			lines = append(lines, style.Indent+line)
+// showRuns presents paginated history as a transient interactive screen.
+func (r *Renderer) showRuns(ctx context.Context) error {
+	request := model.RunListRequest{PageRequest: model.PageRequest{PageSize: model.DefaultPageSize}}
+	for {
+		result, err := r.service.Runs(ctx, request)
+		if err != nil {
+			return r.notice(false, err.Error())
+		}
+		pairs := [][2]string{}
+		if len(result.Items) == 0 {
+			pairs = append(pairs, [2]string{"", "No runs."})
+		} else {
+			rows := present.RunRows(result.Items)
+			grid := style.Styled(r.dark).Table(styledColumns(present.RunColumns()), present.Cells(rows))
+			for line := range strings.SplitSeq(strings.TrimRight(grid, "\n"), "\n") {
+				pairs = append(pairs, [2]string{"", strings.TrimPrefix(line, style.Indent)})
+			}
+		}
+		choices := []inline.Choice{}
+		if result.Page.PreviousCursor != "" {
+			choices = append(choices, inline.NewChoice("previous", "Previous page"))
+		}
+		if result.Page.NextCursor != "" {
+			choices = append(choices, inline.NewChoice("next", "Next page"))
+		}
+		choices = append(choices, inline.NewChoice(interactiveBack, "Back"))
+		header := menuHeader{theme: r.theme, title: r.titled("Runs"), pairs: pairs, gap: true}
+		form := inline.NewForm("").SetHeader(header).Add(
+			inline.NewSelectField("selection", "", choices...).Required(),
+		)
+		selected, err := r.runInteractiveForm(ctx, form)
+		if interactiveCancelled(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch selected["selection"] {
+		case "previous":
+			request.Cursor = result.Page.PreviousCursor
+		case "next":
+			request.Cursor = result.Page.NextCursor
+		default:
+			return nil
 		}
 	}
-	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
+}
+
+// showDetail presents a transient key/value screen that clears when the user
+// backs out, so detail views never pile up in scrollback.
+func (r *Renderer) showDetail(ctx context.Context, title string, pairs [][2]string) error {
+	notice, noticeOK := r.takeNotice()
+	header := menuHeader{theme: r.theme, title: title, notice: notice, noticeOK: noticeOK, pairs: pairs, gap: true}
+	form := inline.NewForm("").SetHeader(header).Add(
+		inline.NewSelectField("selection", "", inline.Choice{Value: interactiveBack, Label: "Back"}).Required(),
+	)
+	if _, err := r.runInteractiveForm(ctx, form); err != nil && !interactiveCancelled(err) {
+		return err
+	}
+	return nil
 }
 
 // notice keeps one status line in scrollback: a green check or a red cross.
+// notice queues an outcome line. The next menu renders it inside its header
+// instead of scattering it through scrollback; a session that exits first
+// flushes it so direct operations still report.
 func (r *Renderer) notice(ok bool, message string) error {
 	if r.interactiveRenderer == nil {
 		return nil
 	}
-	p := r.painter()
-	if ok {
-		return r.interactiveRenderer.Println(p.Success("✓") + " " + message)
+	r.noticeText, r.noticeOK = message, ok
+	return nil
+}
+
+// takeNotice consumes the pending notice.
+func (r *Renderer) takeNotice() (string, bool) {
+	text, ok := r.noticeText, r.noticeOK
+	r.noticeText, r.noticeOK = "", false
+	return text, ok
+}
+
+func (r *Renderer) flushNotice() {
+	text, ok := r.takeNotice()
+	if text == "" || r.interactiveRenderer == nil {
+		return
 	}
-	return r.interactiveRenderer.Println(p.Error("✗") + " " + message)
+	p := r.painter()
+	marker := p.Error("✗")
+	if ok {
+		marker = p.Success("✓")
+	}
+	_ = r.interactiveRenderer.Println(marker + " " + text)
 }
 
 func (r *Renderer) confirmInteractive(ctx context.Context, title, description string) (bool, error) {
@@ -309,20 +445,10 @@ func preferredChoices(preferred string, options []interactiveOption) []inline.Ch
 	return choices
 }
 
-// showPairs keeps a titled key/value block in scrollback.
-func (r *Renderer) showPairs(title string, pairs [][2]string) error {
-	if r.interactiveRenderer == nil {
-		return nil
+func styledColumns(columns []present.Column) []style.Column {
+	out := make([]style.Column, 0, len(columns))
+	for _, column := range columns {
+		out = append(out, style.Column{Title: column.Title, Role: column.Role})
 	}
-	p := r.painter()
-	width := 0
-	for _, pair := range pairs {
-		width = max(width, utf8.RuneCountInString(pair[0]))
-	}
-	lines := []string{p.Bold(title)}
-	for _, pair := range pairs {
-		padding := strings.Repeat(" ", width-utf8.RuneCountInString(pair[0])+style.Gutter)
-		lines = append(lines, style.Indent+p.Label(pair[0])+padding+pair[1])
-	}
-	return r.interactiveRenderer.Println(strings.Join(lines, "\n") + "\n")
+	return out
 }

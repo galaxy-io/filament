@@ -29,6 +29,7 @@ type cliApp struct {
 	catalog        climodel.Catalog
 	service        *cliapp.Service
 	configOverride bool
+	menuMode       bool
 	target         contexts.NamedTarget
 }
 
@@ -64,7 +65,7 @@ func (a *cliApp) renderer() *dadorenderer.Renderer {
 	return dadorenderer.New(dadorenderer.Options{
 		Stdin: a.stdin, Stdout: a.stdout, Stderr: a.statusWriter(),
 		Service: a.service, Catalog: a.catalog, OpenConfigurationEditor: a.editConfig,
-		TargetName: a.target.Name,
+		TargetName: a.target.Name, MenuMode: a.menuMode,
 	})
 }
 
@@ -141,6 +142,10 @@ func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {
 			}
 			a.contextName = args[i+1]
 			i++
+			continue
+		}
+		if args[i] == "-i" || args[i] == "--interactive" {
+			a.menuMode = true
 			continue
 		}
 		if strings.HasPrefix(args[i], "--context=") {

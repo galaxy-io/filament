@@ -165,6 +165,8 @@ func (s *Service) connectionList(ctx context.Context, kind string, connections [
 		description, _ := catalog.Description(kind, item.Connection.Type)
 		result.Items = append(result.Items, model.ConnectionSummary{
 			Name: item.Name, Connector: item.Connection.Type, Description: description,
+			Replication: item.Connection.Info.Replication,
+			CreatedAt:   item.Connection.Info.CreatedAt, UpdatedAt: item.Connection.Info.UpdatedAt,
 		})
 	}
 	return result, nil
@@ -196,9 +198,24 @@ func pipelineList(pipelines []model.NamedPipeline, info model.PageInfo) model.Pi
 			Name: item.Name, Source: pipeline.Source.Ref, Sink: pipeline.Sink.Ref,
 			ResourceCount: len(pipeline.Resources), AllResources: len(pipeline.Resources) == 0,
 			SyncMode: pipeline.SyncMode, WriteMode: pipeline.WriteMode,
+			Schedule: pipeline.Info.Schedule, LastRunStatus: pipeline.Info.LastRunStatus,
+			LastRunAt: pipeline.Info.LastRunAt, UpdatedAt: pipeline.Info.UpdatedAt,
 		})
 	}
 	return result
+}
+
+// PipelineModes asks the target which read and write modes a proposed route
+// supports. A target without the capability offers the full-read pairing.
+func (s *Service) PipelineModes(ctx context.Context, pipeline model.Pipeline) (model.PipelineModes, error) {
+	if target, ok := s.target.(PipelineModesTarget); ok {
+		return target.PipelineModes(ctx, pipeline)
+	}
+	modes := model.PipelineModes{Replication: "standard", ReadModes: []string{"full"}}
+	for _, mode := range filament.WriteModesFor(filament.ModeFull) {
+		modes.WriteModes = append(modes.WriteModes, string(mode))
+	}
+	return modes, nil
 }
 
 // Runs lists one page of run history when the target keeps any.

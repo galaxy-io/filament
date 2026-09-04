@@ -55,6 +55,10 @@ dev mode="": migrate
     just ui &
     wait
 
+# install the cli with the web UI embedded
+cli: ui-dist
+    GOWORK=off go install -C cmd -tags embedui ./filament
+
 # generate all checked-in generated code
 gen: proto sqlc
 
