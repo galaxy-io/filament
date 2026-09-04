@@ -28,18 +28,21 @@ type runSession struct {
 	cancel       context.CancelFunc
 }
 
-// SubmitRun starts an in-process run and returns its target identity before
+// submitLocal starts an in-process run and returns its identity before
 // waiting for progress. The subscription is established first so no early
-// event can be lost between submission and TailRun.
-func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) (model.RunGroup, error) {
-	spec := submission.Spec
+// event can be lost between submission and the tail.
+func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.RunGroup, error) {
+	catalog, err := t.Catalog(ctx)
+	if err != nil {
+		return model.RunGroup{}, err
+	}
 	if spec.Tenant == "" {
 		spec.Tenant = "local"
 	}
 	if spec.Run == "" {
 		spec.Run = filament.RunID("cli-" + strconv.FormatInt(time.Now().UnixNano(), 36))
 	}
-	source, ok := t.catalog.Sources[spec.Source.Connector]
+	source, ok := catalog.Sources[spec.Source.Connector]
 	if !ok {
 		return model.RunGroup{}, fmt.Errorf("unknown source connector %q", spec.Source.Connector)
 	}
@@ -47,7 +50,7 @@ func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) 
 	if err != nil {
 		return model.RunGroup{}, fmt.Errorf("source connector %q: %w", spec.Source.Connector, err)
 	}
-	sink, ok := t.catalog.Sinks[spec.Sink.Connector]
+	sink, ok := catalog.Sinks[spec.Sink.Connector]
 	if !ok {
 		return model.RunGroup{}, fmt.Errorf("unknown sink connector %q", spec.Sink.Connector)
 	}
@@ -88,8 +91,8 @@ func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) 
 	return model.RunGroup{Runs: []model.RunRef{ref}}, nil
 }
 
-// TailRun waits for one local run and reports normalized resource progress.
-func (t *Target) TailRun(ctx context.Context, group model.RunGroup, observe func(model.RunEvent)) (model.RunResult, error) {
+// tailLocal waits for one direct run and reports normalized progress.
+func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe func(model.RunEvent)) (model.RunResult, error) {
 	if len(group.Runs) != 1 {
 		return model.RunResult{}, fmt.Errorf("local target expected one submitted run, got %d", len(group.Runs))
 	}
@@ -155,8 +158,8 @@ func (t *Target) TailRun(ctx context.Context, group model.RunGroup, observe func
 	}
 }
 
-// SignalRun sends a lifecycle signal to an active local run.
-func (t *Target) SignalRun(ctx context.Context, ref model.RunRef, signal filament.Signal) error {
+// signalLocal sends a lifecycle signal to an active direct run.
+func (t *Target) signalLocal(ctx context.Context, ref model.RunRef, signal filament.Signal) error {
 	session, err := t.runSession(ref.ID)
 	if err != nil {
 		return err
@@ -172,6 +175,13 @@ func (t *Target) SignalRun(ctx context.Context, ref model.RunRef, signal filamen
 	default:
 		return fmt.Errorf("unknown run signal %d", signal)
 	}
+}
+
+func (t *Target) hasSession(id string) bool {
+	t.runMu.Lock()
+	defer t.runMu.Unlock()
+	_, ok := t.runs[id]
+	return ok
 }
 
 func (t *Target) runSession(id string) (*runSession, error) {

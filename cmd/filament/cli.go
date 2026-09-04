@@ -20,6 +20,7 @@ import (
 
 type cliApp struct {
 	stdin          io.Reader
+	stopEmbedded   func()
 	stdout         io.Writer
 	stderr         io.Writer
 	configPath     string
@@ -32,6 +33,11 @@ type cliApp struct {
 }
 
 func (a *cliApp) run(ctx context.Context, args []string) error {
+	defer func() {
+		if a.stopEmbedded != nil {
+			a.stopEmbedded()
+		}
+	}()
 	args, err := a.extractGlobalFlags(args)
 	if err != nil {
 		return err
@@ -89,7 +95,20 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		a.service = cliapp.NewService(remotetarget.NewTarget(options))
 	} else {
 		a.configPath = selected.Target.ConfigPath
-		a.service = cliapp.NewService(localtarget.NewTarget(localtarget.Store{Path: a.configPath}, a.catalog))
+		endpoint, secrets, stop, err := a.startEmbedded(ctx)
+		if err != nil {
+			return err
+		}
+		a.stopEmbedded = stop
+		target := localtarget.NewTarget(
+			localtarget.Store{Path: a.configPath},
+			remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
+			secrets,
+		)
+		if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
+			return fmt.Errorf("apply %s: %w", a.configPath, err)
+		}
+		a.service = cliapp.NewService(target)
 	}
 	catalog, err := a.service.Catalog(ctx)
 	if err != nil {
