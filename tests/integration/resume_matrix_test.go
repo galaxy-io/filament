@@ -200,14 +200,14 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	for k, v := range mode.src {
 		srcCfg[k] = v
 	}
-	id, err := orch.Submit(ctx, filament.RunRequest{
+	id, err := orch.Submit(ctx, filament.RunSubmission{Request: filament.RunRequest{
 		Tenant:         "t1",
 		Source:         filament.Ref{Connector: "postgres", Config: srcCfg},
 		Sink:           filament.Ref{Connector: "postgres_typed", Config: map[string]any{"dsn": pg.DSN(), "schema": "dst"}},
 		Resources:      resources,
 		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
 		Options:        mode.opts,
-	})
+	}})
 	if err != nil {
 		t.Fatalf("submit: %v", err)
 	}
