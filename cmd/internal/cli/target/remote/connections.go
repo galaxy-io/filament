@@ -12,21 +12,22 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-// ListConnections returns every connection of one kind.
-func (t *Target) ListConnections(ctx context.Context, kind string) ([]model.NamedConnection, error) {
+// ListConnections returns one page of connections of one kind, with the
+// deployment's own cursors and total.
+func (t *Target) ListConnections(ctx context.Context, kind string, request model.PageRequest) (model.Page[model.NamedConnection], error) {
 	protoKind, err := connectorKind(kind)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedConnection]{}, err
 	}
-	items, err := t.connections(ctx, protoKind, "")
+	items, info, err := t.connectionPage(ctx, protoKind, "", request)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedConnection]{}, err
 	}
-	out := make([]model.NamedConnection, 0, len(items))
+	page := model.Page[model.NamedConnection]{Items: make([]model.NamedConnection, 0, len(items)), PageInfo: pageInfo(info)}
 	for _, item := range items {
-		out = append(out, model.NamedConnection{Kind: kind, Name: item.GetName(), Connection: connectionFromProto(item)})
+		page.Items = append(page.Items, model.NamedConnection{Kind: kind, Name: item.GetName(), Connection: connectionFromProto(item)})
 	}
-	return out, nil
+	return page, nil
 }
 
 // GetConnection returns one connection by name.
@@ -132,14 +133,18 @@ func (t *Target) findConnection(ctx context.Context, kind, name string) (*ingest
 
 func (t *Target) connections(ctx context.Context, kind ingestionv1.ConnectorKind, search string) ([]*ingestionv1.Connection, error) {
 	return drain(func(cursor string) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
-		response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{
-			Kind: kind, Search: search, Pagination: pagination(cursor),
-		}))
-		if err != nil {
-			return nil, nil, t.rpcError(err)
-		}
-		return response.Msg.GetConnections(), response.Msg.GetPagination(), nil
+		return t.connectionPage(ctx, kind, search, model.PageRequest{PageSize: pageSize, Cursor: cursor})
 	})
+}
+
+func (t *Target) connectionPage(ctx context.Context, kind ingestionv1.ConnectorKind, search string, request model.PageRequest) ([]*ingestionv1.Connection, *ingestionv1.PaginationResponse, error) {
+	response, err := t.client.ListConnections(ctx, connect.NewRequest(&ingestionv1.ListConnectionsRequest{
+		Kind: kind, Search: search, Pagination: pagination(request),
+	}))
+	if err != nil {
+		return nil, nil, t.rpcError(err)
+	}
+	return response.Msg.GetConnections(), response.Msg.GetPagination(), nil
 }
 
 func connectionFromProto(item *ingestionv1.Connection) model.Connection {

@@ -4,18 +4,27 @@ import (
 	"time"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 // pageSize is the deployment's maximum, so a full collection costs as few
 // round trips as the server allows.
 const pageSize int32 = 1000
 
-func pagination(cursor string) *ingestionv1.PaginationRequest {
-	request := &ingestionv1.PaginationRequest{PageSize: pageSize}
-	if cursor != "" {
-		request.Cursor = &cursor
+// pagination maps a page request onto the wire; a zero size means the
+// deployment's default.
+func pagination(request model.PageRequest) *ingestionv1.PaginationRequest {
+	out := &ingestionv1.PaginationRequest{PageSize: request.PageSize}
+	if request.Cursor != "" {
+		out.Cursor = &request.Cursor
 	}
-	return request
+	return out
+}
+
+func pageInfo(info *ingestionv1.PaginationResponse) model.PageInfo {
+	return model.PageInfo{
+		Total: int(info.GetTotal()), NextCursor: info.GetNextCursor(), PreviousCursor: info.GetPreviousCursor(),
+	}
 }
 
 // drain collects every item behind a cursor-paged fetch.

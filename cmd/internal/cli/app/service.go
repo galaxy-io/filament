@@ -17,7 +17,7 @@ type CatalogTarget interface {
 
 // ConnectionTarget supplies explicit connection queries and mutations.
 type ConnectionTarget interface {
-	ListConnections(context.Context, string) ([]model.NamedConnection, error)
+	ListConnections(context.Context, string, model.PageRequest) (model.Page[model.NamedConnection], error)
 	GetConnection(context.Context, string, string) (model.Connection, error)
 	CreateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
 	UpdateConnection(context.Context, string, string, model.Connection) (model.Connection, error)
@@ -26,7 +26,7 @@ type ConnectionTarget interface {
 
 // PipelineTarget supplies explicit pipeline queries and mutations.
 type PipelineTarget interface {
-	ListPipelines(context.Context) ([]model.NamedPipeline, error)
+	ListPipelines(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error)
 	GetPipeline(context.Context, string) (model.Pipeline, error)
 	CreatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
 	UpdatePipeline(context.Context, string, model.Pipeline) (model.Pipeline, error)
@@ -56,6 +56,11 @@ type Target interface {
 	PipelineTarget
 	DiscoveryTarget
 	RunTarget
+}
+
+// RunHistoryTarget is an optional target capability that lists past runs.
+type RunHistoryTarget interface {
+	ListRuns(context.Context, model.RunListRequest) (model.RunList, error)
 }
 
 // PipelineModesTarget is an optional target capability that resolves the
@@ -95,7 +100,7 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 	document := model.NewDocument()
 	for _, kind := range []string{"source", "sink"} {
-		connections, err := s.target.ListConnections(ctx, kind)
+		connections, err := s.allConnections(ctx, kind)
 		if err != nil {
 			return model.Document{}, err
 		}
@@ -107,7 +112,7 @@ func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 			}
 		}
 	}
-	pipelines, err := s.target.ListPipelines(ctx)
+	pipelines, err := s.allPipelines(ctx)
 	if err != nil {
 		return model.Document{}, err
 	}
@@ -117,20 +122,45 @@ func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 	return document, nil
 }
 
-// Connections lists connections of one kind from the selected target.
+func (s *Service) allConnections(ctx context.Context, kind string) ([]model.NamedConnection, error) {
+	return model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedConnection], error) {
+		return s.target.ListConnections(ctx, kind, request)
+	})
+}
+
+func (s *Service) allPipelines(ctx context.Context) ([]model.NamedPipeline, error) {
+	return model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedPipeline], error) {
+		return s.target.ListPipelines(ctx, request)
+	})
+}
+
+// Connections lists every connection of one kind.
 func (s *Service) Connections(ctx context.Context, kind string) (model.ConnectionList, error) {
-	connections, err := s.target.ListConnections(ctx, kind)
+	connections, err := s.allConnections(ctx, kind)
 	if err != nil {
 		return model.ConnectionList{}, err
+	}
+	return s.connectionList(ctx, kind, connections, model.PageInfo{})
+}
+
+// ConnectionPage lists one page of connections of one kind.
+func (s *Service) ConnectionPage(ctx context.Context, kind string, request model.PageRequest) (model.ConnectionList, error) {
+	page, err := s.target.ListConnections(ctx, kind, request)
+	if err != nil {
+		return model.ConnectionList{}, err
+	}
+	return s.connectionList(ctx, kind, page.Items, page.PageInfo)
+}
+
+func (s *Service) connectionList(ctx context.Context, kind string, connections []model.NamedConnection, info model.PageInfo) (model.ConnectionList, error) {
+	if kind != "source" && kind != "sink" {
+		return model.ConnectionList{}, fmt.Errorf("unknown connection kind %q", kind)
 	}
 	catalog, err := s.target.Catalog(ctx)
 	if err != nil {
 		return model.ConnectionList{}, err
 	}
-	if kind != "source" && kind != "sink" {
-		return model.ConnectionList{}, fmt.Errorf("unknown connection kind %q", kind)
-	}
-	result := model.ConnectionList{Kind: kind, Items: make([]model.ConnectionSummary, 0, len(connections))}
+	result := model.ConnectionList{Kind: kind, Items: make([]model.ConnectionSummary, 0, len(connections)), Page: info}
 	for _, item := range connections {
 		description, _ := catalog.Description(kind, item.Connection.Type)
 		result.Items = append(result.Items, model.ConnectionSummary{
@@ -140,13 +170,26 @@ func (s *Service) Connections(ctx context.Context, kind string) (model.Connectio
 	return result, nil
 }
 
-// Pipelines lists pipelines from the selected target.
+// Pipelines lists every pipeline.
 func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
-	pipelines, err := s.target.ListPipelines(ctx)
+	pipelines, err := s.allPipelines(ctx)
 	if err != nil {
 		return model.PipelineList{}, err
 	}
-	result := model.PipelineList{Items: make([]model.PipelineSummary, 0, len(pipelines))}
+	return pipelineList(pipelines, model.PageInfo{}), nil
+}
+
+// PipelinePage lists one page of pipelines.
+func (s *Service) PipelinePage(ctx context.Context, request model.PageRequest) (model.PipelineList, error) {
+	page, err := s.target.ListPipelines(ctx, request)
+	if err != nil {
+		return model.PipelineList{}, err
+	}
+	return pipelineList(page.Items, page.PageInfo), nil
+}
+
+func pipelineList(pipelines []model.NamedPipeline, info model.PageInfo) model.PipelineList {
+	result := model.PipelineList{Items: make([]model.PipelineSummary, 0, len(pipelines)), Page: info}
 	for _, item := range pipelines {
 		pipeline := item.Pipeline
 		result.Items = append(result.Items, model.PipelineSummary{
@@ -155,7 +198,16 @@ func (s *Service) Pipelines(ctx context.Context) (model.PipelineList, error) {
 			SyncMode: pipeline.SyncMode, WriteMode: pipeline.WriteMode,
 		})
 	}
-	return result, nil
+	return result
+}
+
+// Runs lists one page of run history when the target keeps any.
+func (s *Service) Runs(ctx context.Context, request model.RunListRequest) (model.RunList, error) {
+	history, ok := s.target.(RunHistoryTarget)
+	if !ok {
+		return model.RunList{}, errors.New("this target keeps no run history")
+	}
+	return history.ListRuns(ctx, request)
 }
 
 // Discover returns resources available for a connector request.

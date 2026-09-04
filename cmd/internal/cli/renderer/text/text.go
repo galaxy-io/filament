@@ -46,7 +46,10 @@ func Connections(w io.Writer, result model.ConnectionList, location string, used
 	}
 	columns := []style.Column{{Title: "Name", Role: style.RolePrimary}, {Title: "Connector", Role: style.RoleSecondary}, {Title: "Used by"}}
 	title := strings.ToUpper(result.Kind[:1]) + result.Kind[1:] + "s in"
-	return table(w, p.Title(title, location), p.Table(columns, rows))
+	if err := table(w, p.Title(title, location), p.Table(columns, rows)); err != nil {
+		return err
+	}
+	return pageFooter(w, p, len(rows), result.Page)
 }
 
 // Pipelines renders saved pipelines.
@@ -72,7 +75,72 @@ func Pipelines(w io.Writer, result model.PipelineList, location string) error {
 		{Title: "Sync", Role: style.RoleSecondary},
 		{Title: "Write", Role: style.RoleSecondary},
 	}
-	return table(w, p.Title("Pipelines in", location), p.Table(columns, rows))
+	if err := table(w, p.Title("Pipelines in", location), p.Table(columns, rows)); err != nil {
+		return err
+	}
+	return pageFooter(w, p, len(rows), result.Page)
+}
+
+// Runs renders one page of run history.
+func Runs(w io.Writer, result model.RunList) error {
+	if len(result.Items) == 0 {
+		_, err := fmt.Fprintln(w, "No runs yet.")
+		return err
+	}
+	p := style.New(w)
+	rows := make([][]string, 0, len(result.Items))
+	for _, run := range result.Items {
+		duration := "–"
+		if !run.StartedAt.IsZero() && !run.EndedAt.IsZero() {
+			duration = style.Elapsed(run.EndedAt.Sub(run.StartedAt))
+		}
+		rows = append(rows, []string{
+			run.ID, run.Pipeline, dash(run.Version), titleCase(dash(run.Status)),
+			style.Count(run.Records), style.Bytes(run.Bytes), stamp(run.StartedAt), duration,
+		})
+	}
+	columns := []style.Column{
+		{Title: "Run", Role: style.RolePrimary},
+		{Title: "Pipeline", Role: style.RoleSecondary},
+		{Title: "Version", Role: style.RoleSecondary},
+		{Title: "Status"},
+		{Title: "Records", Role: style.RoleNumber},
+		{Title: "Volume", Role: style.RoleNumber},
+		{Title: "Started", Role: style.RoleSecondary},
+		{Title: "Duration", Role: style.RoleNumber},
+	}
+	subject := "all pipelines"
+	if result.Pipeline != "" {
+		subject = result.Pipeline
+	}
+	if err := table(w, p.Title("Runs of", subject), p.Table(columns, rows)); err != nil {
+		return err
+	}
+	return pageFooter(w, p, len(rows), result.Page)
+}
+
+// pageFooter says how much of the collection this page shows and how to get
+// the next one. A target that does not count reports only the page.
+func pageFooter(w io.Writer, p style.Painter, shown int, page model.PageInfo) error {
+	if page.NextCursor == "" && page.PreviousCursor == "" {
+		return nil
+	}
+	summary := fmt.Sprintf("Showing %d", shown)
+	if page.Total > 0 {
+		summary = fmt.Sprintf("Showing %d of %d", shown, page.Total)
+	}
+	if page.NextCursor != "" {
+		summary += ". Next page: --next " + page.NextCursor
+	}
+	_, err := fmt.Fprintln(w, p.Muted(summary))
+	return err
+}
+
+func stamp(t time.Time) string {
+	if t.IsZero() {
+		return "–"
+	}
+	return t.Local().Format("2006-01-02 15:04")
 }
 
 // Resources renders discovered resources and how long discovery took.
