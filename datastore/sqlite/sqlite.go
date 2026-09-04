@@ -46,7 +46,8 @@ func Open(path string) (*Store, error) {
 		}
 	}
 	pragmas := url.Values{"_pragma": []string{"busy_timeout(5000)", "journal_mode(WAL)", "foreign_keys(1)", "synchronous(NORMAL)"}}
-	db, err := sql.Open("sqlite", "file:"+path+"?"+pragmas.Encode())
+	dsn := (&url.URL{Scheme: "file", OmitHost: true, Path: path, RawQuery: pragmas.Encode()}).String()
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: open: %w", err)
 	}
