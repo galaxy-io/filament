@@ -3,7 +3,9 @@ package zitadel
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	authorizationv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/authorization/v2"
@@ -129,15 +131,29 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 		Verification: &userv2.CreateInviteCodeRequest_ReturnCode{ReturnCode: &userv2.ReturnInviteCode{}},
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, p.discardUser(ctx, created.GetId(), err))
 	}
 	if err := p.grantRole(ctx, orgID, created.GetId(), roleKey); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, p.discardUser(ctx, created.GetId(), err))
 	}
 	return connect.NewResponse(&authv1.InviteMemberResponse{
 		UserId: created.GetId(),
 		Code:   invite.GetInviteCode(),
 	}), nil
+}
+
+// discardUser deletes a user whose invitation did not complete, so the email
+// is free for a retry rather than locked behind a half-created account. It
+// runs detached from the request so a dropped client still triggers cleanup.
+// cause is returned as-is on success; a failed delete is joined onto it, since
+// the admin then has to remove the user by hand.
+func (p *Provider) discardUser(ctx context.Context, userID string, cause error) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if _, err := p.api.UserServiceV2().DeleteUser(ctx, &userv2.DeleteUserRequest{UserId: userID}); err != nil {
+		return errors.Join(cause, fmt.Errorf("cleanup of user %s failed, remove it manually: %w", userID, err))
+	}
+	return cause
 }
 
 // SetMemberRole reassigns a member's role, creating the authorization when
