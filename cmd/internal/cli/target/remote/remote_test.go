@@ -13,6 +13,7 @@ import (
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors" // registers the connector catalog
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	secretenv "github.com/galaxy-io/filament/secret/env"
+	secretsqlite "github.com/galaxy-io/filament/secret/sqlite"
 )
 
 // serve boots the real stack on a loopback listener and returns a target
@@ -126,5 +127,53 @@ func TestRunSavedPipelineToCompletion(t *testing.T) {
 	}
 	if _, err := target.SubmitRun(ctx, model.RunSubmission{Spec: filament.RunSpec{}}); err == nil {
 		t.Fatal("inline run accepted by the deployment target")
+	}
+}
+
+// serveWithSecrets is serve with a writable secret store, for paths that
+// mint refs.
+func serveWithSecrets(t *testing.T) (*remote.Target, *secretsqlite.Provider) {
+	t.Helper()
+	store := sqlite.NewMemory()
+	secrets, err := secretsqlite.New(store.DB(), "test", []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- app.Serve(ctx, listener, app.WithDataStore(store), app.WithSecrets(secrets)) }()
+	t.Cleanup(func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("serve: %v", err)
+		}
+	})
+	return remote.NewTarget(remote.Options{Endpoint: "http://" + listener.Addr().String()}), secrets
+}
+
+// A connection read back from the deployment carries refs and no values, so
+// a value supplied on update is new input and must reach the deployment.
+func TestUpdateReplacesSecret(t *testing.T) {
+	ctx := context.Background()
+	target, secrets := serveWithSecrets(t)
+	created, err := target.CreateConnection(ctx, "source", "crm", model.Connection{Type: "attio", Config: map[string]any{"api_key": "first"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created.Config = map[string]any{"api_key": "second"}
+	updated, err := target.UpdateConnection(ctx, "source", "crm", created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.SecretRefs["api_key"] == created.SecretRefs["api_key"] {
+		t.Fatal("secret ref unchanged: new value was dropped")
+	}
+	secret, err := secrets.Read(ctx, updated.SecretRefs["api_key"])
+	if err != nil || string(secret.Value) != "second" {
+		t.Fatalf("stored value = %q, err = %v", secret.Value, err)
 	}
 }

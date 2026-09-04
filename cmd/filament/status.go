@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -66,8 +67,11 @@ func (a *cliApp) authSummary(profile string) string {
 		return "none"
 	}
 	stored, err := (cliauth.Store{Path: a.credentialsPath()}).Get(profile)
-	if err != nil {
+	switch {
+	case errors.Is(err, cliauth.ErrProfileNotFound):
 		return "profile " + profile + " (missing credentials)"
+	case err != nil:
+		return "profile " + profile + " (credentials unreadable)"
 	}
 	switch {
 	case stored.Cache == nil:
