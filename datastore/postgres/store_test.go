@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/datastore/postgres"
 )
 
@@ -29,6 +30,8 @@ const (
 	missingPipeline  = "40000000-0000-4000-8000-000000000099"
 	connectionOne    = "50000000-0000-4000-8000-000000000001"
 	connectionTwo    = "50000000-0000-4000-8000-000000000002"
+	replicationOne   = "60000000-0000-4000-8000-000000000001"
+	replicationTwo   = "60000000-0000-4000-8000-000000000002"
 	runSortCompleted = "20000000-0000-4000-8000-000000000011"
 	runSortRunning   = "20000000-0000-4000-8000-000000000012"
 	runSortCancelled = "20000000-0000-4000-8000-000000000013"
@@ -73,7 +76,7 @@ func newTestStore(t *testing.T) *postgres.Store {
 
 	// wipe between tests so each test starts from a clean slate against the
 	// same long-lived container/schema.
-	for _, table := range []string{"secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "runs", "schedules", "pipelines", "connections", "users", "tenants"} {
+	for _, table := range []string{"secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "replication_stream_resources", "runs", "replication_streams", "schedules", "pipelines", "connections", "users", "tenants"} {
 		if _, err := pool.Exec(ctx, "DELETE FROM "+table); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
@@ -542,6 +545,12 @@ func TestStore_PipelineOptimisticLock(t *testing.T) {
 		t.Fatalf("NewPool: %v", err)
 	}
 	defer pool.Close()
+	if _, err := pool.Exec(ctx, "DELETE FROM replication_stream_resources"); err != nil {
+		t.Fatalf("truncate replication stream resources: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM replication_streams"); err != nil {
+		t.Fatalf("truncate replication streams: %v", err)
+	}
 	if _, err := pool.Exec(ctx, "DELETE FROM pipelines"); err != nil {
 		t.Fatalf("truncate pipelines: %v", err)
 	}
@@ -778,5 +787,254 @@ func TestStore_DeleteScheduleReapsScheduledRuns(t *testing.T) {
 	}
 	if _, err := store.LoadSchedule(ctx, schedulePruned); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("expected schedule removed, got %v", err)
+	}
+}
+
+func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	for _, connection := range []filament.Connection{
+		{ID: connectionOne, Tenant: tenantA, Kind: filament.ConnectorKindSource, Name: "source", Connector: "postgres"},
+		{ID: connectionTwo, Tenant: tenantA, Kind: filament.ConnectorKindSink, Name: "sink", Connector: "postgres"},
+	} {
+		if _, err := store.CreateConnection(ctx, connection); err != nil {
+			t.Fatalf("CreateConnection: %v", err)
+		}
+	}
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineOne, TenantId: tenantA, Name: "cdc"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	versionOne, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	versionTwo, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion second: %v", err)
+	}
+
+	desired := filament.ReplicationStream{
+		ID: replicationOne, Tenant: tenantA, PipelineID: pipelineOne, Route: "route/source/sink",
+		SourceConnectionID: connectionOne, SinkConnectionID: connectionTwo,
+		ConsumerName:          "filament_60000000000040008000000000000001",
+		ConsumerConfig:        map[string]any{"kind": "postgres_lsn", "publication": "filament"},
+		ContinuityFingerprint: "compatible", CreatedFromPipelineVersionID: versionOne.GetId(),
+	}
+	stream, err := store.ResolveReplicationStream(ctx, desired)
+	if err != nil {
+		t.Fatalf("ResolveReplicationStream: %v", err)
+	}
+	if stream.ID != replicationOne || stream.Generation != 1 || stream.Status != filament.ReplicationStreamActive {
+		t.Fatalf("first stream = %+v", stream)
+	}
+
+	// A compatible immutable pipeline version reuses the stream and slot.
+	reusedDesired := desired
+	reusedDesired.ID = replicationTwo
+	reusedDesired.ConsumerName = "filament_60000000000040008000000000000002"
+	reusedDesired.CreatedFromPipelineVersionID = versionTwo.GetId()
+	reused, err := store.ResolveReplicationStream(ctx, reusedDesired)
+	if err != nil {
+		t.Fatalf("ResolveReplicationStream reuse: %v", err)
+	}
+	if reused.ID != stream.ID || reused.ConsumerName != stream.ConsumerName || reused.Generation != 1 {
+		t.Fatalf("reused stream = %+v, want original %+v", reused, stream)
+	}
+
+	resources, err := store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"orders", "customers"}, "snapshot")
+	if err != nil {
+		t.Fatalf("ReconcileReplicationStreamResources: %v", err)
+	}
+	if len(resources) != 2 || resources[0].ID == "" || resources[0].Resource != "customers" || resources[0].Status != filament.ReplicationStreamResourcePending {
+		t.Fatalf("initial resources = %+v", resources)
+	}
+
+	if err := store.SaveRun(ctx, filament.RunState{
+		Run: runOne, Tenant: tenantA, Status: filament.RunCompleted,
+		Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId()},
+	}); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+	key := filament.ResourceCheckpointKey{
+		PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId(), Route: stream.Route,
+		Resource: "customers", ReplicationStreamID: stream.ID,
+	}
+	legacyKey := key
+	legacyKey.ReplicationStreamID = ""
+	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+		Key: legacyKey, Run: runOne, Checkpoint: checkpoint.NewStreamDelta("customers", "0/10", 2),
+	}); err != nil {
+		t.Fatalf("SaveResourceCheckpoint legacy: %v", err)
+	}
+	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+		Key: key, Run: runOne, Checkpoint: checkpoint.NewStreamDelta("customers", "0/20", 4),
+	}); err != nil {
+		t.Fatalf("SaveResourceCheckpoint: %v", err)
+	}
+	if err := store.SaveRun(ctx, filament.RunState{
+		Run: runHighWater, Tenant: tenantA, Status: filament.RunCompleted,
+		Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId()},
+	}); err != nil {
+		t.Fatalf("SaveRun second: %v", err)
+	}
+	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{
+		Key: key, Run: runHighWater, Checkpoint: checkpoint.NewStreamDelta("customers", "0/30", 5),
+	}); err != nil {
+		t.Fatalf("SaveResourceCheckpoint second: %v", err)
+	}
+	loaded, err := store.LoadResourceCheckpoint(ctx, key)
+	if err != nil {
+		t.Fatalf("LoadResourceCheckpoint: %v", err)
+	}
+	if loaded.Run != runHighWater {
+		t.Fatalf("checkpoint writer = %q, want %q", loaded.Run, runHighWater)
+	}
+	resources, err = store.ListReplicationStreamResources(ctx, stream.ID)
+	if err != nil {
+		t.Fatalf("ListReplicationStreamResources after second checkpoint: %v", err)
+	}
+	foundCustomers := false
+	for _, resource := range resources {
+		if resource.Resource == "customers" {
+			foundCustomers = true
+			if resource.BootstrapRun != runOne {
+				t.Fatalf("customers bootstrap run = %q, want original run %q", resource.BootstrapRun, runOne)
+			}
+		}
+	}
+	if !foundCustomers {
+		t.Fatal("customers replication resource not found")
+	}
+	missingKey := key
+	missingKey.Resource = "orders"
+	if _, err := store.LoadResourceCheckpoint(ctx, missingKey); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("pending resource checkpoint error = %v, want ErrNotFound", err)
+	}
+
+	// Adding products preserves customers' cursor; omitting orders retires it.
+	resources, err = store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"customers", "products"}, "snapshot")
+	if err != nil {
+		t.Fatalf("ReconcileReplicationStreamResources update: %v", err)
+	}
+	statuses := map[string]filament.ReplicationStreamResourceStatus{}
+	for _, resource := range resources {
+		statuses[resource.Resource] = resource.Status
+	}
+	if statuses["customers"] != filament.ReplicationStreamResourceActive ||
+		statuses["products"] != filament.ReplicationStreamResourcePending ||
+		statuses["orders"] != filament.ReplicationStreamResourceRetired {
+		t.Fatalf("updated resource statuses = %+v", statuses)
+	}
+	listed, err := store.ListResourceCheckpoints(ctx, filament.ResourceCheckpointRoute{
+		PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId(), Route: stream.Route,
+		ReplicationStreamID: stream.ID,
+	})
+	if err != nil || len(listed) != 1 || listed[0].Key.Resource != "customers" {
+		t.Fatalf("active stream checkpoints = %+v, err = %v", listed, err)
+	}
+
+	// Re-adding a retired resource starts a fresh bootstrap lifecycle.
+	if _, err := store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"products"}, "snapshot"); err != nil {
+		t.Fatalf("retire active resource: %v", err)
+	}
+	resources, err = store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"customers", "products"}, "snapshot")
+	if err != nil {
+		t.Fatalf("re-add active resource: %v", err)
+	}
+	foundCustomers = false
+	for _, resource := range resources {
+		if resource.Resource == "customers" {
+			foundCustomers = true
+			if resource.Status != filament.ReplicationStreamResourcePending || resource.BootstrapRun != "" || resource.BootstrapStartedAt != nil || resource.ActivatedAt != nil {
+				t.Fatalf("re-added customers retained bootstrap metadata: %+v", resource)
+			}
+		}
+	}
+	if !foundCustomers {
+		t.Fatal("re-added customers replication resource not found")
+	}
+
+	// A continuity-breaking edit creates a new stream generation and slot.
+	fork := reusedDesired
+	fork.ContinuityFingerprint = "changed-sink"
+	forked, err := store.ResolveReplicationStream(ctx, fork)
+	if err != nil {
+		t.Fatalf("ResolveReplicationStream fork: %v", err)
+	}
+	if forked.ID != replicationTwo || forked.Generation != 2 || forked.ConsumerName == stream.ConsumerName {
+		t.Fatalf("forked stream = %+v", forked)
+	}
+	retired, err := store.LoadReplicationStream(ctx, stream.ID)
+	if err != nil || retired.Status != filament.ReplicationStreamRetired {
+		t.Fatalf("retired stream = %+v, err = %v", retired, err)
+	}
+	cleanup, err := store.ListRetiredReplicationStreams(ctx, pipelineOne, stream.Route)
+	if err != nil || len(cleanup) != 1 || cleanup[0].ID != stream.ID {
+		t.Fatalf("retired cleanup candidates = %+v, err = %v", cleanup, err)
+	}
+	if err := store.MarkReplicationStreamCleaned(ctx, stream.ID); err != nil {
+		t.Fatalf("MarkReplicationStreamCleaned: %v", err)
+	}
+	cleanup, err = store.ListRetiredReplicationStreams(ctx, pipelineOne, stream.Route)
+	if err != nil || len(cleanup) != 0 {
+		t.Fatalf("cleaned stream remained eligible: %+v, err = %v", cleanup, err)
+	}
+}
+
+func TestStore_ReplicationStreamAdmissionRollsBackOnRouteOverlap(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	for _, connection := range []filament.Connection{
+		{ID: connectionOne, Tenant: tenantA, Kind: filament.ConnectorKindSource, Name: "source", Connector: "postgres"},
+		{ID: connectionTwo, Tenant: tenantA, Kind: filament.ConnectorKindSink, Name: "sink", Connector: "postgres"},
+	} {
+		if _, err := store.CreateConnection(ctx, connection); err != nil {
+			t.Fatalf("CreateConnection: %v", err)
+		}
+	}
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: pipelineOne, TenantId: tenantA, Name: "cdc-overlap"}); err != nil {
+		t.Fatalf("CreatePipeline: %v", err)
+	}
+	version, err := store.CreatePipelineVersion(ctx, pipelineOne, &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	if err != nil {
+		t.Fatalf("CreatePipelineVersion: %v", err)
+	}
+	first := filament.ReplicationStream{
+		ID: replicationOne, Tenant: tenantA, PipelineID: pipelineOne, Route: "route/source/sink",
+		SourceConnectionID: connectionOne, SinkConnectionID: connectionTwo,
+		ConsumerName: "filament_60000000000040008000000000000001", ContinuityFingerprint: "first",
+		CreatedFromPipelineVersionID: version.GetId(),
+	}
+	if err := store.CreateRunWithReplicationStream(ctx, filament.RunState{
+		Run: runOne, Tenant: tenantA, Status: filament.RunPaused,
+		Request: filament.RunRequest{
+			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
+			CheckpointRoute: first.Route,
+		},
+	}, first); err != nil {
+		t.Fatalf("CreateRunWithReplicationStream first: %v", err)
+	}
+
+	second := first
+	second.ID = replicationTwo
+	second.ConsumerName = "filament_60000000000040008000000000000002"
+	second.ContinuityFingerprint = "second"
+	err = store.CreateRunWithReplicationStream(ctx, filament.RunState{
+		Run: runHighWater, Tenant: tenantA, Status: filament.RunRequested,
+		Request: filament.RunRequest{
+			Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version.GetId(),
+			CheckpointRoute: second.Route,
+		},
+	}, second)
+	if !errors.Is(err, filament.ErrRunOverlap) {
+		t.Fatalf("overlapping admission error = %v, want ErrRunOverlap", err)
+	}
+	active, err := store.LoadReplicationStream(ctx, first.ID)
+	if err != nil || active.Status != filament.ReplicationStreamActive {
+		t.Fatalf("predecessor after rejected admission = %+v, err = %v", active, err)
+	}
+	if _, err := store.LoadReplicationStream(ctx, second.ID); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("rejected successor exists: %v", err)
 	}
 }

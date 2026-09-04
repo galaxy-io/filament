@@ -1,4 +1,4 @@
-// Package orchestrator owns run intake and lifecycle. It turns a RunRequest into
+// Package orchestrator owns run intake and lifecycle. It turns a RunSubmission into
 // a persisted, addressable run and dispatches it onto the bus as a run.requested
 // fact for the engine to pick up. It is the real counterpart to the "orchestrator
 // stand-in" the tests and demo previously inlined: assign an id, persist the
@@ -47,12 +47,13 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	return nil
 }
 
-// Submit registers a run and dispatches its trigger, returning the assigned run
+// Submit admits a run and dispatches its trigger, returning the assigned run
 // id. It is idempotent on the request's IdempotencyKey: re-submitting the same
 // (tenant, key) returns the existing run without persisting or publishing again,
 // so a retried caller never starts a duplicate extraction.
-func (m *Module) Submit(ctx context.Context, req filament.RunRequest) (filament.RunID, error) {
-	id, err := runs.Submit(ctx, m.bus, m.ds, req)
+func (m *Module) Submit(ctx context.Context, submission filament.RunSubmission) (filament.RunID, error) {
+	req := submission.Request
+	id, err := runs.Submit(ctx, m.bus, m.ds, submission)
 	if err != nil {
 		return "", err
 	}

@@ -482,20 +482,24 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	}
 	var edgeRuns []*ingestionv1.PipelineEdgeRun
 	for _, c := range compiled {
-		run, err := a.orch.Submit(ctx, c.Req)
+		run, err := a.orch.Submit(ctx, c.Submission)
 		if err != nil {
+			if errors.Is(err, filament.ErrRunOverlap) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		if a.log != nil {
 			a.log.Debug("pipeline route submitted",
 				filament.Field{Key: "event.name", Value: "pipeline.route.submitted"},
 				filament.Field{Key: "pipeline_edge", Value: c.Edge},
-				filament.Field{Key: "source_connector", Value: c.Req.Source.Connector},
-				filament.Field{Key: "sink_connector", Value: c.Req.Sink.Connector},
-				filament.Field{Key: "resource_count", Value: len(c.Req.Resources)},
+				filament.Field{Key: "source_connector", Value: c.Submission.Request.Source.Connector},
+				filament.Field{Key: "sink_connector", Value: c.Submission.Request.Sink.Connector},
+				filament.Field{Key: "resource_count", Value: len(c.Submission.Request.Resources)},
 				filament.Field{Key: "run_id", Value: string(run)})
 		}
-		state := filament.RunState{Run: run, Tenant: c.Req.Tenant, Request: c.Req, ScheduleID: c.Req.ScheduleID, Status: filament.RunRequested}
+		runRequest := c.Submission.Request
+		state := filament.RunState{Run: run, Tenant: runRequest.Tenant, Request: runRequest, ScheduleID: runRequest.ScheduleID, Status: filament.RunRequested}
 		edgeRuns = append(edgeRuns, &ingestionv1.PipelineEdgeRun{PipelineEdgeKey: c.Edge, Run: runInfoToProto(state)})
 	}
 	if a.log != nil {

@@ -24,6 +24,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 	"sync"
@@ -97,16 +98,18 @@ func New() *Source {
 }
 
 var (
-	_ filament.Source               = (*Source)(nil)
-	_ filament.Discoverable         = (*Source)(nil)
-	_ filament.LiveValidatable      = (*Source)(nil)
-	_ filament.SchemaProvider       = (*Source)(nil)
-	_ filament.Resumable            = (*Source)(nil)
-	_ filament.ResumePlanner        = (*Source)(nil)
-	_ filament.IncrementalPlanner   = (*Source)(nil)
-	_ filament.CursorColumnProvider = (*Source)(nil)
-	_ filament.ChangeSource         = (*Source)(nil)
-	_ filament.ChangeAcknowledger   = (*Source)(nil)
+	_ filament.Source                   = (*Source)(nil)
+	_ filament.Discoverable             = (*Source)(nil)
+	_ filament.LiveValidatable          = (*Source)(nil)
+	_ filament.SchemaProvider           = (*Source)(nil)
+	_ filament.Resumable                = (*Source)(nil)
+	_ filament.ResumePlanner            = (*Source)(nil)
+	_ filament.IncrementalPlanner       = (*Source)(nil)
+	_ filament.CursorColumnProvider     = (*Source)(nil)
+	_ filament.ChangeSource             = (*Source)(nil)
+	_ filament.ChangeAcknowledger       = (*Source)(nil)
+	_ filament.ReplicationStreamPlanner = (*Source)(nil)
+	_ filament.ReplicationStreamCleaner = (*Source)(nil)
 )
 
 // Spec describes the source's config fields, modes, and write policies.
@@ -153,7 +156,6 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
 				Help:        "Create the CDC publication and add selected tables when needed",
 			},
-			{Name: "slot_name", Type: filament.FieldString, Default: defaultSlotName, Scope: filament.ScopePipeline, Help: "Persistent logical replication slot; use a unique slot per CDC pipeline"},
 		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
@@ -165,6 +167,66 @@ func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
 		return filament.ReplicationCDC
 	}
 	return filament.ReplicationStandard
+}
+
+// PlanReplicationStream gives one pipeline route its own logical replication
+// slot while keeping the publication shared at the connection level.
+func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
+	if request.ReplicationStreamID == "" {
+		return filament.ReplicationStreamPlan{}, fmt.Errorf("postgres source: replication stream ID is required")
+	}
+	consumerName := "filament_" + strings.ReplaceAll(request.ReplicationStreamID, "-", "")
+	if !validReplicationName(consumerName) {
+		return filament.ReplicationStreamPlan{}, fmt.Errorf("postgres source: generated slot name %q is invalid", consumerName)
+	}
+	publication := request.Config.String("publication")
+	if publication == "" {
+		publication = defaultPublication
+	}
+	schema := request.Config.String("schema")
+	if schema == "" {
+		schema = defaultSchema
+	}
+	return filament.ReplicationStreamPlan{
+		ConsumerName: consumerName,
+		ConsumerConfig: map[string]any{
+			"kind": "postgres_lsn", "publication": publication,
+		},
+		ContinuityConfig: map[string]any{
+			"schema": schema, "publication": publication,
+		},
+	}, nil
+}
+
+// BindReplicationStream injects the resolved generation's slot into a run
+// without mutating the stored connection or pipeline configuration.
+func (s *Source) BindReplicationStream(config map[string]any, stream filament.ReplicationStream) (map[string]any, error) {
+	if stream.ConsumerName == "" || !validReplicationName(stream.ConsumerName) {
+		return nil, fmt.Errorf("postgres source: replication stream has invalid slot name %q", stream.ConsumerName)
+	}
+	out := maps.Clone(config)
+	if out == nil {
+		out = map[string]any{}
+	}
+	out["slot_name"] = stream.ConsumerName
+	return out, nil
+}
+
+// CleanupReplicationStream drops a retired logical slot after its successor
+// has committed. Missing slots are already clean and therefore succeed.
+func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.ReplicationStream) error {
+	if s.pool == nil {
+		return fmt.Errorf("postgres source: cleanup replication stream before configure")
+	}
+	if !validReplicationName(stream.ConsumerName) {
+		return fmt.Errorf("postgres source: replication stream has invalid slot name %q", stream.ConsumerName)
+	}
+	if _, err := s.pool.Exec(ctx, `SELECT pg_drop_replication_slot(slot_name)
+		FROM pg_replication_slots
+		WHERE slot_name=$1`, stream.ConsumerName); err != nil {
+		return fmt.Errorf("postgres cdc: drop retired slot %q: %w", stream.ConsumerName, err)
+	}
+	return nil
 }
 
 // Validate rejects an invalid URL or incomplete individual connection fields.
@@ -230,6 +292,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if v := cfg.String("publication"); v != "" {
 		s.publication = v
 	}
+	// slot_name is runtime-only. ReplicationStreamPlanner binds the durable
+	// stream's generated slot after user-facing connection/pipeline validation.
 	if v := cfg.String("slot_name"); v != "" {
 		s.slotName = v
 	}

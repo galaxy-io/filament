@@ -45,8 +45,10 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
 		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
 		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
-		CheckpointRoute: r.CheckpointRoute, CursorConfigs: r.CursorConfigs,
-		Source: r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
+		CheckpointRoute:   r.CheckpointRoute,
+		ReplicationStream: r.ReplicationStream,
+		CursorConfigs:     r.CursorConfigs,
+		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,
 	}
@@ -78,7 +80,7 @@ func ShouldRun(state filament.RunState) bool {
 // A non-nil return means execution was not admitted (see admit). Once
 // admitted, outcomes travel as terminal facts and RunOne returns nil.
 //
-//nolint:funlen // the run lifecycle reads best as one sequence
+//nolint:funlen,gocyclo // the run lifecycle reads best as one sequence
 func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	deps.Log = scopedRunLogger(deps.Log, spec)
 	ctx, span, endSpan := startRunSpan(ctx, deps, spec)
@@ -108,6 +110,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
+		return nil
+	}
+	if err := bindReplicationStream(extractCtx, deps.DataStore, src, &spec); err != nil {
+		em.failed(err, nil, false)
 		return nil
 	}
 	if err := src.Configure(extractCtx, filament.NewConfig(spec.Source.Config)); err != nil {
@@ -142,6 +148,22 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	spec.WritePolicies = plan.WritePolicies
+	if plan.RequiresCDC && spec.ReplicationStream != nil && spec.ReplicationStream.ID != "" {
+		replicationStreamStore, ok := deps.DataStore.(filament.ReplicationStreamStore)
+		if !ok {
+			em.failed(fmt.Errorf("datastore does not support replication stream %q", spec.ReplicationStream.ID), nil, false)
+			return nil
+		}
+		if _, err := replicationStreamStore.ReconcileReplicationStreamResources(
+			extractCtx, spec.ReplicationStream.ID, spec.Tenant, spec.Resources, "snapshot",
+		); err != nil {
+			if emitControlledIfStopped(extractCtx, err, control, em) {
+				return nil
+			}
+			em.failed(fmt.Errorf("reconcile replication stream resources: %w", err), nil, false)
+			return nil
+		}
+	}
 	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
 	// cannot shard: parallel writers apply batches out of order, so a keyset
 	// cursor could persist behind rows already written.
@@ -262,6 +284,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	}
 	em.completed(resources)
 	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
+	cleanupRetiredReplicationStreams(ctx, deps, spec, src)
 	return nil
 }
 
