@@ -149,6 +149,32 @@ func TestJobForSpecResources(t *testing.T) {
 	}
 }
 
+func TestJobForSpecRestrictedSecurity(t *testing.T) {
+	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
+	job, err := m.jobForSpec(filament.RunSpec{Tenant: "acme", Run: "run-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod := job.Spec.Template.Spec
+	if pod.AutomountServiceAccountToken == nil || *pod.AutomountServiceAccountToken {
+		t.Fatal("worker pod must not mount a service account token")
+	}
+	if pod.SecurityContext == nil || pod.SecurityContext.RunAsNonRoot == nil || !*pod.SecurityContext.RunAsNonRoot ||
+		pod.SecurityContext.SeccompProfile == nil || pod.SecurityContext.SeccompProfile.Type != corev1.SeccompProfileTypeRuntimeDefault {
+		t.Fatalf("pod security context = %+v, want non-root with runtime default seccomp", pod.SecurityContext)
+	}
+	sc := pod.Containers[0].SecurityContext
+	if sc == nil || sc.AllowPrivilegeEscalation == nil || *sc.AllowPrivilegeEscalation ||
+		sc.ReadOnlyRootFilesystem == nil || !*sc.ReadOnlyRootFilesystem ||
+		sc.Capabilities == nil || !reflect.DeepEqual(sc.Capabilities.Drop, []corev1.Capability{"ALL"}) {
+		t.Fatalf("container security context = %+v, want restricted profile", sc)
+	}
+	mounts := pod.Containers[0].VolumeMounts
+	if len(mounts) != 1 || mounts[0].MountPath != "/tmp" || len(pod.Volumes) != 1 || pod.Volumes[0].EmptyDir == nil {
+		t.Fatalf("worker must mount an emptyDir at /tmp for sinks that stage to disk, got mounts=%+v volumes=%+v", mounts, pod.Volumes)
+	}
+}
+
 func TestJobForSpecPlacement(t *testing.T) {
 	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
 	spec := filament.RunSpec{Tenant: "acme", Run: "run-1"}
