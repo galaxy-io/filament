@@ -26,8 +26,34 @@ type interactiveOption struct {
 	disabled    bool
 }
 
-// boxedMenu renders header and rows as the same boxed table the list
-// commands print; borders and the header are unselectable rows.
+// tableMenu renders header and rows as the same table the list commands
+// print, in the renderer's layout; rules and the header are unselectable.
+func (r *Renderer) tableMenu(headers []string, rows [][]string, values []string) []interactiveOption {
+	if r.layout == style.LayoutPlain {
+		return plainMenu(headers, rows, values)
+	}
+	return boxedMenu(headers, rows, values)
+}
+
+// plainMenu is the whitespace grid: aligned columns, a header, no rules.
+func plainMenu(headers []string, rows [][]string, values []string) []interactiveOption {
+	widths := style.Widths(append([][]string{headers}, rows...))
+	line := func(cells []string) string {
+		parts := make([]string, len(cells))
+		for index, cell := range cells {
+			parts[index] = pad(cell, widths[index])
+		}
+		return strings.TrimRight(strings.Join(parts, "     "), " ")
+	}
+	options := make([]interactiveOption, 0, len(rows)+1)
+	options = append(options, interactiveOption{label: line(headers), disabled: true})
+	for index, row := range rows {
+		options = append(options, interactiveOption{label: line(row), value: values[index]})
+	}
+	return options
+}
+
+// boxedMenu is dado's ruled box.
 func boxedMenu(headers []string, rows [][]string, values []string) []interactiveOption {
 	widths := style.Widths(append([][]string{headers}, rows...))
 	rule := func(left, junction, right string) string {
@@ -56,6 +82,10 @@ func boxedMenu(headers []string, rows [][]string, values []string) []interactive
 	options = append(options, interactiveOption{label: rule("╰", "┴", "╯"), disabled: true})
 	return options
 }
+
+// spacer is an unselectable blank row between a table and the actions
+// under it.
+var spacer = interactiveOption{label: "", disabled: true}
 
 type interactiveEntry struct {
 	section   string
@@ -129,6 +159,7 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			{label: "Pipelines", value: "pipelines"},
 			{label: "Runs", value: "runs"},
 			{label: "Configuration", value: "config"},
+			{label: "Settings", value: "settings"},
 			{label: "Exit", value: interactiveBack},
 		})
 		if interactiveInterrupted(err) {
@@ -154,6 +185,8 @@ func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry)
 			err = r.showRuns(ctx)
 		case "config":
 			err = r.manageInteractiveConfig(ctx)
+		case "settings":
+			err = r.manageSettings(ctx)
 		}
 		if interactiveInterrupted(err) {
 			return nil
@@ -231,24 +264,22 @@ type menuHeader struct {
 
 func (h menuHeader) Frame(width int) *inline.Frame {
 	height := 1 + len(h.pairs)
-	if h.notice != "" {
-		height++
-	}
 	if h.gap {
 		height++
 	}
 	frame := inline.NewFrame(max(width, 0), height)
-	draw(frame, 0, 0, h.title, h.theme.Accent.Bold(true))
-	y := 1
+	x := draw(frame, 0, 0, h.title, h.theme.Accent.Bold(true))
+	// A notice is a toast on the title row: it never changes the menu's
+	// height, so the options stay where the eye left them.
 	if h.notice != "" {
 		marker, tone := "✗", h.theme.Error
 		if h.noticeOK {
 			marker, tone = "✓", h.theme.Success
 		}
-		x := draw(frame, 0, y, marker+" ", tone)
-		draw(frame, x, y, h.notice, h.theme.Text)
-		y++
+		x = draw(frame, x+2, 0, marker+" ", tone)
+		draw(frame, x, 0, h.notice, h.theme.Muted)
 	}
+	y := 1
 	keyWidth := 0
 	for _, pair := range h.pairs {
 		keyWidth = max(keyWidth, utf8.RuneCountInString(pair[0]))
@@ -295,7 +326,9 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 	return selected, nil
 }
 
-// showRuns presents paginated history as a transient interactive screen.
+// showRuns lists run history the way every section lists its rows:
+// selectable, with paging as the actions under the table. Selecting a run
+// opens its detail.
 func (r *Renderer) showRuns(ctx context.Context) error {
 	request := model.RunListRequest{PageRequest: model.PageRequest{PageSize: model.DefaultPageSize}}
 	for {
@@ -303,44 +336,67 @@ func (r *Renderer) showRuns(ctx context.Context) error {
 		if err != nil {
 			return r.notice(false, err.Error())
 		}
-		pairs := [][2]string{}
-		if len(result.Items) == 0 {
-			pairs = append(pairs, [2]string{"", "No runs."})
-		} else {
+		description := "No runs yet."
+		var options []interactiveOption
+		if len(result.Items) > 0 {
+			description = ""
 			rows := present.RunRows(result.Items)
-			grid := style.Styled(r.dark).Table(styledColumns(present.RunColumns()), present.Cells(rows))
-			for line := range strings.SplitSeq(strings.TrimRight(grid, "\n"), "\n") {
-				pairs = append(pairs, [2]string{"", strings.TrimPrefix(line, style.Indent)})
-			}
+			options = append(options, r.tableMenu(present.Titles(present.RunColumns()), present.Cells(rows), present.Keys(rows))...)
 		}
-		choices := []inline.Choice{}
+		if result.Page.PreviousCursor != "" || result.Page.NextCursor != "" {
+			options = append(options, spacer)
+		}
 		if result.Page.PreviousCursor != "" {
-			choices = append(choices, inline.NewChoice("previous", "Previous page"))
+			options = append(options, interactiveOption{label: "Previous page", value: "\x00previous"})
 		}
 		if result.Page.NextCursor != "" {
-			choices = append(choices, inline.NewChoice("next", "Next page"))
+			options = append(options, interactiveOption{label: "Next page", value: "\x00next"})
 		}
-		choices = append(choices, inline.NewChoice(interactiveBack, "Back"))
-		header := menuHeader{theme: r.theme, title: r.titled("Runs"), pairs: pairs, gap: true}
-		form := inline.NewForm("").SetHeader(header).Add(
-			inline.NewSelectField("selection", "", choices...).Required(),
-		)
-		selected, err := r.runInteractiveForm(ctx, form)
-		if interactiveCancelled(err) {
+		if len(options) == 0 {
+			options = append(options, interactiveOption{label: "Done", value: interactiveBack})
+		}
+		selected, err := r.chooseInteractive(ctx, "Runs", description, options)
+		if interactiveCancelled(err) || selected == interactiveBack {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		switch selected["selection"] {
-		case "previous":
+		switch selected {
+		case "\x00previous":
 			request.Cursor = result.Page.PreviousCursor
-		case "next":
+		case "\x00next":
 			request.Cursor = result.Page.NextCursor
 		default:
-			return nil
+			for _, run := range result.Items {
+				if run.ID == selected {
+					if err := r.showDetail(ctx, run.ID, runPairs(run)); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
+}
+
+func runPairs(run model.RunSummary) [][2]string {
+	duration := "–"
+	if !run.StartedAt.IsZero() && !run.EndedAt.IsZero() {
+		duration = style.Elapsed(run.EndedAt.Sub(run.StartedAt))
+	}
+	pairs := [][2]string{
+		{"Pipeline", run.Pipeline},
+		{"Version", present.Dash(run.Version)},
+		{"Status", present.Status(run.Status)},
+		{"Records", style.Count(run.Records)},
+		{"Volume", style.Bytes(run.Bytes)},
+		{"Started", present.Stamp(run.StartedAt)},
+		{"Duration", duration},
+	}
+	if run.Error != "" {
+		pairs = append(pairs, [2]string{"Error", run.Error})
+	}
+	return pairs
 }
 
 // showDetail presents a transient key/value screen that clears when the user
@@ -349,7 +405,7 @@ func (r *Renderer) showDetail(ctx context.Context, title string, pairs [][2]stri
 	notice, noticeOK := r.takeNotice()
 	header := menuHeader{theme: r.theme, title: title, notice: notice, noticeOK: noticeOK, pairs: pairs, gap: true}
 	form := inline.NewForm("").SetHeader(header).Add(
-		inline.NewSelectField("selection", "", inline.Choice{Value: interactiveBack, Label: "Back"}).Required(),
+		inline.NewSelectField("selection", "", inline.Choice{Value: interactiveBack, Label: "Done"}).Required(),
 	)
 	if _, err := r.runInteractiveForm(ctx, form); err != nil && !interactiveCancelled(err) {
 		return err
@@ -445,10 +501,37 @@ func preferredChoices(preferred string, options []interactiveOption) []inline.Ch
 	return choices
 }
 
-func styledColumns(columns []present.Column) []style.Column {
-	out := make([]style.Column, 0, len(columns))
-	for _, column := range columns {
-		out = append(out, style.Column{Title: column.Title, Role: column.Role})
+// manageSettings edits the user's CLI preferences and saves them.
+func (r *Renderer) manageSettings(ctx context.Context) error {
+	if r.saveLayout == nil {
+		return r.notice(false, "Settings are not available here")
 	}
-	return out
+	current := r.layout.String()
+	options := []interactiveOption{
+		{label: "Boxed", value: "boxed", description: describeIf(current == "boxed", "current")},
+		{label: "Plain", value: "plain", description: describeIf(current == "plain", "current")},
+	}
+	selected, err := r.chooseInteractive(ctx, r.titled("Settings"), "Table layout", options)
+	if interactiveCancelled(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	layout, err := style.ParseLayout(selected)
+	if err != nil {
+		return err
+	}
+	if err := r.saveLayout(layout); err != nil {
+		return r.notice(false, "Unable to save settings: "+err.Error())
+	}
+	r.layout = layout
+	return r.notice(true, "Layout set to "+selected)
+}
+
+func describeIf(condition bool, text string) string {
+	if condition {
+		return text
+	}
+	return ""
 }

@@ -33,6 +33,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 	root.PersistentFlags().String("config", a.configPath, "Read configuration from `PATH`")
 	root.PersistentFlags().String("context", "", "Run against context `NAME`")
 	root.PersistentFlags().BoolP("interactive", "i", false, "Open the interactive menu")
+	root.PersistentFlags().String("layout", "boxed", "Draw tables as `boxed` or `plain` (also FILAMENT_LAYOUT)")
 	root.SetVersionTemplate("filament {{.Version}}\n")
 
 	a.installHelpStyle(root)

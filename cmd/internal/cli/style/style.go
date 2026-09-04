@@ -122,19 +122,118 @@ func (p Painter) Title(prefix, subject string) string {
 // Role decides how a column's cells are emphasised.
 type Role int
 
-// Column roles, from least to most emphasis.
+// Column roles, from least to most emphasis. RoleStatus colors a "● Status"
+// cell by what the status means.
 const (
 	RolePlain Role = iota
 	RolePrimary
 	RoleSecondary
 	RoleMuted
 	RoleNumber
+	RoleStatus
 )
+
+// Layout is how a table is drawn.
+type Layout int
+
+// Table layouts: boxed is dado's ruled box, plain is a Vercel-style
+// whitespace grid.
+const (
+	LayoutBoxed Layout = iota
+	LayoutPlain
+)
+
+// String names the layout the way ParseLayout reads it.
+func (l Layout) String() string {
+	if l == LayoutPlain {
+		return "plain"
+	}
+	return "boxed"
+}
+
+// ParseLayout reads a layout name from a flag or environment value.
+func ParseLayout(value string) (Layout, error) {
+	switch value {
+	case "", "boxed":
+		return LayoutBoxed, nil
+	case "plain":
+		return LayoutPlain, nil
+	default:
+		return LayoutBoxed, fmt.Errorf("layout must be boxed or plain, not %q", value)
+	}
+}
 
 // Column describes one table column.
 type Column struct {
 	Title string
 	Role  Role
+}
+
+// Grid renders rows in the given layout.
+func (p Painter) Grid(layout Layout, columns []Column, rows [][]string) string {
+	if layout == LayoutPlain {
+		return p.plainTable(columns, rows)
+	}
+	return p.Table(columns, rows)
+}
+
+// plainTable renders a whitespace grid: no rules, a two-space margin, five
+// spaces between columns, muted headers, and role-styled cells.
+func (p Painter) plainTable(columns []Column, rows [][]string) string {
+	headers := make([]string, len(columns))
+	for index, column := range columns {
+		headers[index] = column.Title
+	}
+	widths := Widths(append([][]string{headers}, rows...))
+	const gap = "     "
+	var out strings.Builder
+	line := func(cells []string, paint func(int, string) string) {
+		out.WriteString(Indent)
+		for index, cell := range cells {
+			out.WriteString(paint(index, cell))
+			if index < len(cells)-1 {
+				out.WriteString(strings.Repeat(" ", widths[index]-Width(cell)) + gap)
+			}
+		}
+		out.WriteString("\n")
+	}
+	line(headers, func(_ int, text string) string { return p.muted.Render(text) })
+	for _, row := range rows {
+		line(row, func(index int, text string) string { return p.cell(columns[index].Role, text).Render(text) })
+	}
+	return out.String()
+}
+
+// cell picks the style for one body cell by its column role.
+func (p Painter) cell(role Role, text string) lipgloss.Style {
+	switch role {
+	case RolePrimary:
+		return p.bold
+	case RoleSecondary:
+		return p.label
+	case RoleMuted:
+		return p.muted
+	case RoleStatus:
+		return p.status(text)
+	default:
+		return lipgloss.NewStyle()
+	}
+}
+
+// status colors a status cell: done is success, broken is failure, live is
+// the accent, anything else muted.
+func (p Painter) status(text string) lipgloss.Style {
+	lower := strings.ToLower(text)
+	switch {
+	case strings.Contains(lower, "complete") || strings.Contains(lower, "ready"):
+		return p.success
+	case strings.Contains(lower, "fail") || strings.Contains(lower, "partial"):
+		return p.failure
+	case strings.Contains(lower, "running") || strings.Contains(lower, "requested") || strings.Contains(lower, "scheduled"):
+		return p.accent
+	default:
+		return p.muted
+	}
 }
 
 // Table renders a boxed table in dado's style: rounded corners, column rules,
@@ -160,16 +259,11 @@ func (p Painter) Table(columns []Column, rows [][]string) string {
 			if row == table.HeaderRow {
 				return cell.Inherit(p.accent).Bold(p.enabled)
 			}
-			switch columns[col].Role {
-			case RolePrimary:
-				return cell.Inherit(p.bold)
-			case RoleSecondary:
-				return cell.Inherit(p.label)
-			case RoleMuted:
-				return cell.Inherit(p.muted)
-			default:
-				return cell
+			text := ""
+			if row >= 0 && row < len(rows) && col < len(rows[row]) {
+				text = rows[row][col]
 			}
+			return cell.Inherit(p.cell(columns[col].Role, text))
 		})
 	var out strings.Builder
 	for _, line := range strings.Split(grid.Render(), "\n") {

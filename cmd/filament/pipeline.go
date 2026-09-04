@@ -9,7 +9,6 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 func (a *cliApp) pipelineCommand() *cobra.Command {
@@ -181,7 +180,7 @@ func (a *cliApp) pipelineListCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return textrenderer.Pipelines(a.stdout, result, a.configName())
+			return a.text().Pipelines(result, a.configName(), "filament pipeline list")
 		},
 	}
 	page.add(cmd)

@@ -85,6 +85,7 @@ func PipelineColumns() []Column {
 		{Title: "Sync", Role: style.RoleSecondary},
 		{Title: "Write", Role: style.RoleSecondary},
 		{Title: "Schedule", Role: style.RoleSecondary},
+		{Title: "Status", Role: style.RoleStatus},
 		{Title: "Last run", Role: style.RoleSecondary},
 	}
 }
@@ -100,7 +101,7 @@ func PipelineRows(items []model.PipelineSummary) []Row {
 		rows = append(rows, Row{Key: item.Name, Cells: []string{
 			item.Name, item.Source, item.Sink, resources,
 			TitleCase(Dash(item.SyncMode)), TitleCase(Dash(item.WriteMode)),
-			Dash(item.Schedule), LastRun(item.LastRunStatus, item.LastRunAt),
+			Dash(item.Schedule), Status(item.LastRunStatus), LastRun(item.LastRunAt),
 		}})
 	}
 	return rows
@@ -112,7 +113,7 @@ func RunColumns() []Column {
 		{Title: "Run", Role: style.RolePrimary},
 		{Title: "Pipeline", Role: style.RoleSecondary},
 		{Title: "Version", Role: style.RoleSecondary},
-		{Title: "Status"},
+		{Title: "Status", Role: style.RoleStatus},
 		{Title: "Records", Role: style.RoleNumber},
 		{Title: "Volume", Role: style.RoleNumber},
 		{Title: "Started", Role: style.RoleSecondary},
@@ -129,22 +130,28 @@ func RunRows(items []model.RunSummary) []Row {
 			duration = style.Elapsed(run.EndedAt.Sub(run.StartedAt))
 		}
 		rows = append(rows, Row{Key: run.ID, Cells: []string{
-			run.ID, run.Pipeline, Dash(run.Version), TitleCase(Dash(run.Status)),
+			run.ID, run.Pipeline, Dash(run.Version), Status(run.Status),
 			style.Count(run.Records), style.Bytes(run.Bytes), Stamp(run.StartedAt), duration,
 		}})
 	}
 	return rows
 }
 
-// LastRun renders "Status · 3h ago", or a dash when nothing has run.
-func LastRun(status string, at time.Time) string {
-	if status == "" {
+// LastRun renders how long ago the last run started, or a dash when nothing
+// has run.
+func LastRun(at time.Time) string {
+	if at.IsZero() {
 		return "–"
 	}
-	if at.IsZero() {
-		return TitleCase(status)
+	return Ago(at)
+}
+
+// Status renders a status with its dot, or a dash when unset.
+func Status(value string) string {
+	if value == "" {
+		return "–"
 	}
-	return TitleCase(status) + " · " + Ago(at)
+	return "● " + TitleCase(value)
 }
 
 // Stamp renders a timestamp in local time, or a dash when unset.

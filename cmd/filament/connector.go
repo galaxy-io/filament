@@ -10,7 +10,6 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 const connectionGuidance = `Connector fields are set with --%[1]s-<field>. Secret fields accept plaintext
@@ -200,7 +199,7 @@ func (a *cliApp) connectionListCommand(kind string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return textrenderer.Connections(a.stdout, result, a.configName(), usedBy)
+			return a.text().Connections(result, a.configName(), usedBy, "filament "+kind+" list")
 		},
 	}
 	page.add(cmd)

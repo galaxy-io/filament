@@ -8,7 +8,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 func (a *cliApp) discoverSource(ctx context.Context, args []string) error {
@@ -61,5 +60,5 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	return textrenderer.Resources(a.stdout, resources, time.Since(startedAt))
+	return a.text().Resources(resources, time.Since(startedAt))
 }

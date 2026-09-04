@@ -40,17 +40,18 @@ func (r *Renderer) interactiveRun(ctx context.Context) error {
 	if len(listed.Items) == 0 {
 		return r.notice(false, "No saved pipelines. Create a source, sink, and pipeline first.")
 	}
-	options := pipelineMenuOptions(listed.Items)
-	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-	name, err := r.chooseInteractive(ctx, "Run a pipeline", "Choose a saved pipeline", options)
-	if err != nil || name == interactiveBack {
+	name, err := r.chooseInteractive(ctx, "Run a pipeline", "Choose a saved pipeline", r.pipelineMenuOptions(listed.Items))
+	if err != nil {
 		return err
 	}
 	return r.runInteractivePipeline(ctx, name)
 }
 
+// runInteractivePipeline runs a chosen pipeline. Inside the menus the run
+// is a screen that stays up until dismissed and then toasts its outcome; as
+// a one-shot operation the table and summary stay in scrollback.
 func (r *Renderer) runInteractivePipeline(ctx context.Context, name string) error {
-	return r.runRequest(ctx, cliapp.RunRequest{Pipeline: name})
+	return r.runRequest(ctx, cliapp.RunRequest{Pipeline: name}, r.menuMode)
 }
 
 // RunRequest renders one run with the live grid. Interruption ends the run quietly;
@@ -62,21 +63,22 @@ func (r *Renderer) RunRequest(ctx context.Context, request cliapp.RunRequest) (r
 		runErr = errors.Join(runErr, renderer.Clear(), renderer.Close())
 		r.interactiveRenderer = nil
 	}()
-	if err := r.runRequest(ctx, request); err != nil && !interactiveInterrupted(err) {
+	if err := r.runRequest(ctx, request, false); err != nil && !interactiveInterrupted(err) {
 		return err
 	}
 	return nil
 }
 
-func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest) error {
+// runRequest prepares and renders one run. A transient run keeps its title
+// and discovery line inside the live frame and leaves nothing in scrollback;
+// otherwise they print above the frame and the final rows stay behind.
+func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest, transient bool) error {
 	submission, err := r.service.PrepareRun(ctx, request)
 	if err != nil {
 		return err
 	}
 	spec := submission.Spec
-	if err := r.announceRun(request.Pipeline, spec); err != nil {
-		return err
-	}
+	view := &runProgressView{theme: r.theme, title: runRoute(request.Pipeline, spec)}
 	var resources []model.ResourceSummary
 	if request.Pipeline != "" {
 		doc, err := r.service.Configuration(ctx)
@@ -85,9 +87,7 @@ func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest) er
 		}
 		var discoverErr error
 		resources, discoverErr = r.discoverPipelineResources(ctx, doc.Pipelines[request.Pipeline])
-		if err := r.announceDiscovery(discoverErr); err != nil {
-			return err
-		}
+		view.note = "Discovering resources… " + discoveryWord(discoverErr)
 	}
 	if spec.Sink.Connector == "stdout" {
 		if output, ok := r.stdout.(*os.File); ok && term.IsTerminal(int(output.Fd())) {
@@ -97,28 +97,26 @@ func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest) er
 			}
 		}
 	}
-	_, err = r.renderInteractiveRun(ctx, submission, resources)
+	_, err = r.renderInteractiveRun(ctx, view, submission, resources, transient)
 	return err
 }
 
-func (r *Renderer) announceRun(name string, spec filament.RunSpec) error {
+func runRoute(name string, spec filament.RunSpec) string {
 	route := spec.Source.Connector + " → " + spec.Sink.Connector
 	if name != "" {
 		route = name + " · " + route
 	}
-	return r.interactiveRenderer.Println(r.painter().Title("Running", route))
+	return route
 }
 
-func (r *Renderer) announceDiscovery(discoverErr error) error {
-	p := r.painter()
-	status := p.Success("Ok")
+func discoveryWord(discoverErr error) string {
 	if discoverErr != nil {
-		status = p.Muted("Unavailable")
+		return "Unavailable"
 	}
-	return r.interactiveRenderer.Println(style.Indent + p.Label("Discovering Resources… ") + status)
+	return "Ok"
 }
 
-func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.RunSubmission, discovered []model.ResourceSummary) (model.RunResult, error) {
+func (r *Renderer) renderInteractiveRun(ctx context.Context, view *runProgressView, submission model.RunSubmission, discovered []model.ResourceSummary, transient bool) (model.RunResult, error) {
 	if r.interactiveRenderer == nil {
 		return model.RunResult{}, errors.New("interactive renderer is not running")
 	}
@@ -127,7 +125,6 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 	if err != nil {
 		return model.RunResult{}, err
 	}
-	view := &runProgressView{theme: r.theme}
 	rows := map[string]*runRow{}
 	addResource := func(key, name string) {
 		if key == "" || rows[key] != nil {
@@ -190,7 +187,7 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 		case completed := <-done:
 			drainRunUpdates(updates, rows, addResource, len(group.Runs) > 1)
 			settleRows(view, completed.result, completed.err)
-			return completed.result, errors.Join(completed.err, r.finishRun(view, completed.result, time.Since(startedAt), completed.err))
+			return completed.result, errors.Join(completed.err, r.finishRun(ctx, view, completed.result, time.Since(startedAt), completed.err, transient))
 		case <-ticker.C:
 			view.tick++
 			if err := render(); err != nil {
@@ -198,7 +195,7 @@ func (r *Renderer) renderInteractiveRun(ctx context.Context, submission model.Ru
 			}
 		case <-ctx.Done():
 			settleRows(view, model.RunResult{Status: "canceled"}, ctx.Err())
-			return model.RunResult{}, errors.Join(ctx.Err(), r.finishRun(view, model.RunResult{}, time.Since(startedAt), ctx.Err()))
+			return model.RunResult{}, errors.Join(ctx.Err(), r.finishRun(ctx, view, model.RunResult{}, time.Since(startedAt), ctx.Err(), transient))
 		}
 	}
 }
@@ -266,13 +263,32 @@ func runResourceKey(update resourceProgressUpdate, multipleRoutes bool) (string,
 	return update.route + "\x00" + update.resource, update.route + " · " + update.resource
 }
 
-// finishRun moves the final rows and the summary into scrollback.
-func (r *Renderer) finishRun(view *runProgressView, result model.RunResult, elapsed time.Duration, runErr error) error {
+// finishRun ends the live frame. Inside the menus the final rows stay on
+// screen until the user goes back, then the outcome becomes the next menu's
+// toast. As a one-shot operation the rows and the summary move into
+// scrollback and the command exits.
+func (r *Renderer) finishRun(ctx context.Context, view *runProgressView, result model.RunResult, elapsed time.Duration, runErr error, transient bool) error {
 	if err := r.interactiveRenderer.Clear(); err != nil {
 		return err
 	}
+	if transient {
+		plain := style.Painter{}
+		summary := runSummaryLine(plain, len(view.rows), result, elapsed, runErr)
+		pairs := [][2]string{}
+		if view.note != "" {
+			pairs = append(pairs, [2]string{"", view.note}, [2]string{"", ""})
+		}
+		for line := range strings.SplitSeq(strings.TrimRight(view.lines(plain), "\n"), "\n") {
+			pairs = append(pairs, [2]string{"", strings.TrimPrefix(line, style.Indent)})
+		}
+		pairs = append(pairs, [2]string{"", ""}, [2]string{"", summary})
+		if err := r.showDetail(ctx, view.title, pairs); err != nil && !interactiveCancelled(err) && !interactiveInterrupted(err) {
+			return err
+		}
+		return r.notice(result.Status == "complete" && runErr == nil, view.title+": "+summary)
+	}
 	p := r.painter()
-	if err := r.interactiveRenderer.Println("\n" + strings.TrimRight(view.lines(p), "\n")); err != nil {
+	if err := r.interactiveRenderer.Println(p.Title("Ran", view.title) + "\n" + strings.TrimRight(view.lines(p), "\n")); err != nil {
 		return err
 	}
 	return r.interactiveRenderer.Println("\n" + runSummaryLine(p, len(view.rows), result, elapsed, runErr))

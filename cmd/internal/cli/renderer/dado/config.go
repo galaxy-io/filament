@@ -2,6 +2,7 @@ package dado
 
 import (
 	"context"
+	"path/filepath"
 )
 
 func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
@@ -16,7 +17,7 @@ func (r *Renderer) manageInteractiveConfig(ctx context.Context) error {
 // manageInteractiveConfigOnce runs one pass of the configuration menu; done
 // reports that the user backed out.
 func (r *Renderer) manageInteractiveConfigOnce(ctx context.Context) (bool, error) {
-	title, description := "Configuration", r.configPath
+	title, description := "Configuration", "Document "+filepath.Base(r.configPath)
 	options := []interactiveOption{{label: "Validate", value: "validate"}}
 	if r.configPath != "" && r.openConfigurationEditor != nil {
 		options = append(options,
@@ -26,9 +27,8 @@ func (r *Renderer) manageInteractiveConfigOnce(ctx context.Context) (bool, error
 	} else {
 		title, description = r.titled("Configuration"), ""
 	}
-	options = append(options, interactiveOption{label: "Back", value: interactiveBack})
 	action, err := r.chooseInteractive(ctx, title, description, options)
-	if err != nil || action == interactiveBack {
+	if err != nil {
 		return true, err
 	}
 	switch action {

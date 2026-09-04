@@ -166,7 +166,7 @@ func (a *cliApp) listContexts(registry *contexts.Registry) error {
 			Location: location,
 		})
 	}
-	return textrenderer.Contexts(a.stdout, result, filepath.Base(a.contextPath))
+	return a.text().Contexts(result, filepath.Base(a.contextPath))
 }
 
 func (a *cliApp) contextRegistry() *contexts.Registry {
