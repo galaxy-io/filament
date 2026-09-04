@@ -121,11 +121,15 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 		restartPolicy = "Never"
 	}
 
+	// The worker never calls the Kubernetes API, so its pod gets no token.
+	noToken := false
 	podSpec := corev1.PodSpec{
-		RestartPolicy:      corev1.RestartPolicy(restartPolicy),
-		ServiceAccountName: m.cfg.WorkerServiceAccount,
-		NodeSelector:       spec.WorkerConfiguration.NodeSelector,
-		Tolerations:        workerTolerations(spec.WorkerConfiguration.Tolerations),
+		RestartPolicy:                corev1.RestartPolicy(restartPolicy),
+		ServiceAccountName:           m.cfg.WorkerServiceAccount,
+		AutomountServiceAccountToken: &noToken,
+		SecurityContext:              workerPodSecurity(),
+		NodeSelector:                 spec.WorkerConfiguration.NodeSelector,
+		Tolerations:                  workerTolerations(spec.WorkerConfiguration.Tolerations),
 		Containers: []corev1.Container{{
 			Name:            "worker",
 			Image:           m.cfg.WorkerImage,
@@ -133,7 +137,13 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 			Env:             env,
 			EnvFrom:         envFrom,
 			Resources:       resources,
+			SecurityContext: workerContainerSecurity(),
+			// Sinks that stage to disk (iceberg) use os.TempDir, which is
+			// /tmp on the distroless image. The root filesystem is read-only,
+			// so /tmp is the one writable path, scoped to the pod.
+			VolumeMounts: []corev1.VolumeMount{{Name: "tmp", MountPath: "/tmp"}},
 		}},
+		Volumes:                       []corev1.Volume{{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
 		TerminationGracePeriodSeconds: m.cfg.WorkerTerminationGraceSecs,
 		ActiveDeadlineSeconds:         m.cfg.WorkerActiveDeadlineSeconds,
 	}

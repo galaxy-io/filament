@@ -22,6 +22,10 @@ spec:
         {{- include "filament.controlPlane.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.controlPlane.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       {{- with .Values.controlPlane.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -30,6 +34,11 @@ spec:
         - name: control-plane
           image: {{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag | default .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: health
               containerPort: {{ .Values.controlPlane.health.port }}
