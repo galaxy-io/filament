@@ -74,7 +74,7 @@ func waitForDurableStreamCheckpoints(
 			if !ok {
 				return fmt.Errorf("CDC resource %q has no durable checkpoint route", resource)
 			}
-			state, err := ds.LoadResourceCheckpoint(ctx, key)
+			state, err := ds.LoadResourceCheckpoint(ctx, spec.Tenant, key)
 			if errors.Is(err, filament.ErrNotFound) || (err == nil && !streamCheckpointReached(state.Checkpoint, target)) {
 				ready = false
 				break
@@ -105,7 +105,7 @@ func routeStreamCheckpoints(ctx context.Context, ds filament.DataStore, spec fil
 	if spec.ReplicationStream != nil {
 		streamID = spec.ReplicationStream.ID
 	}
-	states, err := ds.ListResourceCheckpoints(ctx, filament.ResourceCheckpointRoute{
+	states, err := ds.ListResourceCheckpoints(ctx, spec.Tenant, filament.ResourceCheckpointRoute{
 		PipelineID: spec.PipelineID, PipelineVersionID: spec.PipelineVersionID, Route: spec.CheckpointRoute,
 		ReplicationStreamID: streamID,
 	})

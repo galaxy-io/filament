@@ -7,7 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 )
@@ -24,10 +24,10 @@ func (m fakeMsg) Seq() uint64     { return m.seq }
 func (m fakeMsg) Ack() error      { return nil }
 func (m fakeMsg) Nak() error      { return nil }
 
-func mounted(t *testing.T) (*Module, *memory.Store) {
+func mounted(t *testing.T) (*Module, *sqlite.Store) {
 	t.Helper()
 	m := New()
-	ds := memory.New()
+	ds := sqlite.NewMemory()
 	if err := m.Mount(context.Background(), module.Deps{DataStore: ds}); err != nil {
 		t.Fatalf("mount: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestTrackerFoldsRunLifecycle(t *testing.T) {
 	res := events.Envelope{Tenant: "t1", Run: "r1", Resource: "users", At: started}
 
 	deliver(t, m, 1, events.RunStarted, env, events.RunStartedEvent{})
-	state, err := ds.LoadRun(ctx, "r1")
+	state, err := ds.LoadRun(ctx, "t1", "r1")
 	if err != nil {
 		t.Fatalf("load run: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestTrackerFoldsRunLifecycle(t *testing.T) {
 	}
 
 	deliver(t, m, 2, events.BatchWritten, res, events.BatchWrittenEvent{Records: 5, Bytes: 100})
-	state, _ = ds.LoadRun(ctx, "r1")
+	state, _ = ds.LoadRun(ctx, "t1", "r1")
 	if state.Records != 5 || state.Bytes != 100 {
 		t.Fatalf("run totals = %d/%d, want 5/100", state.Records, state.Bytes)
 	}
@@ -70,7 +70,7 @@ func TestTrackerFoldsRunLifecycle(t *testing.T) {
 	}
 
 	deliver(t, m, 3, events.RunCompleted, env, events.RunCompletedEvent{Records: 5, Bytes: 100})
-	state, _ = ds.LoadRun(ctx, "r1")
+	state, _ = ds.LoadRun(ctx, "t1", "r1")
 	if state.Status != filament.RunCompleted {
 		t.Fatalf("status after run.completed = %v, want completed", state.Status)
 	}
@@ -86,7 +86,7 @@ func TestTrackerDedupsRedeliveredFacts(t *testing.T) {
 
 	deliver(t, m, 7, events.BatchWritten, res, events.BatchWrittenEvent{Records: 5, Bytes: 100})
 	deliver(t, m, 7, events.BatchWritten, res, events.BatchWrittenEvent{Records: 5, Bytes: 100})
-	state, err := ds.LoadRun(ctx, "r1")
+	state, err := ds.LoadRun(ctx, "t1", "r1")
 	if err != nil {
 		t.Fatalf("load run: %v", err)
 	}
@@ -98,7 +98,8 @@ func TestTrackerDedupsRedeliveredFacts(t *testing.T) {
 func TestTrackerTerminalStampIsFirstWriteWins(t *testing.T) {
 	m, ds := mounted(t)
 	ctx := context.Background()
-	first := time.Now().Add(-time.Minute)
+	// Truncated to the store's stamp precision (unix milliseconds).
+	first := time.Now().Add(-time.Minute).Truncate(time.Millisecond)
 	env := events.Envelope{Tenant: "t1", Run: "r1", At: first}
 
 	deliver(t, m, 1, events.RunCompleted, env, events.RunCompletedEvent{})
@@ -106,7 +107,7 @@ func TestTrackerTerminalStampIsFirstWriteWins(t *testing.T) {
 	late.At = first.Add(time.Minute)
 	deliver(t, m, 2, events.RunFailed, late, events.RunFailedEvent{Error: "late straggler"})
 
-	state, err := ds.LoadRun(ctx, "r1")
+	state, err := ds.LoadRun(ctx, "t1", "r1")
 	if err != nil {
 		t.Fatalf("load run: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestTrackerDefersCommitGatedCheckpoint(t *testing.T) {
 	plan := checkpoint.KeysetCheckpoint{
 		Cols: []string{"id"}, Types: []string{"bigint"}, Shards: []checkpoint.KeysetShard{{}},
 	}.ToCheckpoint("users")
-	if err := ds.SaveCheckpoint(ctx, run, plan); err != nil {
+	if err := ds.SaveCheckpoint(ctx, "t1", run, plan); err != nil {
 		t.Fatal(err)
 	}
 	resource := events.Envelope{Tenant: "t1", Run: run, Resource: "users", At: time.Now()}
@@ -159,7 +160,7 @@ func TestTrackerDefersCommitGatedCheckpoint(t *testing.T) {
 		CheckpointPolicy: filament.CheckpointAfterCommit,
 	})
 	deliver(t, m, 2, events.ResourceCompleted, resource, events.ResourceCompletedEvent{Records: 1})
-	stored, err := ds.LoadCheckpoint(ctx, run, "users")
+	stored, err := ds.LoadCheckpoint(ctx, "t1", run, "users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +171,7 @@ func TestTrackerDefersCommitGatedCheckpoint(t *testing.T) {
 
 	runEnv := events.Envelope{Tenant: "t1", Run: run, At: time.Now()}
 	deliver(t, m, 3, events.RunCompleted, runEnv, events.RunCompletedEvent{Records: 1})
-	stored, err = ds.LoadCheckpoint(ctx, run, "users")
+	stored, err = ds.LoadCheckpoint(ctx, "t1", run, "users")
 	if err != nil {
 		t.Fatal(err)
 	}

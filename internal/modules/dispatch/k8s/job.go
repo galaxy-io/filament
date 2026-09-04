@@ -96,7 +96,8 @@ func (m *Module) appName() string {
 func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 	name := jobName(m.cfg.JobNamePrefix, spec.Run, spec.ExecutionID)
 	// All worker configuration arrives through the worker Secret and ConfigMap;
-	// RUN_ID is the only value dispatch itself knows.
+	// The worker loads the run through the same tenant-scoped datastore contract
+	// as the control plane.
 	envFrom := []corev1.EnvFromSource{{
 		SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: m.cfg.WorkerSecretName}},
 	}}
@@ -105,7 +106,10 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 			ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: m.cfg.WorkerConfigMapName}},
 		})
 	}
-	env := []corev1.EnvVar{{Name: "RUN_ID", Value: string(spec.Run)}}
+	env := []corev1.EnvVar{
+		{Name: "TENANT_ID", Value: string(spec.Tenant)},
+		{Name: "RUN_ID", Value: string(spec.Run)},
+	}
 
 	resources, err := workerResources(spec.WorkerConfiguration.Resources)
 	if err != nil {

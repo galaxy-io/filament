@@ -10,10 +10,11 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/identity"
 )
 
 type loadRunErrorStore struct {
@@ -22,8 +23,8 @@ type loadRunErrorStore struct {
 }
 
 func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	store := sqlite.NewMemory()
 	api := &Server{store: store, bus: inproc.New()}
 	ended := time.Now()
 	state := filament.RunState{
@@ -37,21 +38,21 @@ func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 
 	signal := func(value ingestionv1.RunSignal) error {
 		_, err := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{
-			TenantId: "tenant-1", RunId: "run-1", Signal: value,
+			RunId: "run-1", Signal: value,
 		}))
 		return err
 	}
 	if err := signal(ingestionv1.RunSignal_RUN_SIGNAL_PAUSE); err != nil {
 		t.Fatalf("pause requested run: %v", err)
 	}
-	paused, _ := store.LoadRun(ctx, "run-1")
+	paused, _ := store.LoadRun(ctx, "tenant-1", "run-1")
 	if paused.Status != filament.RunPaused {
 		t.Fatalf("status after pause = %v", paused.Status)
 	}
 	if err := signal(ingestionv1.RunSignal_RUN_SIGNAL_RESUME); err != nil {
 		t.Fatalf("resume paused run: %v", err)
 	}
-	resumed, _ := store.LoadRun(ctx, "run-1")
+	resumed, _ := store.LoadRun(ctx, "tenant-1", "run-1")
 	if resumed.Status != filament.RunRequested || !resumed.StartedAt.IsZero() || resumed.EndedAt != nil || resumed.Records != 0 || resumed.Error != "" {
 		t.Fatalf("resumed state was not reset: %#v", resumed)
 	}
@@ -61,15 +62,15 @@ func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 	if err := signal(ingestionv1.RunSignal_RUN_SIGNAL_CANCEL); err != nil {
 		t.Fatalf("cancel requested run: %v", err)
 	}
-	canceled, _ := store.LoadRun(ctx, "run-1")
+	canceled, _ := store.LoadRun(ctx, "tenant-1", "run-1")
 	if canceled.Status != filament.RunCanceled {
 		t.Fatalf("status after cancel = %v", canceled.Status)
 	}
 }
 
 func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	store := sqlite.NewMemory()
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}); err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +82,7 @@ func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
 	defer func() { _ = sub.Close() }()
 	api := &Server{store: store, bus: bus}
 	setStatus := func(status filament.RunStatus) error {
-		state, err := store.LoadRun(ctx, "run-1")
+		state, err := store.LoadRun(ctx, "tenant-1", "run-1")
 		if err != nil {
 			return err
 		}
@@ -139,15 +140,15 @@ func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
 			t.Fatalf("signal %v: %v", test.signal, err)
 		}
 	}
-	state, err := store.LoadRun(ctx, "run-1")
+	state, err := store.LoadRun(ctx, "tenant-1", "run-1")
 	if err != nil || state.Status != filament.RunCanceled {
 		t.Fatalf("worker acknowledgement was not persisted: %#v, %v", state, err)
 	}
 }
 
 func TestSignalRunReportsWhenWorkerAlreadyFinished(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}
 	if err := store.SaveRun(ctx, state); err != nil {
 		t.Fatal(err)
@@ -181,7 +182,7 @@ func TestSignalRunReportsWhenWorkerAlreadyFinished(t *testing.T) {
 	}
 }
 
-func (s loadRunErrorStore) LoadRun(context.Context, filament.RunID) (filament.RunState, error) {
+func (s loadRunErrorStore) LoadRun(context.Context, filament.TenantID, filament.RunID) (filament.RunState, error) {
 	return filament.RunState{}, s.err
 }
 
@@ -189,13 +190,13 @@ func TestLoadRunSnapshotOnlySuppressesNotFound(t *testing.T) {
 	t.Parallel()
 
 	storeErr := errors.New("database unavailable")
-	server := &Server{store: loadRunErrorStore{DataStore: memory.New(), err: storeErr}}
-	if _, ok, err := server.loadRunSnapshot(context.Background(), "run-1"); ok || !errors.Is(err, storeErr) {
+	server := &Server{store: loadRunErrorStore{DataStore: sqlite.NewMemory(), err: storeErr}}
+	if _, ok, err := server.loadRunSnapshot(context.Background(), "tenant-1", "run-1"); ok || !errors.Is(err, storeErr) {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, store error)", ok, err)
 	}
 
-	server.store = loadRunErrorStore{DataStore: memory.New(), err: filament.ErrNotFound}
-	if _, ok, err := server.loadRunSnapshot(context.Background(), "run-1"); ok || err != nil {
+	server.store = loadRunErrorStore{DataStore: sqlite.NewMemory(), err: filament.ErrNotFound}
+	if _, ok, err := server.loadRunSnapshot(context.Background(), "tenant-1", "run-1"); ok || err != nil {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, nil)", ok, err)
 	}
 }

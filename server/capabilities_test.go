@@ -10,7 +10,8 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -102,6 +103,12 @@ func (leverSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions
 	return filament.WriteReceipt{}, nil
 }
 
+// testCtx scopes a handler call to the default tenant the way the auth
+// interceptor would.
+func testCtx() context.Context {
+	return identity.WithTenant(context.Background(), filament.DefaultTenantID)
+}
+
 // leverAPI builds a server with one standard source connection, one CDC
 // source connection, and one sink connection.
 func leverAPI(t *testing.T) (*Server, map[string]string) {
@@ -110,7 +117,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	sources.Register("leversource", func() filament.Source { return leverSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
-	api := New(sources, sinks, memory.New(), nil, nil)
+	api := New(sources, sinks, sqlite.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
 		var cfg *structpb.Struct
@@ -121,7 +128,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 				t.Fatal(err)
 			}
 		}
-		resp, err := api.CreateConnection(context.Background(), connect.NewRequest(&ingestionv1.CreateConnectionRequest{
+		resp, err := api.CreateConnection(testCtx(), connect.NewRequest(&ingestionv1.CreateConnectionRequest{
 			Kind: kind, Name: name, Connector: connector, Config: cfg,
 		}))
 		if err != nil {
@@ -144,7 +151,7 @@ func TestConnectionReportsEffectiveReplication(t *testing.T) {
 		"cdc":      ingestionv1.ReplicationMode_REPLICATION_MODE_CDC,
 		"sink":     ingestionv1.ReplicationMode_REPLICATION_MODE_UNSPECIFIED,
 	} {
-		resp, err := api.GetConnection(context.Background(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids[name]}))
+		resp, err := api.GetConnection(testCtx(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids[name]}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,7 +160,7 @@ func TestConnectionReportsEffectiveReplication(t *testing.T) {
 		}
 	}
 
-	resp, err := api.GetConnection(context.Background(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids["cdc"]}))
+	resp, err := api.GetConnection(testCtx(), connect.NewRequest(&ingestionv1.GetConnectionRequest{Id: ids["cdc"]}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +168,7 @@ func TestConnectionReportsEffectiveReplication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = api.UpdateConnection(context.Background(), connect.NewRequest(&ingestionv1.UpdateConnectionRequest{Connection: resp.Msg.Connection}))
+	_, err = api.UpdateConnection(testCtx(), connect.NewRequest(&ingestionv1.UpdateConnectionRequest{Connection: resp.Msg.Connection}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("changing replication mode: got %v, want invalid argument", err)
 	}
@@ -171,7 +178,7 @@ func TestValidatePipelineLevers(t *testing.T) {
 	api, ids := leverAPI(t)
 	validate := func(sourceConn string, edge *ingestionv1.PipelineEdge) *ingestionv1.ValidatePipelineResponse {
 		edge.FromNode, edge.ToNode = "src", "snk"
-		resp, err := api.ValidatePipeline(context.Background(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+		resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
 			Graph: &ingestionv1.PipelineGraph{
 				Nodes: []*ingestionv1.PipelineNode{
 					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: sourceConn},
@@ -298,7 +305,7 @@ func TestValidatePipelineLevers(t *testing.T) {
 
 func TestValidatePipelineRejectsMixedRouteWriteModes(t *testing.T) {
 	api, ids := leverAPI(t)
-	resp, err := api.ValidatePipeline(context.Background(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
 		Graph: &ingestionv1.PipelineGraph{
 			Nodes: []*ingestionv1.PipelineNode{
 				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
@@ -332,7 +339,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	}
 
 	edge := &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
-	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
 	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_REPLACE {
@@ -344,7 +351,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 		ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
 		WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND,
 	}
-	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
 	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_INCREMENTAL || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
@@ -352,7 +359,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	}
 
 	edge = &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
-	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
 	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
@@ -363,7 +370,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 		FromNode: "src", ToNode: "snk",
 		ReadMode: ingestionv1.ReadMode_READ_MODE_FULL,
 	}
-	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
 		t.Fatal("CDC must reject a read mode")
 	}
 
@@ -371,7 +378,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 		FromNode: "src", ToNode: "snk",
 		ReadMode: ingestionv1.ReadMode(99),
 	}
-	if err := api.normalizeEdgeModes(context.Background(), nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
 		t.Fatal("unknown read mode must be rejected")
 	}
 }

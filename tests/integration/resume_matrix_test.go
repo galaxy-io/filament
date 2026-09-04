@@ -30,7 +30,7 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -183,7 +183,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	})
 
 	bus := inproc.New()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	orch := orchestrator.New()
 	deps := module.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks}
 	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch)
@@ -213,14 +213,14 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	}
 
 	// Injected failure must leave the run resumable (partial), not terminal.
-	partial := waitStatus(t, ctx, store, id, filament.RunPartial)
+	partial := waitStatus(t, ctx, store, "t1", id, filament.RunPartial)
 	if partial.Status != filament.RunPartial {
 		t.Fatalf("after injected failure: status = %v (err %q), want partial", partial.Status, partial.Error)
 	}
 
 	// Confirm the mode's completion machinery actually fired before the kill, so coverage
 	// is not passing trivially by re-reading everything on resume.
-	if done := countDoneShards(ctx, store, id, resources); mode.name == "bitmap" {
+	if done := countDoneShards(ctx, store, "t1", id, resources); mode.name == "bitmap" {
 		t.Logf("bitmap: %d shard(s) marked Done before kill (skipped on resume)", done)
 	}
 
@@ -232,7 +232,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	if err := events.Emit(ctx, bus, events.RunRequested, events.Envelope{Tenant: "t1", Run: id}, events.RunRequestedEvent{}); err != nil {
 		t.Fatalf("re-request run: %v", err)
 	}
-	final := waitStatus(t, ctx, store, id, filament.RunCompleted)
+	final := waitStatus(t, ctx, store, "t1", id, filament.RunCompleted)
 	if final.Status != filament.RunCompleted {
 		t.Fatalf("after resume: status = %v (err %q), want completed", final.Status, final.Error)
 	}
@@ -408,10 +408,10 @@ func scanIDs(t *testing.T, rows pgx.Rows) []string {
 
 // countDoneShards totals the bitmap shards already flagged complete across all resources'
 // persisted checkpoints.
-func countDoneShards(ctx context.Context, store *memory.Store, id filament.RunID, resources []string) int {
+func countDoneShards(ctx context.Context, store *sqlite.Store, tenant filament.TenantID, id filament.RunID, resources []string) int {
 	n := 0
 	for _, res := range resources {
-		cp, err := store.LoadCheckpoint(ctx, id, res)
+		cp, err := store.LoadCheckpoint(ctx, tenant, id, res)
 		if err != nil {
 			continue
 		}

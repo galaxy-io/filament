@@ -32,12 +32,11 @@ var ErrPrecondition = errors.New("pipeline not runnable")
 var ErrInvalid = errors.New("invalid pipeline")
 
 // Compiler collapses a pipeline's current version into ready-to-submit run
-// requests. DefaultTenant stands in for a pipeline row with no tenant.
+// requests.
 type Compiler struct {
-	Store         filament.DataStore
-	Sources       filament.SourceRegistry
-	Sinks         filament.SinkRegistry
-	DefaultTenant string
+	Store   filament.DataStore
+	Sources filament.SourceRegistry
+	Sinks   filament.SinkRegistry
 }
 
 // CompiledRun is one route's ready-to-submit admission, keyed by its canvas edge.
@@ -56,15 +55,15 @@ type durableReplicationStreamStore interface {
 // overrides the pipeline's own worker configuration field by field for this
 // call only; the resolved result is stamped onto every request, so a later edit
 // to the pipeline cannot reshape a run already requested.
-func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
-	pipeline, err := c.Store.LoadPipeline(ctx, pipelineID)
+func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
+	pipeline, err := c.Store.LoadPipeline(ctx, tenant, pipelineID)
 	if err != nil {
 		return nil, fmt.Errorf("load pipeline %q: %w", pipelineID, err)
 	}
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
 	}
-	version, err := c.Store.LoadPipelineVersion(ctx, pipeline.GetId(), 0)
+	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
 	}
@@ -76,7 +75,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	for _, node := range version.GetGraph().GetNodes() {
 		nodes[node.GetId()] = node
 		if _, ok := connections[node.GetConnectionId()]; !ok {
-			conn, err := c.Store.LoadConnection(ctx, node.GetConnectionId())
+			conn, err := c.Store.LoadConnection(ctx, tenant, node.GetConnectionId())
 			if err != nil {
 				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
 			}
@@ -90,10 +89,6 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
 	if err != nil {
 		return nil, err
-	}
-	tenant := pipeline.GetTenantId()
-	if tenant == "" {
-		tenant = c.DefaultTenant
 	}
 	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
 	compiled := make([]CompiledRun, 0, len(groups))
@@ -118,7 +113,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 			return nil, err
 		}
 		replicationStream, err := c.planRouteReplicationStream(
-			cdc, source, pipeline.GetId(), version.GetId(), filament.TenantID(tenant),
+			cdc, source, pipeline.GetId(), version.GetId(), tenant,
 			key, group, connections, sourceRef, sinkRef,
 		)
 		if err != nil {
@@ -126,7 +121,7 @@ func (c *Compiler) Compile(ctx context.Context, pipelineID, token string, option
 		}
 		compiled = append(compiled, CompiledRun{Edge: key, Submission: filament.RunSubmission{
 			Request: filament.RunRequest{
-				Tenant:              filament.TenantID(tenant),
+				Tenant:              tenant,
 				PipelineID:          pipeline.GetId(),
 				PipelineVersionID:   version.GetId(),
 				IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),

@@ -10,36 +10,48 @@ import (
 )
 
 const loadCheckpoint = `-- name: LoadCheckpoint :one
-SELECT cursor FROM run_resource_checkpoints WHERE run_id = $1 AND resource_name = $2
+SELECT cursor FROM run_resource_checkpoints
+WHERE tenant_id = $1 AND run_id = $2 AND resource_name = $3
 `
 
 type LoadCheckpointParams struct {
+	TenantID     string
 	RunID        string
 	ResourceName string
 }
 
 func (q *Queries) LoadCheckpoint(ctx context.Context, arg LoadCheckpointParams) ([]byte, error) {
-	row := q.db.QueryRow(ctx, loadCheckpoint, arg.RunID, arg.ResourceName)
+	row := q.db.QueryRow(ctx, loadCheckpoint, arg.TenantID, arg.RunID, arg.ResourceName)
 	var cursor []byte
 	err := row.Scan(&cursor)
 	return cursor, err
 }
 
-const saveCheckpoint = `-- name: SaveCheckpoint :exec
+const saveCheckpoint = `-- name: SaveCheckpoint :execrows
 INSERT INTO run_resource_checkpoints (tenant_id, run_id, resource_name, cursor, updated_at)
-SELECT tenant_id, $1, $2, $3, now()
+SELECT runs.tenant_id, $1, $2, $3, now()
 FROM runs
-WHERE id = $1
+WHERE runs.tenant_id = $4 AND runs.id = $1
 ON CONFLICT (run_id, resource_name) DO UPDATE SET cursor = EXCLUDED.cursor, updated_at = now()
+WHERE run_resource_checkpoints.tenant_id = EXCLUDED.tenant_id
 `
 
 type SaveCheckpointParams struct {
 	RunID        string
 	ResourceName string
 	Cursor       []byte
+	TenantID     string
 }
 
-func (q *Queries) SaveCheckpoint(ctx context.Context, arg SaveCheckpointParams) error {
-	_, err := q.db.Exec(ctx, saveCheckpoint, arg.RunID, arg.ResourceName, arg.Cursor)
-	return err
+func (q *Queries) SaveCheckpoint(ctx context.Context, arg SaveCheckpointParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveCheckpoint,
+		arg.RunID,
+		arg.ResourceName,
+		arg.Cursor,
+		arg.TenantID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

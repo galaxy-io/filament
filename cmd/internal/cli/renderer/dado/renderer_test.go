@@ -25,7 +25,7 @@ func TestInteractiveEntryRoutes(t *testing.T) {
 		{args: []string{"source", "create"}, section: "source", operation: "create", routed: true},
 		{args: []string{"pipeline", "list"}},
 		{args: []string{"config"}, section: "config", routed: true},
-		{args: []string{"run"}, section: "run", routed: true},
+		{args: []string{"run"}, section: "run", operation: "run", routed: true},
 		{args: []string{"source", "create", "production"}},
 		{args: []string{"source", "discover"}},
 		{args: []string{"source", "--help"}},

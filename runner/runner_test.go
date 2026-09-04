@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -68,7 +68,7 @@ type progressLoadErrorStore struct {
 	filament.DataStore
 }
 
-func (progressLoadErrorStore) LoadRun(context.Context, filament.RunID) (filament.RunState, error) {
+func (progressLoadErrorStore) LoadRun(context.Context, filament.TenantID, filament.RunID) (filament.RunState, error) {
 	return filament.RunState{}, errors.New("database unavailable")
 }
 
@@ -81,7 +81,7 @@ func (publishErrorBus) Publish(context.Context, string, any) error {
 func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
 	base := inproc.New()
 	defer func() { _ = base.Close() }()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestRunOneDoesNotExecuteWithoutPublishedStart(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "publish run.started") {
 		t.Fatalf("RunOne error = %v, want run.started publication failure", err)
 	}
-	got, err := store.LoadRun(context.Background(), state.Run)
+	got, err := store.LoadRun(context.Background(), state.Tenant, state.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestRunOneRetriesAfterTransientStartPublishFailure(t *testing.T) {
 	sources.Register("test", func() filament.Source { return &commitTestSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("test-sink", func() filament.Sink { return &controlledTestSink{} })
-	store := memory.New()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "r1", Tenant: "t1", Status: filament.RunRequested}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func TestRunOneRetriesAfterTransientStartPublishFailure(t *testing.T) {
 		t.Fatalf("admission failure published run.failed %q; the retry could never execute", msg)
 	case <-time.After(100 * time.Millisecond):
 	}
-	if got, _ := store.LoadRun(context.Background(), state.Run); got.Status != filament.RunRequested {
+	if got, _ := store.LoadRun(context.Background(), state.Tenant, state.Run); got.Status != filament.RunRequested {
 		t.Fatalf("status after failed admission = %v, want Requested", got.Status)
 	}
 
@@ -190,7 +190,7 @@ func TestRunOneFailsWhenProgressCannotBeRestored(t *testing.T) {
 	}
 	defer func() { _ = facts.Close() }()
 	RunOne(context.Background(), Deps{
-		Bus: bus, DataStore: progressLoadErrorStore{DataStore: memory.New()},
+		Bus: bus, DataStore: progressLoadErrorStore{DataStore: sqlite.NewMemory()},
 	}, filament.RunSpec{Tenant: "tenant", Run: "run"})
 	waitForFact(t, facts, events.RunFailed.Name())
 }
@@ -230,7 +230,7 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 
 	RunOne(context.Background(), Deps{
 		Bus:       bus,
-		DataStore: memory.New(),
+		DataStore: sqlite.NewMemory(),
 		Sources:   sources,
 		Sinks:     sinks,
 	}, filament.RunSpec{
@@ -305,7 +305,7 @@ func TestRunOneCooperativeControl(t *testing.T) {
 			go func() {
 				defer close(done)
 				RunOne(context.Background(), Deps{
-					Bus: bus, DataStore: memory.New(), Sources: sources, Sinks: sinks,
+					Bus: bus, DataStore: sqlite.NewMemory(), Sources: sources, Sinks: sinks,
 				}, filament.RunSpec{
 					Tenant: "t1", Run: "r1", Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"},
 					Resources: []string{"users"}, IngestionTypes: map[string]filament.IngestionType{"users": tt.ingestion},
@@ -380,13 +380,13 @@ func TestEmitterSeedsResumedProgress(t *testing.T) {
 }
 
 func TestSeedEmitterProgressIgnoresPartialAttemptCounters(t *testing.T) {
-	store := memory.New()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "run", Status: filament.RunPartial, Records: 125, Bytes: 500}
 	if err := store.SaveRun(context.Background(), state); err != nil {
 		t.Fatal(err)
 	}
 	em := newEmitter(context.Background(), inproc.New(), nil, "tenant", "run")
-	if err := seedEmitterProgress(context.Background(), store, state.Run, em); err != nil {
+	if err := seedEmitterProgress(context.Background(), store, state.Tenant, state.Run, em); err != nil {
 		t.Fatal(err)
 	}
 	if records, bytes := em.runTotals(); records != 0 || bytes != 0 {

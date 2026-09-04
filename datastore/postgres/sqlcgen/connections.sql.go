@@ -13,7 +13,7 @@ import (
 
 const countConnections = `-- name: CountConnections :one
 SELECT count(*) FROM connections
-WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+WHERE tenant_id = $1
   AND ($2::connector_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
   AND (nullif($4::text, '') IS NULL
@@ -75,19 +75,29 @@ SET
   is_deleted = true,
   deleted_at = now(),
   updated_at = now()
-WHERE id = $1 AND NOT is_deleted
+WHERE tenant_id = $1 AND id = $2 AND NOT is_deleted
 `
 
-func (q *Queries) DeleteConnection(ctx context.Context, connectionID string) error {
-	_, err := q.db.Exec(ctx, deleteConnection, connectionID)
+type DeleteConnectionParams struct {
+	TenantID     string
+	ConnectionID string
+}
+
+func (q *Queries) DeleteConnection(ctx context.Context, arg DeleteConnectionParams) error {
+	_, err := q.db.Exec(ctx, deleteConnection, arg.TenantID, arg.ConnectionID)
 	return err
 }
 
 const getConnection = `-- name: GetConnection :one
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
-FROM connections WHERE id = $1
+FROM connections WHERE tenant_id = $1 AND id = $2
 `
+
+type GetConnectionParams struct {
+	TenantID     string
+	ConnectionID string
+}
 
 type GetConnectionRow struct {
 	ID              string
@@ -106,8 +116,8 @@ type GetConnectionRow struct {
 	DeletedByUserID pgtype.Text
 }
 
-func (q *Queries) GetConnection(ctx context.Context, connectionID string) (*GetConnectionRow, error) {
-	row := q.db.QueryRow(ctx, getConnection, connectionID)
+func (q *Queries) GetConnection(ctx context.Context, arg GetConnectionParams) (*GetConnectionRow, error) {
+	row := q.db.QueryRow(ctx, getConnection, arg.TenantID, arg.ConnectionID)
 	var i GetConnectionRow
 	err := row.Scan(
 		&i.ID,
@@ -132,7 +142,7 @@ const listConnections = `-- name: ListConnections :many
 SELECT id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM connections
-WHERE (nullif($1::text, '') IS NULL OR tenant_id = $1::uuid)
+WHERE tenant_id = $1
   AND ($2::connector_kind IS NULL OR kind = $2)
   AND ($3::boolean OR NOT is_deleted)
   AND (nullif($4::text, '') IS NULL
@@ -229,7 +239,7 @@ const updateConnection = `-- name: UpdateConnection :one
 UPDATE connections
 SET name = $1, connector = $2, config = $3, secret_refs = $4,
     version = version + 1, updated_at = now()
-WHERE id = $5 AND version = $6 AND NOT is_deleted
+WHERE tenant_id = $5 AND id = $6 AND version = $7 AND NOT is_deleted
 RETURNING version
 `
 
@@ -238,6 +248,7 @@ type UpdateConnectionParams struct {
 	Connector       string
 	Config          []byte
 	SecretRefs      []byte
+	TenantID        string
 	ConnectionID    string
 	ExpectedVersion int64
 }
@@ -248,6 +259,7 @@ func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionPara
 		arg.Connector,
 		arg.Config,
 		arg.SecretRefs,
+		arg.TenantID,
 		arg.ConnectionID,
 		arg.ExpectedVersion,
 	)

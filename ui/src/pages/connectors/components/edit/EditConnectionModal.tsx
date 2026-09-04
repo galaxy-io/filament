@@ -62,7 +62,6 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
       create(UpdateConnectionRequestSchema, {
         connection: create(ConnectionSchema, {
           id: connection.id,
-          tenantId: connection.tenantId,
           kind: connection.kind,
           connector: connection.connector,
           name,
@@ -111,7 +110,7 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
 };
 
 const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
-  const { connectionId } = useSearch({ from: "__root__" });
+  const { connectionId } = useSearch({ from: "/_app" });
 
   const { data, isError } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),

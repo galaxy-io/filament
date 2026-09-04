@@ -19,6 +19,10 @@ import (
 
 // CreatePipeline stores a new pipeline and assigns its id.
 func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineRequest]) (*connect.Response[ingestionv1.CreatePipelineResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	id := uuid.NewString()
 	workerConfiguration := defaultWorkerConfiguration()
 	if supplied := req.Msg.GetWorkerConfiguration(); supplied != nil {
@@ -28,7 +32,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 		return nil, compileError(err)
 	}
 	pipeline := &ingestionv1.Pipeline{
-		Id: id, TenantId: defaultTenant(req.Msg.GetTenantId()), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		Id: id, TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: workerConfiguration,
 	}
 	var schedule *filament.ScheduleState
@@ -43,7 +47,6 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 		schedule = &state
 	}
 	var created *ingestionv1.Pipeline
-	var err error
 	if a.schedules != nil {
 		created, err = a.schedules.CreatePipelineWithSchedule(ctx, pipeline, schedule)
 	} else {
@@ -75,6 +78,10 @@ func defaultWorkerConfiguration() *ingestionv1.WorkerConfiguration {
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
 func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineVersionRequest]) (*connect.Response[ingestionv1.CreatePipelineVersionResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -86,7 +93,7 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetPipelineId())
+	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -105,16 +112,16 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if !validation.GetValid() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid: %s", pipelineValidationMessage(validation)))
 	}
-	if err := a.normalizeEdgeModes(ctx, nodes, edges); err != nil {
+	if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	a.defaultSinkSchemas(ctx, nodes, edges)
-	v, err := a.store.CreatePipelineVersion(ctx, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Graph: graph})
+	a.defaultSinkSchemas(ctx, tenant, nodes, edges)
+	v, err := a.store.CreatePipelineVersion(ctx, tenant, req.Msg.GetPipelineId(), &ingestionv1.PipelineVersion{Graph: graph})
 	// A new version can change the routes a scheduled occurrence compiles into
 	// (or make the pipeline compilable for the first time) — refresh the
 	// schedule's pre-created rows to match.
 	if err == nil && a.schedules != nil {
-		if st, scheduleErr := a.schedules.LoadPipelineSchedule(ctx, req.Msg.GetPipelineId()); scheduleErr == nil {
+		if st, scheduleErr := a.schedules.LoadPipelineSchedule(ctx, tenant, req.Msg.GetPipelineId()); scheduleErr == nil {
 			a.reconcileScheduledRunsBestEffort(ctx, st)
 		}
 	}
@@ -129,7 +136,7 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 
 // normalizeEdgeModes makes defaults explicit, validates the available levers,
 // and enforces one write mode per destination route. CDC defaults to append.
-func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
+func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantID, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
 	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
 	for _, node := range nodes {
 		byID[node.GetId()] = node
@@ -144,11 +151,11 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, nodes []*ingestionv1.Pi
 		if sinkNode == nil {
 			return fmt.Errorf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetToNode())
 		}
-		sourceConn, err := a.store.LoadConnection(ctx, sourceNode.GetConnectionId())
+		sourceConn, err := a.store.LoadConnection(ctx, tenant, sourceNode.GetConnectionId())
 		if err != nil {
 			return fmt.Errorf("load connection %q: %w", sourceNode.GetConnectionId(), err)
 		}
-		sinkConn, err := a.store.LoadConnection(ctx, sinkNode.GetConnectionId())
+		sinkConn, err := a.store.LoadConnection(ctx, tenant, sinkNode.GetConnectionId())
 		if err != nil {
 			return fmt.Errorf("load connection %q: %w", sinkNode.GetConnectionId(), err)
 		}
@@ -248,6 +255,10 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
 // immutable versions through CreatePipelineVersion.
 func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineRequest]) (*connect.Response[ingestionv1.UpdatePipelineResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -255,7 +266,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 		return nil, compileError(err)
 	}
 	pipeline := &ingestionv1.Pipeline{
-		Id: req.Msg.GetPipelineId(), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
+		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
@@ -270,7 +281,11 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 
 // GetPipelineVersion returns a specific immutable pipeline graph version.
 func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineVersionRequest]) (*connect.Response[ingestionv1.GetPipelineVersionResponse], error) {
-	v, err := a.store.LoadPipelineVersion(ctx, req.Msg.GetPipelineId(), req.Msg.GetVersion())
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := a.store.LoadPipelineVersion(ctx, tenant, req.Msg.GetPipelineId(), req.Msg.GetVersion())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -282,6 +297,10 @@ func (a *Server) GetPipelineVersion(ctx context.Context, req *connect.Request[in
 
 // ListPipelineVersions returns all of a pipeline's graph versions, newest first.
 func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[ingestionv1.ListPipelineVersionsRequest]) (*connect.Response[ingestionv1.ListPipelineVersionsResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
@@ -292,7 +311,7 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	versions, total, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: req.Msg.GetPipelineId(), ListOptions: options})
+	versions, total, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: tenant, PipelineID: req.Msg.GetPipelineId(), ListOptions: options})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -301,14 +320,18 @@ func (a *Server) ListPipelineVersions(ctx context.Context, req *connect.Request[
 
 // GetPipeline returns a pipeline with the requested related resources.
 func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestionv1.GetPipelineRequest]) (*connect.Response[ingestionv1.GetPipelineResponse], error) {
-	pipeline, err := a.store.LoadPipeline(ctx, req.Msg.GetId())
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if err := a.expandPipeline(ctx, pipeline, req.Msg.GetIncludeVersions(), req.Msg.GetIncludeLastRun(), req.Msg.GetIncludeSchedule()); err != nil {
+	if err := a.expandPipeline(ctx, tenant, pipeline, req.Msg.GetIncludeVersions(), req.Msg.GetIncludeLastRun(), req.Msg.GetIncludeSchedule()); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&ingestionv1.GetPipelineResponse{Pipeline: pipeline}), nil
@@ -390,6 +413,10 @@ func pipelineScheduleOverlapToProto(policy filament.OverlapPolicy) ingestionv1.P
 
 // ListPipelines returns pipelines, optionally filtered by tenant.
 func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingestionv1.ListPipelinesRequest]) (*connect.Response[ingestionv1.ListPipelinesResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
 		ingestionv1.SortBy_SORT_BY_NAME:       "name",
 		ingestionv1.SortBy_SORT_BY_CREATED_AT: "created_at",
@@ -399,22 +426,22 @@ func (a *Server) ListPipelines(ctx context.Context, req *connect.Request[ingesti
 		return nil, err
 	}
 	pipelines, total, err := a.store.ListPipelines(ctx, filament.PipelineFilter{
-		Tenant: req.Msg.GetTenantId(), IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
+		Tenant: string(tenant), IncludeDeleted: req.Msg.GetIncludeDeleted(), ListOptions: options,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	for _, pipeline := range pipelines {
-		if err := a.expandPipeline(ctx, pipeline, req.Msg.GetIncludeVersions(), req.Msg.GetIncludeLastRun(), req.Msg.GetIncludeSchedule()); err != nil {
+		if err := a.expandPipeline(ctx, tenant, pipeline, req.Msg.GetIncludeVersions(), req.Msg.GetIncludeLastRun(), req.Msg.GetIncludeSchedule()); err != nil {
 			return nil, err
 		}
 	}
 	return connect.NewResponse(&ingestionv1.ListPipelinesResponse{Pipelines: pipelines, Pagination: paginationOf(req.Msg.GetPagination(), options, total)}), nil
 }
 
-func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipeline, includeVersions, includeLastRun, includeSchedule bool) error {
+func (a *Server) expandPipeline(ctx context.Context, tenant filament.TenantID, pipeline *ingestionv1.Pipeline, includeVersions, includeLastRun, includeSchedule bool) error {
 	if includeVersions {
-		versions, _, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{PipelineID: pipeline.GetId(), ListOptions: filament.ListOptions{SortBy: "version", SortDescending: true}})
+		versions, _, err := a.store.ListPipelineVersions(ctx, filament.PipelineVersionFilter{Tenant: tenant, PipelineID: pipeline.GetId(), ListOptions: filament.ListOptions{SortBy: "version", SortDescending: true}})
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, err)
 		}
@@ -422,6 +449,7 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 	}
 	if includeLastRun {
 		states, _, err := a.store.ListRuns(ctx, filament.RunFilter{
+			Tenant:     tenant,
 			PipelineID: pipeline.GetId(),
 			Status: []filament.RunStatus{
 				filament.RunRequested, filament.RunRunning, filament.RunCompleted,
@@ -438,7 +466,7 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 		}
 	}
 	if includeSchedule && a.schedules != nil {
-		schedule, err := a.schedules.LoadPipelineSchedule(ctx, pipeline.GetId())
+		schedule, err := a.schedules.LoadPipelineSchedule(ctx, tenant, pipeline.GetId())
 		if err == nil {
 			pipeline.Schedule = pipelineScheduleToProto(schedule)
 		} else if !errors.Is(err, filament.ErrNotFound) {
@@ -451,7 +479,11 @@ func (a *Server) expandPipeline(ctx context.Context, pipeline *ingestionv1.Pipel
 // DeletePipeline removes the pipeline by id. The store's delete transaction
 // also removes the pipeline's schedules and pending scheduled runs.
 func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingestionv1.DeletePipelineRequest]) (*connect.Response[ingestionv1.DeletePipelineResponse], error) {
-	if err := a.store.DeletePipeline(ctx, req.Msg.GetId()); err != nil {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.store.DeletePipeline(ctx, tenant, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
@@ -460,14 +492,18 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 // RunPipeline groups the pipeline's edges into per-route runs and submits each
 // to the orchestrator.
 func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestionv1.RunPipelineRequest]) (*connect.Response[ingestionv1.RunPipelineResponse], error) {
-	edgeRuns, err := a.submitPipeline(ctx, req.Msg)
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	edgeRuns, err := a.submitPipeline(ctx, tenant, req.Msg)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&ingestionv1.RunPipelineResponse{EdgeRuns: edgeRuns}), nil
 }
 
-func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelineRequest) ([]*ingestionv1.PipelineEdgeRun, error) {
+func (a *Server) submitPipeline(ctx context.Context, tenant filament.TenantID, req *ingestionv1.RunPipelineRequest) ([]*ingestionv1.PipelineEdgeRun, error) {
 	token := req.GetClientToken()
 	if token == "" {
 		token = uuid.NewString()
@@ -476,7 +512,7 @@ func (a *Server) submitPipeline(ctx context.Context, req *ingestionv1.RunPipelin
 	if err := compile.ValidateWorkerConfiguration(workerCfg); err != nil {
 		return nil, compileError(err)
 	}
-	compiled, err := a.compiler.Compile(ctx, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg)
+	compiled, err := a.compiler.Compile(ctx, tenant, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg)
 	if err != nil {
 		return nil, compileError(err)
 	}

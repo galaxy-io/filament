@@ -65,7 +65,7 @@ local development.
 
 ## Building the UI in
 
-`just binaries` builds the server and standalone binaries with `-tags embedui`
-so the compiled UI ships inside them. A plain `go build ./cmd/server` without
+`just binaries` builds the server, standalone, and cli binaries with
+`-tags embedui` so the compiled UI ships inside them. A plain `go build ./cmd/server` without
 the tag serves a placeholder page at `/`, not the UI. `just ui-dist` produces
 the embeddable bundle on its own.

@@ -3,9 +3,10 @@ set dotenv-load
 default:
     @just --list
 
-# start local infra (postgres + nats); `just infra down` stops it, `just infra volumes` stops it and drops volumes
-infra mode="up":
-    docker compose {{ if mode == "down" { "down" } else if mode == "volumes" { "down -v" } else { "up -d --wait" } }}
+# start local infra (postgres + nats); `just infra auth` adds zitadel,
+# `just infra down` stops everything, `just infra down volumes` also drops volumes
+infra mode="up" scope="":
+    docker compose {{ if mode == "down" { if scope == "volumes" { "--profile auth down -v" } else { "--profile auth down" } } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
 
 # run datastore migrations against the local database
 migrate:
@@ -14,13 +15,17 @@ migrate:
       GOWORK=off go run . -migrate
 
 # run the API server locally (defaults match docker-compose.yaml; env overrides)
-server: migrate
+server mode="": migrate
     cd cmd/server && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
+      AUTH_PROVIDER="${AUTH_PROVIDER:-{{ if mode == "auth" { "zitadel" } else { "" } }}}" \
+      AUTH_ISSUER="${AUTH_ISSUER:-http://localhost:8300}" \
+      AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
+      AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
       GOWORK=off go run .
 
 # run the control plane locally (defaults match docker-compose.yaml; env overrides)
@@ -39,16 +44,20 @@ ui:
     cd ui && pnpm install && pnpm dev
 
 # run the full app: control plane, API server, UI
-dev:
+dev mode="": migrate
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
     just control-plane &
-    just server &
+    just server {{ mode }} &
     until curl -sf http://localhost:8080/startupz > /dev/null 2>&1; do sleep 0.2; done
     until curl -sf http://localhost:8081/startupz > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
+
+# install the cli with the web UI embedded
+cli: ui-dist
+    GOWORK=off CGO_ENABLED=0 go install -C cmd -tags embedui -trimpath -ldflags="-s -w" ./filament
 
 # generate all checked-in generated code
 gen: proto sqlc
@@ -60,6 +69,7 @@ proto:
 # generate sqlc Go code
 sqlc:
     sqlc generate -f datastore/postgres/sqlc.yaml
+    sqlc generate -f datastore/sqlite/sqlc.yaml
 
 # lint protobuf definitions
 proto-lint:
@@ -81,13 +91,13 @@ ui-dist:
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-dist (_each "GOWORK=off go build ./...")
 
-# build linux release binaries into bin/ (server and standalone embed ui/dist)
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist)
 binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
 # build docker images
 images: binaries

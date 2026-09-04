@@ -129,9 +129,9 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
 ];
 
 const PipelineHistoryPage = () => {
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
   const navigate = useNavigate();
-  const { runId: runIds = [] } = useSearch({ from: "/pipelines/$id/history" });
+  const { runId: runIds = [] } = useSearch({ from: "/_app/pipelines/$id/history" });
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),

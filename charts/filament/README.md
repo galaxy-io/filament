@@ -14,9 +14,10 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 | Repository | Name | Version |
 |------------|------|---------|
 | https://charts.bitnami.com/bitnami | postgresql | 18.7.11 |
+| https://charts.zitadel.com | zitadel | 10.0.4 |
 | https://nats-io.github.io/k8s/helm/charts | nats | 2.14.2 |
 
-The vendored PostgreSQL and NATS charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) and [NATS chart](https://artifacthub.io/packages/helm/nats/nats) documentation for their full configuration surfaces.
+The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), and [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) documentation for their full configuration surfaces.
 
 ## Installing
 
@@ -58,7 +59,7 @@ helm upgrade --install filament \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \
   --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
-  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
+  --set-string secrets.datastore.encryptionKey="$ENC_KEY" \
   --set-string eventBus.nats.url='nats://filament-nats:4222'
 ```
 
@@ -75,7 +76,7 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider. When set, the chart does not create its own Secret. |
+| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and `AUTH_PAT` when auth is enabled. When set, the chart does not create its own Secret. |
 
 ## Server parameters
 
@@ -144,7 +145,7 @@ helm upgrade --install filament \
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| metrics.type | string | `"postgresql"` | Metrics backend for the dashboard query API, stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. `postgresql` answers from the datastore's own pool. |
+| metrics.type | string | `"datastore"` | Metrics backend for the dashboard query API. `datastore` answers from the persistence store and emits no `METRICSSTORE_PROVIDER`; any other value is stored in the server ConfigMap as `METRICSSTORE_PROVIDER`. |
 
 ## Persistence parameters
 
@@ -159,10 +160,10 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | secrets.aws.region | string | `""` | AWS region for Secrets Manager, stored in the ConfigMap as `AWS_REGION`. Leave empty to use the SDK default chain (env, IMDS). |
-| secrets.postgres.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
-| secrets.postgres.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
-| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by postgres. |
-| secrets.type | string | `"postgres"` | Secret storage provider. Valid values are `postgres` and `aws-secrets-manager`. |
+| secrets.datastore.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
+| secrets.datastore.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
+| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by datastore. |
+| secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; `aws-secrets-manager` is stored in the ConfigMap as `SECRET_PROVIDER`. |
 
 ## Event bus parameters
 
@@ -173,6 +174,16 @@ helm upgrade --install filament \
 | eventBus.nats.ttlSeconds | int | `604800` | Maximum age of messages retained in the NATS stream, in seconds. Set to 0 to disable age-based expiration. |
 | eventBus.nats.url | string | required | NATS connection URL stored in the chart-created Secret as `NATS_URL`. Required unless `existingSecret` is set. |
 | eventBus.type | string | `"nats"` | Event bus provider. |
+
+## Authentication parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
+| auth.type | string | `"zitadel"` | Identity provider. Valid value is `zitadel`. |
+| auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
+| auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |
+| auth.zitadel.pat | string | required when `auth.enabled=true` and `zitadel.enabled=false` | Machine-user personal access token, stored in the chart-created Secret as `AUTH_PAT`. Zitadel generates the token itself and will not accept one you choose, so create the machine user out of band and paste the result here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a token into its own Secret and the server reads it from there. |
 
 ## Observability parameters
 
@@ -211,6 +222,28 @@ helm upgrade --install filament \
 | nats.container.merge | object | `{"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}}` | Merged into the vendored NATS container spec. Sets resources so the pod is not BestEffort QoS (first evicted under node pressure); the upstream chart sets none. |
 | nats.enabled | bool | `false` | Enable the vendored NATS chart for local or test clusters. See the [NATS chart](https://artifacthub.io/packages/helm/nats/nats) for additional configuration. |
 | nats.fullnameOverride | string | `"filament-nats"` | Full name override for the vendored NATS release. |
+
+## Vendored Zitadel parameters
+
+The vendored Zitadel runs its init and setup jobs as post-install hooks so the vendored PostgreSQL exists before they poll it, and the server starts once setup has minted its access token. Do not install with `--wait`, which holds those hooks until pods that depend on them are ready.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| zitadel.enabled | bool | `false` | Enable the vendored Zitadel chart for local or test clusters. See the [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) for additional configuration. |
+| zitadel.fullnameOverride | string | `"filament-zitadel"` | Full name override for the vendored Zitadel release. |
+| zitadel.initJob.annotations | object | `{"helm.sh/hook":"post-install,post-upgrade","helm.sh/hook-delete-policy":"before-hook-creation","helm.sh/hook-weight":"1"}` | Hook timing for the Zitadel init job, moved to post-install so the vendored PostgreSQL exists before the job polls it. |
+| zitadel.login.enabled | bool | `false` | Deploy Zitadel's own login UI. Filament serves its own sign-in pages and points the OIDC client at them, so the upstream login Deployment, Service, ConfigMap, ServiceAccount, and generated keypair are unused. |
+| zitadel.resources.limits.memory | string | `"1Gi"` |  |
+| zitadel.resources.requests | object | `{"cpu":"100m","memory":"512Mi"}` | Resources for the vendored Zitadel pod. The upstream chart sets none, which leaves it BestEffort QoS and first to be evicted. |
+| zitadel.setupJob.annotations | object | `{"helm.sh/hook":"post-install,post-upgrade","helm.sh/hook-delete-policy":"before-hook-creation","helm.sh/hook-weight":"2"}` | Hook timing for the Zitadel setup job, weighted to run after init. |
+| zitadel.zitadel.configmapConfig.Database.Postgres.Admin.SSL.Mode | string | `"disable"` |  |
+| zitadel.zitadel.configmapConfig.Database.Postgres.Database | string | `"zitadel"` | Database Zitadel creates and owns. Keep it separate from Filament's own database even when they share a server. |
+| zitadel.zitadel.configmapConfig.Database.Postgres.Host | string | required when `zitadel.enabled=true` | PostgreSQL server Zitadel connects to, e.g. the vendored `filament-postgresql` Service. The init job also needs `Admin.Username` and `Admin.Password` for a role that can create databases, and the runtime needs `User.Password`. |
+| zitadel.zitadel.configmapConfig.Database.Postgres.User.SSL.Mode | string | `"disable"` |  |
+| zitadel.zitadel.configmapConfig.Database.Postgres.User.Username | string | `"zitadel"` |  |
+| zitadel.zitadel.configmapConfig.ExternalDomain | string | required when `zitadel.enabled=true` | Hostname Zitadel advertises itself at. |
+| zitadel.zitadel.configmapConfig.ExternalSecure | bool | `true` | Serve external traffic over HTTPS. Zitadel builds its OIDC issuer from `ExternalSecure`, `ExternalDomain`, and `ExternalPort`, and that issuer must match `auth.zitadel.issuer` exactly. |
+| zitadel.zitadel.masterkey | string | required when `zitadel.enabled=true` | 32-character key Zitadel encrypts its stored credentials with. |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs](https://github.com/norwoodj/helm-docs)

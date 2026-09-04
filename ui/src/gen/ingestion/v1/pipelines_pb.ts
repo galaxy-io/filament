@@ -19,7 +19,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/pipelines.proto.
  */
 export const file_ingestion_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi4wEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIQCghzZWxlY3RvchgFIAEoCRIzCgdjdXJzb3JzGAYgAygLMiIuaW5nZXN0aW9uLnYxLlJlc291cmNlQ3Vyc29yQ29uZmlnEikKCXJlYWRfbW9kZRgHIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIrCgp3cml0ZV9tb2RlGAggASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZSJRChRSZXNvdXJjZUN1cnNvckNvbmZpZxIQCghyZXNvdXJjZRgBIAEoCRINCgVmaWVsZBgCIAEoCRIYChBsb29rYmFja19zZWNvbmRzGAMgASgDImUKDVBpcGVsaW5lR3JhcGgSKQoFbm9kZXMYASADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVOb2RlEikKBWVkZ2VzGAIgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZSLWAQoPUGlwZWxpbmVWZXJzaW9uEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMSEgoKY3JlYXRlZF9hdBgFIAEoAxIqCgVncmFwaBgGIAEoCzIbLmluZ2VzdGlvbi52MS5QaXBlbGluZUdyYXBoEhIKCnVwZGF0ZWRfYXQYByABKAMSGgoSY3JlYXRlZF9ieV91c2VyX2lkGAggASgJEhoKEnVwZGF0ZWRfYnlfdXNlcl9pZBgJIAEoCRIaChJkZWxldGVkX2J5X3VzZXJfaWQYCiABKAki4QMKCFBpcGVsaW5lEhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjYKD2N1cnJlbnRfdmVyc2lvbhgFIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24SLwoIdmVyc2lvbnMYBiADKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uEicKCGxhc3RfcnVuGAcgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMAoIc2NoZWR1bGUYCCABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZRISCgpjcmVhdGVkX2F0GAsgASgDEhIKCmRlbGV0ZWRfYXQYDCABKAMSEgoKdXBkYXRlZF9hdBgNIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDiABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA8gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgQIAEoCRI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgRIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uIpEBChZQaXBlbGluZVNjaGVkdWxlQ29uZmlnEgwKBGNyb24YASABKAkSEAoIdGltZXpvbmUYAiABKAkSEgoKaXNfZW5hYmxlZBgDIAEoCBJDCg5vdmVybGFwX3BvbGljeRgEIAEoDjIrLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlT3ZlcmxhcFBvbGljeSKWAQoQUGlwZWxpbmVTY2hlZHVsZRIKCgJpZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRI0CgZjb25maWcYAyABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxIUCgxuZXh0X2ZpcmVfYXQYBCABKAMSFQoNbGFzdF9maXJlZF9hdBgFIAEoAyLGAQoVQ3JlYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEjYKCHNjaGVkdWxlGAQgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWcSPwoUd29ya2VyX2NvbmZpZ3VyYXRpb24YBSABKAsyIS5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbiJ0ChZDcmVhdGVQaXBlbGluZVJlc3BvbnNlEigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lEjAKCHNjaGVkdWxlGAIgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUifwodQ3JlYXRlUGlwZWxpbmVTY2hlZHVsZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEjYKCHNjaGVkdWxlGAMgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWciUgoeQ3JlYXRlUGlwZWxpbmVTY2hlZHVsZVJlc3BvbnNlEjAKCHNjaGVkdWxlGAEgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUifwodVXBkYXRlUGlwZWxpbmVTY2hlZHVsZVJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEjYKCHNjaGVkdWxlGAMgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWciUgoeVXBkYXRlUGlwZWxpbmVTY2hlZHVsZVJlc3BvbnNlEjAKCHNjaGVkdWxlGAEgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUicgocQ3JlYXRlUGlwZWxpbmVWZXJzaW9uUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSKgoFZ3JhcGgYBSABKAsyGy5pbmdlc3Rpb24udjEuUGlwZWxpbmVHcmFwaCJPCh1DcmVhdGVQaXBlbGluZVZlcnNpb25SZXNwb25zZRIuCgd2ZXJzaW9uGAEgASgLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbiKjAQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEj8KFHdvcmtlcl9jb25maWd1cmF0aW9uGAUgASgLMiEuaW5nZXN0aW9uLnYxLldvcmtlckNvbmZpZ3VyYXRpb24iQgoWVXBkYXRlUGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZSKBAQoSR2V0UGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRIYChBpbmNsdWRlX3ZlcnNpb25zGAMgASgIEhgKEGluY2x1ZGVfbGFzdF9ydW4YBCABKAgSGAoQaW5jbHVkZV9zY2hlZHVsZRgFIAEoCCI/ChNHZXRQaXBlbGluZVJlc3BvbnNlEigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIlQKGUdldFBpcGVsaW5lVmVyc2lvblJlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEg8KB3ZlcnNpb24YAyABKAMiTAoaR2V0UGlwZWxpbmVWZXJzaW9uUmVzcG9uc2USLgoHdmVyc2lvbhgBIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24iqQEKG0xpc3RQaXBlbGluZVZlcnNpb25zUmVxdWVzdBIRCgl0ZW5hbnRfaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSMwoKcGFnaW5hdGlvbhgDIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBItCgdzb3J0aW5nGAQgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0IoUBChxMaXN0UGlwZWxpbmVWZXJzaW9uc1Jlc3BvbnNlEi8KCHZlcnNpb25zGAEgAygLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbhI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSKEAgoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhcKD2luY2x1ZGVfZGVsZXRlZBgCIAEoCBIzCgpwYWdpbmF0aW9uGAMgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0EhgKEGluY2x1ZGVfdmVyc2lvbnMYBCABKAgSGAoQaW5jbHVkZV9sYXN0X3J1bhgFIAEoCBIYChBpbmNsdWRlX3NjaGVkdWxlGAYgASgIEg4KBnNlYXJjaBgHIAEoCRItCgdzb3J0aW5nGAggASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0IngKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUSNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiNgoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCSIYChZEZWxldGVQaXBlbGluZVJlc3BvbnNlKqgBCh1QaXBlbGluZVNjaGVkdWxlT3ZlcmxhcFBvbGljeRIwCixQSVBFTElORV9TQ0hFRFVMRV9PVkVSTEFQX1BPTElDWV9VTlNQRUNJRklFRBAAEikKJVBJUEVMSU5FX1NDSEVEVUxFX09WRVJMQVBfUE9MSUNZX1NLSVAQARIqCiZQSVBFTElORV9TQ0hFRFVMRV9PVkVSTEFQX1BPTElDWV9BTExPVxACYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_runs, file_ingestion_v1_sorting]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi4wEKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIQCghzZWxlY3RvchgEIAEoCRIzCgdjdXJzb3JzGAUgAygLMiIuaW5nZXN0aW9uLnYxLlJlc291cmNlQ3Vyc29yQ29uZmlnEikKCXJlYWRfbW9kZRgGIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIrCgp3cml0ZV9tb2RlGAcgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZSJRChRSZXNvdXJjZUN1cnNvckNvbmZpZxIQCghyZXNvdXJjZRgBIAEoCRINCgVmaWVsZBgCIAEoCRIYChBsb29rYmFja19zZWNvbmRzGAMgASgDImUKDVBpcGVsaW5lR3JhcGgSKQoFbm9kZXMYASADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVOb2RlEikKBWVkZ2VzGAIgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZSLWAQoPUGlwZWxpbmVWZXJzaW9uEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMSEgoKY3JlYXRlZF9hdBgDIAEoAxIqCgVncmFwaBgEIAEoCzIbLmluZ2VzdGlvbi52MS5QaXBlbGluZUdyYXBoEhIKCnVwZGF0ZWRfYXQYBSABKAMSGgoSY3JlYXRlZF9ieV91c2VyX2lkGAYgASgJEhoKEnVwZGF0ZWRfYnlfdXNlcl9pZBgHIAEoCRIaChJkZWxldGVkX2J5X3VzZXJfaWQYCCABKAki4QMKCFBpcGVsaW5lEhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjYKD2N1cnJlbnRfdmVyc2lvbhgFIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24SLwoIdmVyc2lvbnMYBiADKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uEicKCGxhc3RfcnVuGAcgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMAoIc2NoZWR1bGUYCCABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZRISCgpjcmVhdGVkX2F0GAkgASgDEhIKCmRlbGV0ZWRfYXQYCiABKAMSEgoKdXBkYXRlZF9hdBgLIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDCABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA0gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgOIAEoCRI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgPIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uIpEBChZQaXBlbGluZVNjaGVkdWxlQ29uZmlnEgwKBGNyb24YASABKAkSEAoIdGltZXpvbmUYAiABKAkSEgoKaXNfZW5hYmxlZBgDIAEoCBJDCg5vdmVybGFwX3BvbGljeRgEIAEoDjIrLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlT3ZlcmxhcFBvbGljeSKWAQoQUGlwZWxpbmVTY2hlZHVsZRIKCgJpZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRI0CgZjb25maWcYAyABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxIUCgxuZXh0X2ZpcmVfYXQYBCABKAMSFQoNbGFzdF9maXJlZF9hdBgFIAEoAyKzAQoVQ3JlYXRlUGlwZWxpbmVSZXF1ZXN0EgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSNgoIc2NoZWR1bGUYAyABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgEIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uInQKFkNyZWF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUSMAoIc2NoZWR1bGUYAiABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZSJsCh1DcmVhdGVQaXBlbGluZVNjaGVkdWxlUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRI2CghzY2hlZHVsZRgCIAEoCzIkLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlQ29uZmlnIlIKHkNyZWF0ZVBpcGVsaW5lU2NoZWR1bGVSZXNwb25zZRIwCghzY2hlZHVsZRgBIAEoCzIeLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlImwKHVVwZGF0ZVBpcGVsaW5lU2NoZWR1bGVSZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEjYKCHNjaGVkdWxlGAIgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWciUgoeVXBkYXRlUGlwZWxpbmVTY2hlZHVsZVJlc3BvbnNlEjAKCHNjaGVkdWxlGAEgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUiXwocQ3JlYXRlUGlwZWxpbmVWZXJzaW9uUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRIqCgVncmFwaBgCIAEoCzIbLmluZ2VzdGlvbi52MS5QaXBlbGluZUdyYXBoIk8KHUNyZWF0ZVBpcGVsaW5lVmVyc2lvblJlc3BvbnNlEi4KB3ZlcnNpb24YASABKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uIpABChVVcGRhdGVQaXBlbGluZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgEIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uIkIKFlVwZGF0ZVBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUibgoSR2V0UGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJEhgKEGluY2x1ZGVfdmVyc2lvbnMYAiABKAgSGAoQaW5jbHVkZV9sYXN0X3J1bhgDIAEoCBIYChBpbmNsdWRlX3NjaGVkdWxlGAQgASgIIj8KE0dldFBpcGVsaW5lUmVzcG9uc2USKAoIcGlwZWxpbmUYASABKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUiQQoZR2V0UGlwZWxpbmVWZXJzaW9uUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIkwKGkdldFBpcGVsaW5lVmVyc2lvblJlc3BvbnNlEi4KB3ZlcnNpb24YASABKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uIpYBChtMaXN0UGlwZWxpbmVWZXJzaW9uc1JlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSMwoKcGFnaW5hdGlvbhgCIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBItCgdzb3J0aW5nGAMgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0IoUBChxMaXN0UGlwZWxpbmVWZXJzaW9uc1Jlc3BvbnNlEi8KCHZlcnNpb25zGAEgAygLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbhI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSLxAQoUTGlzdFBpcGVsaW5lc1JlcXVlc3QSFwoPaW5jbHVkZV9kZWxldGVkGAEgASgIEjMKCnBhZ2luYXRpb24YAiABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QSGAoQaW5jbHVkZV92ZXJzaW9ucxgDIAEoCBIYChBpbmNsdWRlX2xhc3RfcnVuGAQgASgIEhgKEGluY2x1ZGVfc2NoZWR1bGUYBSABKAgSDgoGc2VhcmNoGAYgASgJEi0KB3NvcnRpbmcYByABKAsyHC5pbmdlc3Rpb24udjEuU29ydGluZ1JlcXVlc3QieAoVTGlzdFBpcGVsaW5lc1Jlc3BvbnNlEikKCXBpcGVsaW5lcxgBIAMoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZRI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSIjChVEZWxldGVQaXBlbGluZVJlcXVlc3QSCgoCaWQYASABKAkiGAoWRGVsZXRlUGlwZWxpbmVSZXNwb25zZSqoAQodUGlwZWxpbmVTY2hlZHVsZU92ZXJsYXBQb2xpY3kSMAosUElQRUxJTkVfU0NIRURVTEVfT1ZFUkxBUF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIpCiVQSVBFTElORV9TQ0hFRFVMRV9PVkVSTEFQX1BPTElDWV9TS0lQEAESKgomUElQRUxJTkVfU0NIRURVTEVfT1ZFUkxBUF9QT0xJQ1lfQUxMT1cQAmIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_runs, file_ingestion_v1_sorting]);
 
 /**
  * PipelineNode is one source or sink on the canvas. connection_id references the
@@ -95,7 +95,7 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
   toNode: string;
 
   /**
-   * @generated from field: string selector = 5;
+   * @generated from field: string selector = 4;
    */
   selector: string;
 
@@ -104,17 +104,17 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
    * configure several resources; a resource-specific edge may configure only
    * its own resource. Omitted resources use connector auto-detection.
    *
-   * @generated from field: repeated ingestion.v1.ResourceCursorConfig cursors = 6;
+   * @generated from field: repeated ingestion.v1.ResourceCursorConfig cursors = 5;
    */
   cursors: ResourceCursorConfig[];
 
   /**
-   * @generated from field: ingestion.v1.ReadMode read_mode = 7;
+   * @generated from field: ingestion.v1.ReadMode read_mode = 6;
    */
   readMode: ReadMode;
 
   /**
-   * @generated from field: ingestion.v1.WriteMode write_mode = 8;
+   * @generated from field: ingestion.v1.WriteMode write_mode = 7;
    */
   writeMode: WriteMode;
 };
@@ -190,32 +190,32 @@ export type PipelineVersion = Message<"ingestion.v1.PipelineVersion"> & {
   version: bigint;
 
   /**
-   * @generated from field: int64 created_at = 5;
+   * @generated from field: int64 created_at = 3;
    */
   createdAt: bigint;
 
   /**
-   * @generated from field: ingestion.v1.PipelineGraph graph = 6;
+   * @generated from field: ingestion.v1.PipelineGraph graph = 4;
    */
   graph?: PipelineGraph | undefined;
 
   /**
-   * @generated from field: int64 updated_at = 7;
+   * @generated from field: int64 updated_at = 5;
    */
   updatedAt: bigint;
 
   /**
-   * @generated from field: string created_by_user_id = 8;
+   * @generated from field: string created_by_user_id = 6;
    */
   createdByUserId: string;
 
   /**
-   * @generated from field: string updated_by_user_id = 9;
+   * @generated from field: string updated_by_user_id = 7;
    */
   updatedByUserId: string;
 
   /**
-   * @generated from field: string deleted_by_user_id = 10;
+   * @generated from field: string deleted_by_user_id = 8;
    */
   deletedByUserId: string;
 };
@@ -274,32 +274,32 @@ export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
   schedule?: PipelineSchedule | undefined;
 
   /**
-   * @generated from field: int64 created_at = 11;
+   * @generated from field: int64 created_at = 9;
    */
   createdAt: bigint;
 
   /**
-   * @generated from field: int64 deleted_at = 12;
+   * @generated from field: int64 deleted_at = 10;
    */
   deletedAt: bigint;
 
   /**
-   * @generated from field: int64 updated_at = 13;
+   * @generated from field: int64 updated_at = 11;
    */
   updatedAt: bigint;
 
   /**
-   * @generated from field: string created_by_user_id = 14;
+   * @generated from field: string created_by_user_id = 12;
    */
   createdByUserId: string;
 
   /**
-   * @generated from field: string updated_by_user_id = 15;
+   * @generated from field: string updated_by_user_id = 13;
    */
   updatedByUserId: string;
 
   /**
-   * @generated from field: string deleted_by_user_id = 16;
+   * @generated from field: string deleted_by_user_id = 14;
    */
   deletedByUserId: string;
 
@@ -308,7 +308,7 @@ export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
    * the pipeline rather than the version so editing it cannot mint a version
    * and orphan the resource checkpoints keyed by the old one.
    *
-   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 17;
+   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 15;
    */
   workerConfiguration?: WorkerConfiguration | undefined;
 };
@@ -396,22 +396,17 @@ export const PipelineScheduleSchema: GenMessage<PipelineSchedule> = /*@__PURE__*
  */
 export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string name = 2;
+   * @generated from field: string name = 1;
    */
   name: string;
 
   /**
-   * @generated from field: string description = 3;
+   * @generated from field: string description = 2;
    */
   description: string;
 
   /**
-   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 4;
+   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 3;
    */
   schedule?: PipelineScheduleConfig | undefined;
 
@@ -419,7 +414,7 @@ export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"
    * worker_configuration shapes this pipeline's runs. Omit it to configure the
    * pipeline's workers later through UpdatePipeline.
    *
-   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 5;
+   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 4;
    */
   workerConfiguration?: WorkerConfiguration | undefined;
 };
@@ -458,17 +453,12 @@ export const CreatePipelineResponseSchema: GenMessage<CreatePipelineResponse> = 
  */
 export type CreatePipelineScheduleRequest = Message<"ingestion.v1.CreatePipelineScheduleRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 3;
+   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 2;
    */
   schedule?: PipelineScheduleConfig | undefined;
 };
@@ -502,17 +492,12 @@ export const CreatePipelineScheduleResponseSchema: GenMessage<CreatePipelineSche
  */
 export type UpdatePipelineScheduleRequest = Message<"ingestion.v1.UpdatePipelineScheduleRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 3;
+   * @generated from field: ingestion.v1.PipelineScheduleConfig schedule = 2;
    */
   schedule?: PipelineScheduleConfig | undefined;
 };
@@ -546,17 +531,12 @@ export const UpdatePipelineScheduleResponseSchema: GenMessage<UpdatePipelineSche
  */
 export type CreatePipelineVersionRequest = Message<"ingestion.v1.CreatePipelineVersionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: ingestion.v1.PipelineGraph graph = 5;
+   * @generated from field: ingestion.v1.PipelineGraph graph = 2;
    */
   graph?: PipelineGraph | undefined;
 };
@@ -590,27 +570,22 @@ export const CreatePipelineVersionResponseSchema: GenMessage<CreatePipelineVersi
  */
 export type UpdatePipelineRequest = Message<"ingestion.v1.UpdatePipelineRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: string name = 3;
+   * @generated from field: string name = 2;
    */
   name: string;
 
   /**
-   * @generated from field: string description = 4;
+   * @generated from field: string description = 3;
    */
   description: string;
 
   /**
-   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 5;
+   * @generated from field: ingestion.v1.WorkerConfiguration worker_configuration = 4;
    */
   workerConfiguration?: WorkerConfiguration | undefined;
 };
@@ -644,27 +619,22 @@ export const UpdatePipelineResponseSchema: GenMessage<UpdatePipelineResponse> = 
  */
 export type GetPipelineRequest = Message<"ingestion.v1.GetPipelineRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string id = 2;
+   * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * @generated from field: bool include_versions = 3;
+   * @generated from field: bool include_versions = 2;
    */
   includeVersions: boolean;
 
   /**
-   * @generated from field: bool include_last_run = 4;
+   * @generated from field: bool include_last_run = 3;
    */
   includeLastRun: boolean;
 
   /**
-   * @generated from field: bool include_schedule = 5;
+   * @generated from field: bool include_schedule = 4;
    */
   includeSchedule: boolean;
 };
@@ -698,17 +668,12 @@ export const GetPipelineResponseSchema: GenMessage<GetPipelineResponse> = /*@__P
  */
 export type GetPipelineVersionRequest = Message<"ingestion.v1.GetPipelineVersionRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: int64 version = 3;
+   * @generated from field: int64 version = 2;
    */
   version: bigint;
 };
@@ -742,22 +707,17 @@ export const GetPipelineVersionResponseSchema: GenMessage<GetPipelineVersionResp
  */
 export type ListPipelineVersionsRequest = Message<"ingestion.v1.ListPipelineVersionsRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string pipeline_id = 2;
+   * @generated from field: string pipeline_id = 1;
    */
   pipelineId: string;
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 3;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 2;
    */
   pagination?: PaginationRequest | undefined;
 
   /**
-   * @generated from field: ingestion.v1.SortingRequest sorting = 4;
+   * @generated from field: ingestion.v1.SortingRequest sorting = 3;
    */
   sorting?: SortingRequest | undefined;
 };
@@ -796,42 +756,37 @@ export const ListPipelineVersionsResponseSchema: GenMessage<ListPipelineVersions
  */
 export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: bool include_deleted = 2;
+   * @generated from field: bool include_deleted = 1;
    */
   includeDeleted: boolean;
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 3;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 2;
    */
   pagination?: PaginationRequest | undefined;
 
   /**
-   * @generated from field: bool include_versions = 4;
+   * @generated from field: bool include_versions = 3;
    */
   includeVersions: boolean;
 
   /**
-   * @generated from field: bool include_last_run = 5;
+   * @generated from field: bool include_last_run = 4;
    */
   includeLastRun: boolean;
 
   /**
-   * @generated from field: bool include_schedule = 6;
+   * @generated from field: bool include_schedule = 5;
    */
   includeSchedule: boolean;
 
   /**
-   * @generated from field: string search = 7;
+   * @generated from field: string search = 6;
    */
   search: string;
 
   /**
-   * @generated from field: ingestion.v1.SortingRequest sorting = 8;
+   * @generated from field: ingestion.v1.SortingRequest sorting = 7;
    */
   sorting?: SortingRequest | undefined;
 };
@@ -870,12 +825,7 @@ export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*
  */
 export type DeletePipelineRequest = Message<"ingestion.v1.DeletePipelineRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string id = 2;
+   * @generated from field: string id = 1;
    */
   id: string;
 };

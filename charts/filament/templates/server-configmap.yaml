@@ -8,7 +8,9 @@ data:
   PERSISTENCE_PROVIDER: {{ .Values.persistence.type | quote }}
 
   # Metrics
+  {{- if ne .Values.metrics.type "datastore" }}
   METRICSSTORE_PROVIDER: {{ .Values.metrics.type | quote }}
+  {{- end }}
 
   # Event bus
   EVENTBUS_PROVIDER: {{ .Values.eventBus.type | quote }}
@@ -18,6 +20,15 @@ data:
 
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"
+
+  # Auth
+  {{- if .Values.auth.enabled }}
+  AUTH_PROVIDER: {{ .Values.auth.type | quote }}
+  {{- if eq .Values.auth.type "zitadel" }}
+  AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}
+  {{- end }}
+  AUTH_UI_ORIGIN: {{ .Values.auth.uiOrigin | quote }}
+  {{- end }}
 
   # Observability
   LOG_LEVEL: {{ .Values.server.logLevel | quote }}
@@ -30,12 +41,12 @@ data:
   {{- end }}
 
   # Secrets
-  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
-  {{- if eq .Values.secrets.type "postgres" }}
-  {{- with .Values.secrets.postgres.encryptionKeyId }}
+  {{- if eq .Values.secrets.type "datastore" }}
+  {{- with .Values.secrets.datastore.encryptionKeyId }}
   ENCRYPTION_KEY_ID: {{ . | quote }}
   {{- end }}
   {{- else }}
+  SECRET_PROVIDER: {{ .Values.secrets.type | quote }}
   {{- with .Values.secrets.prefix }}
   SECRETS_PREFIX: {{ . | quote }}
   {{- end }}

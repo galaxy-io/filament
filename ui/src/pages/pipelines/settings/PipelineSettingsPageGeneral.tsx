@@ -41,7 +41,7 @@ const DEFAULT_STATE: PipelineSettingsPageGeneralState = {
 
 const PipelineSettingsPageGeneral = () => {
   const { showToast } = useToast();
-  const { id } = useParams({ from: "/pipelines/$id" });
+  const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
@@ -75,7 +75,6 @@ const PipelineSettingsPageGeneral = () => {
 
   const handleSave = () => {
     const request = create(UpdatePipelineRequestSchema, {
-      tenantId: pipeline.tenantId,
       pipelineId: pipeline.id,
       name: state.name.trim(),
       description: state.description.trim(),

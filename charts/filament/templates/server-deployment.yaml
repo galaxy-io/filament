@@ -68,5 +68,13 @@ spec:
                 name: {{ include "filament.server.fullname" . }}
             - secretRef:
                 name: {{ include "filament.secretName" . }}
+          {{- with include "filament.auth.mintedPatSecret" . }}
+          env:
+            - name: AUTH_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: pat
+          {{- end }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}

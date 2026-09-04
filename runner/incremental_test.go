@@ -7,7 +7,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 )
 
 type incrementalTestSource struct {
@@ -17,14 +17,14 @@ type incrementalTestSource struct {
 
 func TestScheduledCDCLoadsPipelineCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	spec := filament.RunSpec{
-		Run: "run-b", PipelineID: "pipe", PipelineVersionID: "version-2",
+		Tenant: "tenant", Run: "run-b", PipelineID: "pipe", PipelineVersionID: "version-2",
 		CheckpointRoute: "route/source/sink/cdc", Resources: []string{"users"},
 	}
 	key, _ := spec.ResourceCheckpointKey("users")
 	want := checkpoint.NewStreamDelta("users", "0/16B6C50", 41)
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: want}); err != nil {
+	if err := store.SaveResourceCheckpoint(ctx, spec.Tenant, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: want}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := loadChangeCheckpoints(ctx, store, spec)
@@ -101,10 +101,10 @@ func (s *incrementalTestSource) PlanIncremental(_ context.Context, resources []s
 
 func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 	ctx := context.Background()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	plan := filament.IngestionPlan{}
 	base := filament.RunSpec{
-		Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",
+		Tenant: "tenant", Run: "run-a", PipelineID: "pipe", PipelineVersionID: "version-1", CheckpointRoute: "route/source/sink",
 		Source: filament.Ref{Connector: "test"}, Resources: []string{"users"},
 		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
 		CursorConfigs:  map[string]filament.ResourceCursorConfig{"users": {Field: "updated_at", LookbackSeconds: 300}},
@@ -114,13 +114,13 @@ func TestResolveExtractorCarriesCheckpointAcrossRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	key, _ := base.ResourceCheckpointKey("users")
-	seeded, err := store.LoadResourceCheckpoint(ctx, key)
+	seeded, err := store.LoadResourceCheckpoint(ctx, base.Tenant, key)
 	if err != nil || seeded.Checkpoint.String("position") != "initial" {
 		t.Fatalf("seeded checkpoint = %#v, err = %v", seeded, err)
 	}
 
 	advanced := filament.NewCheckpoint("users").Set("position", "next-run")
-	if err := store.SaveResourceCheckpoint(ctx, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: advanced}); err != nil {
+	if err := store.SaveResourceCheckpoint(ctx, base.Tenant, filament.ResourceCheckpointState{Key: key, Run: "run-a", Checkpoint: advanced}); err != nil {
 		t.Fatal(err)
 	}
 	secondSpec := base

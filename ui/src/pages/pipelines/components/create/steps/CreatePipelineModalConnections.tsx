@@ -28,6 +28,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
+import { Flow } from "@/layouts/app/types";
 import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
@@ -38,8 +39,6 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
-
-import { Flow } from "@/routes/__root";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 

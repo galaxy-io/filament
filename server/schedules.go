@@ -13,14 +13,18 @@ import (
 
 // CreatePipelineSchedule attaches the primary schedule to an existing pipeline.
 func (a *Server) CreatePipelineSchedule(ctx context.Context, req *connect.Request[ingestionv1.CreatePipelineScheduleRequest]) (*connect.Response[ingestionv1.CreatePipelineScheduleResponse], error) {
-	pipeline, err := a.schedulePipeline(ctx, req.Msg.GetPipelineId())
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pipeline, err := a.schedulePipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if err != nil {
 		return nil, err
 	}
 	if req.Msg.GetSchedule() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("schedule is required"))
 	}
-	if _, err := a.schedules.LoadPipelineSchedule(ctx, pipeline.GetId()); err == nil {
+	if _, err := a.schedules.LoadPipelineSchedule(ctx, tenant, pipeline.GetId()); err == nil {
 		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("pipeline already has a schedule"))
 	} else if !errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -40,14 +44,18 @@ func (a *Server) CreatePipelineSchedule(ctx context.Context, req *connect.Reques
 
 // UpdatePipelineSchedule replaces the writable configuration of a schedule.
 func (a *Server) UpdatePipelineSchedule(ctx context.Context, req *connect.Request[ingestionv1.UpdatePipelineScheduleRequest]) (*connect.Response[ingestionv1.UpdatePipelineScheduleResponse], error) {
-	pipeline, err := a.schedulePipeline(ctx, req.Msg.GetPipelineId())
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pipeline, err := a.schedulePipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if err != nil {
 		return nil, err
 	}
 	if req.Msg.GetSchedule() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("schedule is required"))
 	}
-	current, err := a.loadPipelineSchedule(ctx, pipeline.GetId())
+	current, err := a.loadPipelineSchedule(ctx, tenant, pipeline.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -67,14 +75,14 @@ func (a *Server) UpdatePipelineSchedule(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (a *Server) schedulePipeline(ctx context.Context, pipelineID string) (*ingestionv1.Pipeline, error) {
+func (a *Server) schedulePipeline(ctx context.Context, tenant filament.TenantID, pipelineID string) (*ingestionv1.Pipeline, error) {
 	if pipelineID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
 	if a.schedules == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("schedule store is not configured"))
 	}
-	pipeline, err := a.store.LoadPipeline(ctx, pipelineID)
+	pipeline, err := a.store.LoadPipeline(ctx, tenant, pipelineID)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
@@ -87,8 +95,8 @@ func (a *Server) schedulePipeline(ctx context.Context, pipelineID string) (*inge
 	return pipeline, nil
 }
 
-func (a *Server) loadPipelineSchedule(ctx context.Context, pipelineID string) (filament.ScheduleState, error) {
-	state, err := a.schedules.LoadPipelineSchedule(ctx, pipelineID)
+func (a *Server) loadPipelineSchedule(ctx context.Context, tenant filament.TenantID, pipelineID string) (filament.ScheduleState, error) {
+	state, err := a.schedules.LoadPipelineSchedule(ctx, tenant, pipelineID)
 	if errors.Is(err, filament.ErrNotFound) {
 		return filament.ScheduleState{}, connect.NewError(connect.CodeNotFound, err)
 	}

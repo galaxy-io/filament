@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -23,10 +24,10 @@ func (target *memoryTarget) Catalog(context.Context) (model.Catalog, error) {
 	return target.catalog, nil
 }
 
-func (target *memoryTarget) ListConnections(_ context.Context, kind string) ([]model.NamedConnection, error) {
+func (target *memoryTarget) ListConnections(_ context.Context, kind string, _ model.PageRequest) (model.Page[model.NamedConnection], error) {
 	connections, err := connectionMap(kind, target.document)
 	if err != nil {
-		return nil, err
+		return model.Page[model.NamedConnection]{}, err
 	}
 	names := make([]string, 0, len(connections))
 	for name := range connections {
@@ -37,7 +38,7 @@ func (target *memoryTarget) ListConnections(_ context.Context, kind string) ([]m
 	for _, name := range names {
 		result = append(result, model.NamedConnection{Kind: kind, Name: name, Connection: connections[name]})
 	}
-	return result, nil
+	return model.Page[model.NamedConnection]{Items: result, PageInfo: model.PageInfo{Total: len(result)}}, nil
 }
 
 func (target *memoryTarget) GetConnection(_ context.Context, kind, name string) (model.Connection, error) {
@@ -90,7 +91,7 @@ func (target *memoryTarget) DeleteConnection(_ context.Context, kind, name strin
 	return nil
 }
 
-func (target *memoryTarget) ListPipelines(context.Context) ([]model.NamedPipeline, error) {
+func (target *memoryTarget) ListPipelines(context.Context, model.PageRequest) (model.Page[model.NamedPipeline], error) {
 	names := make([]string, 0, len(target.document.Pipelines))
 	for name := range target.document.Pipelines {
 		names = append(names, name)
@@ -100,7 +101,7 @@ func (target *memoryTarget) ListPipelines(context.Context) ([]model.NamedPipelin
 	for _, name := range names {
 		result = append(result, model.NamedPipeline{Name: name, Pipeline: target.document.Pipelines[name]})
 	}
-	return result, nil
+	return model.Page[model.NamedPipeline]{Items: result, PageInfo: model.PageInfo{Total: len(result)}}, nil
 }
 
 func (target *memoryTarget) GetPipeline(_ context.Context, name string) (model.Pipeline, error) {
@@ -257,5 +258,38 @@ func newMemoryTarget() *memoryTarget {
 				},
 			},
 		},
+	}
+}
+
+// deploymentTarget validates on the deployment, as the remote target does,
+// so documents may hold modes the in-process runner cannot execute.
+type deploymentTarget struct{ *memoryTarget }
+
+func (deploymentTarget) ValidateConfiguration(context.Context, model.Document) error { return nil }
+
+func TestSavedPipelineKeepsSyncMode(t *testing.T) {
+	t.Parallel()
+	target := newMemoryTarget()
+	target.document.Sources["input"] = model.Connection{Type: "sample"}
+	target.document.Sinks["output"] = model.Connection{Type: "stdout"}
+	target.document.Pipelines["inc"] = model.Pipeline{
+		Source: model.PipelineNode{Ref: "input"}, Sink: model.PipelineNode{Ref: "output"},
+		SyncMode: "incremental", WriteMode: "append",
+	}
+	service := NewService(deploymentTarget{target})
+	ctx := context.Background()
+
+	submission, err := service.PrepareRun(ctx, RunRequest{Pipeline: "inc"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if submission.Override || submission.Pipeline == nil || len(submission.Spec.IngestionTypes) != 0 {
+		t.Fatalf("submission = %+v", submission)
+	}
+
+	rows := []string{"users"}
+	_, err = service.PrepareRun(ctx, RunRequest{Pipeline: "inc", Overrides: SavePipelineRequest{Resources: &rows}})
+	if err == nil || !strings.Contains(err.Error(), "in-process") {
+		t.Fatalf("override err = %v, want in-process refusal", err)
 	}
 }

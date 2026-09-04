@@ -10,7 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -80,9 +80,9 @@ func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
 	sinks.Register("live-sink", func() filament.Sink {
 		return &liveProbeSink{probes: probes, err: context.DeadlineExceeded}
 	})
-	api := New(registry.NewSources(), sinks, memory.New(), nil, nil)
+	api := New(registry.NewSources(), sinks, sqlite.NewMemory(), nil, nil)
 
-	response, err := api.ValidateConfig(context.Background(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
+	response, err := api.ValidateConfig(testCtx(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
 		Connector: "live-sink",
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 	}))
@@ -144,7 +144,7 @@ func TestGetConnector(t *testing.T) {
 	sources.RegisterWithMaturity("columns", filament.MaturityBeta, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
-	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
 		Connector: "columns",
@@ -181,7 +181,7 @@ func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
 	sources.RegisterWithMaturity("columns", filament.MaturityStable, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
-	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
 		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
@@ -207,7 +207,7 @@ func TestListConnectorsSearchSortAndPage(t *testing.T) {
 		spec := spec
 		sources.Register(spec.name, func() filament.Source { return &spec })
 	}
-	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
 		Kind:       ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
@@ -230,7 +230,7 @@ func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
 	sinks.RegisterWithMaturity("live-sink", filament.MaturityBeta, func() filament.Sink {
 		return &liveProbeSink{probes: &atomic.Int32{}}
 	})
-	api := New(registry.NewSources(), sinks, memory.New(), nil, nil)
+	api := New(registry.NewSources(), sinks, sqlite.NewMemory(), nil, nil)
 
 	getResponse, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
 		Connector: "live-sink",
@@ -261,9 +261,9 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	counts := &columnSourceCounts{}
 	sources := registry.NewSources()
 	sources.Register("columns", func() filament.Source { return &columnSource{counts: counts} })
-	api := New(sources, registry.NewSinks(), memory.New(), nil, nil)
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
 
-	response, err := api.GetResourceColumns(context.Background(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
+	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
 		Connector: "columns",
 		Resources: []string{"orders", "users"},
 	}))

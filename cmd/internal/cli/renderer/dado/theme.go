@@ -24,7 +24,7 @@ func filamentTheme(dark bool) inline.InlineTheme {
 	theme.FocusedBorder = tcell.StyleDefault
 	theme.Borders = inline.BorderSet{TopLeft: " ", TopRight: " ", BottomLeft: " ", BottomRight: " ", Horizontal: " ", Vertical: " "}
 	theme.FieldGap = 0
-	theme.Glyphs.Focus = "›"
+	theme.Glyphs.Focus = "▸"
 	theme.Glyphs.Required = ""
 	theme.Glyphs.Checked = "✓"
 	theme.Glyphs.Unchecked = "○"

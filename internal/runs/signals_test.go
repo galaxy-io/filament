@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 )
 
@@ -55,7 +55,7 @@ func TestPlanSignal(t *testing.T) {
 
 func TestCancelStampsEndedAt(t *testing.T) {
 	ctx := context.Background()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	cancelled := filament.RunState{Run: "run-cancel", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
 	paused := filament.RunState{Run: "run-pause", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
 	for _, state := range []filament.RunState{cancelled, paused} {
@@ -67,7 +67,7 @@ func TestCancelStampsEndedAt(t *testing.T) {
 	if _, err := Signal(ctx, inproc.New(), store, cancelled, filament.SignalCancel); err != nil {
 		t.Fatal(err)
 	}
-	got, err := store.LoadRun(ctx, cancelled.Run)
+	got, err := store.LoadRun(ctx, cancelled.Tenant, cancelled.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestCancelStampsEndedAt(t *testing.T) {
 	if _, err := Signal(ctx, inproc.New(), store, paused, filament.SignalPause); err != nil {
 		t.Fatal(err)
 	}
-	got, err = store.LoadRun(ctx, paused.Run)
+	got, err = store.LoadRun(ctx, paused.Tenant, paused.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestResumePreservesOnlyCheckpointedProgress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			store := memory.New()
+			store := sqlite.NewMemory()
 			state := filament.RunState{
 				Run: "run", Tenant: "tenant", Status: tt.status, Records: 125, Bytes: 500,
 				Request: filament.RunRequest{
@@ -116,7 +116,7 @@ func TestResumePreservesOnlyCheckpointedProgress(t *testing.T) {
 			if _, err := Signal(ctx, inproc.New(), store, state, filament.SignalResume); err != nil {
 				t.Fatal(err)
 			}
-			got, err := store.LoadRun(ctx, state.Run)
+			got, err := store.LoadRun(ctx, state.Tenant, state.Run)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -138,7 +138,7 @@ func TestPauseRejectsMixedCheckpointCoverage(t *testing.T) {
 			},
 		},
 	}
-	if _, err := Signal(context.Background(), inproc.New(), memory.New(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
+	if _, err := Signal(context.Background(), inproc.New(), sqlite.NewMemory(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
 		t.Fatalf("mixed pause error = %v, want transition error", err)
 	}
 }

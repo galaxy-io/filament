@@ -16,11 +16,15 @@ import (
 // and route-wide write modes the connector pair supports, their selected
 // combination, and any cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
+	tenant, err := tenantFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
 	graph := req.Msg.GetGraph()
-	resp, err := a.validatePipelineGraph(ctx, req.Msg.GetTenantId(), graph.GetNodes(), graph.GetEdges())
+	resp, err := a.validatePipelineGraph(ctx, string(tenant), graph.GetNodes(), graph.GetEdges())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -259,7 +263,7 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 		edgeError(ev, field, fmt.Sprintf("node %q has no connection", node.GetId()))
 		return nil, nil
 	}
-	conn, err := a.loadConnectionForTenant(ctx, node.GetConnectionId(), tenant)
+	conn, err := a.store.LoadConnection(ctx, filament.TenantID(tenant), node.GetConnectionId())
 	if err != nil {
 		if errors.Is(err, filament.ErrNotFound) {
 			edgeError(ev, field, fmt.Sprintf("connection %q not found", node.GetConnectionId()))

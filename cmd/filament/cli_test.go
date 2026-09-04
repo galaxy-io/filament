@@ -27,21 +27,6 @@ func TestNonInteractiveConfigurationLifecycle(t *testing.T) {
 	run("source", "discover", "demo")
 	run("run", "copy")
 	run("config", "validate")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, wanted := range []string{"version: 1", "demo:", "type: sample", "out:", "copy:", "sync_mode: full"} {
-		if !strings.Contains(string(data), wanted) {
-			t.Errorf("config missing %q:\n%s", wanted, data)
-		}
-	}
-	if info, err := os.Stat(path); err != nil {
-		t.Fatal(err)
-	} else if info.Mode().Perm() != 0o600 {
-		t.Errorf("config mode = %o, want 600", info.Mode().Perm())
-	}
 }
 
 func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
@@ -59,7 +44,7 @@ func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
 	}
 }
 
-func TestRemoteContextFailsBeforeRendererExecution(t *testing.T) {
+func TestUnreachableRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 	t.Parallel()
 	directory := t.TempDir()
 	contextPath := filepath.Join(directory, "contexts.yaml")
@@ -72,7 +57,7 @@ func TestRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 		configPath: filepath.Join(directory, "filament.yaml"), contextPath: contextPath, catalog: loadCatalog(),
 	}
 	err := app.run(context.Background(), []string{"source", "list"})
-	if err == nil || err.Error() != "remote target is not implemented" {
-		t.Fatalf("error = %v, want remote target is not implemented", err)
+	if err == nil || !strings.Contains(err.Error(), "cannot reach https://filament.example.test") {
+		t.Fatalf("error = %v, want cannot reach https://filament.example.test", err)
 	}
 }

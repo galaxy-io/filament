@@ -6,9 +6,8 @@ INSERT INTO schedules (id, tenant_id, pipeline_id, name, cron_expr, timezone, ov
     enabled, last_fired_at, next_fire_at, claimed_at, created_at, updated_at)
 SELECT @schedule_id, @tenant_id, @pipeline_id, @name, @cron_expr, @timezone, @overlap_policy,
     @enabled, @last_fired_at, @next_fire_at, NULL, @created_at, now()
-FROM pipelines WHERE id = @pipeline_id AND NOT is_deleted
+FROM pipelines WHERE tenant_id = @tenant_id AND id = @pipeline_id AND NOT is_deleted
 ON CONFLICT (id) DO UPDATE SET
-    tenant_id = EXCLUDED.tenant_id,
     pipeline_id = EXCLUDED.pipeline_id,
     name = EXCLUDED.name,
     cron_expr = EXCLUDED.cron_expr,
@@ -18,29 +17,30 @@ ON CONFLICT (id) DO UPDATE SET
     last_fired_at = EXCLUDED.last_fired_at,
     next_fire_at = EXCLUDED.next_fire_at,
     claimed_at = NULL,
-    updated_at = now();
+    updated_at = now()
+WHERE schedules.tenant_id = EXCLUDED.tenant_id;
 
 -- name: LoadSchedule :one
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE id = @schedule_id;
+FROM schedules WHERE tenant_id = @tenant_id AND id = @schedule_id;
 
 -- name: LoadPipelineSchedule :one
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
-FROM schedules WHERE pipeline_id = @pipeline_id;
+FROM schedules WHERE tenant_id = @tenant_id AND pipeline_id = @pipeline_id;
 
 -- name: DeleteSchedule :exec
-DELETE FROM schedules WHERE id = @schedule_id;
+DELETE FROM schedules WHERE tenant_id = @tenant_id AND id = @schedule_id;
 
 -- name: DeletePipelineSchedules :exec
-DELETE FROM schedules WHERE pipeline_id = @pipeline_id;
+DELETE FROM schedules WHERE tenant_id = @tenant_id AND pipeline_id = @pipeline_id;
 
 -- name: ListSchedules :many
 SELECT id, tenant_id, pipeline_id, name, cron_expr, timezone, overlap_policy,
     enabled, last_fired_at, next_fire_at, created_at
 FROM schedules
-WHERE (nullif(@tenant_id::text, '') IS NULL OR tenant_id = @tenant_id::uuid)
+WHERE tenant_id = @tenant_id
   AND (sqlc.narg(filter_enabled)::boolean IS NULL OR enabled = sqlc.narg(filter_enabled))
 ORDER BY id
 LIMIT NULLIF(@lim::int, 0);
@@ -61,4 +61,5 @@ FOR UPDATE SKIP LOCKED;
 UPDATE schedules SET claimed_at = @claimed_at WHERE id = ANY(@schedule_ids::uuid[]);
 
 -- name: ReleaseScheduleClaim :exec
-UPDATE schedules SET claimed_at = NULL, updated_at = now() WHERE id = @schedule_id;
+UPDATE schedules SET claimed_at = NULL, updated_at = now()
+WHERE tenant_id = @tenant_id AND id = @schedule_id;

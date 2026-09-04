@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// Role is a filament permission level. The vocabulary is filament's, not the
+// provider's: an adapter maps whatever grants it stores onto these.
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_ADMIN = 1;
+  ROLE_CREATOR = 2;
+  ROLE_VIEWER = 3;
+}
+
+// Member is one user of a tenant.
+message Member {
+  string user_id = 1;
+  string name = 2;
+  string email = 3;
+  Role role = 4;
+}
+
+message ListMembersRequest {}
+
+message ListMembersResponse {
+  repeated Member members = 1;
+  // can_manage reports whether the caller may invite, re-role, or remove.
+  // The UI renders read-only when false.
+  bool can_manage = 2;
+}
+
+message InviteMemberRequest {
+  string email = 1;
+  string given_name = 2;
+  string family_name = 3;
+  Role role = 4;
+}
+
+// InviteMemberResponse carries the invitation an admin shares out of band.
+// Nothing is emailed.
+message InviteMemberResponse {
+  string user_id = 1;
+  string code = 2;
+}
+
+message SetMemberRoleRequest {
+  string user_id = 1;
+  Role role = 2;
+}
+
+message SetMemberRoleResponse {}
+
+message RemoveMemberRequest {
+  string user_id = 1;
+}
+
+message RemoveMemberResponse {}

@@ -31,13 +31,13 @@ message PipelineEdge {
   string from_node = 1;
   string resource = 2;
   string to_node = 3;
-  string selector = 5;
+  string selector = 4;
   // cursors contains durable-incremental overrides. An all-resource edge may
   // configure several resources; a resource-specific edge may configure only
   // its own resource. Omitted resources use connector auto-detection.
-  repeated ResourceCursorConfig cursors = 6;
-  ReadMode read_mode = 7;
-  WriteMode write_mode = 8;
+  repeated ResourceCursorConfig cursors = 5;
+  ReadMode read_mode = 6;
+  WriteMode write_mode = 7;
 }
 
 message ResourceCursorConfig {
@@ -54,12 +54,12 @@ message PipelineGraph {
 message PipelineVersion {
   string id = 1;
   int64 version = 2;
-  int64 created_at = 5;
-  PipelineGraph graph = 6;
-  int64 updated_at = 7;
-  string created_by_user_id = 8;
-  string updated_by_user_id = 9;
-  string deleted_by_user_id = 10;
+  int64 created_at = 3;
+  PipelineGraph graph = 4;
+  int64 updated_at = 5;
+  string created_by_user_id = 6;
+  string updated_by_user_id = 7;
+  string deleted_by_user_id = 8;
 }
 
 // Pipeline is mutable metadata plus a pointer to its current graph version.
@@ -72,16 +72,16 @@ message Pipeline {
   repeated PipelineVersion versions = 6;
   RunInfo last_run = 7;
   PipelineSchedule schedule = 8;
-  int64 created_at = 11;
-  int64 deleted_at = 12;
-  int64 updated_at = 13;
-  string created_by_user_id = 14;
-  string updated_by_user_id = 15;
-  string deleted_by_user_id = 16;
+  int64 created_at = 9;
+  int64 deleted_at = 10;
+  int64 updated_at = 11;
+  string created_by_user_id = 12;
+  string updated_by_user_id = 13;
+  string deleted_by_user_id = 14;
   // worker_configuration shapes this pipeline's runs by default. It lives on
   // the pipeline rather than the version so editing it cannot mint a version
   // and orphan the resource checkpoints keyed by the old one.
-  WorkerConfiguration worker_configuration = 17;
+  WorkerConfiguration worker_configuration = 15;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -109,13 +109,12 @@ message PipelineSchedule {
 }
 
 message CreatePipelineRequest {
-  string tenant_id = 1;
-  string name = 2;
-  string description = 3;
-  PipelineScheduleConfig schedule = 4;
+  string name = 1;
+  string description = 2;
+  PipelineScheduleConfig schedule = 3;
   // worker_configuration shapes this pipeline's runs. Omit it to configure the
   // pipeline's workers later through UpdatePipeline.
-  WorkerConfiguration worker_configuration = 5;
+  WorkerConfiguration worker_configuration = 4;
 }
 
 message CreatePipelineResponse {
@@ -124,9 +123,8 @@ message CreatePipelineResponse {
 }
 
 message CreatePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  PipelineScheduleConfig schedule = 3;
+  string pipeline_id = 1;
+  PipelineScheduleConfig schedule = 2;
 }
 
 message CreatePipelineScheduleResponse {
@@ -134,9 +132,8 @@ message CreatePipelineScheduleResponse {
 }
 
 message UpdatePipelineScheduleRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  PipelineScheduleConfig schedule = 3;
+  string pipeline_id = 1;
+  PipelineScheduleConfig schedule = 2;
 }
 
 message UpdatePipelineScheduleResponse {
@@ -144,9 +141,8 @@ message UpdatePipelineScheduleResponse {
 }
 
 message CreatePipelineVersionRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  PipelineGraph graph = 5;
+  string pipeline_id = 1;
+  PipelineGraph graph = 2;
 }
 
 message CreatePipelineVersionResponse {
@@ -154,11 +150,10 @@ message CreatePipelineVersionResponse {
 }
 
 message UpdatePipelineRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  string name = 3;
-  string description = 4;
-  WorkerConfiguration worker_configuration = 5;
+  string pipeline_id = 1;
+  string name = 2;
+  string description = 3;
+  WorkerConfiguration worker_configuration = 4;
 }
 
 message UpdatePipelineResponse {
@@ -166,11 +161,10 @@ message UpdatePipelineResponse {
 }
 
 message GetPipelineRequest {
-  string tenant_id = 1;
-  string id = 2;
-  bool include_versions = 3;
-  bool include_last_run = 4;
-  bool include_schedule = 5;
+  string id = 1;
+  bool include_versions = 2;
+  bool include_last_run = 3;
+  bool include_schedule = 4;
 }
 
 message GetPipelineResponse {
@@ -178,9 +172,8 @@ message GetPipelineResponse {
 }
 
 message GetPipelineVersionRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  int64 version = 3;
+  string pipeline_id = 1;
+  int64 version = 2;
 }
 
 message GetPipelineVersionResponse {
@@ -188,10 +181,9 @@ message GetPipelineVersionResponse {
 }
 
 message ListPipelineVersionsRequest {
-  string tenant_id = 1;
-  string pipeline_id = 2;
-  PaginationRequest pagination = 3;
-  SortingRequest sorting = 4;
+  string pipeline_id = 1;
+  PaginationRequest pagination = 2;
+  SortingRequest sorting = 3;
 }
 
 message ListPipelineVersionsResponse {
@@ -200,14 +192,13 @@ message ListPipelineVersionsResponse {
 }
 
 message ListPipelinesRequest {
-  string tenant_id = 1;
-  bool include_deleted = 2;
-  PaginationRequest pagination = 3;
-  bool include_versions = 4;
-  bool include_last_run = 5;
-  bool include_schedule = 6;
-  string search = 7;
-  SortingRequest sorting = 8;
+  bool include_deleted = 1;
+  PaginationRequest pagination = 2;
+  bool include_versions = 3;
+  bool include_last_run = 4;
+  bool include_schedule = 5;
+  string search = 6;
+  SortingRequest sorting = 7;
 }
 
 message ListPipelinesResponse {
@@ -216,8 +207,7 @@ message ListPipelinesResponse {
 }
 
 message DeletePipelineRequest {
-  string tenant_id = 1;
-  string id = 2;
+  string id = 1;
 }
 
 message DeletePipelineResponse {}

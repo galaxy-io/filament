@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -16,8 +15,6 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
-
-var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 // Renderer drives Dado forms using target-neutral application operations.
 type Renderer struct {
@@ -32,6 +29,11 @@ type Renderer struct {
 	interactiveRenderer     *inline.Renderer
 	theme                   inline.InlineTheme
 	paint                   style.Painter
+	menuMode                bool
+	layout                  style.Layout
+	saveLayout              func(style.Layout) error
+	noticeText              string
+	noticeOK                bool
 }
 
 // Options configures an interactive renderer.
@@ -43,6 +45,13 @@ type Options struct {
 	Catalog                 model.Catalog
 	OpenConfigurationEditor func(context.Context) error
 	TargetName              string
+	// MenuMode opens interactive menus for menu-shaped invocations. Off, only
+	// operations render interactively.
+	MenuMode bool
+	// Layout draws menus and tables boxed or plain, matching the list commands.
+	Layout style.Layout
+	// SaveLayout persists a layout chosen in the Settings menu; nil hides it.
+	SaveLayout func(style.Layout) error
 }
 
 // New constructs an interactive renderer for the selected target.
@@ -61,6 +70,9 @@ func New(options Options) *Renderer {
 		configPath: configPath, catalog: options.Catalog, service: options.Service,
 		openConfigurationEditor: options.OpenConfigurationEditor,
 		targetName:              options.TargetName,
+		menuMode:                options.MenuMode,
+		layout:                  options.Layout,
+		saveLayout:              options.SaveLayout,
 		theme:                   filamentTheme(dark),
 		paint:                   style.New(status),
 	}
@@ -74,8 +86,13 @@ func (r *Renderer) Interactive() bool {
 // CanHandle reports whether args identify an interactive entry point and both
 // terminal streams support interactive rendering.
 func (r *Renderer) CanHandle(args []string) bool {
-	_, routed := interactiveEntryForArgs(args)
-	return routed && r.interactiveAvailable()
+	entry, routed := interactiveEntryForArgs(args)
+	if !routed || !r.interactiveAvailable() {
+		return false
+	}
+	// Menus open only under --interactive; operations (wizards, runs) route
+	// interactively regardless.
+	return r.menuMode || entry.operation != ""
 }
 
 // Run opens the interactive renderer at the entry point selected by args.
@@ -105,9 +122,10 @@ func (r *Renderer) connectionSchema(kind, connector string) (filament.ConfigSche
 	return r.catalog.ConnectionSchema(kind, connector)
 }
 
+// validateName only requires a name; the deployment owns any further rule.
 func validateName(kind, name string) error {
-	if !namePattern.MatchString(name) {
-		return fmt.Errorf("%s name %q must match %s", kind, name, namePattern)
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("%s name is required", kind)
 	}
 	return nil
 }

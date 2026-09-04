@@ -69,13 +69,13 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 }
 
 // CreatePipelineVersion appends an immutable graph version to a pipeline.
-func (s *Store) CreatePipelineVersion(ctx context.Context, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
+func (s *Store) CreatePipelineVersion(ctx context.Context, tenant filament.TenantID, pipelineID string, v *ingestionv1.PipelineVersion) (*ingestionv1.PipelineVersion, error) {
 	graph, err := protojson.Marshal(v.GetGraph())
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: marshal graph: %w", err)
 	}
 	id := uuid.NewString()
-	row, err := s.q.CreatePipelineVersion(ctx, sqlcgen.CreatePipelineVersionParams{PipelineID: pipelineID, ID: id, Graph: graph})
+	row, err := s.q.CreatePipelineVersion(ctx, sqlcgen.CreatePipelineVersionParams{TenantID: string(tenant), PipelineID: pipelineID, ID: id, Graph: graph})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("pipeline %q: %w", pipelineID, filament.ErrNotFound)
 	}
@@ -92,20 +92,20 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
-	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
+	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
 	if n == 0 {
 		return nil, fmt.Errorf("pipeline %q: %w", p.GetId(), filament.ErrNotFound)
 	}
-	return s.LoadPipeline(ctx, p.GetId())
+	return s.LoadPipeline(ctx, filament.TenantID(p.GetTenantId()), p.GetId())
 }
 
 // LoadPipeline returns a pipeline by ID, including soft-deleted ones so callers
 // can still read a deleted pipeline's metadata. DeletedAt tells them apart.
-func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipeline, error) {
-	row, err := s.q.GetPipeline(ctx, id)
+func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id string) (*ingestionv1.Pipeline, error) {
+	row, err := s.q.GetPipeline(ctx, sqlcgen.GetPipelineParams{TenantID: string(tenant), PipelineID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("get pipeline %q: %w", id, filament.ErrNotFound)
 	}
@@ -114,7 +114,7 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 	}
 	out := pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
 	if row.CurrentVersionID.Valid {
-		out.CurrentVersion, err = s.LoadPipelineVersion(ctx, row.ID, 0)
+		out.CurrentVersion, err = s.LoadPipelineVersion(ctx, tenant, row.ID, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -132,8 +132,8 @@ func (s *Store) LoadPipeline(ctx context.Context, id string) (*ingestionv1.Pipel
 }
 
 // LoadPipelineVersion returns a specific immutable pipeline graph version.
-func (s *Store) LoadPipelineVersion(ctx context.Context, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
-	row, err := s.q.GetPipelineVersion(ctx, sqlcgen.GetPipelineVersionParams{PipelineID: pipelineID, Version: version})
+func (s *Store) LoadPipelineVersion(ctx context.Context, tenant filament.TenantID, pipelineID string, version int64) (*ingestionv1.PipelineVersion, error) {
+	row, err := s.q.GetPipelineVersion(ctx, sqlcgen.GetPipelineVersionParams{TenantID: string(tenant), PipelineID: pipelineID, Version: version})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, fmt.Errorf("pipeline %q version %d: %w", pipelineID, version, filament.ErrNotFound)
 	}
@@ -154,12 +154,12 @@ func (s *Store) ListPipelineVersions(ctx context.Context, f filament.PipelineVer
 		f.SortBy = "version"
 		f.SortDescending = true
 	}
-	count, err := s.q.CountPipelineVersions(ctx, f.PipelineID)
+	count, err := s.q.CountPipelineVersions(ctx, sqlcgen.CountPipelineVersionsParams{TenantID: string(f.Tenant), PipelineID: f.PipelineID})
 	if err != nil {
 		return nil, 0, fmt.Errorf("datastore/postgres: count pipeline versions: %w", err)
 	}
 	rows, err := s.q.ListPipelineVersions(ctx, sqlcgen.ListPipelineVersionsParams{
-		PipelineID: f.PipelineID, SortBy: f.SortBy, SortDesc: f.SortDescending,
+		TenantID: string(f.Tenant), PipelineID: f.PipelineID, SortBy: f.SortBy, SortDesc: f.SortDescending,
 		Lim: int32(f.Limit), OffsetRows: int32(f.Offset), //nolint:gosec // API pagination is capped
 	})
 	if err != nil {
@@ -195,7 +195,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	for i, row := range rows {
 		out[i] = pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
 		if row.CurrentVersionID.Valid {
-			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, row.ID, 0)
+			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, filament.TenantID(row.TenantID), row.ID, 0)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -227,23 +227,24 @@ func pipelineFromRow(id, tenant, name, description string) *ingestionv1.Pipeline
 // DeletePipeline soft-deletes a pipeline and removes its schedules and pending
 // scheduled runs so the scheduler stops firing it and nothing lingers as
 // upcoming work. Versions and run history are kept.
-func (s *Store) DeletePipeline(ctx context.Context, id string) error {
+func (s *Store) DeletePipeline(ctx context.Context, tenant filament.TenantID, id string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("datastore/postgres: begin pipeline delete: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
-	if err := q.DeletePipeline(ctx, id); err != nil {
+	if err := q.DeletePipeline(ctx, sqlcgen.DeletePipelineParams{TenantID: string(tenant), PipelineID: id}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline: %w", err)
 	}
 	// Schedules go before runs: a concurrent reconcile insert either commits
 	// ahead of this delete's parent-row lock (the runs reap below still sees
 	// it) or fails its schedules FK once the lock is taken.
-	if err := q.DeletePipelineSchedules(ctx, id); err != nil {
+	if err := q.DeletePipelineSchedules(ctx, sqlcgen.DeletePipelineSchedulesParams{TenantID: string(tenant), PipelineID: id}); err != nil {
 		return fmt.Errorf("datastore/postgres: delete pipeline schedules: %w", err)
 	}
 	if err := q.DeletePipelineScheduledRuns(ctx, sqlcgen.DeletePipelineScheduledRunsParams{
+		TenantID:   string(tenant),
 		PipelineID: toText(id),
 		Status:     int16(filament.RunScheduled), //nolint:gosec // small enum
 	}); err != nil {

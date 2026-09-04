@@ -9,7 +9,6 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 func (a *cliApp) pipelineCommand() *cobra.Command {
@@ -42,18 +41,7 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 			"edit <name> [flags] [--unset source-FIELD|sink-FIELD]",
 			"Change a saved pipeline", help("edit"), change("edit"),
 		),
-		&cobra.Command{
-			Use:   "list",
-			Short: "List saved pipelines",
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				result, err := a.service.Pipelines(cmd.Context())
-				if err != nil {
-					return err
-				}
-				return textrenderer.Pipelines(a.stdout, result, a.configName())
-			},
-		},
+		a.pipelineListCommand(),
 	)
 	remove := &cobra.Command{
 		Use:   "delete <name>",
@@ -175,4 +163,26 @@ func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *clim
 	request.SourceConfig = sourcePatch
 	request.SinkConfig = sinkPatch
 	return request, nil
+}
+
+func (a *cliApp) pipelineListCommand() *cobra.Command {
+	var page listPageFlags
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List saved pipelines",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			request, err := page.request()
+			if err != nil {
+				return err
+			}
+			result, err := a.service.PipelinePage(cmd.Context(), request)
+			if err != nil {
+				return err
+			}
+			return a.text().Pipelines(result, a.configName(), "filament pipeline list")
+		},
+	}
+	page.add(cmd)
+	return cmd
 }

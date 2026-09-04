@@ -135,10 +135,14 @@ func (r *Renderer) confirmWizard(ctx context.Context, steps wizardSteps, lines [
 	return result["confirmed"] == "true", nil
 }
 
-// announce keeps a success line in scrollback above the live region.
+// announce reports a saved entity. Inside the menus it is the next menu's
+// toast; as a one-shot operation it is the wizard's last line.
 func (r *Renderer) announce(kind, name, verb string) error {
 	if r.interactiveRenderer == nil {
 		return nil
+	}
+	if r.menuMode {
+		return r.notice(true, strings.ToUpper(kind[:1])+kind[1:]+" "+name+" "+verb)
 	}
 	p := r.painter()
 	return r.interactiveRenderer.Println(strings.Join([]string{

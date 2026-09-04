@@ -37,6 +37,10 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
       },
+      "/auth.v1.AuthService": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   resolve: {

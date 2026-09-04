@@ -32,6 +32,8 @@ func (a *cliApp) rootCommand() *cobra.Command {
 	// Parsed by extractGlobalFlags before cobra runs so they work in any position.
 	root.PersistentFlags().String("config", a.configPath, "Read configuration from `PATH`")
 	root.PersistentFlags().String("context", "", "Run against context `NAME`")
+	root.PersistentFlags().BoolP("interactive", "i", false, "Open the interactive menu")
+	root.PersistentFlags().String("layout", "boxed", "Draw tables as `boxed` or `plain` (also FILAMENT_LAYOUT)")
 	root.SetVersionTemplate("filament {{.Version}}\n")
 
 	a.installHelpStyle(root)
@@ -41,7 +43,11 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.pipelineCommand(),
 		a.runCommandDefinition(),
 		a.configCommand(),
+		a.upCommand(),
+		a.downCommand(),
+		a.statusCommand(),
 		a.contextCommand(),
+		a.authCommand(),
 		a.versionCommand(),
 	)
 	return root

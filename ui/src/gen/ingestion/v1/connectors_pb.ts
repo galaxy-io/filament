@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connectors.proto.
  */
 export const file_ingestion_v1_connectors: GenFile = /*@__PURE__*/
-  fileDesc("Ch1pbmdlc3Rpb24vdjEvY29ubmVjdG9ycy5wcm90bxIMaW5nZXN0aW9uLnYxIt0CCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRITCgtkZXNjcmlwdGlvbhgIIAEoCRIVCg1kYXJrX2xvZ29fdXJsGAkgASgJEhYKDmxpZ2h0X2xvZ29fdXJsGAogASgJEhQKDHNjaGVtYV9maWVsZBgLIAEoCRIxCghtYXR1cml0eRgMIAEoDjIfLmluZ2VzdGlvbi52MS5Db25uZWN0b3JNYXR1cml0eSLJAQoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSMwoKcGFnaW5hdGlvbhgDIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIOCgZzZWFyY2gYBCABKAkSLQoHc29ydGluZxgFIAEoCzIcLmluZ2VzdGlvbi52MS5Tb3J0aW5nUmVxdWVzdCJ/ChZMaXN0Q29ubmVjdG9yc1Jlc3BvbnNlEi8KCmNvbm5lY3RvcnMYASADKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYxI0CgpwYWdpbmF0aW9uGAIgASgLMiAuaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXNwb25zZSJmChNHZXRDb25uZWN0b3JSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIRCgljb25uZWN0b3IYAiABKAkSKQoEa2luZBgDIAEoDjIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JLaW5kIkYKFEdldENvbm5lY3RvclJlc3BvbnNlEi4KCWNvbm5lY3RvchgBIAEoCzIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JTcGVjIqgBChVWYWxpZGF0ZUNvbmZpZ1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAyABKAkSJwoGY29uZmlnGAQgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIVCg1jb25uZWN0aW9uX2lkGAYgASgJIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciKRAQoYRGlzY292ZXJSZXNvdXJjZXNSZXF1ZXN0EhEKCXRlbmFudF9pZBgBIAEoCRIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIPCgdyZWZyZXNoGAQgASgIEhUKDWNvbm5lY3Rpb25faWQYBSABKAki1QEKCFJlc291cmNlEgwKBG5hbWUYASABKAkSFQoNaXNfc2VsZWN0YWJsZRgCIAEoCBITCgtwcmltYXJ5X2tleRgDIAMoCRIQCghzZWxlY3RvchgFIAEoCRIUCgxkaXNwbGF5X25hbWUYBiABKAkSNgoIbWV0YWRhdGEYByADKAsyJC5pbmdlc3Rpb24udjEuUmVzb3VyY2UuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiRgoZRGlzY292ZXJSZXNvdXJjZXNSZXNwb25zZRIpCglyZXNvdXJjZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUmVzb3VyY2UilAEKGUdldFJlc291cmNlQ29sdW1uc1JlcXVlc3QSEQoJdGVuYW50X2lkGAEgASgJEhEKCWNvbm5lY3RvchgCIAEoCRInCgZjb25maWcYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYBCABKAkSEQoJcmVzb3VyY2VzGAUgAygJIpMCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRITCgtpc19udWxsYWJsZRgEIAEoCBIWCg5pc19wcmltYXJ5X2tleRgFIAEoCBIaChJpc19jdXJzb3JfZWxpZ2libGUYBiABKAgSHQoVaXNfY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIXCg9pc19jb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAgiUgoPUmVzb3VyY2VDb2x1bW5zEhAKCHJlc291cmNlGAEgASgJEi0KB2NvbHVtbnMYAiADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4iTgoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0uaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1ucyqRAQoRQ29ubmVjdG9yTWF0dXJpdHkSIgoeQ09OTkVDVE9SX01BVFVSSVRZX1VOU1BFQ0lGSUVEEAASHAoYQ09OTkVDVE9SX01BVFVSSVRZX0FMUEhBEAESGwoXQ09OTkVDVE9SX01BVFVSSVRZX0JFVEEQAhIdChlDT05ORUNUT1JfTUFUVVJJVFlfU1RBQkxFEANiBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
+  fileDesc("Ch1pbmdlc3Rpb24vdjEvY29ubmVjdG9ycy5wcm90bxIMaW5nZXN0aW9uLnYxIt0CCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRITCgtkZXNjcmlwdGlvbhgHIAEoCRIVCg1kYXJrX2xvZ29fdXJsGAggASgJEhYKDmxpZ2h0X2xvZ29fdXJsGAkgASgJEhQKDHNjaGVtYV9maWVsZBgKIAEoCRIxCghtYXR1cml0eRgLIAEoDjIfLmluZ2VzdGlvbi52MS5Db25uZWN0b3JNYXR1cml0eSK2AQoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIzCgpwYWdpbmF0aW9uGAIgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0Eg4KBnNlYXJjaBgDIAEoCRItCgdzb3J0aW5nGAQgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0In8KFkxpc3RDb25uZWN0b3JzUmVzcG9uc2USLwoKY29ubmVjdG9ycxgBIAMoCzIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JTcGVjEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIlMKE0dldENvbm5lY3RvclJlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJGChRHZXRDb25uZWN0b3JSZXNwb25zZRIuCgljb25uZWN0b3IYASABKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKVAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJItUBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhUKDWlzX3NlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSEAoIc2VsZWN0b3IYBCABKAkSFAoMZGlzcGxheV9uYW1lGAUgASgJEjYKCG1ldGFkYXRhGAYgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIoEBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEQoJcmVzb3VyY2VzGAQgAygJIpMCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRITCgtpc19udWxsYWJsZRgEIAEoCBIWCg5pc19wcmltYXJ5X2tleRgFIAEoCBIaChJpc19jdXJzb3JfZWxpZ2libGUYBiABKAgSHQoVaXNfY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIXCg9pc19jb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAgiUgoPUmVzb3VyY2VDb2x1bW5zEhAKCHJlc291cmNlGAEgASgJEi0KB2NvbHVtbnMYAiADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4iTgoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0uaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1ucyqRAQoRQ29ubmVjdG9yTWF0dXJpdHkSIgoeQ09OTkVDVE9SX01BVFVSSVRZX1VOU1BFQ0lGSUVEEAASHAoYQ09OTkVDVE9SX01BVFVSSVRZX0FMUEhBEAESGwoXQ09OTkVDVE9SX01BVFVSSVRZX0JFVEEQAhIdChlDT05ORUNUT1JfTUFUVVJJVFlfU1RBQkxFEANiBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
 
 /**
  * ConnectorSpec describes one registered source or sink connector.
@@ -56,27 +56,27 @@ export type ConnectorSpec = Message<"ingestion.v1.ConnectorSpec"> & {
   configSchema?: ConfigSchema | undefined;
 
   /**
-   * @generated from field: string description = 8;
+   * @generated from field: string description = 7;
    */
   description: string;
 
   /**
-   * @generated from field: string dark_logo_url = 9;
+   * @generated from field: string dark_logo_url = 8;
    */
   darkLogoUrl: string;
 
   /**
-   * @generated from field: string light_logo_url = 10;
+   * @generated from field: string light_logo_url = 9;
    */
   lightLogoUrl: string;
 
   /**
-   * @generated from field: string schema_field = 11;
+   * @generated from field: string schema_field = 10;
    */
   schemaField: string;
 
   /**
-   * @generated from field: ingestion.v1.ConnectorMaturity maturity = 12;
+   * @generated from field: ingestion.v1.ConnectorMaturity maturity = 11;
    */
   maturity: ConnectorMaturity;
 };
@@ -93,27 +93,22 @@ export const ConnectorSpecSchema: GenMessage<ConnectorSpec> = /*@__PURE__*/
  */
 export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: ingestion.v1.PaginationRequest pagination = 3;
+   * @generated from field: ingestion.v1.PaginationRequest pagination = 2;
    */
   pagination?: PaginationRequest | undefined;
 
   /**
-   * @generated from field: string search = 4;
+   * @generated from field: string search = 3;
    */
   search: string;
 
   /**
-   * @generated from field: ingestion.v1.SortingRequest sorting = 5;
+   * @generated from field: ingestion.v1.SortingRequest sorting = 4;
    */
   sorting?: SortingRequest | undefined;
 };
@@ -152,17 +147,12 @@ export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = 
  */
 export type GetConnectorRequest = Message<"ingestion.v1.GetConnectorRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string connector = 2;
+   * @generated from field: string connector = 1;
    */
   connector: string;
 
   /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 3;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
    */
   kind: ConnectorKind;
 };
@@ -196,27 +186,22 @@ export const GetConnectorResponseSchema: GenMessage<GetConnectorResponse> = /*@_
  */
 export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: ingestion.v1.ConnectorKind kind = 2;
+   * @generated from field: ingestion.v1.ConnectorKind kind = 1;
    */
   kind: ConnectorKind;
 
   /**
-   * @generated from field: string connector = 3;
+   * @generated from field: string connector = 2;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 4;
+   * @generated from field: google.protobuf.Struct config = 3;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: string connection_id = 6;
+   * @generated from field: string connection_id = 4;
    */
   connectionId: string;
 };
@@ -277,27 +262,22 @@ export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> = 
  */
 export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string connector = 2;
+   * @generated from field: string connector = 1;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 3;
+   * @generated from field: google.protobuf.Struct config = 2;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: bool refresh = 4;
+   * @generated from field: bool refresh = 3;
    */
   refresh: boolean;
 
   /**
-   * @generated from field: string connection_id = 5;
+   * @generated from field: string connection_id = 4;
    */
   connectionId: string;
 };
@@ -329,17 +309,17 @@ export type Resource = Message<"ingestion.v1.Resource"> & {
   primaryKey: string[];
 
   /**
-   * @generated from field: string selector = 5;
+   * @generated from field: string selector = 4;
    */
   selector: string;
 
   /**
-   * @generated from field: string display_name = 6;
+   * @generated from field: string display_name = 5;
    */
   displayName: string;
 
   /**
-   * @generated from field: map<string, string> metadata = 7;
+   * @generated from field: map<string, string> metadata = 6;
    */
   metadata: { [key: string]: string };
 };
@@ -373,27 +353,22 @@ export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesRespon
  */
 export type GetResourceColumnsRequest = Message<"ingestion.v1.GetResourceColumnsRequest"> & {
   /**
-   * @generated from field: string tenant_id = 1;
-   */
-  tenantId: string;
-
-  /**
-   * @generated from field: string connector = 2;
+   * @generated from field: string connector = 1;
    */
   connector: string;
 
   /**
-   * @generated from field: google.protobuf.Struct config = 3;
+   * @generated from field: google.protobuf.Struct config = 2;
    */
   config?: JsonObject | undefined;
 
   /**
-   * @generated from field: string connection_id = 4;
+   * @generated from field: string connection_id = 3;
    */
   connectionId: string;
 
   /**
-   * @generated from field: repeated string resources = 5;
+   * @generated from field: repeated string resources = 4;
    */
   resources: string[];
 };

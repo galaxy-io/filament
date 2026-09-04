@@ -77,7 +77,7 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 			filament.Field{Key: "tenant_id", Value: string(ev.Tenant)},
 			filament.Field{Key: "run_id", Value: string(ev.Run)})
 	}
-	state, err := m.ds.LoadRun(ctx, ev.Run)
+	state, err := m.ds.LoadRun(ctx, ev.Tenant, ev.Run)
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)
 	}
@@ -123,7 +123,7 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 			filament.Field{Key: "namespace", Value: m.cfg.Namespace},
 		)
 	}
-	return runHandle{run: spec.Run, ds: m.ds}, nil
+	return runHandle{tenant: spec.Tenant, run: spec.Run, ds: m.ds}, nil
 }
 
 // Workload reports the run's Job state for the reaper. A Job without a

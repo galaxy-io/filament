@@ -8,10 +8,9 @@ import App from "@/App";
 import "@galaxy-io/dls/styles.css";
 import "@/style.css";
 
-import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
-
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
+
+import ThemeProvider from "@/providers/theme/ThemeProvider";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -20,10 +19,10 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <TransportQueryClientProvider>
-      <GalaxyThemeProvider initialTheme={GalaxyTheme.SYSTEM}>
+    <ThemeProvider>
+      <TransportQueryClientProvider>
         <App />
-      </GalaxyThemeProvider>
-    </TransportQueryClientProvider>
+      </TransportQueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

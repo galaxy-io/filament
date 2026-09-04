@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -11,14 +10,14 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
 )
 
 func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := testCtx()
+	store := sqlite.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "defaults"}))
@@ -32,7 +31,7 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 	if got := res.Msg.GetPipeline().GetWorkerConfiguration(); !proto.Equal(got, want) {
 		t.Fatalf("response worker configuration = %+v, want %+v", got, want)
 	}
-	stored, err := store.LoadPipeline(ctx, res.Msg.GetPipeline().GetId())
+	stored, err := store.LoadPipeline(ctx, filament.DefaultTenantID, res.Msg.GetPipeline().GetId())
 	if err != nil {
 		t.Fatalf("LoadPipeline: %v", err)
 	}
@@ -42,8 +41,8 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 }
 
 func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := testCtx()
+	store := sqlite.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
@@ -78,17 +77,17 @@ func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 // pipeline stays readable by id — with its versions and deleted_at — while
 // running it is refused.
 func TestGetPipelineIncludesDeleted(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := testCtx()
+	store := sqlite.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
-	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: "t1", Name: "doomed"}); err != nil {
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "doomed"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	if _, err := store.CreatePipelineVersion(ctx, "pipe-1", &ingestionv1.PipelineVersion{}); err != nil {
+	if _, err := store.CreatePipelineVersion(ctx, filament.DefaultTenantID, "pipe-1", &ingestionv1.PipelineVersion{}); err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
-	if err := store.DeletePipeline(ctx, "pipe-1"); err != nil {
+	if err := store.DeletePipeline(ctx, filament.DefaultTenantID, "pipe-1"); err != nil {
 		t.Fatalf("DeletePipeline: %v", err)
 	}
 
@@ -124,23 +123,23 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 // delete cascades the schedule row away, so the schedule id must be captured
 // before the delete or the pending pre-created runs are orphaned.
 func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := testCtx()
+	store := sqlite.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 
-	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: "t1", Name: "scheduled"}); err != nil {
+	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "scheduled"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
 	fire := time.Now().Add(time.Hour)
 	if err := store.SaveSchedule(ctx, filament.ScheduleState{
 		ID:       "sched-1",
-		Spec:     filament.ScheduleSpec{Tenant: "t1", Name: "scheduled", PipelineID: "pipe-1", Cron: "0 * * * *", Timezone: "UTC", Enabled: true},
+		Spec:     filament.ScheduleSpec{Tenant: filament.DefaultTenantID, Name: "scheduled", PipelineID: "pipe-1", Cron: "0 * * * *", Timezone: "UTC", Enabled: true},
 		Enabled:  true,
 		NextFire: &fire,
 	}); err != nil {
 		t.Fatalf("SaveSchedule: %v", err)
 	}
-	if _, err := runs.Schedule(ctx, store, filament.RunRequest{Tenant: "t1", PipelineID: "pipe-1", IdempotencyKey: "occ-1", ScheduleID: "sched-1", ScheduledFor: fire}); err != nil {
+	if _, err := runs.Schedule(ctx, store, filament.RunRequest{Tenant: filament.DefaultTenantID, PipelineID: "pipe-1", IdempotencyKey: "occ-1", ScheduleID: "sched-1", ScheduledFor: fire}); err != nil {
 		t.Fatalf("Schedule: %v", err)
 	}
 
@@ -158,16 +157,16 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 }
 
 func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
-	ctx := context.Background()
-	store := memory.New()
+	ctx := testCtx()
+	store := sqlite.NewMemory()
 	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
-		Id: "pipe-1", TenantId: "t1", Name: "old", Description: "old description",
+		Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "old", Description: "old description",
 		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "250m"}}},
 	}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
-	version, err := store.CreatePipelineVersion(ctx, "pipe-1", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
+	version, err := store.CreatePipelineVersion(ctx, filament.DefaultTenantID, "pipe-1", &ingestionv1.PipelineVersion{Graph: &ingestionv1.PipelineGraph{}})
 	if err != nil {
 		t.Fatalf("CreatePipelineVersion: %v", err)
 	}
@@ -223,7 +222,7 @@ func TestValidateCursorConfigs(t *testing.T) {
 }
 
 func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
-	ctx := context.Background()
+	ctx := testCtx()
 	api, ids := leverAPI(t)
 	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "validated"}))
 	if err != nil {

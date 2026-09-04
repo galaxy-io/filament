@@ -10,7 +10,7 @@ import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineCo
 import PipelineCard from "@/pages/pipelines/components/card/PipelineCard";
 
 const ConnectionDrawerPipelines = () => {
-  const { connectionId } = useSearch({ from: "__root__" });
+  const { connectionId } = useSearch({ from: "/_app" });
   const { pipelines, connectionIdsByPipelineId } = usePipelineConnectionMap();
 
   const connectedPipelines = useMemo(

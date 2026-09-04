@@ -21,6 +21,37 @@
     <link rel="preload" href="https://cdn.getgalaxy.io/fonts/BerkeleyMono/BerkeleyMono-Bold.otf" as="font" type="font/otf" crossorigin>
     <!-- Title -->
     <title>Filament</title>
+    <!-- Critical inline script to prevent white flash - runs before any modules load -->
+    <!-- Keep THEME_KEY in sync with GALAXY_THEME_STORAGE_KEY, and the hexes with color.background.base in @galaxy-io/dls -->
+    <script>
+      (function () {
+        try {
+          const THEME_KEY = 'galaxy:theme';
+          const storedTheme = localStorage.getItem(THEME_KEY);
+          const selectedTheme =
+            storedTheme === 'SYSTEM' || storedTheme === 'LIGHT' || storedTheme === 'DARK'
+              ? storedTheme
+              : (localStorage.setItem(THEME_KEY, 'SYSTEM'), 'SYSTEM');
+
+          // Resolve to actual theme (DARK/LIGHT)
+          const resolvedTheme =
+            selectedTheme === 'SYSTEM'
+              ? window.matchMedia?.('(prefers-color-scheme: dark)').matches
+                ? 'DARK'
+                : 'LIGHT'
+              : selectedTheme;
+
+          // Apply background immediately to prevent white flash
+          const bg = resolvedTheme === 'DARK' ? '#141415' : '#ffffff';
+          document.documentElement.style.backgroundColor = bg;
+          document.body?.style.setProperty('background-color', bg);
+        } catch (_) {
+          // Fallback on error (e.g. localStorage blocked)
+          document.documentElement.style.backgroundColor = '#141415';
+          document.body?.style.setProperty('background-color', '#141415');
+        }
+      })();
+    </script>
     <style>
       * {
         margin: 0;

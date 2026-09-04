@@ -16,6 +16,8 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import DocsButton from "@/components/DocsButton";
 
+import { Flow } from "@/layouts/app/types";
+
 import {
   OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH,
   OBSERVABILITY_SETUP_STEP_COUNT,
@@ -27,8 +29,6 @@ import {
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
-
-import { Flow } from "@/routes/__root";
 
 const SetupContent = styled.div`
   position: relative;
@@ -111,11 +111,11 @@ const ObservabilitySetupChecklist = () => {
         <FlexWrapper
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
-          gap={4}
+          gap={6}
           fillWidth
         >
           <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
-          <Text variant={TextVariant.SECONDARY}>Three steps to complete your onboarding</Text>
+          <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
         </FlexWrapper>
         <SetupCard>
           <FlexWrapper padding={"12px 16px"}>
@@ -135,7 +135,7 @@ const ObservabilitySetupChecklist = () => {
         </SetupCard>
         <ProgressBar
           percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-          variant={ProgressBarVariant.PRIMARY}
+          variant={ProgressBarVariant.SUCCESS}
           height={4}
           noAnimation
         />

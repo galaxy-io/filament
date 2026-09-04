@@ -77,6 +77,16 @@ app.kubernetes.io/component: worker
 {{- .Values.existingSecret | default (printf "%s-secret" (include "filament.fullname" .)) -}}
 {{- end -}}
 
+{{/* Secret the vendored provider mints its own admin token into during setup,
+     named after its machine user. Empty against an external provider, where the
+     token is supplied through the chart Secret instead. */}}
+{{- define "filament.auth.mintedPatSecret" -}}
+{{- if and .Values.auth.enabled (eq .Values.auth.type "zitadel") .Values.zitadel.enabled -}}
+{{- $machine := dig "zitadel" "configmapConfig" "FirstInstance" "Org" "Machine" "Machine" (dict) .Values.zitadel -}}
+{{- printf "%s-pat" (default "iam-admin" $machine.Username) -}}
+{{- end -}}
+{{- end -}}
+
 
 {{- define "filament.server.fullname" -}}
 {{- printf "%s-server" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
