@@ -110,9 +110,10 @@ func (a *cliApp) printConnectionOperationHelp(ctx context.Context, kind, operati
 func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
 	out := &helpOutput{w: a.stdout}
 	paint := style.New(a.stdout)
-	out.printf("%s\n  %s %s\n  %s %s\n", paint.Bold("Usage:"),
+	out.printf("%s\n  %s %s\n  %s %s\n  %s %s\n", paint.Bold("Usage:"),
 		paint.Accent("filament run"), paint.Muted("<pipeline> [--resources LIST] [--sync-mode MODE] [--write-mode MODE] [--unset KIND-FIELD]"),
-		paint.Accent("filament run"), paint.Muted("--source-connector NAME --sink-connector NAME [flags]"))
+		paint.Accent("filament run"), paint.Muted("--source-connector NAME --sink-connector NAME [flags]"),
+		paint.Accent("filament run list"), paint.Muted("[pipeline] [--limit N] [--next CURSOR]"))
 	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
 Use --source-<field> and --sink-<field> for connector configuration.`))
 	printed := map[string]bool{}

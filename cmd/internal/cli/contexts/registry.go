@@ -37,7 +37,6 @@ type Target struct {
 	Kind        Kind   `yaml:"kind"`
 	ConfigPath  string `yaml:"config,omitempty"`
 	Endpoint    string `yaml:"endpoint,omitempty"`
-	Tenant      string `yaml:"tenant,omitempty"`
 	AuthProfile string `yaml:"auth_profile,omitempty"`
 }
 
@@ -109,6 +108,85 @@ func (r *Registry) Resolve(name string) (NamedTarget, error) {
 		return NamedTarget{}, fmt.Errorf("context %q does not exist", name)
 	}
 	return NamedTarget{Name: name, Current: name == doc.Current, Target: target}, nil
+}
+
+// Set validates and upserts a context without changing the selection.
+func (r *Registry) Set(name string, target Target) error {
+	if err := validate(name, target); err != nil {
+		return err
+	}
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	doc.Contexts[name] = target
+	return r.store.Write(doc)
+}
+
+// SetAndUse validates and persists a context and its selection in one file
+// replacement, avoiding a context that was added but not selected.
+func (r *Registry) SetAndUse(name string, target Target) (NamedTarget, error) {
+	if err := validate(name, target); err != nil {
+		return NamedTarget{}, err
+	}
+	doc, err := r.load()
+	if err != nil {
+		return NamedTarget{}, err
+	}
+	doc.Contexts[name] = target
+	doc.Current = name
+	if err := r.store.Write(doc); err != nil {
+		return NamedTarget{}, err
+	}
+	return NamedTarget{Name: name, Current: true, Target: target}, nil
+}
+
+// Rename moves a context to a new name, carrying the current selection
+// with it. The built-in local context cannot be renamed.
+func (r *Registry) Rename(oldName, newName string) error {
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	target, ok := doc.Contexts[oldName]
+	if !ok {
+		return fmt.Errorf("context %q does not exist", oldName)
+	}
+	if oldName == defaultContextName {
+		return fmt.Errorf("the built-in %s context cannot be renamed", defaultContextName)
+	}
+	if _, exists := doc.Contexts[newName]; exists {
+		return fmt.Errorf("context %q already exists", newName)
+	}
+	if err := validate(newName, target); err != nil {
+		return err
+	}
+	delete(doc.Contexts, oldName)
+	doc.Contexts[newName] = target
+	if doc.Current == oldName {
+		doc.Current = newName
+	}
+	return r.store.Write(doc)
+}
+
+// Delete removes a context. The built-in local context and the current
+// selection cannot be deleted.
+func (r *Registry) Delete(name string) error {
+	doc, err := r.load()
+	if err != nil {
+		return err
+	}
+	if _, ok := doc.Contexts[name]; !ok {
+		return fmt.Errorf("context %q does not exist", name)
+	}
+	if name == defaultContextName {
+		return fmt.Errorf("the built-in %s context cannot be deleted", defaultContextName)
+	}
+	if doc.Current == name {
+		return fmt.Errorf("context %q is the current context; switch away from it first", name)
+	}
+	delete(doc.Contexts, name)
+	return r.store.Write(doc)
 }
 
 // Use persists name as the active context.
@@ -216,6 +294,9 @@ func (s Store) Write(doc Document) error {
 func validate(name string, target Target) error {
 	if !namePattern.MatchString(name) {
 		return fmt.Errorf("context name %q must match %s", name, namePattern)
+	}
+	if name == defaultContextName && target.Kind != KindLocal {
+		return fmt.Errorf("the built-in %s context cannot be replaced", defaultContextName)
 	}
 	switch target.Kind {
 	case KindLocal:

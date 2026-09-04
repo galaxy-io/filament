@@ -33,25 +33,39 @@ type runRow struct {
 
 var runColumns = []style.Column{{Title: "Resource", Role: style.RolePrimary}, {Title: "Rows", Role: style.RoleNumber}, {Title: "Status"}}
 
-// runProgressView draws the live run as a grid of resources.
+// runProgressView draws the live run as a grid of resources. A transient
+// run also carries its title and discovery line in the frame, so the whole
+// run clears together when it ends.
 type runProgressView struct {
 	rows  []*runRow
 	theme inline.InlineTheme
 	tick  int
+	title string
+	note  string
 }
 
 func (v *runProgressView) Frame(width int) *inline.Frame {
 	rows := v.cells()
 	widths := style.Widths(append([][]string{{"Resource", "Rows", "Status"}}, rows...))
-	// Row 0 stays blank so the grid sits one line below the discovery notice.
-	frame := inline.NewFrame(width, len(v.rows)+2)
+	// The grid sits one blank line below whatever precedes it: the header
+	// lines drawn here, or the discovery notice printed above the frame.
+	top := 1
+	if v.title != "" {
+		top = 3
+	}
+	frame := inline.NewFrame(width, len(v.rows)+top+1)
+	if v.title != "" {
+		x := draw(frame, 0, 0, "> ", v.theme.Accent)
+		draw(frame, x, 0, v.title, v.theme.Text.Bold(true))
+		draw(frame, utf8.RuneCountInString(style.Indent), 1, v.note, v.theme.Muted)
+	}
 	x := utf8.RuneCountInString(style.Indent)
 	for index, column := range runColumns {
-		draw(frame, x, 1, column.Title, v.theme.Accent.Bold(true))
+		draw(frame, x, top, column.Title, v.theme.Accent.Bold(true))
 		x += widths[index] + style.Gutter
 	}
 	for index, row := range v.rows {
-		y := index + 2
+		y := index + top + 1
 		x = utf8.RuneCountInString(style.Indent)
 		draw(frame, x, y, row.name, v.theme.Text.Bold(true))
 		x += widths[0] + style.Gutter
@@ -158,8 +172,16 @@ func (v *runProgressView) word(row *runRow) string {
 }
 
 func runSummaryLine(p style.Painter, rows int, result model.RunResult, elapsed time.Duration, runErr error) string {
+	switch result.Status {
+	case "paused":
+		return p.Muted("‖ Run paused") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	case "canceled":
+		return p.Muted("○ Run canceled") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	case "partial":
+		return p.Error("✗ Run partial") + fmt.Sprintf(" · %s rows · %s", style.Count(result.Records), humanDuration(elapsed))
+	}
 	if runErr != nil {
 		return p.Error("✗ run failed") + " " + p.Muted("· "+runErr.Error())
 	}
-	return p.Success("✓ synced") + fmt.Sprintf(" %d resources · %s rows · %s", rows, style.Count(result.Records), humanDuration(elapsed))
+	return p.Success("✓ Synced") + fmt.Sprintf(" %d resources · %s rows · %s", rows, style.Count(result.Records), humanDuration(elapsed))
 }

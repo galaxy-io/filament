@@ -10,7 +10,6 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
-	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 )
 
 const connectionGuidance = `Connector fields are set with --%[1]s-<field>. Secret fields accept plaintext
@@ -43,22 +42,7 @@ func (a *cliApp) connectionCommand(kind string) *cobra.Command {
 			fmt.Sprintf("edit <name> [flags] [--unset %s-FIELD]", kind),
 			"Change a saved "+kind, help("edit"), change("edit"),
 		),
-		&cobra.Command{
-			Use:   "list",
-			Short: fmt.Sprintf("List saved %ss", kind),
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				result, err := a.service.Connections(cmd.Context(), kind)
-				if err != nil {
-					return err
-				}
-				usedBy, err := a.connectionUsage(cmd.Context(), kind)
-				if err != nil {
-					return err
-				}
-				return textrenderer.Connections(a.stdout, result, a.configName(), usedBy)
-			},
-		},
+		a.connectionListCommand(kind),
 	)
 	if kind == "source" {
 		cmd.AddCommand(a.dynamicCommand(
@@ -194,4 +178,30 @@ func (a *cliApp) connectionUsage(ctx context.Context, kind string) (map[string][
 
 func (a *cliApp) configName() string {
 	return filepath.Base(a.service.ConfigurationLocation())
+}
+
+func (a *cliApp) connectionListCommand(kind string) *cobra.Command {
+	var page listPageFlags
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: fmt.Sprintf("List saved %ss", kind),
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			request, err := page.request()
+			if err != nil {
+				return err
+			}
+			result, err := a.service.ConnectionPage(cmd.Context(), kind, request)
+			if err != nil {
+				return err
+			}
+			usedBy, err := a.connectionUsage(cmd.Context(), kind)
+			if err != nil {
+				return err
+			}
+			return a.text().Connections(result, a.configName(), usedBy, "filament "+kind+" list")
+		},
+	}
+	page.add(cmd)
+	return cmd
 }

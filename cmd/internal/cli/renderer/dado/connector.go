@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
+	"github.com/galaxy-io/filament/cmd/internal/cli/renderer/present"
 )
 
 type schemaWizard struct {
@@ -35,46 +36,50 @@ type schemaWizardStep struct {
 
 func (r *Renderer) manageConnections(ctx context.Context, kind string) error {
 	for {
-		listed, err := r.service.Connections(ctx, kind)
-		if err != nil {
+		done, err := r.manageConnectionsOnce(ctx, kind)
+		if done || err != nil {
 			return err
-		}
-		options := []interactiveOption{{label: "+ Create " + kind, value: "__create__", tone: inline.ChoiceToneSuccess}}
-		if len(listed.Items) > 0 {
-			rows := make([][]string, 0, len(listed.Items))
-			values := make([]string, 0, len(listed.Items))
-			for _, connection := range listed.Items {
-				rows = append(rows, []string{connection.Name, connection.Connector})
-				values = append(values, connection.Name)
-			}
-			options = append(options, boxedMenu([]string{"Name", "Connector"}, rows, values)...)
-		}
-		options = append(options, interactiveOption{label: "Back", value: interactiveBack})
-		selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", "Create or manage saved connections", options)
-		if interactiveCancelled(err) || selected == interactiveBack {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		if selected == "__create__" {
-			if err := r.connectionWizard(ctx, kind, "", nil); err != nil && !interactiveCancelled(err) {
-				if showErr := r.showInteractiveMessage(ctx, "Unable to create "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-					return showErr
-				}
-			}
-			continue
-		}
-		doc, err := r.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		if err := r.manageConnection(ctx, kind, selected, doc); err != nil && !interactiveCancelled(err) {
-			if showErr := r.showInteractiveMessage(ctx, "Unable to manage "+kind, err.Error()); showErr != nil && !interactiveCancelled(showErr) {
-				return showErr
-			}
 		}
 	}
+}
+
+// manageConnectionsOnce runs one pass of the connections menu; done reports
+// that the user backed out.
+func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool, error) {
+	listed, err := r.service.Connections(ctx, kind)
+	if err != nil {
+		return true, err
+	}
+	description := "No " + kind + "s yet."
+	var options []interactiveOption
+	if len(listed.Items) > 0 {
+		description = ""
+		rows := present.ConnectionRows(listed.Items, nil)
+		options = append(options, r.tableMenu(present.Titles(present.ConnectionColumns()), present.Cells(rows), present.Keys(rows))...)
+		options = append(options, spacer)
+	}
+	options = append(options, interactiveOption{label: "Create a " + kind, value: "__create__", tone: inline.ChoiceToneSuccess})
+	selected, err := r.chooseInteractive(ctx, strings.ToUpper(kind[:1])+kind[1:]+"s", description, options)
+	if interactiveCancelled(err) {
+		return true, nil
+	}
+	if err != nil {
+		return true, err
+	}
+	if selected == "__create__" {
+		if err := r.connectionWizard(ctx, kind, "", nil); err != nil && !interactiveCancelled(err) {
+			_ = r.notice(false, "Unable to create "+kind+": "+err.Error())
+		}
+		return false, nil
+	}
+	doc, err := r.service.Configuration(ctx)
+	if err != nil {
+		return true, err
+	}
+	if err := r.manageConnection(ctx, kind, selected, doc); err != nil && !interactiveCancelled(err) {
+		_ = r.notice(false, "Unable to manage "+kind+": "+err.Error())
+	}
+	return false, nil
 }
 
 func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc model.Document) error {
@@ -83,12 +88,9 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 	if kind == "source" {
 		options = append(options, interactiveOption{label: "Discover resources", value: "discover"})
 	}
-	options = append(options,
-		interactiveOption{label: "Delete", value: "delete"},
-		interactiveOption{label: "Back", value: interactiveBack},
-	)
+	options = append(options, interactiveOption{label: "Delete", value: "delete"})
 	action, err := r.chooseInteractive(ctx, name, fmt.Sprintf("%s connection using %s", kind, connection.Type), options)
-	if err != nil || action == interactiveBack {
+	if err != nil {
 		return err
 	}
 	switch action {
@@ -97,7 +99,7 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 		if err != nil {
 			return err
 		}
-		return r.showPairs(name, connectionPairs(connection, schema))
+		return r.showDetail(ctx, name, connectionPairs(connection, schema))
 	case "edit":
 		return r.connectionWizard(ctx, kind, name, &connection)
 	case "discover":
@@ -160,7 +162,7 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 	}
 	var initial map[string]any
 	if existing != nil && existing.Type == connectorName {
-		initial = existing.Config
+		initial = cliapp.ConfigWithSecretPlaceholders(existing.Config, existing.SecretRefs)
 	}
 	schema, err := r.connectionSchema(kind, connectorName)
 	if err != nil {
@@ -231,9 +233,9 @@ func (r *Renderer) interactiveDiscoverConnection(ctx context.Context, name strin
 		return err
 	}
 	if len(resources.Items) == 0 {
-		return r.showInteractiveMessage(ctx, "Resources", "No resources discovered")
+		return r.notice(false, "No resources discovered")
 	}
-	lines := make([]string, 0, len(resources.Items))
+	pairs := make([][2]string, 0, len(resources.Items))
 	for _, resource := range resources.Items {
 		label := resource.Name
 		if resource.DisplayName != "" && resource.DisplayName != resource.Name {
@@ -242,9 +244,9 @@ func (r *Renderer) interactiveDiscoverConnection(ctx context.Context, name strin
 		if resource.EstimatedRows > 0 {
 			label += fmt.Sprintf("  ·  %d estimated rows", resource.EstimatedRows)
 		}
-		lines = append(lines, label)
+		pairs = append(pairs, [2]string{"", label})
 	}
-	return r.showInteractiveMessage(ctx, "Discovered resources", strings.Join(lines, "\n"))
+	return r.showDetail(ctx, "Discovered resources", pairs)
 }
 
 func newSchemaWizard(schema filament.ConfigSchema, scope filament.FieldScope, initial map[string]any) *schemaWizard {
@@ -579,8 +581,18 @@ func schemaWizardValueEmpty(value any) bool {
 }
 
 func connectionPairs(connection model.Connection, schema filament.ConfigSchema) [][2]string {
-	pairs := make([][2]string, 0, len(connection.Config)+1)
+	connection.Config = cliapp.ConfigWithSecretPlaceholders(connection.Config, connection.SecretRefs)
+	pairs := make([][2]string, 0, len(connection.Config)+4)
 	pairs = append(pairs, [2]string{"Connector", connection.Type})
+	if info := connection.Info; info.Replication != "" || !info.CreatedAt.IsZero() {
+		if info.Replication != "" {
+			pairs = append(pairs, [2]string{"Replication", present.TitleCase(info.Replication)})
+		}
+		pairs = append(pairs,
+			[2]string{"Created", present.Stamp(info.CreatedAt)},
+			[2]string{"Updated", present.Stamp(info.UpdatedAt)},
+		)
+	}
 	fields := make(map[string]filament.ConfigField)
 	for _, field := range cliapp.OrderedFields(schema, filament.ScopeConnection) {
 		fields[field.Name] = field

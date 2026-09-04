@@ -8,12 +8,13 @@ import (
 	"github.com/spf13/cobra"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 func (a *cliApp) runCommandDefinition() *cobra.Command {
 	cmd := a.dynamicCommand(
-		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags]",
-		"Run a saved pipeline or an inline transfer", a.printRunHelp, a.runCommand,
+		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags] | run list [pipeline]",
+		"Run a saved pipeline or an inline transfer, or list past runs", a.printRunHelp, a.runCommand,
 	)
 	cmd.PersistentPreRunE = a.prepareTarget
 	return cmd
@@ -28,6 +29,9 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	name := firstPositional(parsed)
+	if name == "list" {
+		return a.listRuns(ctx, parsed)
+	}
 	var request cliapp.RunRequest
 	if name == "" {
 		request, err = a.directRunRequest(parsed.flags)
@@ -122,4 +126,24 @@ func (a *cliApp) savedRunRequest(ctx context.Context, name string, flags map[str
 	}
 	request.Overrides = overrides
 	return request, nil
+}
+
+// listRuns shows one page of run history: run list [pipeline] [--limit N] [--next CURSOR].
+func (a *cliApp) listRuns(ctx context.Context, parsed commandArgs) error {
+	if err := rejectUnknownFlags(parsed.flags, map[string]bool{"limit": true, "next": true}); err != nil {
+		return err
+	}
+	page, err := pageRequestFromFlags(parsed.flags)
+	if err != nil {
+		return err
+	}
+	pipeline := ""
+	if len(parsed.positionals) > 1 {
+		pipeline = parsed.positionals[1]
+	}
+	result, err := a.service.Runs(ctx, climodel.RunListRequest{Pipeline: pipeline, PageRequest: page})
+	if err != nil {
+		return err
+	}
+	return a.text().Runs(result, strings.TrimSpace("filament run list "+pipeline))
 }

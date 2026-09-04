@@ -2,7 +2,11 @@
 // target adapters, and presentation adapters.
 package model
 
-import "github.com/galaxy-io/filament"
+import (
+	"time"
+
+	"github.com/galaxy-io/filament"
+)
 
 // DiscoverRequest describes target-side resource discovery.
 type DiscoverRequest struct {
@@ -69,13 +73,13 @@ type ContextSummary struct {
 	Current  bool
 	Kind     string
 	Location string
-	Tenant   string
 }
 
 // ConnectionList is the result of listing saved connections of one kind.
 type ConnectionList struct {
 	Kind  string
 	Items []ConnectionSummary
+	Page  PageInfo
 }
 
 // ConnectionSummary is the presentation-neutral subset of a connection used
@@ -84,11 +88,15 @@ type ConnectionSummary struct {
 	Name        string
 	Connector   string
 	Description string
+	Replication string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // PipelineList is the result of listing saved pipelines.
 type PipelineList struct {
 	Items []PipelineSummary
+	Page  PageInfo
 }
 
 // PipelineSummary is the presentation-neutral subset of a pipeline used by
@@ -101,6 +109,10 @@ type PipelineSummary struct {
 	AllResources  bool
 	SyncMode      string
 	WriteMode     string
+	Schedule      string
+	LastRunStatus string
+	LastRunAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // ResourceList is the result of discovering resources for a source.
@@ -116,4 +128,59 @@ type ResourceSummary struct {
 	Selectable    bool
 	PrimaryKey    []string
 	EstimatedRows int64
+}
+
+// PipelineModes is the target's authoritative read and write levers for one
+// proposed source-to-sink route.
+type PipelineModes struct {
+	Replication string
+	ReadModes   []string
+	WriteModes  []string
+}
+
+// PageRequest selects one cursor page. A zero PageSize means the target's
+// default; an empty Cursor means the first page.
+type PageRequest struct {
+	PageSize int32
+	Cursor   string
+}
+
+// PageInfo is a page's position in its collection. Total is zero when the
+// target does not count.
+type PageInfo struct {
+	Total          int
+	NextCursor     string
+	PreviousCursor string
+}
+
+// Page is one collection page and its position.
+type Page[T any] struct {
+	Items []T
+	PageInfo
+}
+
+// RunListRequest selects one page of run history, optionally for a pipeline.
+type RunListRequest struct {
+	Pipeline string
+	PageRequest
+}
+
+// RunList is one page of run history.
+type RunList struct {
+	Pipeline string
+	Items    []RunSummary
+	Page     PageInfo
+}
+
+// RunSummary describes one historical run.
+type RunSummary struct {
+	ID        string
+	Pipeline  string
+	Version   string
+	Status    string
+	Records   int64
+	Bytes     int64
+	StartedAt time.Time
+	EndedAt   time.Time
+	Error     string
 }
