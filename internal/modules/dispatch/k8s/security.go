@@ -8,8 +8,11 @@ import corev1 "k8s.io/api/core/v1"
 
 func workerPodSecurity() *corev1.PodSecurityContext {
 	runAsNonRoot := true
+	nonroot := int64(65532)
 	return &corev1.PodSecurityContext{
 		RunAsNonRoot:   &runAsNonRoot,
+		RunAsUser:      &nonroot,
+		RunAsGroup:     &nonroot,
 		SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
 	}
 }
