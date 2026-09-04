@@ -91,7 +91,12 @@ func (a *cliApp) authLogin(ctx context.Context, server, clientID, clientSecret s
 		Scopes:       config.Msg.GetServiceAccountScopes(),
 	}
 	token, cache, err := cliauth.Mint(ctx, profile, http.DefaultClient)
-	if err != nil {
+	switch {
+	case errors.Is(err, cliauth.ErrTokenRejected):
+		return fmt.Errorf("login to %s failed: %w", server, err)
+	case errors.Is(err, cliauth.ErrAuthServerUnreachable), errors.Is(err, cliauth.ErrAuthServerInvalid):
+		return fmt.Errorf("login to %s failed: its %w", server, err)
+	case err != nil:
 		return err
 	}
 	verify := connect.NewRequest(&authv1.ListServiceAccountsRequest{})
@@ -136,8 +141,13 @@ func (a *cliApp) authStatus() error {
 		return err
 	}
 	profile, err := cliauth.Store{Path: a.credentialsPath()}.Get(current.Target.AuthProfile)
-	if err != nil {
+	switch {
+	case errors.Is(err, cliauth.ErrProfileNotFound):
 		_, err := fmt.Fprintf(a.stdout, "Context %s is not logged in. Run filament auth login.\n", current.Name)
+		return err
+	case errors.Is(err, cliauth.ErrCredentialsCorrupt):
+		return fmt.Errorf("%w; fix or remove it, then run filament auth login", err)
+	case err != nil:
 		return err
 	}
 	token := "none"

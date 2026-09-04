@@ -228,21 +228,28 @@ func (a *cliApp) statusWriter() io.Writer {
 }
 
 func (a *cliApp) confirmDelete(kind, name string) (bool, error) {
+	return a.confirm(fmt.Sprintf("Delete %s %q?", kind, name))
+}
+
+// confirm asks a yes/no question on the status writer and reads one line of
+// stdin. Empty input on a closed stdin is an error, not a refusal, so scripts
+// learn to pass --force rather than silently no-op.
+func (a *cliApp) confirm(question string) (bool, error) {
 	in := a.stdin
 	if in == nil {
 		in = os.Stdin
 	}
 	out := a.statusWriter()
-	if _, err := fmt.Fprintf(out, "Delete %s %q? [y/N] ", kind, name); err != nil {
+	if _, err := fmt.Fprintf(out, "%s [y/N] ", question); err != nil {
 		return false, err
 	}
 	answer, err := bufio.NewReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
-		return false, fmt.Errorf("read deletion confirmation: %w", err)
+		return false, fmt.Errorf("read confirmation: %w", err)
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if errors.Is(err, io.EOF) && answer == "" {
-		return false, fmt.Errorf("deletion confirmation requires input; rerun with --force to bypass")
+		return false, fmt.Errorf("confirmation requires input; rerun with --force to bypass")
 	}
 	if answer == "y" || answer == "yes" {
 		return true, nil
