@@ -65,7 +65,7 @@ helm upgrade --install filament \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \
   --set-string persistence.postgresql.dsn="postgresql://filament:${PG_PASSWORD}@filament-postgresql:5432/filament?sslmode=disable" \
-  --set-string secrets.postgres.encryptionKey="$ENC_KEY" \
+  --set-string secrets.datastore.encryptionKey="$ENC_KEY" \
   --set-string eventBus.nats.url='nats://filament-nats:4222'
 ```
 

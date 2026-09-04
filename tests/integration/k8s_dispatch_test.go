@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/tests/testcontainers"
@@ -43,7 +43,7 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 		Kubeconfig:           cluster.KubeconfigPath,
 		BackoffLimit:         1,
 	})
-	if err := dispatcher.Mount(ctx, module.Deps{DataStore: memory.New()}); err != nil {
+	if err := dispatcher.Mount(ctx, module.Deps{DataStore: sqlite.NewMemory()}); err != nil {
 		t.Fatalf("mount dispatcher: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestK8sDispatchIsIdempotent(t *testing.T) {
 		JobNamePrefix:    "filament",
 		Kubeconfig:       cluster.KubeconfigPath,
 	})
-	if err := dispatcher.Mount(ctx, module.Deps{DataStore: memory.New()}); err != nil {
+	if err := dispatcher.Mount(ctx, module.Deps{DataStore: sqlite.NewMemory()}); err != nil {
 		t.Fatalf("mount dispatcher: %v", err)
 	}
 

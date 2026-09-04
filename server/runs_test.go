@@ -10,7 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
@@ -24,7 +24,7 @@ type loadRunErrorStore struct {
 
 func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 	ctx := identity.WithTenant(context.Background(), "tenant-1")
-	store := memory.New()
+	store := sqlite.NewMemory()
 	api := &Server{store: store, bus: inproc.New()}
 	ended := time.Now()
 	state := filament.RunState{
@@ -70,7 +70,7 @@ func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 
 func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
 	ctx := identity.WithTenant(context.Background(), "tenant-1")
-	store := memory.New()
+	store := sqlite.NewMemory()
 	if err := store.SaveRun(ctx, filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}); err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestSignalRunPublishesRunningWorkerCommands(t *testing.T) {
 
 func TestSignalRunReportsWhenWorkerAlreadyFinished(t *testing.T) {
 	ctx := identity.WithTenant(context.Background(), "tenant-1")
-	store := memory.New()
+	store := sqlite.NewMemory()
 	state := filament.RunState{Run: "run-1", Tenant: "tenant-1", Status: filament.RunRunning}
 	if err := store.SaveRun(ctx, state); err != nil {
 		t.Fatal(err)
@@ -190,12 +190,12 @@ func TestLoadRunSnapshotOnlySuppressesNotFound(t *testing.T) {
 	t.Parallel()
 
 	storeErr := errors.New("database unavailable")
-	server := &Server{store: loadRunErrorStore{DataStore: memory.New(), err: storeErr}}
+	server := &Server{store: loadRunErrorStore{DataStore: sqlite.NewMemory(), err: storeErr}}
 	if _, ok, err := server.loadRunSnapshot(context.Background(), "tenant-1", "run-1"); ok || !errors.Is(err, storeErr) {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, store error)", ok, err)
 	}
 
-	server.store = loadRunErrorStore{DataStore: memory.New(), err: filament.ErrNotFound}
+	server.store = loadRunErrorStore{DataStore: sqlite.NewMemory(), err: filament.ErrNotFound}
 	if _, ok, err := server.loadRunSnapshot(context.Background(), "tenant-1", "run-1"); ok || err != nil {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, nil)", ok, err)
 	}

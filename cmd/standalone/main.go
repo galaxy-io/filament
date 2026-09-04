@@ -1,6 +1,7 @@
 // Command standalone runs all of Filament in one process: an embedded NATS
 // JetStream event plane, the ConnectRPC API, engine, tracker, and orchestrator
-// over the in-memory store. Secrets resolve from environment variables
+// over a SQLite store (STORE_PATH, defaulting next to the NATS store).
+// Secrets resolve from environment variables
 package main
 
 import (
@@ -16,6 +17,8 @@ import (
 
 	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
+	"github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/datastore/sqlite/metrics"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
 	"github.com/galaxy-io/filament/events"
 	secretenv "github.com/galaxy-io/filament/secret/env"
@@ -59,6 +62,15 @@ func run(ctx context.Context) error {
 		return errors.New("embedded nats: not ready")
 	}
 
+	storePath := os.Getenv("STORE_PATH")
+	if storePath == "" {
+		storePath = filepath.Join(dir, "filament.db")
+	}
+	store, err := sqlite.Open(storePath)
+	if err != nil {
+		return err
+	}
+
 	nc, err := natsgo.Connect("", natsgo.InProcessServer(ns))
 	if err != nil {
 		return err
@@ -75,6 +87,8 @@ func run(ctx context.Context) error {
 
 	return app.Run(ctx,
 		app.WithBus(bus),
+		app.WithDataStore(store),
+		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithLogger(lg),
 		app.WithSecrets(secretenv.New()),
 		app.WithUI(ui.Handler()),

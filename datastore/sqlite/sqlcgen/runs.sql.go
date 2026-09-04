@@ -289,22 +289,6 @@ func (q *Queries) ResetRunExecution(ctx context.Context, arg ResetRunExecutionPa
 	return err
 }
 
-const runExists = `-- name: RunExists :one
-SELECT count(*) FROM runs WHERE tenant_id = ?1 AND id = ?2
-`
-
-type RunExistsParams struct {
-	TenantID string
-	RunID    string
-}
-
-func (q *Queries) RunExists(ctx context.Context, arg RunExistsParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, runExists, arg.TenantID, arg.RunID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const saveRun = `-- name: SaveRun :execrows
 
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, created_at, updated_at)
