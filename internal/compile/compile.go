@@ -7,11 +7,15 @@ package compile
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/galaxy-io/filament"
@@ -35,10 +39,15 @@ type Compiler struct {
 	Sinks   filament.SinkRegistry
 }
 
-// CompiledRun is one route's ready-to-submit request, keyed by its canvas edge.
+// CompiledRun is one route's ready-to-submit admission, keyed by its canvas edge.
 type CompiledRun struct {
-	Edge string
-	Req  filament.RunRequest
+	Edge       string
+	Submission filament.RunSubmission
+}
+
+type durableReplicationStreamStore interface {
+	filament.ReplicationStreamStore
+	filament.ReplicationStreamRunStore
 }
 
 // Compile loads the pipeline's current version and collapses its edges into
@@ -85,18 +94,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	compiled := make([]CompiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
-		var resources []string
-		var selectors []string
-		if !group.all {
-			for resource := range group.resources {
-				resources = append(resources, resource)
-			}
-			slices.Sort(resources)
-			for selector := range group.selectors {
-				selectors = append(selectors, selector)
-			}
-			slices.Sort(selectors)
-		}
+		resources, selectors := routeResources(group)
 		sourceRef, err := c.resolveNodeRef(group.source, connections)
 		if err != nil {
 			return nil, err
@@ -114,26 +112,139 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		if err != nil {
 			return nil, err
 		}
-		compiled = append(compiled, CompiledRun{Edge: key, Req: filament.RunRequest{
-			Tenant:              tenant,
-			PipelineID:          pipeline.GetId(),
-			PipelineVersionID:   version.GetId(),
-			IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
-			Source:              sourceRef,
-			Sink:                sinkRef,
-			SourceConnectionID:  group.source.GetConnectionId(),
-			SinkConnectionID:    group.sink.GetConnectionId(),
-			Resources:           resources,
-			Selectors:           selectors,
-			IngestionTypes:      ingestionTypes,
-			CheckpointRoute:     key,
-			CursorConfigs:       group.cursorConfigs,
-			Options:             options,
-			ScheduleID:          scheduleID,
-			WorkerConfiguration: worker,
+		replicationStream, err := c.planRouteReplicationStream(
+			cdc, source, pipeline.GetId(), version.GetId(), tenant,
+			key, group, connections, sourceRef, sinkRef,
+		)
+		if err != nil {
+			return nil, err
+		}
+		compiled = append(compiled, CompiledRun{Edge: key, Submission: filament.RunSubmission{
+			Request: filament.RunRequest{
+				Tenant:              tenant,
+				PipelineID:          pipeline.GetId(),
+				PipelineVersionID:   version.GetId(),
+				IdempotencyKey:      fmt.Sprintf("%s:%s:%s", pipeline.GetId(), token, key),
+				Source:              sourceRef,
+				Sink:                sinkRef,
+				SourceConnectionID:  group.source.GetConnectionId(),
+				SinkConnectionID:    group.sink.GetConnectionId(),
+				Resources:           resources,
+				Selectors:           selectors,
+				IngestionTypes:      ingestionTypes,
+				CheckpointRoute:     key,
+				CursorConfigs:       group.cursorConfigs,
+				Options:             options,
+				ScheduleID:          scheduleID,
+				WorkerConfiguration: worker,
+			},
+			DesiredReplicationStream: replicationStream,
 		}})
 	}
 	return compiled, nil
+}
+
+func routeResources(group *routeGroup) (resources, selectors []string) {
+	if group.all {
+		return nil, nil
+	}
+	for resource := range group.resources {
+		resources = append(resources, resource)
+	}
+	slices.Sort(resources)
+	for selector := range group.selectors {
+		selectors = append(selectors, selector)
+	}
+	slices.Sort(selectors)
+	return resources, selectors
+}
+
+func (c *Compiler) planRouteReplicationStream(
+	cdc bool,
+	source filament.Source,
+	pipelineID, pipelineVersionID string,
+	tenant filament.TenantID,
+	route string,
+	group *routeGroup,
+	connections map[string]filament.Connection,
+	sourceRef, sinkRef filament.Ref,
+) (*filament.ReplicationStream, error) {
+	planner, plansStreams := source.(filament.ReplicationStreamPlanner)
+	if !cdc || !plansStreams {
+		return nil, nil
+	}
+	if _, ok := c.Store.(durableReplicationStreamStore); !ok {
+		return nil, fmt.Errorf("%w: datastore %q cannot durably admit replication streams", ErrPrecondition, c.Store.Name())
+	}
+	planned, err := c.planReplicationStream(
+		planner, pipelineID, pipelineVersionID, tenant, route, group, connections, sourceRef, sinkRef,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &planned, nil
+}
+
+func (c *Compiler) planReplicationStream(
+	planner filament.ReplicationStreamPlanner,
+	pipelineID, pipelineVersionID string,
+	tenant filament.TenantID,
+	route string,
+	group *routeGroup,
+	connections map[string]filament.Connection,
+	sourceRef, sinkRef filament.Ref,
+) (filament.ReplicationStream, error) {
+	id := uuid.NewString()
+	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
+		ReplicationStreamID: id, Config: filament.NewConfig(sourceRef.Config),
+	})
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("plan replication stream %q: %w", route, err)
+	}
+	fingerprint, err := replicationStreamContinuityFingerprint(group, connections, sourceRef.Connector, plan.ContinuityConfig, sinkRef)
+	if err != nil {
+		return filament.ReplicationStream{}, fmt.Errorf("fingerprint replication stream %q: %w", route, err)
+	}
+	desired := filament.ReplicationStream{
+		ID: id, Tenant: tenant, PipelineID: pipelineID, Route: route,
+		SourceConnectionID: group.source.GetConnectionId(), SinkConnectionID: group.sink.GetConnectionId(),
+		ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig,
+		ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: pipelineVersionID,
+	}
+	return desired, nil
+}
+
+// replicationStreamContinuityFingerprint excludes the selected resource set;
+// the source planner decides which of its configuration fields affect
+// continuity. Adding a table can therefore reuse the stream, while changing
+// its source identity, sink target, or write semantics forks it.
+func replicationStreamContinuityFingerprint(group *routeGroup, connections map[string]filament.Connection, sourceConnector string, sourceContinuity map[string]any, sinkRef filament.Ref) (string, error) {
+	sourceConnection := connections[group.source.GetConnectionId()]
+	sinkConnection := connections[group.sink.GetConnectionId()]
+	identity := struct {
+		SourceConnector         string         `json:"source_connector"`
+		SourceConnectionID      string         `json:"source_connection_id"`
+		SourceConnectionVersion int64          `json:"source_connection_version"`
+		SourceContinuity        map[string]any `json:"source_continuity"`
+		SinkConnector           string         `json:"sink_connector"`
+		SinkConnectionID        string         `json:"sink_connection_id"`
+		SinkConnectionVersion   int64          `json:"sink_connection_version"`
+		SinkConfig              map[string]any `json:"sink_config"`
+		WriteMode               string         `json:"write_mode"`
+	}{
+		SourceConnector: sourceConnector, SourceConnectionID: sourceConnection.ID,
+		SourceConnectionVersion: sourceConnection.Version,
+		SourceContinuity:        sourceContinuity,
+		SinkConnector:           sinkRef.Connector, SinkConnectionID: sinkConnection.ID,
+		SinkConnectionVersion: sinkConnection.Version, SinkConfig: sinkRef.Config,
+		WriteMode: fmt.Sprint(group.writeMode),
+	}
+	raw, err := json.Marshal(identity)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {

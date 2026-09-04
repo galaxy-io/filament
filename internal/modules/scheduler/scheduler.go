@@ -240,7 +240,7 @@ func (m *Module) fire(ctx context.Context, st filament.ScheduleState, occurrence
 	}
 	var first filament.RunID
 	for _, c := range compiled {
-		id, err := runs.Submit(ctx, m.bus, m.ds, c.Req)
+		id, err := runs.Submit(ctx, m.bus, m.ds, c.Submission)
 		if err != nil {
 			return first, err
 		}

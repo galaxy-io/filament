@@ -26,6 +26,7 @@ type RunSpec struct {
 	SourceConnectionID string
 	SinkConnectionID   string
 	CheckpointRoute    string
+	ReplicationStream  *StreamRef
 	CursorConfigs      map[string]ResourceCursorConfig
 	Source             Ref
 	Sink               Ref
@@ -58,14 +59,30 @@ type RunRequest struct {
 	// the route default for resources not explicitly listed.
 	IngestionTypes  map[string]IngestionType
 	CheckpointRoute string
-	CursorConfigs   map[string]ResourceCursorConfig
-	Options         RunOptions
-	ScheduleID      ScheduleID
+	// ReplicationStream identifies CDC/event-stream progress independently of
+	// the immutable pipeline version. Generation fences stale route versions.
+	ReplicationStream *StreamRef `json:",omitempty"`
+	CursorConfigs     map[string]ResourceCursorConfig
+	Options           RunOptions
+	ScheduleID        ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
 	// later edit to the pipeline cannot reshape a run already requested.
 	WorkerConfiguration WorkerConfiguration `json:",omitzero"`
+}
+
+// StreamRef identifies one admitted generation of a durable replication stream.
+type StreamRef struct {
+	ID         string
+	Generation int64
+}
+
+// RunSubmission carries the persisted request and any transient state that must
+// be resolved atomically while admitting it.
+type RunSubmission struct {
+	Request                  RunRequest
+	DesiredReplicationStream *ReplicationStream `json:"-"`
 }
 
 // ResourceCursorConfig selects one resource's durable incremental field and
@@ -78,7 +95,17 @@ type ResourceCursorConfig struct {
 // ResourceCheckpointKey returns the stable cross-run key for resource. False
 // means the request did not originate from a versioned pipeline route.
 func (r RunRequest) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
-	if r.PipelineID == "" || r.PipelineVersionID == "" || r.CheckpointRoute == "" || resource == "" {
+	if r.PipelineID == "" || r.CheckpointRoute == "" || resource == "" {
+		return ResourceCheckpointKey{}, false
+	}
+	if r.ReplicationStream != nil && r.ReplicationStream.ID != "" {
+		return ResourceCheckpointKey{
+			PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+			Route: r.CheckpointRoute, Resource: resource,
+			ReplicationStreamID: r.ReplicationStream.ID,
+		}, true
+	}
+	if r.PipelineVersionID == "" {
 		return ResourceCheckpointKey{}, false
 	}
 	return ResourceCheckpointKey{
@@ -131,7 +158,7 @@ func IsCDCAppend(types map[string]IngestionType) bool {
 func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, bool) {
 	return RunRequest{
 		PipelineID: s.PipelineID, PipelineVersionID: s.PipelineVersionID,
-		CheckpointRoute: s.CheckpointRoute,
+		CheckpointRoute: s.CheckpointRoute, ReplicationStream: s.ReplicationStream,
 	}.ResourceCheckpointKey(resource)
 }
 

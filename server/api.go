@@ -16,7 +16,7 @@ import (
 )
 
 type runSubmitter interface {
-	Submit(context.Context, filament.RunRequest) (filament.RunID, error)
+	Submit(context.Context, filament.RunSubmission) (filament.RunID, error)
 }
 
 // Server implements the ingestion Connect API over the registries, store,
