@@ -107,10 +107,22 @@ func (a *cliApp) deleteContext(name string) error {
 	if err := registry.Delete(name); err != nil {
 		return err
 	}
-	if profile := target.Target.AuthProfile; profile != "" && !a.profileInUse(registry, profile) {
-		_ = (cliauth.Store{Path: a.credentialsPath()}).Delete(profile)
+	if err := a.removeUnusedProfile(registry, target.Target.AuthProfile); err != nil {
+		return fmt.Errorf("deleted context %s, but %w", name, err)
 	}
 	return printSuccess(a.statusWriter(), fmt.Sprintf("Deleted context %s", name))
+}
+
+// removeUnusedProfile deletes stored credentials once no context references
+// them. Call it after the referencing context is gone from the registry.
+func (a *cliApp) removeUnusedProfile(registry *contexts.Registry, profile string) error {
+	if profile == "" || a.profileInUse(registry, profile) {
+		return nil
+	}
+	if err := (cliauth.Store{Path: a.credentialsPath()}).Delete(profile); err != nil {
+		return fmt.Errorf("removing auth profile %s: %w", profile, err)
+	}
+	return nil
 }
 
 func (a *cliApp) profileInUse(registry *contexts.Registry, profile string) bool {
@@ -163,15 +175,22 @@ func (a *cliApp) contextRegistry() *contexts.Registry {
 
 func (a *cliApp) contextAddCommand() *cobra.Command {
 	var endpoint, authProfile string
+	var force bool
 	add := &cobra.Command{
 		Use:   "add <name>",
 		Short: "Add a remote or local context",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			name := args[0]
 			// The global --config flag names the document a local context serves.
 			remote, local := endpoint != "", a.configOverride
 			if remote == local {
 				return fmt.Errorf("exactly one of --server (remote) or --config (local) is required")
+			}
+			if authProfile != "" {
+				if _, err := (cliauth.Store{Path: a.credentialsPath()}).Get(authProfile); err != nil {
+					return err
+				}
 			}
 			target := contexts.Target{
 				Kind: contexts.KindRemote, Endpoint: endpoint, AuthProfile: authProfile,
@@ -183,13 +202,29 @@ func (a *cliApp) contextAddCommand() *cobra.Command {
 				}
 				target = contexts.Target{Kind: contexts.KindLocal, ConfigPath: absolute}
 			}
-			if err := a.contextRegistry().Set(args[0], target); err != nil {
+			registry := a.contextRegistry()
+			existing, err := registry.Resolve(name)
+			replacing := err == nil
+			if replacing && !force {
+				confirmed, err := a.confirm(fmt.Sprintf("Context %q already exists (%s); replace it?", name, existing.Target.Kind))
+				if err != nil || !confirmed {
+					return err
+				}
+			}
+			if err := registry.Set(name, target); err != nil {
 				return err
 			}
-			return printSuccess(a.statusWriter(), fmt.Sprintf("Added context %s", args[0]))
+			if replacing {
+				if err := a.removeUnusedProfile(registry, existing.Target.AuthProfile); err != nil {
+					return fmt.Errorf("replaced context %s, but %w", name, err)
+				}
+				return printSuccess(a.statusWriter(), fmt.Sprintf("Replaced context %s", name))
+			}
+			return printSuccess(a.statusWriter(), fmt.Sprintf("Added context %s", name))
 		},
 	}
 	add.Flags().StringVar(&endpoint, "server", "", "Filament server `URL`")
 	add.Flags().StringVar(&authProfile, "auth-profile", "", "Stored authentication profile `NAME`")
+	add.Flags().BoolVar(&force, "force", false, "Replace an existing context without confirmation")
 	return add
 }
