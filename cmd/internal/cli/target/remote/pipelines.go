@@ -9,7 +9,6 @@ import (
 	"connectrpc.com/connect"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -268,7 +267,7 @@ func (t *Target) graphToProto(ctx context.Context, pipeline model.Pipeline) (*in
 		if !ok {
 			return nil, connectionIndex{}, fmt.Errorf("%s %q does not exist", node.Kind, node.Connection)
 		}
-		config, err := configStruct(cliapp.ConfigWithoutSecretValues(node.Config, node.SecretRefs))
+		config, err := configStruct(node.Config)
 		if err != nil {
 			return nil, connectionIndex{}, fmt.Errorf("%s %q: %w", node.Kind, node.Connection, err)
 		}
