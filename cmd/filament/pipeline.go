@@ -169,6 +169,7 @@ func (a *cliApp) pipelineListCommand() *cobra.Command {
 	var page listPageFlags
 	cmd := &cobra.Command{
 		Use:   "list",
+		Aliases: []string{"ls"},
 		Short: "List saved pipelines",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

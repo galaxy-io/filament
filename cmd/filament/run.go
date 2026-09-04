@@ -29,7 +29,7 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	name := firstPositional(parsed)
-	if name == "list" {
+	if name == "list" || name == "ls" {
 		return a.listRuns(ctx, parsed)
 	}
 	var request cliapp.RunRequest
