@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -257,5 +258,38 @@ func newMemoryTarget() *memoryTarget {
 				},
 			},
 		},
+	}
+}
+
+// deploymentTarget validates on the deployment, as the remote target does,
+// so documents may hold modes the in-process runner cannot execute.
+type deploymentTarget struct{ *memoryTarget }
+
+func (deploymentTarget) ValidateConfiguration(context.Context, model.Document) error { return nil }
+
+func TestSavedPipelineKeepsSyncMode(t *testing.T) {
+	t.Parallel()
+	target := newMemoryTarget()
+	target.document.Sources["input"] = model.Connection{Type: "sample"}
+	target.document.Sinks["output"] = model.Connection{Type: "stdout"}
+	target.document.Pipelines["inc"] = model.Pipeline{
+		Source: model.PipelineNode{Ref: "input"}, Sink: model.PipelineNode{Ref: "output"},
+		SyncMode: "incremental", WriteMode: "append",
+	}
+	service := NewService(deploymentTarget{target})
+	ctx := context.Background()
+
+	submission, err := service.PrepareRun(ctx, RunRequest{Pipeline: "inc"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if submission.Override || submission.Pipeline == nil || len(submission.Spec.IngestionTypes) != 0 {
+		t.Fatalf("submission = %+v", submission)
+	}
+
+	rows := []string{"users"}
+	_, err = service.PrepareRun(ctx, RunRequest{Pipeline: "inc", Overrides: SavePipelineRequest{Resources: &rows}})
+	if err == nil || !strings.Contains(err.Error(), "in-process") {
+		t.Fatalf("override err = %v, want in-process refusal", err)
 	}
 }

@@ -117,3 +117,27 @@ func ResolvedConnectionConfig(connection model.Connection, scoped map[string]any
 	config = canonicalizeConfig(schema, config)
 	return normalizeSavedSecretReferences(schema, config)
 }
+
+// ConfigWithoutSecretValues returns a copy with every referenced secret path
+// removed: the wire shape paired with a secret_refs map. Local YAML keeps its
+// env: references in Config.
+func ConfigWithoutSecretValues(values map[string]any, refs map[string]string) map[string]any {
+	result := model.CloneConfig(values)
+	for path := range refs {
+		deleteConfigPath(result, strings.Split(path, "."))
+	}
+	return result
+}
+
+// deleteConfigPath removes path from values and reports whether values is
+// now empty, so emptied parents are pruned on the way back up.
+func deleteConfigPath(values map[string]any, path []string) bool {
+	if len(path) == 1 {
+		delete(values, path[0])
+		return len(values) == 0
+	}
+	if nested, ok := values[path[0]].(map[string]any); ok && deleteConfigPath(nested, path[1:]) {
+		delete(values, path[0])
+	}
+	return len(values) == 0
+}

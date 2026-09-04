@@ -58,6 +58,12 @@ type Target interface {
 	RunTarget
 }
 
+// PipelineModesTarget is an optional target capability that resolves the
+// read and write modes a proposed route supports.
+type PipelineModesTarget interface {
+	PipelineModes(context.Context, model.Pipeline) (model.PipelineModes, error)
+}
+
 // RawConfigurationTarget is an optional target capability for byte-preserving
 // configuration editing. Remote targets do not need to expose it.
 type RawConfigurationTarget interface {

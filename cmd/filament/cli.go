@@ -10,10 +10,12 @@ import (
 	"strings"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	dadorenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/dado"
 	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
+	remotetarget "github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
 )
 
 type cliApp struct {
@@ -60,14 +62,6 @@ func (a *cliApp) renderer() *dadorenderer.Renderer {
 	})
 }
 
-type unimplementedTargetError struct {
-	kind contexts.Kind
-}
-
-func (e *unimplementedTargetError) Error() string {
-	return fmt.Sprintf("%s target is not implemented", e.kind)
-}
-
 func (a *cliApp) initializeTarget(ctx context.Context) error {
 	selected := contexts.NamedTarget{
 		Name:   "local",
@@ -87,12 +81,16 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		selected.Target.ConfigPath = a.configPath
 	}
 	a.target = selected
-	if selected.Target.Kind != contexts.KindLocal {
-		return &unimplementedTargetError{kind: selected.Target.Kind}
+	if selected.Target.Kind == contexts.KindRemote {
+		options := remotetarget.Options{Endpoint: selected.Target.Endpoint}
+		if profile := selected.Target.AuthProfile; profile != "" {
+			options.Tokens = cliauth.Source{Store: cliauth.Store{Path: a.credentialsPath()}, Profile: profile}
+		}
+		a.service = cliapp.NewService(remotetarget.NewTarget(options))
+	} else {
+		a.configPath = selected.Target.ConfigPath
+		a.service = cliapp.NewService(localtarget.NewTarget(localtarget.Store{Path: a.configPath}, a.catalog))
 	}
-	a.configPath = selected.Target.ConfigPath
-	target := localtarget.NewTarget(localtarget.Store{Path: a.configPath}, a.catalog)
-	a.service = cliapp.NewService(target)
 	catalog, err := a.service.Catalog(ctx)
 	if err != nil {
 		return err

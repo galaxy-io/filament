@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // ConfigVersion is the current configuration document version.
 const ConfigVersion = 1
 
@@ -22,9 +24,19 @@ type EntityMetadata struct {
 
 // Connection is a persisted source or sink configuration.
 type Connection struct {
-	Metadata EntityMetadata `json:"-" yaml:"-"`
-	Type     string         `json:"type" yaml:"type"`
-	Config   map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
+	Metadata   EntityMetadata    `json:"-" yaml:"-"`
+	Info       ConnectionInfo    `json:"-" yaml:"-"`
+	Type       string            `json:"type" yaml:"type"`
+	Config     map[string]any    `json:"config,omitempty" yaml:"config,omitempty"`
+	SecretRefs map[string]string `json:"-" yaml:"-"`
+}
+
+// ConnectionInfo is target-owned metadata. Local documents leave it zero;
+// deployments fill it.
+type ConnectionInfo struct {
+	Replication string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NamedConnection identifies a connection returned by a target query.
@@ -37,6 +49,7 @@ type NamedConnection struct {
 // Pipeline is a persisted source-to-sink pipeline.
 type Pipeline struct {
 	Metadata  EntityMetadata `json:"-" yaml:"-"`
+	Info      PipelineInfo   `json:"-" yaml:"-"`
 	Source    PipelineNode   `json:"source" yaml:"source"`
 	Sink      PipelineNode   `json:"sink" yaml:"sink"`
 	Resources []string       `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -45,6 +58,19 @@ type Pipeline struct {
 	// Graph retains the target's complete graph. It never reaches YAML, which
 	// stays a simple source-to-sink pipeline.
 	Graph *PipelineGraph `json:"-" yaml:"-"`
+}
+
+// PipelineInfo is target-owned metadata. Local documents leave it zero;
+// deployments fill it.
+type PipelineInfo struct {
+	Schedule      string
+	LastRunStatus string
+	LastRunAt     time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	// EditBlockedReason is set when the deployed graph cannot be represented
+	// by the simple source-to-sink editor without losing something.
+	EditBlockedReason string
 }
 
 // NamedPipeline identifies a pipeline returned by a target query.

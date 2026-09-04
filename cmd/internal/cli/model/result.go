@@ -116,3 +116,11 @@ type ResourceSummary struct {
 	PrimaryKey    []string
 	EstimatedRows int64
 }
+
+// PipelineModes is the target's authoritative read and write levers for one
+// proposed source-to-sink route.
+type PipelineModes struct {
+	Replication string
+	ReadModes   []string
+	WriteModes  []string
+}
