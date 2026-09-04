@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -85,7 +86,11 @@ func (s Source) mint(ctx context.Context, profile Profile) (*oauth2.Token, error
 	}
 	token, err := config.Token(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("mint access token: %w", err)
+		var refused *oauth2.RetrieveError
+		if errors.As(err, &refused) {
+			return nil, fmt.Errorf("%w: %w", ErrTokenRejected, err)
+		}
+		return nil, fmt.Errorf("%w: %w", ErrAuthServerUnreachable, err)
 	}
 	return token, nil
 }
@@ -100,20 +105,20 @@ func tokenEndpoint(ctx context.Context, client *http.Client, issuer string) (str
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("discover issuer %s: %w", issuer, err)
+		return "", fmt.Errorf("%w: %s: %w", ErrAuthServerUnreachable, issuer, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("discover issuer %s: status %d", issuer, resp.StatusCode)
+		return "", fmt.Errorf("%w: %s: discovery returned status %d", ErrAuthServerInvalid, issuer, resp.StatusCode)
 	}
 	var discovered struct {
 		TokenEndpoint string `json:"token_endpoint"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&discovered); err != nil {
-		return "", fmt.Errorf("discover issuer %s: %w", issuer, err)
+		return "", fmt.Errorf("%w: %s: discovery is not valid JSON: %w", ErrAuthServerInvalid, issuer, err)
 	}
 	if discovered.TokenEndpoint == "" {
-		return "", fmt.Errorf("issuer %s advertises no token endpoint", issuer)
+		return "", fmt.Errorf("%w: %s: discovery lists no token endpoint", ErrAuthServerInvalid, issuer)
 	}
 	return discovered.TokenEndpoint, nil
 }
