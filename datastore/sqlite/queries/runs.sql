@@ -48,9 +48,6 @@ UPDATE runs SET
     updated_at = @updated_at
 WHERE tenant_id = @tenant_id AND id = @run_id AND status = @from_status;
 
--- name: RunExists :one
-SELECT count(*) FROM runs WHERE tenant_id = @tenant_id AND id = @run_id;
-
 -- name: InsertRun :execrows
 INSERT INTO runs (id, tenant_id, pipeline_id, pipeline_version_id, schedule_id, status, request, records, bytes, scheduled_at, requested_at, started_at, ended_at, error, cpu_seconds, memory_peak_bytes, created_at, updated_at)
 VALUES (@run_id, @tenant_id, nullif(@pipeline_id, ''), nullif(@pipeline_version_id, ''), nullif(@schedule_id, ''), @status, @request, @records, @bytes, @scheduled_at, @requested_at, @started_at, @ended_at, nullif(@error, ''), @cpu_seconds, @memory_peak_bytes, @created_at, @updated_at)

@@ -53,7 +53,7 @@ var (
 func (s *Store) Name() string { return "postgres" }
 
 // SaveRun upserts the run row and reattaches any carried Resources into
-// run_resource_states, mirroring datastore/memory's SaveRun contract.
+// run_resource_states, mirroring datastore/sqlite's SaveRun contract.
 func (s *Store) SaveRun(ctx context.Context, r filament.RunState) error {
 	req, err := json.Marshal(r.Request)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
-	"github.com/galaxy-io/filament/datastore/memory"
+	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/identity"
@@ -65,7 +65,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	sinks.Register("postgres", func() filament.Sink { return pgsink.New() })
 
 	bus := inproc.New()
-	store := memory.New()
+	store := sqlite.NewMemory()
 	secrets := newMemorySecrets()
 	orch := orchestrator.New()
 	mods, err := module.MountAll(ctx,
