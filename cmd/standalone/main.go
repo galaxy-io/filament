@@ -24,12 +24,7 @@ import (
 	secretenv "github.com/galaxy-io/filament/secret/env"
 	"github.com/galaxy-io/filament/ui"
 
-	// Curated connector set — self-register via init():
-	_ "github.com/galaxy-io/filament/connectors/clickhouse"
-	_ "github.com/galaxy-io/filament/connectors/iceberg"
-	_ "github.com/galaxy-io/filament/connectors/mysql"
-	_ "github.com/galaxy-io/filament/connectors/object"
-	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {

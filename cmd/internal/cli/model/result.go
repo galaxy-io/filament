@@ -174,13 +174,15 @@ type RunList struct {
 
 // RunSummary describes one historical run.
 type RunSummary struct {
-	ID        string
-	Pipeline  string
-	Version   string
-	Status    string
-	Records   int64
-	Bytes     int64
-	StartedAt time.Time
-	EndedAt   time.Time
-	Error     string
+	ID       string
+	Pipeline string
+	// PipelineDeleted marks a run whose pipeline has since been deleted.
+	PipelineDeleted bool
+	Version         string
+	Status          string
+	Records         int64
+	Bytes           int64
+	StartedAt       time.Time
+	EndedAt         time.Time
+	Error           string
 }
