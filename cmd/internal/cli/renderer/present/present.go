@@ -111,7 +111,7 @@ func PipelineRows(items []model.PipelineSummary) []Row {
 func RunColumns() []Column {
 	return []Column{
 		{Title: "Run", Role: style.RolePrimary},
-		{Title: "Pipeline", Role: style.RoleSecondary},
+		{Title: "Pipeline"},
 		{Title: "Version", Role: style.RoleSecondary},
 		{Title: "Status", Role: style.RoleStatus},
 		{Title: "Records", Role: style.RoleNumber},
@@ -121,16 +121,22 @@ func RunColumns() []Column {
 	}
 }
 
-// RunRows formats run history.
-func RunRows(items []model.RunSummary) []Row {
+// RunRows formats run history. The pipeline cell is painted here, name and
+// deleted tag as separate segments, so its column carries no role for the
+// grid to restyle.
+func RunRows(p style.Painter, items []model.RunSummary) []Row {
 	rows := make([]Row, 0, len(items))
 	for _, run := range items {
 		duration := "–"
 		if !run.StartedAt.IsZero() && !run.EndedAt.IsZero() {
 			duration = style.Elapsed(run.EndedAt.Sub(run.StartedAt))
 		}
+		pipeline := p.Label(run.Pipeline)
+		if run.PipelineDeleted {
+			pipeline += " " + p.Status("failed", "[Deleted]")
+		}
 		rows = append(rows, Row{Key: run.ID, Cells: []string{
-			run.ID, run.Pipeline, Dash(run.Version), Status(run.Status),
+			run.ID, pipeline, Dash(run.Version), Status(run.Status),
 			style.Count(run.Records), style.Bytes(run.Bytes), Stamp(run.StartedAt), duration,
 		}})
 	}

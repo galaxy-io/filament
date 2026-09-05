@@ -22,17 +22,28 @@ const (
 	Gutter = 5
 )
 
-// Colors is the palette for one background.
+// Colors is the palette for one background. The run tones are the UI's icon
+// tokens for each run state, so a status reads the same on both surfaces.
 type Colors struct {
 	Accent, Label, Muted, Success, Error int32
+
+	Completed, Failed, Partial, Running, Requested, Scheduled, Paused, Canceled int32
 }
 
 // Palette returns the tints that read on a dark or light background.
 func Palette(dark bool) Colors {
 	if dark {
-		return Colors{Accent: 0x5b92e7, Label: 0xa3a3a2, Muted: 0x666665, Success: 0x6ee4b0, Error: 0xfb7185}
+		return Colors{
+			Accent: 0x5b92e7, Label: 0xa3a3a2, Muted: 0x666665, Success: 0x6ee4b0, Error: 0xfb7185,
+			Completed: 0x4cb782, Failed: 0xf6525c, Partial: 0xf3a8e5, Running: 0x99cffd,
+			Requested: 0xffd2a8, Scheduled: 0xfff7aa, Paused: 0xbde8ee, Canceled: 0xacacac,
+		}
 	}
-	return Colors{Accent: 0x5b92e7, Label: 0x5c5c5b, Muted: 0x8a8a89, Success: 0x1a8a5a, Error: 0xc0392b}
+	return Colors{
+		Accent: 0x5b92e7, Label: 0x5c5c5b, Muted: 0x8a8a89, Success: 0x1a8a5a, Error: 0xc0392b,
+		Completed: 0x7ccfaa, Failed: 0xf65166, Partial: 0xf77fb4, Running: 0x7dabff,
+		Requested: 0xeeab72, Scheduled: 0xd9cf74, Paused: 0x5cc6bb, Canceled: 0x3f3f3f,
+	}
 }
 
 // Hex converts a palette entry to a lipgloss colour.
@@ -109,6 +120,9 @@ func (p Painter) Success(text string) string { return p.success.Render(text) }
 
 // Error paints failures.
 func (p Painter) Error(text string) string { return p.failure.Render(text) }
+
+// Status paints text in the run tone for status, e.g. the failed red.
+func (p Painter) Status(status, text string) string { return p.status(status).Render(text) }
 
 // Title renders a context line such as "> Sources in filament.yaml".
 func (p Painter) Title(prefix, subject string) string {
@@ -220,20 +234,36 @@ func (p Painter) cell(role Role, text string) lipgloss.Style {
 	}
 }
 
-// status colors a status cell: done is success, broken is failure, live is
-// the accent, anything else muted.
+// runTones pairs a status word with its palette tone, in match order.
+var runTones = []struct {
+	word string
+	tone func(Colors) int32
+}{
+	{"complete", func(c Colors) int32 { return c.Completed }},
+	{"ready", func(c Colors) int32 { return c.Completed }},
+	{"fail", func(c Colors) int32 { return c.Failed }},
+	{"partial", func(c Colors) int32 { return c.Partial }},
+	{"running", func(c Colors) int32 { return c.Running }},
+	{"requested", func(c Colors) int32 { return c.Requested }},
+	{"scheduled", func(c Colors) int32 { return c.Scheduled }},
+	{"paused", func(c Colors) int32 { return c.Paused }},
+	{"cancel", func(c Colors) int32 { return c.Canceled }},
+}
+
+// status colors a status cell with the UI's tone for that run state; anything
+// unrecognised is muted.
 func (p Painter) status(text string) lipgloss.Style {
 	lower := strings.ToLower(text)
-	switch {
-	case strings.Contains(lower, "complete") || strings.Contains(lower, "ready"):
-		return p.success
-	case strings.Contains(lower, "fail") || strings.Contains(lower, "partial"):
-		return p.failure
-	case strings.Contains(lower, "running") || strings.Contains(lower, "requested") || strings.Contains(lower, "scheduled"):
-		return p.accent
-	default:
-		return p.muted
+	for _, entry := range runTones {
+		if !strings.Contains(lower, entry.word) {
+			continue
+		}
+		if !p.enabled {
+			return lipgloss.NewStyle()
+		}
+		return lipgloss.NewStyle().Foreground(Hex(entry.tone(p.colors)))
 	}
+	return p.muted
 }
 
 // Table renders a boxed table in dado's style: rounded corners, column rules,

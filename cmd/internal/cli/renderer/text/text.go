@@ -29,13 +29,15 @@ func (r Renderer) Contexts(result model.ContextList, location string) error {
 	p := style.New(w)
 	rows := make([][]string, 0, len(result.Items))
 	for _, item := range result.Items {
-		marker := " "
+		name := "  " + p.Bold(item.Name)
 		if item.Current {
-			marker = p.Accent("●")
+			name = p.Accent("●") + " " + p.Bold(item.Name)
 		}
-		rows = append(rows, []string{marker, item.Name, present.TitleCase(item.Kind), item.Location})
+		rows = append(rows, []string{name, present.TitleCase(item.Kind), item.Location})
 	}
-	columns := []style.Column{{Title: " "}, {Title: "Name", Role: style.RolePrimary}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}}
+	// The name cell is painted here, marker and name separately, so it
+	// carries no role for the grid to restyle.
+	columns := []style.Column{{Title: "Name"}, {Title: "Kind", Role: style.RoleSecondary}, {Title: "Location"}}
 	return table(w, p.Title("Contexts in", location), p.Grid(r.layout, columns, rows))
 }
 
@@ -53,7 +55,7 @@ func (r Renderer) Connections(result model.ConnectionList, location string, used
 		return err
 	}
 	title := strings.ToUpper(result.Kind[:1]) + result.Kind[1:] + "s in"
-	return r.page(title, location, present.ConnectionColumns(), present.ConnectionRows(result.Items, usedBy), result.Page, command)
+	return r.page(style.New(r.w), title, location, present.ConnectionColumns(), present.ConnectionRows(result.Items, usedBy), result.Page, command)
 }
 
 // Pipelines renders saved pipelines.
@@ -62,7 +64,7 @@ func (r Renderer) Pipelines(result model.PipelineList, location, command string)
 		_, err := fmt.Fprintln(r.w, "No saved pipelines.")
 		return err
 	}
-	return r.page("Pipelines in", location, present.PipelineColumns(), present.PipelineRows(result.Items), result.Page, command)
+	return r.page(style.New(r.w), "Pipelines in", location, present.PipelineColumns(), present.PipelineRows(result.Items), result.Page, command)
 }
 
 // Runs renders one page of run history.
@@ -75,12 +77,12 @@ func (r Renderer) Runs(result model.RunList, command string) error {
 	if result.Pipeline != "" {
 		subject = result.Pipeline
 	}
-	return r.page("Runs of", subject, present.RunColumns(), present.RunRows(result.Items), result.Page, command)
+	p := style.New(r.w)
+	return r.page(p, "Runs of", subject, present.RunColumns(), present.RunRows(p, result.Items), result.Page, command)
 }
 
 // page renders one titled table and its paging footer.
-func (r Renderer) page(prefix, subject string, columns []present.Column, rows []present.Row, info model.PageInfo, command string) error {
-	p := style.New(r.w)
+func (r Renderer) page(p style.Painter, prefix, subject string, columns []present.Column, rows []present.Row, info model.PageInfo, command string) error {
 	styled := make([]style.Column, 0, len(columns))
 	for _, column := range columns {
 		styled = append(styled, style.Column{Title: column.Title, Role: column.Role})

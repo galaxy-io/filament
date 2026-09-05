@@ -3,6 +3,7 @@ package remote
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"connectrpc.com/connect"
 
@@ -37,19 +38,31 @@ func (t *Target) ListRuns(ctx context.Context, request model.RunListRequest) (mo
 		if name == "" {
 			name = run.GetPipelineId()
 		}
+		name, deleted := splitDeletedName(name)
 		list.Items = append(list.Items, model.RunSummary{
-			ID:        run.GetId(),
-			Pipeline:  name,
-			Version:   versions[run.GetPipelineVersionId()],
-			Status:    runStatusString(run.GetStatus()),
-			Records:   run.GetRecords(),
-			Bytes:     run.GetBytes(),
-			StartedAt: timeFromMillis(run.GetStartedAt()),
-			EndedAt:   timeFromMillis(run.GetEndedAt()),
-			Error:     run.GetError(),
+			ID:              run.GetId(),
+			Pipeline:        name,
+			PipelineDeleted: deleted,
+			Version:         versions[run.GetPipelineVersionId()],
+			Status:          runStatusString(run.GetStatus()),
+			Records:         run.GetRecords(),
+			Bytes:           run.GetBytes(),
+			StartedAt:       timeFromMillis(run.GetStartedAt()),
+			EndedAt:         timeFromMillis(run.GetEndedAt()),
+			Error:           run.GetError(),
 		})
 	}
 	return list, nil
+}
+
+// deletedNameSuffix is the stamp the deployment appends to a deleted
+// pipeline's name so its runs keep a readable one.
+var deletedNameSuffix = regexp.MustCompile(`__deleted__\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`)
+
+// splitDeletedName strips the deletion stamp and reports whether one was there.
+func splitDeletedName(name string) (string, bool) {
+	stripped := deletedNameSuffix.ReplaceAllString(name, "")
+	return stripped, stripped != name
 }
 
 // pipelineNames maps ids to names, deleted pipelines included since their
