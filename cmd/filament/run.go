@@ -13,10 +13,11 @@ import (
 
 func (a *cliApp) runCommandDefinition() *cobra.Command {
 	cmd := a.dynamicCommand(
-		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags] | run list [pipeline]",
+		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags]",
 		"Run a saved pipeline or an inline transfer, or list past runs", a.printRunHelp, a.runCommand,
 	)
 	cmd.PersistentPreRunE = a.prepareTarget
+	cmd.AddCommand(a.runListCommand())
 	return cmd
 }
 
@@ -29,9 +30,6 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) error {
 		return err
 	}
 	name := firstPositional(parsed)
-	if name == "list" || name == "ls" {
-		return a.listRuns(ctx, parsed)
-	}
 	var request cliapp.RunRequest
 	if name == "" {
 		request, err = a.directRunRequest(parsed.flags)
@@ -124,26 +122,37 @@ func (a *cliApp) savedRunRequest(ctx context.Context, name string, flags map[str
 	if err != nil {
 		return request, err
 	}
+	// Topology flags are rejected above, so the seeded refs are the saved
+	// pipeline's own; clearing them keeps a flagless run a plain saved run.
+	overrides.Source, overrides.Sink = "", ""
 	request.Overrides = overrides
 	return request, nil
 }
 
-// listRuns shows one page of run history: run list [pipeline] [--limit N] [--next CURSOR].
-func (a *cliApp) listRuns(ctx context.Context, parsed commandArgs) error {
-	if err := rejectUnknownFlags(parsed.flags, map[string]bool{"limit": true, "next": true}); err != nil {
-		return err
+// runListCommand shows one page of run history: run list [pipeline] [--limit N] [--next CURSOR].
+func (a *cliApp) runListCommand() *cobra.Command {
+	var page listPageFlags
+	cmd := &cobra.Command{
+		Use:     "list [pipeline]",
+		Aliases: []string{"ls"},
+		Short:   "List past runs",
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			request, err := page.request()
+			if err != nil {
+				return err
+			}
+			pipeline := ""
+			if len(args) == 1 {
+				pipeline = args[0]
+			}
+			result, err := a.service.Runs(cmd.Context(), climodel.RunListRequest{Pipeline: pipeline, PageRequest: request})
+			if err != nil {
+				return err
+			}
+			return a.text().Runs(result, strings.TrimSpace("filament run list "+pipeline))
+		},
 	}
-	page, err := pageRequestFromFlags(parsed.flags)
-	if err != nil {
-		return err
-	}
-	pipeline := ""
-	if len(parsed.positionals) > 1 {
-		pipeline = parsed.positionals[1]
-	}
-	result, err := a.service.Runs(ctx, climodel.RunListRequest{Pipeline: pipeline, PageRequest: page})
-	if err != nil {
-		return err
-	}
-	return a.text().Runs(result, strings.TrimSpace("filament run list "+pipeline))
+	page.add(cmd)
+	return cmd
 }

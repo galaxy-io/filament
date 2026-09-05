@@ -340,7 +340,7 @@ func (r *Renderer) showRuns(ctx context.Context) error {
 		var options []interactiveOption
 		if len(result.Items) > 0 {
 			description = ""
-			rows := present.RunRows(result.Items)
+			rows := present.RunRows(style.Painter{}, result.Items)
 			options = append(options, r.tableMenu(present.Titles(present.RunColumns()), present.Cells(rows), present.Keys(rows))...)
 		}
 		if result.Page.PreviousCursor != "" || result.Page.NextCursor != "" {
