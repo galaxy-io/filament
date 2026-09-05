@@ -332,8 +332,11 @@ func (r *Renderer) chooseInteractive(ctx context.Context, title, description str
 func (r *Renderer) showRuns(ctx context.Context) error {
 	request := model.RunListRequest{PageRequest: model.PageRequest{PageSize: model.DefaultPageSize}}
 	for {
-		result, err := r.service.Runs(ctx, request)
-		if err != nil {
+		var result model.RunList
+		if err := r.loading("Loading runs…", func() (err error) {
+			result, err = r.service.Runs(ctx, request)
+			return err
+		}); err != nil {
 			return r.notice(false, err.Error())
 		}
 		description := "No runs yet."

@@ -33,8 +33,11 @@ type runProgressDone struct {
 }
 
 func (r *Renderer) interactiveRun(ctx context.Context) error {
-	listed, err := r.service.Pipelines(ctx)
-	if err != nil {
+	var listed model.PipelineList
+	if err := r.loading("Loading pipelines…", func() (err error) {
+		listed, err = r.service.Pipelines(ctx)
+		return err
+	}); err != nil {
 		return err
 	}
 	if len(listed.Items) == 0 {
@@ -73,20 +76,29 @@ func (r *Renderer) RunRequest(ctx context.Context, request cliapp.RunRequest) (r
 // and discovery line inside the live frame and leaves nothing in scrollback;
 // otherwise they print above the frame and the final rows stay behind.
 func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest, transient bool) error {
-	submission, err := r.service.PrepareRun(ctx, request)
-	if err != nil {
-		return err
-	}
-	spec := submission.Spec
-	view := &runProgressView{theme: r.theme, title: runRoute(request.Pipeline, spec)}
+	var submission model.RunSubmission
 	var resources []model.ResourceSummary
-	if request.Pipeline != "" {
+	var discoverErr error
+	if err := r.loading("Preparing run…", func() error {
+		var err error
+		if submission, err = r.service.PrepareRun(ctx, request); err != nil {
+			return err
+		}
+		if request.Pipeline == "" {
+			return nil
+		}
 		doc, err := r.service.Configuration(ctx)
 		if err != nil {
 			return err
 		}
-		var discoverErr error
 		resources, discoverErr = r.discoverPipelineResources(ctx, doc.Pipelines[request.Pipeline])
+		return nil
+	}); err != nil {
+		return err
+	}
+	spec := submission.Spec
+	view := &runProgressView{theme: r.theme, title: runRoute(request.Pipeline, spec)}
+	if request.Pipeline != "" {
 		view.note = "Discovering resources… " + discoveryWord(discoverErr)
 	}
 	if spec.Sink.Connector == "stdout" {
@@ -97,16 +109,16 @@ func (r *Renderer) runRequest(ctx context.Context, request cliapp.RunRequest, tr
 			}
 		}
 	}
-	_, err = r.renderInteractiveRun(ctx, view, submission, resources, transient)
+	_, err := r.renderInteractiveRun(ctx, view, submission, resources, transient)
 	return err
 }
 
+// runRoute titles a run by its pipeline name, or by connectors when inline.
 func runRoute(name string, spec filament.RunSpec) string {
-	route := spec.Source.Connector + " → " + spec.Sink.Connector
 	if name != "" {
-		route = name + " · " + route
+		return name
 	}
-	return route
+	return spec.Source.Connector + " → " + spec.Sink.Connector
 }
 
 func discoveryWord(discoverErr error) string {
