@@ -30,7 +30,7 @@ curl -fsSL https://getgalaxy.io/filament/install | sh
 On macOS via Homebrew
 
 ```sh
-brew install --cask galaxy-io/tap/filament
+brew install galaxy-io/tap/filament
 ```
 
 Prebuilt binaries for Linux and macOS are on the [releases page](https://github.com/galaxy-io/filament/releases).
