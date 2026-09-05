@@ -19,15 +19,6 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 
 The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), and [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) documentation for their full configuration surfaces.
 
-## Installing
-
-The chart is published as an OCI artifact with a build provenance attestation.
-
-```sh
-helm install filament oci://ghcr.io/galaxy-io/charts/filament --version 0.0.26
-gh attestation verify --owner galaxy-io oci://ghcr.io/galaxy-io/charts/filament:0.0.26
-```
-
 ## Runtime configuration
 
 Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
@@ -42,7 +33,6 @@ kubectl create secret generic filament-runtime \
 
 helm upgrade --install filament \
   oci://ghcr.io/galaxy-io/charts/filament \
-  --version 0.0.26 \
   --set existingSecret=filament-runtime
 ```
 
@@ -54,7 +44,6 @@ ENC_KEY="$(openssl rand -base64 32)"
 
 helm upgrade --install filament \
   oci://ghcr.io/galaxy-io/charts/filament \
-  --version 0.0.26 \
   --set postgresql.enabled=true \
   --set nats.enabled=true \
   --set-string postgresql.auth.password="$PG_PASSWORD" \

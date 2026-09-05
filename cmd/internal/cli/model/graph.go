@@ -45,80 +45,104 @@ type ResourceCursor struct {
 // carries no read mode for it; the source connection's replication does.
 const SyncModeCDC = "cdc"
 
-// ProjectSimpleGraph fills the simple pipeline fields from graph when the
-// graph is one source-to-sink route with uniform modes and no selectors or
-// cursor overrides. The graph is retained either way so view and run stay
-// available when the projection is refused.
+// ModeMixed is the summary sync or write mode when a graph's routes disagree.
+const ModeMixed = "mixed"
+
+// ProjectSimpleGraph fills the simple pipeline fields from graph. Source, sink,
+// resources, and modes are summarized whenever the graph is one source and one
+// sink; the returned error is why the simple editor cannot round-trip it
+// (selectors, cursor overrides, modes that differ by resource), which the
+// caller records as the edit block. The graph is retained either way.
 func ProjectSimpleGraph(pipeline *Pipeline, graph PipelineGraph, sourceReplication string) error {
 	pipeline.Graph = cloneGraph(graph)
-	var source, sink *PipelineGraphNode
-	for i := range graph.Nodes {
-		node := &graph.Nodes[i]
-		switch node.Kind {
-		case "source":
-			if source != nil {
-				return fmt.Errorf("multiple source nodes")
-			}
-			source = node
-		case "sink":
-			if sink != nil {
-				return fmt.Errorf("multiple sink nodes")
-			}
-			sink = node
-		default:
-			return fmt.Errorf("node %q has unknown kind %q", node.ID, node.Kind)
-		}
+	source, sink, err := simpleRouteNodes(graph)
+	if err != nil {
+		return err
 	}
-	if len(graph.Nodes) != 2 || source == nil || sink == nil {
-		return fmt.Errorf("not a single source-to-sink route")
-	}
+	pipeline.Source = PipelineNode{Ref: source.Connection, Config: CloneConfig(source.Config), SecretRefs: maps.Clone(source.SecretRefs)}
+	pipeline.Sink = PipelineNode{Ref: sink.Connection, Config: CloneConfig(sink.Config), SecretRefs: maps.Clone(sink.SecretRefs)}
 	if len(graph.Edges) == 0 {
 		return fmt.Errorf("no route")
 	}
-	readMode, writeMode := "", ""
+	var blocked error
+	block := func(format string, args ...any) {
+		if blocked == nil {
+			blocked = fmt.Errorf(format, args...)
+		}
+	}
+	readMode, writeMode := graph.Edges[0].ReadMode, graph.Edges[0].WriteMode
 	var resources []string
+	all := false
 	seen := map[string]bool{}
-	for i, edge := range graph.Edges {
+	for _, edge := range graph.Edges {
 		if edge.From != source.ID || edge.To != sink.ID {
-			return fmt.Errorf("more than one source-to-sink route")
+			block("more than one source-to-sink route")
 		}
 		if edge.Selector != "" || len(edge.Cursors) > 0 {
-			return fmt.Errorf("selectors or cursor overrides in use")
+			block("selectors or cursor overrides in use")
 		}
-		if edge.Resource == "" && len(graph.Edges) != 1 {
-			return fmt.Errorf("all-resource route mixed with resource routes")
-		}
-		if seen[edge.Resource] {
-			return fmt.Errorf("duplicate route for resource %q", edge.Resource)
+		switch {
+		case seen[edge.Resource]:
+			block("duplicate route for resource %q", edge.Resource)
+		case edge.Resource == "":
+			all = true
+			if len(graph.Edges) != 1 {
+				block("all-resource route mixed with resource routes")
+			}
+		default:
+			resources = append(resources, edge.Resource)
 		}
 		seen[edge.Resource] = true
-		switch {
-		case i == 0:
-			readMode, writeMode = edge.ReadMode, edge.WriteMode
-		case edge.ReadMode != readMode:
-			return fmt.Errorf("read mode differs by resource")
-		case edge.WriteMode != writeMode:
-			return fmt.Errorf("write mode differs by resource")
+		if edge.ReadMode != readMode {
+			readMode = ModeMixed
+			block("read mode differs by resource")
 		}
-		if edge.Resource != "" {
-			resources = append(resources, edge.Resource)
+		if edge.WriteMode != writeMode {
+			writeMode = ModeMixed
+			block("write mode differs by resource")
 		}
 	}
 	switch {
 	case sourceReplication == SyncModeCDC:
 		if readMode != "" {
-			return fmt.Errorf("read mode set on a CDC source")
+			block("read mode set on a CDC source")
 		}
 		readMode = SyncModeCDC
 	case readMode == "":
 		readMode = "full"
 	}
-	pipeline.Source = PipelineNode{Ref: source.Connection, Config: CloneConfig(source.Config), SecretRefs: maps.Clone(source.SecretRefs)}
-	pipeline.Sink = PipelineNode{Ref: sink.Connection, Config: CloneConfig(sink.Config), SecretRefs: maps.Clone(sink.SecretRefs)}
+	if all {
+		resources = nil
+	}
 	pipeline.Resources = resources
 	pipeline.SyncMode = readMode
 	pipeline.WriteMode = writeMode
-	return nil
+	return blocked
+}
+
+// simpleRouteNodes returns the graph's one source and one sink node.
+func simpleRouteNodes(graph PipelineGraph) (source, sink *PipelineGraphNode, err error) {
+	for i := range graph.Nodes {
+		node := &graph.Nodes[i]
+		switch node.Kind {
+		case "source":
+			if source != nil {
+				return nil, nil, fmt.Errorf("multiple source nodes")
+			}
+			source = node
+		case "sink":
+			if sink != nil {
+				return nil, nil, fmt.Errorf("multiple sink nodes")
+			}
+			sink = node
+		default:
+			return nil, nil, fmt.Errorf("node %q has unknown kind %q", node.ID, node.Kind)
+		}
+	}
+	if len(graph.Nodes) != 2 || source == nil || sink == nil {
+		return nil, nil, fmt.Errorf("not a single source-to-sink route")
+	}
+	return source, sink, nil
 }
 
 // SimplePipelineGraph builds the complete graph for a simple pipeline,

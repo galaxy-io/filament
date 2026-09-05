@@ -25,15 +25,3 @@ func (f listPageFlags) request() (model.PageRequest, error) {
 	}
 	return model.PageRequest{PageSize: f.limit, Cursor: f.next}, nil
 }
-
-// pageRequestFromFlags reads --limit and --next out of a dynamic command's
-// parsed flags.
-func pageRequestFromFlags(flags map[string][]string) (model.PageRequest, error) {
-	page := listPageFlags{limit: model.DefaultPageSize, next: lastFlag(flags, "next")}
-	if raw, present := flagValue(flags, "limit"); present {
-		if _, err := fmt.Sscanf(raw, "%d", &page.limit); err != nil {
-			return model.PageRequest{}, fmt.Errorf("--limit must be a positive integer")
-		}
-	}
-	return page.request()
-}
