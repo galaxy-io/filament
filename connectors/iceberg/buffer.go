@@ -62,6 +62,11 @@ func (rb *recordBuf) setPolicy(policy filament.WritePolicy) error {
 	return nil
 }
 
+// accepts reports whether the bound write policy admits op.
+func (rb *recordBuf) accepts(op rowmodel.Operation) bool {
+	return rb.policy != nil && rb.policy.Capability.Accepts(op)
+}
+
 func (rb *recordBuf) writeMode(fallback writeMode) writeMode {
 	if rb.policy == nil {
 		return fallback
@@ -119,7 +124,10 @@ func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
 func (rb *recordBuf) validate(mode writeMode) error {
 	switch mode {
 	case writeModeAppend:
-		if rb.hasUpdate || rb.hasDelete {
+		// Append lands every row as-is, so a policy that accepts updates and
+		// deletes (CDC history, incremental append) is fine; only a plain
+		// insert-only append rejects them.
+		if (rb.hasUpdate && !rb.accepts(rowmodel.OpUpdate)) || (rb.hasDelete && !rb.accepts(rowmodel.OpDelete)) {
 			return fmt.Errorf("append mode does not support update/delete rows")
 		}
 	case writeModeReplace:
