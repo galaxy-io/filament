@@ -19,18 +19,34 @@ requirements and recovery behavior are covered in
 
 <Frame caption="Welcome to Filament">
   <div className="w-full">
-    <iframe
-      src="/assets/introduction.html"
-      title="Filament onboarding walkthrough"
-      className="hidden md:block w-full rounded-xl"
-      style={{ height: "660px", border: 0, colorScheme: "dark" }}
-    />
-    <iframe
-      src="/assets/introduction-mobile.html"
-      title="Filament onboarding walkthrough"
-      className="block md:hidden w-full rounded-xl"
-      style={{ height: "700px", border: 0, colorScheme: "dark" }}
-    />
+    <div className="hidden md:block">
+      <iframe
+        src="/assets/filament-product-demo-light.html"
+        title="Filament onboarding walkthrough"
+        className="block dark:hidden w-full rounded-xl"
+        style={{ height: "660px", border: 0, colorScheme: "light" }}
+      />
+      <iframe
+        src="/assets/filament-product-demo-dark.html"
+        title="Filament onboarding walkthrough"
+        className="hidden dark:block w-full rounded-xl"
+        style={{ height: "660px", border: 0, colorScheme: "dark" }}
+      />
+    </div>
+    <div className="block md:hidden">
+      <iframe
+        src="/assets/filament-product-demo-mobile-light.html"
+        title="Filament onboarding walkthrough"
+        className="block dark:hidden w-full rounded-xl"
+        style={{ height: "700px", border: 0, colorScheme: "light" }}
+      />
+      <iframe
+        src="/assets/filament-product-demo-mobile-dark.html"
+        title="Filament onboarding walkthrough"
+        className="hidden dark:block w-full rounded-xl"
+        style={{ height: "700px", border: 0, colorScheme: "dark" }}
+      />
+    </div>
   </div>
 </Frame>
 
