@@ -1,0 +1,662 @@
+<!-- Filament widget · Product demo, mobile: onboarding in three steps as a native app · light
+     Framer: Insert → Embed → HTML, paste this whole block. Width Fill, height Fill (or a fixed height).
+     Scoped to .gx-product-demo-mobile-light. A phone column up to 390px wide (--gx-max-w) that fills its container's height; rounded corners appear once the container is wider than a phone. -->
+<div class="gx-product-demo-mobile-light" data-gx="gx-product-demo-mobile-light">
+<style>
+@font-face{font-family:"ABC Diatype";src:url("https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Regular.otf") format("opentype");font-weight:400;font-display:swap}
+@font-face{font-family:"ABC Diatype";src:url("https://cdn.getgalaxy.io/fonts/Diatype/ABCDiatype-Medium.otf") format("opentype");font-weight:500;font-display:swap}
+@font-face{font-family:"Berkeley Mono";src:url("https://cdn.getgalaxy.io/fonts/BerkeleyMono/BerkeleyMono-Regular.otf") format("opentype");font-weight:400;font-display:swap}
+html,body{height:100%;margin:0}
+.gx-product-demo-mobile-light{position:relative;display:flex;justify-content:center;width:100%;height:100%;background:var(--gx-bg,transparent);container-type:inline-size}
+.gx-product-demo-mobile-light .fw-widget{
+--fw-base:#fdfefc;--fw-primary:#fafafa;--fw-secondary:#f0f0f0;--fw-border:#e8e8e8;--fw-edge:rgba(23,23,23,.10);--fw-shadow:rgba(0,0,0,.18);
+--fw-text:#171717;--fw-text-2:rgba(23,23,23,.62);--fw-text-3:rgba(23,23,23,.40);--fw-text-4:rgba(23,23,23,.18);--fw-text-5:rgba(23,23,23,.28);
+--fw-galaxy:#015fff;--fw-galaxy-rgb:1,95,255;--fw-green:#4cb782;--fw-beacon:#015fff;
+--fw-lime-bg:#e9f3d3;--fw-lime-tx:#5f8c12;--fw-pink-bg:#f8e6f7;--fw-pink-tx:#e0307f;--fw-green-bg:#e2f5ea;--fw-green-tx:#2f8f5b;
+--fw-sans:"ABC Diatype",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--fw-mono:"Berkeley Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+--fw-ease:cubic-bezier(.22,1,.36,1);--speed:1.5;--fit:calc(360ms / var(--speed));
+position:relative;box-sizing:border-box;width:100%;max-width:var(--gx-max-w,390px);height:100%;background:var(--fw-base);border:1px solid var(--fw-edge);overflow:hidden;color:var(--fw-text);font-family:var(--fw-sans);font-size:13px;line-height:15px;letter-spacing:.13px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+@container (min-width:431px){.gx-product-demo-mobile-light .fw-widget{border-radius:26px}}
+.gx-product-demo-mobile-light .fw-widget *{box-sizing:border-box;margin:0;padding:0}
+.gx-product-demo-mobile-light .hr{width:100%;height:.5px;background:var(--fw-border);flex-shrink:0}
+.gx-product-demo-mobile-light .screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--fw-base);overflow:hidden}
+.gx-product-demo-mobile-light .screen.main{transition:transform calc(400ms / var(--speed)) var(--fw-ease);transform-origin:50% 0}
+.gx-product-demo-mobile-light .screen.main.is-under{transform:scale(.955) translateY(8px)}
+.gx-product-demo-mobile-light .canvas-screen{z-index:10;transform:translateX(100%);transition:transform calc(400ms / var(--speed)) var(--fw-ease)}
+.gx-product-demo-mobile-light .canvas-screen.is-on{transform:none}
+.gx-product-demo-mobile-light .topbar{height:52px;flex-shrink:0;padding:0 16px;display:flex;align-items:center;gap:10px}
+.gx-product-demo-mobile-light .wm{display:block;width:auto;height:17px}
+.gx-product-demo-mobile-light .topbar .l{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.gx-product-demo-mobile-light .topbar .r{flex-shrink:0;display:flex;align-items:center;gap:8px}
+.gx-product-demo-mobile-light .pname{flex:1;min-width:0;font-size:14px;font-weight:500;letter-spacing:.14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-product-demo-mobile-light .icon-btn{width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-left:-6px;border-radius:7px;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .icon-btn svg{width:17px;height:17px;display:block}
+.gx-product-demo-mobile-light .content{flex:1;min-height:0;padding:16px 12px;display:flex;flex-direction:column;justify-content:center;gap:18px;overflow-y:auto}
+.gx-product-demo-mobile-light .lede{display:flex;flex-direction:column;gap:5px;padding:0 2px}
+.gx-product-demo-mobile-light .ttl{font-size:18px;line-height:21px;letter-spacing:.18px;font-weight:500}
+.gx-product-demo-mobile-light .sub{color:var(--fw-text-2);line-height:16px}
+.gx-product-demo-mobile-light .card{width:100%;display:flex;flex-direction:column;background:var(--fw-secondary);border:.5px solid var(--fw-galaxy);border-radius:10px;overflow:hidden}
+.gx-product-demo-mobile-light .count{padding:12px 14px;font-size:12px;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .step{padding:13px 14px;display:flex;align-items:flex-start;gap:11px;transition:opacity calc(300ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .step.upcoming{opacity:.55}
+.gx-product-demo-mobile-light .marker{flex-shrink:0;height:17px;display:flex;align-items:center}
+.gx-product-demo-mobile-light .marker svg{width:18px;height:18px;display:block}
+.gx-product-demo-mobile-light .upcoming .marker{color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .done .marker{color:var(--fw-green)}
+.gx-product-demo-mobile-light .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.gx-product-demo-mobile-light .hdr{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.gx-product-demo-mobile-light .txt b{font-size:14px;line-height:17px;letter-spacing:.14px;font-weight:500}
+.gx-product-demo-mobile-light .done .txt b{color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .dsc{font-size:12px;line-height:15px;color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .done .dsc{color:var(--fw-text-5)}
+.gx-product-demo-mobile-light .step .act{margin-top:9px}
+.gx-product-demo-mobile-light .progress{width:100%;height:4px;border-radius:2px;background:var(--fw-secondary);overflow:hidden}
+.gx-product-demo-mobile-light .progress i{display:block;height:100%;width:0;background:var(--fw-galaxy);border-radius:2px;transition:width calc(520ms / var(--speed)) var(--fw-ease)}
+.gx-product-demo-mobile-light .btn{height:30px;padding:0 11px;display:inline-flex;align-items:center;gap:6px;border:.5px solid transparent;border-radius:6px;font-size:13px;font-weight:500;letter-spacing:.13px;white-space:nowrap;transition:transform calc(120ms / var(--speed)) var(--fw-ease)}
+.gx-product-demo-mobile-light .btn svg{width:13px;height:13px;flex-shrink:0}
+.gx-product-demo-mobile-light .btn.sm{height:28px;padding:0 9px;font-size:12px}
+.gx-product-demo-mobile-light .btn.lg{height:40px;padding:0 14px;font-size:14px;border-radius:8px}
+.gx-product-demo-mobile-light .btn.primary{background:var(--fw-galaxy);color:#fdfefc}
+.gx-product-demo-mobile-light .btn.alt{background:var(--fw-text);color:var(--fw-base)}
+.gx-product-demo-mobile-light .btn.full{width:100%;justify-content:center}
+.gx-product-demo-mobile-light .btn.is-press{transform:scale(.965)}
+.gx-product-demo-mobile-light .chip{display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 6px;border-radius:4px;font-size:11px;line-height:13px;letter-spacing:.11px;white-space:nowrap;flex-shrink:0}
+.gx-product-demo-mobile-light .chip.lime{background:var(--fw-lime-bg);color:var(--fw-lime-tx)}
+.gx-product-demo-mobile-light .chip.pink{background:var(--fw-pink-bg);color:var(--fw-pink-tx)}
+.gx-product-demo-mobile-light .chip.success{background:var(--fw-green-bg);color:var(--fw-green-tx)}
+.gx-product-demo-mobile-light .tile{width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--fw-secondary);border:.5px solid var(--fw-text-4);border-radius:6px;overflow:hidden}
+.gx-product-demo-mobile-light .tile img{width:17px;height:17px;display:block;object-fit:contain}
+.gx-product-demo-mobile-light .fb{font-family:var(--fw-mono);font-size:13px;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .tile.lg{width:38px;height:38px;border-radius:9px}
+.gx-product-demo-mobile-light .tile.lg img{width:25px;height:25px}
+.gx-product-demo-mobile-light .input{height:40px;padding:0 10px;display:flex;align-items:center;gap:9px;background:var(--fw-secondary);border:.5px solid var(--fw-border);border-radius:8px;color:var(--fw-text-3);font-size:14px;overflow:hidden;transition:border-color calc(140ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .input svg{width:15px;height:15px;flex-shrink:0}
+.gx-product-demo-mobile-light .val{flex:0 0 auto;color:var(--fw-text);white-space:nowrap}
+.gx-product-demo-mobile-light .val.ph{color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .input.is-focus{border-color:var(--fw-text-4)}
+.gx-product-demo-mobile-light .txt-sm{font-size:12px;line-height:15px}
+.gx-product-demo-mobile-light .t2{color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .scrim{position:absolute;inset:0;z-index:60;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity calc(260ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .scrim.is-on{opacity:1}
+.gx-product-demo-mobile-light .sheet{position:absolute;left:0;right:0;bottom:0;z-index:70;height:640px;max-height:86%;display:flex;flex-direction:column;background:var(--fw-primary);border-top:.5px solid var(--fw-edge);border-radius:16px 16px 0 0;overflow:hidden;transform:translateY(101%);transition:transform calc(340ms / var(--speed)) var(--fw-ease),height calc(340ms / var(--speed)) var(--fw-ease)}
+.gx-product-demo-mobile-light .sheet.is-in{transform:none}
+.gx-product-demo-mobile-light .sheet.is-cfg{height:372px}
+.gx-product-demo-mobile-light .grab{flex-shrink:0;height:18px;display:flex;align-items:center;justify-content:center}
+.gx-product-demo-mobile-light .grab i{display:block;width:34px;height:4px;border-radius:2px;background:var(--fw-text-4)}
+.gx-product-demo-mobile-light .stack{flex:1;min-height:0;display:flex;width:200%;transition:transform calc(340ms / var(--speed)) var(--fw-ease)}
+.gx-product-demo-mobile-light .stack.is-2{transform:translateX(-50%)}
+.gx-product-demo-mobile-light .pane{width:50%;min-width:0;display:flex;flex-direction:column}
+.gx-product-demo-mobile-light .s-head{flex-shrink:0;padding:4px 16px 12px;display:flex;align-items:center;gap:11px}
+.gx-product-demo-mobile-light .titles{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.gx-product-demo-mobile-light .titles b{font-size:17px;line-height:20px;letter-spacing:.17px;font-weight:500}
+.gx-product-demo-mobile-light .s-search{flex-shrink:0;padding:0 16px 12px}
+.gx-product-demo-mobile-light .s-list{flex:1;min-height:0;overflow-y:auto;background:var(--fw-base);padding-bottom:10px}
+.gx-product-demo-mobile-light .c-row{padding:11px 16px;display:flex;align-items:center;gap:11px;border-bottom:.5px solid var(--fw-border);transition:background-color calc(140ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .c-row:last-child{border-bottom:0}
+.gx-product-demo-mobile-light .c-row.is-off{display:none}
+.gx-product-demo-mobile-light .c-row.is-hot{background:var(--fw-secondary)}
+.gx-product-demo-mobile-light .c-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.gx-product-demo-mobile-light .c-nm{font-size:14px;line-height:17px;font-weight:500;letter-spacing:.14px}
+.gx-product-demo-mobile-light .c-desc{font-size:12px;line-height:15px;color:var(--fw-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-product-demo-mobile-light .caret{width:13px;height:13px;flex-shrink:0;color:var(--fw-text-5)}
+.gx-product-demo-mobile-light .caret svg{width:100%;height:100%;display:block}
+.gx-product-demo-mobile-light .s-body{flex:1;min-height:0;padding:16px 12px;background:var(--fw-base);overflow-y:auto}
+.gx-product-demo-mobile-light .field+.field{margin-top:16px}
+.gx-product-demo-mobile-light .lab{display:block;margin-bottom:7px;font-size:12px;line-height:14px;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .s-foot{flex-shrink:0;padding:12px 16px 14px}
+.gx-product-demo-mobile-light .canvas-wrap{flex:1;min-height:0;width:100%;padding:0 12px 12px;display:flex}
+.gx-product-demo-mobile-light .canvas{position:relative;flex:1;min-width:0;background:radial-gradient(circle at 1px 1px,var(--fw-border) 1px,transparent 0) 0 0/14px 14px,var(--fw-base);border:.5px solid var(--fw-border);border-radius:10px;overflow:hidden}
+.gx-product-demo-mobile-light .edges{position:absolute;inset:0;z-index:30;pointer-events:none}
+.gx-product-demo-mobile-light .edge{fill:none;stroke:var(--fw-border);stroke-width:2}
+.gx-product-demo-mobile-light .edge.draft{stroke:var(--fw-beacon);stroke-dasharray:4 4}
+.gx-product-demo-mobile-light .is-running .edge{stroke:var(--fw-galaxy);stroke-dasharray:5 5;animation:gx-product-demo-mobile-light-dash .5s linear infinite}
+@keyframes gx-product-demo-mobile-light-dash{from{stroke-dashoffset:10}to{stroke-dashoffset:0}}
+.gx-product-demo-mobile-light .controls{position:absolute;bottom:12px;right:12px;z-index:30;display:flex;flex-direction:column;background:var(--fw-primary);border:.5px solid var(--fw-border);border-radius:8px;overflow:hidden}
+.gx-product-demo-mobile-light .controls span{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-bottom:.5px solid var(--fw-border);color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .controls span:last-child{border-bottom:0}
+.gx-product-demo-mobile-light .controls svg{width:14px;height:14px;display:block}
+.gx-product-demo-mobile-light .stage{position:absolute;inset:0;transition:bottom var(--fit) var(--fw-ease),transform var(--fit) var(--fw-ease)}
+.gx-product-demo-mobile-light .canvas.is-panel .stage{bottom:55%}
+.gx-product-demo-mobile-light .node{position:absolute;top:50%;display:flex;flex-direction:column;gap:8px;z-index:20}
+.gx-product-demo-mobile-light .node.source{left:-4px;width:58%;margin-top:-120px}
+.gx-product-demo-mobile-light .node.sink{left:62%;width:70%;margin-top:50px}
+.gx-product-demo-mobile-light .kindrow{display:flex;align-items:center;justify-content:space-between}
+.gx-product-demo-mobile-light .acts{display:flex;align-items:center;gap:4px}
+.gx-product-demo-mobile-light .node .act{width:20px;height:20px;display:flex;align-items:center;justify-content:center;background:var(--fw-primary);border-radius:5px;color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .node .act svg{width:13px;height:13px;display:block}
+.gx-product-demo-mobile-light .node-island{padding:8px;background:var(--fw-primary);border:.5px solid var(--fw-border);border-radius:8px;outline:0 solid var(--fw-galaxy);outline-offset:-1px;transition:border-color calc(140ms / var(--speed)) ease,outline-width calc(140ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .is-running .node-island{border-color:var(--fw-galaxy);outline-width:1px}
+.gx-product-demo-mobile-light .node-head{display:flex;align-items:center;gap:7px}
+.gx-product-demo-mobile-light .nm{flex:1;min-width:0;font-size:13px;line-height:16px;font-weight:500;letter-spacing:.12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-product-demo-mobile-light .node .tile{width:24px;height:24px;border-radius:5px}
+.gx-product-demo-mobile-light .node .tile img{width:16px;height:16px}
+.gx-product-demo-mobile-light .node-tables{display:flex;flex-direction:column;gap:2px}
+.gx-product-demo-mobile-light .trow{display:flex;align-items:center;justify-content:space-between;gap:4px;height:26px}
+.gx-product-demo-mobile-light .tname{font-family:var(--fw-mono);font-size:12px;letter-spacing:.12px;color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .trow.is-conn .tname{color:var(--fw-text)}
+.gx-product-demo-mobile-light .port-slot{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.gx-product-demo-mobile-light .port{width:8px;height:8px;border-radius:50%;background:var(--fw-text-3);border:0 solid var(--fw-galaxy);transition:width calc(140ms / var(--speed)) ease,height calc(140ms / var(--speed)) ease,background-color calc(140ms / var(--speed)) ease,border-width calc(140ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .port.is-conn{width:12px;height:12px;background:transparent;border-width:2px}
+.gx-product-demo-mobile-light .port.is-live{background:var(--fw-beacon)}
+.gx-product-demo-mobile-light .beacon{position:relative;width:8px;height:8px;flex-shrink:0}
+.gx-product-demo-mobile-light .beacon i{position:absolute;inset:0;border-radius:50%;background:var(--fw-beacon)}
+.gx-product-demo-mobile-light .beacon .ring{animation:gx-product-demo-mobile-light-ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+@keyframes gx-product-demo-mobile-light-ping{0%{transform:scale(1);opacity:.7}80%,100%{transform:scale(2.4);opacity:0}}
+.gx-product-demo-mobile-light .panel{position:absolute;left:0;right:0;bottom:0;z-index:40;height:52%;display:flex;flex-direction:column;background:var(--fw-primary);border-top:.5px solid var(--fw-edge);border-radius:16px 16px 0 0;overflow:hidden;transform:translateY(101%);transition:transform var(--fit) var(--fw-ease)}
+.gx-product-demo-mobile-light .panel.is-in{transform:none}
+.gx-product-demo-mobile-light .panel-tabs{flex-shrink:0;height:40px;padding:0 16px;display:flex;align-items:center;gap:8px}
+.gx-product-demo-mobile-light .tabs{height:100%;display:flex;align-items:stretch;gap:4px}
+.gx-product-demo-mobile-light .tab{display:flex;align-items:center;padding:0 10px;opacity:.5;border-bottom:2px solid transparent}
+.gx-product-demo-mobile-light .tab.is-on{opacity:1;border-bottom-color:var(--fw-text)}
+.gx-product-demo-mobile-light .activity{flex:1;min-height:0;padding:8px 16px 10px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;font-family:var(--fw-mono);font-size:11px;line-height:13px;letter-spacing:.11px}
+.gx-product-demo-mobile-light .aline{display:flex;flex-direction:column;gap:1px}
+.gx-product-demo-mobile-light .ahead{display:flex;align-items:baseline;gap:8px}
+.gx-product-demo-mobile-light .ts{flex-shrink:0;color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .ev{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .det{padding-left:61px;overflow-wrap:anywhere;color:var(--fw-text-2)}
+.gx-product-demo-mobile-light .ok{color:var(--fw-green)}
+.gx-product-demo-mobile-light .dim,.gx-product-demo-mobile-light .listening{color:var(--fw-text-3)}
+.gx-product-demo-mobile-light .listening{animation:gx-product-demo-mobile-light-flash 1.6s ease-in-out infinite}
+@keyframes gx-product-demo-mobile-light-flash{0%,100%{opacity:1}50%{opacity:.35}}
+.gx-product-demo-mobile-light .cursor{position:absolute;z-index:90;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:var(--fw-text-4);border:1.5px solid var(--fw-text);box-shadow:0 2px 12px var(--fw-shadow);opacity:.42;pointer-events:none;transform:translate(-140px,-140px);transition:transform calc(620ms / var(--speed)) cubic-bezier(.4,.1,.2,1),width calc(150ms / var(--speed)) ease,height calc(150ms / var(--speed)) ease,margin calc(150ms / var(--speed)) ease,opacity calc(150ms / var(--speed)) ease,background-color calc(150ms / var(--speed)) ease,border-color calc(150ms / var(--speed)) ease}
+.gx-product-demo-mobile-light .cursor.is-tap{width:20px;height:20px;margin:-10px 0 0 -10px;opacity:1;background:var(--fw-text-5)}
+.gx-product-demo-mobile-light .cursor.is-drag{opacity:1;background:rgba(var(--fw-galaxy-rgb),.35);border-color:var(--fw-beacon)}
+.gx-product-demo-mobile-light .ripple{position:absolute;z-index:89;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:1.5px solid var(--fw-text-2);opacity:0;pointer-events:none}
+.gx-product-demo-mobile-light .ripple.go{animation:gx-product-demo-mobile-light-ripple calc(560ms / var(--speed)) ease-out}
+@keyframes gx-product-demo-mobile-light-ripple{0%{opacity:.85;transform:scale(.35)}100%{opacity:0;transform:scale(1.35)}}
+@media (prefers-reduced-motion:reduce){.gx-product-demo-mobile-light .ring,.gx-product-demo-mobile-light .listening,.gx-product-demo-mobile-light .is-running .edge{animation:none}}
+</style>
+<div class="fw-widget" data-fw-app>
+  <div class="screen main" data-screen="main">
+    <div class="topbar"><svg class="wm" viewBox="0 0 4513 1200" fill="currentColor" role="img" aria-label="Filament"><path d="M181.814 1141.98L159.701 1200L0 985.717L292.377 210.999L363.136 151.659H701.801L660.525 253.856H517.432L468.053 385.708H617.534L579.697 487.246H429.725L181.814 1141.98ZM720.432 336.273L766.622 212.318H1005.44L958.942 336.273H720.432ZM505.694 910.552L701.758 384.404H941.065L745.001 910.552H505.694ZM825.912 910.552L1109.45 151.659L1131.06 92.978L1290.77 307.262L1065.71 910.552H825.912ZM1452.44 720.004L1419.51 808.356H1510.91L1544.32 720.004H1452.44ZM1582.16 617.808L1630.81 487.259H1539.41L1510.41 563.743H1271.11L1316.32 443.085L1359.56 384.404H1864.71L1886.33 443.085L1711.4 910.552H1185.61L1163.99 851.872L1250.96 617.808H1582.16ZM2016.67 910.552H1788.05L1983.62 385.063H2742.33L2763.95 443.085L2590 910.552H2361.38L2519.61 487.259H2457.44L2299.21 910.552H2082.28L2240.01 487.259H2173.91L2016.67 910.552ZM2998.33 664.621L2943.8 808.356H3034.7L3075 703.522H3314.3L3258.29 852.531L3215.04 910.552H2709.9L2688.27 852.531L2840.6 443.085L2883.84 385.063H3388.99L3410.62 443.085L3330.03 665.281H3090.23V664.621H2998.33ZM3128.07 563.083L3155.09 487.259H3063.2L3035.68 563.083H3128.07ZM3553.12 910.552H3313.32L3508.9 385.063H4033.2L4054.83 443.085L3880.38 910.552H3640.59L3798.81 487.259H3710.36L3553.12 910.552ZM4120.38 481.326L4158.22 379.788L4243.72 149.681L4265.34 91L4425.04 304.625L4397.53 379.788H4513L4470.74 481.326H4359.69L4237.83 808.356H4343.2L4299.17 910.552H4197.24H4003.92L3980.82 854.51L4120.38 481.326Z"/></svg></div>
+    <div class="content">
+      <div class="lede"><span class="ttl">Let's set up your first pipeline</span><span class="sub">Three steps to complete your onboarding</span></div>
+      <div class="card">
+        <div class="count"><span data-count>0</span> of 3 complete</div>
+        <div class="hr"></div>
+        <div data-steps></div>
+      </div>
+      <div class="progress"><i data-bar></i></div>
+    </div>
+  </div>
+  <div class="screen canvas-screen" data-screen="canvas"></div>
+  <div class="scrim" data-scrim></div>
+  <div data-sheet-host></div>
+  <div class="ripple" data-ripple></div>
+  <div class="cursor" data-cursor></div>
+</div>
+<script>
+(function () {
+  var SLUG = 'gx-product-demo-mobile-light';
+  function boot(root) {
+    if (root.dataset.gxReady) return;
+    root.dataset.gxReady = '1';
+    var CDN = function (n) { return 'https://cdn.getgalaxy.io/sources/source-icon-' + n + '-light.svg'; };
+    var SPEED = 1.5;
+    var app = root.querySelector('[data-fw-app]');
+    app.style.setProperty('--speed', SPEED);
+    var stepsEl = root.querySelector('[data-steps]');
+    var countEl = root.querySelector('[data-count]');
+    var barEl = root.querySelector('[data-bar]');
+    var scrim = root.querySelector('[data-scrim]');
+    var sheetHost = root.querySelector('[data-sheet-host]');
+    var cursor = root.querySelector('[data-cursor]');
+    var ripple = root.querySelector('[data-ripple]');
+    var mainScreen = root.querySelector('[data-screen="main"]');
+    var canvasScreen = root.querySelector('[data-screen="canvas"]');
+    var IC = {
+      circle: 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z',
+      circleBold: 'M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Z',
+      checkCircle: 'M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z',
+      check: 'M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z',
+      arrowRight: 'M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z',
+      arrowLeft: 'M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z',
+      caretRight: 'M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z',
+      search: 'M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z',
+      play: 'M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z',
+      save: 'M219.31,72,184,36.69A15.86,15.86,0,0,0,172.69,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V83.31A15.86,15.86,0,0,0,219.31,72ZM168,208H88V152h80Zm40,0H184V152a16,16,0,0,0-16-16H88a16,16,0,0,0-16,16v56H48V48H172.69L208,83.31ZM160,72a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h56A8,8,0,0,1,160,72Z',
+      refresh: 'M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z',
+      trash: 'M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z',
+      plus: 'M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z',
+      minus: 'M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128Z',
+      reset: 'M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z'
+    };
+    function svg(p) { return '<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="' + p + '"/></svg>'; }
+    function tile(n, lg) { return '<span class="tile' + (lg ? ' lg' : '') + '"><img src="' + CDN(n) + '" alt="' + n + ' logo" data-fb="' + n.charAt(0).toUpperCase() + '"></span>'; }
+    function logos(el) {
+      el.querySelectorAll('img[data-fb]').forEach(function (img) {
+        img.onerror = function () { img.outerHTML = '<span class="fb">' + img.dataset.fb + '</span>'; };
+      });
+    }
+    var STEPS = [
+      { key: 'source', title: 'Connect a source', desc: 'Configure a source system to ingest from', action: 'New source' },
+      { key: 'sink', title: 'Connect a sink', desc: 'Configure a destination to send data to', action: 'New sink' },
+      { key: 'pipeline', title: 'Create a pipeline', desc: 'Connect your source to your sink and replicate data', action: 'New pipeline' }
+    ];
+    var SOURCES = [
+      { n: 'attio', d: 'Attio', t: 'CRM records, lists, notes and workspace members.' },
+      { n: 'github', d: 'GitHub', t: 'Repos, issues, pull requests, commits and reviews.' },
+      { n: 'linear', d: 'Linear', t: 'Issues, projects, cycles and team activity.' },
+      { n: 'mysql', d: 'MySQL', t: 'Read tables and binlog change events from MySQL.' },
+      { n: 'notion', d: 'Notion', t: 'Pages, databases and blocks from a workspace.' },
+      { n: 'postgres', d: 'Postgres', t: 'Stream tables and change data capture from PostgreSQL.' },
+      { n: 'posthog', d: 'PostHog', t: 'Events, persons, cohorts and feature flags.' },
+      { n: 'slack', d: 'Slack', t: 'Channels, messages, threads and users.' },
+      { n: 'stripe', d: 'Stripe', t: 'Charges, invoices, customers and subscriptions.' }
+    ];
+    var SINKS = [
+      { n: 's3', d: 'Amazon S3', t: 'Write Parquet or NDJSON objects to any bucket.' },
+      { n: 'clickhouse', d: 'ClickHouse', t: 'Write columnar tables to ClickHouse Cloud or self-hosted.' },
+      { n: 'iceberg', d: 'Iceberg', t: 'Append to Iceberg tables on any object store.' },
+      { n: 'mongo', d: 'MongoDB', t: 'Upsert documents into MongoDB collections.' },
+      { n: 'motherduck', d: 'MotherDuck', t: 'Load into MotherDuck, DuckDB in the cloud.' },
+      { n: 'mysql', d: 'MySQL', t: 'Write tables into a MySQL destination.' },
+      { n: 'postgres', d: 'Postgres', t: 'Write tables into a PostgreSQL destination.' },
+      { n: 'snowflake', d: 'Snowflake', t: 'Load into Snowflake warehouses via staged copies.' },
+      { n: 'stdout', d: 'stdout', t: 'Print records to the log, for local debugging.' }
+    ];
+    var TABLES = ['orders', 'customers', 'payments', 'invoices', 'events'];
+    function byName(list, n) { return list.filter(function (c) { return c.n === n; })[0]; }
+    var RUN_BTN = '<span class="btn primary sm" data-run>' + svg(IC.play) + 'Run</span>';
+    var SAVE_BTN = '<span class="btn alt sm" data-save>' + svg(IC.save) + 'Save</span>';
+    var RUNNING = '<span class="beacon"><i class="ring"></i><i></i></span><span class="txt-sm" style="margin-left:2px;color:var(--fw-beacon)">Running</span>';
+    var COMPLETED = '<span style="width:14px;height:14px;color:var(--fw-green);display:block">' + svg(IC.check) + '</span><span class="txt-sm" style="color:var(--fw-green)">Completed</span>';
+    var done = 0;
+    var gen = { alive: false };
+    function wait(ms) {
+      var g = gen;
+      return new Promise(function (res, rej) { setTimeout(function () { g.alive ? res() : rej('x'); }, ms / SPEED); });
+    }
+    function moveTo(el) {
+      if (!el) return wait(1);
+      var a = app.getBoundingClientRect(), b = el.getBoundingClientRect();
+      var x = b.left - a.left + b.width / 2, y = b.top - a.top + b.height / 2;
+      cursor.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      ripple.style.left = x + 'px';
+      ripple.style.top = y + 'px';
+      return wait(680);
+    }
+    function tap(el) {
+      cursor.classList.add('is-tap');
+      ripple.classList.remove('go');
+      void ripple.offsetWidth;
+      ripple.classList.add('go');
+      if (el) el.classList.add('is-press');
+      return wait(220).then(function () {
+        cursor.classList.remove('is-tap');
+        if (el) el.classList.remove('is-press');
+        return wait(150);
+      });
+    }
+    function click(el) { return moveTo(el).then(function () { return tap(el); }); }
+    function type(el, text) {
+      var i = 0, g = gen, speed = text.length > 30 ? 15 : 38;
+      el.innerHTML = '<span class="val"></span>';
+      var v = el.querySelector('.val');
+      return new Promise(function (res, rej) {
+        (function step() {
+          if (!g.alive) return rej('x');
+          if (i >= text.length) { el.scrollLeft = 0; return res(); }
+          v.textContent = text.slice(0, ++i);
+          el.scrollLeft = el.scrollWidth;
+          setTimeout(step, speed / SPEED);
+        })();
+      });
+    }
+    function typeInto(v, text, cb) {
+      var i = 0, g = gen;
+      v.classList.remove('ph');
+      v.textContent = '';
+      return new Promise(function (res, rej) {
+        (function step() {
+          if (!g.alive) return rej('x');
+          if (i >= text.length) return res();
+          v.textContent = text.slice(0, ++i);
+          cb(v.textContent);
+          setTimeout(step, 105 / SPEED);
+        })();
+      });
+    }
+    function renderSteps() {
+      stepsEl.innerHTML = STEPS.map(function (s, i) {
+        var status = i < done ? 'done' : (i === done ? 'active' : 'upcoming');
+        var marker = status === 'done' ? IC.checkCircle : (status === 'active' ? IC.circleBold : IC.circle);
+        return '<div class="step ' + status + '"><span class="marker">' + svg(marker) + '</span><span class="txt"><span class="hdr"><b>' + s.title + '</b>'
+          + (status === 'done' ? '<span class="chip success">Done</span>' : '') + '</span><span class="dsc">' + s.desc + '</span>'
+          + (status === 'active' ? '<span class="act"><span class="btn primary lg full" data-step="' + s.key + '">' + s.action + svg(IC.arrowRight) + '</span></span>' : '')
+          + '</span></div>' + (i < 2 ? '<div class="hr"></div>' : '');
+      }).join('');
+      countEl.textContent = done;
+      barEl.style.width = (done / 3 * 100) + '%';
+    }
+    var sheet, stackEl;
+    function openSheet(kind) {
+      var list = kind === 'source' ? SOURCES : SINKS;
+      var chip = '<span class="chip ' + (kind === 'source' ? 'lime">Source' : 'pink">Sink') + '</span>';
+      sheet = document.createElement('div');
+      sheet.className = 'sheet';
+      sheet.innerHTML = '<div class="grab"><i></i></div><div class="stack" data-stack><div class="pane">'
+        + '<div class="s-head"><span class="titles"><b>New ' + kind + '</b><span class="txt-sm t2">Connect to a data ' + kind + '</span></span></div>'
+        + '<div class="s-search"><span class="input" data-search>' + svg(IC.search) + '<span class="val ph">Search connectors...</span></span></div><div class="hr"></div>'
+        + '<div class="s-list">' + list.map(function (c) {
+          return '<div class="c-row" data-connector="' + c.n + '">' + tile(c.n) + '<span class="c-txt"><span class="c-nm">' + c.d + '</span><span class="c-desc">' + c.t + '</span></span>' + chip + '<span class="caret">' + svg(IC.caretRight) + '</span></div>';
+        }).join('') + '</div></div><div class="pane" data-cfg></div></div>';
+      logos(sheet);
+      sheetHost.appendChild(sheet);
+      stackEl = sheet.querySelector('[data-stack]');
+      scrim.classList.add('is-on');
+      mainScreen.classList.add('is-under');
+      requestAnimationFrame(function () { sheet.classList.add('is-in'); });
+      return wait(400);
+    }
+    function filterList(q) {
+      q = q.toLowerCase();
+      sheet.querySelectorAll('.c-row').forEach(function (r) {
+        var nm = r.querySelector('.c-nm').textContent.toLowerCase();
+        r.classList.toggle('is-off', !(nm.indexOf(q) === 0 || r.dataset.connector.indexOf(q) === 0));
+      });
+    }
+    function pushConfigure(kind, spec, fields) {
+      var cfg = sheet.querySelector('[data-cfg]');
+      cfg.innerHTML = '<div class="s-head"><span class="icon-btn" style="margin-left:0">' + svg(IC.arrowLeft) + '</span>' + tile(spec.n, true)
+        + '<span class="titles"><b>' + spec.d + '</b><span class="chip ' + (kind === 'source' ? 'lime' : 'pink') + '" style="align-self:flex-start">' + (kind === 'source' ? 'Source' : 'Sink') + '</span></span></div><div class="hr"></div>'
+        + '<div class="s-body">' + fields.map(function (f) { return '<div class="field"><span class="lab">' + f.label + '</span><span class="input" data-field="' + f.key + '"><span class="val ph">' + f.ph + '</span></span></div>'; }).join('') + '</div>'
+        + '<div class="s-foot"><span class="btn primary lg full" data-create>' + svg(IC.check) + 'Create</span></div>';
+      logos(cfg);
+      stackEl.classList.add('is-2');
+      sheet.classList.add('is-cfg');
+      return wait(420);
+    }
+    function closeSheet() {
+      if (!sheet) return wait(1);
+      var s = sheet;
+      s.classList.remove('is-in');
+      scrim.classList.remove('is-on');
+      mainScreen.classList.remove('is-under');
+      sheet = null; stackEl = null;
+      return wait(340).then(function () { s.remove(); });
+    }
+    var canvasEl, edgesSvg, tablesEl, pipeActs, draftFrom = null, panelEl, activityEl, logT = [], edgePaths = [], trackRaf = null;
+    function buildCanvas() {
+      canvasScreen.innerHTML = '<div class="topbar"><span class="l"><span class="icon-btn">' + svg(IC.arrowLeft) + '</span><span class="pname">prod-postgres → clickhouse</span></span><span class="r" data-pipe-actions></span></div>'
+        + '<div class="canvas-wrap"><div class="canvas" data-canvas><svg class="edges" data-edges></svg><div class="stage">'
+        + '<div class="node source"><div class="kindrow"><span class="chip lime">Source</span><span class="acts"><span class="act">' + svg(IC.refresh) + '</span><span class="act">' + svg(IC.trash) + '</span></span></div>'
+        + '<div class="node-island"><div class="node-head">' + tile('postgres') + '<span class="nm">prod-postgres</span></div></div>'
+        + '<div class="node-island"><div class="node-tables" data-tables>' + TABLES.map(function (t) { return '<div class="trow"><span class="tname">' + t + '</span><span class="port-slot"><span class="port"></span></span></div>'; }).join('') + '</div></div></div>'
+        + '<div class="node sink"><div class="kindrow"><span class="chip pink">Sink</span><span class="acts"><span class="act">' + svg(IC.trash) + '</span></span></div>'
+        + '<div class="node-island"><div class="node-head"><span class="port-slot"><span class="port" data-sink-port></span></span>' + tile('clickhouse') + '<span class="nm">clickhouse</span></div></div></div>'
+        + '</div><div class="controls"><span>' + svg(IC.plus) + '</span><span>' + svg(IC.minus) + '</span><span>' + svg(IC.reset) + '</span></div></div></div>';
+      logos(canvasScreen);
+      stopActivity();
+      panelEl = null;
+      draftFrom = null;
+      canvasEl = canvasScreen.querySelector('[data-canvas]');
+      edgesSvg = canvasScreen.querySelector('[data-edges]');
+      edgePaths = [];
+      tablesEl = canvasScreen.querySelector('[data-tables]');
+      pipeActs = canvasScreen.querySelector('[data-pipe-actions]');
+    }
+    function portAt(el) {
+      var c = canvasEl.getBoundingClientRect(), b = el.getBoundingClientRect();
+      return { x: b.left - c.left + b.width / 2, y: b.top - c.top + b.height / 2, r: b.width / 2 };
+    }
+    function wire(sx, sy, tx, ty) {
+      var dx = Math.max(36, (tx - sx) * 0.6, Math.abs(ty - sy) * 0.35);
+      return 'M' + sx + ',' + sy + ' C' + (sx + dx) + ',' + sy + ' ' + (tx - dx) + ',' + ty + ' ' + tx + ',' + ty;
+    }
+    function edgeAt(i, cls, d) {
+      var p = edgePaths[i];
+      if (!p) {
+        p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        edgesSvg.appendChild(p);
+        edgePaths[i] = p;
+      }
+      if (p.getAttribute('class') !== cls) p.setAttribute('class', cls);
+      p.setAttribute('d', d);
+    }
+    function drawEdges() {
+      if (!canvasEl || !edgesSvg || !tablesEl) return;
+      var c = canvasEl.getBoundingClientRect();
+      if (edgesSvg.getAttribute('width') !== String(c.width)) {
+        edgesSvg.setAttribute('viewBox', '0 0 ' + c.width + ' ' + c.height);
+        edgesSvg.setAttribute('width', c.width);
+        edgesSvg.setAttribute('height', c.height);
+      }
+      var sink = portAt(canvasScreen.querySelector('[data-sink-port]')), n = 0;
+      tablesEl.querySelectorAll('.trow.is-conn').forEach(function (row) {
+        var p = portAt(row.querySelector('.port'));
+        edgeAt(n++, 'edge', wire(p.x + p.r + 1, p.y, sink.x - sink.r - 1, sink.y));
+      });
+      if (draftFrom) {
+        var f = portAt(draftFrom), q = portAt(cursor);
+        edgeAt(n++, 'edge draft', wire(f.x + f.r + 1, f.y, q.x, q.y));
+      }
+      while (edgePaths.length > n) edgePaths.pop().remove();
+    }
+    function fitMs() {
+      var el = canvasScreen.querySelector('.stage');
+      var d = el ? parseFloat(getComputedStyle(el).transitionDuration) * 1000 : 0;
+      return (d > 0 ? d : 360) + 120;
+    }
+    function trackEdges(ms) {
+      if (trackRaf) cancelAnimationFrame(trackRaf);
+      var t0 = Date.now();
+      (function frame() {
+        drawEdges();
+        trackRaf = Date.now() - t0 < ms ? requestAnimationFrame(frame) : null;
+      })();
+    }
+    function dragWire(fromPort, toEl) {
+      var raf, live = true;
+      draftFrom = fromPort;
+      cursor.classList.add('is-drag');
+      fromPort.classList.add('is-live');
+      (function frame() { if (!live) return; drawEdges(); raf = requestAnimationFrame(frame); })();
+      return moveTo(toEl).then(function () {
+        live = false;
+        cancelAnimationFrame(raf);
+        cursor.classList.remove('is-drag');
+        fromPort.classList.remove('is-live');
+        draftFrom = null;
+      });
+    }
+    function openPanel() {
+      var wrap = document.createElement('div');
+      wrap.className = 'panel';
+      wrap.innerHTML = '<div class="grab"><i></i></div><div class="panel-tabs"><span class="tabs"><span class="tab">Overview</span><span class="tab is-on">Activity</span></span></div><div class="hr"></div><div class="activity" data-activity></div>';
+      canvasScreen.appendChild(wrap);
+      panelEl = wrap;
+      activityEl = wrap.querySelector('[data-activity]');
+      canvasEl.classList.add('is-panel');
+      requestAnimationFrame(function () { wrap.classList.add('is-in'); });
+      trackEdges(fitMs());
+    }
+    function runEvents() {
+      var out = [['run.requested', '', ''], ['run.started', '', '']];
+      var totalRec = 0, totalBytes = 0, cpu = 0.9, mem = 486539264;
+      TABLES.forEach(function (t, i) {
+        var pages = 5 + (i % 3), rec = 0, bytes = 0;
+        out.push(['resource.started', t, '']);
+        if (i === 2) out.push(['resource.fan_out_started', t, '']);
+        for (var p = 0; p < pages; p++) {
+          var r = 1480000 + ((i * 421103 + p * 373907) % 420000), by = r * 178;
+          rec += r; bytes += by;
+          out.push(['resource.page_fetched', t, 'records=' + r.toLocaleString('en-US') + ' bytes=' + by.toLocaleString('en-US')]);
+          if (p === 2) {
+            cpu += 2.4 + i * 0.6;
+            mem += 92274688;
+            out.push(['run.heartbeat', '', 'cpuSeconds=' + cpu.toFixed(1) + ' memoryBytes=' + mem.toLocaleString('en-US')]);
+          }
+        }
+        out.push(['resource.completed', t, 'records=' + rec.toLocaleString('en-US') + ' bytes=' + bytes.toLocaleString('en-US')]);
+        totalRec += rec; totalBytes += bytes;
+      });
+      out.push(['run.completed', '', 'records=' + totalRec.toLocaleString('en-US') + ' bytes=' + totalBytes.toLocaleString('en-US')]);
+      return out;
+    }
+    function streamActivity() {
+      var evs = runEvents(), t = new Date(), i = 0;
+      t.setSeconds(t.getSeconds() - 1);
+      activityEl.innerHTML = '<span class="listening">Listening...</span>';
+      var tail = activityEl.querySelector('.listening');
+      (function push() {
+        if (i >= evs.length) { tail.remove(); activityEl.scrollTop = activityEl.scrollHeight; return; }
+        var e = evs[i++];
+        t.setSeconds(t.getSeconds() + (i % 3 === 0 ? 1 : 0));
+        var stamp = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) + ':' + ('0' + t.getSeconds()).slice(-2);
+        var cls = e[0] === 'run.completed' ? ' ok' : (e[0] === 'run.heartbeat' ? ' dim' : '');
+        var line = document.createElement('div');
+        line.className = 'aline';
+        line.innerHTML = '<span class="ahead"><span class="ts">' + stamp + '</span><span class="ev' + cls + '">' + e[0] + (e[1] ? ' ' + e[1] : '') + '</span></span>' + (e[2] ? '<span class="det' + cls + '">' + e[2] + '</span>' : '');
+        activityEl.insertBefore(line, tail);
+        activityEl.scrollTop = activityEl.scrollHeight;
+        logT.push(setTimeout(push, (76 + (i % 5) * 24) / SPEED));
+      })();
+    }
+    function stopActivity() { logT.forEach(clearTimeout); logT = []; }
+    function connectionFlow(kind, spec, query, fields) {
+      return click(stepsEl.querySelector('[data-step="' + kind + '"]'))
+        .then(function () { return openSheet(kind); })
+        .then(function () { return wait(420); })
+        .then(function () {
+          var s = sheet.querySelector('[data-search]');
+          return click(s).then(function () { s.classList.add('is-focus'); return typeInto(s.querySelector('.val'), query, filterList); });
+        })
+        .then(function () { return wait(560); })
+        .then(function () {
+          var row = sheet.querySelector('[data-connector="' + spec.n + '"]');
+          row.classList.add('is-hot');
+          return click(row);
+        })
+        .then(function () { return pushConfigure(kind, spec, fields); })
+        .then(function () { return wait(280); })
+        .then(function () {
+          var chain = Promise.resolve();
+          fields.forEach(function (f) {
+            chain = chain.then(function () {
+              var el = sheet.querySelector('[data-field="' + f.key + '"]');
+              return click(el).then(function () { el.classList.add('is-focus'); return type(el, f.value); }).then(function () { return wait(200); });
+            });
+          });
+          return chain;
+        })
+        .then(function () { return wait(280); })
+        .then(function () { return click(sheet.querySelector('[data-create]')); })
+        .then(closeSheet)
+        .then(function () { done++; renderSteps(); return wait(1500); });
+    }
+    function pipelineFlow() {
+      return click(stepsEl.querySelector('[data-step="pipeline"]'))
+        .then(function () {
+          buildCanvas();
+          canvasScreen.classList.add('is-on');
+          mainScreen.classList.add('is-under');
+          pipeActs.innerHTML = RUN_BTN;
+          return wait(520);
+        })
+        .then(function () {
+          var rows = tablesEl.querySelectorAll('.trow');
+          for (var i = 0; i < rows.length - 1; i++) {
+            rows[i].classList.add('is-conn');
+            rows[i].querySelector('.port').classList.add('is-conn');
+          }
+          canvasScreen.querySelector('[data-sink-port]').classList.add('is-conn');
+          drawEdges();
+          return wait(1000);
+        })
+        .then(function () {
+          var rows = tablesEl.querySelectorAll('.trow'), last = rows[rows.length - 1], port = last.querySelector('.port');
+          return moveTo(port)
+            .then(function () { return tap(); })
+            .then(function () { return dragWire(port, canvasScreen.querySelector('[data-sink-port]')); })
+            .then(function () {
+              last.classList.add('is-conn');
+              port.classList.add('is-conn');
+              drawEdges();
+              pipeActs.innerHTML = SAVE_BTN;
+              return wait(620);
+            });
+        })
+        .then(function () { return click(pipeActs.querySelector('[data-save]')); })
+        .then(function () { pipeActs.innerHTML = RUN_BTN; return wait(950); })
+        .then(function () { return click(pipeActs.querySelector('[data-run]')); })
+        .then(function () {
+          pipeActs.innerHTML = RUNNING;
+          canvasEl.classList.add('is-running');
+          openPanel();
+          streamActivity();
+          return wait(8600);
+        })
+        .then(function () {
+          canvasEl.classList.remove('is-running');
+          stopActivity();
+          pipeActs.innerHTML = COMPLETED;
+          return wait(4200);
+        })
+        .then(function () {
+          canvasScreen.classList.remove('is-on');
+          mainScreen.classList.remove('is-under');
+          return wait(460);
+        });
+    }
+    function loop() {
+      var g = gen;
+      done = 0;
+      renderSteps();
+      wait(1100)
+        .then(function () {
+          return connectionFlow('source', byName(SOURCES, 'postgres'), 'post', [
+            { key: 'name', label: 'Name', ph: 'prod-db', value: 'prod-postgres' },
+            { key: 'dsn', label: 'DSN', ph: 'postgresql://…', value: 'postgresql://app@db.acme.io:5432/shop?sslmode=require' }
+          ]);
+        })
+        .then(function () {
+          return connectionFlow('sink', byName(SINKS, 'clickhouse'), 'click', [
+            { key: 'name', label: 'Name', ph: 'warehouse', value: 'clickhouse' },
+            { key: 'dsn', label: 'DSN', ph: 'clickhouse://…', value: 'clickhouse://default@acme.clickhouse.cloud:8443/analytics' }
+          ]);
+        })
+        .then(pipelineFlow)
+        .then(function () { if (g.alive) loop(); })
+        .catch(function () {});
+    }
+    function start() {
+      stop();
+      gen = { alive: true };
+      if (sheet) sheet.remove();
+      sheet = null; stackEl = null;
+      scrim.classList.remove('is-on');
+      canvasScreen.classList.remove('is-on');
+      canvasScreen.innerHTML = '';
+      mainScreen.classList.remove('is-under');
+      cursor.style.transform = 'translate(196px, 520px)';
+      loop();
+    }
+    function stop() {
+      gen.alive = false;
+      stopActivity();
+      if (trackRaf) { cancelAnimationFrame(trackRaf); trackRaf = null; }
+    }
+    if (window.ResizeObserver) new ResizeObserver(drawEdges).observe(app);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && gen.alive) start(); });
+    if (window.IntersectionObserver) {
+      new IntersectionObserver(function (es) {
+        if (es[0].isIntersecting) { if (!gen.alive) start(); } else stop();
+      }, { threshold: 0.12 }).observe(root);
+    } else {
+      start();
+    }
+  }
+  function scan() {
+    var f = document.querySelectorAll('[data-gx="' + SLUG + '"]');
+    for (var i = 0; i < f.length; i++) boot(f[i]);
+    return f.length > 0;
+  }
+  if (!scan()) {
+    var tries = 0, t = setInterval(function () { if (scan() || ++tries > 100) clearInterval(t); }, 50);
+    document.addEventListener('DOMContentLoaded', scan);
+  }
+})();
+</script>
+</div>
