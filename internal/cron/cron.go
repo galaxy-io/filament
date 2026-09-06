@@ -112,10 +112,14 @@ func parseField(spec string, minVal, maxVal int) (uint64, error) {
 }
 
 // parsePart compiles one term: '*', 'n', 'a-b', or any of those with a '/step'.
+// A bare value with a step ('n/s') runs from n to the field max, as cronie,
+// Quartz, and cronstrue read it.
 func parsePart(part string, minVal, maxVal int) (uint64, error) {
 	step := 1
 	rng := part
+	hasStep := false
 	if i := strings.Index(part, "/"); i >= 0 {
+		hasStep = true
 		rng = part[:i]
 		n, err := strconv.Atoi(part[i+1:])
 		if err != nil || n <= 0 {
@@ -142,6 +146,9 @@ func parsePart(part string, minVal, maxVal int) (uint64, error) {
 			return 0, fmt.Errorf("invalid value %q", rng)
 		}
 		lo, hi = n, n
+		if hasStep {
+			hi = maxVal
+		}
 	}
 
 	if lo < minVal || hi > maxVal || lo > hi {
