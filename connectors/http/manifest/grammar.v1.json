@@ -200,6 +200,7 @@
         "exclude_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "params": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
         "capture": { "type": "object", "additionalProperties": { "type": "string" } },
+        "capture_only": { "type": "boolean" },
         "query": { "type": "object", "additionalProperties": { "type": "string" } },
         "headers": { "type": "object", "additionalProperties": { "type": "string" } },
         "body": {
@@ -228,11 +229,11 @@
         },
         "parent": {
           "type": "object",
-          "required": ["resource"],
           "additionalProperties": false,
           "properties": {
             "resource": { "type": "string" },
-            "concurrency": { "type": "integer", "minimum": 1 }
+            "concurrency": { "type": "integer", "minimum": 1 },
+            "since": { "type": "string", "minLength": 1 }
           }
         },
         "stream": {

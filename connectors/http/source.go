@@ -292,7 +292,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		return filament.DiscoverResult{}, err
 	}
 	if len(res.Resources) == 0 {
-		staticResources := s.connector.manifest.Resources
+		staticResources := listableResources(s.connector.manifest.Resources)
 		if include := s.connector.manifest.Discovery.Include; len(include) > 0 {
 			byName := make(map[string]manifest.Resource, len(staticResources))
 			for _, resource := range staticResources {
@@ -417,12 +417,24 @@ func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, er
 	}
 	base := s.baseResourceName(resource)
 	for _, res := range s.connector.manifest.Resources {
-		if res.Name != base {
+		if res.Name != base || res.CaptureOnly {
 			continue
 		}
 		return rowmodel.Schema{Resource: resource, Fields: schemaFields(res), PrimaryKey: append([]string(nil), res.PrimaryKey...)}, nil
 	}
 	return rowmodel.Schema{}, fmt.Errorf("httpapi source: unknown resource %q", resource)
+}
+
+// listableResources drops capture-only resources, which exist to drive
+// children and are never discovered, selected, or emitted.
+func listableResources(resources []manifest.Resource) []manifest.Resource {
+	out := make([]manifest.Resource, 0, len(resources))
+	for _, res := range resources {
+		if !res.CaptureOnly {
+			out = append(out, res)
+		}
+	}
+	return out
 }
 
 func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string) error {
@@ -487,7 +499,7 @@ func (s *Source) planResources(resources, selectors []string) ([]string, error) 
 	if len(resources) > 0 && !hasDynamicSelector {
 		return resources, nil
 	}
-	sorted := manifest.SortResources(s.connector.manifest.Resources)
+	sorted := manifest.SortResources(listableResources(s.connector.manifest.Resources))
 	out := make([]string, 0, len(sorted)+len(selectors))
 	seen := map[string]struct{}{}
 	add := func(resource string) {

@@ -33,6 +33,9 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.incrementalResources = opts.IncrementalResources
 	c.buildEnabledFilter(opts.EnabledResources)
 	c.buildResourceFilter(opts.Resources)
+	c.mu.Lock()
+	c.parentRecords = make(map[string][]Capture)
+	c.mu.Unlock()
 
 	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
 
@@ -90,6 +93,12 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 
 func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
+	if res.Parent.Since != "" {
+		var err error
+		if parents, err = c.gateParents(res, parents); err != nil {
+			return err
+		}
+	}
 	if len(parents) == 0 {
 		return nil
 	}
@@ -141,28 +150,9 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 			return fmt.Errorf("resource name: %w", err)
 		}
 	}
-	var tracker *incremental.Tracker
-	if res.Incremental != nil && c.incrementalEnabled(stateResource, res.Name) {
-		spec := *res.Incremental
-		if field, ok := manifest.IncrementalCursorField(res); ok {
-			spec.CursorPath = field.Path
-		}
-		if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
-			spec.OverlapSeconds = lookback
-		} else if lookback, ok := c.incrementalLookbacks[res.Name]; ok {
-			spec.OverlapSeconds = lookback
-		}
-		seed := ""
-		if c.resumeWatermarks != nil {
-			seed = c.resumeWatermarks[stateResource][spec.DurableCheckpointKey()]
-			if seed == "" && stateResource != res.Name {
-				seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
-			}
-		}
-		tracker, err = incremental.New(spec, stateResource, seed)
-		if err != nil {
-			return fmt.Errorf("incremental: %w", err)
-		}
+	tracker, err := c.newTracker(res, stateResource)
+	if err != nil {
+		return err
 	}
 
 	if res.Mode == "stream" {
@@ -181,6 +171,65 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 
 	_, _, err = c.paginate(ctx, res, sink, parent, pag, extractor, tracker, resumeState)
 	return err
+}
+
+// newTracker builds the incremental tracker for one extraction of res under
+// stateResource, or nil when the resource is not running incrementally.
+func (c *Connector) newTracker(res manifest.Resource, stateResource string) (*incremental.Tracker, error) {
+	if res.Incremental == nil || !c.incrementalEnabled(stateResource, res.Name) {
+		return nil, nil
+	}
+	spec := *res.Incremental
+	if field, ok := manifest.IncrementalCursorField(res); ok {
+		spec.CursorPath = field.Path
+	}
+	if lookback, ok := c.incrementalLookbacks[stateResource]; ok {
+		spec.OverlapSeconds = lookback
+	} else if lookback, ok := c.incrementalLookbacks[res.Name]; ok {
+		spec.OverlapSeconds = lookback
+	}
+	seed := ""
+	if c.resumeWatermarks != nil {
+		seed = c.resumeWatermarks[stateResource][spec.DurableCheckpointKey()]
+		if seed == "" && stateResource != res.Name {
+			seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
+		}
+	}
+	tracker, err := incremental.New(spec, stateResource, seed)
+	if err != nil {
+		return nil, fmt.Errorf("incremental: %w", err)
+	}
+	return tracker, nil
+}
+
+// gateParents applies parent.since. Parents with an empty value never had
+// anything for the child to fetch. On an incremental run, parents whose value
+// sorts before the child's effective start have had no activity since the
+// last run, so their fan-out is skipped as well.
+func (c *Connector) gateParents(res manifest.Resource, parents []Capture) ([]Capture, error) {
+	key := res.Parent.Since
+	tracker, err := c.newTracker(res, res.Name)
+	if err != nil {
+		return nil, err
+	}
+	kept := parents[:0]
+	for _, parent := range parents {
+		v := parent[key]
+		if v == "" {
+			continue
+		}
+		if tracker != nil {
+			below, err := tracker.Below(v)
+			if err != nil {
+				return nil, fmt.Errorf("parent.since %q: %w", key, err)
+			}
+			if below {
+				continue
+			}
+		}
+		kept = append(kept, parent)
+	}
+	return kept, nil
 }
 
 func (c *Connector) incrementalEnabled(resource, base string) bool {

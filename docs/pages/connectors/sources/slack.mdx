@@ -25,10 +25,15 @@ because `conversations.history` rejects channels the bot can discover but has
 not joined. It captures each channel id, and `messages` (one history walk per
 conversation), `bookmarks`, and `pins` fan out from it.
 
-`thread_replies` fans out from `messages`. The capture is unconditional, so
-it issues one `conversations.replies` request for **every** message, not just
-messages that started a thread. On a busy workspace this dominates the
-request count. `files` is an independent top-level list.
+`thread_replies` fans out from a capture-only `threads` walk of
+`conversations.history`, not from `messages`. Slack reveals new replies on an
+old thread only through the parent message's `latest_reply`, and history has
+no updated-since filter, so the walk reads every message in every enabled
+conversation on every run. It emits nothing. `thread_replies` then calls
+`conversations.replies` only for parents whose `latest_reply` is at or past the
+saved replies watermark, so messages that never started a thread and threads
+with no new activity cost no request. `files` is an independent top-level
+list.
 
 ## Modes
 
@@ -37,21 +42,31 @@ after its last completed page. Children
 (`messages`, `thread_replies`, `bookmarks`, `pins`) always restart with their
 parent.
 
-Two resources are incremental.
+Three resources are incremental.
 
 | Resource | Cursor field | Request parameter | Checkpoint key |
 |---|---|---|---|
 | `messages` | `ts` | `oldest` (query) | `messages_since` |
+| `thread_replies` | `ts` | `oldest` (query) | `replies_since` |
 | `files` | `created` | `ts_from` (query) | `files_created` |
 
-Both use the `numeric` comparator (Slack timestamps are epoch numbers) and
+All use the `numeric` comparator (Slack timestamps are epoch numbers) and
 declare no overlap window. The cursor field is fixed by the manifest. Only a
 lookback window is user-configurable, which the numeric comparator supports.
-All conversations share one saved `messages` cursor. For example, Filament may
-finish scanning a busy channel after a newer message was posted to a quiet
-channel that it already scanned. Without a lookback, that quiet-channel message
-can fall before the next run's starting cursor. Configure a lookback window if
-late arrivals matter.
+All conversations share one saved `messages` cursor, and all threads share one
+saved `replies_since` cursor. For example, Filament may finish scanning a busy
+channel after a newer message was posted to a quiet channel that it already
+scanned. Without a lookback, that quiet-channel message can fall before the
+next run's starting cursor. The same race applies to a reply posted in one
+thread while a later thread is still being read. Configure a lookback of at
+least one run's duration on `messages` and `thread_replies` if late arrivals
+matter.
+
+An incremental `thread_replies` run still walks the full history of every
+enabled conversation to find threads that moved. On a Tier 3 token that is
+about one request per thousand messages at fifty or more requests a minute.
+Edits and deletions of messages and replies are never observed, because Slack
+keeps the original `ts` and history exposes no change filter.
 
 ## Behavior
 
@@ -64,6 +79,11 @@ late arrivals matter.
   exception. It uses page-number pagination (`page`/`count`, 100 per page,
   bounded by `paging.pages`).
 - **Rate limiting**: no client-side limiter is configured. The engine backs
-  off on 429 responses using `Retry-After`.
+  off on 429 responses using `Retry-After`. Use a token from an app you
+  created in your own workspace. Since May 2025 Slack limits apps distributed
+  commercially outside the Slack Marketplace to one `conversations.history` or
+  `conversations.replies` request per minute with fifteen messages per page,
+  which makes every message resource unusable at scale. Internal apps and
+  Marketplace apps keep the standard Tier 3 limits.
 - Every resource carries a `raw` remainder column preserving fields the
   manifest does not project.

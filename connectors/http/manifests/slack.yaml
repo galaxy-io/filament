@@ -173,8 +173,6 @@ resources:
       reactions: json?
       metadata: json?
       raw: { path: $, type: json, mode: remainder }
-    capture:
-      thread_ts: ts
     response:
       records: $.messages
       pagination:
@@ -188,13 +186,38 @@ resources:
       checkpoint_key: messages_since
       comparator: numeric
 
+  - name: threads
+    # Slack exposes new activity on an old thread only through the parent's
+    # latest_reply, and conversations.history has no updated-since filter, so
+    # every run re-walks history to find threads that moved. Capture-only:
+    # nothing is emitted, and thread_replies fans out over the result.
+    path: /conversations.history
+    query:
+      channel: "{{ parent.channel_id }}"
+      limit: "999"
+    for_each: conversations
+    capture_only: true
+    capture:
+      thread_ts: ts
+      latest_reply: latest_reply
+    response:
+      records: $.messages
+      pagination:
+        cursor:
+          response: response_metadata.next_cursor
+          request: query.cursor
+
   - name: thread_replies
     path: /conversations.replies
     query:
       channel: "{{ parent.channel_id }}"
       ts: "{{ parent.thread_ts }}"
       limit: "200"
-    for_each: messages
+    for_each: threads
+    parent:
+      # Only threads with a reply newer than the saved watermark fan out.
+      # Messages without latest_reply never started a thread.
+      since: latest_reply
     primary_key: [channel_id, thread_ts, ts]
     fields:
       channel_id: { path: parent.channel_id, type: string }
@@ -220,6 +243,12 @@ resources:
         cursor:
           response: response_metadata.next_cursor
           request: query.cursor
+    incremental:
+      cursor_field: ts
+      start_param: oldest
+      inject_into: query
+      checkpoint_key: replies_since
+      comparator: numeric
 
   - name: files
     path: /files.list

@@ -366,8 +366,8 @@ func (c *Connector) sendRecords(
 
 	var captured []Capture
 	n := 0
-	emitResource := len(c.enabledResources) == 0
-	if !emitResource {
+	emitResource := !res.CaptureOnly && len(c.enabledResources) == 0
+	if !emitResource && !res.CaptureOnly {
 		_, emitResource = c.enabledResources[res.Name]
 	}
 	for _, rec := range records {

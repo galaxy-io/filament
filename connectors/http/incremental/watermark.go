@@ -57,6 +57,7 @@ type Tracker struct {
 	start string
 
 	wm     *atomicwatermark.Watermark
+	cmp    atomicwatermark.Comparator
 	logger *slog.Logger
 }
 
@@ -106,6 +107,7 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 		resource: resource,
 		start:    start,
 		wm:       wm,
+		cmp:      cmp,
 	}
 	for _, opt := range opts {
 		opt(t)
@@ -153,6 +155,20 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 
 // Current returns the running watermark (max observed or initial).
 func (t *Tracker) Current() string { return t.wm.Current() }
+
+// Start returns the extraction's effective lower bound: the seeded watermark
+// minus overlap. Empty when the run has no starting point.
+func (t *Tracker) Start() string { return t.effective() }
+
+// Below reports whether v sorts before Start under the tracker's comparator.
+// An empty Start admits every value.
+func (t *Tracker) Below(v string) (bool, error) {
+	start := t.effective()
+	if start == "" {
+		return false, nil
+	}
+	return t.cmp.Less(v, start)
+}
 
 // Scope returns a {start_param: effective_start} pair suitable for merging
 // into a template scope's State map. The lower bound is fixed for the entire
