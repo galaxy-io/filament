@@ -10,10 +10,12 @@ import {
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import DangerZone from "@/components/DangerZone";
-import Dialog from "@/components/Dialog";
+import Dialog, { DialogVariant } from "@/components/Dialog";
 
+import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
+import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { useConfirm } from "@/hooks/useConfirm";
@@ -23,9 +25,10 @@ const PipelineSettingsPageDanger = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });
   const pipeline = data.pipeline;
+  const { data: connectionsData } = useSuspenseListConnectionsQuery();
 
   const { mutate: deletePipeline, isPending: isDeleting } = useDeletePipelineMutation();
 
@@ -42,6 +45,10 @@ const PipelineSettingsPageDanger = () => {
 
   if (!pipeline) return null;
 
+  const cdcConnections = getPipelineCdcSourceConnections(pipeline, connectionsData.connections);
+  const cdcConnectionNames = cdcConnections.map((connection) => `"${connection.name}"`).join(", ");
+  const hasCdcSource = cdcConnections.length > 0;
+
   return (
     <>
       <DangerZone
@@ -54,7 +61,14 @@ const PipelineSettingsPageDanger = () => {
         onClose={handleClose}
         onConfirm={handleConfirm}
         title="Delete pipeline"
-        body="Are you sure you want to delete this pipeline? This is a destructive action and cannot be undone."
+        description="This is a destructive action and cannot be undone."
+        variant={hasCdcSource ? DialogVariant.WARNING : undefined}
+        bodyTitle={hasCdcSource ? "Replication resources are not removed" : undefined}
+        body={
+          hasCdcSource
+            ? `This pipeline streams changes from ${cdcConnectionNames} with CDC. Deleting it does not remove replication resources on the source database. Drop the replication slot after deleting or WAL will accumulate.`
+            : "Are you sure you want to delete this pipeline?"
+        }
         confirmationPhrase={target ? formatPipelineName(target) : undefined}
         confirmLabel="Delete pipeline"
         confirmVariant={ButtonVariant.ERROR}
