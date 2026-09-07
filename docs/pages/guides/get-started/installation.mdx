@@ -1,83 +1,68 @@
 ---
 title: "Installation"
-description: "Run Filament as a standalone binary, a Go library, or a Kubernetes deployment"
+description: "Install the CLI, add the Go module, or deploy Filament"
 ---
 
-Choose the option that matches what you are trying to do:
+Install the CLI to use Filament locally or manage a deployed server. Use the
+Go module to embed Filament in an application. Shared deployments run from the
+published container images or Helm chart.
 
-| Option | Best for | State |
-|---|---|---|
-| Standalone binary | Trying Filament locally | In memory; lost on restart |
-| Go library | Adding replication to a Go service | Chosen by the host application |
-| Kubernetes | Running separate API, control-plane, and worker processes | Postgres and NATS |
+## CLI
 
-Container images for every binary are published at
-`ghcr.io/galaxy-io/filament/{server,control-plane,worker,standalone}`.
-
-## Standalone binary
-
-The fastest way to try Filament. One process bundles everything:
-
-- An embedded NATS JetStream (no ports exposed)
-- An in-memory data store
-- Env-var secrets
-- The embedded web app
-- A curated connector set (`clickhouse`, `iceberg`, `mysql`, and `postgres`)
-
-Runs execute in-process. It listens on `INGESTION_ADDR`, default `:8080`.
+Install the CLI on Linux or macOS:
 
 ```sh
-docker run -p 8080:8080 ghcr.io/galaxy-io/filament/standalone
+curl -fsSL https://getgalaxy.io/filament/install | sh
 ```
 
-<Warning>
-  The standalone binary keeps all state (connections, pipelines, runs,
-  checkpoints) in memory. Nothing survives a restart. Use it to evaluate,
-  not to operate.
-</Warning>
+On macOS, you can also use Homebrew:
 
-Secrets come from environment variables. A ref like `postgres-creds/dsn`
-reads the env var `POSTGRES_CREDS_DSN`. JetStream state is stored in
-`NATS_STORE_DIR` (default `$TMPDIR/filament-standalone`) and the SQLite
-datastore in `STORE_PATH` (default `filament.db` in that directory).
-
-## As a Go library
-
-Filament embeds directly via `app.Run`. Connectors self-register through
-blank imports, so you only pull in the ones you use. The defaults are an
-in-process bus and an in-memory store. The API (and optionally the UI) is
-served on `INGESTION_ADDR` (`:8080`), and runs execute in-process.
-
-```go
-package main
-
-import (
-	"context"
-	"log"
-
-	"github.com/galaxy-io/filament/app"
-	_ "github.com/galaxy-io/filament/connectors/postgres"
-	_ "github.com/galaxy-io/filament/connectors/stdout"
-)
-
-func main() { log.Fatal(app.Run(context.Background())) }
+```sh
+brew install galaxy-io/tap/filament
 ```
 
-See [Embedded](/pages/guides/usage/embedded)
-for swapping in NATS, Postgres, and a real secrets provider.
+Prebuilt binaries are available from
+[GitHub Releases](https://github.com/galaxy-io/filament/releases). Confirm the
+installation with:
 
-## On Kubernetes
+```sh
+filament version
+```
 
-The Helm chart deploys the server and control plane, dispatches each run as
-its own Job, and points at your Postgres and NATS instances (or provisions
-optional vendored subcharts for evaluation). See
-[Kubernetes](/pages/guides/deployment/kubernetes) for the install steps.
+The local CLI uses file-backed SQLite and an in-process event bus. It does not
+require Postgres or NATS. Continue with the [CLI guide](/pages/guides/usage/cli).
 
-## Building from source
+## Go module
 
-`just binaries` builds every binary into `bin/filament/` and compiles
-`server`, `standalone`, and `cli` with the `embedui` build tag so the
-web app is embedded. A plain `go build` of those binaries serves a placeholder page
-instead of the UI, so use `just binaries` (or pass `-tags embedui` yourself)
-when you want the UI in the binary. `just images` builds the container
-images.
+Add Filament to a Go application:
+
+```sh
+go get github.com/galaxy-io/filament@latest
+```
+
+Import `app` and the connectors the application needs. See
+[Embedded](/pages/guides/usage/embedded) for a minimal program and runtime
+options.
+
+## Deployments
+
+Filament publishes these container images:
+
+| Image | Purpose |
+|---|---|
+| `ghcr.io/galaxy-io/filament/server` | API and web application |
+| `ghcr.io/galaxy-io/filament/control-plane` | Scheduling and run coordination |
+| `ghcr.io/galaxy-io/filament/worker` | Runs dispatched as Kubernetes Jobs |
+| `ghcr.io/galaxy-io/filament/standalone` | Single-process evaluation image |
+
+Use the same release tag for the server, control plane, and worker. A split
+deployment also needs a datastore, an event bus, and a secret provider.
+
+Kubernetes with Helm is the recommended production installation. Railway is
+available when runs need to execute inside the control plane. Choose a path in
+the [deployment overview](/pages/guides/deployment/overview).
+
+## Build from source
+
+See [local development](/pages/guides/contributing/local-development) to build
+the binaries, images, and web application from this repository.
