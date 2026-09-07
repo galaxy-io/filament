@@ -9,6 +9,9 @@ A Helm chart for Filament
 
 This chart deploys Filament server, control plane, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
 
+> [!CAUTION]
+> We strongly recommend running exactly one control-plane replica. Multiple replicas may race while coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and leave `controlPlane.autoscaling.enabled` disabled.
+
 ## Optional Requirements
 
 | Repository | Name | Version |
@@ -142,7 +145,7 @@ helm upgrade --install filament \
 |-----|------|---------|-------------|
 | persistence.migrate | bool | `true` | Run database migrations as a post-install/post-upgrade hook Job. |
 | persistence.postgresql.dsn | string | required | PostgreSQL connection string stored in the chart-created Secret as `PERSISTENCE_DSN`. Required unless `existingSecret` is set. |
-| persistence.type | string | `"postgresql"` | Persistence provider. |
+| persistence.type | string | `"postgres"` | Persistence provider. |
 
 ## Secret provider parameters
 

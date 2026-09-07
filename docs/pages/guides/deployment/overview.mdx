@@ -3,59 +3,64 @@ title: "Overview"
 description: "Choose how and where to run Filament"
 ---
 
-Filament runs the same engine everywhere. What changes is where runs execute
-and whether state survives a restart.
+Filament runs as separate server and control-plane services backed by a
+datastore, an event bus, and a secret provider. Kubernetes with Helm is the
+recommended production deployment. Railway is an alternative when Kubernetes
+worker Jobs are not available.
 
-## Choose a deployment
+## Deployment options
 
-| Option | Best for | Durable by default? |
+| Platform | Run execution | Best for |
 |---|---|---|
-| Standalone binary | Evaluation | No |
-| Embedded library | Adding Filament to a Go service | No; dependencies are replaceable |
-| Split services | Production and isolated workers | Yes, with Postgres and NATS |
+| [Kubernetes](/pages/guides/deployment/kubernetes) | One worker Job per run | Production deployments with isolated, independently configured workers |
+| [Railway](/pages/guides/deployment/railway) | Inside the control-plane service | Simpler deployments on a platform without a Kubernetes Jobs API |
 
-**Standalone binary.** One process with embedded NATS JetStream, the API, the
-web app, and the engine, over an in-memory store with
-secrets read from the environment. Nothing needs provisioning, which makes it
-the fastest way to try Filament. State does not survive a restart, so it is
-for evaluation rather than production. See
-[Installation](/pages/guides/get-started/installation).
+Both options run the server and control plane as separate services and use the
+same runtime components. The difference is where each run executes.
 
-**Embedded as a library.** `app.Run` mounts the same modules inside your own
-Go process and serves the API from it. The defaults are the in-process bus
-and in-memory store, and you swap in NATS and Postgres when you want the
-deployment to be durable. See
-[Embedding as a library](/pages/guides/deployment/embedding-as-a-library).
+<Warning>
+Run exactly one control-plane replica. Multiple replicas may race while
+coordinating schedules and runs.
+</Warning>
 
-**Split services.** A server owns connections,
-pipelines, and run requests. A control plane fires schedules, dispatches
-runs, and updates state from worker events. The processes coordinate through
-Postgres and NATS rather than calling each other directly.
-See [Kubernetes](/pages/guides/deployment/kubernetes).
+## Service architecture
+
+**Server** serves the API and web application. It accepts connection,
+pipeline, and run requests and persists them through the configured datastore.
+
+**Control plane** manages schedules and coordinates runs. With Kubernetes
+dispatch it creates worker Jobs and tracks their progress. With `inproc`
+dispatch it executes runs inside the control-plane process.
+
+The server and control plane coordinate through the datastore and event bus;
+they do not call each other directly.
 
 ## Where runs execute
 
-In a split deployment the control plane's `DISPATCH_MODE` decides this, and
-it is the setting worth understanding before you deploy.
+The control plane's `DISPATCH_MODE` determines where runs execute:
 
-- `kubernetes`, the default, creates one worker Job per run. Each run gets
-  its own container and its own resource limits, workers heartbeat while they
-  execute, and the reaper fails runs whose heartbeats go stale.
-- `inproc` executes runs inside the control plane process itself. Simpler to
-  operate, and the right choice on platforms without a Jobs API, but runs
-  share the control plane's resources and there are no heartbeats to reap.
+- `kubernetes`, the default, creates one worker Job per run. Each run receives
+  its own container and resource configuration. Workers report heartbeats, and
+  the reaper fails runs whose heartbeats become stale.
+- `inproc` executes runs inside the control-plane process. It requires no
+  worker service, but every run shares the control plane's CPU and memory.
+  Railway deployments use this mode.
 
-Either way the runner behaves identically. Dispatch decides where the code
-path runs, never what it does.
+Both modes use the same runner; dispatch changes where it runs, not how a
+pipeline behaves.
 
-## What a durable deployment needs
+## Runtime dependencies
 
-- **PostgreSQL** for run state, checkpoints, connections, pipelines, and
-  schedules
-- **NATS JetStream** for run requests and progress events
-- **An encryption key** when secrets are stored through the default Postgres
-  provider
+A Filament deployment provides three runtime dependencies:
 
-Migrations ship with the server binary and can be applied on demand or as an
-install hook. Everything else is configured through environment variables,
-covered in full in [Configuration](/pages/guides/deployment/configuration).
+- **Datastore** persists run state, checkpoints, connections, pipelines, and
+  schedules. The packaged server and control-plane deployment uses PostgreSQL.
+- **Event bus** carries run requests and progress events between runtime
+  modules. The packaged deployment uses NATS JetStream.
+- **Secret provider** stores or resolves connector credentials. The default
+  provider stores encrypted secrets in the configured datastore; AWS Secrets
+  Manager is also supported.
+
+The datastore-backed secret provider requires a base64-encoded AES encryption
+key. Provider selection and connection settings are covered in
+[Configuration](/pages/guides/deployment/configuration).
