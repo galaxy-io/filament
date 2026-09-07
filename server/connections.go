@@ -106,7 +106,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	effective := cloneConfigMap(stored.Config)
+	// The submitted config replaces the stored one entirely, so validate
+	// exactly what will be persisted by providing an empty map to populate
+	effective := map[string]any{}
 	if err := a.resolveConnectionSecrets(ctx, filament.Connection{ID: stored.ID, Tenant: stored.Tenant, SecretRefs: refs}, effective); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
