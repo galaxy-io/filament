@@ -19,6 +19,10 @@ ui:
   - changed-files:
       - any-glob-to-any-file: "ui/**"
 
+docs:
+  - changed-files:
+      - any-glob-to-any-file: "docs/**"
+
 control-plane:
   - changed-files:
       - any-glob-to-any-file:

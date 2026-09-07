@@ -74,7 +74,7 @@ func (s *liveProbeSink) TestConnection(context.Context, filament.Config) error {
 	return s.err
 }
 
-func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
+func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
 	probes := &atomic.Int32{}
 	sinks := registry.NewSinks()
 	sinks.Register("live-sink", func() filament.Sink {
@@ -89,11 +89,11 @@ func TestValidateConfigDoesNotRunLiveSinkProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !response.Msg.GetValid() {
-		t.Fatalf("response = %#v, want valid structural config", response.Msg)
+	if response.Msg.GetValid() {
+		t.Fatalf("response = %#v, want probe failure reported", response.Msg)
 	}
-	if got := probes.Load(); got != 0 {
-		t.Fatalf("live probes = %d, want 0", got)
+	if got := probes.Load(); got != 1 {
+		t.Fatalf("live probes = %d, want 1", got)
 	}
 }
 

@@ -126,7 +126,9 @@ func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv
 	return connect.NewResponse(&ingestionv1.GetConnectorResponse{Connector: spec}), nil
 }
 
-// ValidateConfig checks a connector config against its schema.
+// ValidateConfig checks a connector config against its schema and, when the
+// connector can probe connectivity, performs one live request with it so a
+// bad credential is reported here rather than on the first run.
 func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingestionv1.ValidateConfigRequest]) (*connect.Response[ingestionv1.ValidateConfigResponse], error) {
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
@@ -163,6 +165,9 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		if err := source.Validate(cfg); err != nil {
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
+		if err := liveProbe(ctx, source, cfg); err != nil {
+			return connect.NewResponse(validationError(err.Error())), nil
+		}
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
 		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
 		if err != nil {
@@ -178,10 +183,23 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 				return connect.NewResponse(validationError(err.Error())), nil
 			}
 		}
+		if err := liveProbe(ctx, sink, cfg); err != nil {
+			return connect.NewResponse(validationError(err.Error())), nil
+		}
 	default:
 		return connect.NewResponse(validationError("connector kind is required")), nil
 	}
 	return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
+}
+
+// liveProbe runs the connector's connectivity check when it offers one.
+// Connectors without a probe pass on structural validation alone.
+func liveProbe(ctx context.Context, connector any, cfg filament.Config) error {
+	live, ok := connector.(filament.LiveValidatable)
+	if !ok {
+		return nil
+	}
+	return live.TestConnection(ctx, cfg)
 }
 
 func (a *Server) validateConnectionConnectorConfig(kind ingestionv1.ConnectorKind, connector string, cfg filament.Config) error {

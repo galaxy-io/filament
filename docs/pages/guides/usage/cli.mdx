@@ -1,96 +1,93 @@
 ---
 title: "CLI"
-description: "Configure and run Filament locally from the command line"
+description: "Manage local and deployed Filament from the command line"
 ---
 
-The `filament` CLI runs pipelines on your own machine. It reads and writes a
-single YAML file, executes runs in process, and needs no server, no database,
-and no external event bus. It covers local connection management, discovery,
-pipeline configuration, and full-read execution against that file. Features
-that require durable server state are described under [What runs
-where](#what-runs-where).
+The `filament` CLI manages connections, pipelines, and runs. It works against
+the local runtime or a deployed Filament server. A context selects the target,
+and most management commands work with both.
 
-<Warning>
-  The CLI runs full reads only. Use the server when you need incremental or CDC
-  checkpoints, schedules, or persistent run history.
-</Warning>
+The built-in `local` context needs no external services. It runs Filament in
+process with file-backed SQLite and an in-process event bus. State, secrets,
+run history, and checkpoints survive between commands.
 
-There are two ways to work with it:
+## Install
 
-- **Inline.** Declare a source and sink entirely in flags and run once. Good
-  for scripts, CI, and one-off transfers.
-- **Saved.** Store connections and pipelines in `filament.yaml` and run them
-  by name.
-
-## Building it
-
-The CLI lives in `cmd/filament` and compiles like any other Go binary in the
-repository:
+Run the install script on Linux or macOS:
 
 ```sh
-mkdir -p bin/filament
-go build -o bin/filament/filament ./cmd/filament
+curl -fsSL https://getgalaxy.io/filament/install | sh
 ```
 
-`just binaries` includes the CLI with the other Linux release binaries.
+On macOS, you can also use Homebrew:
 
-Every connector compiled into the binary is available to it. The catalog
-comes from the same registry the server uses, so connector names and config
-fields match the rest of the docs exactly.
+```sh
+brew install galaxy-io/tap/filament
+```
+
+Prebuilt binaries are available from
+[GitHub Releases](https://github.com/galaxy-io/filament/releases). Confirm the
+installation with `filament version`.
+
+## Interactive mode
+
+Open the main menu in a terminal:
+
+```sh
+filament -i
+```
+
+The menu can create and manage connections and pipelines, discover resources,
+run pipelines, inspect run history, and edit local configuration.
+
+You can also open a specific wizard:
+
+```sh
+filament source create
+filament sink create
+filament pipeline create
+filament run
+```
+
+Interactive mode is optional. Every operation also has flags for scripts and
+CI.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `filament run <pipeline>` | Run a saved pipeline |
-| `filament run --source-connector … --sink-connector …` | Run an inline transfer |
-| `filament source <create\|edit\|list\|discover\|delete>` | Manage saved sources |
-| `filament sink <create\|edit\|list\|delete>` | Manage saved sinks |
-| `filament pipeline <create\|edit\|list\|delete>` | Manage saved pipelines |
-| `filament config <path\|validate\|edit>` | Work with the config file |
+| `filament source <create\|edit\|list\|discover\|delete>` | Manage sources |
+| `filament sink <create\|edit\|list\|delete>` | Manage sinks |
+| `filament pipeline <create\|edit\|list\|delete>` | Manage pipelines |
+| `filament run [pipeline]` | Run a saved pipeline or an inline transfer |
+| `filament run list [pipeline]` | List run history |
+| `filament up` | Keep the local runtime and web UI running |
+| `filament down` | Stop a detached local runtime |
+| `filament status` | Show the selected context and runtime |
+| `filament context <add\|list\|current\|use\|rename\|delete>` | Manage targets |
+| `filament auth <login\|status\|logout>` | Manage remote authentication |
+| `filament config <path\|validate\|edit>` | Manage local YAML configuration |
 
-`--config PATH` overrides the config file location for any command. Add
-`--help` after a command to see its flags. When you also pass a connector
-selection, the help output lists that connector's own flags.
+`list` can be shortened to `ls`, and `context` to `ctx`. Add `--help` after a
+command to see its flags. When a connector is selected, help also lists that
+connector's fields.
 
-## Connector flags
+The global flags work in any position:
 
-Connector config fields become flags, prefixed by the side they apply to and
-with underscores turned into hyphens. A source's `database_name` field is
-`--source-database-name`, a sink's `port` is `--sink-port`. Boolean fields
-work as bare flags.
+| Flag | What it does |
+|---|---|
+| `--context NAME` | Use a context for one command |
+| `--config PATH` | Use another local YAML file |
+| `-i`, `--interactive` | Open interactive menus |
+| `--layout boxed\|plain` | Select the table layout |
 
-Because the flags come from the connector's schema, `--help` is the
-authoritative reference for any connector:
+## Connections
 
-```sh
-filament source create --source-connector clickhouse --help
-```
+Connector fields become flags with a `source-` or `sink-` prefix. Underscores
+become hyphens. For example, `database_name` becomes
+`--source-database-name`.
 
-Conditional configuration is explicit. Database URL configuration requires
-`--source-connection-method url` or `--sink-connection-method url`; supplying a
-DSN alone does not select URL mode.
-
-## Secrets
-
-Secret fields never have to be typed in plaintext. Any of these work:
-
-- `--source-dsn-env POSTGRES_DSN` names an environment variable
-- `--source-dsn '$POSTGRES_DSN'` and `--source-dsn '${POSTGRES_DSN}'` are
-  recognized as references, not literal values. The quotes prevent your shell
-  from expanding the variable before Filament sees it.
-- A plaintext value, though environment references are safer for saved config
-
-Saved connections store the reference, not the value. A referenced secret is
-written as `env:POSTGRES_DSN` and resolves at run time, so the
-config file stays safe to read and commit. The file itself is written with
-owner-only permissions.
-
-References also work in nested JSON configuration. For example, a nested
-secret value of `"$CATALOG_TOKEN"` is stored as `env:CATALOG_TOKEN` and resolved
-recursively at run time.
-
-## Saving connections
+Create two local connections:
 
 ```sh
 filament source create production \
@@ -104,24 +101,45 @@ filament sink create warehouse \
   --sink-dsn-env POSTGRES_SINK_DSN
 ```
 
-`filament source list` and `filament sink list` print what you have saved.
-`edit` takes the same flags and changes only what you pass. Use `--unset
-source-FIELD` or `--unset sink-FIELD` to remove an optional field; repeat the
-flag to remove more than one. `delete` asks for confirmation unless you pass
-`--force`, and it refuses to remove a connection that a saved pipeline still
-references.
+List them with `filament source ls` and `filament sink ls`. `edit` changes only
+the fields you pass. Use `--unset source-FIELD` or `--unset sink-FIELD` to
+remove an optional field.
 
-## Discovering resources
+`delete` asks for confirmation unless you pass `--force`. A connection cannot
+be deleted while a pipeline uses it.
 
-Before building a pipeline, ask a source what it has:
+### Secrets
+
+Secret fields accept a value or an environment reference. These forms are
+equivalent in a local context:
+
+```sh
+--source-dsn-env POSTGRES_DSN
+--source-dsn '$POSTGRES_DSN'
+--source-dsn '${POSTGRES_DSN}'
+```
+
+The reference is stored as `env:POSTGRES_DSN` and resolved from the CLI's
+environment when needed. Quote `$NAME` forms so the shell does not expand
+them first. References inside nested configuration are resolved too.
+
+On a remote context, secret references belong to the deployment's secret
+provider; they do not read the CLI process's environment. A secret value sent
+to the server is removed from connection configuration and stored by that
+provider.
+
+## Discover resources
+
+Discover a saved source:
 
 ```sh
 filament source discover production
 ```
 
-The table lists each resource with its display name, whether it can be
-selected, its primary key, and an estimated row count. Pass `--refresh` to
-bypass any cached view. Discovery also works without saving anything first:
+The result shows resource names, primary keys, and estimated row counts. Use
+`--refresh` to bypass a cached discovery result.
+
+You can also discover without saving the source:
 
 ```sh
 filament source discover \
@@ -130,35 +148,52 @@ filament source discover \
   --source-dsn-env POSTGRES_DSN
 ```
 
-## Saving pipelines
+## Pipelines
+
+Create a pipeline from saved connections:
 
 ```sh
 filament pipeline create users-copy \
   --source production \
   --sink warehouse \
   --resources users,audit,logs \
+  --sync-mode full \
   --write-mode replace
 ```
 
-`--source` and `--sink` name saved connections. Leaving out `--resources`
-means every resource the source discovers. Pipeline-scoped connector fields
-are set the same way as connection fields, so `--sink-schema filament` targets
-a particular destination schema. When a sink declares a schema, namespace,
-database, or key-prefix field and you leave it empty, the CLI defaults it to
-the normalized source connection name.
-Editing a pipeline also accepts repeatable `--unset source-FIELD` and `--unset
-sink-FIELD` flags. Switching to a different connector automatically removes
-fields that belonged to the previous connector.
+Leaving out `--resources` selects every resource discovered by the source.
+Available sync and write modes depend on the selected connectors.
 
-## Running
+Pipeline-scoped connector fields use the same prefixes. For example,
+`--sink-schema filament` selects a destination schema. When a sink declares a
+schema, namespace, database, or key-prefix field and it is empty, the CLI uses
+the normalized source name.
 
-Run something you saved:
+## Run pipelines
+
+Run a saved pipeline on the selected context:
 
 ```sh
 filament run users-copy
 ```
 
-Or declare the whole thing inline:
+A saved pipeline without overrides runs on its target. Local runs keep history
+and checkpoints in SQLite. Remote runs execute in the deployment. The CLI
+streams progress until every run finishes.
+
+Inspect run history with:
+
+```sh
+filament run ls
+filament run ls users-copy
+```
+
+List commands show 25 items by default. Use `--limit` to change the page size
+and the printed `--next` cursor to fetch the next page.
+
+### Direct local runs
+
+An inline transfer runs locally without saving connections or a pipeline:
 
 ```sh
 filament run \
@@ -168,22 +203,41 @@ filament run \
   --sink-connector stdout
 ```
 
-Flags passed alongside a saved pipeline name override its settings for that
-run only, which makes it easy to retarget a schema or narrow the resource
-list without editing the file. The two styles do not mix. A saved pipeline
-name cannot be combined with `--source`, `--sink`, `--source-connector`, or
-`--sink-connector`.
+Flags passed with a saved pipeline also create a direct local run. They can
+change resources, modes, or pipeline-scoped connector fields for that run.
 
-When the run finishes, the CLI reports the records and bytes it moved.
+Direct runs support full reads only. They do not keep run history or
+checkpoints. Remote contexts run saved pipelines without overrides; edit the
+remote pipeline before running it when its configuration must change.
 
-Write mode can be `append`, `replace`, or `upsert`, subject to what the sink
-supports.
+## Local runtime
 
-## The config file
+Normal local commands start the embedded runtime, perform one operation, and
+stop it. Use `up` to keep the API and web UI available:
 
-Everything saved lives in one file, at `~/.config/filament/filament.yaml` or
-under `$XDG_CONFIG_HOME` when that is set. `filament config path` prints the
-resolved location.
+```sh
+filament up
+```
+
+The default address is `127.0.0.1:8080`. Run it in the background with:
+
+```sh
+filament up --detach
+filament status
+filament down
+```
+
+`filament up` only accepts a local context. It uses the same SQLite database
+and secrets as other local commands.
+
+## Local configuration
+
+The built-in local context reads
+`~/.config/filament/filament.yaml`, or
+`$XDG_CONFIG_HOME/filament/filament.yaml` when `XDG_CONFIG_HOME` is set.
+`filament config path` prints the active path.
+
+The YAML file is a declarative input to the local runtime:
 
 ```yaml
 version: 1
@@ -194,57 +248,61 @@ sources:
     config:
       connection_method: url
       dsn: env:POSTGRES_DSN
-      replication: standard
 
 sinks:
   warehouse:
-    type: postgres
-    config:
-      connection_method: url
-      dsn: env:POSTGRES_SINK_DSN
+    type: stdout
 
 pipelines:
   users-copy:
     source:
       ref: production
-      config:
-        schema: public
     sink:
       ref: warehouse
-      config:
-        schema: filament
     resources:
       - users
-      - audit
-      - logs
     sync_mode: full
     write_mode: replace
 ```
 
-The CLI edits this file surgically. Comments and formatting you add by hand
-survive, and writes are atomic, so an interrupted command cannot leave a
-half-written config behind.
+The file is input, not an inventory. The CLI applies it when it changes and
+creates or updates the declared connections and pipelines. Removing an entry
+from YAML does not delete it from local state. Items created through the CLI or
+web app remain in SQLite and are not written back to YAML.
 
-Editing by hand is fully supported:
+Use `filament config validate` to check the file and `filament config edit` to
+open it in `$VISUAL` or `$EDITOR`. An invalid edit leaves a recovery file. Raw
+YAML commands apply only to local contexts.
 
-- `filament config validate` checks the file against every connector's schema
-  and reports the first problem it finds
-- `filament config edit` opens it in `$VISUAL` or `$EDITOR`, validates on
-  save, and keeps a recovery copy if what you wrote does not parse
+## Remote contexts
 
-Validation is strict on purpose. Unknown fields, misplaced fields, bad enum
-values, missing required fields, and pipelines pointing at connections that
-do not exist are all caught before a run starts rather than partway through.
+Add an unauthenticated deployment and select it:
 
-## What runs where
+```sh
+filament context add production --server https://filament.example.com
+filament context use production
+```
 
-A local run executes in your terminal. The CLI wires up an in-process event
-bus and an in-memory state store, then calls the same runner the server and
-worker call. The engine behavior is identical, including batching and
-[integrity checks](/pages/guides/concepts/integrity-and-checkpoints).
+Use `--context production` to select it for one command instead. `filament
+status` shows the active context and whether its server is reachable.
 
-What you give up is durability. Nothing is written to Postgres, so runs are
-not recorded and progress is not kept between them. For scheduled runs, run
-history, and resumable incremental or CDC pipelines, use a deployed server
-with the [web app](/pages/guides/usage/web) or the
-[API](/pages/api-reference/service/introduction).
+For an authenticated deployment, log in with a service account:
+
+```sh
+filament --context production auth login \
+  --server https://filament.example.com
+```
+
+The CLI prompts for the client ID and secret when they are not passed as
+flags. It verifies the credentials, creates and selects the context, and
+refreshes access tokens when needed. `filament auth status` shows the current
+state; `filament auth logout` removes the context's credentials.
+
+Contexts and credentials are stored separately with owner-only permissions.
+
+## Output
+
+Tables use the boxed layout by default. Select a plain layout with
+`--layout plain` or `FILAMENT_LAYOUT=plain`. A layout chosen from the
+interactive Settings menu is saved for later commands. Set `NO_COLOR` to
+disable terminal colors.

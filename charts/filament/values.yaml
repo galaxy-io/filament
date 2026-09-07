@@ -182,7 +182,7 @@ metrics:
 
 persistence:
   # -- Persistence provider.
-  type: postgresql
+  type: postgres
 
   # -- Run database migrations as a post-install/post-upgrade hook Job.
   migrate: true
