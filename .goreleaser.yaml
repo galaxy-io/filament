@@ -41,14 +41,23 @@ release:
   mode: keep-existing
   prerelease: auto
 
-homebrew_casks:
+brews:
   - name: filament
+    ids:
+      - default
     repository:
       owner: galaxy-io
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    binaries:
-      - filament
+    directory: Formula
+    commit_author:
+      name: gx-null[bot]
+      email: 286761379+gx-null[bot]@users.noreply.github.com
     skip_upload: true
     homepage: https://github.com/galaxy-io/filament
     description: Filament CLI
+    license: Apache-2.0
+    install: |
+      bin.install "filament"
+    test: |
+      system "#{bin}/filament", "version"
