@@ -1,11 +1,12 @@
 ---
-title: "Embedding as a library"
+title: "Embedded"
 description: "Run Filament inside your own Go process"
 ---
 
 Call `app.Run` to serve Filament's API and execute runs inside your Go process.
-By default, state and events stay in memory, so they disappear when the process
-restarts. You can replace those defaults with Postgres and NATS for durability.
+By default, it uses in-memory SQLite and an in-process event bus, so state and
+events disappear when the process restarts. You can replace them with Postgres
+and NATS for durability.
 The call listens on `INGESTION_ADDR` (default `:8080`) and blocks until its
 context is canceled or a component fails. Blank imports register only the
 connectors your binary needs.
@@ -29,14 +30,12 @@ import (
 func main() { log.Fatal(app.Run(context.Background())) }
 ```
 
-With no options, `app.Run` uses an in-process event bus, an in-memory
-datastore, and the default connector registries populated by the blank
-imports.
+With no options, `app.Run` uses an in-process event bus, in-memory SQLite, and
+the default connector registries populated by the blank imports.
 
 <Warning>
-The default in-memory datastore is not durable. Connections, pipelines,
-runs, and checkpoints vanish on restart. Swap in the PostgreSQL datastore for
-anything beyond experiments.
+The default in-memory SQLite database is discarded when the process exits.
+Use file-backed SQLite or PostgreSQL to keep state across restarts.
 </Warning>
 
 See the [connector catalog](/pages/connectors/overview/introduction) for what
@@ -51,7 +50,7 @@ Every default is replaceable through an `app.Option`.
 | Option | Replaces |
 |---|---|
 | `WithBus` | The in-process event bus |
-| `WithDataStore` | The in-memory datastore |
+| `WithDataStore` | The in-memory SQLite datastore |
 | `WithMetricsStore` | The dashboard metrics backend (unimplemented by default) |
 | `WithSecrets` | The secrets provider |
 | `WithSources` | The source registry |
@@ -61,12 +60,12 @@ Every default is replaceable through an `app.Option`.
 
 Whatever store you pass to `WithDataStore` must also implement
 `filament.ScheduleStore`, or `Run` returns an error — the scheduler needs it.
-Both the memory and PostgreSQL stores qualify.
+Both the SQLite and PostgreSQL stores qualify.
 
-## Production embed
+## Durable embed
 
-A durable embed swaps the bus, store, and secrets for the same implementations
-the shipped binaries use:
+One durable setup uses the same bus, store, and secrets as the shipped
+binaries:
 
 ```go
 pool, err := postgres.NewPool(ctx, dsn)          // datastore/postgres

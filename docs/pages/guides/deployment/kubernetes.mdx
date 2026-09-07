@@ -3,89 +3,97 @@ title: "Kubernetes"
 description: "Deploy Filament with the Helm chart"
 ---
 
-Filament's Helm chart lives at `charts/filament`. It deploys the server and
-control plane as Deployments, runs database migrations as a hook Job, and
-wires up Kubernetes worker dispatch — the control plane creates one Kubernetes
-Job per run, so there is no long-lived worker Deployment to size or scale.
+Kubernetes with Helm is the recommended way to run Filament in production.
+The chart deploys the server and control plane, runs database migrations, and
+creates a worker Job for each run. It does not create a long-running worker
+Deployment.
 
-## Installing
+<Warning>
+Run exactly one control-plane replica. Multiple replicas may race while
+coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and
+leave `controlPlane.autoscaling.enabled` disabled.
+</Warning>
 
-The chart requires three inputs. Review the remaining values for your security,
-availability, and resource requirements before using it in production.
+## Install the chart
 
-| Value | Becomes |
+The default setup uses PostgreSQL as its datastore, NATS JetStream as its event
+bus, and the datastore-backed secret provider. It needs these three values:
+
+| Chart value | Purpose |
 |---|---|
-| `persistence.postgresql.dsn` | `PERSISTENCE_DSN` |
-| `secrets.postgres.encryptionKey` | `ENCRYPTION_KEY` |
-| `eventBus.nats.url` | `NATS_URL` |
+| `persistence.postgresql.dsn` | PostgreSQL connection string |
+| `eventBus.nats.url` | NATS connection URL |
+| `secrets.datastore.encryptionKey` | Key used to encrypt stored credentials |
 
-Generate an encryption key and install:
+Generate an encryption key and install the chart:
 
 ```sh
-helm install filament oci://ghcr.io/galaxy-io/charts/filament \
-  --set persistence.postgresql.dsn="postgresql://filament:...@db:5432/filament" \
-  --set secrets.postgres.encryptionKey="$(openssl rand -base64 32)" \
-  --set eventBus.nats.url="nats://nats:4222"
+helm upgrade --install filament oci://ghcr.io/galaxy-io/charts/filament \
+  --set-string persistence.postgresql.dsn="postgresql://filament:...@db:5432/filament" \
+  --set-string secrets.datastore.encryptionKey="$(openssl rand -base64 32)" \
+  --set-string eventBus.nats.url="nats://nats:4222"
 ```
 
-The key must be base64 and decode to 16, 24, or 32 bytes. It is the AES-GCM
-key the default `postgres` secrets provider encrypts connection credentials
-with. Alternatively, set `existingSecret` to the name of a Secret you manage
-yourself containing `PERSISTENCE_DSN`, `ENCRYPTION_KEY`, and `NATS_URL`. The
-chart then creates no Secret of its own.
+The encryption key must be base64 and decode to 16, 24, or 32 bytes.
 
-## What you get
+To manage these values outside Helm, set `existingSecret` to a Kubernetes
+Secret that contains `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY`. Add
+`AUTH_PAT` when using an external Zitadel provider. When `existingSecret` is
+set, the chart does not create a Secret.
 
-**Server**: a Deployment (one replica by default) and a Service on port 8080
-serving the API and UI. Optional extras, all off by default:
+If you use AWS Secrets Manager instead of the datastore-backed provider, you
+do not need `ENCRYPTION_KEY`. See
+[Configuration](/pages/guides/deployment/configuration) for provider settings.
 
-- an Ingress (`server.ingress.enabled`)
-- an HPA (`server.autoscaling.enabled`, 1–10 replicas targeting 80% CPU)
-- a PodDisruptionBudget with `maxUnavailable: 1` when autoscaling is on or
-  replicas exceed one
+## Resources
 
-**Control plane**: a Deployment (`controlPlane.enabled: true` by default)
-running the scheduler, dispatcher, tracker, and reaper, with health probes on
-port 8081. The chart grants its ServiceAccount a namespaced RBAC Role over
-`batch/jobs` (`create`, `get`, `list`, `watch`, `delete`), the minimum the
-dispatcher needs to create worker Jobs and the reaper needs to clean them up.
+### Server
 
-**Worker**: no Deployment. The chart ships only a ConfigMap and a
-ServiceAccount that dispatched Jobs consume at runtime. Set IRSA or other
-cloud-identity annotations on `controlPlane.dispatch.worker.serviceAccount.annotations`
-if workers need cloud credentials (for example, the `aws-secrets-manager`
-secrets provider).
+The server Deployment serves the API and web application through a Service on
+port 8080. It starts with one replica. The chart can also create an Ingress,
+HorizontalPodAutoscaler, and PodDisruptionBudget.
 
-**Migrate Job**: a post-install/post-upgrade hook (`persistence.migrate: true`)
-that runs the server image with `args: ["-migrate"]`, `backoffLimit: 6`, and a
-one-hour TTL. Migrations wait up to five minutes for the database to accept
-connections, so a fresh install with a still-booting database converges
-without intervention.
+### Control plane
+
+The control-plane Deployment runs the scheduler, dispatcher, tracker, and
+reaper. It starts with one replica and exposes health endpoints on port 8081.
+Its ServiceAccount has namespaced access to the Kubernetes Jobs it creates and
+removes.
+
+### Database migrations
+
+A post-install and post-upgrade hook runs migrations with the server image.
+The migration Job waits up to five minutes for PostgreSQL and retries failed
+attempts up to six times. Set `persistence.migrate: false` if you manage
+migrations separately.
+
+## Rollouts and health checks
 
 Both Deployments annotate their pods with checksums of the rendered ConfigMap
-and Secret, so a config change on upgrade triggers a rollout even when the
-image tag is unchanged.
+and chart-managed Secret. Changing either resource through Helm triggers a
+rollout even when the image tag stays the same. Changes to an `existingSecret`
+do not affect the checksum, so restart both Deployments after rotating one.
 
-Both Deployments use startup, readiness, and liveness probes:
+The server and control plane expose `/startupz`, `/readyz`, and `/livez`.
+Startup succeeds after NATS connects and the runtime modules start. Readiness
+checks PostgreSQL and NATS; the server also ensures that its default tenant
+exists. Liveness checks that the process can answer HTTP requests. The startup
+probe gates the other checks, readiness marks a pod unready, and liveness can
+restart its container.
 
-- `/startupz` succeeds after the event bus connects and modules start.
-- `/readyz` checks PostgreSQL and the event bus; the server also checks its
-  default tenant.
-- `/livez` checks that the process's HTTP loop responds.
+Worker Jobs do not expose health endpoints. They report progress through
+heartbeats instead.
 
-When the vendored PostgreSQL chart is enabled, its startup probe allows up to
-five minutes for cold starts and crash recovery, and its readiness probe marks
-the primary unavailable after two failures.
+## Worker Jobs
 
-## How dispatched worker Jobs look
+For each run, the control plane creates a Kubernetes Job that starts the worker
+image. It passes `TENANT_ID` and `RUN_ID` to the worker. The worker loads shared
+settings from a Secret and ConfigMap, then loads the run from the datastore.
 
-Each run becomes one Kubernetes Job running the worker image. The dispatcher
-injects exactly one environment variable, `RUN_ID`, and everything else
-arrives via `envFrom` of the worker Secret and ConfigMap. Run-specific state
-lives in PostgreSQL, so the Job spec stays identical across runs.
+Each pipeline can set its own CPU, memory, node selectors, and tolerations.
+This lets Kubernetes place and size each run independently.
 
-Configure worker Jobs through chart values that map to the control plane's
-`K8S_JOB_*` and `K8S_WORKER_*` variables:
+Common worker settings include:
 
 - `controlPlane.dispatch.job.namePrefix` (default `filament`)
 - `controlPlane.dispatch.job.backoffLimit` (default 1)
@@ -94,37 +102,40 @@ Configure worker Jobs through chart values that map to the control plane's
 - `controlPlane.dispatch.worker.terminationGraceSeconds`
 - `controlPlane.dispatch.worker.activeDeadlineSeconds`
 
-The full variable set is in the
-[configuration reference](/pages/guides/deployment/configuration).
+For all worker settings, see the
+[Helm chart README](https://github.com/galaxy-io/filament/tree/main/charts/filament).
 
 ## Scaling
 
-The server is stateless and scales horizontally. The control plane is also
-safe to run with multiple replicas. Schedule firing claims rows with
-`SELECT FOR UPDATE SKIP LOCKED` under a five-minute lease, so concurrent
-control planes never double-dispatch a scheduled run.
+The server is stateless and can scale horizontally. Keep the control plane at
+one replica. Worker capacity scales through Kubernetes because each run gets
+its own Job and resource configuration.
 
-## Vendored PostgreSQL and NATS
+## Vendored dependencies
 
-The chart vendors two optional subcharts, Bitnami PostgreSQL (8Gi PVC,
-optional daily `pg_dumpall` backup) and NATS (JetStream, 10Gi file store).
-Both are disabled by default.
+The chart includes optional PostgreSQL, NATS, and Zitadel subcharts. All three
+are disabled by default:
+
+- Bitnami PostgreSQL with an 8Gi PVC and optional daily `pg_dumpall` backups
+- NATS with JetStream and a 10Gi file store
+- Zitadel for authentication
 
 <Warning>
-The vendored subcharts exist for local and test clusters. Use external,
-managed PostgreSQL and NATS instances in production. The chart's own
-`values.yaml` says the same.
+Use the vendored subcharts for local and test clusters. For production, use
+managed services with lifecycles separate from Filament.
 </Warning>
 
-## CI and releases
+Authentication is disabled by default. Set `auth.enabled: true`,
+`auth.uiOrigin`, and `auth.zitadel.issuer` to use Zitadel. An external Zitadel
+instance also requires `auth.zitadel.pat` or an `AUTH_PAT` entry in
+`existingSecret`. The vendored Zitadel setup mints its own token.
 
-Images are published to `ghcr.io/galaxy-io/filament/{server,control-plane,worker,standalone}`.
-Every push to main publishes `latest`, and `v*` releases add semver plus SHA
-tags.
+<Note>
+Do not use `--wait` when enabling the vendored Zitadel chart. Its setup Jobs
+must mint the server token before the server can become ready.
+</Note>
 
-The chart is versioned independently of the application. Merging a
-`charts/filament/Chart.yaml` version bump publishes the chart to
-`oci://ghcr.io/galaxy-io/charts/filament`, attaches a build provenance
-attestation, and tags the commit `helm-chart-<version>`. The chart's
-`appVersion` pins the image tag it deploys, and CI checks that those images
-exist, lints the chart, and renders it in four configurations on every change.
+## Chart reference
+
+The [Helm chart README](https://github.com/galaxy-io/filament/tree/main/charts/filament)
+lists every supported value and its default.

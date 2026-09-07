@@ -1,159 +1,193 @@
 ---
 title: "Configuration"
-description: "The complete environment variable reference"
+description: "Configure the server, control plane, and workers"
 ---
 
-The server, control-plane, worker, standalone, and library app use environment
-variables. This page does not describe the separate `filament` CLI, which uses
-a YAML file. The server also accepts `-migrate`. Locally, the justfile loads
-`.env`; in Kubernetes, the chart renders variables into ConfigMaps and Secrets.
+The server, control plane, and worker read configuration from environment
+variables. A deployment must give all three the same datastore, event bus, and
+secret-provider settings. The Helm chart renders these variables from chart
+values; other platforms set them directly.
 
-## Shared variables
+This page does not cover the `filament` CLI, which uses a YAML configuration
+file.
 
-These are read by every binary (server, control plane, and worker). The
-standalone binary substitutes its own embedded infrastructure where noted.
+## Shared configuration
 
-### Persistence
+The server, control plane, and worker read the variables in this section.
+
+### Datastore
 
 | Variable | Default | Description |
 |---|---|---|
-| `PERSISTENCE_PROVIDER` | `postgres` | `postgres` or `postgresql`. Anything else errors |
-| `PERSISTENCE_DSN` | — | **Required.** PostgreSQL connection string |
+| `PERSISTENCE_PROVIDER` | `postgres` | Datastore implementation. Accepts `postgres` or `sqlite` |
+| `PERSISTENCE_DSN` | — | PostgreSQL connection string. Required for `postgres` |
+| `STORE_PATH` | — | SQLite database path. Required for `sqlite` |
+
+Use PostgreSQL for a split deployment. The service binaries accept SQLite,
+but a local SQLite file is not a shared datastore for services running on
+different hosts.
 
 ### Event bus
 
 | Variable | Default | Description |
 |---|---|---|
-| `EVENTBUS_PROVIDER` | `nats` | `nats` is the only valid value |
-| `NATS_URL` | — | **Required.** NATS server URL |
-| `NATS_STREAM` | `EVENTBUS` | JetStream stream name, created if missing |
-| `NATS_SUBJECTS` | `>` | Subject filter. The chart and justfile set `ingestion.v1.>` |
+| `EVENTBUS_PROVIDER` | `nats` | Event bus implementation. `nats` is the only supported value |
+| `NATS_URL` | — | **Required.** NATS connection URL |
+| `NATS_STREAM` | `EVENTBUS` | JetStream stream name; Filament creates it when needed |
+| `NATS_SUBJECTS` | `>` | JetStream subject filter. The Helm chart uses `ingestion.v1.>` |
+| `NATS_TTL_SECONDS` | `604800` | Maximum message age in seconds. Set to `0` to disable age-based expiration |
 
-### Secrets
+<Note>
+`DISPATCH_MODE=inproc` changes where runs execute; it does not replace the
+event bus.
+</Note>
 
-| Variable | Default | Description |
-|---|---|---|
-| `SECRET_PROVIDER` | `postgres` | `postgres` or `aws-secrets-manager` |
-| `ENCRYPTION_KEY` | — | **Required with `postgres`.** Base64 AES key (16, 24, or 32 bytes) |
-| `ENCRYPTION_KEY_ID` | `default` | Key identifier, for rotation |
-| `SECRETS_PREFIX` | `""` | Name prefix for `aws-secrets-manager` entries |
-| `AWS_REGION` | SDK chain | Region for `aws-secrets-manager`. Fails fast if unresolved |
-
-### Telemetry
+### Secret provider
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_LEVEL` | `INFO` | Minimum structured log level: `INFO`, `DEBUG`, or `TRACE` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP endpoint. Unset disables export |
-| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` (collector port 4317) or `http/protobuf` (4318) |
+| `SECRET_PROVIDER` | unset | Unset uses the configured datastore. The only explicit value is `aws-secrets-manager` |
+| `ENCRYPTION_KEY` | — | Base64-encoded AES key. Required when `SECRET_PROVIDER` is unset; it must decode to 16, 24, or 32 bytes |
+| `ENCRYPTION_KEY_ID` | `default` | Identifier stored with secrets written by the datastore-backed provider |
+| `SECRETS_PREFIX` | empty | Prefix added to secret names in AWS Secrets Manager |
+| `AWS_REGION` | AWS SDK chain | AWS region. Startup fails if the SDK cannot resolve one |
 
-When an OTLP endpoint is set, metrics and traces are exported. Without one,
-OpenTelemetry export is disabled. The
-`_METRICS_`/`_TRACES_` per-signal endpoint variants and other standard
-`OTEL_*` variables are honored. Logs are always JSON `slog` to stdout,
-regardless of OTel.
+The datastore-backed provider stores AES-GCM encrypted values in PostgreSQL or
+SQLite. Every service must receive the same encryption key.
+
+<Warning>
+Keep `ENCRYPTION_KEY` safe and stable. Changing it makes existing secrets
+unreadable. `ENCRYPTION_KEY_ID` records an identifier, but it does not provide
+a multi-key rotation mechanism.
+</Warning>
+
+The AWS provider loads credentials through the standard AWS SDK chain. It
+stores each Filament secret as a JSON envelope in AWS Secrets Manager.
+
+### Logs and OpenTelemetry
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_LEVEL` | `INFO` | Log level: `INFO`, `DEBUG`, or `TRACE` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | Shared OTLP endpoint for metrics and traces |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | — | Metrics-specific OTLP endpoint |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | — | Trace-specific OTLP endpoint |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | Transport for both exporters: `grpc` or `http/protobuf` |
+| `OTEL_SERVICE_NAME` | SDK default | Service name attached to telemetry |
+
+Filament enables OpenTelemetry export when any OTLP endpoint is set. It
+creates both metrics and trace exporters using the selected protocol. The
+exporters also honor the standard OTLP headers, TLS, timeout, and compression
+variables for that transport. Application logs remain JSON on standard output;
+Filament does not export logs through OTLP.
 
 ## Server
 
 | Variable | Default | Description |
 |---|---|---|
-| `SERVER_ADDR` | `:8080` | API, UI, `/livez`, `/startupz`, and `/readyz` listen address |
-| `METRICSSTORE_PROVIDER` | `postgres` | Backs the dashboard `MetricsService`. Other values leave it unimplemented |
-| `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant applied when requests omit `tenant_id` |
+| `SERVER_ADDR` | `:8080` | Listen address for the API, web application, and health endpoints |
+| `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
+| `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
+
+### Authentication
+
+| Variable | Default | Description |
+|---|---|---|
+| `AUTH_PROVIDER` | unset | Unset disables authentication. The supported provider is `zitadel` |
+| `AUTH_ISSUER` | — | Zitadel issuer URL. Required when `AUTH_PROVIDER=zitadel` |
+| `AUTH_PAT` | — | Zitadel machine-user personal access token. Required when `AUTH_PROVIDER=zitadel` |
+| `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies |
+
+<Warning>
+When `AUTH_PROVIDER` is unset, the API and web application are unauthenticated.
+</Warning>
+
+Only the server reads authentication variables.
 
 ## Control plane
 
+<Warning>
+Run exactly one control-plane replica. Multiple replicas may race while
+coordinating schedules and runs.
+</Warning>
+
 | Variable | Default | Description |
 |---|---|---|
-| `HEALTH_ADDR` | `:8081` | `/livez`, `/startupz`, and `/readyz` listen address |
-| `DISPATCH_MODE` | `kubernetes` | How runs execute (`kubernetes` or `inproc`) |
-| `REAPER_INTERVAL_SECONDS` | `60` | How often the reaper sweeps for stale runs |
-| `REAPER_STALE_AFTER_SECONDS` | `300` | Heartbeat silence before a run is failed |
+| `HEALTH_ADDR` | `:8081` | Listen address for `/livez`, `/startupz`, and `/readyz` |
+| `DISPATCH_MODE` | `kubernetes` | Run execution mode: `kubernetes` or `inproc` |
+| `REAPER_INTERVAL_SECONDS` | `60` | Interval between stale-run sweeps in Kubernetes mode |
+| `REAPER_STALE_AFTER_SECONDS` | `300` | Time without a worker heartbeat before a running run is failed |
 
-`DISPATCH_MODE` is read by the control plane only. Under `kubernetes`, each
-run becomes a worker Job and the reaper is mounted to fail runs whose
-heartbeats stop. Under `inproc`, runs execute inside the control-plane process
-itself — no worker Jobs, no heartbeats, and no reaper. `inproc` suits local
-development and small single-node deployments, but a crashed `inproc` run has
-no reaper to notice it.
+In `kubernetes` mode, the control plane creates a worker Job for each run and
+uses the reaper to detect workers that stop reporting heartbeats. In `inproc`
+mode, runs execute inside the control-plane process. There are no worker Jobs,
+heartbeats, or reaper.
 
 ### Kubernetes dispatch
 
-Read only when `DISPATCH_MODE` is `kubernetes`.
+These variables apply only when `DISPATCH_MODE=kubernetes`. The Helm chart
+sets them from its `controlPlane.dispatch` values.
 
 | Variable | Default | Description |
 |---|---|---|
-| `K8S_WORKER_IMAGE` | — | **Required.** Worker image for dispatched Jobs |
-| `K8S_WORKER_SECRET_NAME` | — | **Required.** Secret loaded into worker pods with `envFrom` |
-| `K8S_WORKER_CONFIGMAP_NAME` | — | ConfigMap loaded into worker pods with `envFrom` |
-| `K8S_NAMESPACE` | in-cluster namespace | Namespace Jobs are created in |
-| `K8S_WORKER_SERVICE_ACCOUNT` | — | ServiceAccount for worker pods |
-| `K8S_WORKER_APP_NAME` | — | `app.kubernetes.io/name` label on worker pods |
+| `K8S_WORKER_IMAGE` | — | **Required.** Container image for worker Jobs |
+| `K8S_WORKER_SECRET_NAME` | — | **Required.** Secret loaded into worker containers with `envFrom` |
+| `K8S_WORKER_CONFIGMAP_NAME` | — | Optional ConfigMap loaded with `envFrom` |
+| `K8S_NAMESPACE` | ServiceAccount namespace | Namespace in which to create Jobs |
+| `K8S_KUBECONFIG` | in-cluster configuration | Kubeconfig path. Falls back to `KUBECONFIG` |
+| `K8S_WORKER_SERVICE_ACCOUNT` | namespace default | ServiceAccount assigned to worker pods |
+| `K8S_WORKER_APP_NAME` | `filament` | Value of the worker's `app.kubernetes.io/name` label |
 | `K8S_WORKER_IMAGE_PULL_POLICY` | `IfNotPresent` | Worker image pull policy |
 | `K8S_WORKER_RESTART_POLICY` | `Never` | Worker pod restart policy |
-| `K8S_WORKER_TERMINATION_GRACE_SECONDS` | — | Termination grace period |
-| `K8S_WORKER_ACTIVE_DEADLINE_SECONDS` | — | Hard runtime cap per Job |
-| `K8S_JOB_NAME_PREFIX` | `filament` | Prefix for Job names |
-| `K8S_JOB_BACKOFF_LIMIT` | `1` | Job retry budget |
-| `K8S_JOB_TTL_SECONDS_AFTER_FINISHED` | — | Finished-Job retention |
-| `K8S_KUBECONFIG` | in-cluster config | Kubeconfig path. Falls back to `KUBECONFIG` |
+| `K8S_WORKER_TERMINATION_GRACE_SECONDS` | Kubernetes default | Worker termination grace period |
+| `K8S_WORKER_ACTIVE_DEADLINE_SECONDS` | unset | Maximum lifetime of a worker Job |
+| `K8S_JOB_NAME_PREFIX` | `filament` | Prefix for generated Job names |
+| `K8S_JOB_BACKOFF_LIMIT` | `1` | Number of retries before Kubernetes marks a Job failed |
+| `K8S_JOB_TTL_SECONDS_AFTER_FINISHED` | unset | Time to retain a finished Job |
 
 ## Worker
 
 | Variable | Default | Description |
 |---|---|---|
-| `RUN_ID` | — | **Required.** The persisted run this process executes |
-| `HEARTBEAT_SECONDS` | `30` | Heartbeat interval |
+| `TENANT_ID` | — | **Required.** Tenant that owns the run |
+| `RUN_ID` | — | **Required.** Persisted run to execute |
+| `HEARTBEAT_SECONDS` | `30` | Interval between worker heartbeats |
 
-`RUN_ID` is the only variable the dispatcher injects. Everything else reaches
-the worker through its Secret and ConfigMap. The default
-`REAPER_STALE_AFTER_SECONDS` of 300 allows 10 missed heartbeats.
+The Kubernetes dispatcher injects `TENANT_ID` and `RUN_ID`. The worker loads
+the remaining shared settings from its Secret and ConfigMap. Invalid or
+non-positive `HEARTBEAT_SECONDS` values use the 30-second default.
 
 ## Standalone
 
+Standalone is intended for testing and evaluation. It has its own embedded
+NATS server, SQLite datastore, and read-only environment secret provider.
+
 | Variable | Default | Description |
 |---|---|---|
-| `INGESTION_ADDR` | `:8080` | API and UI listen address (also used by library embeds) |
-| `NATS_STORE_DIR` | `$TMPDIR/filament-standalone` | Embedded JetStream storage directory |
-| `STORE_PATH` | `$NATS_STORE_DIR/filament.db` | SQLite datastore file |
+| `INGESTION_ADDR` | `:8080` | Listen address for the API and web application |
+| `NATS_STORE_DIR` | `<temporary directory>/filament-standalone` | Embedded JetStream storage directory |
+| `STORE_PATH` | `<NATS_STORE_DIR>/filament.db` | SQLite database path |
 
-The standalone binary keeps runs, pipelines, and connections in a SQLite file
-next to the JetStream store, so state survives a restart as long as that
-directory does. It reads secrets from environment variables via the `env` provider.
+Standalone also reads `LOG_LEVEL` and `NATS_TTL_SECONDS`. Its secret provider
+maps a reference such as `postgres-creds/dsn` to `POSTGRES_CREDS_DSN`. It
+cannot create, update, or delete secrets.
 
-## Secret providers
-
-The `postgres` provider (default) encrypts secret values with AES-GCM under
-`ENCRYPTION_KEY` and stores them in the datastore schema. Each row records the
-`ENCRYPTION_KEY_ID` it was encrypted with, so rotation is incremental. Deploy
-a new key with a new ID, and existing rows keep decrypting under the old ID
-until rewritten.
-
-The `aws-secrets-manager` provider stores secrets as JSON envelopes in AWS
-Secrets Manager, prefixing every name with `SECRETS_PREFIX`. Deletes refuse to
-touch entries the provider did not create.
-
-The `env` provider is read-only and maps refs to environment variables, so
-ref `postgres-creds/dsn` reads `POSTGRES_CREDS_DSN`. It backs the standalone
-binary and is useful in development.
-
-Connection-managed secrets live under the ref namespace
-`filament/<tenant>/<connID>/<field>/v<version>`, and cross-tenant reads are
-rejected. Plaintext secret values are never written to stored configs, logs, or the
-event bus.
+The public Go API also uses `INGESTION_ADDR`. See
+[Embedded](/pages/guides/usage/embedded) for library configuration.
 
 ## Migrations
 
-Migrations are goose SQL files embedded in the server binary, tracked in
-`goose_db_version`, and idempotent (re-running them is always safe). Three
-paths apply them, all the same code:
+PostgreSQL migrations are embedded in the server image. The server's
+`-migrate` flag waits up to five minutes for the database, applies pending
+migrations, and exits:
 
 ```sh
-just migrate                 # local development
-./server -migrate            # run migrations, then exit
+./server -migrate
 ```
 
-The third is the Helm chart's post-install/post-upgrade hook Job, which runs
-the server image with `-migrate` and waits up to five minutes for the
-database. The schema uses `gen_random_uuid()`, which requires PostgreSQL 13 or
-newer. The compose file pins `postgres:16`.
+The Helm chart runs this command in a post-install and post-upgrade hook. Use
+the same command as a pre-deploy step on platforms such as Railway. SQLite
+applies its migrations when the datastore opens.
+
+The [Helm chart README](https://github.com/galaxy-io/filament/tree/main/charts/filament)
+lists the chart values that produce these variables.

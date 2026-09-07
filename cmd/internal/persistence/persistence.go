@@ -16,12 +16,11 @@ import (
 )
 
 // FromEnv selects the datastore per PERSISTENCE_PROVIDER; postgres is the
-// default ("postgresql" is accepted as an alias, matching the Helm chart).
-// postgres pools connections from PERSISTENCE_DSN; sqlite opens the file at
-// STORE_PATH, migrating on open.
+// default. postgres pools connections from PERSISTENCE_DSN; sqlite opens the
+// file at STORE_PATH, migrating on open.
 func FromEnv(ctx context.Context) (filament.DataStore, error) {
 	switch provider := os.Getenv("PERSISTENCE_PROVIDER"); provider {
-	case "", "postgres", "postgresql":
+	case "", "postgres":
 		dsn, err := dsnFromEnv()
 		if err != nil {
 			return nil, err
@@ -50,7 +49,7 @@ func FromEnv(ctx context.Context) (filament.DataStore, error) {
 // reachable first. sqlite migrates on open, so its arm opens and closes.
 func MigrateFromEnv(ctx context.Context) error {
 	switch provider := os.Getenv("PERSISTENCE_PROVIDER"); provider {
-	case "", "postgres", "postgresql":
+	case "", "postgres":
 		dsn, err := dsnFromEnv()
 		if err != nil {
 			return err

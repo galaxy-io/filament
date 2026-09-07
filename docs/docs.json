@@ -119,7 +119,8 @@
         "group": "Usage",
         "pages": [
           "pages/guides/usage/web",
-          "pages/guides/usage/cli"
+          "pages/guides/usage/cli",
+          "pages/guides/usage/embedded"
         ]
       },
       {
@@ -169,10 +170,9 @@
         "group": "Deployment",
         "pages": [
           "pages/guides/deployment/overview",
-          "pages/guides/deployment/kubernetes",
-          "pages/guides/deployment/railway",
           "pages/guides/deployment/configuration",
-          "pages/guides/deployment/embedding-as-a-library"
+          "pages/guides/deployment/kubernetes",
+          "pages/guides/deployment/railway"
         ]
       },
       {

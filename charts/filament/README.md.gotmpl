@@ -11,6 +11,9 @@
 
 This chart deploys Filament server, control plane, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
 
+> [!CAUTION]
+> We strongly recommend running exactly one control-plane replica. Multiple replicas may race while coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and leave `controlPlane.autoscaling.enabled` disabled.
+
 {{ template "chart.sourcesSection" . }}
 
 {{ template "chart.maintainersSection" . }}
