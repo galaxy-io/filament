@@ -108,7 +108,7 @@ images: binaries
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
-    for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{cmd}}) || exit 1; done
+    for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{ cmd }}) || exit 1; done
 
 # format Go, UI, and proto; `just format check` verifies without writing
 format mode="fix": (go-format mode) (ui-format mode) (proto-format mode)
@@ -134,11 +134,15 @@ ui-lint mode="fix":
 test:
     for dir in $(find . -name go.mod -not -path "./tests/*" -exec dirname {} \;); do (cd "$dir" && GOWORK=off go test ./...) || exit 1; done
 
-# run the integration/e2e suite (requires docker + tests/docker/.env)
-# Every suite file is //go:build integration, so without the tag this matches
-# no packages and exits 0 — passing while testing nothing.
+# Run the service-level integration suite. Every dependency is provisioned by
+# Testcontainers; no local database or externally supplied DSN is used.
 test-integration:
-    cd tests && GOWORK=off go test -tags integration ./...
+    cd tests && GOWORK=off go test -count=1 -tags integration ./integration/...
+
+# Run process/deployment and data-lake e2e scenarios plus privileged k3s tests.
+# DuckDB must be on PATH for the TPC-H seed used by the e2e packages.
+test-e2e:
+    cd tests && GOWORK=off go test -count=1 -tags e2e -p=1 ./e2e/...
 
 # tidy go.mod/go.sum in every Go module, then sync workspace versions
 tidy: (_each "GOWORK=off go mod tidy")

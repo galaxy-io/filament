@@ -1,4 +1,4 @@
-//go:build integration
+//go:build e2e
 
 // Package datalake holds heavy end-to-end tests that wire a real Postgres source
 // through the ingestion pipeline into a real Iceberg sink (REST catalog + MinIO),

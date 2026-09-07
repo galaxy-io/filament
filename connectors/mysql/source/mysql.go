@@ -226,6 +226,11 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		mc.Params = map[string]string{}
 	}
 	mc.Params["time_zone"] = "'+00:00'"
+	// The decoder intentionally consumes MySQL's text protocol so DATE,
+	// DATETIME, and TIMESTAMP all share the same zero-value and microsecond
+	// handling. A user-supplied parseTime=true DSN would otherwise make the
+	// driver re-render those values as RFC3339 before scanning into RawBytes.
+	mc.ParseTime = false
 
 	db, err := sql.Open("mysql", mc.FormatDSN())
 	if err != nil {

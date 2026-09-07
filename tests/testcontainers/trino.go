@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -47,7 +47,7 @@ func TrinoContainer(t testing.TB) *Trino {
 	if err != nil {
 		t.Fatalf("start trino container: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(ctr) })
+	cleanupContainer(t, "trino", ctr)
 
 	host, err := ctr.Host(ctx)
 	if err != nil {

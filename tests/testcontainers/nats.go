@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	natsgo "github.com/nats-io/nats.go"
 	tc "github.com/testcontainers/testcontainers-go"
@@ -30,20 +31,22 @@ func NATSContainer(t testing.TB) *NATS {
 			Image:        Image(t, "NATS_IMAGE"),
 			Cmd:          []string{"-js"},
 			ExposedPorts: []string{"4222/tcp"},
-			WaitingFor:   wait.ForLog("Server is ready"),
+			// Waiting on the log alone can win a Docker Desktop race where the
+			// process is ready but the host-port binding is not inspectable yet.
+			WaitingFor: wait.ForListeningPort("4222/tcp").WithStartupTimeout(time.Minute),
 		},
 		Started: true,
 	})
 	if err != nil {
 		t.Fatalf("start nats container: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(ctr) })
+	cleanupContainer(t, "nats", ctr)
 
 	host, err := ctr.Host(ctx)
 	if err != nil {
 		t.Fatalf("nats host: %v", err)
 	}
-	port, err := ctr.MappedPort(ctx, "4222")
+	port, err := ctr.MappedPort(ctx, "4222/tcp")
 	if err != nil {
 		t.Fatalf("nats port: %v", err)
 	}

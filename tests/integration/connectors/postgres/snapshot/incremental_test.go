@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package snapshot_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
@@ -47,14 +48,14 @@ func TestPostgresIncrementalShardedBackfillAndChanges(t *testing.T) {
 	if !ok || backfill.Mode != checkpoint.ModeIncrementalBackfill || len(backfill.Shards) < 2 {
 		t.Fatalf("backfill plan = %#v", plan["incremental_users"].Raw())
 	}
-	initial := &collectSink{}
+	initial := &testutil.CollectSink{}
 	if err := src.ExtractFrom(ctx, initial, filament.ExtractOpts{
 		Resources: []string{"incremental_users"}, Parallelism: 4,
 	}, plan); err != nil {
 		t.Fatal(err)
 	}
-	if len(initial.recs) != 10000 {
-		t.Fatalf("backfill rows = %d, want 10000", len(initial.recs))
+	if len(initial.Records) != 10000 {
+		t.Fatalf("backfill rows = %d, want 10000", len(initial.Records))
 	}
 
 	promoted, ok := checkpoint.PromoteIncrementalBackfill(plan["incremental_users"])
@@ -72,14 +73,14 @@ func TestPostgresIncrementalShardedBackfillAndChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	changes := &collectSink{}
+	changes := &testutil.CollectSink{}
 	if err := src.ExtractFrom(ctx, changes, filament.ExtractOpts{
 		Resources: []string{"incremental_users"}, Parallelism: 4,
 	}, next); err != nil {
 		t.Fatal(err)
 	}
 	seen := map[string]bool{}
-	for _, record := range changes.recs {
+	for _, record := range changes.Records {
 		seen[record.ID] = true
 	}
 	if !seen["1"] || !seen["10001"] {

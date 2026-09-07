@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 // Package testcontainers provides helpers for spinning up ephemeral backing
 // services in integration tests. All helpers register t.Cleanup so containers
@@ -20,12 +20,13 @@ import (
 // reason. docker/.env overrides these; it stays the place to pin an exact
 // version once for both compose and testcontainers.
 var imageDefaults = map[string]string{
-	"POSTGRES_IMAGE":     "postgres:latest",
-	"NATS_IMAGE":         "nats:latest",
-	"REDIS_IMAGE":        "redis:latest",
-	"MINIO_IMAGE":        "minio/minio:latest",
-	"TRINO_IMAGE":        "trinodb/trino:latest",
-	"ICEBERG_REST_IMAGE": "apache/iceberg-rest-fixture:latest",
+	"POSTGRES_IMAGE":     "postgres:16.15-alpine",
+	"MYSQL_IMAGE":        "mysql:8.4.10",
+	"NATS_IMAGE":         "nats:2.14.6-alpine",
+	"REDIS_IMAGE":        "redis:7.4.11-alpine",
+	"MINIO_IMAGE":        "minio/minio:RELEASE.2025-07-23T15-54-02Z",
+	"TRINO_IMAGE":        "trinodb/trino:476",
+	"ICEBERG_REST_IMAGE": "apache/iceberg-rest-fixture:1.10.1",
 	"K3S_IMAGE":          "rancher/k3s:v1.31.2-k3s1",
 }
 

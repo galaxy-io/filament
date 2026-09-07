@@ -12,12 +12,12 @@ import (
 
 // imageDefaults are used when docker/.env is absent or missing a key.
 var imageDefaults = map[string]string{
-	"POSTGRES_IMAGE":     "postgres:latest",
-	"NATS_IMAGE":         "nats:latest",
-	"REDIS_IMAGE":        "redis:latest",
-	"MINIO_IMAGE":        "minio/minio:latest",
-	"TRINO_IMAGE":        "trinodb/trino:latest",
-	"ICEBERG_REST_IMAGE": "apache/iceberg-rest-fixture:latest",
+	"POSTGRES_IMAGE":     "postgres:16.15-alpine",
+	"NATS_IMAGE":         "nats:2.14.6-alpine",
+	"REDIS_IMAGE":        "redis:7.4.11-alpine",
+	"MINIO_IMAGE":        "minio/minio:RELEASE.2025-07-23T15-54-02Z",
+	"TRINO_IMAGE":        "trinodb/trino:476",
+	"ICEBERG_REST_IMAGE": "apache/iceberg-rest-fixture:1.10.1",
 }
 
 // Image returns the pinned image reference for a docker/.env key (e.g.

@@ -32,16 +32,17 @@ There are three layers of tests, run by two commands.
 need Docker. The suite covers planning, batching and integrity, checkpoints,
 event delivery, connectors, storage, secrets, the runner, and the server.
 
-**`just test-integration`** runs the `tests/` module, which holds both the
-integration and e2e layers, since every file there carries
-`//go:build integration`. It needs Docker (testcontainers spin up PostgreSQL,
-NATS, MinIO, Trino, k3s, and others) and `duckdb` on your PATH. TPC-H seeding
-hard-fails without it.
+**`just test-integration`** recursively runs service-level contracts under
+`tests/integration/`, carrying `//go:build integration`. **`just test-e2e`**
+recursively runs cross-process, data-lake, and Kubernetes workflows under
+`tests/e2e/`, carrying `//go:build e2e`.
+Both need Docker because Testcontainers provisions their dependencies; the e2e
+suite also needs `duckdb` on your PATH for TPC-H seeding.
 
 <Warning>
-Running `go test ./...` in `tests/` without `-tags integration` matches no
-packages and exits 0 — it passes while testing nothing. Use
-`just test-integration`, which passes the tag.
+Running `go test ./...` in `tests/` without a test tier tag can pass while
+testing nothing. Use `just test-integration` or `just test-e2e`; each supplies
+the appropriate tag.
 </Warning>
 
 ### What the suites prove
@@ -51,15 +52,15 @@ The integration suite checks behavior across real dependencies:
 - Recovery tests stop runs during extraction and write new source rows before
   resume. Missing rows fail the test; duplicate rows are allowed by the
   at-least-once contract.
-- PostgreSQL physical-scan tests cover safe resume after table changes.
+- PostgreSQL and MySQL connector tests cover snapshot, incremental, and CDC
+  behavior, including physical-scan resume after table changes.
 - The NATS durable-consumer tests verify consumers survive restarts.
-- Kubernetes dispatch tests verify worker Jobs and repeated dispatch against a
-  real API server in a k3s container.
-- The reaper tests verify stale runs get failed.
-- An Iceberg sink test writes from PostgreSQL through a REST catalog to MinIO
-  and verifies the result with an independent Trino reader.
+- The S3 sink tests verify committed objects, manifests, and multipart aborts.
+- PostgreSQL persistence and seed tests exercise their contracts against an
+  ephemeral server, including seed snapshot/restore.
 
-The e2e layer runs two full flows. The first pushes TPC-H data through
-JetStream from PostgreSQL to Iceberg, Trino-verified. The second drives the
-complete control-plane path through the Connect API, with connections,
-pipeline, run, and row-count assertions across two PostgreSQL containers.
+The e2e layer groups full workflows by deployment boundary. Data-lake tests
+write PostgreSQL data to Iceberg and verify it independently through Trino.
+Pipeline tests exercise the server API and separately run compiled server and
+control-plane processes through PostgreSQL and NATS. Kubernetes tests verify
+dispatch, idempotency, and stale-run reaping against a real k3s API server.

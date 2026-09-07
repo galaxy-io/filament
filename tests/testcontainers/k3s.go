@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -36,7 +36,7 @@ type K3s struct {
 func K3sCluster(t testing.TB) *K3s {
 	t.Helper()
 	cluster := startK3s(t, t.TempDir())
-	t.Cleanup(func() { _ = cluster.Container.Terminate(context.Background()) })
+	cleanupContainer(t, "k3s", cluster.Container)
 	return cluster
 }
 

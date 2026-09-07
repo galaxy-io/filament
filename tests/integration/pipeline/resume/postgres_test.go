@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package resume_test
 
 // Phase-0 failure-injection matrix. For each resumable
 // read mode, kill a run mid-extract, run one concurrent write op in the fail→resume
@@ -39,6 +39,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
 	seedpg "github.com/galaxy-io/filament/tests/testcontainers/seed/postgres"
@@ -177,7 +178,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	sinks.Register("postgres_typed", func() filament.Sink {
 		ts := pgsink.New()
 		if firstRun.CompareAndSwap(true, false) {
-			return &flakySink{Sink: ts, failAt: 5}
+			return testutil.NewFlakySink(ts, 5)
 		}
 		return ts
 	})
@@ -213,7 +214,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	}
 
 	// Injected failure must leave the run resumable (partial), not terminal.
-	partial := waitStatus(t, ctx, store, "t1", id, filament.RunPartial)
+	partial := testutil.WaitStatus(t, ctx, store, "t1", id, filament.RunPartial)
 	if partial.Status != filament.RunPartial {
 		t.Fatalf("after injected failure: status = %v (err %q), want partial", partial.Status, partial.Error)
 	}
@@ -232,7 +233,7 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 	if err := events.Emit(ctx, bus, events.RunRequested, events.Envelope{Tenant: "t1", Run: id}, events.RunRequestedEvent{}); err != nil {
 		t.Fatalf("re-request run: %v", err)
 	}
-	final := waitStatus(t, ctx, store, "t1", id, filament.RunCompleted)
+	final := testutil.WaitStatus(t, ctx, store, "t1", id, filament.RunCompleted)
 	if final.Status != filament.RunCompleted {
 		t.Fatalf("after resume: status = %v (err %q), want completed", final.Status, final.Error)
 	}

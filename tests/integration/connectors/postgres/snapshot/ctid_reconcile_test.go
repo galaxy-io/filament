@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package snapshot_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
@@ -67,13 +68,13 @@ func TestCtidReconcileHorizon(t *testing.T) {
 		}
 	}
 
-	sink := &collectSink{}
+	sink := &testutil.CollectSink{}
 	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{"phys"}, Parallelism: 4}, donePlan); err != nil {
 		t.Fatalf("extract from (reconcile): %v", err)
 	}
 
 	got := make(map[string]bool)
-	for _, r := range sink.recs {
+	for _, r := range sink.Records {
 		if r.Drained {
 			continue
 		}

@@ -1,6 +1,9 @@
 # testcontainers
 
-Ephemeral backing-service containers for integration tests, seed operations, and benchmarks. Gated behind `//go:build integration` so everyday `go test ./...` stays fast and Docker-free.
+Ephemeral backing-service containers for integration and end-to-end tests,
+seed operations, and benchmarks. Test-only helpers carry
+`//go:build integration || e2e` so everyday `go test ./...` stays fast and
+Docker-free.
 
 ## Requirements
 
@@ -13,25 +16,32 @@ Ephemeral backing-service containers for integration tests, seed operations, and
 Images are read from `docker/.env` in the nearest parent containing `go.mod`. The keys are:
 
 ```
-POSTGRES_IMAGE=postgres:16
-NATS_IMAGE=nats:2
-REDIS_IMAGE=redis:7
-MINIO_IMAGE=minio/minio:latest
-TRINO_IMAGE=trinodb/trino:latest
-ICEBERG_REST_IMAGE=apache/iceberg-rest-fixture:latest
+POSTGRES_IMAGE=postgres:16.15-alpine
+MYSQL_IMAGE=mysql:8.4.10
+NATS_IMAGE=nats:2.14.6-alpine
+REDIS_IMAGE=redis:7.4.11-alpine
+MINIO_IMAGE=minio/minio:RELEASE.2025-07-23T15-54-02Z
+TRINO_IMAGE=trinodb/trino:476
+ICEBERG_REST_IMAGE=apache/iceberg-rest-fixture:1.10.1
 K3S_IMAGE=rancher/k3s:v1.31.2-k3s1
 ```
 
-Where supported, the test helpers and long-lived `container` package read the same pins. Fallback defaults (`postgres:latest`, etc.) are used when the file is absent or missing a key.
+Where supported, the test helpers and long-lived `container` package read the same pins. Versioned fallback defaults are used when the file is absent or missing a key, so a fresh clone is reproducible without additional setup.
 
 ## Running integration tests
 
 From the repository root:
 
 ```sh
-cd tests
-GOWORK=off go test -tags integration ./...
+just test-integration      # service-level suite
+just test-e2e              # process, data-lake, and k3s suite
+just test-integration-all  # both tiers
 ```
+
+Integration packages live under `tests/integration/...` and use
+`//go:build integration`; end-to-end packages live under `tests/e2e/...` and
+use `//go:build e2e`. Both recipes discover their complete suite recursively,
+so adding a package under the appropriate tree needs no recipe change.
 
 Containers start, run, and are terminated automatically via `t.Cleanup`. No manual teardown needed.
 
@@ -85,15 +95,17 @@ func TestFoo(t *testing.T) {
 
 > **Note:** `Pool()` returns a new handle after each `Snapshot` or `Restore`. Any handle taken before the call is closed and must not be used.
 
-### ClickHouse
+### MySQL
 
 ```go
-ch := testcontainers.ClickHouse(t)
-dsn := ch.DSN // native clickhouse:// DSN on the mapped host port
+mysql := testcontainers.MySQLContainer(t)
+mysql.DSN     // app connection to the test database
+mysql.DB      // connected *sql.DB
+mysql.RootDB  // admin handle for lifecycle assertions
 ```
 
-The helper uses a pinned ClickHouse LTS image and terminates the container with
-`t.Cleanup`.
+The server has row binlogs, GTIDs, and local infile enabled so the same
+container exercises snapshot, incremental, CDC, and sink loading behavior.
 
 ### NATS
 
@@ -140,8 +152,8 @@ tr.DB   // *sql.DB (memory catalog, closed on cleanup)
 
 ### Trino + Iceberg + MinIO (data lake)
 
-A 3-container stack — Trino querying an Iceberg catalog (in-memory
-`apache/iceberg-rest-fixture`) backed by MinIO. Slow to boot; integration only.
+A 3-container stack — Trino querying an Iceberg REST catalog backed by MinIO.
+Slow to boot; used by the e2e data-lake suite.
 
 ```go
 dl := testcontainers.TrinoDataLake(t)

@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package snapshot_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
@@ -133,13 +134,13 @@ func TestSourceBitmapSharded(t *testing.T) {
 		t.Fatalf("expected a multi-shard bitmap plan, got %+v (ok=%v)", plan["bm_keyed"], ok)
 	}
 
-	sink := &collectSink{}
+	sink := &testutil.CollectSink{}
 	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{"bm_keyed"}, Parallelism: 4}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 
 	seen := make(map[string]bool, want)
-	for _, r := range sink.recs {
+	for _, r := range sink.Records {
 		if r.Drained {
 			continue // completion sentinel, not a data row
 		}
@@ -174,16 +175,16 @@ func readSharded(t *testing.T, ctx context.Context, pg *testcontainers.PG, table
 		t.Fatalf("expected a multi-shard sampled plan for %s, got %+v (ok=%v)", table, plan[table], ok)
 	}
 
-	sink := &collectSink{}
+	sink := &testutil.CollectSink{}
 	if err := src.ExtractFrom(ctx, sink, filament.ExtractOpts{Resources: []string{table}, Parallelism: 4}, plan); err != nil {
 		t.Fatalf("extract from: %v", err)
 	}
 
-	if len(sink.recs) != want {
-		t.Fatalf("read %d records, want %d (gap or dropped row across a sampled boundary)", len(sink.recs), want)
+	if len(sink.Records) != want {
+		t.Fatalf("read %d records, want %d (gap or dropped row across a sampled boundary)", len(sink.Records), want)
 	}
 	seen := make(map[string]bool, want)
-	for _, r := range sink.recs {
+	for _, r := range sink.Records {
 		if seen[r.ID] {
 			t.Fatalf("duplicate record id %q across shards", r.ID)
 		}
