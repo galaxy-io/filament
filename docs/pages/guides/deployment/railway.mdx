@@ -1,17 +1,79 @@
 ---
 title: "Railway"
-description: "Current options for running Filament on Railway"
+description: "Deploy Filament from the Railway template"
 ---
 
-Filament does not currently publish a supported one-click Railway template.
-For a temporary evaluation, deploy
-`ghcr.io/galaxy-io/filament/standalone` and expose port 8080. Its connections,
-pipelines, runs, and checkpoints are held in memory and disappear whenever the
-service restarts or redeploys.
+Filament publishes a Railway template that deploys the server, control plane,
+PostgreSQL, and NATS as one connected project:
 
-For durable operation, run the split server and control-plane images with
-Postgres and NATS. Railway has no Kubernetes Jobs API, so set
-`DISPATCH_MODE=inproc`; runs then share the control-plane service's CPU and
-memory. Use the [configuration reference](/pages/guides/deployment/configuration)
-for required variables. This deployment path is manual and is not currently
-covered by a Filament template or deployment test.
+<a href="https://railway.com/deploy/filament?referralCode=H5DcHR&amp;utm_medium=integration&amp;utm_source=template&amp;utm_campaign=generic">
+  <img src="https://railway.com/button.svg" alt="Deploy on Railway" />
+</a>
+
+## What gets deployed
+
+| Resource | Purpose |
+|---|---|
+| Filament server | Serves the API and web application over Railway's public network |
+| Filament control plane | Manages schedules and executes pipeline runs |
+| PostgreSQL | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials |
+| NATS | Carries lifecycle events through JetStream |
+
+The template connects the services over Railway's private network and supplies
+the shared PostgreSQL DSN, NATS URL, and encryption key. Database migrations
+run before the server starts.
+
+## Deploy the template
+
+<Steps>
+  <Step title="Open the template">
+    Click **Deploy on Railway** above, sign in, and choose the workspace where
+    you want to create the project.
+  </Step>
+  <Step title="Review the project">
+    Confirm that the server, control plane, PostgreSQL, and NATS services are
+    included. Review the resource plans and generated variables before
+    deploying.
+  </Step>
+  <Step title="Wait for the services">
+    Railway provisions the backing services, applies database migrations, and
+    starts the server and control plane. Wait for every service to become
+    healthy.
+  </Step>
+  <Step title="Open Filament">
+    Open the public domain for the Filament server. If the template has not
+    created one, select the server service and generate a domain under
+    **Settings → Networking**.
+  </Step>
+</Steps>
+
+## Run execution
+
+Railway has no Kubernetes Jobs API, so the template sets
+`DISPATCH_MODE=inproc`. Every pipeline run executes inside the control-plane
+service and shares its CPU and memory.
+
+<Warning>
+Keep the control plane at one replica. Multiple replicas may race while
+coordinating schedules and pipeline runs.
+</Warning>
+
+Increase the control-plane service's CPU and memory for concurrent or
+resource-intensive pipelines. Use the
+[Kubernetes deployment](/pages/guides/deployment/kubernetes) when runs need
+isolated containers or independent resource configuration.
+
+## Before production
+
+- Configure authentication before storing sensitive connector credentials on
+  a public deployment. Authentication is disabled when `AUTH_PROVIDER` is
+  unset.
+- Keep `ENCRYPTION_KEY` backed up and unchanged. Replacing it makes existing
+  encrypted credentials unreadable.
+- Configure retention and backups for PostgreSQL and JetStream to match your
+  recovery requirements.
+- Pin the server and control-plane images to the same Filament release, and
+  upgrade both together.
+
+See [Configuration](/pages/guides/deployment/configuration) for authentication,
+secrets, logging, and other runtime settings.

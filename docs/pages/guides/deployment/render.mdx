@@ -1,0 +1,103 @@
+---
+title: "Render"
+description: "Deploy Filament from the Render Blueprint"
+---
+
+The repository's `deploy/render.yaml` Blueprint deploys the Filament server,
+control plane, PostgreSQL, and NATS as one connected stack:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament&branch=main&path=deploy%2Frender.yaml)
+
+## What gets deployed
+
+| Filament component | Hosted on Render as | Purpose |
+|---|---|---|
+| Server (`server`) | Public web service | Serves the API and embedded web application |
+| Control plane (`control-plane`) | Private background service | Manages schedules and executes runs |
+| NATS (`nats`) | Private network service with a 1 GiB disk | Carries lifecycle events through JetStream |
+| PostgreSQL (`postgres`) | Free managed database | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials for up to 30 days unless upgraded |
+
+All resources deploy to the same region and communicate over Render's private
+network. Render groups them in the `filament` project under its `production`
+environment. PostgreSQL has no public IP allow-list entries, and NATS is not
+reachable from the public internet.
+
+<Note>
+The Blueprint includes paid compute for the server, control plane, and NATS.
+PostgreSQL starts on Render's free plan, which expires after 30 days. Review the
+estimated monthly cost and upgrade the database before it expires if you need
+to retain its data.
+</Note>
+
+## Deploy the Blueprint
+
+<Steps>
+  <Step title="Open the Blueprint">
+    Click **Deploy to Render** above and sign in. The button supplies the
+    Filament repository, `main` branch, and `deploy/render.yaml` Blueprint.
+  </Step>
+  <Step title="Select the Blueprint">
+    Confirm **Blueprint Path** is `deploy/render.yaml`. Then choose a workspace and
+    review the four resources, their region, plans, and estimated monthly cost.
+  </Step>
+  <Step title="Deploy">
+    Create the Blueprint and wait for every resource to become available. The
+    server's pre-deploy command applies database migrations before the new
+    version starts, and `/readyz` is used for health checks.
+  </Step>
+  <Step title="Open Filament">
+    Open the public `onrender.com` URL shown for `server`.
+  </Step>
+</Steps>
+
+## How NATS is provided
+
+Render does not provide a managed NATS service. The Blueprint runs the official
+`nats:2-alpine` image as the smallest private service, enables JetStream, and
+mounts a 1 GiB persistent disk at `/data`. Render injects the service's private
+host and port into `NATS_URL` for both Filament services.
+
+NATS cannot use a free web service: free web services cannot receive private
+network traffic, and a public Render web service accepts HTTP rather than the
+NATS protocol. Render Key Value is also not a substitute because Filament's
+event-bus implementation requires NATS JetStream.
+
+## Run execution
+
+Render has no Kubernetes Jobs API, so the control plane uses
+`DISPATCH_MODE=inproc`. Every run executes inside the control-plane service and
+shares its CPU and memory.
+
+<Warning>
+Keep `control-plane` at one instance. Multiple control-plane replicas may race
+while coordinating schedules and runs.
+</Warning>
+
+Increase the control-plane service's compute plan for concurrent or
+resource-intensive pipelines. Use the
+[Kubernetes deployment](/pages/guides/deployment/kubernetes) when runs need
+isolated containers or independent resource configuration.
+
+## Before production
+
+- Configure authentication before storing sensitive connector credentials.
+  The server is public and authentication is disabled when `AUTH_PROVIDER` is
+  unset.
+- Keep the generated `ENCRYPTION_KEY` backed up and unchanged. Replacing it
+  makes existing encrypted credentials unreadable.
+- Upgrade the free PostgreSQL database before its 30-day expiration to retain
+  pipelines, runs, checkpoints, schedules, and credentials.
+- Keep the NATS disk attached. JetStream stores its event state at `/data`.
+
+To enable authentication, configure an external Zitadel instance and set
+`AUTH_PROVIDER`, `AUTH_ISSUER`, `AUTH_PAT`, and `AUTH_UI_ORIGIN` on
+`server`. Set `AUTH_UI_ORIGIN` to the exact HTTPS origin Render assigned to the
+server. See
+[Configuration](/pages/guides/deployment/configuration) for details.
+
+## Upgrades
+
+The Blueprint pins the Filament server and control-plane images to the same
+release. To upgrade, change both image tags in `deploy/render.yaml`, sync the
+Blueprint, and confirm that the server's migration step completes before using
+the new version.
