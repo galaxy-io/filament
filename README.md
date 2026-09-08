@@ -67,7 +67,7 @@ For a simpler hosted deployment without Kubernetes, deploy with 1 click:
 <div>
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/filament?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament&branch=main&path=deploy%2Frender.yaml)
 
 </div>
 
