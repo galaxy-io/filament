@@ -62,7 +62,7 @@ just infra down
 
 Kubernetes with Helm is the recommended way to run Filament in production. See the [Kubernetes deployment guide](https://filament.getgalaxy.io/pages/guides/deployment/kubernetes) for installation instructions and the [Helm chart README](charts/filament/README.md) for all supported values.
 
-For a simpler hosted deployment without Kubernetes Jobs, use the Railway template or Render Blueprint:
+For a simpler hosted deployment without Kubernetes, deploy with 1 click:
 
 <div>
 
