@@ -64,7 +64,7 @@ Kubernetes with Helm is the recommended way to run Filament in production. See t
 
 For a simpler hosted deployment without Kubernetes Jobs, deploy Filament with 1 click:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/GJvk8B?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/filament?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 ## How it works
 
