@@ -15,13 +15,14 @@ WITH locked AS MATERIALIZED (
   WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(pipeline_id) AND NOT is_deleted
   FOR UPDATE
 ), next AS (
-  SELECT coalesce(max(v.version), 0) + 1 AS version
-  FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
+	SELECT locked.id AS pipeline_id, coalesce(max(v.version), 0) + 1 AS version
+	FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
+	GROUP BY locked.id
 ), inserted AS (
-  INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
-  SELECT sqlc.arg(id), p.tenant_id, sqlc.arg(pipeline_id), next.version, sqlc.arg(graph)
-  FROM next
-  JOIN pipelines p ON p.tenant_id = sqlc.arg(tenant_id) AND p.id = sqlc.arg(pipeline_id)
+	INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
+	SELECT sqlc.arg(id), p.tenant_id, sqlc.arg(pipeline_id), next.version, sqlc.arg(graph)
+	FROM next
+	JOIN pipelines p ON p.tenant_id = sqlc.arg(tenant_id) AND p.id = next.pipeline_id
   RETURNING id, version, created_at
 )
 UPDATE pipelines p SET current_version_id = inserted.id, updated_at = now()

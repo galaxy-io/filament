@@ -1,6 +1,6 @@
 //go:build integration
 
-package integration
+package cdc_test
 
 import (
 	"context"
@@ -13,13 +13,14 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
 // duplicateRejectingSink matches the pipeline inlet's one-builder-per-part
 // contract, which catches bootstrap code that bypasses the CDC writer cache.
 type duplicateRejectingSink struct {
-	collectSink
+	testutil.CollectSink
 	buildersMu sync.Mutex
 	builders   map[struct {
 		resource string
@@ -44,14 +45,14 @@ func (s *duplicateRejectingSink) Builder(resource string, part int, schema filam
 		}]struct{})
 	}
 	s.builders[key] = struct{}{}
-	return s.collectSink.Builder(resource, part, schema)
+	return s.CollectSink.Builder(resource, part, schema)
 }
 
 // snapshotBarrierSink blocks the source at its first snapshot row (a row with no
 // stream position) until released, so the test can commit changes while the
 // bootstrap snapshot is still open.
 type snapshotBarrierSink struct {
-	collectSink
+	testutil.CollectSink
 	once    sync.Once
 	reached chan struct{}
 	release chan struct{}
@@ -59,7 +60,9 @@ type snapshotBarrierSink struct {
 
 func newSnapshotBarrierSink() *snapshotBarrierSink {
 	s := &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
-	s.wrap = func(w filament.RowWriter) filament.RowWriter { return &barrierWriter{RowWriter: w, sink: s} }
+	s.SetWriterWrapper(func(w filament.RowWriter) filament.RowWriter {
+		return &barrierWriter{RowWriter: w, sink: s}
+	})
 	return s
 }
 
@@ -128,7 +131,7 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	records := dataRecs(sink.recs)
+	records := testutil.DataRecords(sink.Records)
 	if len(records) != 3 {
 		t.Fatalf("snapshot/WAL records = %#v, want baseline insert, WAL update, WAL insert", records)
 	}
@@ -141,7 +144,7 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 	if records[2].ID != "2" || records[2].Op != filament.OpInsert || records[2].LSN == "" {
 		t.Fatalf("third record = %#v, want WAL insert for row 2", records[2])
 	}
-	_ = streamCheckpointFromRecords(t, sink.recs, "cdc_handoff")
+	_ = testutil.StreamCheckpoint(t, sink.Records, "cdc_handoff")
 }
 
 func TestPostgresCDCCatchupAndResume(t *testing.T) {
@@ -167,19 +170,19 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	if err := src.ExtractChanges(ctx, initial, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
 		t.Fatal(err)
 	}
-	initialData := dataRecs(initial.recs)
+	initialData := testutil.DataRecords(initial.Records)
 	if len(initialData) != 1 || initialData[0].ID != "10" || initialData[0].Op != filament.OpInsert {
 		t.Fatalf("initial CDC snapshot = %#v, want existing row 10", initialData)
 	}
-	first := streamCheckpointFromRecords(t, initial.recs, "cdc_users")
+	first := testutil.StreamCheckpoint(t, initial.Records, "cdc_users")
 
 	// Simulate an interrupted bootstrap whose slot survived but whose checkpoint
 	// did not. The retry must take another full snapshot before resuming the slot.
-	retry := &collectSink{}
+	retry := &testutil.CollectSink{}
 	if err := src.ExtractChanges(ctx, retry, filament.ChangeExtractOpts{Resources: []string{"cdc_users"}}); err != nil {
 		t.Fatal(err)
 	}
-	retryData := dataRecs(retry.recs)
+	retryData := testutil.DataRecords(retry.Records)
 	if len(retryData) != 1 || retryData[0].ID != "10" {
 		t.Fatalf("retried CDC snapshot = %#v, want existing row 10", retryData)
 	}
@@ -191,21 +194,21 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	`); err != nil {
 		t.Fatal(err)
 	}
-	changes := &collectSink{}
+	changes := &testutil.CollectSink{}
 	if err := src.ExtractChanges(ctx, changes, filament.ChangeExtractOpts{
 		Resources: []string{"cdc_users"}, Checkpoints: map[string]filament.Checkpoint{"cdc_users": first},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	var ops []filament.Operation
-	for _, rec := range changes.recs {
+	for _, rec := range changes.Records {
 		if !rec.Drained {
 			ops = append(ops, rec.Op)
 		}
 	}
 	want := []filament.Operation{filament.OpInsert, filament.OpDelete, filament.OpInsert, filament.OpDelete}
 	if len(ops) != len(want) {
-		t.Fatalf("CDC ops = %v, want %v; records = %#v", ops, want, changes.recs)
+		t.Fatalf("CDC ops = %v, want %v; records = %#v", ops, want, changes.Records)
 	}
 	for i := range want {
 		if ops[i] != want[i] {
@@ -231,10 +234,10 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	policy := filament.WritePolicyForIngestion(filament.IngestionCDCMerge)
 	policy.Resource = "cdc_users"
 	policy.Keys = []string{"id"}
-	if err := applyAll(ctx, dst, initial.batchesFor("cdc_users"), policy); err != nil {
+	if err := testutil.ApplyAll(ctx, dst, initial.BatchesFor("cdc_users"), policy); err != nil {
 		t.Fatal(err)
 	}
-	if err := applyAll(ctx, dst, changes.batchesFor("cdc_users"), policy); err != nil {
+	if err := testutil.ApplyAll(ctx, dst, changes.BatchesFor("cdc_users"), policy); err != nil {
 		t.Fatal(err)
 	}
 	if err := dst.Commit(ctx); err != nil {
@@ -248,7 +251,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 		t.Fatalf("CDC destination rows = %d, want only the snapshotted row", destinationRows)
 	}
 
-	next := streamCheckpointFromRecords(t, changes.recs, "cdc_users")
+	next := testutil.StreamCheckpoint(t, changes.Records, "cdc_users")
 	// The runner invokes this only after the sink commit and tracker promotion.
 	// Advancing here verifies the source releases WAL for the final completed
 	// cycle instead of waiting for another extraction to start.
@@ -268,36 +271,15 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 		t.Fatalf("slot confirmed_flush_lsn is behind acknowledged checkpoint %s", nextLSN)
 	}
 
-	idle := &collectSink{}
+	idle := &testutil.CollectSink{}
 	if err := src.ExtractChanges(ctx, idle, filament.ChangeExtractOpts{
 		Resources: []string{"cdc_users"}, Checkpoints: map[string]filament.Checkpoint{"cdc_users": next},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	for _, rec := range idle.recs {
+	for _, rec := range idle.Records {
 		if !rec.Drained {
-			t.Fatalf("idle scheduled catch-up replayed data: %#v", idle.recs)
+			t.Fatalf("idle scheduled catch-up replayed data: %#v", idle.Records)
 		}
 	}
-}
-
-func dataRecs(records []rec) []rec {
-	out := make([]rec, 0, len(records))
-	for _, r := range records {
-		if !r.Drained {
-			out = append(out, r)
-		}
-	}
-	return out
-}
-
-func streamCheckpointFromRecords(t *testing.T, records []rec, resource string) filament.Checkpoint {
-	t.Helper()
-	for i := len(records) - 1; i >= 0; i-- {
-		if records[i].Resource == resource && records[i].Drained && records[i].LSN != "" {
-			return checkpoint.NewStreamDelta(resource, records[i].LSN, records[i].Seq)
-		}
-	}
-	t.Fatalf("no stream marker for %q in %#v", resource, records)
-	return nil
 }

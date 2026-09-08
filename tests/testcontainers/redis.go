@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -36,7 +36,7 @@ func RedisContainer(t testing.TB) *Redis {
 	if err != nil {
 		t.Fatalf("start redis container: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(ctr) })
+	cleanupContainer(t, "redis", ctr)
 
 	host, err := ctr.Host(ctx)
 	if err != nil {

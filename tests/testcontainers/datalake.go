@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -86,7 +86,7 @@ func TrinoDataLake(t testing.TB) *DataLake {
 	if err != nil {
 		t.Fatalf("start minio: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(mc) })
+	cleanupContainer(t, "datalake-minio", mc)
 
 	endpoint, err := mc.ConnectionString(ctx)
 	if err != nil {
@@ -128,7 +128,7 @@ func TrinoDataLake(t testing.TB) *DataLake {
 	if err != nil {
 		t.Fatalf("start iceberg-rest: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(cat) })
+	cleanupContainer(t, "iceberg-rest", cat)
 
 	// Trino with an "iceberg" catalog pointed at the REST catalog and MinIO.
 	props := strings.Join([]string{
@@ -173,7 +173,7 @@ func TrinoDataLake(t testing.TB) *DataLake {
 	if err != nil {
 		t.Fatalf("start trino: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(trino) })
+	cleanupContainer(t, "datalake-trino", trino)
 
 	host, err := trino.Host(ctx)
 	if err != nil {

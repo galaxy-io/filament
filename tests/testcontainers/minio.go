@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -8,7 +8,6 @@ import (
 
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	tc "github.com/testcontainers/testcontainers-go"
 	tcminio "github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
@@ -34,7 +33,7 @@ func MinIOContainer(t testing.TB) *MinIO {
 	if err != nil {
 		t.Fatalf("start minio container: %v", err)
 	}
-	t.Cleanup(func() { _ = tc.TerminateContainer(ctr) })
+	cleanupContainer(t, "minio", ctr)
 
 	endpoint, err := ctr.ConnectionString(ctx)
 	if err != nil {

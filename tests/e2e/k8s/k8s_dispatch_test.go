@@ -1,6 +1,6 @@
-//go:build integration
+//go:build e2e
 
-package integration
+package k8se2e
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/sqlite"
-	"github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
+	k8sdispatch "github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/tests/testcontainers"
 )
@@ -34,7 +34,7 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 		prefix    = "filament"
 	)
 
-	dispatcher := k8s.New(k8s.Config{
+	dispatcher := k8sdispatch.New(k8sdispatch.Config{
 		Namespace:            namespace,
 		WorkerImage:          image,
 		WorkerSecretName:     secret,
@@ -113,7 +113,7 @@ func TestK8sDispatchIsIdempotent(t *testing.T) {
 	cluster := testcontainers.SharedK3s(t)
 	ctx := context.Background()
 
-	dispatcher := k8s.New(k8s.Config{
+	dispatcher := k8sdispatch.New(k8sdispatch.Config{
 		Namespace:        "default",
 		WorkerImage:      "ghcr.io/galaxy-io/filament/worker:test",
 		WorkerSecretName: "filament-secret",

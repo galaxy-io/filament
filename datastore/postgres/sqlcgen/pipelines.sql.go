@@ -83,13 +83,14 @@ WITH locked AS MATERIALIZED (
   WHERE tenant_id = $1 AND id = $2 AND NOT is_deleted
   FOR UPDATE
 ), next AS (
-  SELECT coalesce(max(v.version), 0) + 1 AS version
-  FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
+	SELECT locked.id AS pipeline_id, coalesce(max(v.version), 0) + 1 AS version
+	FROM locked LEFT JOIN pipeline_versions v ON v.pipeline_id = locked.id
+	GROUP BY locked.id
 ), inserted AS (
-  INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
-  SELECT $3, p.tenant_id, $2, next.version, $4
-  FROM next
-  JOIN pipelines p ON p.tenant_id = $1 AND p.id = $2
+	INSERT INTO pipeline_versions (id, tenant_id, pipeline_id, version, graph)
+	SELECT $3, p.tenant_id, $2, next.version, $4
+	FROM next
+	JOIN pipelines p ON p.tenant_id = $1 AND p.id = next.pipeline_id
   RETURNING id, version, created_at
 )
 UPDATE pipelines p SET current_version_id = inserted.id, updated_at = now()

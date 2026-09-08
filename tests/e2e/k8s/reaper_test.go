@@ -1,6 +1,6 @@
-//go:build integration
+//go:build e2e
 
-package integration
+package k8se2e
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
-	"github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
+	k8sdispatch "github.com/galaxy-io/filament/internal/modules/dispatch/k8s"
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
@@ -33,7 +33,7 @@ func TestReaperKillsStaleRuns(t *testing.T) {
 	ds := sqlite.NewMemory()
 	bus := inproc.New()
 
-	dispatcher := k8s.New(k8s.Config{
+	dispatcher := k8sdispatch.New(k8sdispatch.Config{
 		Namespace:        namespace,
 		WorkerImage:      "ghcr.io/galaxy-io/filament/worker:test",
 		WorkerSecretName: "filament-secret",
@@ -133,6 +133,26 @@ func waitJobActive(t *testing.T, ctx context.Context, cluster *testcontainers.K3
 		case <-waitCtx.Done():
 			t.Fatalf("job for run %s never reported an active pod: %v", run, err)
 		case <-time.After(250 * time.Millisecond):
+		}
+	}
+}
+
+func waitStatus(t *testing.T, ctx context.Context, store filament.DataStore, tenant filament.TenantID, id filament.RunID, want filament.RunStatus) filament.RunState {
+	t.Helper()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		state, err := store.LoadRun(ctx, tenant, id)
+		if err == nil && state.Status == want {
+			return state
+		}
+		select {
+		case <-ctx.Done():
+			if err == nil {
+				t.Fatalf("waiting for run %s status %v: last status %v error %q", id, want, state.Status, state.Error)
+			}
+			t.Fatalf("waiting for run %s status %v: %v", id, want, err)
+		case <-ticker.C:
 		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
@@ -179,6 +180,15 @@ func parseDate(w arrowbatch.RowWriter, text []byte) error {
 		w.Null()
 		return nil
 	}
+	// Prepared statements use MySQL's binary protocol. go-sql-driver/mysql
+	// renders its typed date value as RFC3339 when it is scanned into RawBytes,
+	// even though text-protocol reads use YYYY-MM-DD.
+	if len(text) > len("2006-01-02") && text[len("2006-01-02")] == 'T' {
+		if _, err := time.Parse(time.RFC3339Nano, string(text)); err != nil {
+			return fmt.Errorf("invalid date %q", text)
+		}
+		text = text[:len("2006-01-02")]
+	}
 	days, rest, err := arrowtext.ReadDate(text)
 	if err != nil || len(rest) != 0 {
 		return fmt.Errorf("invalid date %q", text)
@@ -193,6 +203,17 @@ func parseDate(w arrowbatch.RowWriter, text []byte) error {
 func parseDatetime(w arrowbatch.RowWriter, text []byte) error {
 	if strings.HasPrefix(string(text), "0000-00-00") {
 		w.Null()
+		return nil
+	}
+	// Prepared-statement rows are typed by the driver and render as RFC3339 on
+	// their way into RawBytes. Text-protocol and binlog rows retain MySQL's
+	// space-separated form, so support both without changing cursor semantics.
+	if len(text) > len("2006-01-02") && text[len("2006-01-02")] == 'T' {
+		instant, err := time.Parse(time.RFC3339Nano, string(text))
+		if err != nil {
+			return fmt.Errorf("invalid datetime %q", text)
+		}
+		w.Timestamp(instant.UnixMicro())
 		return nil
 	}
 	days, rest, err := arrowtext.ReadDate(text)

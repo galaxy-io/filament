@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e
 
 package testcontainers
 
@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
+	tc "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
@@ -60,7 +60,7 @@ func WithLogicalReplication() PGOption { return func(c *pgConfig) { c.logical = 
 func Postgres(t testing.TB, opts ...PGOption) *PG {
 	t.Helper()
 	pg := startPostgres(t, opts...)
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(pg.Container) })
+	cleanupContainer(t, "postgres", pg.Container)
 	pg.openPool(t)
 	return pg
 }
@@ -78,7 +78,7 @@ func startPostgres(t testing.TB, opts ...PGOption) *PG {
 	}
 
 	ctx := context.Background()
-	containerOpts := []testcontainers.ContainerCustomizer{
+	containerOpts := []tc.ContainerCustomizer{
 		postgres.WithDatabase(cfg.database),
 		postgres.WithUsername(cfg.username),
 		postgres.WithPassword(cfg.password),
@@ -86,7 +86,7 @@ func startPostgres(t testing.TB, opts ...PGOption) *PG {
 		postgres.BasicWaitStrategies(),
 	}
 	if cfg.logical {
-		containerOpts = append(containerOpts, testcontainers.WithCmd(
+		containerOpts = append(containerOpts, tc.WithCmd(
 			"postgres", "-c", "fsync=off", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10",
 		))
 	}

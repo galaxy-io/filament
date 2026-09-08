@@ -241,7 +241,15 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 
 func replicationRouteConflict(err error) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.ConstraintName == "runs_active_replication_route_idx"
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	switch pgErr.ConstraintName {
+	case "runs_active_checkpoint_route_idx", "runs_active_replication_route_idx":
+		return true
+	default:
+		return false
+	}
 }
 
 // DeleteRun removes the run; resources, checkpoints, and dedup rows cascade.

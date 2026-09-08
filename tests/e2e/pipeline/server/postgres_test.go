@@ -1,16 +1,16 @@
-//go:build integration
+//go:build e2e
 
-package e2e
+package server_test
 
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -26,9 +26,9 @@ import (
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/tests/internal/testutil"
 	gxtc "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
-	"github.com/galaxy-io/filament/tests/testcontainers/seed/tpch"
 )
 
 // TestPostgresPipelineThroughServer drives the full SaaS control-plane flow the
@@ -46,7 +46,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	ctx = identity.WithTenant(ctx, "t1")
 	defer cancel()
 
-	registerTPCHSmokeScenario()
+	testutil.RegisterTPCHSmokeScenario()
 	src := gxtc.Postgres(t)
 	dst := gxtc.Postgres(t)
 
@@ -89,13 +89,13 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Name:      "tpch-source",
 		Connector: "postgres",
-		Config:    mustStruct(t, map[string]any{"dsn": src.DSN()}),
+		Config:    testutil.MustStruct(t, map[string]any{"dsn": src.DSN()}),
 	})
 	sinkConn := mustCreateConnection(t, ctx, api, &ingestionv1.CreateConnectionRequest{
 		Kind:      ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Name:      "warehouse",
 		Connector: "postgres",
-		Config:    mustStruct(t, map[string]any{"dsn": dst.DSN()}),
+		Config:    testutil.MustStruct(t, map[string]any{"dsn": dst.DSN()}),
 	})
 
 	// 2. Create a Pipeline referencing the connections. The sink node carries a
@@ -106,7 +106,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 		{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: srcConn.GetId()},
 		{
 			Id: "dst", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: sinkConn.GetId(),
-			Config: mustStruct(t, map[string]any{"schema": "public", "mode": "typed"}),
+			Config: testutil.MustStruct(t, map[string]any{"schema": "public", "mode": "typed"}),
 		},
 	}
 	var edges []*ingestionv1.PipelineEdge
@@ -147,21 +147,28 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 
 	for _, er := range runResp.Msg.GetEdgeRuns() {
 		run := er.GetRun().GetId()
-		final := waitRunStatus(t, ctx, store, "t1", filament.RunID(run),
+		final := testutil.WaitForStatuses(t, ctx, store, "t1", filament.RunID(run),
 			filament.RunCompleted, filament.RunFailed, filament.RunPartial)
 		if final.Status != filament.RunCompleted {
 			t.Fatalf("run %s status = %v, error = %q", run, final.Status, final.Error)
 		}
 	}
 
-	// 4. Every routed table must have moved source -> sink with matching counts.
+	// 4. Compare every value, not only cardinality. row_to_json preserves the
+	// typed table's column order and JSON representation on both Postgres sides.
+	primaryKeys := map[string]string{"region": "r_regionkey", "nation": "n_nationkey", "supplier": "s_suppkey"}
+	columns := map[string][]string{
+		"region":   {"r_regionkey", "r_name", "r_comment"},
+		"nation":   {"n_nationkey", "n_name", "n_regionkey", "n_comment"},
+		"supplier": {"s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment"},
+	}
 	for _, table := range resources {
-		want := countPostgres(t, ctx, src.Pool(), table)
-		got := countPostgres(t, ctx, dst.Pool(), table)
-		if got != want {
-			t.Fatalf("%s: sink has %d rows, want %d from source", table, got, want)
+		want := testutil.PostgresJSONRows(t, ctx, src.Pool(), table, primaryKeys[table], columns[table])
+		got := testutil.PostgresJSONRows(t, ctx, dst.Pool(), table, primaryKeys[table], columns[table])
+		if !slices.Equal(got, want) {
+			t.Fatalf("%s: sink rows differ from source\nsource=%v\nsink=%v", table, want, got)
 		}
-		if want == 0 {
+		if len(want) == 0 {
 			t.Fatalf("%s: source seeded 0 rows — seed did not populate the table", table)
 		}
 	}
@@ -174,21 +181,6 @@ func mustCreateConnection(t *testing.T, ctx context.Context, api *server.Server,
 		t.Fatalf("CreateConnection(%s): %v", req.GetName(), err)
 	}
 	return resp.Msg.GetConnection()
-}
-
-func mustStruct(t *testing.T, m map[string]any) *structpb.Struct {
-	t.Helper()
-	s, err := structpb.NewStruct(m)
-	if err != nil {
-		t.Fatalf("NewStruct: %v", err)
-	}
-	return s
-}
-
-func registerTPCHSmokeScenario() {
-	if _, ok := seed.Get("tpch-sf0.01"); !ok {
-		tpch.RegisterSF(0.01)
-	}
 }
 
 type memorySecrets struct {
