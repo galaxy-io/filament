@@ -3,99 +3,103 @@
 previews:
   generation: off
 
-envVarGroups:
-  - name: filament-runtime
-    envVars:
-      - key: PERSISTENCE_PROVIDER
-        value: postgres
-      - key: EVENTBUS_PROVIDER
-        value: nats
-      - key: NATS_STREAM
-        value: EVENTBUS
-      - key: NATS_SUBJECTS
-        value: ingestion.v1.>
-      - key: NATS_TTL_SECONDS
-        value: 604800
-      - key: ENCRYPTION_KEY
-        generateValue: true
-      - key: ENCRYPTION_KEY_ID
-        value: default
-      - key: LOG_LEVEL
-        value: INFO
+projects:
+  - name: filament
+    environments:
+      - name: production
+        envVarGroups:
+          - name: filament-runtime
+            envVars:
+              - key: PERSISTENCE_PROVIDER
+                value: postgres
+              - key: EVENTBUS_PROVIDER
+                value: nats
+              - key: NATS_STREAM
+                value: EVENTBUS
+              - key: NATS_SUBJECTS
+                value: ingestion.v1.>
+              - key: NATS_TTL_SECONDS
+                value: 604800
+              - key: ENCRYPTION_KEY
+                generateValue: true
+              - key: ENCRYPTION_KEY_ID
+                value: default
+              - key: LOG_LEVEL
+                value: INFO
 
-services:
-  # Render's "web" type gives the Filament server a public HTTPS endpoint.
-  - type: web
-    name: server
-    runtime: image
-    image:
-      url: ghcr.io/galaxy-io/filament/server:0.1.0
-    region: oregon
-    plan: 0.5c-512mb
-    numInstances: 1
-    healthCheckPath: /readyz
-    preDeployCommand: /app -migrate
-    autoDeployTrigger: off
-    envVars:
-      - fromGroup: filament-runtime
-      - key: SERVER_ADDR
-        value: 0.0.0.0:10000
-      - key: PERSISTENCE_DSN
-        fromDatabase:
-          name: postgres
-          property: connectionString
-      - key: NATS_URL
-        fromService:
-          type: pserv
-          name: nats
-          property: hostport
+        services:
+          # Render's "web" type gives the Filament server a public HTTPS endpoint.
+          - type: web
+            name: server
+            runtime: image
+            image:
+              url: ghcr.io/galaxy-io/filament/server:0.1.0
+            region: oregon
+            plan: 0.5c-512mb
+            numInstances: 1
+            healthCheckPath: /readyz
+            preDeployCommand: /app -migrate
+            autoDeployTrigger: off
+            envVars:
+              - fromGroup: filament-runtime
+              - key: SERVER_ADDR
+                value: 0.0.0.0:10000
+              - key: PERSISTENCE_DSN
+                fromDatabase:
+                  name: postgres
+                  property: connectionString
+              - key: NATS_URL
+                fromService:
+                  type: pserv
+                  name: nats
+                  property: hostport
 
-  # Render's "worker" type runs the control plane without a public endpoint.
-  - type: worker
-    name: control-plane
-    runtime: image
-    image:
-      url: ghcr.io/galaxy-io/filament/control-plane:0.1.0
-    region: oregon
-    plan: 0.5c-512mb
-    numInstances: 1
-    maxShutdownDelaySeconds: 300
-    autoDeployTrigger: off
-    envVars:
-      - fromGroup: filament-runtime
-      - key: DISPATCH_MODE
-        value: inproc
-      - key: PERSISTENCE_DSN
-        fromDatabase:
-          name: postgres
-          property: connectionString
-      - key: NATS_URL
-        fromService:
-          type: pserv
-          name: nats
-          property: hostport
+          # Render's "worker" type runs the control plane without a public endpoint.
+          - type: worker
+            name: control-plane
+            runtime: image
+            image:
+              url: ghcr.io/galaxy-io/filament/control-plane:0.1.0
+            region: oregon
+            plan: 0.5c-512mb
+            numInstances: 1
+            maxShutdownDelaySeconds: 300
+            autoDeployTrigger: off
+            envVars:
+              - fromGroup: filament-runtime
+              - key: DISPATCH_MODE
+                value: inproc
+              - key: PERSISTENCE_DSN
+                fromDatabase:
+                  name: postgres
+                  property: connectionString
+              - key: NATS_URL
+                fromService:
+                  type: pserv
+                  name: nats
+                  property: hostport
 
-  # Render's "pserv" type makes NATS reachable only on the private network.
-  - type: pserv
-    name: nats
-    runtime: image
-    image:
-      url: docker.io/library/nats:2-alpine
-    dockerCommand: nats-server -js -sd /data
-    region: oregon
-    plan: 0.5c-512mb
-    numInstances: 1
-    disk:
-      name: nats-data
-      mountPath: /data
-      sizeGB: 1
-    autoDeployTrigger: off
+          # Render's "pserv" type makes NATS reachable only on the private network.
+          - type: pserv
+            name: nats
+            runtime: image
+            image:
+              url: docker.io/library/nats:2-alpine
+            dockerCommand: nats-server -js -sd /data
+            region: oregon
+            plan: 0.5c-512mb
+            numInstances: 1
+            disk:
+              name: nats-data
+              mountPath: /data
+              sizeGB: 1
+            autoDeployTrigger: off
 
-databases:
-  - name: postgres
-    databaseName: filament
-    user: filament
-    region: oregon
-    plan: free
-    postgresMajorVersion: "18"
-    ipAllowList: []
+        databases:
+          - name: postgres
+            databaseName: filament
+            user: filament
+            region: oregon
+            plan: free
+            postgresMajorVersion: "18"
+            ipAllowList: []

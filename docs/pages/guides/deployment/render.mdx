@@ -6,7 +6,12 @@ description: "Deploy Filament from the Render Blueprint"
 The repository's `deploy/render.yaml` Blueprint deploys the Filament server,
 control plane, PostgreSQL, and NATS as one connected stack:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament)
+<a href="https://render.com/deploy?repo=https://github.com/galaxy-io/filament">
+  <img
+    src="https://render.com/images/deploy-to-render-button.svg"
+    alt="Deploy to Render"
+  />
+</a>
 
 ## What gets deployed
 
@@ -18,7 +23,8 @@ control plane, PostgreSQL, and NATS as one connected stack:
 | PostgreSQL (`postgres`) | Free managed database | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials for up to 30 days unless upgraded |
 
 All resources deploy to the same region and communicate over Render's private
-network. PostgreSQL has no public IP allow-list entries, and NATS is not
+network. Render groups them in the `filament` project under its `production`
+environment. PostgreSQL has no public IP allow-list entries, and NATS is not
 reachable from the public internet.
 
 <Note>
