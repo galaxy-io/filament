@@ -114,7 +114,13 @@ const PipelineLayoutNavbar = () => {
     void navigate({
       to: "/pipelines/$id/canvas",
       params: { id },
-      search: (prev) => ({ ...prev, showPanel: true, tab: PipelineCanvasPanelTab.ACTIVITY }),
+      search: (prev) => ({
+        ...prev,
+        node: undefined,
+        resource: undefined,
+        showPanel: true,
+        tab: PipelineCanvasPanelTab.ACTIVITY,
+      }),
     });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
