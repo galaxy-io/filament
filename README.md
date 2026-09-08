@@ -38,9 +38,7 @@ Prebuilt binaries for Linux and macOS are on the [releases page](https://github.
 
 ## Getting started
 
-One-click deployments for Railway and DigitalOcean are coming soon. Until then, you can run Filament locally or follow the [documentation](https://filament.getgalaxy.io) for more detailed guidance.
-
-The local environment requires Go, Docker, `just`, Node.js, and pnpm. On macOS, the repository's `Brewfile` installs the toolchain:
+To run Filament locally, install Go, Docker, `just`, Node.js, and pnpm. On macOS, the repository's `Brewfile` installs the toolchain:
 
 ```sh
 brew bundle
@@ -60,6 +58,14 @@ When you are finished, stop the local infrastructure with:
 ```sh
 just infra down
 ```
+
+## Deploying Filament
+
+Kubernetes with Helm is the recommended way to run Filament in production. See the [Kubernetes deployment guide](https://filament.getgalaxy.io/pages/guides/deployment/kubernetes) for installation instructions and the [Helm chart README](charts/filament/README.md) for all supported values.
+
+For a simpler hosted deployment without Kubernetes Jobs, deploy Filament with 1 click:
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/filament?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 ## How it works
 
