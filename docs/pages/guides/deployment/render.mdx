@@ -10,12 +10,12 @@ control plane, PostgreSQL, and NATS as one connected stack:
 
 ## What gets deployed
 
-| Resource | Render type | Purpose |
+| Filament component | Hosted on Render as | Purpose |
 |---|---|---|
-| `filament-server` | Web service | Serves the API and embedded web application |
-| `filament-control-plane` | Background worker | Manages schedules and executes runs |
-| `filament-nats` | Private service with a 1 GiB disk | Carries lifecycle events through JetStream |
-| `filament-postgres` | Free managed PostgreSQL | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials for up to 30 days unless upgraded |
+| Server (`server`) | Public web service | Serves the API and embedded web application |
+| Control plane (`control-plane`) | Private background service | Manages schedules and executes runs |
+| NATS (`nats`) | Private network service with a 1 GiB disk | Carries lifecycle events through JetStream |
+| PostgreSQL (`postgres`) | Free managed database | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials for up to 30 days unless upgraded |
 
 All resources deploy to the same region and communicate over Render's private
 network. PostgreSQL has no public IP allow-list entries, and NATS is not
@@ -45,7 +45,7 @@ to retain its data.
     version starts, and `/readyz` is used for health checks.
   </Step>
   <Step title="Open Filament">
-    Open the public `onrender.com` URL shown for `filament-server`.
+    Open the public `onrender.com` URL shown for `server`.
   </Step>
 </Steps>
 
@@ -68,8 +68,8 @@ Render has no Kubernetes Jobs API, so the control plane uses
 shares its CPU and memory.
 
 <Warning>
-Keep `filament-control-plane` at one instance. Multiple control-plane replicas
-may race while coordinating schedules and runs.
+Keep `control-plane` at one instance. Multiple control-plane replicas may race
+while coordinating schedules and runs.
 </Warning>
 
 Increase the control-plane service's compute plan for concurrent or
@@ -90,8 +90,8 @@ isolated containers or independent resource configuration.
 
 To enable authentication, configure an external Zitadel instance and set
 `AUTH_PROVIDER`, `AUTH_ISSUER`, `AUTH_PAT`, and `AUTH_UI_ORIGIN` on
-`filament-server`. Set `AUTH_UI_ORIGIN` to the exact HTTPS origin Render
-assigned to the server. See
+`server`. Set `AUTH_UI_ORIGIN` to the exact HTTPS origin Render assigned to the
+server. See
 [Configuration](/pages/guides/deployment/configuration) for details.
 
 ## Upgrades

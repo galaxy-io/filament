@@ -24,8 +24,9 @@ envVarGroups:
         value: INFO
 
 services:
+  # Render's "web" type gives the Filament server a public HTTPS endpoint.
   - type: web
-    name: filament-server
+    name: server
     runtime: image
     image:
       url: ghcr.io/galaxy-io/filament/server:0.1.0
@@ -41,16 +42,17 @@ services:
         value: 0.0.0.0:10000
       - key: PERSISTENCE_DSN
         fromDatabase:
-          name: filament-postgres
+          name: postgres
           property: connectionString
       - key: NATS_URL
         fromService:
           type: pserv
-          name: filament-nats
+          name: nats
           property: hostport
 
+  # Render's "worker" type runs the control plane without a public endpoint.
   - type: worker
-    name: filament-control-plane
+    name: control-plane
     runtime: image
     image:
       url: ghcr.io/galaxy-io/filament/control-plane:0.1.0
@@ -65,31 +67,32 @@ services:
         value: inproc
       - key: PERSISTENCE_DSN
         fromDatabase:
-          name: filament-postgres
+          name: postgres
           property: connectionString
       - key: NATS_URL
         fromService:
           type: pserv
-          name: filament-nats
+          name: nats
           property: hostport
 
+  # Render's "pserv" type makes NATS reachable only on the private network.
   - type: pserv
-    name: filament-nats
+    name: nats
     runtime: image
     image:
       url: docker.io/library/nats:2-alpine
-    dockerCommand: -js -sd /data
+    dockerCommand: nats-server -js -sd /data
     region: oregon
     plan: 0.5c-512mb
     numInstances: 1
     disk:
-      name: filament-nats-data
+      name: nats-data
       mountPath: /data
       sizeGB: 1
     autoDeployTrigger: off
 
 databases:
-  - name: filament-postgres
+  - name: postgres
     databaseName: filament
     user: filament
     region: oregon
