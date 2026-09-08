@@ -172,7 +172,8 @@
           "pages/guides/deployment/overview",
           "pages/guides/deployment/configuration",
           "pages/guides/deployment/kubernetes",
-          "pages/guides/deployment/railway"
+          "pages/guides/deployment/railway",
+          "pages/guides/deployment/render"
         ]
       },
       {

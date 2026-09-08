@@ -63,9 +63,17 @@ just infra down
 
 Kubernetes with Helm is the recommended way to run Filament in production. See the [Kubernetes deployment guide](https://filament.getgalaxy.io/pages/guides/deployment/kubernetes) for installation instructions and the [Helm chart README](charts/filament/README.md) for all supported values.
 
-For a simpler hosted deployment without Kubernetes Jobs, deploy Filament with 1 click:
+For a simpler hosted deployment without Kubernetes, deploy with 1 click:
+
+<div>
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/filament?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament&branch=main&path=deploy%2Frender.yaml)
+
+</div>
+
+Read the [Railway](https://filament.getgalaxy.io/pages/guides/deployment/railway) and [Render](https://filament.getgalaxy.io/pages/guides/deployment/render) guides for the deployed resources, runtime behavior, and production checklist.
+The Render infrastructure is defined in [`deploy/render.yaml`](deploy/render.yaml).
 
 ## How it works
 
