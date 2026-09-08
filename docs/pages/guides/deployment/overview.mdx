@@ -5,8 +5,8 @@ description: "Choose how and where to run Filament"
 
 Filament runs as separate server and control-plane services backed by a
 datastore, an event bus, and a secret provider. Kubernetes with Helm is the
-recommended production deployment. Railway is an alternative when Kubernetes
-worker Jobs are not available.
+recommended production deployment. Railway and Render are alternatives when
+Kubernetes worker Jobs are not available.
 
 ## Deployment options
 
@@ -14,8 +14,9 @@ worker Jobs are not available.
 |---|---|---|
 | [Kubernetes](/pages/guides/deployment/kubernetes) | One worker Job per run | Production deployments with isolated, independently configured workers |
 | [Railway](/pages/guides/deployment/railway) | Inside the control-plane service | Simpler deployments on a platform without a Kubernetes Jobs API |
+| [Render](/pages/guides/deployment/render) | Inside the control-plane service | One-click Blueprint deployments with managed PostgreSQL |
 
-Both options run the server and control plane as separate services and use the
+All options run the server and control plane as separate services and use the
 same runtime components. The difference is where each run executes.
 
 <Warning>
@@ -44,7 +45,7 @@ The control plane's `DISPATCH_MODE` determines where runs execute:
   the reaper fails runs whose heartbeats become stale.
 - `inproc` executes runs inside the control-plane process. It requires no
   worker service, but every run shares the control plane's CPU and memory.
-  Railway deployments use this mode.
+  Railway and Render deployments use this mode.
 
 Both modes use the same runner; dispatch changes where it runs, not how a
 pipeline behaves.
