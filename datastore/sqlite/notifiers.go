@@ -18,13 +18,13 @@ var _ notifier.Store = (*Store)(nil)
 func (s *Store) CreateNotifier(ctx context.Context, n notifier.Notifier) (notifier.Notifier, error) {
 	kind, err := n.NotificationType.Label()
 	if err != nil {
-		return notifier.Notifier{}, err
+		return notifier.Notifier{}, fmt.Errorf("create notifier %q: %w", n.ID, err)
 	}
 	data, err := marshalNotifier(n)
 	if err != nil {
-		return notifier.Notifier{}, err
+		return notifier.Notifier{}, fmt.Errorf("create notifier %q: %w", n.ID, err)
 	}
-	return s.writeNotifier(ctx, n.Tenant, n.PipelineID, n.ID, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
+	saved, err := s.writeNotifier(ctx, n.Tenant, n.PipelineID, n.ID, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
 		now := nowMillis()
 		return q.CreateNotifier(ctx, sqlcgen.CreateNotifierParams{
 			NotifierID: n.ID, TenantID: string(n.Tenant), PipelineID: n.PipelineID,
@@ -34,16 +34,20 @@ func (s *Store) CreateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 			CreatedByUserID: sql.NullString{String: n.CreatedByUserID, Valid: n.CreatedByUserID != ""}, UpdatedByUserID: sql.NullString{String: n.UpdatedByUserID, Valid: n.UpdatedByUserID != ""},
 		})
 	})
+	if err != nil {
+		return notifier.Notifier{}, fmt.Errorf("create notifier %q: %w", n.ID, err)
+	}
+	return saved, nil
 }
 
 // LoadNotifier returns a rule, including deleted rules for secret cleanup.
 func (s *Store) LoadNotifier(ctx context.Context, tenant filament.TenantID, pipelineID, id string) (notifier.Notifier, error) {
 	row, err := s.q.GetNotifier(ctx, sqlcgen.GetNotifierParams{TenantID: string(tenant), PipelineID: pipelineID, NotifierID: id})
 	if errors.Is(err, sql.ErrNoRows) {
-		return notifier.Notifier{}, filament.ErrNotFound
+		return notifier.Notifier{}, fmt.Errorf("load notifier %q: %w", id, filament.ErrNotFound)
 	}
 	if err != nil {
-		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: load notifier: %w", err)
+		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: load notifier %q: %w", id, err)
 	}
 	return notifierFromRow(row)
 }
@@ -71,13 +75,13 @@ func (s *Store) ListNotifiers(ctx context.Context, f notifier.Filter) ([]notifie
 func (s *Store) UpdateNotifier(ctx context.Context, n notifier.Notifier) (notifier.Notifier, error) {
 	kind, err := n.NotificationType.Label()
 	if err != nil {
-		return notifier.Notifier{}, err
+		return notifier.Notifier{}, fmt.Errorf("update notifier %q at version %d: %w", n.ID, n.Version, err)
 	}
 	data, err := marshalNotifier(n)
 	if err != nil {
-		return notifier.Notifier{}, err
+		return notifier.Notifier{}, fmt.Errorf("update notifier %q at version %d: %w", n.ID, n.Version, err)
 	}
-	return s.writeNotifier(ctx, n.Tenant, n.PipelineID, n.ID, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
+	saved, err := s.writeNotifier(ctx, n.Tenant, n.PipelineID, n.ID, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
 		row, err := notifierForUpdate(ctx, q, n.Tenant, n.PipelineID, n.ID, n.Version)
 		if err != nil {
 			return nil, err
@@ -92,11 +96,15 @@ func (s *Store) UpdateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 			Config: string(data.config), SecretRefs: string(data.refs), UpdatedByUserID: sql.NullString{String: n.UpdatedByUserID, Valid: n.UpdatedByUserID != ""},
 		})
 	})
+	if err != nil {
+		return notifier.Notifier{}, fmt.Errorf("update notifier %q at version %d: %w", n.ID, n.Version, err)
+	}
+	return saved, nil
 }
 
 // DeleteNotifier marks a rule deleted and returns its metadata for secret cleanup.
 func (s *Store) DeleteNotifier(ctx context.Context, tenant filament.TenantID, pipelineID, id string, version int64) (notifier.Notifier, error) {
-	return s.writeNotifier(ctx, tenant, pipelineID, id, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
+	saved, err := s.writeNotifier(ctx, tenant, pipelineID, id, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
 		if _, err := notifierForUpdate(ctx, q, tenant, pipelineID, id, version); err != nil {
 			return nil, err
 		}
@@ -106,6 +114,10 @@ func (s *Store) DeleteNotifier(ctx context.Context, tenant filament.TenantID, pi
 			DeletedAt: sql.NullInt64{Int64: now, Valid: true}, UpdatedAt: now,
 		})
 	})
+	if err != nil {
+		return notifier.Notifier{}, fmt.Errorf("delete notifier %q at version %d: %w", id, version, err)
+	}
+	return saved, nil
 }
 
 // Lock the parent before changing a rule so pipeline deletion cannot race it.
@@ -122,7 +134,7 @@ func (s *Store) writeNotifier(ctx context.Context, tenant filament.TenantID, pip
 	q := s.q.WithTx(tx)
 	if _, err := q.LockNotifierPipeline(ctx, sqlcgen.LockNotifierPipelineParams{TenantID: string(tenant), PipelineID: pipelineID}); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return notifier.Notifier{}, filament.ErrNotFound
+			return notifier.Notifier{}, fmt.Errorf("pipeline %q: %w", pipelineID, filament.ErrNotFound)
 		}
 		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: lock notifier pipeline: %w", err)
 	}
@@ -165,19 +177,17 @@ func notifierFromRow(row *sqlcgen.Notifier) (notifier.Notifier, error) {
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, DeletedAt: row.DeletedAt.Int64,
 		CreatedByUserID: row.CreatedByUserID.String, UpdatedByUserID: row.UpdatedByUserID.String, DeletedByUserID: row.DeletedByUserID.String,
 	}
-	for _, field := range []struct {
-		name   string
-		data   []byte
-		target any
-	}{
-		{"events", []byte(row.Events), &n.Events},
-		{"resources", []byte(row.Resources), &n.Resources},
-		{"config", []byte(row.Config), &n.Config},
-		{"secret_refs", []byte(row.SecretRefs), &n.SecretRefs},
-	} {
-		if err := json.Unmarshal(field.data, field.target); err != nil {
-			return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: decode notifier %s: %w", field.name, err)
-		}
+	if err := json.Unmarshal([]byte(row.Events), &n.Events); err != nil {
+		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: unmarshal notifier %q events: %w", row.ID, err)
+	}
+	if err := json.Unmarshal([]byte(row.Resources), &n.Resources); err != nil {
+		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: unmarshal notifier %q resources: %w", row.ID, err)
+	}
+	if err := json.Unmarshal([]byte(row.Config), &n.Config); err != nil {
+		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: unmarshal notifier %q config: %w", row.ID, err)
+	}
+	if err := json.Unmarshal([]byte(row.SecretRefs), &n.SecretRefs); err != nil {
+		return notifier.Notifier{}, fmt.Errorf("datastore/sqlite: unmarshal notifier %q secret_refs: %w", row.ID, err)
 	}
 	return n, nil
 }
@@ -185,6 +195,12 @@ func notifierFromRow(row *sqlcgen.Notifier) (notifier.Notifier, error) {
 type notifierJSON struct{ events, resources, config, refs []byte }
 
 func marshalNotifier(n notifier.Notifier) (notifierJSON, error) {
+	if n.Events == nil {
+		n.Events = []string{}
+	}
+	if n.Resources == nil {
+		n.Resources = []string{}
+	}
 	if n.Config == nil {
 		n.Config = map[string]any{}
 	}
@@ -192,21 +208,22 @@ func marshalNotifier(n notifier.Notifier) (notifierJSON, error) {
 		n.SecretRefs = map[string]string{}
 	}
 	var data notifierJSON
-	for _, field := range []struct {
-		name   string
-		value  any
-		target *[]byte
-	}{
-		{"events", append([]string{}, n.Events...), &data.events},
-		{"resources", append([]string{}, n.Resources...), &data.resources},
-		{"config", n.Config, &data.config},
-		{"secret_refs", n.SecretRefs, &data.refs},
-	} {
-		raw, err := json.Marshal(field.value)
-		if err != nil {
-			return notifierJSON{}, fmt.Errorf("datastore/sqlite: encode notifier %s: %w", field.name, err)
-		}
-		*field.target = raw
+	var err error
+	data.events, err = json.Marshal(n.Events)
+	if err != nil {
+		return notifierJSON{}, fmt.Errorf("datastore/sqlite: marshal notifier events: %w", err)
+	}
+	data.resources, err = json.Marshal(n.Resources)
+	if err != nil {
+		return notifierJSON{}, fmt.Errorf("datastore/sqlite: marshal notifier resources: %w", err)
+	}
+	data.config, err = json.Marshal(n.Config)
+	if err != nil {
+		return notifierJSON{}, fmt.Errorf("datastore/sqlite: marshal notifier config: %w", err)
+	}
+	data.refs, err = json.Marshal(n.SecretRefs)
+	if err != nil {
+		return notifierJSON{}, fmt.Errorf("datastore/sqlite: marshal notifier secret_refs: %w", err)
 	}
 	return data, nil
 }
