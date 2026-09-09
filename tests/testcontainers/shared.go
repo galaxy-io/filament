@@ -48,7 +48,7 @@ func SharedPostgres(t testing.TB) *PG {
 // tests; its wipe also clears the replication slots they leave behind.
 func SharedPostgresCDC(t testing.TB) *PG {
 	t.Helper()
-	return pgSharedCDC.acquire(t, WithImage("postgres:16-alpine"), WithLogicalReplication())
+	return pgSharedCDC.acquire(t, WithLogicalReplication())
 }
 
 func (s *sharedPG) acquire(t testing.TB, opts ...PGOption) *PG {

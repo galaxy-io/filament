@@ -42,6 +42,7 @@ func MySQLContainer(t testing.TB) *MySQL {
 	t.Helper()
 	ctx := context.Background()
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image: Image(t, "MYSQL_IMAGE"),
 			Env: map[string]string{
