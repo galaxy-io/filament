@@ -40,6 +40,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	jsonFormat := &filament.FieldCondition{Field: "file_format", Values: []string{
 		string(encoder.FileFormatNDJSON), string(encoder.FileFormatJSONL), string(encoder.FileFormatJSON),
 	}}
+	parquetFormat := &filament.FieldCondition{Field: "file_format", Values: []string{string(encoder.FileFormatParquet)}}
 	return filament.SinkSpec{
 		Name:         "s3",
 		DisplayName:  "Amazon S3",
@@ -56,10 +57,8 @@ func (s *Sink) Spec() filament.SinkSpec {
 				{Value: string(encoder.FileFormatJSON), Label: "JSON"},
 				{Value: string(encoder.FileFormatParquet), Label: "Parquet"},
 			}},
-			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.DefaultCompression), Scope: filament.ScopePipeline, VisibleWhen: jsonFormat, Help: "Optional whole-file compression.", Enum: []filament.EnumOption{
-				{Value: string(encoder.CompressionNone), Label: "None"},
-				{Value: string(encoder.CompressionGZIP), Label: "Gzip"},
-			}},
+			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatNDJSON.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: jsonFormat, Help: "Compression used for JSON files.", Enum: compressionOptions(encoder.FileFormatNDJSON)},
+			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatParquet.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: parquetFormat, Help: "Compression used for Parquet files.", Enum: compressionOptions(encoder.FileFormatParquet)},
 			{Name: "region", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
 			{Name: "endpoint", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Custom S3 endpoint, such as MinIO; defaults to AWS."},
 			{Name: "path_style", Type: filament.FieldBool, Scope: filament.ScopeConnection, Help: "Use path-style bucket addressing. Defaults to true for custom endpoints."},
@@ -83,6 +82,28 @@ func (s *Sink) Spec() filament.SinkSpec {
 				filament.IngestionFullReplace,
 			),
 		},
+	}
+}
+
+func compressionOptions(format encoder.FileFormat) []filament.EnumOption {
+	compressions := format.SupportedCompressions()
+	options := make([]filament.EnumOption, len(compressions))
+	for i, compression := range compressions {
+		options[i] = filament.EnumOption{Value: string(compression), Label: compressionLabel(compression)}
+	}
+	return options
+}
+
+func compressionLabel(compression encoder.Compression) string {
+	switch compression {
+	case encoder.CompressionNone:
+		return "None"
+	case encoder.CompressionGZIP:
+		return "Gzip"
+	case encoder.CompressionSnappy:
+		return "Snappy"
+	default:
+		return string(compression)
 	}
 }
 
@@ -126,6 +147,9 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 	fileFormat, err := encoder.ParseFileFormat(formatName)
 	if err != nil {
 		return sinkConfig{}, fmt.Errorf("s3 sink: file_format: %w", err)
+	}
+	if compressionName == "" {
+		compressionName = string(fileFormat.DefaultCompression())
 	}
 	compression, err := encoder.ParseCompression(compressionName)
 	if err != nil {

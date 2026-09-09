@@ -236,7 +236,7 @@ func newEncoder(format encoder.FileFormat, compression encoder.Compression, sche
 	case encoder.FileFormatJSON:
 		stream = jsonencoder.NewArrayEncoder(schema)
 	case encoder.FileFormatParquet:
-		return parquetencoder.NewEncoder(schema)
+		return parquetencoder.NewEncoder(schema, compression)
 	default:
 		return nil, fmt.Errorf("unsupported file format %q", format)
 	}

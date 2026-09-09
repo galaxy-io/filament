@@ -52,12 +52,46 @@ export function isJsonObject(value: JsonValue): value is Record<string, JsonValu
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-export function getFieldDefaults(fields: ConfigField[]): Record<string, JsonValue> {
+export function getFieldDefaults(
+  fields: ConfigField[],
+  values: Record<string, JsonValue> = {},
+): Record<string, JsonValue> {
   const defaults: Record<string, JsonValue> = {};
   for (const field of fields) {
-    if (field.default) defaults[field.name] = toJson(ValueSchema, field.default);
+    if (field.default && isFieldVisible(field, { ...defaults, ...values })) {
+      defaults[field.name] = toJson(ValueSchema, field.default);
+    }
   }
   return defaults;
+}
+
+export function updateConfigField(
+  fields: ConfigField[],
+  values: Record<string, JsonValue>,
+  fieldName: string,
+  value: JsonValue,
+): Record<string, JsonValue> {
+  const next = { ...values, [fieldName]: value };
+  const before = { ...getFieldDefaults(fields, values), ...values };
+  const after = { ...getFieldDefaults(fields, next), ...next };
+  const dependentNames = new Set(
+    fields.filter((field) => field.visibleWhen?.field === fieldName).map((field) => field.name),
+  );
+
+  for (const name of dependentNames) {
+    const previousField = fields.find(
+      (field) => field.name === name && isFieldVisible(field, before),
+    );
+    const nextField = fields.find((field) => field.name === name && isFieldVisible(field, after));
+    if (previousField === nextField) continue;
+
+    if (nextField?.default) {
+      next[name] = toJson(ValueSchema, nextField.default);
+    } else {
+      delete next[name];
+    }
+  }
+  return next;
 }
 
 export function getConnectionScopedFields(fields: ConfigField[]): ConfigField[] {

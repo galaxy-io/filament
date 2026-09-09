@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -39,6 +40,32 @@ func ParseFileFormat(value string) (FileFormat, error) {
 // IsLineDelimited reports whether the format stores one JSON object per line.
 func (f FileFormat) IsLineDelimited() bool {
 	return f == FileFormatNDJSON || f == FileFormatJSONL
+}
+
+// SupportedCompressions returns the compression modes accepted by the format.
+func (f FileFormat) SupportedCompressions() []Compression {
+	switch f {
+	case FileFormatNDJSON, FileFormatJSONL, FileFormatJSON:
+		return []Compression{CompressionNone, CompressionGZIP}
+	case FileFormatParquet:
+		return []Compression{CompressionSnappy}
+	default:
+		return nil
+	}
+}
+
+// DefaultCompression returns the format's preferred compression mode.
+func (f FileFormat) DefaultCompression() Compression {
+	supported := f.SupportedCompressions()
+	if len(supported) == 0 {
+		return ""
+	}
+	return supported[0]
+}
+
+// SupportsCompression reports whether the format accepts compression.
+func (f FileFormat) SupportsCompression(compression Compression) bool {
+	return slices.Contains(f.SupportedCompressions(), compression)
 }
 
 // Extension returns the format's uncompressed file suffix.
