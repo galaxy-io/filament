@@ -1,8 +1,4 @@
 -- +goose Up
--- SQLite requires the exact parent column set to have a unique key for the
--- composite foreign key below, even though pipeline id is already unique.
-CREATE UNIQUE INDEX pipelines_id_tenant_idx ON pipelines (id, tenant_id);
-
 CREATE TABLE notifier (
   id                   TEXT    PRIMARY KEY,
   tenant_id            TEXT    NOT NULL REFERENCES tenants (id),
@@ -30,4 +26,3 @@ CREATE INDEX notifier_pipeline_idx ON notifier (tenant_id, pipeline_id, id)
 
 -- +goose Down
 DROP TABLE notifier;
-DROP INDEX pipelines_id_tenant_idx;
