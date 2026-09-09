@@ -54,6 +54,7 @@ type resourceEncoder struct {
 	mu      sync.Mutex
 	schema  *arrow.Schema
 	encoder encoder.Encoder
+	hasRows bool
 }
 
 var (
@@ -104,19 +105,13 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 		s.session.Cancel()
 	}
 
-	declared := make(map[string]string, len(run.Resources))
-	for _, resource := range run.Resources {
-		if resource != "" {
-			declared[resource] = encodedObjectKey(cfg.prefix, run.Run, resource, cfg.fileFormat, cfg.compression)
-		}
-	}
 	s.state = stateOpen
 	s.bucket = cfg.bucket
 	s.prefix = cfg.prefix
 	s.run = run.Run
 	s.format = cfg.fileFormat
 	s.compression = cfg.compression
-	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, declared, objectMetadata{
+	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, objectMetadata{
 		contentType: cfg.fileFormat.ContentType(), contentEncoding: cfg.compression.ContentEncoding(),
 	})
 	s.applyWG = sync.WaitGroup{}
@@ -146,6 +141,13 @@ func (s *Sink) Write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 	defer s.applyWG.Done()
 
 	rows := batch.Rows()
+	if batch.NumRows() == 0 {
+		encodedCRC := uint32(0)
+		return filament.WriteReceipt{
+			WriteCRC:   batch.IntegrityCRC(),
+			EncodedCRC: &encodedCRC,
+		}, nil
+	}
 	scratch := session.takeEncodedBuffer()
 	resourceEncoder, err := s.encoderFor(batch.Resource, rows.Schema())
 	if err != nil {
@@ -163,6 +165,7 @@ func (s *Sink) Write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 	if err := session.Append(ctx, batch.Resource, key, encoded, batch.NumRows(), encodedCRC); err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: stream %s: %w", batch.Resource, err)
 	}
+	resourceEncoder.hasRows = true
 	return filament.WriteReceipt{
 		URI:        fmt.Sprintf("s3://%s/%s", bucket, key),
 		Bytes:      int64(len(encoded)),
@@ -262,7 +265,7 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) 
 		resourceEncoder.mu.Lock()
 		buffer := session.takeEncodedBuffer()
 		encoded, crc, err := resourceEncoder.encoder.Finalize(buffer)
-		if err == nil && len(encoded) > 0 {
+		if err == nil && len(encoded) > 0 && resourceEncoder.hasRows {
 			err = session.Append(ctx, resource, encodedObjectKey(prefix, run, resource, format, compression), encoded, 0, crc)
 		}
 		if err != nil {
