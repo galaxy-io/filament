@@ -9,7 +9,6 @@ import (
 const (
 	maxUploadParts         = 10_000
 	maxPooledEncodedBuffer = 4 << 20
-	ndjsonContentType      = "application/x-ndjson"
 )
 
 // multipartSession owns the bounded buffers and remote state for one sink run.
@@ -24,6 +23,7 @@ type multipartSession struct {
 	slots     chan struct{}
 	buffers   *bufferPool
 	encoded   sync.Pool
+	metadata  objectMetadata
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
@@ -68,25 +68,23 @@ func newMultipartSession(
 	bucket string,
 	partSize int64,
 	workers int,
-	declared map[string]string,
+	metadata objectMetadata,
 ) *multipartSession {
 	// The engine cancels its extraction context before committing a resumable
 	// pause. Apply/Commit contexts and Cancel still bound every operation.
 	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	session := &multipartSession{
 		store: store, bucket: bucket, partSize: int(partSize), workers: workers,
-		resources: make(map[string]*objectWriter, len(declared)),
+		resources: make(map[string]*objectWriter),
 		slots:     make(chan struct{}, workers),
 		buffers:   newBufferPool(),
+		metadata:  metadata,
 		ctx:       sessionCtx,
 		cancel:    cancel,
 	}
 	session.encoded.New = func() any {
 		buffer := make([]byte, 0, bufferChunkSize)
 		return &buffer
-	}
-	for resource, key := range declared {
-		session.resources[resource] = newObjectWriter(resource, key)
 	}
 	return session
 }
@@ -231,7 +229,7 @@ func (s *multipartSession) createMultipart(ctx context.Context, key string) (str
 	var uploadID string
 	err := s.withSlot(opCtx, func(ctx context.Context) error {
 		var err error
-		uploadID, err = s.store.CreateMultipart(ctx, s.bucket, key, ndjsonContentType)
+		uploadID, err = s.store.CreateMultipart(ctx, s.bucket, key, s.metadata)
 		return err
 	})
 	return uploadID, err

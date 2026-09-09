@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useCallback } from "react";
 
 import { styled } from "@linaria/react";
-import { ArrowsClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, GearIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -77,6 +77,7 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   isConnected?: boolean;
   isSelected?: boolean;
   onRefresh?: () => void;
+  onSettings?: () => void;
   onDelete?: () => void;
 }
 
@@ -87,6 +88,7 @@ const PipelineCanvasNode = ({
   isConnected = false,
   isSelected = false,
   onRefresh,
+  onSettings,
   onDelete,
   children,
 }: PipelineCanvasNodeProps) => {
@@ -106,6 +108,14 @@ const PipelineCanvasNode = ({
     [onDelete],
   );
 
+  const handleSettings = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      onSettings?.();
+    },
+    [onSettings],
+  );
+
   return (
     <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
       <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
@@ -116,12 +126,32 @@ const PipelineCanvasNode = ({
         />
         <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
           {onRefresh && (
-            <ActionButton className="nodrag" onClick={handleRefresh}>
+            <ActionButton
+              className="nodrag"
+              onClick={handleRefresh}
+              aria-label="Refresh resources"
+              title="Refresh resources"
+            >
               <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
+          {onSettings && (
+            <ActionButton
+              className="nodrag"
+              onClick={handleSettings}
+              aria-label="Open settings"
+              title="Open settings"
+            >
+              <Icon component={GearIcon} size={14} variant={IconVariant.TERTIARY} />
+            </ActionButton>
+          )}
           {onDelete && (
-            <ActionButton className="nodrag" onClick={handleDelete}>
+            <ActionButton
+              className="nodrag"
+              onClick={handleDelete}
+              aria-label="Delete node"
+              title="Delete node"
+            >
               <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}

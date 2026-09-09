@@ -35,6 +35,9 @@ func (s *Sink) Commit(ctx context.Context) error {
 	stop := context.AfterFunc(ctx, session.Cancel)
 	defer stop()
 
+	if err := s.finalizeEncoders(ctx, session); err != nil {
+		return err
+	}
 	results, err := session.Complete(ctx)
 	if err != nil {
 		return err
@@ -50,7 +53,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, successKey(prefix, run), manifestContentType, bytes.NewReader(body), int64(len(body))); err != nil {
+	if err := session.PutObject(ctx, successKey(prefix, run), objectMetadata{contentType: manifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 

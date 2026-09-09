@@ -87,7 +87,7 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *objectW
 			body = upload.buffer
 			size = int64(upload.buffer.Len())
 		}
-		if err := s.PutObject(ctx, upload.key, ndjsonContentType, body, size); err != nil {
+		if err := s.PutObject(ctx, upload.key, s.metadata, body, size); err != nil {
 			return err
 		}
 		upload.completed = true
@@ -144,11 +144,11 @@ func (s *multipartSession) completeMultipart(ctx context.Context, key, uploadID 
 }
 
 // PutObject shares the session-wide request limit with multipart operations.
-func (s *multipartSession) PutObject(ctx context.Context, key, contentType string, body io.ReadSeeker, size int64) error {
+func (s *multipartSession) PutObject(ctx context.Context, key string, metadata objectMetadata, body io.ReadSeeker, size int64) error {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	return s.withSlot(opCtx, func(ctx context.Context) error {
-		return s.store.PutObject(ctx, s.bucket, key, contentType, body, size)
+		return s.store.PutObject(ctx, s.bucket, key, metadata, body, size)
 	})
 }
 
