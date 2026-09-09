@@ -54,6 +54,11 @@
   "search": {
     "prompt": "Search"
   },
+  "integrations": {
+    "posthog": {
+      "apiKey": "phc_sdTaNu7OMDIz2h1263vOXmNJ87wjPLXeIYvdZDPXAXm"
+    }
+  },
   "contextual": {
     "options": [
       "copy",
