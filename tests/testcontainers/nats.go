@@ -27,6 +27,7 @@ func NATSContainer(t testing.TB) *NATS {
 	ctx := context.Background()
 
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image:        Image(t, "NATS_IMAGE"),
 			Cmd:          []string{"-js"},

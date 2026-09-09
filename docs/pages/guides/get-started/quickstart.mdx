@@ -7,7 +7,7 @@ description: "Run Filament locally in three commands"
 
 You need:
 
-- Docker running (local infra comes up via Docker Compose)
+- Docker with Compose
 - Go
 - `just`
 - Node 22 with pnpm for the UI
@@ -15,11 +15,14 @@ You need:
 Run `brew bundle` from the repo root to install the whole toolchain from the
 Brewfile.
 
+For Podman users, set `CONTAINER_ENGINE=podman` before running the commands below.
+See [engine configuration](/pages/guides/contributing/local-development) for test requirements.
+
 ## Run it
 
 <Steps>
   <Step title="Start local infra">
-    Brings up Postgres 16 and NATS with JetStream via Docker Compose. Wait
+    Brings up Postgres 16 and NATS with JetStream via Compose. Wait
     for both containers to report healthy. The next step runs database
     migrations against this Postgres.
 
@@ -48,7 +51,7 @@ Brewfile.
   <Step title="Run the tests (optional)">
     ```sh
     just test               # unit tests
-    just test-integration   # e2e via testcontainers — needs Docker
+    just test-integration   # integration tests using containers
     ```
   </Step>
 </Steps>

@@ -39,8 +39,15 @@ jobs:
         run: just test
 
   integration:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Integration (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [docker, podman]
+    env:
+      CONTAINER_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -50,13 +57,35 @@ jobs:
           cache-dependency-path: "**/go.sum"
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Start Podman
+        if: matrix.engine == 'podman'
+        uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
+        with:
+          start-service: "true"
+
+      - name: Check Podman
+        if: matrix.engine == 'podman'
+        run: just container-check
 
       - name: Integration test
         run: just test-integration
 
   e2e:
-    runs-on: ubuntu-latest
+    name: E2E (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: docker
+            tags: e2e,privileged
+          # Rootless Podman cannot run the privileged nested k3s container.
+          - engine: podman
+            tags: e2e
+    env:
+      CONTAINER_ENGINE: ${{ matrix.engine }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -66,6 +95,16 @@ jobs:
           cache-dependency-path: "**/go.sum"
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Start Podman
+        if: matrix.engine == 'podman'
+        uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
+        with:
+          start-service: "true"
+
+      - name: Check Podman
+        if: matrix.engine == 'podman'
+        run: just container-check
 
       - name: Install duckdb
         run: |
@@ -73,4 +112,4 @@ jobs:
           unzip -d /usr/local/bin /tmp/duckdb.zip duckdb
 
       - name: End-to-end test
-        run: just test-e2e
+        run: just test-e2e "${{ matrix.tags }}"
