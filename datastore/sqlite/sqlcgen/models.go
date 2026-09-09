@@ -26,6 +26,27 @@ type Connection struct {
 	UpdatedAt       int64
 }
 
+type Notifier struct {
+	ID               string
+	TenantID         string
+	PipelineID       string
+	Name             string
+	NotificationType string
+	Enabled          int64
+	Events           string
+	Resources        string
+	Config           string
+	SecretRefs       string
+	Version          int64
+	IsDeleted        int64
+	DeletedAt        sql.NullInt64
+	CreatedByUserID  sql.NullString
+	UpdatedByUserID  sql.NullString
+	DeletedByUserID  sql.NullString
+	CreatedAt        int64
+	UpdatedAt        int64
+}
+
 type Pipeline struct {
 	ID                  string
 	TenantID            string
