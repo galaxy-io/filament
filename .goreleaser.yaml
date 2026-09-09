@@ -41,7 +41,7 @@ release:
   mode: keep-existing
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: filament
     ids:
       - default
@@ -49,15 +49,17 @@ brews:
       owner: galaxy-io
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     commit_author:
       name: gx-null[bot]
       email: 286761379+gx-null[bot]@users.noreply.github.com
-    skip_upload: false
-    homepage: https://github.com/galaxy-io/filament
-    description: Filament CLI
-    license: Apache-2.0
-    install: |
-      bin.install "filament"
-    test: |
-      system "#{bin}/filament", "version"
+    homepage: "https://github.com/galaxy-io/filament"
+    description: "Pluggable data replication with checkpointing, batching, and integrity events"
+    binaries:
+      - filament
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/filament"]
+          end
