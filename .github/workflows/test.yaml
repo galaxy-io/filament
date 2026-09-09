@@ -58,20 +58,16 @@ jobs:
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
-      - name: Start rootless Podman
+      - name: Start Podman
         if: matrix.engine == 'podman'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-          export DOCKER_HOST="unix://$RUNNER_TEMP/filament-podman.sock"
-          podman system service --time=0 "$DOCKER_HOST" > "$RUNNER_TEMP/podman-service.log" 2>&1 &
-          echo "DOCKER_HOST=$DOCKER_HOST" >> "$GITHUB_ENV"
-          for attempt in {1..20}; do
-            if podman --url "$DOCKER_HOST" info > /dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          podman version
-          just container-check
+        uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
+        with:
+          ubuntu-repository: noble
+          start-service: "true"
+
+      - name: Check Podman
+        if: matrix.engine == 'podman'
+        run: just container-check
 
       - name: Integration test
         run: just test-integration
@@ -86,9 +82,8 @@ jobs:
         include:
           - engine: docker
             package: ./e2e/...
-          # Rootless Podman runs the data-lake suite. Kubernetes needs privileges.
           - engine: podman
-            package: ./e2e/datalake/...
+            package: ./e2e/...
     env:
       CONTAINER_ENGINE: ${{ matrix.engine }}
     steps:
@@ -101,20 +96,16 @@ jobs:
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
-      - name: Start rootless Podman
+      - name: Start Podman
         if: matrix.engine == 'podman'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-          export DOCKER_HOST="unix://$RUNNER_TEMP/filament-podman.sock"
-          podman system service --time=0 "$DOCKER_HOST" > "$RUNNER_TEMP/podman-service.log" 2>&1 &
-          echo "DOCKER_HOST=$DOCKER_HOST" >> "$GITHUB_ENV"
-          for attempt in {1..20}; do
-            if podman --url "$DOCKER_HOST" info > /dev/null 2>&1; then break; fi
-            sleep 1
-          done
-          podman version
-          just container-check
+        uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
+        with:
+          ubuntu-repository: noble
+          start-service: "true"
+
+      - name: Check Podman
+        if: matrix.engine == 'podman'
+        run: just container-check
 
       - name: Install duckdb
         run: |
