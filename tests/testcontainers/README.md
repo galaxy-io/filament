@@ -3,47 +3,36 @@
 Ephemeral backing-service containers for integration and end-to-end tests,
 seed operations, and benchmarks. Test-only helpers carry
 `//go:build integration || e2e` so everyday `go test ./...` stays fast and
-Docker-free.
+container-engine-free.
 
 ## Requirements
 
-- Docker (running)
+- Docker or configured Podman (running). See the [local development guide](../../docs/pages/guides/contributing/local-development.mdx)
 - Go 1.26.4+
 - `duckdb` on PATH for TPC-H seeds (`brew install duckdb`)
 
 ## Image pinning
 
-Images are read from `docker/.env` in the nearest parent containing `go.mod`. The keys are:
-
-```
-POSTGRES_IMAGE=postgres:16.15-alpine
-MYSQL_IMAGE=mysql:8.4.10
-NATS_IMAGE=nats:2.14.6-alpine
-REDIS_IMAGE=redis:7.4.11-alpine
-MINIO_IMAGE=minio/minio:RELEASE.2025-07-23T15-54-02Z
-TRINO_IMAGE=trinodb/trino:476
-ICEBERG_REST_IMAGE=apache/iceberg-rest-fixture:1.10.1
-K3S_IMAGE=rancher/k3s:v1.31.2-k3s1
-```
-
-Where supported, the test helpers and long-lived `container` package read the same pins. Versioned fallback defaults are used when the file is absent or missing a key, so a fresh clone is reproducible without additional setup.
+Image pins live in [`internal/envfile/images.env`](internal/envfile/images.env)
+and are shared with Compose. Repository-root `docker/.env` overrides them.
+Exported image variables take precedence.
 
 ## Running integration tests
 
 From the repository root:
 
 ```sh
-just test-integration      # service-level suite
-just test-e2e              # process, data-lake, and k3s suite
-just test-integration-all  # both tiers
+just test-integration       # service-level suite
+just test-e2e               # process, data-lake, and k3s suite
+just test-container-runtime # automatic cleanup checks
 ```
 
 Integration packages live under `tests/integration/...` and use
-`//go:build integration`; end-to-end packages live under `tests/e2e/...` and
+`//go:build integration`. End-to-end packages live under `tests/e2e/...` and
 use `//go:build e2e`. Both recipes discover their complete suite recursively,
 so adding a package under the appropriate tree needs no recipe change.
 
-Containers start, run, and are terminated automatically via `t.Cleanup`. No manual teardown needed.
+Exclusive containers are terminated through `t.Cleanup`. Shared containers are removed by Ryuk when the test session ends. Keep Ryuk enabled.
 
 ## Containers
 
@@ -62,7 +51,7 @@ pg := testcontainers.Postgres(t,
     testcontainers.WithDatabase("mydb"),
     testcontainers.WithUsername("user"),
     testcontainers.WithPassword("pass"),
-    testcontainers.WithImage("postgres:15"),
+    testcontainers.WithImage("docker.io/library/postgres:15"),
 )
 ```
 
@@ -153,7 +142,7 @@ tr.DB   // *sql.DB (memory catalog, closed on cleanup)
 ### Trino + Iceberg + MinIO (data lake)
 
 A 3-container stack — Trino querying an Iceberg REST catalog backed by MinIO.
-Slow to boot; used by the e2e data-lake suite.
+Slow to boot. Used by the e2e data-lake suite.
 
 ```go
 dl := testcontainers.TrinoDataLake(t)

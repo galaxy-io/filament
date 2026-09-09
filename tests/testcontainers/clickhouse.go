@@ -10,8 +10,6 @@ import (
 	tcclickhouse "github.com/testcontainers/testcontainers-go/modules/clickhouse"
 )
 
-const defaultClickHouseImage = "clickhouse/clickhouse-server:25.8.28.1"
-
 // CH is an ephemeral ClickHouse server and its host-reachable native DSN.
 type CH struct {
 	Container *tcclickhouse.ClickHouseContainer
@@ -22,7 +20,7 @@ type CH struct {
 func ClickHouse(t testing.TB) *CH {
 	t.Helper()
 	ctx := context.Background()
-	ctr, err := tcclickhouse.Run(ctx, defaultClickHouseImage)
+	ctr, err := tcclickhouse.Run(ctx, Image(t, "CLICKHOUSE_IMAGE"), tc.WithProvider(providerType(t)))
 	if err != nil {
 		t.Fatalf("start clickhouse container: %v", err)
 	}

@@ -44,6 +44,8 @@ To run Filament locally, install Go, Docker, `just`, Node.js, and pnpm. On macOS
 brew bundle
 ```
 
+For Podman users, set `CONTAINER_ENGINE=podman` to use Podman with the commands below. See [engine configuration](docs/pages/guides/contributing/local-development.mdx).
+
 Start PostgreSQL and NATS, then run Filament:
 
 ```sh

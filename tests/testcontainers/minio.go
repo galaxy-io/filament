@@ -8,6 +8,7 @@ import (
 
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	tc "github.com/testcontainers/testcontainers-go"
 	tcminio "github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
@@ -27,6 +28,7 @@ func MinIOContainer(t testing.TB) *MinIO {
 	ctx := context.Background()
 
 	ctr, err := tcminio.Run(ctx, Image(t, "MINIO_IMAGE"),
+		tc.WithProvider(providerType(t)),
 		tcminio.WithUsername("minioadmin"),
 		tcminio.WithPassword("minioadmin"),
 	)

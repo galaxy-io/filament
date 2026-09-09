@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	tc "github.com/testcontainers/testcontainers-go"
 	tck3s "github.com/testcontainers/testcontainers-go/modules/k3s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +48,7 @@ func startK3s(t testing.TB, dir string) *K3s {
 	t.Helper()
 	ctx := context.Background()
 
-	ctr, err := tck3s.Run(ctx, Image(t, "K3S_IMAGE"))
+	ctr, err := tck3s.Run(ctx, Image(t, "K3S_IMAGE"), tc.WithProvider(providerType(t)))
 	if err != nil {
 		t.Fatalf("start k3s container: %v", err)
 	}

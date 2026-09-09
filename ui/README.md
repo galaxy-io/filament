@@ -5,7 +5,7 @@ Web UI for Filament, built with Vite + React + [@galaxy-io/dls](https://www.npmj
 ## Develop
 
 ```bash
-just infra   # postgres + nats (docker compose)
+just infra   # postgres + nats (Compose; CONTAINER_ENGINE=podman selects Podman)
 just dev     # control-plane + server (:8080) + this UI (:5173)
 ```
 

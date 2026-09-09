@@ -54,6 +54,55 @@ jobs:
       - name: Integration test
         run: just test-integration
 
+      - name: Container cleanup contracts
+        run: just test-container-runtime
+
+  podman:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CONTAINER_ENGINE: podman
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Start rootless Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          export DOCKER_HOST="unix://$RUNNER_TEMP/filament-podman.sock"
+          podman system service --time=0 "$DOCKER_HOST" > "$RUNNER_TEMP/podman-service.log" 2>&1 &
+          echo "DOCKER_HOST=$DOCKER_HOST" >> "$GITHUB_ENV"
+          for attempt in {1..20}; do
+            if podman --url "$DOCKER_HOST" info > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          podman version
+          just container-check
+
+      - name: Image configuration contracts
+        run: GOWORK=off go -C tests test ./testcontainers/internal/envfile
+
+      - name: Container cleanup contracts
+        run: just test-container-runtime
+
+      - name: Integration test
+        run: just test-integration
+
+      - name: Install duckdb
+        run: |
+          curl -fsSL -o /tmp/duckdb.zip https://github.com/duckdb/duckdb/releases/download/v1.4.1/duckdb_cli-linux-amd64.zip
+          unzip -d /usr/local/bin /tmp/duckdb.zip duckdb
+
+      - name: Data-lake end-to-end test
+        run: just test-e2e-datalake
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 40

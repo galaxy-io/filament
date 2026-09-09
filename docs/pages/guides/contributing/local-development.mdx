@@ -6,12 +6,31 @@ description: "Set up the toolchain and run Filament from source"
 ## Toolchain
 
 The Brewfile pins the toolchain (`go`, `just`, `golangci-lint`, `buf`, `sqlc`,
-`node@22`, and `pnpm`). You also need Docker, since local infrastructure and
-the integration suite both run in containers.
+`node@22`, and `pnpm`). You also need Docker with Compose. Integration tests
+use Testcontainers.
 
 ```sh
 brew bundle
 ```
+
+## Container engine
+
+Docker is Filament's default container engine for local infrastructure, image
+builds, and container-backed tests.
+
+For Podman users, select your existing installation before running Filament's development commands:
+
+```sh
+export CONTAINER_ENGINE=podman
+just container-check
+```
+
+This selects Podman for `just infra`, `just images`, and container-backed tests.
+Use the same selection for `just infra down`. Docker and Podman keep separate data.
+
+Podman uses the `docker-compose` provider. On macOS, tests require a rootful
+machine. Filament discovers its socket and configures privileged Ryuk automatically.
+On Linux, the Podman API socket must be available. Keep Ryuk enabled for test cleanup.
 
 ## Workspace layout
 
@@ -27,7 +46,7 @@ day.
 
 | Recipe | What it does |
 |---|---|
-| `just infra` | Start PostgreSQL and NATS via docker compose (`down` stops, `volumes` also drops data) |
+| `just infra` | Start PostgreSQL and NATS via Compose (`down` stops, `volumes` also drops data) |
 | `just migrate` | Run datastore migrations against the local database |
 | `just dev` | Control plane + server in the background, wait for `:8080/startupz` and `:8081/startupz`, then the UI |
 | `just server` | API server alone (runs `migrate` first) |
@@ -37,7 +56,7 @@ day.
 | `just ui-dist` | Build the UI bundle the server embeds |
 | `just build` | `gen` + `ui-dist` + compile every Go module |
 | `just binaries` | Linux release binaries into `bin/filament/` |
-| `just images` | The Docker images |
+| `just images` | Build images with the selected container engine |
 | `just docs` | Mintlify docs preview on `:3000` |
 | `just tidy` | `go mod tidy` in every module, then `go work sync` |
 

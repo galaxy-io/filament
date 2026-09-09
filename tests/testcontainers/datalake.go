@@ -71,14 +71,12 @@ func TrinoDataLake(t testing.TB) *DataLake {
 	t.Helper()
 	ctx := context.Background()
 
-	nw, err := network.New(ctx)
-	if err != nil {
-		t.Fatalf("create network: %v", err)
-	}
+	nw := newNetwork(t, ctx)
 	t.Cleanup(func() { _ = nw.Remove(ctx) })
 
 	// MinIO, reachable as "minio" on the shared network.
 	mc, err := tcminio.Run(ctx, Image(t, "MINIO_IMAGE"),
+		tc.WithProvider(providerType(t)),
 		tcminio.WithUsername("minioadmin"),
 		tcminio.WithPassword("minioadmin"),
 		network.WithNetwork([]string{"minio"}, nw),
@@ -105,6 +103,7 @@ func TrinoDataLake(t testing.TB) *DataLake {
 
 	// Iceberg REST catalog, reachable as "rest"; in-memory metastore, S3 FileIO at MinIO.
 	cat, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image:        Image(t, "ICEBERG_REST_IMAGE"),
 			ExposedPorts: []string{"8181/tcp"},
@@ -145,6 +144,7 @@ func TrinoDataLake(t testing.TB) *DataLake {
 	}, "\n") + "\n"
 
 	trino, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image:          Image(t, "TRINO_IMAGE"),
 			ExposedPorts:   []string{"8080/tcp"},
