@@ -62,7 +62,6 @@ jobs:
         if: matrix.engine == 'podman'
         uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
         with:
-          ubuntu-repository: noble
           start-service: "true"
 
       - name: Check Podman
@@ -81,9 +80,10 @@ jobs:
       matrix:
         include:
           - engine: docker
-            package: ./e2e/...
+            tags: e2e,privileged
+          # Rootless Podman cannot run the privileged nested k3s container.
           - engine: podman
-            package: ./e2e/...
+            tags: e2e
     env:
       CONTAINER_ENGINE: ${{ matrix.engine }}
     steps:
@@ -100,7 +100,6 @@ jobs:
         if: matrix.engine == 'podman'
         uses: redhat-actions/podman-install@4a134a65f7324b2d03498c672cd4c6bce93e94b5 # v1
         with:
-          ubuntu-repository: noble
           start-service: "true"
 
       - name: Check Podman
@@ -113,4 +112,4 @@ jobs:
           unzip -d /usr/local/bin /tmp/duckdb.zip duckdb
 
       - name: End-to-end test
-        run: just test-e2e "${{ matrix.package }}"
+        run: just test-e2e "${{ matrix.tags }}"

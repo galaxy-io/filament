@@ -139,10 +139,10 @@ test:
 test-integration:
     bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags integration ./integration/...
 
-# Run process/deployment and data-lake e2e scenarios plus privileged k3s tests.
-# DuckDB must be on PATH for the TPC-H seed used by the e2e packages.
-test-e2e package="./e2e/...":
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 {{ quote(package) }}
+# Run the e2e test suite. Every dependency is provisioned by
+# Testcontainers; no local database or externally supplied DSN is used.
+test-e2e tags="e2e,privileged":
+    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags {{ quote(tags) }} -p=1 ./e2e/...
 
 # Check the selected engine and API endpoint.
 container-check:
