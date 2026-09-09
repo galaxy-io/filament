@@ -1,9 +1,11 @@
-package filament
+// Package notifier defines shared notification types and storage contracts.
+package notifier
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/galaxy-io/filament"
 )
 
 // NotificationType selects how a notification is sent.
@@ -66,7 +68,7 @@ func (t *NotificationType) UnmarshalJSON(data []byte) error {
 // It is stored separately from pipeline graph versions.
 type Notifier struct {
 	ID               string
-	Tenant           TenantID
+	Tenant           filament.TenantID
 	PipelineID       string
 	Name             string
 	NotificationType NotificationType
@@ -83,29 +85,4 @@ type Notifier struct {
 	CreatedByUserID string
 	UpdatedByUserID string
 	DeletedByUserID string
-}
-
-// NotifierFilter selects a pipeline's rules, including disabled ones.
-type NotifierFilter struct {
-	Tenant         TenantID
-	PipelineID     string
-	IncludeDeleted bool
-}
-
-// NotifierStore is optional storage for pipeline notification rules.
-// Each write transaction must check that the pipeline still exists and is not deleted.
-// Updates and deletes require a matching version or return ErrVersionConflict.
-type NotifierStore interface {
-	// CreateNotifier adds a rule at version 1.
-	CreateNotifier(ctx context.Context, n Notifier) (Notifier, error)
-	// LoadNotifier includes deleted rules. Check DeletedAt before using one.
-	LoadNotifier(ctx context.Context, tenant TenantID, pipelineID, id string) (Notifier, error)
-	// ListNotifiers returns matching rules ordered by ID.
-	ListNotifiers(ctx context.Context, f NotifierFilter) ([]Notifier, error)
-	// UpdateNotifier updates a rule and increments Version. Its ID, tenant,
-	// pipeline, and type cannot change. Clean up old secrets only after success.
-	UpdateNotifier(ctx context.Context, n Notifier) (Notifier, error)
-	// DeleteNotifier marks a rule deleted and increments Version.
-	// It returns the saved rule, including secret references for cleanup.
-	DeleteNotifier(ctx context.Context, tenant TenantID, pipelineID, id string, version int64) (Notifier, error)
 }
