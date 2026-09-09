@@ -6,7 +6,7 @@ services:
     networks:
       - filament
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     environment:
       POSTGRES_USER: filament
       POSTGRES_PASSWORD: filament
@@ -25,7 +25,7 @@ services:
     networks:
       - filament
     ports:
-      - "${NATS_PORT:-4222}:4222"
+      - "4222:4222"
     volumes:
       - nats-data:/data
     healthcheck:
@@ -41,7 +41,7 @@ services:
     networks:
       - filament
     ports:
-      - "${ZITADEL_PORT:-8300}:8080"
+      - "8300:8080"
     environment:
       ZITADEL_DATABASE_POSTGRES_HOST: postgres
       ZITADEL_DATABASE_POSTGRES_PORT: 5432
@@ -53,7 +53,7 @@ services:
       ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: filament
       ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
       ZITADEL_EXTERNALDOMAIN: localhost
-      ZITADEL_EXTERNALPORT: ${ZITADEL_PORT:-8300}
+      ZITADEL_EXTERNALPORT: 8300
       ZITADEL_EXTERNALSECURE: "false"
       ZITADEL_TLS_ENABLED: "false"
       ZITADEL_FIRSTINSTANCE_ORG_NAME: t1
@@ -66,7 +66,7 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2100-01-01T00:00:00Z"
       ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat
     volumes:
-      - ${ZITADEL_PAT_DIR:-./.zitadel}:/machinekey:Z
+      - ./.zitadel:/machinekey:Z
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 5s

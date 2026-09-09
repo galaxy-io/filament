@@ -47,8 +47,8 @@ the appropriate tag.
 
 The selected `CONTAINER_ENGINE` applies to both suites. See
 [local development](/pages/guides/contributing/local-development) for engine selection.
-Run e2e groups individually with `just test-e2e-process`, `just test-e2e-datalake`,
-and `just test-e2e-k8s`. The last needs a privileged-capable engine.
+To run one e2e group, pass its package, such as `just test-e2e ./e2e/datalake/...`.
+The `./e2e/k8s/...` group needs a privileged-capable engine.
 `just test-container-runtime` verifies automatic container cleanup.
 
 ### What the suites prove

@@ -100,7 +100,7 @@ binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
 # build container images using the selected engine
-images: container-check binaries
+images: binaries
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
@@ -141,8 +141,8 @@ test-integration:
 
 # Run process/deployment and data-lake e2e scenarios plus privileged k3s tests.
 # DuckDB must be on PATH for the TPC-H seed used by the e2e packages.
-test-e2e:
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 ./e2e/...
+test-e2e package="./e2e/...":
+    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 {{ quote(package) }}
 
 # Verify automatic cleanup after success, failure, and forced interruption.
 test-container-runtime:
@@ -151,16 +151,6 @@ test-container-runtime:
 # Check the selected engine and API endpoint.
 container-check:
     bash scripts/container.sh doctor
-
-# End-to-end suites can be run independently; k3s needs a privileged engine.
-test-e2e-process:
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 ./e2e/pipeline/...
-
-test-e2e-datalake:
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 ./e2e/datalake/...
-
-test-e2e-k8s:
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 ./e2e/k8s/...
 
 # tidy go.mod/go.sum in every Go module, then sync workspace versions
 tidy: (_each "GOWORK=off go mod tidy")
