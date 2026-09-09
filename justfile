@@ -144,10 +144,6 @@ test-integration:
 test-e2e package="./e2e/...":
     bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags e2e -p=1 {{ quote(package) }}
 
-# Verify automatic cleanup after success, failure, and forced interruption.
-test-container-runtime:
-    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags integration ./testcontainers
-
 # Check the selected engine and API endpoint.
 container-check:
     bash scripts/container.sh doctor

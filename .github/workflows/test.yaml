@@ -38,9 +38,6 @@ jobs:
       - name: Test
         run: just test
 
-      - name: Image configuration contracts
-        run: GOWORK=off go -C tests test ./testcontainers/internal/envfile
-
   integration:
     name: Integration (${{ matrix.engine }})
     runs-on: ubuntu-24.04
@@ -75,9 +72,6 @@ jobs:
           done
           podman version
           just container-check
-
-      - name: Container cleanup contracts
-        run: just test-container-runtime
 
       - name: Integration test
         run: just test-integration

@@ -22,9 +22,8 @@ Exported image variables take precedence.
 From the repository root:
 
 ```sh
-just test-integration       # service-level suite
-just test-e2e               # process, data-lake, and k3s suite
-just test-container-runtime # automatic cleanup checks
+just test-integration # service-level suite
+just test-e2e         # process, data-lake, and k3s suite
 ```
 
 Integration packages live under `tests/integration/...` and use
