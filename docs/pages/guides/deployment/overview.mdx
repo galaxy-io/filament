@@ -6,7 +6,8 @@ description: "Choose how and where to run Filament"
 Filament runs as separate server and control-plane services backed by a
 datastore, an event bus, and a secret provider. Kubernetes with Helm is the
 recommended production deployment. Railway and Render are alternatives when
-Kubernetes worker Jobs are not available.
+Kubernetes worker Jobs are not available. DigitalOcean provides a
+single-process evaluation deployment.
 
 ## Deployment options
 
@@ -15,9 +16,11 @@ Kubernetes worker Jobs are not available.
 | [Kubernetes](/pages/guides/deployment/kubernetes) | One worker Job per run | Production deployments with isolated, independently configured workers |
 | [Railway](/pages/guides/deployment/railway) | Inside the control-plane service | Simpler deployments on a platform without a Kubernetes Jobs API |
 | [Render](/pages/guides/deployment/render) | Inside the control-plane service | One-click Blueprint deployments with managed PostgreSQL |
+| [DigitalOcean](/pages/guides/deployment/digitalocean) | Inside the standalone service | One-click testing and evaluation with ephemeral state |
 
-All options run the server and control plane as separate services and use the
-same runtime components. The difference is where each run executes.
+Kubernetes, Railway, and Render run the server and control plane as separate
+services. The DigitalOcean template uses the standalone image to fit the
+platform's one-service Deploy to DO template format.
 
 <Warning>
 Run exactly one control-plane replica. Multiple replicas may race while
