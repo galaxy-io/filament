@@ -6,7 +6,7 @@ default:
 # start local infra (postgres + nats); `just infra auth` adds zitadel,
 # `just infra down` stops everything, `just infra down volumes` also drops volumes
 infra mode="up" scope="":
-    docker compose {{ if mode == "down" { if scope == "volumes" { "--profile auth down -v" } else { "--profile auth down" } } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
+    bash scripts/container.sh compose {{ if mode == "down" { if scope == "volumes" { "--profile auth down -v" } else { "--profile auth down" } } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
 
 # run datastore migrations against the local database
 migrate:
@@ -99,12 +99,12 @@ binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
-# build docker images
+# build container images using the selected engine
 images: binaries
-    docker build -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
-    docker build -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
-    docker build -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
-    docker build -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
@@ -137,12 +137,16 @@ test:
 # Run the service-level integration suite. Every dependency is provisioned by
 # Testcontainers; no local database or externally supplied DSN is used.
 test-integration:
-    cd tests && GOWORK=off go test -count=1 -tags integration ./integration/...
+    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags integration ./integration/...
 
-# Run process/deployment and data-lake e2e scenarios plus privileged k3s tests.
-# DuckDB must be on PATH for the TPC-H seed used by the e2e packages.
-test-e2e:
-    cd tests && GOWORK=off go test -count=1 -tags e2e -p=1 ./e2e/...
+# Run the e2e test suite. Every dependency is provisioned by
+# Testcontainers; no local database or externally supplied DSN is used.
+test-e2e tags="e2e,privileged":
+    bash scripts/container.sh exec env GOWORK=off go -C tests test -count=1 -tags {{ quote(tags) }} -p=1 ./e2e/...
+
+# Check the selected engine and API endpoint.
+container-check:
+    bash scripts/container.sh doctor
 
 # tidy go.mod/go.sum in every Go module, then sync workspace versions
 tidy: (_each "GOWORK=off go mod tidy")

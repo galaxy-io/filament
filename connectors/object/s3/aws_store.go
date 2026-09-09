@@ -44,10 +44,14 @@ func (s *awsStore) HeadBucket(ctx context.Context, bucket string) error {
 	return err
 }
 
-func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key, contentType string) (string, error) {
-	out, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
-		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
-	})
+func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key string, metadata objectMetadata) (string, error) {
+	input := &s3.CreateMultipartUploadInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(metadata.contentType),
+	}
+	if metadata.contentEncoding != "" {
+		input.ContentEncoding = aws.String(metadata.contentEncoding)
+	}
+	out, err := s.client.CreateMultipartUpload(ctx, input)
 	if err != nil {
 		return "", err
 	}
@@ -84,10 +88,14 @@ func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID str
 	return err
 }
 
-func (s *awsStore) PutObject(ctx context.Context, bucket, key, contentType string, body io.ReadSeeker, size int64) error {
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(contentType),
+func (s *awsStore) PutObject(ctx context.Context, bucket, key string, metadata objectMetadata, body io.ReadSeeker, size int64) error {
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(metadata.contentType),
 		Body: body, ContentLength: aws.Int64(size),
-	})
+	}
+	if metadata.contentEncoding != "" {
+		input.ContentEncoding = aws.String(metadata.contentEncoding)
+	}
+	_, err := s.client.PutObject(ctx, input)
 	return err
 }

@@ -33,6 +33,7 @@ func TrinoContainer(t testing.TB) *Trino {
 	ctx := context.Background()
 
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image:        Image(t, "TRINO_IMAGE"),
 			ExposedPorts: []string{"8080/tcp"},

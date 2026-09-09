@@ -1,5 +1,5 @@
-// Value encoders for Arrow-backed NDJSON rows.
-package ndjson
+// Value encoders for Arrow-backed JSON rows.
+package jsonencoder
 
 import (
 	"encoding/base64"

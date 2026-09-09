@@ -1,0 +1,64 @@
+---
+title: "DigitalOcean"
+description: "Deploy a single-process Filament instance to DigitalOcean App Platform"
+---
+
+The repository's `.do/deploy.template.yaml` deploys the Filament standalone
+image as one DigitalOcean App Platform service:
+
+<a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/galaxy-io/filament/tree/main">
+  <img src="https://www.deploytodo.com/do-btn-blue.svg" alt="Deploy to DigitalOcean" />
+</a>
+
+## What gets deployed
+
+The template runs `ghcr.io/galaxy-io/filament/standalone:0.1.0` on one 512 MiB
+App Platform service. The image contains the API, web application, scheduler,
+execution engine, SQLite datastore, and embedded NATS JetStream server.
+
+This topology is intended for testing and evaluation. DigitalOcean's Deploy to
+DO template format supports one service, optionally with a development
+database, so it cannot deploy Filament's separate server, control plane, and
+NATS services from one button.
+
+<Warning>
+DigitalOcean App Platform does not provide persistent volumes. The standalone
+image stores its SQLite database and JetStream data on the service's local
+filesystem, so deployments and container replacements can erase all Filament
+state. Do not use this template for production or irreplaceable data.
+</Warning>
+
+## Deploy the template
+
+<Steps>
+  <Step title="Open the template">
+    Click **Deploy to DigitalOcean** above and sign in to DigitalOcean.
+  </Step>
+  <Step title="Review the service">
+    Confirm the service uses the `filament/standalone:0.1.0` image and review
+    the selected instance size and estimated monthly cost.
+  </Step>
+  <Step title="Create the app">
+    Click **Create Resources** and wait for the service to become healthy.
+  </Step>
+  <Step title="Open Filament">
+    Open the generated `ondigitalocean.app` URL shown for the service.
+  </Step>
+</Steps>
+
+## Connector credentials
+
+The standalone image uses a read-only environment secret provider. Convert a
+secret reference to uppercase and replace punctuation with underscores, then
+add that environment variable to the App Platform service. For example, the
+reference `postgres-creds/dsn` resolves from `POSTGRES_CREDS_DSN`.
+
+Restart the deployment after adding or changing credential environment
+variables. See [Configuration](/pages/guides/deployment/configuration) for all
+standalone settings.
+
+## Upgrades
+
+The template pins the standalone image to a Filament release. To upgrade new
+deployments, change the image tag in `.do/deploy.template.yaml`. Existing apps
+can select the new tag from the service's **Source** settings and redeploy.

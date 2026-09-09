@@ -26,6 +26,7 @@ func RedisContainer(t testing.TB) *Redis {
 	ctx := context.Background()
 
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ProviderType: providerType(t),
 		ContainerRequest: tc.ContainerRequest{
 			Image:        Image(t, "REDIS_IMAGE"),
 			ExposedPorts: []string{"6379/tcp"},

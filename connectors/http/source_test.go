@@ -19,7 +19,7 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
-	"github.com/galaxy-io/filament/connectors/internal/ndjson"
+	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -1400,14 +1400,14 @@ type collectSink struct {
 
 func (s *collectSink) Builder(resource string, _ int, schema rowmodel.Schema) (arrowbatch.RowWriter, error) {
 	as := arrowbatch.Schema(schema)
-	return arrowbatch.NewBuilder(as, nil, arrowbatch.Options{MaxRows: 1}, &collectChunks{sink: s, resource: resource, pk: schema.PrimaryKey, enc: ndjson.NewEncoder(as)}), nil
+	return arrowbatch.NewBuilder(as, nil, arrowbatch.Options{MaxRows: 1}, &collectChunks{sink: s, resource: resource, pk: schema.PrimaryKey, enc: jsonencoder.NewEncoder(as)}), nil
 }
 
 type collectChunks struct {
 	sink     *collectSink
 	resource string
 	pk       []string
-	enc      *ndjson.Encoder
+	enc      *jsonencoder.Encoder
 }
 
 func (c *collectChunks) Chunk(ch *arrowbatch.Batch) error {

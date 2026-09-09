@@ -19,7 +19,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/connectors/internal/ndjson"
+	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
 )
 
 // Sink writes batches as NDJSON to an io.Writer (os.Stdout by default).
@@ -28,7 +28,7 @@ type Sink struct {
 	w       io.Writer
 	run     filament.RunID
 	acct    map[string]*resourceAcct
-	enc     map[*arrow.Schema]*ndjson.Encoder
+	enc     map[*arrow.Schema]*jsonencoder.Encoder
 	buf     []byte
 	aborted bool
 }
@@ -48,7 +48,7 @@ func WithWriter(w io.Writer) Option { return func(s *Sink) { s.w = w } }
 
 // New returns a stdout sink. By default it writes to os.Stdout.
 func New(opts ...Option) *Sink {
-	s := &Sink{w: os.Stdout, acct: map[string]*resourceAcct{}, enc: map[*arrow.Schema]*ndjson.Encoder{}}
+	s := &Sink{w: os.Stdout, acct: map[string]*resourceAcct{}, enc: map[*arrow.Schema]*jsonencoder.Encoder{}}
 	for _, o := range opts {
 		o(s)
 	}
@@ -86,7 +86,7 @@ func (s *Sink) Open(_ context.Context, run filament.RunSpec) error {
 	defer s.mu.Unlock()
 	s.run = run.Run
 	s.acct = map[string]*resourceAcct{}
-	s.enc = map[*arrow.Schema]*ndjson.Encoder{}
+	s.enc = map[*arrow.Schema]*jsonencoder.Encoder{}
 	s.aborted = false
 	return nil
 }
@@ -101,7 +101,7 @@ func (s *Sink) Write(_ context.Context, b *arrowbatch.Batch) (filament.WriteRece
 	rows := b.Rows()
 	enc := s.enc[rows.Schema()]
 	if enc == nil {
-		enc = ndjson.NewEncoder(rows.Schema())
+		enc = jsonencoder.NewEncoder(rows.Schema())
 		s.enc[rows.Schema()] = enc
 	}
 	buf, encodedCRC, err := enc.EncodeBatch(s.buf[:0], rows)

@@ -4,6 +4,7 @@ import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
+import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";
 import type { PipelineCanvasNodeSinkProps } from "@/pages/pipelines/canvas/nodes/types";
 import {
@@ -17,6 +18,7 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "target" });
   const { removeNode } = usePipelineCanvasActions();
+  const { selectNode } = usePipelineCanvasSelection();
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
 
@@ -27,6 +29,7 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
       kind={ConnectorKind.SINK}
       isConnected={connections.length > 0}
       isSelected={selected}
+      onSettings={() => selectNode(id)}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
     />
   );
