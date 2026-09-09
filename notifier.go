@@ -6,19 +6,17 @@ import (
 	"fmt"
 )
 
-// NotificationType identifies the delivery channel of a pipeline notifier.
-// Its integer values are domain constants; persistence and JSON use labels.
+// NotificationType selects how a notification is sent.
 type NotificationType int
 
 const (
-	// NotificationUnspecified is an invalid input sentinel, never persisted.
+	// NotificationUnspecified means no type was selected.
 	NotificationUnspecified NotificationType = 0
 	// NotificationWebhook delivers an event to an HTTP endpoint.
 	NotificationWebhook NotificationType = 1
 )
 
-// Label returns the database and JSON spelling of a supported notification
-// type. Unspecified and unknown values are errors rather than implicit defaults.
+// Label returns the database/JSON name, or an error for an invalid type.
 func (t NotificationType) Label() (string, error) {
 	switch t {
 	case NotificationWebhook:
@@ -28,7 +26,7 @@ func (t NotificationType) Label() (string, error) {
 	}
 }
 
-// ParseNotificationType converts a database or JSON label to its domain value.
+// ParseNotificationType reads a name such as "webhook", rejecting unknown names.
 func ParseNotificationType(label string) (NotificationType, error) {
 	switch label {
 	case "webhook":
@@ -38,7 +36,7 @@ func ParseNotificationType(label string) (NotificationType, error) {
 	}
 }
 
-// MarshalJSON serializes a notification type as its lowercase label.
+// MarshalJSON writes the type's name as a JSON string.
 func (t NotificationType) MarshalJSON() ([]byte, error) {
 	label, err := t.Label()
 	if err != nil {
@@ -47,8 +45,7 @@ func (t NotificationType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(label)
 }
 
-// UnmarshalJSON accepts only a supported string label, leaving the receiver
-// unchanged on invalid input. Numbers, null, and unspecified are rejected.
+// UnmarshalJSON reads a type name. Invalid input leaves t unchanged.
 func (t *NotificationType) UnmarshalJSON(data []byte) error {
 	if t == nil {
 		return fmt.Errorf("unmarshal notification type: nil receiver")
@@ -65,9 +62,8 @@ func (t *NotificationType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Notifier is one tenant-owned pipeline notification rule. Config contains
-// only non-secret settings; SecretRefs holds opaque provider references.
-// Notifiers are mutable metadata, independent of pipeline graph versions.
+// Notifier defines when and how a pipeline sends notifications.
+// It is stored separately from pipeline graph versions.
 type Notifier struct {
 	ID               string
 	Tenant           TenantID
@@ -75,12 +71,12 @@ type Notifier struct {
 	Name             string
 	NotificationType NotificationType
 	Enabled          bool
-	Events           []string
-	Resources        []string
-	Config           map[string]any
-	SecretRefs       map[string]string
-	Version          int64
-	// Timestamps are Unix milliseconds; DeletedAt is zero for a live row.
+	Events           []string          // Event names, or ["*"] for all eligible events.
+	Resources        []string          // Empty matches any resource.
+	Config           map[string]any    // Non-secret settings.
+	SecretRefs       map[string]string // References to stored credentials.
+	Version          int64             // Used to reject stale updates.
+	// Times are Unix milliseconds; DeletedAt is zero until deletion.
 	CreatedAt       int64
 	UpdatedAt       int64
 	DeletedAt       int64
@@ -89,37 +85,27 @@ type Notifier struct {
 	DeletedByUserID string
 }
 
-// NotifierFilter selects one pipeline's rules. Disabled rules are included;
-// soft-deleted rules are included only when explicitly requested for cleanup.
+// NotifierFilter selects a pipeline's rules, including disabled ones.
 type NotifierFilter struct {
 	Tenant         TenantID
 	PipelineID     string
 	IncludeDeleted bool
 }
 
-// NotifierStore is the optional persistence capability for pipeline
-// notifications. It is deliberately separate from DataStore: providers that
-// do not support notifications need not implement it.
-//
-// All operations require tenant and pipeline scope. Mutations must recheck
-// parent liveness transactionally. The store persists opaque references only;
-// secret-provider writes and cleanup belong to the API layer.
+// NotifierStore is optional storage for pipeline notification rules.
+// Each write transaction must check that the pipeline still exists and is not deleted.
+// Updates and deletes require a matching version or return ErrVersionConflict.
 type NotifierStore interface {
-	// CreateNotifier creates a version-1 rule on a live pipeline, enforcing the
-	// limit of eight non-deleted rules (including disabled ones) atomically.
+	// CreateNotifier adds a rule at version 1.
 	CreateNotifier(ctx context.Context, n Notifier) (Notifier, error)
-	// LoadNotifier includes soft-deleted rules so callers can inspect metadata
-	// for cleanup. Callers must check DeletedAt before mutation or delivery.
+	// LoadNotifier includes deleted rules. Check DeletedAt before using one.
 	LoadNotifier(ctx context.Context, tenant TenantID, pipelineID, id string) (Notifier, error)
-	// ListNotifiers returns rules in deterministic ID order within the pipeline.
+	// ListNotifiers returns matching rules ordered by ID.
 	ListNotifiers(ctx context.Context, f NotifierFilter) ([]Notifier, error)
-	// UpdateNotifier replaces mutable fields if n.Version matches the stored
-	// version, returning the incremented record or ErrVersionConflict. Identity,
-	// ownership, and notification type are immutable. Callers retain the loaded
-	// old record to clean up replaced refs only after this compare-and-swap wins.
+	// UpdateNotifier updates a rule and increments Version. Its ID, tenant,
+	// pipeline, and type cannot change. Clean up old secrets only after success.
 	UpdateNotifier(ctx context.Context, n Notifier) (Notifier, error)
-	// DeleteNotifier soft-deletes a live rule at the expected version, returning
-	// its committed metadata (including secret refs) for post-commit cleanup.
-	// A stale version returns ErrVersionConflict. Deletion increments Version.
+	// DeleteNotifier marks a rule deleted and increments Version.
+	// It returns the saved rule, including secret references for cleanup.
 	DeleteNotifier(ctx context.Context, tenant TenantID, pipelineID, id string, version int64) (Notifier, error)
 }
