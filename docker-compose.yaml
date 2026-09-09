@@ -2,7 +2,7 @@ name: filament
 
 services:
   postgres:
-    image: postgres:16
+    image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16}
     networks:
       - filament
     ports:
@@ -20,7 +20,7 @@ services:
       retries: 15
 
   nats:
-    image: nats:2-alpine
+    image: ${NATS_IMAGE:-docker.io/library/nats:2-alpine}
     command: ["-js", "-sd", "/data", "-m", "8222"]
     networks:
       - filament
@@ -35,7 +35,7 @@ services:
       retries: 15
 
   zitadel:
-    image: ghcr.io/zitadel/zitadel:v4.17.0
+    image: ${ZITADEL_IMAGE:-ghcr.io/zitadel/zitadel:v4.17.0}
     profiles: ["auth"]
     command: ["start-from-init", "--masterkey", "MasterkeyNeedsToHave32Characters", "--tlsMode", "disabled"]
     networks:
@@ -66,7 +66,7 @@ services:
       ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2100-01-01T00:00:00Z"
       ZITADEL_FIRSTINSTANCE_PATPATH: /machinekey/pat
     volumes:
-      - ./.zitadel:/machinekey
+      - ./.zitadel:/machinekey:Z
     healthcheck:
       test: ["CMD", "/app/zitadel", "ready"]
       interval: 5s

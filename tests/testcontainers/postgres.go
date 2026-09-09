@@ -79,6 +79,7 @@ func startPostgres(t testing.TB, opts ...PGOption) *PG {
 
 	ctx := context.Background()
 	containerOpts := []tc.ContainerCustomizer{
+		tc.WithProvider(providerType(t)),
 		postgres.WithDatabase(cfg.database),
 		postgres.WithUsername(cfg.username),
 		postgres.WithPassword(cfg.password),

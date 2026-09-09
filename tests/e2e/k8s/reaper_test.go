@@ -1,4 +1,4 @@
-//go:build e2e
+//go:build e2e && privileged
 
 package k8se2e
 
