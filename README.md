@@ -78,7 +78,7 @@ For a simpler hosted deployment without Kubernetes, deploy with 1 click:
 Read the [Railway](https://filament.getgalaxy.io/pages/guides/deployment/railway), [Render](https://filament.getgalaxy.io/pages/guides/deployment/render), and [DigitalOcean](https://filament.getgalaxy.io/pages/guides/deployment/digitalocean) guides for the deployed resources, runtime behavior, and production checklist.
 
 > [!WARNING]
-> The DigitalOcean deployment uses [filament/standalone](https://github.com/galaxy-io/filament/blob/main/cmd/standalone/main.go), an all-in-one image that includes the control plane, worker, and SQLite datastore.
+> The DigitalOcean deployment uses [filament/standalone](https://github.com/galaxy-io/filament/blob/main/cmd/standalone/main.go), an all-in-one image that includes the control-plane, server, and SQLite datastore.
 
 
 ## How it works
