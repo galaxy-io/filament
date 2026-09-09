@@ -71,11 +71,15 @@ For a simpler hosted deployment without Kubernetes, deploy with 1 click:
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/filament?referralCode=H5DcHR&utm_medium=integration&utm_source=template&utm_campaign=generic)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament&branch=main&path=deploy%2Frender.yaml)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/galaxy-io/filament/tree/feat/digital-ocean-deploy)
 
 </div>
 
-Read the [Railway](https://filament.getgalaxy.io/pages/guides/deployment/railway) and [Render](https://filament.getgalaxy.io/pages/guides/deployment/render) guides for the deployed resources, runtime behavior, and production checklist.
-The Render infrastructure is defined in [`deploy/render.yaml`](deploy/render.yaml).
+Read the [Railway](https://filament.getgalaxy.io/pages/guides/deployment/railway), [Render](https://filament.getgalaxy.io/pages/guides/deployment/render), and [DigitalOcean](https://filament.getgalaxy.io/pages/guides/deployment/digitalocean) guides for the deployed resources, runtime behavior, and production checklist.
+
+> [!WARNING]
+> The DigitalOcean deployment uses [filament/standalone](https://github.com/galaxy-io/filament/blob/main/cmd/standalone/main.go), an all-in-one image that includes the control plane, worker, and SQLite datastore.
+
 
 ## How it works
 
