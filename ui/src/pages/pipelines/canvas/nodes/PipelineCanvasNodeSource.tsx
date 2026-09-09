@@ -8,6 +8,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
+import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";
 import PipelineCanvasNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIsland";
 import type { PipelineCanvasNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
@@ -42,6 +43,7 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode } = usePipelineCanvasActions();
+  const { selectNode } = usePipelineCanvasSelection();
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
   const {
@@ -73,6 +75,7 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
       isConnected={connectedHandleIds.has(CONNECTOR_KIND_TO_HANDLE_ID_MAP[ConnectorKind.SOURCE])}
       isSelected={selected}
       onRefresh={isReadOnly ? undefined : refresh}
+      onSettings={() => selectNode(id)}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
     >
       {(isLoading || error || tables.length > 0) && (
