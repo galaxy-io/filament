@@ -16,7 +16,7 @@ func TestFormats(t *testing.T) {
 		{"ndjson", "gzip", FileFormatNDJSON, CompressionGZIP, ".ndjson.gz", "application/x-ndjson", "gzip"},
 		{"jsonl", "none", FileFormatJSONL, CompressionNone, ".jsonl", "application/x-ndjson", ""},
 		{"json", "gzip", FileFormatJSON, CompressionGZIP, ".json.gz", "application/json", "gzip"},
-		{"parquet", "none", FileFormatParquet, CompressionNone, ".parquet", "application/vnd.apache.parquet", ""},
+		{"parquet", "snappy", FileFormatParquet, CompressionSnappy, ".parquet", "application/vnd.apache.parquet", ""},
 	}
 	for _, test := range tests {
 		format, err := ParseFileFormat(test.formatInput)
@@ -35,10 +35,13 @@ func TestFormats(t *testing.T) {
 	if _, err := ParseFileFormat("csv"); err == nil {
 		t.Fatal("ParseFileFormat accepted unsupported format")
 	}
-	if _, err := ParseCompression("snappy"); err == nil {
+	if _, err := ParseCompression("brotli"); err == nil {
 		t.Fatal("ParseCompression accepted unsupported compression")
 	}
 	if err := (Options{FileFormat: FileFormatParquet, Compression: CompressionGZIP}).Validate(); err == nil {
 		t.Fatal("Options.Validate accepted gzip-wrapped Parquet")
+	}
+	if err := (Options{FileFormat: FileFormatParquet, Compression: CompressionSnappy}).Validate(); err != nil {
+		t.Fatalf("Options.Validate rejected Snappy Parquet: %v", err)
 	}
 }

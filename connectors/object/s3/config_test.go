@@ -19,7 +19,7 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 		{"ndjson", "gzip", encoder.FileFormatNDJSON, encoder.CompressionGZIP, "exports/run/accounts.ndjson.gz"},
 		{"jsonl", "none", encoder.FileFormatJSONL, encoder.CompressionNone, "exports/run/accounts.jsonl"},
 		{"json", "gzip", encoder.FileFormatJSON, encoder.CompressionGZIP, "exports/run/accounts.json.gz"},
-		{"parquet", "none", encoder.FileFormatParquet, encoder.CompressionNone, "exports/run/accounts.parquet"},
+		{"parquet", "snappy", encoder.FileFormatParquet, encoder.CompressionSnappy, "exports/run/accounts.parquet"},
 	} {
 		cfg, err := parseConfig(filament.NewConfig(map[string]any{
 			"bucket": "bucket", "file_format": test.format, "compression": test.compression,
@@ -38,7 +38,7 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 		t.Fatal("parseConfig accepted unsupported file format")
 	}
 	if _, err := parseConfig(filament.NewConfig(map[string]any{"bucket": "bucket", "file_format": "parquet", "compression": "gzip"})); err == nil {
-		t.Fatal("parseConfig accepted gzip-wrapped Parquet")
+		t.Fatal("parseConfig accepted unsupported Parquet compression")
 	}
 }
 
@@ -52,7 +52,7 @@ func TestLegacyEncodingCompatibility(t *testing.T) {
 		{map[string]any{"encoding": "json_gzip"}, encoder.FileFormatNDJSON, encoder.CompressionGZIP, "run/accounts.ndjson.gz"},
 		{map[string]any{"encoding": "json"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "run/accounts.ndjson"},
 		{map[string]any{"file_type": "jsonl"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "run/accounts.ndjson"},
-		{map[string]any{"file_type": "parquet"}, encoder.FileFormatParquet, encoder.CompressionNone, "run/accounts.parquet"},
+		{map[string]any{"file_type": "parquet"}, encoder.FileFormatParquet, encoder.CompressionSnappy, "run/accounts.parquet"},
 	}
 	for _, test := range tests {
 		test.config["bucket"] = "bucket"

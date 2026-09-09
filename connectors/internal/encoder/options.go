@@ -10,12 +10,12 @@ type Options struct {
 
 // DefaultOptions returns the backward-compatible NDJSON configuration.
 func DefaultOptions() Options {
-	return Options{FileFormat: DefaultFileFormat, Compression: DefaultCompression}
+	return Options{FileFormat: DefaultFileFormat, Compression: DefaultFileFormat.DefaultCompression()}
 }
 
-// Validate checks whether compression can wrap the selected format.
+// Validate checks whether the selected format supports the compression mode.
 func (o Options) Validate() error {
-	if o.FileFormat == FileFormatParquet && o.Compression != CompressionNone {
+	if !o.FileFormat.SupportsCompression(o.Compression) {
 		return fmt.Errorf("compression %q is not supported for file format %q", o.Compression, o.FileFormat)
 	}
 	return nil

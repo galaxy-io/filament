@@ -68,7 +68,6 @@ func newMultipartSession(
 	bucket string,
 	partSize int64,
 	workers int,
-	declared map[string]string,
 	metadata objectMetadata,
 ) *multipartSession {
 	// The engine cancels its extraction context before committing a resumable
@@ -76,7 +75,7 @@ func newMultipartSession(
 	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	session := &multipartSession{
 		store: store, bucket: bucket, partSize: int(partSize), workers: workers,
-		resources: make(map[string]*objectWriter, len(declared)),
+		resources: make(map[string]*objectWriter),
 		slots:     make(chan struct{}, workers),
 		buffers:   newBufferPool(),
 		metadata:  metadata,
@@ -86,9 +85,6 @@ func newMultipartSession(
 	session.encoded.New = func() any {
 		buffer := make([]byte, 0, bufferChunkSize)
 		return &buffer
-	}
-	for resource, key := range declared {
-		session.resources[resource] = newObjectWriter(resource, key)
 	}
 	return session
 }

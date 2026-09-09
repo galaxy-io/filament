@@ -21,12 +21,15 @@ type Encoder struct {
 	closed bool
 }
 
-// NewEncoder prepares a Snappy-compressed Parquet encoder for schema. The
+// NewEncoder prepares a compressed Parquet encoder for schema. The
 // original Arrow schema is stored in file metadata so Filament logical-type
 // metadata and timestamp timezone information survive a round trip.
-func NewEncoder(schema *arrow.Schema) (*Encoder, error) {
+func NewEncoder(schema *arrow.Schema, compression encoder.Compression) (*Encoder, error) {
 	if schema == nil {
 		return nil, fmt.Errorf("parquet: schema is required")
+	}
+	if compression != encoder.CompressionSnappy {
+		return nil, fmt.Errorf("parquet: unsupported compression %q", compression)
 	}
 	e := &Encoder{schema: schema}
 	writer, err := pqarrow.NewFileWriter(

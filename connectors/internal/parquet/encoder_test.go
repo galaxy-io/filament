@@ -11,6 +11,8 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/memory"
 	arrowparquet "github.com/apache/arrow-go/v18/parquet"
 	"github.com/apache/arrow-go/v18/parquet/pqarrow"
+
+	"github.com/galaxy-io/filament/connectors/internal/encoder"
 )
 
 func TestEncoderStreamsValidParquetFile(t *testing.T) {
@@ -31,7 +33,7 @@ func TestEncoderStreamsValidParquetFile(t *testing.T) {
 	second := record.NewSlice(1, 2)
 	defer second.Release()
 
-	enc, err := NewEncoder(schema)
+	enc, err := NewEncoder(schema, encoder.CompressionSnappy)
 	if err != nil {
 		t.Fatal(err)
 	}

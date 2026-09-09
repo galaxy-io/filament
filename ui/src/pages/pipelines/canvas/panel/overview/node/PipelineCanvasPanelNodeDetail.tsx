@@ -12,6 +12,7 @@ import {
   getFieldDefaults,
   getPipelineScopedFields,
   isFieldVisible,
+  updateConfigField,
 } from "@/components/fields/utils";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
@@ -63,7 +64,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
 
   const configValue = node.data.config ?? {};
   const scopedFields = getPipelineScopedFields(spec?.configSchema?.fields ?? []);
-  const displayValue = { ...getFieldDefaults(scopedFields), ...configValue };
+  const displayValue = { ...getFieldDefaults(scopedFields, configValue), ...configValue };
   const fields = scopedFields.filter((field) => isFieldVisible(field, displayValue));
 
   return (
@@ -116,10 +117,10 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
                 value={displayValue[field.name] ?? null}
                 variant={InputVariant.TERTIARY}
                 onChange={(value) =>
-                  setNodeConfig(node.id, {
-                    ...configValue,
-                    [field.name]: value,
-                  })
+                  setNodeConfig(
+                    node.id,
+                    updateConfigField(scopedFields, configValue, field.name, value),
+                  )
                 }
                 isDisabled={isReadOnly}
               />
