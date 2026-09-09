@@ -235,17 +235,13 @@ func keyShardsFrom(table, qualified string, dec *rowDecoder, ks keysetPlan) ([]k
 	return out, nil
 }
 
-// extractKeysetShard pages one shard out through the sink: WHERE (pk-tuple) is above
+// extractKeysetShard pages one shard out through w: WHERE (pk-tuple) is above
 // the cursor (or the shard's lower bound) and below the shard's upper bound, ORDER BY
 // the key, LIMIT a page. Every row carries its key so the pipeline can carry the
 // cursor forward. Rows append while the result set is open; the shard's connection
 // is dedicated for its whole life (withSnapshotTx), so a stall on backpressure
 // holds nothing extra.
-func (s *Source) extractKeysetShard(ctx context.Context, sink arrowbatch.Inlet, q querier, sh keyShard, limit int) error {
-	w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
-	if err != nil {
-		return err
-	}
+func (s *Source) extractKeysetShard(ctx context.Context, w arrowbatch.RowWriter, q querier, sh keyShard, limit int) error {
 	order := keysetOrder(sh.pks)
 
 	// Every page after the first filters by the full-tuple cursor, so its SQL

@@ -88,15 +88,15 @@ later. GTID checkpoints advance after a committed transaction. A crash during
 a transaction replays the whole transaction, so use merge writes that converge
 by primary key.
 
-<Warning>
-  MySQL CDC does not snapshot existing rows. The first run starts at the
-  current binlog tail, so rows present before the pipeline was created are
-  never emitted by CDC. Replication mode cannot be changed on an existing
-  connection. To backfill, create a standard connection and full pipeline,
-  complete that run, then create a separate CDC connection and route for new
-  changes. Plan the handoff carefully because the two pipelines do not share a
-  checkpoint.
-</Warning>
+When a selected table has no CDC checkpoint, the run first reads it in full
+through a consistent snapshot, and the change stream then continues from the
+binlog position captured just before that snapshot opened. The baseline and the
+stream share one point, so a pipeline can start on CDC alone without a
+separate full run. Run row limits do not apply to this bootstrap read. With
+GTID enabled the boundary is exact. With file positions, a transaction that was
+written to the binlog but had not finished committing when the snapshot opened
+can be missed, so prefer GTID for CDC. Binlog retention must cover the time the
+bootstrap read takes, or the stream cannot start from the captured position.
 
 Requirements:
 
