@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/internal/encoder"
 )
 
 const (
@@ -29,21 +30,36 @@ type sinkConfig struct {
 	pathStyle       bool
 	partSize        int64
 	uploadWorkers   int
+	fileFormat      encoder.FileFormat
+	compression     encoder.Compression
 }
 
 // Spec describes the sink's configuration and commit-durable write modes.
 func (s *Sink) Spec() filament.SinkSpec {
 	iamCredentials := &filament.FieldCondition{Field: "auth_method", Values: []string{authMethodIAMCredentials}}
+	jsonFormat := &filament.FieldCondition{Field: "file_format", Values: []string{
+		string(encoder.FileFormatNDJSON), string(encoder.FileFormatJSONL), string(encoder.FileFormatJSON),
+	}}
 	return filament.SinkSpec{
 		Name:         "s3",
-		DisplayName:  "Amazon S3 (NDJSON)",
-		Description:  "Run-versioned NDJSON objects in Amazon S3 or an S3-compatible object store.",
+		DisplayName:  "Amazon S3",
+		Description:  "Run-versioned NDJSON, JSONL, JSON, or Parquet objects in Amazon S3 or an S3-compatible object store.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg",
-		Version:      "2",
+		Version:      "3",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
-			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.ndjson. Empty defaults to the normalized source connection name."},
+			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.<format>. Empty defaults to the normalized source connection name."},
+			{Name: "file_format", Type: filament.FieldEnum, Default: string(encoder.DefaultFileFormat), Scope: filament.ScopePipeline, Help: "File format used for each resource object. NDJSON and JSONL contain one object per line; JSON contains one array.", Enum: []filament.EnumOption{
+				{Value: string(encoder.FileFormatNDJSON), Label: "NDJSON"},
+				{Value: string(encoder.FileFormatJSONL), Label: "JSONL"},
+				{Value: string(encoder.FileFormatJSON), Label: "JSON"},
+				{Value: string(encoder.FileFormatParquet), Label: "Parquet"},
+			}},
+			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.DefaultCompression), Scope: filament.ScopePipeline, VisibleWhen: jsonFormat, Help: "Optional whole-file compression.", Enum: []filament.EnumOption{
+				{Value: string(encoder.CompressionNone), Label: "None"},
+				{Value: string(encoder.CompressionGZIP), Label: "Gzip"},
+			}},
 			{Name: "region", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
 			{Name: "endpoint", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Custom S3 endpoint, such as MinIO; defaults to AWS."},
 			{Name: "path_style", Type: filament.FieldBool, Scope: filament.ScopeConnection, Help: "Use path-style bucket addressing. Defaults to true for custom endpoints."},
@@ -60,6 +76,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{
 			EncodedIntegrity: true,
+			Schematized:      true,
 			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullAppend,
 				filament.IngestionCDCAppend,
@@ -85,6 +102,38 @@ func (s *Sink) Validate(cfg filament.Config) error {
 }
 
 func parseConfig(cfg filament.Config) (sinkConfig, error) {
+	formatName := cfg.String("file_format")
+	compressionName := cfg.String("compression")
+	if formatName == "" {
+		legacyName := cfg.String("encoding")
+		if legacyName == "" {
+			legacyName = cfg.String("file_type")
+		}
+		switch strings.ToLower(strings.TrimSpace(legacyName)) {
+		case "json_gzip", "gzip_json", "ndjson_gzip", "jsonl_gzip", "json.gz", "ndjson.gz":
+			formatName = string(encoder.FileFormatNDJSON)
+			if !cfg.Has("compression") {
+				compressionName = string(encoder.CompressionGZIP)
+			}
+		case "json", "jsonl":
+			// The temporary combined encoding option treated these as NDJSON.
+			// Preserve that behavior for stored legacy configurations.
+			formatName = string(encoder.FileFormatNDJSON)
+		default:
+			formatName = legacyName
+		}
+	}
+	fileFormat, err := encoder.ParseFileFormat(formatName)
+	if err != nil {
+		return sinkConfig{}, fmt.Errorf("s3 sink: file_format: %w", err)
+	}
+	compression, err := encoder.ParseCompression(compressionName)
+	if err != nil {
+		return sinkConfig{}, fmt.Errorf("s3 sink: compression: %w", err)
+	}
+	if err := (encoder.Options{FileFormat: fileFormat, Compression: compression}).Validate(); err != nil {
+		return sinkConfig{}, fmt.Errorf("s3 sink: %w", err)
+	}
 	out := sinkConfig{
 		bucket:          strings.TrimSpace(cfg.String("bucket")),
 		prefix:          strings.Trim(cfg.String("prefix"), "/"),
@@ -96,6 +145,8 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 		sessionToken:    cfg.Secret("session_token"),
 		partSize:        defaultPartSizeMiB << 20,
 		uploadWorkers:   defaultUploadWorkers,
+		fileFormat:      fileFormat,
+		compression:     compression,
 	}
 	if out.bucket == "" {
 		return sinkConfig{}, fmt.Errorf("s3 sink: bucket is required")

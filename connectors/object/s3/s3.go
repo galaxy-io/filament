@@ -1,4 +1,4 @@
-// Package s3 implements a run-versioned NDJSON sink for Amazon S3 and
+// Package s3 implements a run-versioned object sink for Amazon S3 and
 // compatible object stores.
 //
 // Apply streams full multipart parts and Commit publishes _SUCCESS.json last.
@@ -8,13 +8,18 @@ package s3
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/connectors/internal/ndjson"
+	"github.com/galaxy-io/filament/connectors/internal/encoder"
+	gzipencoder "github.com/galaxy-io/filament/connectors/internal/gzip"
+	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
+	parquetencoder "github.com/galaxy-io/filament/connectors/internal/parquet"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 type sinkState uint8
@@ -29,18 +34,27 @@ const (
 
 // Sink adapts Filament batches and lifecycle calls to one multipart session.
 type Sink struct {
-	mu      sync.Mutex
-	state   sinkState
-	bucket  string
-	prefix  string
-	run     filament.RunID
-	session *multipartSession
-	applyWG sync.WaitGroup
-	enc     map[*arrow.Schema]*ndjson.Encoder
+	mu          sync.Mutex
+	state       sinkState
+	bucket      string
+	prefix      string
+	run         filament.RunID
+	session     *multipartSession
+	applyWG     sync.WaitGroup
+	format      encoder.FileFormat
+	compression encoder.Compression
+	enc         map[string]*resourceEncoder
 }
 
 // New returns an unconfigured sink.
-func New() *Sink { return &Sink{state: stateNew, enc: make(map[*arrow.Schema]*ndjson.Encoder)} }
+func New() *Sink { return &Sink{state: stateNew, enc: make(map[string]*resourceEncoder)} }
+
+// resourceEncoder serializes the stateful byte stream for one resource.
+type resourceEncoder struct {
+	mu      sync.Mutex
+	schema  *arrow.Schema
+	encoder encoder.Encoder
+}
 
 var (
 	_ filament.Sink              = (*Sink)(nil)
@@ -93,17 +107,31 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 	declared := make(map[string]string, len(run.Resources))
 	for _, resource := range run.Resources {
 		if resource != "" {
-			declared[resource] = objectKey(cfg.prefix, run.Run, resource)
+			declared[resource] = encodedObjectKey(cfg.prefix, run.Run, resource, cfg.fileFormat, cfg.compression)
 		}
 	}
 	s.state = stateOpen
 	s.bucket = cfg.bucket
 	s.prefix = cfg.prefix
 	s.run = run.Run
-	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, declared)
+	s.format = cfg.fileFormat
+	s.compression = cfg.compression
+	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, declared, objectMetadata{
+		contentType: cfg.fileFormat.ContentType(), contentEncoding: cfg.compression.ContentEncoding(),
+	})
 	s.applyWG = sync.WaitGroup{}
-	s.enc = make(map[*arrow.Schema]*ndjson.Encoder)
+	s.enc = make(map[string]*resourceEncoder)
 	return nil
+}
+
+// EnsureSchema prepares a resource encoder before extraction. This is required
+// to produce a valid empty Parquet file when a resource has no batches.
+func (s *Sink) EnsureSchema(_ context.Context, resource string, schema rowmodel.Schema) error {
+	if resource == "" {
+		return fmt.Errorf("s3 sink: resource is required")
+	}
+	_, err := s.encoderFor(resource, arrowbatch.Schema(schema))
+	return err
 }
 
 // Write encodes a batch and appends it to the resource's multipart stream.
@@ -119,7 +147,14 @@ func (s *Sink) Write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 
 	rows := batch.Rows()
 	scratch := session.takeEncodedBuffer()
-	encoded, encodedCRC, err := s.encoderFor(rows.Schema()).EncodeBatch(scratch, rows)
+	resourceEncoder, err := s.encoderFor(batch.Resource, rows.Schema())
+	if err != nil {
+		session.releaseEncodedBuffer(scratch)
+		return filament.WriteReceipt{}, err
+	}
+	resourceEncoder.mu.Lock()
+	defer resourceEncoder.mu.Unlock()
+	encoded, encodedCRC, err := resourceEncoder.encoder.EncodeBatch(scratch, rows)
 	if err != nil {
 		session.releaseEncodedBuffer(scratch)
 		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: encode %s: %w", batch.Resource, err)
@@ -137,15 +172,25 @@ func (s *Sink) Write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 	}, nil
 }
 
-func (s *Sink) encoderFor(schema *arrow.Schema) *ndjson.Encoder {
+func (s *Sink) encoderFor(resource string, schema *arrow.Schema) (*resourceEncoder, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if enc := s.enc[schema]; enc != nil {
-		return enc
+	if s.state != stateOpen && s.state != stateCommitting {
+		return nil, fmt.Errorf("s3 sink: encoder requires an open run")
 	}
-	enc := ndjson.NewEncoder(schema)
-	s.enc[schema] = enc
-	return enc
+	if enc := s.enc[resource]; enc != nil {
+		if !schema.Equal(enc.schema) {
+			return nil, fmt.Errorf("s3 sink: schema changed for resource %q", resource)
+		}
+		return enc, nil
+	}
+	stream, err := newEncoder(s.format, s.compression, schema)
+	if err != nil {
+		return nil, fmt.Errorf("s3 sink: create %s/%s encoder for %s: %w", s.format, s.compression, resource, err)
+	}
+	enc := &resourceEncoder{schema: schema, encoder: stream}
+	s.enc[resource] = enc
+	return enc, nil
 }
 
 func (s *Sink) beginApply(resource string) (*multipartSession, string, string, error) {
@@ -155,7 +200,7 @@ func (s *Sink) beginApply(resource string) (*multipartSession, string, string, e
 		return nil, "", "", fmt.Errorf("s3 sink: write requires an open run")
 	}
 	s.applyWG.Add(1)
-	return s.session, s.bucket, objectKey(s.prefix, s.run, resource), nil
+	return s.session, s.bucket, encodedObjectKey(s.prefix, s.run, resource, s.format, s.compression), nil
 }
 
 // Apply validates the batch against the run's write policy, then streams it.
@@ -171,8 +216,64 @@ func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament
 	}
 }
 
-func objectKey(prefix string, run filament.RunID, resource string) string {
-	return runKey(prefix, run) + "/" + resource + ".ndjson"
+func encodedObjectKey(prefix string, run filament.RunID, resource string, format encoder.FileFormat, compression encoder.Compression) string {
+	options := encoder.Options{FileFormat: format, Compression: compression}
+	return runKey(prefix, run) + "/" + resource + options.Extension()
+}
+
+func newEncoder(format encoder.FileFormat, compression encoder.Compression, schema *arrow.Schema) (encoder.Encoder, error) {
+	options := encoder.Options{FileFormat: format, Compression: compression}
+	if err := options.Validate(); err != nil {
+		return nil, err
+	}
+	var stream encoder.Encoder
+	switch format {
+	case encoder.FileFormatNDJSON, encoder.FileFormatJSONL:
+		stream = jsonencoder.NewEncoder(schema)
+	case encoder.FileFormatJSON:
+		stream = jsonencoder.NewArrayEncoder(schema)
+	case encoder.FileFormatParquet:
+		return parquetencoder.NewEncoder(schema)
+	default:
+		return nil, fmt.Errorf("unsupported file format %q", format)
+	}
+	if compression == encoder.CompressionGZIP {
+		stream = gzipencoder.NewEncoder(stream)
+	}
+	return stream, nil
+}
+
+// finalizeEncoders appends stream trailers before multipart completion. Parquet
+// writes its file footer here; gzip writes its trailer; NDJSON emits nothing.
+func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) error {
+	s.mu.Lock()
+	resources := make([]string, 0, len(s.enc))
+	encoders := make(map[string]*resourceEncoder, len(s.enc))
+	for resource, encoder := range s.enc {
+		resources = append(resources, resource)
+		encoders[resource] = encoder
+	}
+	format, compression, prefix, run := s.format, s.compression, s.prefix, s.run
+	s.mu.Unlock()
+	sort.Strings(resources)
+
+	for _, resource := range resources {
+		resourceEncoder := encoders[resource]
+		resourceEncoder.mu.Lock()
+		buffer := session.takeEncodedBuffer()
+		encoded, crc, err := resourceEncoder.encoder.Finalize(buffer)
+		if err == nil && len(encoded) > 0 {
+			err = session.Append(ctx, resource, encodedObjectKey(prefix, run, resource, format, compression), encoded, 0, crc)
+		}
+		if err != nil {
+			session.releaseEncodedBuffer(buffer)
+			resourceEncoder.mu.Unlock()
+			return fmt.Errorf("s3 sink: finalize %s: %w", resource, err)
+		}
+		session.releaseEncodedBuffer(encoded)
+		resourceEncoder.mu.Unlock()
+	}
+	return nil
 }
 
 func successKey(prefix string, run filament.RunID) string {

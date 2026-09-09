@@ -9,7 +9,6 @@ import (
 const (
 	maxUploadParts         = 10_000
 	maxPooledEncodedBuffer = 4 << 20
-	ndjsonContentType      = "application/x-ndjson"
 )
 
 // multipartSession owns the bounded buffers and remote state for one sink run.
@@ -24,6 +23,7 @@ type multipartSession struct {
 	slots     chan struct{}
 	buffers   *bufferPool
 	encoded   sync.Pool
+	metadata  objectMetadata
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
@@ -69,6 +69,7 @@ func newMultipartSession(
 	partSize int64,
 	workers int,
 	declared map[string]string,
+	metadata objectMetadata,
 ) *multipartSession {
 	// The engine cancels its extraction context before committing a resumable
 	// pause. Apply/Commit contexts and Cancel still bound every operation.
@@ -78,6 +79,7 @@ func newMultipartSession(
 		resources: make(map[string]*objectWriter, len(declared)),
 		slots:     make(chan struct{}, workers),
 		buffers:   newBufferPool(),
+		metadata:  metadata,
 		ctx:       sessionCtx,
 		cancel:    cancel,
 	}
@@ -231,7 +233,7 @@ func (s *multipartSession) createMultipart(ctx context.Context, key string) (str
 	var uploadID string
 	err := s.withSlot(opCtx, func(ctx context.Context) error {
 		var err error
-		uploadID, err = s.store.CreateMultipart(ctx, s.bucket, key, ndjsonContentType)
+		uploadID, err = s.store.CreateMultipart(ctx, s.bucket, key, s.metadata)
 		return err
 	})
 	return uploadID, err

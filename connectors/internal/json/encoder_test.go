@@ -1,4 +1,4 @@
-package ndjson
+package jsonencoder
 
 import (
 	"encoding/json"
