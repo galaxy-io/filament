@@ -30,6 +30,7 @@ read starts that table again. The connector is beta.
 | `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
 | `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
+| `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it, `none` streams from the current position only. |
 
 ## Read strategies
 
@@ -118,6 +119,12 @@ When a selected table has no CDC checkpoint, the slot is created with an
 exported snapshot and the table is read in full through that snapshot, so the
 baseline and the change stream share one consistent point. Run row limits do
 not apply to this bootstrap read.
+
+`snapshot_mode=none` skips that read. A table without a checkpoint streams
+from the slot's consistent point (or the current WAL position when the slot
+already exists), so the sink starts empty and fills in as rows change. With
+`REPLICA IDENTITY FULL` updates carry the full row, so a merge sink upserts
+rows it has never seen; deletes of unseen rows are no-ops.
 
 Steady-state runs are bounded catch-up cycles. Each replays from the oldest
 resource LSN to `pg_current_wal_lsn()` at cycle start, then returns.

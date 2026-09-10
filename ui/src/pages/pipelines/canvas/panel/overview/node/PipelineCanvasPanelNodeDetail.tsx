@@ -63,8 +63,11 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
   const spec = data?.connector;
 
   const configValue = node.data.config ?? {};
-  const scopedFields = getPipelineScopedFields(spec?.configSchema?.fields ?? []);
-  const displayValue = { ...getFieldDefaults(scopedFields, configValue), ...configValue };
+  const allFields = spec?.configSchema?.fields ?? [];
+  const scopedFields = getPipelineScopedFields(allFields);
+  // Visibility spans both scopes: a pipeline field may depend on a connection field.
+  const values = { ...connection?.config, ...configValue };
+  const displayValue = { ...getFieldDefaults(allFields, values), ...values };
   const fields = scopedFields.filter((field) => isFieldVisible(field, displayValue));
 
   return (

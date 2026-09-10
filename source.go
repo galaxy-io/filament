@@ -175,6 +175,16 @@ const (
 	ReplicationCDC      ReplicationMode = "cdc"
 )
 
+// SnapshotMode is whether a CDC resource without a checkpoint is read in full
+// before its change stream starts.
+type SnapshotMode string
+
+// The snapshot modes.
+const (
+	SnapshotInitial SnapshotMode = "initial"
+	SnapshotNone    SnapshotMode = "none"
+)
+
 // ReplicationAware lets a source report which replication mode a connection
 // config selects. Sources without the contract are always standard.
 type ReplicationAware interface {
