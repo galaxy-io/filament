@@ -68,7 +68,11 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 		return result, nil
 	}
 	for name, value := range destination.Headers {
-		req.Header.Set(name, value)
+		if name == "Host" {
+			req.Host = value
+		} else {
+			req.Header.Set(name, value)
+		}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Filament-Delivery-Id", n.DeliveryID)
