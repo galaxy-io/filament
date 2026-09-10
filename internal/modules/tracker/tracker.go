@@ -124,6 +124,10 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 			filament.Field{Key: "resource_name", Value: f.Resource},
 			filament.Field{Key: "stream_sequence", Value: msg.Seq()})
 	}
+	// Notification reports do not change run state or its dedup cursor.
+	if _, ok := f.Data.(events.NotifierAttemptedEvent); ok {
+		return nil
+	}
 	// Terminal folds promote checkpoints and are idempotent. Apply them before
 	// advancing the dedup high-water mark so a failed promotion can be retried.
 	if status, terminal := terminalFactStatus(f.Data); terminal {
