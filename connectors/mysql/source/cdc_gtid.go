@@ -183,11 +183,12 @@ func (s *Source) gtidBootstrap(ctx context.Context, run *cdcRun, cps map[string]
 		return nil, nil, err
 	}
 	if len(bootstrap) > 0 {
-		floor, err := s.gtidExecuted(ctx)
-		if err != nil {
-			return nil, nil, err
+		var floor gomysql.GTIDSet
+		capture := func(ctx context.Context) (err error) {
+			floor, err = s.gtidExecuted(ctx)
+			return err
 		}
-		if err := s.snapshotBootstrap(ctx, run, bootstrap); err != nil {
+		if err := s.snapshotBootstrap(ctx, run, bootstrap, capture); err != nil {
 			return nil, nil, err
 		}
 		for _, resource := range bootstrap {

@@ -90,19 +90,23 @@ by primary key.
 
 When a selected table has no CDC checkpoint, the run first reads it in full
 through a consistent snapshot, and the change stream then continues from the
-binlog position captured just before that snapshot opened. The baseline and the
-stream share one point, so a pipeline can start on CDC alone without a
-separate full run. Run row limits do not apply to this bootstrap read. With
-GTID enabled the boundary is exact. With file positions, a transaction that was
-written to the binlog but had not finished committing when the snapshot opened
-can be missed, so prefer GTID for CDC. Binlog retention must cover the time the
-bootstrap read takes, or the stream cannot start from the captured position.
+binlog position captured just before that snapshot opened. To make the two
+agree, the run takes read locks on those tables in a side session for the
+instant between capturing the position and opening the snapshot. Writers of
+those tables wait for a couple of round trips and nothing else is blocked. The
+baseline and the stream then share one exact point in both cursor modes, so a
+pipeline can start on CDC alone without a separate full run. Run row limits
+do not apply to this bootstrap read. The tables must use InnoDB, since only a
+transactional engine gives the snapshot one point in time. Binlog retention
+must cover the time the bootstrap read takes, or the stream cannot start from
+the captured position.
 
 Requirements:
 
 - `ROW` binlog format (the 8.0+ default)
 - Binlog retention covering the resume window
 - `REPLICATION SLAVE` and `REPLICATION CLIENT` privileges
+- `LOCK TABLES` and `SELECT` on the CDC tables, held for a moment when a table is first bootstrapped
 - A TCP connection (unix sockets are rejected for CDC)
 
 Behavior worth knowing:

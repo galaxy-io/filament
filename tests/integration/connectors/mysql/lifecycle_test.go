@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -421,4 +422,109 @@ func TestMySQLConnectorLifecycle(t *testing.T) {
 			t.Fatalf("late table emitted %v, want nothing", got)
 		}
 	})
+
+	t.Run("CDC bootstrap rejects non-InnoDB tables", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `CREATE TABLE cdc_myisam (id bigint PRIMARY KEY, name varchar(80) NOT NULL) ENGINE=MyISAM`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62350})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+		out := &testutil.CollectSink{}
+		defer out.Release()
+		err := src.ExtractChanges(ctx, out, filament.ChangeExtractOpts{Resources: []string{"cdc_myisam"}})
+		if err == nil || !strings.Contains(err.Error(), "MyISAM") || !strings.Contains(err.Error(), "InnoDB") {
+			t.Fatalf("bootstrap of a MyISAM table returned %v, want an InnoDB requirement error", err)
+		}
+	})
+
+	t.Run("CDC bootstrap delivers a write during the snapshot exactly once", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `
+			CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_handoff VALUES (1, 'before'), (2, 'before');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62351, "max_conns": 1})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+
+		// Block the source at its first snapshot row. The snapshot is open and the
+		// table locks are released by then, so a commit here is visible to
+		// neither the baseline nor the floor and must arrive from the stream.
+		sink := newSnapshotBarrierSink()
+		defer sink.Release()
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- src.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{Resources: []string{"cdc_handoff"}})
+		}()
+		select {
+		case <-sink.reached:
+		case err := <-errCh:
+			t.Fatalf("bootstrap ended before the snapshot barrier: %v", err)
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+		if _, err := db.DB.ExecContext(ctx, `
+			UPDATE cdc_handoff SET name = 'during' WHERE id = 1;
+			INSERT INTO cdc_handoff VALUES (3, 'during');
+		`); err != nil {
+			close(sink.release)
+			t.Fatal(err)
+		}
+		close(sink.release)
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+		for _, row := range testutil.DataRecords(sink.Records) {
+			from := "stream"
+			if row.LSN == "" {
+				from = "snapshot"
+			}
+			got = append(got, fmt.Sprintf("%s:%s:%s", from, filament.OperationName(row.Op), row.ID))
+		}
+		want := []string{"snapshot:insert:1", "snapshot:insert:2", "stream:update:1", "stream:insert:3"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("records = %v, want %v", got, want)
+		}
+	})
+}
+
+// snapshotBarrierSink blocks the source at its first snapshot row (a row with no
+// stream cursor) until released, so a test can commit changes while the
+// bootstrap snapshot is still open.
+type snapshotBarrierSink struct {
+	testutil.CollectSink
+	once    sync.Once
+	reached chan struct{}
+	release chan struct{}
+}
+
+func newSnapshotBarrierSink() *snapshotBarrierSink {
+	s := &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
+	s.SetWriterWrapper(func(w filament.RowWriter) filament.RowWriter {
+		return &barrierWriter{RowWriter: w, sink: s}
+	})
+	return s
+}
+
+type barrierWriter struct {
+	filament.RowWriter
+	sink *snapshotBarrierSink
+}
+
+func (w *barrierWriter) EndRow(meta filament.RowMeta) error {
+	if meta.LSN == "" {
+		w.sink.once.Do(func() {
+			close(w.sink.reached)
+			<-w.sink.release
+		})
+	}
+	return w.RowWriter.EndRow(meta)
 }

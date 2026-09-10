@@ -54,6 +54,7 @@ const (
 // closes the pool.
 type Source struct {
 	db         *sql.DB
+	dsn        string // driver DSN the pool was opened with; the CDC bootstrap opens its lock session from it
 	database   string
 	pageSize   int
 	shardPages int
@@ -232,7 +233,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	// driver re-render those values as RFC3339 before scanning into RawBytes.
 	mc.ParseTime = false
 
-	db, err := sql.Open("mysql", mc.FormatDSN())
+	s.dsn = mc.FormatDSN()
+	db, err := sql.Open("mysql", s.dsn)
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
 	}

@@ -28,9 +28,11 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
@@ -84,11 +86,12 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		return err
 	}
 	if len(bootstrap) > 0 {
-		floor, err := s.masterPosition(ctx)
-		if err != nil {
+		var floor gomysql.Position
+		capture := func(ctx context.Context) (err error) {
+			floor, err = s.masterPosition(ctx)
 			return err
 		}
-		if err := s.snapshotBootstrap(ctx, run, bootstrap); err != nil {
+		if err := s.snapshotBootstrap(ctx, run, bootstrap, capture); err != nil {
 			return err
 		}
 		for _, resource := range bootstrap {
@@ -469,6 +472,9 @@ func resourcesWithoutCheckpoints(resources []string, cps map[string]filament.Che
 // read. It runs before the snapshot connection is taken, so the pool stays
 // usable with max_conns=1 while the snapshot transaction is held.
 func (r *cdcRun) prepare(ctx context.Context, s *Source, resources []string) error {
+	if err := s.requireInnoDB(ctx, resources); err != nil {
+		return err
+	}
 	for _, resource := range resources {
 		if _, err := r.table(ctx, s, resource, -1); err != nil {
 			return err
@@ -477,14 +483,65 @@ func (r *cdcRun) prepare(ctx context.Context, s *Source, resources []string) err
 	return nil
 }
 
+// requireInnoDB rejects a bootstrap of any table on a non-transactional engine.
+// A consistent snapshot pins a point in time only for InnoDB; a MyISAM table
+// keeps changing under the scan, so its baseline could not be paired with the
+// stream floor.
+func (s *Source) requireInnoDB(ctx context.Context, resources []string) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?`, s.database)
+	if err != nil {
+		return fmt.Errorf("mysql cdc: read table engines: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	engines := make(map[string]string)
+	for rows.Next() {
+		var name string
+		var eng sql.NullString
+		if err := rows.Scan(&name, &eng); err != nil {
+			return fmt.Errorf("mysql cdc: read table engines: %w", err)
+		}
+		engines[name] = eng.String
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("mysql cdc: read table engines: %w", err)
+	}
+	for _, resource := range resources {
+		if eng := engines[resource]; !strings.EqualFold(eng, "InnoDB") {
+			return fmt.Errorf("mysql cdc: %q uses the %s engine; the initial snapshot needs InnoDB (ALTER TABLE %s ENGINE=InnoDB, or leave it off the CDC pipeline)", resource, eng, quoteIdent(resource))
+		}
+	}
+	return nil
+}
+
+// lockWait bounds how long the bootstrap waits for in-flight writers of its
+// tables to commit before giving up on the cycle.
+const lockWait = 10 * time.Second
+
 // snapshotBootstrap reads each resource in full, sequentially, through one
-// consistent-snapshot transaction, appending into the run's CDC writers. The
-// caller captures the stream floor before this opens the snapshot and the
-// watermark after it returns, so nothing committed during the read is lost:
-// it is either in the snapshot or replayed by the stream. Row limits do not
-// apply — a partial baseline is worse than a long first cycle.
-func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources []string) error {
+// consistent-snapshot transaction, appending into the run's CDC writers.
+//
+// The stream floor and the snapshot's read view must agree on which
+// transactions are in the baseline, and MySQL has no primitive that returns
+// both at once. So the bootstrap tables are read-locked on a side session for
+// the instant between the two: the lock waits for in-flight writers of those
+// tables to commit and holds new ones off while captureFloor runs and the
+// snapshot opens, then releases before the scan. Everything committed before
+// the floor is in the snapshot; everything after arrives from the stream.
+// Row limits do not apply — a partial baseline is worse than a long first cycle.
+func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources []string, captureFloor func(context.Context) error) error {
+	unlock, err := s.lockTables(ctx, resources)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if err := captureFloor(ctx); err != nil {
+		return err
+	}
 	return s.withSnapshotTx(ctx, func(ctx context.Context, q querier) error {
+		unlock() // the read view is pinned; writers may resume
 		for _, resource := range resources {
 			t := run.tables[resource]
 			w := snapshotWriter{t.writer}
@@ -505,6 +562,45 @@ func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources [
 		}
 		return nil
 	})
+}
+
+// lockTables takes READ locks on the tables in one dedicated session, opened
+// outside the pool so a max_conns=1 pool stays free for the snapshot. The
+// returned func releases the locks and the session; calling it twice is safe.
+// LOCK TABLES cannot share a session with the snapshot: starting a transaction
+// releases table locks held by that session.
+func (s *Source) lockTables(ctx context.Context, tables []string) (func(), error) {
+	lockDB, err := sql.Open("mysql", s.dsn)
+	if err != nil {
+		return nil, fmt.Errorf("mysql cdc: open lock session: %w", err)
+	}
+	lockDB.SetMaxOpenConns(1)
+	conn, err := lockDB.Conn(ctx)
+	if err != nil {
+		_ = lockDB.Close()
+		return nil, fmt.Errorf("mysql cdc: open lock session: %w", err)
+	}
+	var once sync.Once
+	unlock := func() {
+		once.Do(func() {
+			_, _ = conn.ExecContext(context.WithoutCancel(ctx), "UNLOCK TABLES")
+			_ = conn.Close()
+			_ = lockDB.Close()
+		})
+	}
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION lock_wait_timeout = %d", int(lockWait.Seconds()))); err != nil {
+		unlock()
+		return nil, fmt.Errorf("mysql cdc: lock session: %w", err)
+	}
+	locks := make([]string, len(tables))
+	for i, table := range tables {
+		locks[i] = quoteIdent(s.database) + "." + quoteIdent(table) + " READ"
+	}
+	if _, err := conn.ExecContext(ctx, "LOCK TABLES "+strings.Join(locks, ", ")); err != nil {
+		unlock()
+		return nil, fmt.Errorf("mysql cdc: lock %d table(s) for the initial snapshot (needs the LOCK TABLES privilege; waits up to %s for in-flight writers): %w", len(tables), lockWait, err)
+	}
+	return unlock, nil
 }
 
 // snapshotWriter feeds bootstrap rows into a CDC writer without the keyset
