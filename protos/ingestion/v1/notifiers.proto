@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+// NotificationType identifies how a pipeline notification is delivered.
+// Unspecified is an input sentinel and cannot be persisted.
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_TYPE_WEBHOOK = 1;
+}

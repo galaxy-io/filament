@@ -26,6 +26,27 @@ type Connection struct {
 	UpdatedAt       int64
 }
 
+type Notifier struct {
+	ID               string
+	TenantID         string
+	PipelineID       string
+	Name             string
+	NotificationType string
+	IsEnabled        int64
+	Events           string
+	Resources        string
+	Config           string
+	SecretRefs       string
+	Version          int64
+	IsDeleted        int64
+	DeletedAt        sql.NullInt64
+	CreatedByUserID  sql.NullString
+	UpdatedByUserID  sql.NullString
+	DeletedByUserID  sql.NullString
+	CreatedAt        int64
+	UpdatedAt        int64
+}
+
 type Pipeline struct {
 	ID                  string
 	TenantID            string
@@ -43,15 +64,16 @@ type Pipeline struct {
 }
 
 type PipelineResourceCheckpoint struct {
-	TenantID          string
-	PipelineID        string
-	PipelineVersionID string
-	RouteKey          string
-	ResourceName      string
-	Cursor            string
-	LastRunID         string
-	CreatedAt         int64
-	UpdatedAt         int64
+	TenantID                    string
+	PipelineID                  string
+	PipelineVersionID           string
+	RouteKey                    string
+	ResourceName                string
+	Cursor                      string
+	LastRunID                   string
+	CreatedAt                   int64
+	UpdatedAt                   int64
+	ReplicationStreamResourceID sql.NullString
 }
 
 type PipelineVersion struct {
@@ -65,6 +87,49 @@ type PipelineVersion struct {
 	DeletedByUserID sql.NullString
 	CreatedAt       int64
 	UpdatedAt       int64
+}
+
+type ReplicationStream struct {
+	ID                           string
+	TenantID                     string
+	PipelineID                   string
+	RouteKey                     string
+	Generation                   int64
+	SourceConnectionID           string
+	SinkConnectionID             string
+	ConsumerName                 string
+	ConsumerConfig               string
+	ContinuityFingerprint        string
+	Status                       int64
+	CreatedFromPipelineVersionID string
+	Error                        sql.NullString
+	RetiredAt                    sql.NullInt64
+	CreatedByUserID              sql.NullString
+	UpdatedByUserID              sql.NullString
+	DeletedByUserID              sql.NullString
+	CreatedAt                    int64
+	UpdatedAt                    int64
+}
+
+type ReplicationStreamResource struct {
+	ID                  string
+	ReplicationStreamID string
+	TenantID            string
+	ResourceName        string
+	Status              int64
+	BootstrapMode       string
+	BootstrapConfig     string
+	SchemaFingerprint   sql.NullString
+	BootstrapRunID      sql.NullString
+	BootstrapStartedAt  sql.NullInt64
+	ActivatedAt         sql.NullInt64
+	RetiredAt           sql.NullInt64
+	Error               sql.NullString
+	CreatedByUserID     sql.NullString
+	UpdatedByUserID     sql.NullString
+	DeletedByUserID     sql.NullString
+	CreatedAt           int64
+	UpdatedAt           int64
 }
 
 type Run struct {
