@@ -100,9 +100,15 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 		return err
 	}
 	start := oldestPosition(floors)
+	// A resource's mark never falls below its floor: a truncated cycle can stop
+	// the stream short of a newly bootstrapped resource's snapshot point, and
+	// marking it there would replay changes the snapshot already included.
+	mark := func(at gomysql.Position) func(string) (string, error) {
+		return func(resource string) (string, error) { return posString(laterPosition(at, floors[resource])), nil }
+	}
 
 	if posCmp(start, watermark) >= 0 {
-		return run.pushStreamMarks(ctx, s, posString(watermark))
+		return run.pushStreamMarks(ctx, s, mark(watermark))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
@@ -144,12 +150,12 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 				// Truncated: mark every resource at the current position so a
 				// resource that saw no rows this cycle (a just-bootstrapped one in
 				// particular) still resumes from here rather than starting over.
-				return run.pushStreamMarks(ctx, s, posString(pos))
+				return run.pushStreamMarks(ctx, s, mark(pos))
 			}
 		}
 
 		if posCmp(pos, watermark) >= 0 {
-			return run.pushStreamMarks(ctx, s, posString(pos))
+			return run.pushStreamMarks(ctx, s, mark(pos))
 		}
 	}
 }
@@ -228,15 +234,21 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 	return r.limit > 0 && r.emitted >= r.limit, nil
 }
 
-// pushStreamMarks drains every resource's writer at the final stream
-// position, so the cursor persists even when a resource saw no changes this run.
-func (r *cdcRun) pushStreamMarks(ctx context.Context, s *Source, cursor string) error {
+// pushStreamMarks drains every resource's writer at the cursor the callback
+// reports for it, so the cursor persists even when a resource saw no changes
+// this run. The callback lets each mode keep a resource's mark at or above its
+// own floor.
+func (r *cdcRun) pushStreamMarks(ctx context.Context, s *Source, cursor func(resource string) (string, error)) error {
 	for _, resource := range r.resources {
 		t, err := r.table(ctx, s, resource, -1)
 		if err != nil {
 			return err
 		}
-		if err := t.writer.Drain(rowmodel.Meta{LSN: cursor, Seq: r.seq}); err != nil {
+		mark, err := cursor(resource)
+		if err != nil {
+			return err
+		}
+		if err := t.writer.Drain(rowmodel.Meta{LSN: mark, Seq: r.seq}); err != nil {
 			return err
 		}
 	}
@@ -536,6 +548,14 @@ func oldestPosition(floors map[string]gomysql.Position) gomysql.Position {
 		}
 	}
 	return out
+}
+
+// laterPosition returns the later of two positions.
+func laterPosition(a, b gomysql.Position) gomysql.Position {
+	if posCmp(b, a) > 0 {
+		return b
+	}
+	return a
 }
 
 func posString(p gomysql.Position) string {

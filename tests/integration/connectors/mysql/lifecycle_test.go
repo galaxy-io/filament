@@ -370,5 +370,55 @@ func TestMySQLConnectorLifecycle(t *testing.T) {
 		if lateCursor, _, ok := checkpoint.ParseStream(lateCP); !ok || !strings.HasPrefix(lateCursor, "gtid:") {
 			t.Fatalf("late table cursor = %q, want GTID checkpoint", lateCursor)
 		}
+		seededCP = testutil.StreamCheckpoint(t, third.Records, "cdc_seeded")
+
+		// Fourth run: truncated by a row limit before the stream reaches a third
+		// table's snapshot floor. That table's mark must stay at its floor, or
+		// the next run would replay changes its snapshot already included.
+		if _, err := db.DB.ExecContext(ctx, `
+			INSERT INTO cdc_seeded VALUES (6, 'six');
+			INSERT INTO cdc_seeded VALUES (7, 'seven');
+			CREATE TABLE cdc_third (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_third VALUES (20, 'twenty'), (21, 'twenty-one');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		all := []string{"cdc_seeded", "cdc_late", "cdc_third"}
+		fourth := &testutil.CollectSink{}
+		defer fourth.Release()
+		if err := src.ExtractChanges(ctx, fourth, filament.ChangeExtractOpts{
+			Resources: all, Limit: 1,
+			Checkpoints: map[string]filament.Checkpoint{"cdc_seeded": seededCP, "cdc_late": lateCP},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(fourth.Records, "cdc_third"), []string{"insert:20", "insert:21"}; !slices.Equal(got, want) {
+			t.Fatalf("third bootstrap records = %v, want %v", got, want)
+		}
+		if got, want := ops(fourth.Records, "cdc_seeded"), []string{"insert:6"}; !slices.Equal(got, want) {
+			t.Fatalf("truncated records = %v, want %v", got, want)
+		}
+		checkpoints := make(map[string]filament.Checkpoint, len(all))
+		for _, resource := range all {
+			checkpoints[resource] = testutil.StreamCheckpoint(t, fourth.Records, resource)
+		}
+
+		// Fifth run: the truncated transaction replays (GTID cursors advance per
+		// committed transaction) and the remaining insert arrives; the third
+		// table sees neither a second bootstrap nor its pre-floor inserts.
+		fifth := &testutil.CollectSink{}
+		defer fifth.Release()
+		if err := src.ExtractChanges(ctx, fifth, filament.ChangeExtractOpts{Resources: all, Checkpoints: checkpoints}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(fifth.Records, "cdc_seeded"), []string{"insert:6", "insert:7"}; !slices.Equal(got, want) {
+			t.Fatalf("post-truncation records = %v, want %v", got, want)
+		}
+		if got := ops(fifth.Records, "cdc_third"); len(got) != 0 {
+			t.Fatalf("third table replayed %v after truncation, want nothing", got)
+		}
+		if got := ops(fifth.Records, "cdc_late"); len(got) != 0 {
+			t.Fatalf("late table emitted %v, want nothing", got)
+		}
 	})
 }

@@ -68,8 +68,20 @@ func (s *Source) extractChangesGTID(ctx context.Context, run *cdcRun, opts filam
 		return err
 	}
 
+	// A resource's mark never falls below its floor (see cdc.go): the union of
+	// the cycle cursor and the floor is exactly the set delivered to it.
+	mark := func(at gomysql.GTIDSet) func(string) (string, error) {
+		return func(resource string) (string, error) {
+			set, err := unionGTID(at, floors[resource])
+			if err != nil {
+				return "", err
+			}
+			return gtidCursor(set), nil
+		}
+	}
+
 	if start.Contain(watermark) {
-		return run.pushStreamMarks(ctx, s, gtidCursor(start))
+		return run.pushStreamMarks(ctx, s, mark(start))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
@@ -150,12 +162,12 @@ func (s *Source) extractChangesGTID(ctx context.Context, run *cdcRun, opts filam
 				// Truncated: mark every resource at the committed cursor so a
 				// resource that saw no rows this cycle (a just-bootstrapped one in
 				// particular) resumes from here rather than bootstrapping again.
-				return run.pushStreamMarks(ctx, s, gtidCursor(committed))
+				return run.pushStreamMarks(ctx, s, mark(committed))
 			}
 		}
 
 		if committed.Contain(watermark) {
-			return run.pushStreamMarks(ctx, s, gtidCursor(committed))
+			return run.pushStreamMarks(ctx, s, mark(committed))
 		}
 	}
 }
@@ -233,4 +245,21 @@ func oldestGTID(floors map[string]gomysql.GTIDSet) (gomysql.GTIDSet, error) {
 		}
 	}
 	return minSet, nil
+}
+
+// unionGTID returns the transactions in either a or b. Sets from one server
+// form a chain, so one usually contains the other and is returned as is;
+// otherwise the two are merged into a new set.
+func unionGTID(a, b gomysql.GTIDSet) (gomysql.GTIDSet, error) {
+	switch {
+	case b == nil || a.Contain(b):
+		return a, nil
+	case b.Contain(a):
+		return b, nil
+	}
+	merged := a.Clone()
+	if err := merged.Update(b.String()); err != nil {
+		return nil, fmt.Errorf("mysql cdc: merge gtid sets %q and %q: %w", a.String(), b.String(), err)
+	}
+	return merged, nil
 }
