@@ -53,7 +53,7 @@ brews:
     commit_author:
       name: gx-null[bot]
       email: 286761379+gx-null[bot]@users.noreply.github.com
-    skip_upload: false
+    skip_upload: auto
     homepage: https://github.com/galaxy-io/filament
     description: Filament CLI
     license: Apache-2.0
