@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -284,4 +285,246 @@ func TestMySQLConnectorLifecycle(t *testing.T) {
 			t.Fatalf("CDC checkpoint did not advance: before=%q after=%q", lsn, nextLSN)
 		}
 	})
+
+	t.Run("CDC bootstraps tables without a checkpoint", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `
+			CREATE TABLE cdc_seeded (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_seeded VALUES (1, 'one'), (2, 'two'), (3, 'three');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62349, "page_size": 2})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+
+		ops := func(records []testutil.Record, resource string) []string {
+			var out []string
+			for _, row := range testutil.DataRecords(records) {
+				if row.Resource == resource {
+					out = append(out, fmt.Sprintf("%s:%s", filament.OperationName(row.Op), row.ID))
+				}
+			}
+			return out
+		}
+
+		// First run: the pre-existing rows arrive as the baseline.
+		first := &testutil.CollectSink{}
+		defer first.Release()
+		if err := src.ExtractChanges(ctx, first, filament.ChangeExtractOpts{Resources: []string{"cdc_seeded"}}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(first.Records, "cdc_seeded"), []string{"insert:1", "insert:2", "insert:3"}; !slices.Equal(got, want) {
+			t.Fatalf("bootstrap records = %v, want %v", got, want)
+		}
+		for _, row := range testutil.DataRecords(first.Records) {
+			if row.Key != nil {
+				t.Fatalf("bootstrap row %s carries a keyset cursor %v", row.ID, row.Key)
+			}
+		}
+		seededCP := testutil.StreamCheckpoint(t, first.Records, "cdc_seeded")
+
+		// Second run: only changes after the baseline, no replay.
+		if _, err := db.DB.ExecContext(ctx, `
+			INSERT INTO cdc_seeded VALUES (4, 'four');
+			UPDATE cdc_seeded SET name='uno' WHERE id=1;
+		`); err != nil {
+			t.Fatal(err)
+		}
+		second := &testutil.CollectSink{}
+		defer second.Release()
+		if err := src.ExtractChanges(ctx, second, filament.ChangeExtractOpts{
+			Resources: []string{"cdc_seeded"}, Checkpoints: map[string]filament.Checkpoint{"cdc_seeded": seededCP},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(second.Records, "cdc_seeded"), []string{"insert:4", "update:1"}; !slices.Equal(got, want) {
+			t.Fatalf("post-bootstrap records = %v, want %v", got, want)
+		}
+		seededCP = testutil.StreamCheckpoint(t, second.Records, "cdc_seeded")
+
+		// Third run: a table added later is bootstrapped while the stream resumes
+		// from the older checkpoint. The late table's inserts sit between that
+		// checkpoint and its own floor, so the stream must skip them.
+		if _, err := db.DB.ExecContext(ctx, `
+			CREATE TABLE cdc_late (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_late VALUES (10, 'ten'), (11, 'eleven');
+			INSERT INTO cdc_seeded VALUES (5, 'five');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		third := &testutil.CollectSink{}
+		defer third.Release()
+		if err := src.ExtractChanges(ctx, third, filament.ChangeExtractOpts{
+			Resources: []string{"cdc_seeded", "cdc_late"}, Checkpoints: map[string]filament.Checkpoint{"cdc_seeded": seededCP},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(third.Records, "cdc_late"), []string{"insert:10", "insert:11"}; !slices.Equal(got, want) {
+			t.Fatalf("late bootstrap records = %v, want %v", got, want)
+		}
+		if got, want := ops(third.Records, "cdc_seeded"), []string{"insert:5"}; !slices.Equal(got, want) {
+			t.Fatalf("resumed records = %v, want %v", got, want)
+		}
+		lateCP := testutil.StreamCheckpoint(t, third.Records, "cdc_late")
+		if lateCursor, _, ok := checkpoint.ParseStream(lateCP); !ok || !strings.HasPrefix(lateCursor, "gtid:") {
+			t.Fatalf("late table cursor = %q, want GTID checkpoint", lateCursor)
+		}
+		seededCP = testutil.StreamCheckpoint(t, third.Records, "cdc_seeded")
+
+		// Fourth run: truncated by a row limit before the stream reaches a third
+		// table's snapshot floor. That table's mark must stay at its floor, or
+		// the next run would replay changes its snapshot already included.
+		if _, err := db.DB.ExecContext(ctx, `
+			INSERT INTO cdc_seeded VALUES (6, 'six');
+			INSERT INTO cdc_seeded VALUES (7, 'seven');
+			CREATE TABLE cdc_third (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_third VALUES (20, 'twenty'), (21, 'twenty-one');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		all := []string{"cdc_seeded", "cdc_late", "cdc_third"}
+		fourth := &testutil.CollectSink{}
+		defer fourth.Release()
+		if err := src.ExtractChanges(ctx, fourth, filament.ChangeExtractOpts{
+			Resources: all, Limit: 1,
+			Checkpoints: map[string]filament.Checkpoint{"cdc_seeded": seededCP, "cdc_late": lateCP},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(fourth.Records, "cdc_third"), []string{"insert:20", "insert:21"}; !slices.Equal(got, want) {
+			t.Fatalf("third bootstrap records = %v, want %v", got, want)
+		}
+		if got, want := ops(fourth.Records, "cdc_seeded"), []string{"insert:6"}; !slices.Equal(got, want) {
+			t.Fatalf("truncated records = %v, want %v", got, want)
+		}
+		checkpoints := make(map[string]filament.Checkpoint, len(all))
+		for _, resource := range all {
+			checkpoints[resource] = testutil.StreamCheckpoint(t, fourth.Records, resource)
+		}
+
+		// Fifth run: the truncated transaction replays (GTID cursors advance per
+		// committed transaction) and the remaining insert arrives; the third
+		// table sees neither a second bootstrap nor its pre-floor inserts.
+		fifth := &testutil.CollectSink{}
+		defer fifth.Release()
+		if err := src.ExtractChanges(ctx, fifth, filament.ChangeExtractOpts{Resources: all, Checkpoints: checkpoints}); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := ops(fifth.Records, "cdc_seeded"), []string{"insert:6", "insert:7"}; !slices.Equal(got, want) {
+			t.Fatalf("post-truncation records = %v, want %v", got, want)
+		}
+		if got := ops(fifth.Records, "cdc_third"); len(got) != 0 {
+			t.Fatalf("third table replayed %v after truncation, want nothing", got)
+		}
+		if got := ops(fifth.Records, "cdc_late"); len(got) != 0 {
+			t.Fatalf("late table emitted %v, want nothing", got)
+		}
+	})
+
+	t.Run("CDC bootstrap rejects non-InnoDB tables", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `CREATE TABLE cdc_myisam (id bigint PRIMARY KEY, name varchar(80) NOT NULL) ENGINE=MyISAM`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62350})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+		out := &testutil.CollectSink{}
+		defer out.Release()
+		err := src.ExtractChanges(ctx, out, filament.ChangeExtractOpts{Resources: []string{"cdc_myisam"}})
+		if err == nil || !strings.Contains(err.Error(), "MyISAM") || !strings.Contains(err.Error(), "InnoDB") {
+			t.Fatalf("bootstrap of a MyISAM table returned %v, want an InnoDB requirement error", err)
+		}
+	})
+
+	t.Run("CDC bootstrap delivers a write during the snapshot exactly once", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `
+			CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_handoff VALUES (1, 'before'), (2, 'before');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62351, "max_conns": 1})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+
+		// Block the source at its first snapshot row. The snapshot is open and the
+		// table locks are released by then, so a commit here is visible to
+		// neither the baseline nor the floor and must arrive from the stream.
+		sink := newSnapshotBarrierSink()
+		defer sink.Release()
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- src.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{Resources: []string{"cdc_handoff"}})
+		}()
+		select {
+		case <-sink.reached:
+		case err := <-errCh:
+			t.Fatalf("bootstrap ended before the snapshot barrier: %v", err)
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+		if _, err := db.DB.ExecContext(ctx, `
+			UPDATE cdc_handoff SET name = 'during' WHERE id = 1;
+			INSERT INTO cdc_handoff VALUES (3, 'during');
+		`); err != nil {
+			close(sink.release)
+			t.Fatal(err)
+		}
+		close(sink.release)
+		if err := <-errCh; err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+		for _, row := range testutil.DataRecords(sink.Records) {
+			from := "stream"
+			if row.LSN == "" {
+				from = "snapshot"
+			}
+			got = append(got, fmt.Sprintf("%s:%s:%s", from, filament.OperationName(row.Op), row.ID))
+		}
+		want := []string{"snapshot:insert:1", "snapshot:insert:2", "stream:update:1", "stream:insert:3"}
+		if !slices.Equal(got, want) {
+			t.Fatalf("records = %v, want %v", got, want)
+		}
+	})
+}
+
+// snapshotBarrierSink blocks the source at its first snapshot row (a row with no
+// stream cursor) until released, so a test can commit changes while the
+// bootstrap snapshot is still open.
+type snapshotBarrierSink struct {
+	testutil.CollectSink
+	once    sync.Once
+	reached chan struct{}
+	release chan struct{}
+}
+
+func newSnapshotBarrierSink() *snapshotBarrierSink {
+	s := &snapshotBarrierSink{reached: make(chan struct{}), release: make(chan struct{})}
+	s.SetWriterWrapper(func(w filament.RowWriter) filament.RowWriter {
+		return &barrierWriter{RowWriter: w, sink: s}
+	})
+	return s
+}
+
+type barrierWriter struct {
+	filament.RowWriter
+	sink *snapshotBarrierSink
+}
+
+func (w *barrierWriter) EndRow(meta filament.RowMeta) error {
+	if meta.LSN == "" {
+		w.sink.once.Do(func() {
+			close(w.sink.reached)
+			<-w.sink.release
+		})
+	}
+	return w.RowWriter.EndRow(meta)
 }

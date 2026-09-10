@@ -54,6 +54,7 @@ const (
 // closes the pool.
 type Source struct {
 	db         *sql.DB
+	dsn        string // driver DSN the pool was opened with; the CDC bootstrap opens its lock session from it
 	database   string
 	pageSize   int
 	shardPages int
@@ -232,7 +233,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	// driver re-render those values as RFC3339 before scanning into RawBytes.
 	mc.ParseTime = false
 
-	db, err := sql.Open("mysql", mc.FormatDSN())
+	s.dsn = mc.FormatDSN()
+	db, err := sql.Open("mysql", s.dsn)
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
 	}
@@ -326,7 +328,11 @@ func (s *Source) tableJobs(ctx context.Context, sink arrowbatch.Inlet, table str
 	if len(dec.pks) == 0 {
 		// Keyless: one streaming scan.
 		return []func(context.Context, querier) error{func(ctx context.Context, q querier) error {
-			return s.extractKeyless(ctx, sink, q, table, qualified, dec, limit)
+			w, err := sink.Builder(table, 0, dec.schema)
+			if err != nil {
+				return err
+			}
+			return s.extractKeyless(ctx, w, q, table, qualified, dec, limit)
 		}}, nil
 	}
 
@@ -344,19 +350,19 @@ func (s *Source) tableJobs(ctx context.Context, sink arrowbatch.Inlet, table str
 	var jobs []func(context.Context, querier) error
 	for _, sh := range shards {
 		jobs = append(jobs, func(ctx context.Context, q querier) error {
-			return s.extractKeysetShard(ctx, sink, q, sh, limit)
+			w, err := sink.Builder(sh.table, sh.part, sh.dec.schema)
+			if err != nil {
+				return err
+			}
+			return s.extractKeysetShard(ctx, w, q, sh, limit)
 		})
 	}
 	return jobs, nil
 }
 
-// extractKeyless streams a keyless table in one pass. There is no stable key to page
-// or resume by, so the whole table is read in a single query.
-func (s *Source) extractKeyless(ctx context.Context, sink arrowbatch.Inlet, q querier, table, qualified string, dec *rowDecoder, limit int) error {
-	w, err := sink.Builder(table, 0, dec.schema)
-	if err != nil {
-		return err
-	}
+// extractKeyless streams a keyless table in one pass into w. There is no stable key
+// to page or resume by, so the whole table is read in a single query.
+func (s *Source) extractKeyless(ctx context.Context, w arrowbatch.RowWriter, q querier, table, qualified string, dec *rowDecoder, limit int) error {
 	rows, err := q.QueryContext(ctx, "SELECT "+dec.selectList+" FROM "+qualified+" t")
 	if err != nil {
 		return fmt.Errorf("scan %q: %w", table, err)

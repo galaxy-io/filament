@@ -5,15 +5,20 @@ package mysql
 // tables, and appends insert/update/delete rows through the same per-type parsers
 // as the snapshot reader, so sinks cannot tell the two apart.
 //
+// A resource without a stream checkpoint is first read in full through one
+// consistent snapshot (see snapshotBootstrap). The binlog position captured just
+// before that snapshot opens becomes the resource's floor: the change stream
+// replays everything after it, so the baseline and the stream share one point.
+//
 // A run has catch-up semantics: it captures the server's current binlog position as
-// a watermark, streams from the last checkpointed position up to that watermark, and
+// a watermark, streams from the oldest resource floor up to that watermark, and
 // returns. Re-requesting the run continues from the persisted cursor, so continuous
 // CDC is a re-request loop (the same mechanism as snapshot resume). The cursor is a
 // stream checkpoint (checkpoint.ModeStream): a GTID set on a gtid_mode=ON server
 // (the default — see cdc_gtid.go), else "file:pos". Every row carries it in
-// RowMeta.LSN and draining each writer persists the final watermark even for a run that
-// saw no changes — without it, an idle first run would leave no cursor and the next
-// run would re-capture a later position, silently skipping the gap between them.
+// its stream cursor and draining each writer persists the final watermark even for a run that
+// saw no changes — without it, an idle run would leave no cursor and the next
+// run would bootstrap the resource again.
 //
 // Requirements on the server: ROW binlog format (the 8.0+ default), binlog retention
 // covering the resume window, and REPLICATION SLAVE/CLIENT privileges. Column names
@@ -23,9 +28,11 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gomysql "github.com/go-mysql-org/go-mysql/mysql"
@@ -50,33 +57,61 @@ var _ filament.ChangeSource = (*Source)(nil)
 // global to the topology, binlog file offsets are not), file:pos otherwise.
 // Existing file:pos checkpoints keep the file:pos path even on a GTID server,
 // so an in-flight stream never jumps cursors mid-run; a new run id migrates.
+//
+// Resources without a checkpoint are bootstrapped first: read in full through a
+// consistent snapshot in this same cycle, then streamed from the position captured
+// before that snapshot opened. Every resource therefore has a floor, and a row
+// event below its resource's floor is skipped rather than re-delivered.
 func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts) error {
 	if s.db == nil {
 		return fmt.Errorf("mysql source: extract changes before configure")
 	}
+	if len(opts.Resources) == 0 {
+		return nil
+	}
+	run := newCDCRun(sink, opts.Resources, opts.Limit)
+	bootstrap := resourcesWithoutCheckpoints(opts.Resources, opts.Checkpoints)
+	if err := run.prepare(ctx, s, bootstrap); err != nil {
+		return err
+	}
+
 	if useGTID, err := s.chooseGTID(ctx, opts.Checkpoints); err != nil {
 		return err
 	} else if useGTID {
-		watermark, err := s.gtidExecuted(ctx)
-		if err != nil {
-			return err
-		}
-		return s.extractChangesGTID(ctx, sink, opts, watermark)
+		return s.extractChangesGTID(ctx, run, opts, bootstrap)
 	}
 
+	floors, err := positionFloors(opts.Checkpoints)
+	if err != nil {
+		return err
+	}
+	if len(bootstrap) > 0 {
+		var floor gomysql.Position
+		capture := func(ctx context.Context) (err error) {
+			floor, err = s.masterPosition(ctx)
+			return err
+		}
+		if err := s.snapshotBootstrap(ctx, run, bootstrap, capture); err != nil {
+			return err
+		}
+		for _, resource := range bootstrap {
+			floors[resource] = floor
+		}
+	}
 	watermark, err := s.masterPosition(ctx)
 	if err != nil {
 		return err
 	}
-	start, ok := startPosition(opts.Checkpoints)
-	if !ok {
-		start = watermark // first run: begin at the current tail
+	start := oldestPosition(floors)
+	// A resource's mark never falls below its floor: a truncated cycle can stop
+	// the stream short of a newly bootstrapped resource's snapshot point, and
+	// marking it there would replay changes the snapshot already included.
+	mark := func(at gomysql.Position) func(string) (string, error) {
+		return func(resource string) (string, error) { return posString(laterPosition(at, floors[resource])), nil }
 	}
 
-	run := newCDCRun(sink, opts.Resources, opts.Limit)
-
 	if posCmp(start, watermark) >= 0 {
-		return run.pushStreamMarksLSN(ctx, s, posString(watermark))
+		return run.pushStreamMarks(ctx, s, mark(watermark))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
@@ -87,6 +122,9 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	}
 
 	pos := start
+	// An event ending at or before a resource's floor was delivered by the
+	// bootstrap snapshot or a previous cycle.
+	run.skip = func(resource string) bool { return posCmp(pos, floors[resource]) <= 0 }
 
 	for {
 		ev, err := streamer.GetEvent(ctx)
@@ -112,12 +150,15 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 				return err
 			}
 			if limited {
-				return nil // truncated: no watermark sentinel, resume re-reads from the cursor
+				// Truncated: mark every resource at the current position so a
+				// resource that saw no rows this cycle (a just-bootstrapped one in
+				// particular) still resumes from here rather than starting over.
+				return run.pushStreamMarks(ctx, s, mark(pos))
 			}
 		}
 
 		if posCmp(pos, watermark) >= 0 {
-			return run.pushStreamMarksLSN(ctx, s, posString(pos))
+			return run.pushStreamMarks(ctx, s, mark(pos))
 		}
 	}
 }
@@ -128,7 +169,7 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 // binlog does not offer).
 func (s *Source) chooseGTID(ctx context.Context, cps map[string]filament.Checkpoint) (bool, error) {
 	for _, cp := range cps {
-		if lsn, _, ok := checkpoint.ParseStream(cp); ok && !strings.HasPrefix(lsn, gtidCursorPrefix) {
+		if cursor, _, ok := checkpoint.ParseStream(cp); ok && !strings.HasPrefix(cursor, gtidCursorPrefix) {
 			return false, nil
 		}
 	}
@@ -140,9 +181,13 @@ type cdcRun struct {
 	resources []string
 	tracked   map[string]bool
 	tables    map[string]*cdcTable // decoder cache, invalidated on DDL; writers persist
-	seq       uint64
-	emitted   int
-	limit     int
+	// skip reports whether the row event being decoded lies at or below the
+	// resource's floor and was therefore already delivered; set by each stream
+	// loop over its own cursor kind.
+	skip    func(resource string) bool
+	seq     uint64
+	emitted int
+	limit   int
 }
 
 // cdcTable is one tracked table's decoder (from information_schema) and the row
@@ -175,16 +220,16 @@ func (r *cdcRun) clearSchema() {
 	}
 }
 
-func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.EventType, e *replication.RowsEvent, lsn string) (bool, error) {
+func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.EventType, e *replication.RowsEvent, cursor string) (bool, error) {
 	db, table := string(e.Table.Schema), string(e.Table.Table)
-	if db != s.database || !r.tracked[table] {
+	if db != s.database || !r.tracked[table] || r.skip(table) {
 		return false, nil
 	}
 	t, err := r.table(ctx, s, table, len(e.Table.ColumnType))
 	if err != nil {
 		return false, err
 	}
-	n, err := r.pushRows(t, typ, table, e.Rows, lsn)
+	n, err := r.pushRows(t, typ, table, e.Rows, cursor)
 	if err != nil {
 		return false, err
 	}
@@ -192,15 +237,21 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 	return r.limit > 0 && r.emitted >= r.limit, nil
 }
 
-// pushStreamMarksLSN drains every resource's writer at the final stream
-// position, so the cursor persists even when a resource saw no changes this run.
-func (r *cdcRun) pushStreamMarksLSN(ctx context.Context, s *Source, lsn string) error {
+// pushStreamMarks drains every resource's writer at the cursor the callback
+// reports for it, so the cursor persists even when a resource saw no changes
+// this run. The callback lets each mode keep a resource's mark at or above its
+// own floor.
+func (r *cdcRun) pushStreamMarks(ctx context.Context, s *Source, cursor func(resource string) (string, error)) error {
 	for _, resource := range r.resources {
 		t, err := r.table(ctx, s, resource, -1)
 		if err != nil {
 			return err
 		}
-		if err := t.writer.Drain(rowmodel.Meta{LSN: lsn, Seq: r.seq}); err != nil {
+		mark, err := cursor(resource)
+		if err != nil {
+			return err
+		}
+		if err := t.writer.Drain(rowmodel.Meta{LSN: mark, Seq: r.seq}); err != nil {
 			return err
 		}
 	}
@@ -211,13 +262,13 @@ func (r *cdcRun) pushStreamMarksLSN(ctx context.Context, s *Source, lsn string) 
 // arrive as (before, after) pairs: an unchanged-key update appends OpUpdate with
 // the after image; a key-changing update appends OpDelete(before) +
 // OpInsert(after) so the sink's merge keeps exactly one row.
-func (r *cdcRun) pushRows(t *cdcTable, typ replication.EventType, table string, rows [][]any, lsn string) (int, error) {
+func (r *cdcRun) pushRows(t *cdcTable, typ replication.EventType, table string, rows [][]any, cursor string) (int, error) {
 	push := func(op rowmodel.Operation, row []any) error {
 		if err := t.dec.appendBinlogRow(t.writer, row); err != nil {
 			return fmt.Errorf("mysql cdc: %s row: %w", table, err)
 		}
 		r.seq++
-		return t.writer.EndRow(rowmodel.Meta{Op: op, LSN: lsn, Seq: r.seq})
+		return t.writer.EndRow(rowmodel.Meta{Op: op, LSN: cursor, Seq: r.seq})
 	}
 
 	n := 0
@@ -405,26 +456,202 @@ func scanPosition(rows interface {
 	return gomysql.Position{Name: file, Pos: pos}, nil
 }
 
-// startPosition picks the oldest checkpointed position across the run's resources —
-// the safe restart point; re-delivered events are absorbed by the idempotent merge.
-func startPosition(cps map[string]filament.Checkpoint) (gomysql.Position, bool) {
+// resourcesWithoutCheckpoints lists the resources that have never completed a
+// bootstrap: no stream cursor was persisted for them.
+func resourcesWithoutCheckpoints(resources []string, cps map[string]filament.Checkpoint) []string {
+	missing := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		if cps == nil || cps[resource] == nil {
+			missing = append(missing, resource)
+		}
+	}
+	return missing
+}
+
+// prepare resolves the decoder and writer of every resource the bootstrap will
+// read. It runs before the snapshot connection is taken, so the pool stays
+// usable with max_conns=1 while the snapshot transaction is held.
+func (r *cdcRun) prepare(ctx context.Context, s *Source, resources []string) error {
+	if err := s.requireInnoDB(ctx, resources); err != nil {
+		return err
+	}
+	for _, resource := range resources {
+		if _, err := r.table(ctx, s, resource, -1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// requireInnoDB rejects a bootstrap of any table on a non-transactional engine.
+// A consistent snapshot pins a point in time only for InnoDB; a MyISAM table
+// keeps changing under the scan, so its baseline could not be paired with the
+// stream floor.
+func (s *Source) requireInnoDB(ctx context.Context, resources []string) error {
+	if len(resources) == 0 {
+		return nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?`, s.database)
+	if err != nil {
+		return fmt.Errorf("mysql cdc: read table engines: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	engines := make(map[string]string)
+	for rows.Next() {
+		var name string
+		var eng sql.NullString
+		if err := rows.Scan(&name, &eng); err != nil {
+			return fmt.Errorf("mysql cdc: read table engines: %w", err)
+		}
+		engines[name] = eng.String
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("mysql cdc: read table engines: %w", err)
+	}
+	for _, resource := range resources {
+		if eng := engines[resource]; !strings.EqualFold(eng, "InnoDB") {
+			return fmt.Errorf("mysql cdc: %q uses the %s engine; the initial snapshot needs InnoDB (ALTER TABLE %s ENGINE=InnoDB, or leave it off the CDC pipeline)", resource, eng, quoteIdent(resource))
+		}
+	}
+	return nil
+}
+
+// lockWait bounds how long the bootstrap waits for in-flight writers of its
+// tables to commit before giving up on the cycle.
+const lockWait = 10 * time.Second
+
+// snapshotBootstrap reads each resource in full, sequentially, through one
+// consistent-snapshot transaction, appending into the run's CDC writers.
+//
+// The stream floor and the snapshot's read view must agree on which
+// transactions are in the baseline, and MySQL has no primitive that returns
+// both at once. So the bootstrap tables are read-locked on a side session for
+// the instant between the two: the lock waits for in-flight writers of those
+// tables to commit and holds new ones off while captureFloor runs and the
+// snapshot opens, then releases before the scan. Everything committed before
+// the floor is in the snapshot; everything after arrives from the stream.
+// Row limits do not apply — a partial baseline is worse than a long first cycle.
+func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources []string, captureFloor func(context.Context) error) error {
+	unlock, err := s.lockTables(ctx, resources)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if err := captureFloor(ctx); err != nil {
+		return err
+	}
+	return s.withSnapshotTx(ctx, func(ctx context.Context, q querier) error {
+		unlock() // the read view is pinned; writers may resume
+		for _, resource := range resources {
+			t := run.tables[resource]
+			w := snapshotWriter{t.writer}
+			qualified := quoteIdent(s.database) + "." + quoteIdent(resource)
+			var err error
+			if len(t.dec.pks) == 0 {
+				err = s.extractKeyless(ctx, w, q, resource, qualified, t.dec, 0)
+			} else {
+				var shards []keyShard
+				shards, err = keyShardsFrom(resource, qualified, t.dec, keysetPlan{Shards: []checkpoint.KeysetShard{{}}})
+				if err == nil {
+					err = s.extractKeysetShard(ctx, w, q, shards[0], 0)
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("mysql cdc: initial snapshot %q: %w", resource, err)
+			}
+		}
+		return nil
+	})
+}
+
+// lockTables takes READ locks on the tables in one dedicated session, opened
+// outside the pool so a max_conns=1 pool stays free for the snapshot. The
+// returned func releases the locks and the session; calling it twice is safe.
+// LOCK TABLES cannot share a session with the snapshot: starting a transaction
+// releases table locks held by that session.
+func (s *Source) lockTables(ctx context.Context, tables []string) (func(), error) {
+	lockDB, err := sql.Open("mysql", s.dsn)
+	if err != nil {
+		return nil, fmt.Errorf("mysql cdc: open lock session: %w", err)
+	}
+	lockDB.SetMaxOpenConns(1)
+	conn, err := lockDB.Conn(ctx)
+	if err != nil {
+		_ = lockDB.Close()
+		return nil, fmt.Errorf("mysql cdc: open lock session: %w", err)
+	}
+	var once sync.Once
+	unlock := func() {
+		once.Do(func() {
+			_, _ = conn.ExecContext(context.WithoutCancel(ctx), "UNLOCK TABLES")
+			_ = conn.Close()
+			_ = lockDB.Close()
+		})
+	}
+	if _, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION lock_wait_timeout = %d", int(lockWait.Seconds()))); err != nil {
+		unlock()
+		return nil, fmt.Errorf("mysql cdc: lock session: %w", err)
+	}
+	locks := make([]string, len(tables))
+	for i, table := range tables {
+		locks[i] = quoteIdent(s.database) + "." + quoteIdent(table) + " READ"
+	}
+	if _, err := conn.ExecContext(ctx, "LOCK TABLES "+strings.Join(locks, ", ")); err != nil {
+		unlock()
+		return nil, fmt.Errorf("mysql cdc: lock %d table(s) for the initial snapshot (needs the LOCK TABLES privilege; waits up to %s for in-flight writers): %w", len(tables), lockWait, err)
+	}
+	return unlock, nil
+}
+
+// snapshotWriter feeds bootstrap rows into a CDC writer without the keyset
+// cursor the full reader stamps on each row: a CDC resource resumes from its
+// stream mark, never from a key.
+type snapshotWriter struct{ arrowbatch.RowWriter }
+
+func (w snapshotWriter) EndRow(rowmodel.Meta) error { return w.RowWriter.EndRow(rowmodel.Meta{}) }
+
+// positionFloors decodes each resource's checkpointed file:pos cursor. A
+// resource's floor is where its stream resumes; events at or below it were
+// delivered by an earlier cycle.
+func positionFloors(cps map[string]filament.Checkpoint) (map[string]gomysql.Position, error) {
+	floors := make(map[string]gomysql.Position, len(cps))
+	for resource, cp := range cps {
+		if cp == nil {
+			continue
+		}
+		cursor, _, ok := checkpoint.ParseStream(cp)
+		if !ok {
+			return nil, fmt.Errorf("mysql cdc: checkpoint for %q is not a stream cursor", resource)
+		}
+		pos, err := parsePos(cursor)
+		if err != nil {
+			return nil, fmt.Errorf("mysql cdc: checkpoint for %q: %w", resource, err)
+		}
+		floors[resource] = pos
+	}
+	return floors, nil
+}
+
+// oldestPosition picks the stream start: the lowest floor across the run's
+// resources. Events between it and a newer floor are skipped per resource.
+func oldestPosition(floors map[string]gomysql.Position) gomysql.Position {
 	var out gomysql.Position
 	found := false
-	for _, cp := range cps {
-		lsn, _, ok := checkpoint.ParseStream(cp)
-		if !ok {
-			continue
-		}
-		pos, err := parsePos(lsn)
-		if err != nil {
-			continue
-		}
+	for _, pos := range floors {
 		if !found || posCmp(pos, out) < 0 {
 			out = pos
 			found = true
 		}
 	}
-	return out, found
+	return out
+}
+
+// laterPosition returns the later of two positions.
+func laterPosition(a, b gomysql.Position) gomysql.Position {
+	if posCmp(b, a) > 0 {
+		return b
+	}
+	return a
 }
 
 func posString(p gomysql.Position) string {

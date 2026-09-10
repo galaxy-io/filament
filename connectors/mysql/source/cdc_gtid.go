@@ -25,7 +25,6 @@ import (
 	"github.com/go-mysql-org/go-mysql/replication"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 )
 
@@ -55,32 +54,55 @@ func (s *Source) gtidExecuted(ctx context.Context) (gomysql.GTIDSet, error) {
 	return set, nil
 }
 
-// extractChangesGTID streams row events from the checkpointed GTID set up to the
-// watermark captured at run start.
-func (s *Source) extractChangesGTID(ctx context.Context, sink arrowbatch.Inlet, opts filament.ChangeExtractOpts, watermark gomysql.GTIDSet) error {
-	start, ok, err := startGTID(opts.Checkpoints)
+// extractChangesGTID bootstraps the resources without a checkpoint, then streams
+// row events from the oldest resource floor up to the executed set captured
+// after the bootstrap. A resource's floor is a GTID set: the transactions
+// already delivered to it, by its snapshot or by an earlier cycle.
+func (s *Source) extractChangesGTID(ctx context.Context, run *cdcRun, opts filament.ChangeExtractOpts, bootstrap []string) error {
+	floors, watermark, err := s.gtidBootstrap(ctx, run, opts.Checkpoints, bootstrap)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		start = watermark.Clone() // first run: begin at the current tail
+	start, err := oldestGTID(floors)
+	if err != nil {
+		return err
 	}
 
-	run := newCDCRun(sink, opts.Resources, opts.Limit)
+	// A resource's mark never falls below its floor (see cdc.go): the union of
+	// the cycle cursor and the floor is exactly the set delivered to it.
+	mark := func(at gomysql.GTIDSet) func(string) (string, error) {
+		return func(resource string) (string, error) {
+			set, err := unionGTID(at, floors[resource])
+			if err != nil {
+				return "", err
+			}
+			return gtidCursor(set), nil
+		}
+	}
 
 	if start.Contain(watermark) {
-		return run.pushStreamMarksLSN(ctx, s, gtidCursor(start))
+		return run.pushStreamMarks(ctx, s, mark(start))
 	}
 
 	syncer := replication.NewBinlogSyncer(s.binlogConfig())
 	defer syncer.Close()
-	streamer, err := syncer.StartSyncGTID(start)
+	// The syncer keeps the set it is given and advances it as it reads ahead;
+	// hand it a copy so start and the floors it aliases stay fixed.
+	streamer, err := syncer.StartSyncGTID(start.Clone())
 	if err != nil {
 		return fmt.Errorf("mysql cdc: start gtid sync at %q: %w", start.String(), err)
 	}
 
-	committed := start.Clone() // transactions fully delivered — the record cursor
-	var inflight string        // GTID of the transaction whose rows are streaming
+	committed := start.Clone()      // transactions fully delivered — the record cursor
+	var inflight string             // GTID of the transaction whose rows are streaming
+	var inflightSet gomysql.GTIDSet // the same GTID as a set, for floor checks
+
+	// A row event belongs to the in-flight transaction; it was delivered already
+	// when the resource's floor contains that transaction.
+	run.skip = func(resource string) bool {
+		floor := floors[resource]
+		return inflightSet != nil && floor != nil && floor.Contain(inflightSet)
+	}
 
 	fold := func() error {
 		if inflight == "" {
@@ -89,7 +111,7 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink arrowbatch.Inlet, 
 		if err := committed.Update(inflight); err != nil {
 			return fmt.Errorf("mysql cdc: fold gtid %q: %w", inflight, err)
 		}
-		inflight = ""
+		inflight, inflightSet = "", nil
 		return nil
 	}
 
@@ -111,6 +133,9 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink arrowbatch.Inlet, 
 				return fmt.Errorf("mysql cdc: gtid sid: %w", err)
 			}
 			inflight = fmt.Sprintf("%s:%d", sid, e.GNO)
+			if inflightSet, err = gomysql.ParseMysqlGTIDSet(inflight); err != nil {
+				return fmt.Errorf("mysql cdc: parse gtid %q: %w", inflight, err)
+			}
 		case *replication.XIDEvent:
 			if err := fold(); err != nil { // transaction commit
 				return err
@@ -134,34 +159,81 @@ func (s *Source) extractChangesGTID(ctx context.Context, sink arrowbatch.Inlet, 
 				return err
 			}
 			if limited {
-				return nil // truncated: resume replays from the committed cursor
+				// Truncated: mark every resource at the committed cursor so a
+				// resource that saw no rows this cycle (a just-bootstrapped one in
+				// particular) resumes from here rather than bootstrapping again.
+				return run.pushStreamMarks(ctx, s, mark(committed))
 			}
 		}
 
 		if committed.Contain(watermark) {
-			return run.pushStreamMarksLSN(ctx, s, gtidCursor(committed))
+			return run.pushStreamMarks(ctx, s, mark(committed))
 		}
 	}
+}
+
+// gtidBootstrap decodes the checkpointed floors, snapshots the resources without
+// one, and captures the cycle's watermark afterwards. gtid_executed admits a
+// transaction only once its engine commit is done, so every transaction in a
+// bootstrap floor is visible to the snapshot opened after it; everything else is
+// replayed by the stream.
+func (s *Source) gtidBootstrap(ctx context.Context, run *cdcRun, cps map[string]filament.Checkpoint, bootstrap []string) (map[string]gomysql.GTIDSet, gomysql.GTIDSet, error) {
+	floors, err := gtidFloors(cps)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(bootstrap) > 0 {
+		var floor gomysql.GTIDSet
+		capture := func(ctx context.Context) (err error) {
+			floor, err = s.gtidExecuted(ctx)
+			return err
+		}
+		if err := s.snapshotBootstrap(ctx, run, bootstrap, capture); err != nil {
+			return nil, nil, err
+		}
+		for _, resource := range bootstrap {
+			floors[resource] = floor
+		}
+	}
+	watermark, err := s.gtidExecuted(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return floors, watermark, nil
 }
 
 // gtidCursor renders a GTID set as a ModeStream cursor value.
 func gtidCursor(set gomysql.GTIDSet) string { return gtidCursorPrefix + set.String() }
 
-// startGTID picks the resume set across the run's resources: the cursor contained
-// by all the others (per-resource cursors form a monotone chain, so a minimum
-// exists; re-delivering from an older set is safe, skipping is not). Incomparable
-// sets mean the checkpoints came from different streams — fail rather than guess.
-func startGTID(cps map[string]filament.Checkpoint) (gomysql.GTIDSet, bool, error) {
-	var minSet gomysql.GTIDSet
-	for _, cp := range cps {
-		lsn, _, ok := checkpoint.ParseStream(cp)
-		if !ok || !strings.HasPrefix(lsn, gtidCursorPrefix) {
+// gtidFloors decodes each resource's checkpointed GTID cursor: the set of
+// transactions already delivered to it.
+func gtidFloors(cps map[string]filament.Checkpoint) (map[string]gomysql.GTIDSet, error) {
+	floors := make(map[string]gomysql.GTIDSet, len(cps))
+	for resource, cp := range cps {
+		if cp == nil {
 			continue
 		}
-		set, err := gomysql.ParseMysqlGTIDSet(strings.TrimPrefix(lsn, gtidCursorPrefix))
-		if err != nil {
-			return nil, false, fmt.Errorf("mysql cdc: parse gtid cursor %q: %w", lsn, err)
+		cursor, _, ok := checkpoint.ParseStream(cp)
+		if !ok || !strings.HasPrefix(cursor, gtidCursorPrefix) {
+			return nil, fmt.Errorf("mysql cdc: checkpoint for %q is not a gtid cursor", resource)
 		}
+		set, err := gomysql.ParseMysqlGTIDSet(strings.TrimPrefix(cursor, gtidCursorPrefix))
+		if err != nil {
+			return nil, fmt.Errorf("mysql cdc: parse gtid cursor %q: %w", cursor, err)
+		}
+		floors[resource] = set
+	}
+	return floors, nil
+}
+
+// oldestGTID picks the stream start across the run's resources: the floor
+// contained by all the others (per-resource floors form a monotone chain, so a
+// minimum exists; re-delivering from an older set is safe, skipping is not).
+// Incomparable sets mean the checkpoints came from different streams — fail
+// rather than guess.
+func oldestGTID(floors map[string]gomysql.GTIDSet) (gomysql.GTIDSet, error) {
+	var minSet gomysql.GTIDSet
+	for _, set := range floors {
 		switch {
 		case minSet == nil:
 			minSet = set
@@ -170,8 +242,25 @@ func startGTID(cps map[string]filament.Checkpoint) (gomysql.GTIDSet, bool, error
 		case set.Contain(minSet):
 			// keep minSet
 		default:
-			return nil, false, fmt.Errorf("mysql cdc: incomparable gtid cursors %q and %q (mixed streams?)", minSet.String(), set.String())
+			return nil, fmt.Errorf("mysql cdc: incomparable gtid cursors %q and %q (mixed streams?)", minSet.String(), set.String())
 		}
 	}
-	return minSet, minSet != nil, nil
+	return minSet, nil
+}
+
+// unionGTID returns the transactions in either a or b. Sets from one server
+// form a chain, so one usually contains the other and is returned as is;
+// otherwise the two are merged into a new set.
+func unionGTID(a, b gomysql.GTIDSet) (gomysql.GTIDSet, error) {
+	switch {
+	case b == nil || a.Contain(b):
+		return a, nil
+	case b.Contain(a):
+		return b, nil
+	}
+	merged := a.Clone()
+	if err := merged.Update(b.String()); err != nil {
+		return nil, fmt.Errorf("mysql cdc: merge gtid sets %q and %q: %w", a.String(), b.String(), err)
+	}
+	return merged, nil
 }
