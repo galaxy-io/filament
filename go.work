@@ -5,6 +5,7 @@ use (
 	./cmd
 	./connectors/iceberg
 	./connectors/object
+	./connectors/snowflake
 	./identity/zitadel
 	./secret/aws
 	./tests
