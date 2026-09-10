@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/galaxy-io/filament"
 )
 
 const manifestContentType = "application/json"
@@ -28,7 +26,7 @@ type manifestResource struct {
 
 // Commit completes every resource object and publishes _SUCCESS.json last.
 func (s *Sink) Commit(ctx context.Context) error {
-	session, bucket, prefix, run, err := s.beginCommit()
+	session, bucket, layout, err := s.beginCommit()
 	if err != nil {
 		return err
 	}
@@ -42,7 +40,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	manifest := successManifest{Version: 1, Run: string(run), Resources: make([]manifestResource, len(results))}
+	manifest := successManifest{Version: 1, Run: string(layout.run), Resources: make([]manifestResource, len(results))}
 	for i, result := range results {
 		manifest.Resources[i] = manifestResource{
 			Name: result.resource, Key: result.key, URI: fmt.Sprintf("s3://%s/%s", bucket, result.key),
@@ -53,7 +51,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, successKey(prefix, run), objectMetadata{contentType: manifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
+	if err := session.PutObject(ctx, layout.success(), objectMetadata{contentType: manifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 
@@ -64,18 +62,18 @@ func (s *Sink) Commit(ctx context.Context) error {
 	return nil
 }
 
-func (s *Sink) beginCommit() (*multipartSession, string, string, filament.RunID, error) {
+func (s *Sink) beginCommit() (*multipartSession, string, keyLayout, error) {
 	s.mu.Lock()
 	if s.state != stateOpen || s.session == nil {
 		s.mu.Unlock()
-		return nil, "", "", "", fmt.Errorf("s3 sink: commit requires an open run")
+		return nil, "", keyLayout{}, fmt.Errorf("s3 sink: commit requires an open run")
 	}
 	s.state = stateCommitting
-	session, bucket, prefix, run := s.session, s.bucket, s.prefix, s.run
+	session, bucket, layout := s.session, s.bucket, s.layout
 	s.mu.Unlock()
 
 	s.applyWG.Wait()
-	return session, bucket, prefix, run, nil
+	return session, bucket, layout, nil
 }
 
 // Abort cancels in-flight requests and abandons every incomplete multipart upload.

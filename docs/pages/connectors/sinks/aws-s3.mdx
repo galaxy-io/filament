@@ -1,13 +1,13 @@
 ---
 title: "AWS S3"
-description: "Write NDJSON objects to Amazon S3 or any S3-compatible endpoint"
+description: "Write NDJSON, JSON, or Parquet objects to Amazon S3 or any S3-compatible endpoint"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
 ---
 
-The Amazon S3 sink (**alpha**) writes each resource as one NDJSON object in an
-S3-compatible bucket, using the same row format as
-[stdout](/pages/connectors/sinks/standard-output). It is an uncompressed JSON
-export, not a partitioned Parquet or lakehouse format.
+The Amazon S3 sink (**alpha**) writes each resource as one NDJSON, JSON, or
+Parquet object per run in an S3-compatible bucket, laid out so an external
+table per resource can read it directly. It is not a lakehouse format with
+table-level atomic commits; see the Iceberg sink for that.
 
 ## Configuration
 
@@ -21,7 +21,10 @@ export, not a partitioned Parquet or lakehouse format.
 | `access_key_id` | Connection | — | Required for IAM Credentials. Secret. |
 | `secret_access_key` | Connection | — | Required for IAM Credentials. Secret. |
 | `session_token` | Connection | — | Optional for temporary IAM Credentials. Secret. |
-| `prefix` | Pipeline | — | Key prefix, surrounding `/` trimmed |
+| `prefix` | Pipeline | — | Root folder for the pipeline, surrounding `/` trimmed |
+| `partition` | Pipeline | `dt={{.Date}}` | Folders between each resource and its files; see [partition template](#partition-template) |
+| `file_format` | Pipeline | `ndjson` | `ndjson`, `jsonl`, `json`, or `parquet`; see [file formats](#file-formats) |
+| `compression` | Pipeline | per format | `none` or `gzip` for JSON formats; `snappy` for Parquet |
 | `part_size_mib` | Pipeline | `16` | Multipart request size in MiB, from 5 through 5120; with the 10,000-part limit, the default supports objects up to about 156 GiB |
 | `upload_concurrency` | Pipeline | `4` | Concurrent S3 upload operations across resources, from 1 through 32 |
 
@@ -42,33 +45,96 @@ prefix.
 
 The sink advertises `full_replace` and `full_append`. See
 [replication modes](/pages/guides/concepts/replication-modes). Because every
-run writes to run-scoped keys, **the two modes behave identically here**. Each
-run produces a fresh object set and never touches a previous run's objects.
-There is no stable "current" object per resource, so downstream consumers must
-list runs (or track run IDs) to find the latest.
+run writes its own objects, **the two modes behave identically here**. Each
+run produces a fresh object per resource and never touches a previous run's
+objects. A full replace run is therefore a snapshot in its own date partition.
+Query the latest partition to read the current state, or every partition to
+read history.
 
 ## Object layout
 
-Each successful run contains one object per resource and a success manifest:
+Each successful run writes one object per resource and a success manifest.
+With prefix `local_pg`, resources `accounts` and `orders`, and the default
+partition, a run looks like:
 
 ```
-<prefix>/<run>/<resource>.ndjson
-<prefix>/<run>/_SUCCESS.json
+local_pg/accounts/dt=2026-09-10/cc7332f3-7abc-5f37-984d-9815634f1d7f.parquet
+local_pg/orders/dt=2026-09-10/cc7332f3-7abc-5f37-984d-9815634f1d7f.parquet
+local_pg/_runs/cc7332f3-7abc-5f37-984d-9815634f1d7f/_SUCCESS.json
 ```
 
-with `Content-Type: application/x-ndjson`. Each line is one source row, using
-the source field names and JSON-compatible values:
+The path is prefix, resource, partition folders, then the run identifier as
+the filename. Objects are resource-major so one external table per resource
+can point at `local_pg/accounts/`. The resource folder, the run identifier
+filename, and the manifest location are fixed. Only the partition folders are
+yours to choose. Manifests live under `_runs`, which query engines skip
+because of the leading underscore. Object files carry the run identifier so
+runs on the same day never collide.
+
+### Partition template
+
+`partition` sets the folders between each resource and its files. Write it as
+a path with placeholders in double braces. Every placeholder is filled from
+the run's start time in UTC, so every object of one run lands in the same
+partition.
+
+| Placeholder | Value |
+| --- | --- |
+| `{{.Date}}` | Run start date as `YYYY-MM-DD` |
+| `{{.StartedAt}}` | Run start as a UTC time; append `.Format "layout"` to shape it |
+| `{{.Resource}}` | Resource name |
+| `{{.Run}}` | Run identifier |
+
+The default `dt={{.Date}}` is a Hive-style partition that Athena, Glue
+crawlers, Spark, and DuckDB discover without extra configuration. Other
+layouts:
+
+| Template | Result |
+| --- | --- |
+| `dt={{.Date}}` | `accounts/dt=2026-09-10/<run>.parquet` |
+| `month={{.StartedAt.Format "2006-01"}}` | `accounts/month=2026-09/<run>.parquet` |
+| `year={{.StartedAt.Format "2006"}}/month={{.StartedAt.Format "01"}}` | `accounts/year=2026/month=09/<run>.parquet` |
+| `{{.StartedAt.Format "2006/01/02"}}` | `accounts/2026/09/10/<run>.parquet` |
+| empty | `accounts/<run>.parquet` |
+
+`Format` takes a [Go time layout](https://pkg.go.dev/time#pkg-constants),
+where `2006`, `01`, `02`, and `15` stand for year, month, day, and hour. Plain
+directories without `key=value` names need Athena partition projection with a
+location template.
+
+The template is checked when the pipeline is saved. It must produce a relative
+path with no empty, `.`, or `..` segments, and unknown placeholders are
+rejected. Helm charts that render pipeline YAML treat `{{` as their own
+syntax, so escape the template there as `{{ "{{" }}.Date{{ "}}" }}`.
+
+### File formats
+
+`file_format` chooses how each resource object is encoded. The extension and
+`Content-Type` follow the format, and gzip adds a `.gz` suffix and
+`Content-Encoding: gzip`.
+
+| Format | Extension | Content-Type | Compression | Layout |
+| --- | --- | --- | --- | --- |
+| `ndjson` | `.ndjson` | `application/x-ndjson` | `none` (default), `gzip` | One JSON object per line |
+| `jsonl` | `.jsonl` | `application/x-ndjson` | `none` (default), `gzip` | One JSON object per line |
+| `json` | `.json` | `application/json` | `none` (default), `gzip` | One JSON array of objects |
+| `parquet` | `.parquet` | `application/vnd.apache.parquet` | `snappy` | Typed columns from the source schema |
+
+JSON formats write source field names and JSON-compatible values:
 
 ```json
 {"id":1,"name":"Ada"}
 ```
 
-There is no table management or schema section here. The sink is not
-schematized and writes the Arrow batch rows as JSON objects.
+Parquet writes typed columns from the resource schema, so a selected resource
+with no rows still produces a valid file with the right columns. Parquet is
+the format to choose when the bucket is queried by Athena, Spark, or DuckDB.
+The `compression` field shows only the options valid for the selected format.
 
 The success manifest lists every resource's key, URI, rows, bytes, and object
-CRC32C. Consumers must treat `_SUCCESS.json` as the visibility boundary and
-ignore run prefixes without it.
+CRC32C. Programmatic consumers should treat `_SUCCESS.json` as the visibility
+boundary and ignore runs without it. Query engines cannot apply that rule and
+read every object under the table location; see failure behavior below.
 
 ## Write mechanics and atomicity
 
@@ -89,8 +155,9 @@ the run becomes valid only when `_SUCCESS.json` is uploaded last.
 ## Failure behavior
 
 `Abort` cancels in-flight work and abandons incomplete multipart uploads. If
-`Commit` fails after some resources complete, those objects may remain under
-the run prefix, but no `_SUCCESS.json` is published, so the prefix is not a
-valid run. Configure an S3 lifecycle rule to expire abandoned run prefixes and
-incomplete multipart uploads. Multipart uploads do not resume across worker
+`Commit` fails after some resources complete, those objects remain in their
+resource partitions, but no `_SUCCESS.json` is published, so the run is not
+valid. Query engines still read those objects, so remove them by run
+identifier before rerunning if partial data matters. Configure an S3 lifecycle
+rule to expire incomplete multipart uploads. Multipart uploads do not resume across worker
 attempts; resource progress is saved only after commit succeeds.
