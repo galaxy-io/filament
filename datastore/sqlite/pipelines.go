@@ -307,9 +307,8 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	return out, int(count), nil
 }
 
-// DeletePipeline soft-deletes a pipeline and removes its schedules and pending
-// scheduled runs so the scheduler stops firing it and nothing lingers as
-// upcoming work. Versions and run history are kept.
+// DeletePipeline soft-deletes a pipeline and its notifiers, and removes schedules
+// and pending runs. Versions and run history are kept.
 func (s *Store) DeletePipeline(ctx context.Context, tenant filament.TenantID, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -331,6 +330,12 @@ func (s *Store) DeletePipeline(ctx context.Context, tenant filament.TenantID, id
 		TenantID: string(tenant), PipelineID: sql.NullString{String: id, Valid: true}, Status: int64(filament.RunScheduled),
 	}); err != nil {
 		return fmt.Errorf("datastore/sqlite: delete pipeline scheduled runs: %w", err)
+	}
+	if err := q.DeletePipelineNotifiers(ctx, sqlcgen.DeletePipelineNotifiersParams{
+		TenantID: string(tenant), PipelineID: id,
+		DeletedAt: sql.NullInt64{Int64: now, Valid: true}, UpdatedAt: now,
+	}); err != nil {
+		return fmt.Errorf("datastore/sqlite: delete pipeline notifiers: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("datastore/sqlite: commit pipeline delete: %w", err)
