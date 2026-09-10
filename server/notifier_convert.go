@@ -20,7 +20,7 @@ func notifierFromInput(in *ingestionv1.NotifierInput) (notifier.Notifier, error)
 		return notifier.Notifier{}, fmt.Errorf("unsupported notification type")
 	}
 	return notifier.NormalizeAndValidate(notifier.Notifier{
-		Name: in.GetName(), NotificationType: kind, Enabled: in.GetEnabled(),
+		Name: in.GetName(), NotificationType: kind, IsEnabled: in.GetIsEnabled(),
 		Events: in.GetEvents(), Resources: in.GetResources(),
 	}, events.Names())
 }
@@ -32,7 +32,7 @@ func notifierToProto(n notifier.Notifier) *ingestionv1.Notifier {
 	}
 	return &ingestionv1.Notifier{
 		Id: n.ID, TenantId: string(n.Tenant), PipelineId: n.PipelineID,
-		Name: n.Name, NotificationType: kind, Enabled: n.Enabled,
+		Name: n.Name, NotificationType: kind, IsEnabled: n.IsEnabled,
 		Events: n.Events, Resources: n.Resources, SecretRefs: cloneStrings(n.SecretRefs), Version: n.Version,
 		CreatedAt: n.CreatedAt, UpdatedAt: n.UpdatedAt, DeletedAt: n.DeletedAt,
 		CreatedByUserId: n.CreatedByUserID, UpdatedByUserId: n.UpdatedByUserID, DeletedByUserId: n.DeletedByUserID,

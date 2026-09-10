@@ -72,7 +72,7 @@ type Notifier struct {
 	PipelineID       string
 	Name             string
 	NotificationType NotificationType
-	Enabled          bool
+	IsEnabled        bool
 	Events           []string          // Event names, or ["*"] for all eligible events.
 	Resources        []string          // Empty matches any resource.
 	Config           map[string]any    // Non-secret settings.

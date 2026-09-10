@@ -118,7 +118,7 @@ type Notifier struct {
 	PipelineID       string
 	Name             string
 	NotificationType NotificationType
-	Enabled          bool
+	IsEnabled        bool
 	Events           []byte
 	Resources        []byte
 	Config           []byte

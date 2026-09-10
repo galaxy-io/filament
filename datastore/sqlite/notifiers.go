@@ -29,7 +29,7 @@ func (s *Store) CreateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 		return q.CreateNotifier(ctx, sqlcgen.CreateNotifierParams{
 			NotifierID: n.ID, TenantID: string(n.Tenant), PipelineID: n.PipelineID,
 			CreatedAt: now, UpdatedAt: now,
-			Name: n.Name, NotificationType: kind, Enabled: boolInt(n.Enabled),
+			Name: n.Name, NotificationType: kind, IsEnabled: boolInt(n.IsEnabled),
 			Events: string(data.events), Resources: string(data.resources), Config: string(data.config), SecretRefs: string(data.refs),
 			CreatedByUserID: sql.NullString{String: n.CreatedByUserID, Valid: n.CreatedByUserID != ""}, UpdatedByUserID: sql.NullString{String: n.UpdatedByUserID, Valid: n.UpdatedByUserID != ""},
 		})
@@ -92,7 +92,7 @@ func (s *Store) UpdateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 		return q.UpdateNotifier(ctx, sqlcgen.UpdateNotifierParams{
 			TenantID: string(n.Tenant), PipelineID: n.PipelineID, NotifierID: n.ID, ExpectedVersion: n.Version,
 			UpdatedAt: nowMillis(),
-			Name:      n.Name, Enabled: boolInt(n.Enabled), Events: string(data.events), Resources: string(data.resources),
+			Name:      n.Name, IsEnabled: boolInt(n.IsEnabled), Events: string(data.events), Resources: string(data.resources),
 			Config: string(data.config), SecretRefs: string(data.refs), UpdatedByUserID: sql.NullString{String: n.UpdatedByUserID, Valid: n.UpdatedByUserID != ""},
 		})
 	})
@@ -173,7 +173,7 @@ func notifierFromRow(row *sqlcgen.Notifier) (notifier.Notifier, error) {
 	}
 	n := notifier.Notifier{
 		ID: row.ID, Tenant: filament.TenantID(row.TenantID), PipelineID: row.PipelineID,
-		Name: row.Name, NotificationType: kind, Enabled: row.Enabled != 0, Version: row.Version,
+		Name: row.Name, NotificationType: kind, IsEnabled: row.IsEnabled != 0, Version: row.Version,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, DeletedAt: row.DeletedAt.Int64,
 		CreatedByUserID: row.CreatedByUserID.String, UpdatedByUserID: row.UpdatedByUserID.String, DeletedByUserID: row.DeletedByUserID.String,
 	}

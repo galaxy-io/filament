@@ -5,7 +5,7 @@ CREATE TABLE notifier (
   pipeline_id          TEXT    NOT NULL,
   name                 TEXT    NOT NULL,
   notification_type    TEXT    NOT NULL CHECK (notification_type IN ('webhook')),
-  enabled              INTEGER NOT NULL DEFAULT 0,
+  is_enabled           INTEGER NOT NULL DEFAULT 0,
   events               TEXT    NOT NULL,
   resources            TEXT    NOT NULL DEFAULT '[]',
   config               TEXT    NOT NULL DEFAULT '{}',

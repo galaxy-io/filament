@@ -32,7 +32,7 @@ type Notifier struct {
 	PipelineID       string
 	Name             string
 	NotificationType string
-	Enabled          int64
+	IsEnabled        int64
 	Events           string
 	Resources        string
 	Config           string

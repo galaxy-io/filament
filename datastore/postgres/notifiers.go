@@ -28,7 +28,7 @@ func (s *Store) CreateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 	saved, err := s.writeNotifier(ctx, n.Tenant, n.PipelineID, n.ID, func(q *sqlcgen.Queries) (*sqlcgen.Notifier, error) {
 		return q.CreateNotifier(ctx, sqlcgen.CreateNotifierParams{
 			NotifierID: n.ID, TenantID: string(n.Tenant), PipelineID: n.PipelineID,
-			Name: n.Name, NotificationType: sqlcgen.NotificationType(kind), Enabled: n.Enabled,
+			Name: n.Name, NotificationType: sqlcgen.NotificationType(kind), IsEnabled: n.IsEnabled,
 			Events: data.events, Resources: data.resources, Config: data.config, SecretRefs: data.refs,
 			CreatedByUserID: toText(n.CreatedByUserID), UpdatedByUserID: toText(n.UpdatedByUserID),
 		})
@@ -90,7 +90,7 @@ func (s *Store) UpdateNotifier(ctx context.Context, n notifier.Notifier) (notifi
 		}
 		return q.UpdateNotifier(ctx, sqlcgen.UpdateNotifierParams{
 			TenantID: string(n.Tenant), PipelineID: n.PipelineID, NotifierID: n.ID, ExpectedVersion: n.Version,
-			Name: n.Name, Enabled: n.Enabled, Events: data.events, Resources: data.resources,
+			Name: n.Name, IsEnabled: n.IsEnabled, Events: data.events, Resources: data.resources,
 			Config: data.config, SecretRefs: data.refs, UpdatedByUserID: toText(n.UpdatedByUserID),
 		})
 	})
@@ -169,7 +169,7 @@ func notifierFromRow(row *sqlcgen.Notifier) (notifier.Notifier, error) {
 	}
 	n := notifier.Notifier{
 		ID: row.ID, Tenant: filament.TenantID(row.TenantID), PipelineID: row.PipelineID,
-		Name: row.Name, NotificationType: kind, Enabled: row.Enabled, Version: row.Version,
+		Name: row.Name, NotificationType: kind, IsEnabled: row.IsEnabled, Version: row.Version,
 		CreatedAt: timestampMillis(row.CreatedAt), UpdatedAt: timestampMillis(row.UpdatedAt), DeletedAt: timestampMillis(row.DeletedAt),
 		CreatedByUserID: row.CreatedByUserID.String, UpdatedByUserID: row.UpdatedByUserID.String, DeletedByUserID: row.DeletedByUserID.String,
 	}

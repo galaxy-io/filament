@@ -16,7 +16,7 @@ message Notifier {
   string pipeline_id = 3;
   string name = 4;
   NotificationType notification_type = 5;
-  bool enabled = 6;
+  bool is_enabled = 6;
   repeated string events = 7;
   repeated string resources = 8;
   map<string, string> secret_refs = 9;
@@ -34,7 +34,7 @@ message Notifier {
 message NotifierInput {
   string name = 1;
   NotificationType notification_type = 2;
-  bool enabled = 3;
+  bool is_enabled = 3;
   repeated string events = 4; // Registered event names, or ["*"].
   repeated string resources = 5; // Empty matches any resource.
   oneof channel {

@@ -77,7 +77,7 @@ type Notifier struct {
 	PipelineId       string                 `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
 	Name             string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	NotificationType NotificationType       `protobuf:"varint,5,opt,name=notification_type,json=notificationType,proto3,enum=ingestion.v1.NotificationType" json:"notification_type,omitempty"`
-	Enabled          bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	IsEnabled        bool                   `protobuf:"varint,6,opt,name=is_enabled,json=isEnabled,proto3" json:"is_enabled,omitempty"`
 	Events           []string               `protobuf:"bytes,7,rep,name=events,proto3" json:"events,omitempty"`
 	Resources        []string               `protobuf:"bytes,8,rep,name=resources,proto3" json:"resources,omitempty"`
 	SecretRefs       map[string]string      `protobuf:"bytes,9,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -157,9 +157,9 @@ func (x *Notifier) GetNotificationType() NotificationType {
 	return NotificationType_NOTIFICATION_TYPE_UNSPECIFIED
 }
 
-func (x *Notifier) GetEnabled() bool {
+func (x *Notifier) GetIsEnabled() bool {
 	if x != nil {
-		return x.Enabled
+		return x.IsEnabled
 	}
 	return false
 }
@@ -240,7 +240,7 @@ type NotifierInput struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	NotificationType NotificationType       `protobuf:"varint,2,opt,name=notification_type,json=notificationType,proto3,enum=ingestion.v1.NotificationType" json:"notification_type,omitempty"`
-	Enabled          bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	IsEnabled        bool                   `protobuf:"varint,3,opt,name=is_enabled,json=isEnabled,proto3" json:"is_enabled,omitempty"`
 	Events           []string               `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`       // Registered event names, or ["*"].
 	Resources        []string               `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"` // Empty matches any resource.
 	// Types that are valid to be assigned to Channel:
@@ -295,9 +295,9 @@ func (x *NotifierInput) GetNotificationType() NotificationType {
 	return NotificationType_NOTIFICATION_TYPE_UNSPECIFIED
 }
 
-func (x *NotifierInput) GetEnabled() bool {
+func (x *NotifierInput) GetIsEnabled() bool {
 	if x != nil {
-		return x.Enabled
+		return x.IsEnabled
 	}
 	return false
 }
@@ -873,15 +873,16 @@ var File_ingestion_v1_notifiers_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_notifiers_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/notifiers.proto\x12\fingestion.v1\"\x8f\x05\n" +
+	"\x1cingestion/v1/notifiers.proto\x12\fingestion.v1\"\x94\x05\n" +
 	"\bNotifier\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vpipeline_id\x18\x03 \x01(\tR\n" +
 	"pipelineId\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12K\n" +
-	"\x11notification_type\x18\x05 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x16\n" +
+	"\x11notification_type\x18\x05 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x1d\n" +
+	"\n" +
+	"is_enabled\x18\x06 \x01(\bR\tisEnabled\x12\x16\n" +
 	"\x06events\x18\a \x03(\tR\x06events\x12\x1c\n" +
 	"\tresources\x18\b \x03(\tR\tresources\x12G\n" +
 	"\vsecret_refs\x18\t \x03(\v2&.ingestion.v1.Notifier.SecretRefsEntryR\n" +
@@ -899,11 +900,12 @@ const file_ingestion_v1_notifiers_proto_rawDesc = "" +
 	"\x12deleted_by_user_id\x18\x10 \x01(\tR\x0fdeletedByUserId\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x90\x02\n" +
 	"\rNotifierInput\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12K\n" +
-	"\x11notification_type\x18\x02 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x16\n" +
+	"\x11notification_type\x18\x02 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x1d\n" +
+	"\n" +
+	"is_enabled\x18\x03 \x01(\bR\tisEnabled\x12\x16\n" +
 	"\x06events\x18\x04 \x03(\tR\x06events\x12\x1c\n" +
 	"\tresources\x18\x05 \x03(\tR\tresources\x12>\n" +
 	"\awebhook\x18\x06 \x01(\v2\".ingestion.v1.WebhookNotifierInputH\x00R\awebhookB\t\n" +

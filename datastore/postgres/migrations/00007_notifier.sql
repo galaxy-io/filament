@@ -7,7 +7,7 @@ CREATE TABLE notifier (
   pipeline_id          UUID              NOT NULL,
   name                 TEXT              NOT NULL,
   notification_type    notification_type NOT NULL,
-  enabled              BOOLEAN           NOT NULL DEFAULT false,
+  is_enabled           BOOLEAN           NOT NULL DEFAULT false,
   events               JSONB             NOT NULL,
   resources            JSONB             NOT NULL DEFAULT '[]',
   config               JSONB             NOT NULL DEFAULT '{}',

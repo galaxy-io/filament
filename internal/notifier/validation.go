@@ -43,7 +43,7 @@ func IsLifecycleEvent(name string) bool { return strings.HasPrefix(name, "notifi
 
 // Matches checks a live, enabled rule against an event name and exact resource name.
 func Matches(n Notifier, eventName, resource string) bool {
-	if !n.Enabled || n.DeletedAt != 0 || eventName == "" || IsLifecycleEvent(eventName) {
+	if !n.IsEnabled || n.DeletedAt != 0 || eventName == "" || IsLifecycleEvent(eventName) {
 		return false
 	}
 	if !slices.Contains(n.Events, "*") && !slices.Contains(n.Events, eventName) {
