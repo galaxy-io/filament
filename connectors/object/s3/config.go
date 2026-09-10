@@ -3,6 +3,7 @@ package s3
 import (
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
@@ -21,6 +22,7 @@ const (
 type sinkConfig struct {
 	bucket          string
 	prefix          string
+	partition       *template.Template
 	region          string
 	endpoint        string
 	authMethod      string
@@ -50,7 +52,8 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Version:      "3",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
-			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Key prefix; objects land at <prefix>/<run>/<resource>.<format>. Empty defaults to the normalized source connection name."},
+			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Root folder for this pipeline. Each resource gets its own folder beneath it, and run manifests land in _runs. Empty defaults to the normalized source connection name."},
+			{Name: "partition", Type: filament.FieldString, Default: defaultPartition, Scope: filament.ScopePipeline, Help: "Folders between each resource and its files. Use {{.Date}}, {{.StartedAt}}, {{.Resource}}, and {{.Run}}, for example {{.Resource}}/dt={{.Date}}. The default writes one folder per day. Leave empty to write files directly under the resource."},
 			{Name: "file_format", Type: filament.FieldEnum, Default: string(encoder.DefaultFileFormat), Scope: filament.ScopePipeline, Help: "File format used for each resource object. NDJSON and JSONL contain one object per line; JSON contains one array.", Enum: []filament.EnumOption{
 				{Value: string(encoder.FileFormatNDJSON), Label: "NDJSON"},
 				{Value: string(encoder.FileFormatJSONL), Label: "JSONL"},
@@ -174,6 +177,13 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 	}
 	if out.bucket == "" {
 		return sinkConfig{}, fmt.Errorf("s3 sink: bucket is required")
+	}
+	partitionText := defaultPartition
+	if cfg.Has("partition") {
+		partitionText = strings.Trim(cfg.String("partition"), "/")
+	}
+	if out.partition, err = parsePartition(partitionText); err != nil {
+		return sinkConfig{}, fmt.Errorf("s3 sink: partition: %w", err)
 	}
 	if out.authMethod == "" {
 		out.authMethod = authMethodInstanceProfile

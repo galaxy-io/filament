@@ -1,15 +1,21 @@
-// Package s3 implements a run-versioned object sink for Amazon S3 and
+// Package s3 implements a resource-partitioned object sink for Amazon S3 and
 // compatible object stores.
 //
-// Apply streams full multipart parts and Commit publishes _SUCCESS.json last.
-// Consumers must ignore run prefixes without that marker.
+// Resource objects land at <prefix>/<resource>/<partition>/<run>.<ext> so one
+// table per resource can point at <prefix>/<resource>/. The partition
+// directories are templated; the resource root, filename, and manifest are not.
+// Apply streams full multipart parts and Commit publishes
+// <prefix>/_runs/<run>/_SUCCESS.json last.
 package s3
 
 import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
+	"text/template"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 
@@ -37,8 +43,7 @@ type Sink struct {
 	mu          sync.Mutex
 	state       sinkState
 	bucket      string
-	prefix      string
-	run         filament.RunID
+	layout      keyLayout
 	session     *multipartSession
 	applyWG     sync.WaitGroup
 	format      encoder.FileFormat
@@ -107,8 +112,7 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 
 	s.state = stateOpen
 	s.bucket = cfg.bucket
-	s.prefix = cfg.prefix
-	s.run = run.Run
+	s.layout = newKeyLayout(cfg, run)
 	s.format = cfg.fileFormat
 	s.compression = cfg.compression
 	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, objectMetadata{
@@ -202,8 +206,12 @@ func (s *Sink) beginApply(resource string) (*multipartSession, string, string, e
 	if s.state != stateOpen || s.session == nil {
 		return nil, "", "", fmt.Errorf("s3 sink: write requires an open run")
 	}
+	key, err := s.layout.object(resource)
+	if err != nil {
+		return nil, "", "", err
+	}
 	s.applyWG.Add(1)
-	return s.session, s.bucket, encodedObjectKey(s.prefix, s.run, resource, s.format, s.compression), nil
+	return s.session, s.bucket, key, nil
 }
 
 // Apply validates the batch against the run's write policy, then streams it.
@@ -217,11 +225,6 @@ func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament
 	default:
 		return filament.WriteReceipt{}, fmt.Errorf("s3 sink: write policy %q is not implemented", opts.Policy.Capability.Mode)
 	}
-}
-
-func encodedObjectKey(prefix string, run filament.RunID, resource string, format encoder.FileFormat, compression encoder.Compression) string {
-	options := encoder.Options{FileFormat: format, Compression: compression}
-	return runKey(prefix, run) + "/" + resource + options.Extension()
 }
 
 func newEncoder(format encoder.FileFormat, compression encoder.Compression, schema *arrow.Schema) (encoder.Encoder, error) {
@@ -256,7 +259,7 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) 
 		resources = append(resources, resource)
 		encoders[resource] = encoder
 	}
-	format, compression, prefix, run := s.format, s.compression, s.prefix, s.run
+	layout := s.layout
 	s.mu.Unlock()
 	sort.Strings(resources)
 
@@ -266,7 +269,10 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) 
 		buffer := session.takeEncodedBuffer()
 		encoded, crc, err := resourceEncoder.encoder.Finalize(buffer)
 		if err == nil && len(encoded) > 0 && resourceEncoder.hasRows {
-			err = session.Append(ctx, resource, encodedObjectKey(prefix, run, resource, format, compression), encoded, 0, crc)
+			var key string
+			if key, err = layout.object(resource); err == nil {
+				err = session.Append(ctx, resource, key, encoded, 0, crc)
+			}
 		}
 		if err != nil {
 			session.releaseEncodedBuffer(buffer)
@@ -279,13 +285,50 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) 
 	return nil
 }
 
-func successKey(prefix string, run filament.RunID) string {
-	return runKey(prefix, run) + "/_SUCCESS.json"
+const (
+	runsDir       = "_runs"
+	successMarker = "_SUCCESS.json"
+)
+
+// keyLayout places one run's objects. The partition template renders from the
+// run's start time so every object of a run shares one partition; the run id
+// is always the filename so runs never collide; manifests sit beside the
+// resources under a directory query engines skip.
+type keyLayout struct {
+	prefix    string
+	run       filament.RunID
+	startedAt time.Time
+	partition *template.Template
+	extension string
 }
 
-func runKey(prefix string, run filament.RunID) string {
-	if prefix == "" {
-		return string(run)
+func newKeyLayout(cfg sinkConfig, run filament.RunSpec) keyLayout {
+	startedAt := run.StartedAt
+	if startedAt.IsZero() {
+		startedAt = time.Now()
 	}
-	return prefix + "/" + string(run)
+	options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
+	return keyLayout{prefix: cfg.prefix, run: run.Run, startedAt: startedAt, partition: cfg.partition, extension: options.Extension()}
+}
+
+func (l keyLayout) object(resource string) (string, error) {
+	partition, err := renderPartition(l.partition, newPartitionData(resource, l.run, l.startedAt))
+	if err != nil {
+		return "", fmt.Errorf("s3 sink: %w", err)
+	}
+	if partition == "" {
+		return l.join(resource, string(l.run)+l.extension), nil
+	}
+	return l.join(resource, partition, string(l.run)+l.extension), nil
+}
+
+func (l keyLayout) success() string {
+	return l.join(runsDir, string(l.run), successMarker)
+}
+
+func (l keyLayout) join(parts ...string) string {
+	if l.prefix != "" {
+		parts = append([]string{l.prefix}, parts...)
+	}
+	return strings.Join(parts, "/")
 }

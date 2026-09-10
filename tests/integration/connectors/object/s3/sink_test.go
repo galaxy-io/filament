@@ -35,6 +35,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 		"auth_method": "iam_credentials", "access_key_id": store.AccessKey, "secret_access_key": store.SecretKey,
 		"part_size_mib": 5, "upload_concurrency": 2,
 	}
+	startedAt := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
 
 	t.Run("commit publishes exact NDJSON then success marker", func(t *testing.T) {
 		batches := objectTestRows(t, false)
@@ -46,7 +47,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			t.Fatalf("S3 connection: %v", err)
 		}
 		if err := dst.Open(ctx, filament.RunSpec{
-			Run: "s3-commit", Resources: []string{"accounts"}, Sink: filament.Ref{Config: cfg},
+			Run: "s3-commit", StartedAt: startedAt, Resources: []string{"accounts"}, Sink: filament.Ref{Config: cfg},
 			WritePolicies: map[string]filament.WritePolicy{"accounts": policy},
 		}); err != nil {
 			t.Fatal(err)
@@ -64,14 +65,14 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			rows += int64(receipt.Rows)
 			bytes += receipt.Bytes
 		}
-		if _, err := store.Client.StatObject(ctx, bucket, "exports/s3-commit/_SUCCESS.json", minio.StatObjectOptions{}); err == nil {
+		if _, err := store.Client.StatObject(ctx, bucket, "exports/_runs/s3-commit/_SUCCESS.json", minio.StatObjectOptions{}); err == nil {
 			t.Fatal("success marker became visible before Commit")
 		}
 		if err := dst.Commit(ctx); err != nil {
 			t.Fatal(err)
 		}
 
-		body := readMinIOObject(t, ctx, store, bucket, "exports/s3-commit/accounts.ndjson")
+		body := readMinIOObject(t, ctx, store, bucket, "exports/accounts/dt=2026-09-10/s3-commit.ndjson")
 		var got []string
 		scanner := bufio.NewScanner(strings.NewReader(string(body)))
 		for scanner.Scan() {
@@ -91,7 +92,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			t.Fatalf("NDJSON rows = %v, want %v; body=%s", got, want, body)
 		}
 
-		manifestBody := readMinIOObject(t, ctx, store, bucket, "exports/s3-commit/_SUCCESS.json")
+		manifestBody := readMinIOObject(t, ctx, store, bucket, "exports/_runs/s3-commit/_SUCCESS.json")
 		var manifest struct {
 			Version   int    `json:"version"`
 			Run       string `json:"run"`
@@ -110,7 +111,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			t.Fatalf("success manifest = %s", manifestBody)
 		}
 		resource := manifest.Resources[0]
-		if resource.Name != "accounts" || resource.Key != "exports/s3-commit/accounts.ndjson" || resource.Rows != rows || resource.Bytes != bytes || len(resource.CRC32C) != 8 {
+		if resource.Name != "accounts" || resource.Key != "exports/accounts/dt=2026-09-10/s3-commit.ndjson" || resource.Rows != rows || resource.Bytes != bytes || len(resource.CRC32C) != 8 {
 			t.Fatalf("success manifest resource = %#v, receipts rows=%d bytes=%d", resource, rows, bytes)
 		}
 	})
@@ -122,7 +123,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 		policy.Resource = "large"
 		dst := s3sink.New()
 		if err := dst.Open(ctx, filament.RunSpec{
-			Run: "s3-abort", Resources: []string{"large"}, Sink: filament.Ref{Config: cfg},
+			Run: "s3-abort", StartedAt: startedAt, Resources: []string{"large"}, Sink: filament.Ref{Config: cfg},
 			WritePolicies: map[string]filament.WritePolicy{"large": policy},
 		}); err != nil {
 			t.Fatal(err)
@@ -133,16 +134,16 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 		if err := dst.Abort(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := store.Client.StatObject(ctx, bucket, "exports/s3-abort/large.ndjson", minio.StatObjectOptions{}); err == nil {
+		if _, err := store.Client.StatObject(ctx, bucket, "exports/large/dt=2026-09-10/s3-abort.ndjson", minio.StatObjectOptions{}); err == nil {
 			t.Fatal("aborted object is visible")
 		}
-		for upload := range store.Client.ListIncompleteUploads(ctx, bucket, "exports/s3-abort", true) {
+		for upload := range store.Client.ListIncompleteUploads(ctx, bucket, "exports", true) {
 			if upload.Err != nil {
 				t.Fatal(upload.Err)
 			}
 			t.Fatalf("multipart upload leaked after Abort: %#v", upload)
 		}
-		if _, err := store.Client.StatObject(ctx, bucket, "exports/s3-abort/_SUCCESS.json", minio.StatObjectOptions{}); err == nil {
+		if _, err := store.Client.StatObject(ctx, bucket, "exports/_runs/s3-abort/_SUCCESS.json", minio.StatObjectOptions{}); err == nil {
 			t.Fatal("aborted run published a success marker")
 		}
 	})
