@@ -5,6 +5,7 @@ package ingestion.v1;
 import "ingestion/v1/capabilities.proto";
 import "ingestion/v1/connections.proto";
 import "ingestion/v1/connectors.proto";
+import "ingestion/v1/notifiers.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/runs.proto";
 
@@ -44,6 +45,12 @@ service IngestionService {
   // is removed only by deleting its pipeline.
   rpc CreatePipelineSchedule(CreatePipelineScheduleRequest) returns (CreatePipelineScheduleResponse);
   rpc UpdatePipelineSchedule(UpdatePipelineScheduleRequest) returns (UpdatePipelineScheduleResponse);
+
+  // Pipeline notifications; multiple independent rules per pipeline.
+  rpc CreatePipelineNotifier(CreatePipelineNotifierRequest) returns (CreatePipelineNotifierResponse);
+  rpc UpdatePipelineNotifier(UpdatePipelineNotifierRequest) returns (UpdatePipelineNotifierResponse);
+  rpc ListPipelineNotifiers(ListPipelineNotifiersRequest) returns (ListPipelineNotifiersResponse);
+  rpc DeletePipelineNotifier(DeletePipelineNotifierRequest) returns (DeletePipelineNotifierResponse);
 
   // Runs; compile + submit a pipeline, then list / snapshot / signal.
   rpc RunPipeline(RunPipelineRequest) returns (RunPipelineResponse);

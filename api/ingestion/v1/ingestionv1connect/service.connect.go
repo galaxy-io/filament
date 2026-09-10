@@ -96,6 +96,18 @@ const (
 	// IngestionServiceUpdatePipelineScheduleProcedure is the fully-qualified name of the
 	// IngestionService's UpdatePipelineSchedule RPC.
 	IngestionServiceUpdatePipelineScheduleProcedure = "/ingestion.v1.IngestionService/UpdatePipelineSchedule"
+	// IngestionServiceCreatePipelineNotifierProcedure is the fully-qualified name of the
+	// IngestionService's CreatePipelineNotifier RPC.
+	IngestionServiceCreatePipelineNotifierProcedure = "/ingestion.v1.IngestionService/CreatePipelineNotifier"
+	// IngestionServiceUpdatePipelineNotifierProcedure is the fully-qualified name of the
+	// IngestionService's UpdatePipelineNotifier RPC.
+	IngestionServiceUpdatePipelineNotifierProcedure = "/ingestion.v1.IngestionService/UpdatePipelineNotifier"
+	// IngestionServiceListPipelineNotifiersProcedure is the fully-qualified name of the
+	// IngestionService's ListPipelineNotifiers RPC.
+	IngestionServiceListPipelineNotifiersProcedure = "/ingestion.v1.IngestionService/ListPipelineNotifiers"
+	// IngestionServiceDeletePipelineNotifierProcedure is the fully-qualified name of the
+	// IngestionService's DeletePipelineNotifier RPC.
+	IngestionServiceDeletePipelineNotifierProcedure = "/ingestion.v1.IngestionService/DeletePipelineNotifier"
 	// IngestionServiceRunPipelineProcedure is the fully-qualified name of the IngestionService's
 	// RunPipeline RPC.
 	IngestionServiceRunPipelineProcedure = "/ingestion.v1.IngestionService/RunPipeline"
@@ -143,6 +155,11 @@ type IngestionServiceClient interface {
 	// is removed only by deleting its pipeline.
 	CreatePipelineSchedule(context.Context, *connect.Request[v1.CreatePipelineScheduleRequest]) (*connect.Response[v1.CreatePipelineScheduleResponse], error)
 	UpdatePipelineSchedule(context.Context, *connect.Request[v1.UpdatePipelineScheduleRequest]) (*connect.Response[v1.UpdatePipelineScheduleResponse], error)
+	// Pipeline notifications; multiple independent rules per pipeline.
+	CreatePipelineNotifier(context.Context, *connect.Request[v1.CreatePipelineNotifierRequest]) (*connect.Response[v1.CreatePipelineNotifierResponse], error)
+	UpdatePipelineNotifier(context.Context, *connect.Request[v1.UpdatePipelineNotifierRequest]) (*connect.Response[v1.UpdatePipelineNotifierResponse], error)
+	ListPipelineNotifiers(context.Context, *connect.Request[v1.ListPipelineNotifiersRequest]) (*connect.Response[v1.ListPipelineNotifiersResponse], error)
+	DeletePipelineNotifier(context.Context, *connect.Request[v1.DeletePipelineNotifierRequest]) (*connect.Response[v1.DeletePipelineNotifierResponse], error)
 	// Runs; compile + submit a pipeline, then list / snapshot / signal.
 	RunPipeline(context.Context, *connect.Request[v1.RunPipelineRequest]) (*connect.Response[v1.RunPipelineResponse], error)
 	ListRuns(context.Context, *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error)
@@ -289,6 +306,30 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(ingestionServiceMethods.ByName("UpdatePipelineSchedule")),
 			connect.WithClientOptions(opts...),
 		),
+		createPipelineNotifier: connect.NewClient[v1.CreatePipelineNotifierRequest, v1.CreatePipelineNotifierResponse](
+			httpClient,
+			baseURL+IngestionServiceCreatePipelineNotifierProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("CreatePipelineNotifier")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePipelineNotifier: connect.NewClient[v1.UpdatePipelineNotifierRequest, v1.UpdatePipelineNotifierResponse](
+			httpClient,
+			baseURL+IngestionServiceUpdatePipelineNotifierProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("UpdatePipelineNotifier")),
+			connect.WithClientOptions(opts...),
+		),
+		listPipelineNotifiers: connect.NewClient[v1.ListPipelineNotifiersRequest, v1.ListPipelineNotifiersResponse](
+			httpClient,
+			baseURL+IngestionServiceListPipelineNotifiersProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListPipelineNotifiers")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePipelineNotifier: connect.NewClient[v1.DeletePipelineNotifierRequest, v1.DeletePipelineNotifierResponse](
+			httpClient,
+			baseURL+IngestionServiceDeletePipelineNotifierProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("DeletePipelineNotifier")),
+			connect.WithClientOptions(opts...),
+		),
 		runPipeline: connect.NewClient[v1.RunPipelineRequest, v1.RunPipelineResponse](
 			httpClient,
 			baseURL+IngestionServiceRunPipelineProcedure,
@@ -345,6 +386,10 @@ type ingestionServiceClient struct {
 	deletePipeline         *connect.Client[v1.DeletePipelineRequest, v1.DeletePipelineResponse]
 	createPipelineSchedule *connect.Client[v1.CreatePipelineScheduleRequest, v1.CreatePipelineScheduleResponse]
 	updatePipelineSchedule *connect.Client[v1.UpdatePipelineScheduleRequest, v1.UpdatePipelineScheduleResponse]
+	createPipelineNotifier *connect.Client[v1.CreatePipelineNotifierRequest, v1.CreatePipelineNotifierResponse]
+	updatePipelineNotifier *connect.Client[v1.UpdatePipelineNotifierRequest, v1.UpdatePipelineNotifierResponse]
+	listPipelineNotifiers  *connect.Client[v1.ListPipelineNotifiersRequest, v1.ListPipelineNotifiersResponse]
+	deletePipelineNotifier *connect.Client[v1.DeletePipelineNotifierRequest, v1.DeletePipelineNotifierResponse]
 	runPipeline            *connect.Client[v1.RunPipelineRequest, v1.RunPipelineResponse]
 	listRuns               *connect.Client[v1.ListRunsRequest, v1.ListRunsResponse]
 	getRun                 *connect.Client[v1.GetRunRequest, v1.GetRunResponse]
@@ -457,6 +502,26 @@ func (c *ingestionServiceClient) UpdatePipelineSchedule(ctx context.Context, req
 	return c.updatePipelineSchedule.CallUnary(ctx, req)
 }
 
+// CreatePipelineNotifier calls ingestion.v1.IngestionService.CreatePipelineNotifier.
+func (c *ingestionServiceClient) CreatePipelineNotifier(ctx context.Context, req *connect.Request[v1.CreatePipelineNotifierRequest]) (*connect.Response[v1.CreatePipelineNotifierResponse], error) {
+	return c.createPipelineNotifier.CallUnary(ctx, req)
+}
+
+// UpdatePipelineNotifier calls ingestion.v1.IngestionService.UpdatePipelineNotifier.
+func (c *ingestionServiceClient) UpdatePipelineNotifier(ctx context.Context, req *connect.Request[v1.UpdatePipelineNotifierRequest]) (*connect.Response[v1.UpdatePipelineNotifierResponse], error) {
+	return c.updatePipelineNotifier.CallUnary(ctx, req)
+}
+
+// ListPipelineNotifiers calls ingestion.v1.IngestionService.ListPipelineNotifiers.
+func (c *ingestionServiceClient) ListPipelineNotifiers(ctx context.Context, req *connect.Request[v1.ListPipelineNotifiersRequest]) (*connect.Response[v1.ListPipelineNotifiersResponse], error) {
+	return c.listPipelineNotifiers.CallUnary(ctx, req)
+}
+
+// DeletePipelineNotifier calls ingestion.v1.IngestionService.DeletePipelineNotifier.
+func (c *ingestionServiceClient) DeletePipelineNotifier(ctx context.Context, req *connect.Request[v1.DeletePipelineNotifierRequest]) (*connect.Response[v1.DeletePipelineNotifierResponse], error) {
+	return c.deletePipelineNotifier.CallUnary(ctx, req)
+}
+
 // RunPipeline calls ingestion.v1.IngestionService.RunPipeline.
 func (c *ingestionServiceClient) RunPipeline(ctx context.Context, req *connect.Request[v1.RunPipelineRequest]) (*connect.Response[v1.RunPipelineResponse], error) {
 	return c.runPipeline.CallUnary(ctx, req)
@@ -513,6 +578,11 @@ type IngestionServiceHandler interface {
 	// is removed only by deleting its pipeline.
 	CreatePipelineSchedule(context.Context, *connect.Request[v1.CreatePipelineScheduleRequest]) (*connect.Response[v1.CreatePipelineScheduleResponse], error)
 	UpdatePipelineSchedule(context.Context, *connect.Request[v1.UpdatePipelineScheduleRequest]) (*connect.Response[v1.UpdatePipelineScheduleResponse], error)
+	// Pipeline notifications; multiple independent rules per pipeline.
+	CreatePipelineNotifier(context.Context, *connect.Request[v1.CreatePipelineNotifierRequest]) (*connect.Response[v1.CreatePipelineNotifierResponse], error)
+	UpdatePipelineNotifier(context.Context, *connect.Request[v1.UpdatePipelineNotifierRequest]) (*connect.Response[v1.UpdatePipelineNotifierResponse], error)
+	ListPipelineNotifiers(context.Context, *connect.Request[v1.ListPipelineNotifiersRequest]) (*connect.Response[v1.ListPipelineNotifiersResponse], error)
+	DeletePipelineNotifier(context.Context, *connect.Request[v1.DeletePipelineNotifierRequest]) (*connect.Response[v1.DeletePipelineNotifierResponse], error)
 	// Runs; compile + submit a pipeline, then list / snapshot / signal.
 	RunPipeline(context.Context, *connect.Request[v1.RunPipelineRequest]) (*connect.Response[v1.RunPipelineResponse], error)
 	ListRuns(context.Context, *connect.Request[v1.ListRunsRequest]) (*connect.Response[v1.ListRunsResponse], error)
@@ -655,6 +725,30 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		connect.WithSchema(ingestionServiceMethods.ByName("UpdatePipelineSchedule")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ingestionServiceCreatePipelineNotifierHandler := connect.NewUnaryHandler(
+		IngestionServiceCreatePipelineNotifierProcedure,
+		svc.CreatePipelineNotifier,
+		connect.WithSchema(ingestionServiceMethods.ByName("CreatePipelineNotifier")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceUpdatePipelineNotifierHandler := connect.NewUnaryHandler(
+		IngestionServiceUpdatePipelineNotifierProcedure,
+		svc.UpdatePipelineNotifier,
+		connect.WithSchema(ingestionServiceMethods.ByName("UpdatePipelineNotifier")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceListPipelineNotifiersHandler := connect.NewUnaryHandler(
+		IngestionServiceListPipelineNotifiersProcedure,
+		svc.ListPipelineNotifiers,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListPipelineNotifiers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceDeletePipelineNotifierHandler := connect.NewUnaryHandler(
+		IngestionServiceDeletePipelineNotifierProcedure,
+		svc.DeletePipelineNotifier,
+		connect.WithSchema(ingestionServiceMethods.ByName("DeletePipelineNotifier")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ingestionServiceRunPipelineHandler := connect.NewUnaryHandler(
 		IngestionServiceRunPipelineProcedure,
 		svc.RunPipeline,
@@ -729,6 +823,14 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceCreatePipelineScheduleHandler.ServeHTTP(w, r)
 		case IngestionServiceUpdatePipelineScheduleProcedure:
 			ingestionServiceUpdatePipelineScheduleHandler.ServeHTTP(w, r)
+		case IngestionServiceCreatePipelineNotifierProcedure:
+			ingestionServiceCreatePipelineNotifierHandler.ServeHTTP(w, r)
+		case IngestionServiceUpdatePipelineNotifierProcedure:
+			ingestionServiceUpdatePipelineNotifierHandler.ServeHTTP(w, r)
+		case IngestionServiceListPipelineNotifiersProcedure:
+			ingestionServiceListPipelineNotifiersHandler.ServeHTTP(w, r)
+		case IngestionServiceDeletePipelineNotifierProcedure:
+			ingestionServiceDeletePipelineNotifierHandler.ServeHTTP(w, r)
 		case IngestionServiceRunPipelineProcedure:
 			ingestionServiceRunPipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceListRunsProcedure:
@@ -830,6 +932,22 @@ func (UnimplementedIngestionServiceHandler) CreatePipelineSchedule(context.Conte
 
 func (UnimplementedIngestionServiceHandler) UpdatePipelineSchedule(context.Context, *connect.Request[v1.UpdatePipelineScheduleRequest]) (*connect.Response[v1.UpdatePipelineScheduleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.UpdatePipelineSchedule is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) CreatePipelineNotifier(context.Context, *connect.Request[v1.CreatePipelineNotifierRequest]) (*connect.Response[v1.CreatePipelineNotifierResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.CreatePipelineNotifier is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) UpdatePipelineNotifier(context.Context, *connect.Request[v1.UpdatePipelineNotifierRequest]) (*connect.Response[v1.UpdatePipelineNotifierResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.UpdatePipelineNotifier is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ListPipelineNotifiers(context.Context, *connect.Request[v1.ListPipelineNotifiersRequest]) (*connect.Response[v1.ListPipelineNotifiersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListPipelineNotifiers is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) DeletePipelineNotifier(context.Context, *connect.Request[v1.DeletePipelineNotifierRequest]) (*connect.Response[v1.DeletePipelineNotifierResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeletePipelineNotifier is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) RunPipeline(context.Context, *connect.Request[v1.RunPipelineRequest]) (*connect.Response[v1.RunPipelineResponse], error) {

@@ -69,11 +69,882 @@ func (NotificationType) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{0}
 }
 
+// Notifier contains settings and secret references, never destination values.
+type Notifier struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	TenantId         string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PipelineId       string                 `protobuf:"bytes,3,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Name             string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	NotificationType NotificationType       `protobuf:"varint,5,opt,name=notification_type,json=notificationType,proto3,enum=ingestion.v1.NotificationType" json:"notification_type,omitempty"`
+	Enabled          bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Events           []string               `protobuf:"bytes,7,rep,name=events,proto3" json:"events,omitempty"`
+	Resources        []string               `protobuf:"bytes,8,rep,name=resources,proto3" json:"resources,omitempty"`
+	SecretRefs       map[string]string      `protobuf:"bytes,9,rep,name=secret_refs,json=secretRefs,proto3" json:"secret_refs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Version          int64                  `protobuf:"varint,10,opt,name=version,proto3" json:"version,omitempty"`
+	CreatedAt        int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt        int64                  `protobuf:"varint,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	DeletedAt        int64                  `protobuf:"varint,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	CreatedByUserId  string                 `protobuf:"bytes,14,opt,name=created_by_user_id,json=createdByUserId,proto3" json:"created_by_user_id,omitempty"`
+	UpdatedByUserId  string                 `protobuf:"bytes,15,opt,name=updated_by_user_id,json=updatedByUserId,proto3" json:"updated_by_user_id,omitempty"`
+	DeletedByUserId  string                 `protobuf:"bytes,16,opt,name=deleted_by_user_id,json=deletedByUserId,proto3" json:"deleted_by_user_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *Notifier) Reset() {
+	*x = Notifier{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Notifier) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Notifier) ProtoMessage() {}
+
+func (x *Notifier) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Notifier.ProtoReflect.Descriptor instead.
+func (*Notifier) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Notifier) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Notifier) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *Notifier) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *Notifier) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Notifier) GetNotificationType() NotificationType {
+	if x != nil {
+		return x.NotificationType
+	}
+	return NotificationType_NOTIFICATION_TYPE_UNSPECIFIED
+}
+
+func (x *Notifier) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *Notifier) GetEvents() []string {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *Notifier) GetResources() []string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *Notifier) GetSecretRefs() map[string]string {
+	if x != nil {
+		return x.SecretRefs
+	}
+	return nil
+}
+
+func (x *Notifier) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *Notifier) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Notifier) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *Notifier) GetDeletedAt() int64 {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return 0
+}
+
+func (x *Notifier) GetCreatedByUserId() string {
+	if x != nil {
+		return x.CreatedByUserId
+	}
+	return ""
+}
+
+func (x *Notifier) GetUpdatedByUserId() string {
+	if x != nil {
+		return x.UpdatedByUserId
+	}
+	return ""
+}
+
+func (x *Notifier) GetDeletedByUserId() string {
+	if x != nil {
+		return x.DeletedByUserId
+	}
+	return ""
+}
+
+// NotifierInput replaces the rule's settings. An omitted destination on update
+// keeps the existing secret reference.
+type NotifierInput struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	NotificationType NotificationType       `protobuf:"varint,2,opt,name=notification_type,json=notificationType,proto3,enum=ingestion.v1.NotificationType" json:"notification_type,omitempty"`
+	Enabled          bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Events           []string               `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`       // Registered event names, or ["*"].
+	Resources        []string               `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"` // Empty matches any resource.
+	// Types that are valid to be assigned to Channel:
+	//
+	//	*NotifierInput_Webhook
+	Channel       isNotifierInput_Channel `protobuf_oneof:"channel"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifierInput) Reset() {
+	*x = NotifierInput{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifierInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifierInput) ProtoMessage() {}
+
+func (x *NotifierInput) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifierInput.ProtoReflect.Descriptor instead.
+func (*NotifierInput) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *NotifierInput) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NotifierInput) GetNotificationType() NotificationType {
+	if x != nil {
+		return x.NotificationType
+	}
+	return NotificationType_NOTIFICATION_TYPE_UNSPECIFIED
+}
+
+func (x *NotifierInput) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *NotifierInput) GetEvents() []string {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *NotifierInput) GetResources() []string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *NotifierInput) GetChannel() isNotifierInput_Channel {
+	if x != nil {
+		return x.Channel
+	}
+	return nil
+}
+
+func (x *NotifierInput) GetWebhook() *WebhookNotifierInput {
+	if x != nil {
+		if x, ok := x.Channel.(*NotifierInput_Webhook); ok {
+			return x.Webhook
+		}
+	}
+	return nil
+}
+
+type isNotifierInput_Channel interface {
+	isNotifierInput_Channel()
+}
+
+type NotifierInput_Webhook struct {
+	Webhook *WebhookNotifierInput `protobuf:"bytes,6,opt,name=webhook,proto3,oneof"`
+}
+
+func (*NotifierInput_Webhook) isNotifierInput_Channel() {}
+
+type WebhookNotifierInput struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to DestinationSource:
+	//
+	//	*WebhookNotifierInput_Destination
+	//	*WebhookNotifierInput_DestinationSecretRef
+	DestinationSource isWebhookNotifierInput_DestinationSource `protobuf_oneof:"destination_source"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WebhookNotifierInput) Reset() {
+	*x = WebhookNotifierInput{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebhookNotifierInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebhookNotifierInput) ProtoMessage() {}
+
+func (x *WebhookNotifierInput) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebhookNotifierInput.ProtoReflect.Descriptor instead.
+func (*WebhookNotifierInput) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *WebhookNotifierInput) GetDestinationSource() isWebhookNotifierInput_DestinationSource {
+	if x != nil {
+		return x.DestinationSource
+	}
+	return nil
+}
+
+func (x *WebhookNotifierInput) GetDestination() *WebhookNotifierDestination {
+	if x != nil {
+		if x, ok := x.DestinationSource.(*WebhookNotifierInput_Destination); ok {
+			return x.Destination
+		}
+	}
+	return nil
+}
+
+func (x *WebhookNotifierInput) GetDestinationSecretRef() string {
+	if x != nil {
+		if x, ok := x.DestinationSource.(*WebhookNotifierInput_DestinationSecretRef); ok {
+			return x.DestinationSecretRef
+		}
+	}
+	return ""
+}
+
+type isWebhookNotifierInput_DestinationSource interface {
+	isWebhookNotifierInput_DestinationSource()
+}
+
+type WebhookNotifierInput_Destination struct {
+	Destination *WebhookNotifierDestination `protobuf:"bytes,1,opt,name=destination,proto3,oneof"`
+}
+
+type WebhookNotifierInput_DestinationSecretRef struct {
+	DestinationSecretRef string `protobuf:"bytes,2,opt,name=destination_secret_ref,json=destinationSecretRef,proto3,oneof"`
+}
+
+func (*WebhookNotifierInput_Destination) isWebhookNotifierInput_DestinationSource() {}
+
+func (*WebhookNotifierInput_DestinationSecretRef) isWebhookNotifierInput_DestinationSource() {}
+
+// WebhookNotifierDestination is stored as a single secret and is never returned.
+type WebhookNotifierDestination struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,2,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebhookNotifierDestination) Reset() {
+	*x = WebhookNotifierDestination{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebhookNotifierDestination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebhookNotifierDestination) ProtoMessage() {}
+
+func (x *WebhookNotifierDestination) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebhookNotifierDestination.ProtoReflect.Descriptor instead.
+func (*WebhookNotifierDestination) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *WebhookNotifierDestination) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *WebhookNotifierDestination) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+type CreatePipelineNotifierRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	Notifier      *NotifierInput         `protobuf:"bytes,2,opt,name=notifier,proto3" json:"notifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePipelineNotifierRequest) Reset() {
+	*x = CreatePipelineNotifierRequest{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePipelineNotifierRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePipelineNotifierRequest) ProtoMessage() {}
+
+func (x *CreatePipelineNotifierRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePipelineNotifierRequest.ProtoReflect.Descriptor instead.
+func (*CreatePipelineNotifierRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreatePipelineNotifierRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *CreatePipelineNotifierRequest) GetNotifier() *NotifierInput {
+	if x != nil {
+		return x.Notifier
+	}
+	return nil
+}
+
+type CreatePipelineNotifierResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notifier      *Notifier              `protobuf:"bytes,1,opt,name=notifier,proto3" json:"notifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePipelineNotifierResponse) Reset() {
+	*x = CreatePipelineNotifierResponse{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePipelineNotifierResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePipelineNotifierResponse) ProtoMessage() {}
+
+func (x *CreatePipelineNotifierResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePipelineNotifierResponse.ProtoReflect.Descriptor instead.
+func (*CreatePipelineNotifierResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreatePipelineNotifierResponse) GetNotifier() *Notifier {
+	if x != nil {
+		return x.Notifier
+	}
+	return nil
+}
+
+type UpdatePipelineNotifierRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	NotifierId    string                 `protobuf:"bytes,2,opt,name=notifier_id,json=notifierId,proto3" json:"notifier_id,omitempty"`
+	Version       int64                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	Notifier      *NotifierInput         `protobuf:"bytes,4,opt,name=notifier,proto3" json:"notifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePipelineNotifierRequest) Reset() {
+	*x = UpdatePipelineNotifierRequest{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePipelineNotifierRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePipelineNotifierRequest) ProtoMessage() {}
+
+func (x *UpdatePipelineNotifierRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePipelineNotifierRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePipelineNotifierRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UpdatePipelineNotifierRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *UpdatePipelineNotifierRequest) GetNotifierId() string {
+	if x != nil {
+		return x.NotifierId
+	}
+	return ""
+}
+
+func (x *UpdatePipelineNotifierRequest) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *UpdatePipelineNotifierRequest) GetNotifier() *NotifierInput {
+	if x != nil {
+		return x.Notifier
+	}
+	return nil
+}
+
+type UpdatePipelineNotifierResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notifier      *Notifier              `protobuf:"bytes,1,opt,name=notifier,proto3" json:"notifier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePipelineNotifierResponse) Reset() {
+	*x = UpdatePipelineNotifierResponse{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePipelineNotifierResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePipelineNotifierResponse) ProtoMessage() {}
+
+func (x *UpdatePipelineNotifierResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePipelineNotifierResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePipelineNotifierResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UpdatePipelineNotifierResponse) GetNotifier() *Notifier {
+	if x != nil {
+		return x.Notifier
+	}
+	return nil
+}
+
+type ListPipelineNotifiersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPipelineNotifiersRequest) Reset() {
+	*x = ListPipelineNotifiersRequest{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPipelineNotifiersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPipelineNotifiersRequest) ProtoMessage() {}
+
+func (x *ListPipelineNotifiersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPipelineNotifiersRequest.ProtoReflect.Descriptor instead.
+func (*ListPipelineNotifiersRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListPipelineNotifiersRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+type ListPipelineNotifiersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Notifiers     []*Notifier            `protobuf:"bytes,1,rep,name=notifiers,proto3" json:"notifiers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPipelineNotifiersResponse) Reset() {
+	*x = ListPipelineNotifiersResponse{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPipelineNotifiersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPipelineNotifiersResponse) ProtoMessage() {}
+
+func (x *ListPipelineNotifiersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPipelineNotifiersResponse.ProtoReflect.Descriptor instead.
+func (*ListPipelineNotifiersResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListPipelineNotifiersResponse) GetNotifiers() []*Notifier {
+	if x != nil {
+		return x.Notifiers
+	}
+	return nil
+}
+
+type DeletePipelineNotifierRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PipelineId    string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
+	NotifierId    string                 `protobuf:"bytes,2,opt,name=notifier_id,json=notifierId,proto3" json:"notifier_id,omitempty"`
+	Version       int64                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePipelineNotifierRequest) Reset() {
+	*x = DeletePipelineNotifierRequest{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePipelineNotifierRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePipelineNotifierRequest) ProtoMessage() {}
+
+func (x *DeletePipelineNotifierRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePipelineNotifierRequest.ProtoReflect.Descriptor instead.
+func (*DeletePipelineNotifierRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeletePipelineNotifierRequest) GetPipelineId() string {
+	if x != nil {
+		return x.PipelineId
+	}
+	return ""
+}
+
+func (x *DeletePipelineNotifierRequest) GetNotifierId() string {
+	if x != nil {
+		return x.NotifierId
+	}
+	return ""
+}
+
+func (x *DeletePipelineNotifierRequest) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type DeletePipelineNotifierResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeletePipelineNotifierResponse) Reset() {
+	*x = DeletePipelineNotifierResponse{}
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeletePipelineNotifierResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeletePipelineNotifierResponse) ProtoMessage() {}
+
+func (x *DeletePipelineNotifierResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_notifiers_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeletePipelineNotifierResponse.ProtoReflect.Descriptor instead.
+func (*DeletePipelineNotifierResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_notifiers_proto_rawDescGZIP(), []int{11}
+}
+
 var File_ingestion_v1_notifiers_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_notifiers_proto_rawDesc = "" +
 	"\n" +
-	"\x1cingestion/v1/notifiers.proto\x12\fingestion.v1*T\n" +
+	"\x1cingestion/v1/notifiers.proto\x12\fingestion.v1\"\x8f\x05\n" +
+	"\bNotifier\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1f\n" +
+	"\vpipeline_id\x18\x03 \x01(\tR\n" +
+	"pipelineId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12K\n" +
+	"\x11notification_type\x18\x05 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x16\n" +
+	"\x06events\x18\a \x03(\tR\x06events\x12\x1c\n" +
+	"\tresources\x18\b \x03(\tR\tresources\x12G\n" +
+	"\vsecret_refs\x18\t \x03(\v2&.ingestion.v1.Notifier.SecretRefsEntryR\n" +
+	"secretRefs\x12\x18\n" +
+	"\aversion\x18\n" +
+	" \x01(\x03R\aversion\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\x03R\tupdatedAt\x12\x1d\n" +
+	"\n" +
+	"deleted_at\x18\r \x01(\x03R\tdeletedAt\x12+\n" +
+	"\x12created_by_user_id\x18\x0e \x01(\tR\x0fcreatedByUserId\x12+\n" +
+	"\x12updated_by_user_id\x18\x0f \x01(\tR\x0fupdatedByUserId\x12+\n" +
+	"\x12deleted_by_user_id\x18\x10 \x01(\tR\x0fdeletedByUserId\x1a=\n" +
+	"\x0fSecretRefsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x02\n" +
+	"\rNotifierInput\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12K\n" +
+	"\x11notification_type\x18\x02 \x01(\x0e2\x1e.ingestion.v1.NotificationTypeR\x10notificationType\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x16\n" +
+	"\x06events\x18\x04 \x03(\tR\x06events\x12\x1c\n" +
+	"\tresources\x18\x05 \x03(\tR\tresources\x12>\n" +
+	"\awebhook\x18\x06 \x01(\v2\".ingestion.v1.WebhookNotifierInputH\x00R\awebhookB\t\n" +
+	"\achannel\"\xb2\x01\n" +
+	"\x14WebhookNotifierInput\x12L\n" +
+	"\vdestination\x18\x01 \x01(\v2(.ingestion.v1.WebhookNotifierDestinationH\x00R\vdestination\x126\n" +
+	"\x16destination_secret_ref\x18\x02 \x01(\tH\x00R\x14destinationSecretRefB\x14\n" +
+	"\x12destination_source\"\xbb\x01\n" +
+	"\x1aWebhookNotifierDestination\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12O\n" +
+	"\aheaders\x18\x02 \x03(\v25.ingestion.v1.WebhookNotifierDestination.HeadersEntryR\aheaders\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"y\n" +
+	"\x1dCreatePipelineNotifierRequest\x12\x1f\n" +
+	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"pipelineId\x127\n" +
+	"\bnotifier\x18\x02 \x01(\v2\x1b.ingestion.v1.NotifierInputR\bnotifier\"T\n" +
+	"\x1eCreatePipelineNotifierResponse\x122\n" +
+	"\bnotifier\x18\x01 \x01(\v2\x16.ingestion.v1.NotifierR\bnotifier\"\xb4\x01\n" +
+	"\x1dUpdatePipelineNotifierRequest\x12\x1f\n" +
+	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"pipelineId\x12\x1f\n" +
+	"\vnotifier_id\x18\x02 \x01(\tR\n" +
+	"notifierId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x03R\aversion\x127\n" +
+	"\bnotifier\x18\x04 \x01(\v2\x1b.ingestion.v1.NotifierInputR\bnotifier\"T\n" +
+	"\x1eUpdatePipelineNotifierResponse\x122\n" +
+	"\bnotifier\x18\x01 \x01(\v2\x16.ingestion.v1.NotifierR\bnotifier\"?\n" +
+	"\x1cListPipelineNotifiersRequest\x12\x1f\n" +
+	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"pipelineId\"U\n" +
+	"\x1dListPipelineNotifiersResponse\x124\n" +
+	"\tnotifiers\x18\x01 \x03(\v2\x16.ingestion.v1.NotifierR\tnotifiers\"{\n" +
+	"\x1dDeletePipelineNotifierRequest\x12\x1f\n" +
+	"\vpipeline_id\x18\x01 \x01(\tR\n" +
+	"pipelineId\x12\x1f\n" +
+	"\vnotifier_id\x18\x02 \x01(\tR\n" +
+	"notifierId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x03R\aversion\" \n" +
+	"\x1eDeletePipelineNotifierResponse*T\n" +
 	"\x10NotificationType\x12!\n" +
 	"\x1dNOTIFICATION_TYPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19NOTIFICATION_TYPE_WEBHOOK\x10\x01B\xaf\x01\n" +
@@ -92,15 +963,41 @@ func file_ingestion_v1_notifiers_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_notifiers_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_ingestion_v1_notifiers_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_ingestion_v1_notifiers_proto_goTypes = []any{
-	(NotificationType)(0), // 0: ingestion.v1.NotificationType
+	(NotificationType)(0),                  // 0: ingestion.v1.NotificationType
+	(*Notifier)(nil),                       // 1: ingestion.v1.Notifier
+	(*NotifierInput)(nil),                  // 2: ingestion.v1.NotifierInput
+	(*WebhookNotifierInput)(nil),           // 3: ingestion.v1.WebhookNotifierInput
+	(*WebhookNotifierDestination)(nil),     // 4: ingestion.v1.WebhookNotifierDestination
+	(*CreatePipelineNotifierRequest)(nil),  // 5: ingestion.v1.CreatePipelineNotifierRequest
+	(*CreatePipelineNotifierResponse)(nil), // 6: ingestion.v1.CreatePipelineNotifierResponse
+	(*UpdatePipelineNotifierRequest)(nil),  // 7: ingestion.v1.UpdatePipelineNotifierRequest
+	(*UpdatePipelineNotifierResponse)(nil), // 8: ingestion.v1.UpdatePipelineNotifierResponse
+	(*ListPipelineNotifiersRequest)(nil),   // 9: ingestion.v1.ListPipelineNotifiersRequest
+	(*ListPipelineNotifiersResponse)(nil),  // 10: ingestion.v1.ListPipelineNotifiersResponse
+	(*DeletePipelineNotifierRequest)(nil),  // 11: ingestion.v1.DeletePipelineNotifierRequest
+	(*DeletePipelineNotifierResponse)(nil), // 12: ingestion.v1.DeletePipelineNotifierResponse
+	nil,                                    // 13: ingestion.v1.Notifier.SecretRefsEntry
+	nil,                                    // 14: ingestion.v1.WebhookNotifierDestination.HeadersEntry
 }
 var file_ingestion_v1_notifiers_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: ingestion.v1.Notifier.notification_type:type_name -> ingestion.v1.NotificationType
+	13, // 1: ingestion.v1.Notifier.secret_refs:type_name -> ingestion.v1.Notifier.SecretRefsEntry
+	0,  // 2: ingestion.v1.NotifierInput.notification_type:type_name -> ingestion.v1.NotificationType
+	3,  // 3: ingestion.v1.NotifierInput.webhook:type_name -> ingestion.v1.WebhookNotifierInput
+	4,  // 4: ingestion.v1.WebhookNotifierInput.destination:type_name -> ingestion.v1.WebhookNotifierDestination
+	14, // 5: ingestion.v1.WebhookNotifierDestination.headers:type_name -> ingestion.v1.WebhookNotifierDestination.HeadersEntry
+	2,  // 6: ingestion.v1.CreatePipelineNotifierRequest.notifier:type_name -> ingestion.v1.NotifierInput
+	1,  // 7: ingestion.v1.CreatePipelineNotifierResponse.notifier:type_name -> ingestion.v1.Notifier
+	2,  // 8: ingestion.v1.UpdatePipelineNotifierRequest.notifier:type_name -> ingestion.v1.NotifierInput
+	1,  // 9: ingestion.v1.UpdatePipelineNotifierResponse.notifier:type_name -> ingestion.v1.Notifier
+	1,  // 10: ingestion.v1.ListPipelineNotifiersResponse.notifiers:type_name -> ingestion.v1.Notifier
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_notifiers_proto_init() }
@@ -108,19 +1005,27 @@ func file_ingestion_v1_notifiers_proto_init() {
 	if File_ingestion_v1_notifiers_proto != nil {
 		return
 	}
+	file_ingestion_v1_notifiers_proto_msgTypes[1].OneofWrappers = []any{
+		(*NotifierInput_Webhook)(nil),
+	}
+	file_ingestion_v1_notifiers_proto_msgTypes[2].OneofWrappers = []any{
+		(*WebhookNotifierInput_Destination)(nil),
+		(*WebhookNotifierInput_DestinationSecretRef)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_notifiers_proto_rawDesc), len(file_ingestion_v1_notifiers_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   0,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_ingestion_v1_notifiers_proto_goTypes,
 		DependencyIndexes: file_ingestion_v1_notifiers_proto_depIdxs,
 		EnumInfos:         file_ingestion_v1_notifiers_proto_enumTypes,
+		MessageInfos:      file_ingestion_v1_notifiers_proto_msgTypes,
 	}.Build()
 	File_ingestion_v1_notifiers_proto = out.File
 	file_ingestion_v1_notifiers_proto_goTypes = nil
