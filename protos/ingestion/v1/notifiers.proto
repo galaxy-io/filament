@@ -8,3 +8,85 @@ enum NotificationType {
   NOTIFICATION_TYPE_UNSPECIFIED = 0;
   NOTIFICATION_TYPE_WEBHOOK = 1;
 }
+
+// Notifier contains settings and secret references, never destination values.
+message Notifier {
+  string id = 1;
+  string tenant_id = 2;
+  string pipeline_id = 3;
+  string name = 4;
+  NotificationType notification_type = 5;
+  bool is_enabled = 6;
+  repeated string events = 7;
+  repeated string resources = 8;
+  map<string, string> secret_refs = 9;
+  int64 version = 10;
+  int64 created_at = 11;
+  int64 updated_at = 12;
+  int64 deleted_at = 13;
+  string created_by_user_id = 14;
+  string updated_by_user_id = 15;
+  string deleted_by_user_id = 16;
+}
+
+// NotifierInput replaces the rule's settings. An omitted destination on update
+// keeps the existing secret reference.
+message NotifierInput {
+  string name = 1;
+  NotificationType notification_type = 2;
+  bool is_enabled = 3;
+  repeated string events = 4; // Registered event names, or ["*"].
+  repeated string resources = 5; // Empty matches any resource.
+  oneof channel {
+    WebhookNotifierInput webhook = 6;
+  }
+}
+
+message WebhookNotifierInput {
+  oneof destination_source {
+    WebhookNotifierDestination destination = 1;
+    string destination_secret_ref = 2;
+  }
+}
+
+// WebhookNotifierDestination is stored as a single secret and is never returned.
+message WebhookNotifierDestination {
+  string url = 1;
+  map<string, string> headers = 2;
+}
+
+message CreatePipelineNotifierRequest {
+  string pipeline_id = 1;
+  NotifierInput notifier = 2;
+}
+
+message CreatePipelineNotifierResponse {
+  Notifier notifier = 1;
+}
+
+message UpdatePipelineNotifierRequest {
+  string pipeline_id = 1;
+  string notifier_id = 2;
+  int64 version = 3;
+  NotifierInput notifier = 4;
+}
+
+message UpdatePipelineNotifierResponse {
+  Notifier notifier = 1;
+}
+
+message ListPipelineNotifiersRequest {
+  string pipeline_id = 1;
+}
+
+message ListPipelineNotifiersResponse {
+  repeated Notifier notifiers = 1;
+}
+
+message DeletePipelineNotifierRequest {
+  string pipeline_id = 1;
+  string notifier_id = 2;
+  int64 version = 3;
+}
+
+message DeletePipelineNotifierResponse {}

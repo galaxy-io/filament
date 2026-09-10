@@ -127,3 +127,60 @@ schedule is removed only when its pipeline is deleted. The scheduler
 pre-creates a `SCHEDULED` run row for the next fire. See
 [Runs](/pages/api-reference/service/runs#listruns) for how that appears in
 listings.
+
+## Notifications
+
+A pipeline can have multiple independent notification rules, managed through
+`CreatePipelineNotifier`, `UpdatePipelineNotifier`, `ListPipelineNotifiers`,
+and `DeletePipelineNotifier`. The messages are defined in
+`protos/ingestion/v1/notifiers.proto`.
+
+This API currently saves configuration only. Event consumption and webhook
+delivery will be added separately.
+
+Create takes `pipeline_id` and a `notifier` input:
+
+```json
+{
+  "pipelineId": "<pipeline-id>",
+  "notifier": {
+    "name": "Pipeline notifications",
+    "notificationType": "NOTIFICATION_TYPE_WEBHOOK",
+    "isEnabled": true,
+    "events": ["*"],
+    "webhook": {
+      "destination": {
+        "url": "https://example.com/webhook",
+        "headers": {"Authorization": "Bearer <token>"}
+      }
+    }
+  }
+}
+```
+
+`events` accepts registered ingestion event names or `["*"]`; notifier
+lifecycle events cannot trigger rules. Optional `resources` contains exact
+resource names; an empty list matches any resource. Headers are optional and
+can include a custom API-key header. Filament supplies `Content-Type` and
+`Filament-*` headers, so those names cannot be overridden.
+
+The whole destination, including its URL, is stored through the configured
+secrets provider. Responses contain settings and `secret_refs`, never the URL
+or header values. To use a pre-existing secret, supply
+`webhook.destinationSecretRef` instead of `webhook.destination`. Its value
+must be JSON containing `url` and optional `headers`. Read-only providers,
+including environment variables, support this reference form; inline values
+require a writable provider. Saving validates the destination's format but
+does not contact the endpoint or verify its credentials.
+
+Update takes `pipeline_id`, `notifier_id`, the last-read `version`, and the
+replacement `notifier` settings. Omit `webhook` to keep the existing
+destination. Supplying a destination replaces it entirely, including headers.
+The notification type cannot change. Delete takes the same IDs and version;
+stale updates or deletes return `aborted`.
+
+List returns all live rules for the pipeline, including disabled rules.
+Notifiers are soft-deleted with their pipeline. Replaced or deleted secrets
+created by this API are removed on a best-effort basis after the database
+change succeeds; external references are never deleted. Managed destination
+references cannot be shared between notifiers.
