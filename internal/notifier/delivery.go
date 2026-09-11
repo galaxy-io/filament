@@ -67,9 +67,9 @@ type DeliveryResult struct {
 	ErrorCode        ErrorCode
 }
 
-// Sender delivers one notification. Remote failures are results; errors are internal failures.
+// Sender delivers one notification and reports its outcome.
 type Sender interface {
-	Send(context.Context, Notification) (DeliveryResult, error)
+	Send(context.Context, Notification) DeliveryResult
 }
 
 // DeliveryID is stable for a notifier and source message, including redelivery.

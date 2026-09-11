@@ -3,6 +3,7 @@ package notifier
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -111,15 +112,7 @@ func (m *Module) deliver(ctx context.Context, trigger notification.Notification,
 		return out
 	}
 	out.notification.Config = config
-	out.result, err = sender.Send(ctx, out.notification)
-	if err != nil {
-		out.result.Outcome = notification.OutcomeFailed
-		if out.result.RequestAttempted {
-			out.result.Outcome = notification.OutcomeUnknown
-		}
-		out.result.Retryable = true
-		out.result.ErrorCode = notification.ErrorInternal
-	}
+	out.result = sender.Send(ctx, out.notification)
 	return out
 }
 
@@ -135,7 +128,7 @@ func (m *Module) resolveDestination(ctx context.Context, trigger notification.No
 		return rule, nil, errInactiveRule
 	}
 	if loadErr != nil {
-		return rule, nil, errors.New("could not reload notifier")
+		return rule, nil, fmt.Errorf("reload notifier: %w", loadErr)
 	}
 	if current.Tenant != trigger.Tenant || current.PipelineID != trigger.PipelineID || current.ID != rule.ID {
 		return rule, nil, errInvalidConfiguration

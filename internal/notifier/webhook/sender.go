@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -35,20 +34,20 @@ func New(client *http.Client) *Sender {
 }
 
 // Send makes one request. The event bus owns retries.
-func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result notifier.DeliveryResult, err error) {
+func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result notifier.DeliveryResult) {
 	started := time.Now()
 	defer func() { result.Duration = time.Since(started) }()
 	result.Outcome = notifier.OutcomeFailed
 	if ctx.Err() != nil {
 		result.Retryable = true
 		result.ErrorCode = transportErrorCode(ctx.Err())
-		return result, nil
+		return result
 	}
 	destination, err := ParseDestination(n.Config)
 	if err != nil {
 		result.Retryable = true
 		result.ErrorCode = notifier.ErrorInvalidConfiguration
-		return result, nil
+		return result
 	}
 	body, err := json.Marshal(payload{
 		SchemaVersion: "1", NotifierID: n.NotifierID, NotifierVersion: n.NotifierVersion,
@@ -56,8 +55,9 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 		TriggerStreamSequence: n.TriggerStreamSequence, Event: n.Event,
 	})
 	if err != nil {
+		result.Retryable = true
 		result.ErrorCode = notifier.ErrorInternal
-		return result, fmt.Errorf("webhook: could not encode notification event")
+		return result
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -65,7 +65,7 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 	if err != nil {
 		result.Retryable = true
 		result.ErrorCode = notifier.ErrorInvalidConfiguration
-		return result, nil
+		return result
 	}
 	for name, value := range destination.Headers {
 		if name == "Host" {
@@ -75,23 +75,23 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 		}
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Filament-Delivery-Id", n.DeliveryID)
-	req.Header.Set("Filament-Attempt-Id", n.AttemptID)
-	req.Header.Set("Filament-Event-Type", n.TriggerType)
+	req.Header.Set("X-Filament-Delivery-ID", n.DeliveryID)
+	req.Header.Set("X-Filament-Attempt-ID", n.AttemptID)
+	req.Header.Set("X-Filament-Event-Type", n.TriggerType)
 	result.RequestAttempted = true
 	response, err := s.client.Do(req)
 	if err != nil {
 		result.Outcome = transportOutcome(err)
 		result.Retryable = true
 		result.ErrorCode = transportErrorCode(err)
-		return result, nil
+		return result
 	}
 	defer func() { _ = response.Body.Close() }()
 	// Drain a small response for connection reuse. Never retain its contents.
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4*1024))
 	result.StatusCode = response.StatusCode
 	result.Outcome, result.Retryable, result.ErrorCode = statusResult(response.StatusCode)
-	return result, nil
+	return result
 }
 
 type payload struct {

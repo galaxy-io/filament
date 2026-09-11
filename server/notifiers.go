@@ -143,10 +143,10 @@ func (a *Server) notifierPipeline(ctx context.Context, pipelineID string) (notif
 func notifierStoreError(err error) error {
 	switch {
 	case errors.Is(err, filament.ErrNotFound):
-		return connect.NewError(connect.CodeNotFound, fmt.Errorf("pipeline or notifier not found"))
+		return connect.NewError(connect.CodeNotFound, fmt.Errorf("pipeline or notifier not found: %w", err))
 	case errors.Is(err, filament.ErrVersionConflict):
-		return connect.NewError(connect.CodeAborted, fmt.Errorf("notifier version conflict; reload before retrying"))
+		return connect.NewError(connect.CodeAborted, fmt.Errorf("notifier version conflict; reload before retrying: %w", err))
 	default:
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("notifier storage operation failed"))
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("notifier storage operation failed: %w", err))
 	}
 }

@@ -11,7 +11,7 @@ import (
 // Destination validation and secret ownership checks belong to the selected channel and API.
 func NormalizeAndValidate(n Notifier, eventNames []string) (Notifier, error) {
 	if _, err := n.NotificationType.Label(); err != nil {
-		return Notifier{}, fmt.Errorf("notifier: unsupported notification type")
+		return Notifier{}, fmt.Errorf("notifier: %w", err)
 	}
 	n.Name = strings.TrimSpace(n.Name)
 	if !utf8.ValidString(n.Name) {
