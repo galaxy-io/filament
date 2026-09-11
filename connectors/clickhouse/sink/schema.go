@@ -1,11 +1,19 @@
 package clickhouse
 
 import (
+	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/rowmodel"
+)
+
+const (
+	mergeTreeEngine          = "MergeTree"
+	replacingMergeTreeEngine = "ReplacingMergeTree"
+	sharedEnginePrefix       = "Shared"
 )
 
 func quoteIdent(s string) string {
@@ -105,4 +113,132 @@ func createTableDDL(database, table string, schema rowmodel.Schema, upsert bool,
 	ddl := "CREATE TABLE IF NOT EXISTS " + qualified(database, table) + " (\n\t" +
 		strings.Join(defs, ",\n\t") + "\n) ENGINE = " + engine + " ORDER BY " + orderBy(schema)
 	return ddl, idents, nil
+}
+
+// EnsureSchema creates or evolves one resource table before records arrive.
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
+	if s.conn == nil {
+		return fmt.Errorf("clickhouse sink: ensure schema before open")
+	}
+	mode := s.modeFor(resource)
+	upsert := mode == filament.WriteUpsert
+	version := filament.VersionPolicy{}
+	if policy, ok := s.policies[resource]; ok {
+		version = policy.Version
+	} else if policy, ok := s.policies[""]; ok {
+		version = policy.Version
+	}
+	if upsert && version.Strategy == "" {
+		version.Strategy = filament.VersionInsertOrder
+	}
+	stage := ""
+	writeTable := resource
+	if mode == filament.WriteReplace {
+		stage = stageTableName(s.run, resource)
+		writeTable = stage
+		if err := s.conn.Exec(ctx, "DROP TABLE IF EXISTS "+qualified(s.database, stage)); err != nil {
+			return fmt.Errorf("clickhouse sink: drop stale stage for %q: %w", resource, err)
+		}
+	}
+
+	ddl, idents, err := createTableDDL(s.database, writeTable, schema, upsert, version)
+	if err != nil {
+		return fmt.Errorf("clickhouse sink: schema for %q: %w", resource, err)
+	}
+	if err := s.conn.Exec(ctx, ddl); err != nil {
+		return fmt.Errorf("clickhouse sink: create table for %q: %w", resource, err)
+	}
+	if stage == "" {
+		if err := s.validateTable(ctx, resource, schema, upsert, version); err != nil {
+			return err
+		}
+		defs, _, err := schemaColumns(schema, upsert, version)
+		if err != nil {
+			return err
+		}
+		for _, def := range defs {
+			if err := s.conn.Exec(ctx, "ALTER TABLE "+qualified(s.database, resource)+" ADD COLUMN IF NOT EXISTS "+def); err != nil {
+				return fmt.Errorf("clickhouse sink: add column on %q: %w", resource, err)
+			}
+		}
+	}
+
+	writeTo := qualified(s.database, writeTable)
+	s.tables[resource] = &table{
+		name: resource, qualified: qualified(s.database, resource), writeTo: writeTo,
+		stage: stage, insertSQL: "INSERT INTO " + writeTo + " (" + strings.Join(idents, ", ") + ")",
+	}
+	return nil
+}
+
+func (s *Sink) validateTable(ctx context.Context, resource string, schema rowmodel.Schema, upsert bool, version filament.VersionPolicy) error {
+	var engine, engineFull string
+	if err := s.conn.QueryRow(ctx,
+		"SELECT engine, engine_full FROM system.tables WHERE database = ? AND name = ?", s.database, resource).Scan(&engine, &engineFull); err != nil {
+		return fmt.Errorf("clickhouse sink: inspect table %q: %w", resource, err)
+	}
+	want := mergeTreeEngine
+	if upsert {
+		want = replacingMergeTreeEngine
+	}
+	if !matchesTableEngine(engine, want) {
+		return fmt.Errorf("clickhouse sink: table %q uses engine %s, need %s for write policy %q", resource, engine, want, s.modeFor(resource))
+	}
+	if !upsert {
+		return nil
+	}
+	versionField, err := versionField(schema, version)
+	if err != nil {
+		return fmt.Errorf("clickhouse sink: table %q version policy: %w", resource, err)
+	}
+	if !matchesReplacingVersion(engineFull, versionField) {
+		wantVersion := "insertion order"
+		if versionField != "" {
+			wantVersion = versionField
+		}
+		return fmt.Errorf("clickhouse sink: table %q must use %s as its ReplacingMergeTree version", resource, wantVersion)
+	}
+	rows, err := s.conn.Query(ctx,
+		"SELECT name FROM system.columns WHERE database = ? AND table = ? AND is_in_sorting_key ORDER BY name", s.database, resource)
+	if err != nil {
+		return fmt.Errorf("clickhouse sink: inspect sorting key for %q: %w", resource, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return fmt.Errorf("clickhouse sink: scan sorting key for %q: %w", resource, err)
+		}
+		got = append(got, name)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("clickhouse sink: sorting key for %q: %w", resource, err)
+	}
+	wantKeys := append([]string(nil), schema.PrimaryKey...)
+	sort.Strings(wantKeys)
+	if strings.Join(got, "\x00") != strings.Join(wantKeys, "\x00") {
+		return fmt.Errorf("clickhouse sink: table %q sorting key %v must exactly match source primary key %v", resource, got, schema.PrimaryKey)
+	}
+	return nil
+}
+
+func matchesReplacingVersion(engineFull, field string) bool {
+	compact := strings.NewReplacer(" ", "", "`", "").Replace(engineFull)
+	compact = strings.TrimPrefix(compact, sharedEnginePrefix)
+	rest, ok := strings.CutPrefix(compact, replacingMergeTreeEngine)
+	if !ok {
+		return false
+	}
+	if field != "" {
+		return strings.HasPrefix(rest, "("+field+")")
+	}
+	// ClickHouse may render the parameterless engine with or without (). Reject
+	// any non-empty argument so cursor-versioned tables cannot be mistaken for
+	// insertion-order tables.
+	return !strings.HasPrefix(rest, "(") || strings.HasPrefix(rest, "()")
+}
+
+func matchesTableEngine(got, want string) bool {
+	return got == want || got == sharedEnginePrefix+want
 }

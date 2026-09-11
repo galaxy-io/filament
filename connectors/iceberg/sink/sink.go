@@ -5,31 +5,17 @@ package iceberg
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"sync"
 
 	iceberg "github.com/apache/iceberg-go"
-	"github.com/apache/iceberg-go/catalog"
+	icecatalog "github.com/apache/iceberg-go/catalog"
 	icetable "github.com/apache/iceberg-go/table"
 	"github.com/google/uuid"
 
-	// Blank imports register each catalog backend's factory in the iceberg-go
-	// catalog registry via its init(). catalog.Load then dispatches on the
-	// configured "type" (or URI scheme).
-	_ "github.com/apache/iceberg-go/catalog/glue"
-	_ "github.com/apache/iceberg-go/catalog/hive"
-	_ "github.com/apache/iceberg-go/catalog/rest"
-	_ "github.com/apache/iceberg-go/catalog/sql"
-
-	// Registers the FileIO backends (s3/s3a/s3n, gs, azure) that read and write
-	// the actual data and metadata files.
-	_ "github.com/apache/iceberg-go/io/gocloud"
-
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/rowmodel"
+	icebergcatalog "github.com/galaxy-io/filament/connectors/iceberg/internal/catalog"
 )
 
 const (
@@ -57,7 +43,7 @@ type Sink struct {
 	writeModes         map[string]writeMode
 	run                filament.RunID
 
-	cat catalog.Catalog
+	cat icecatalog.Catalog
 
 	mu       sync.Mutex
 	tables   map[string]*iceTable // populated by EnsureSchema
@@ -96,47 +82,6 @@ var (
 	_ filament.Schematized     = (*Sink)(nil)
 )
 
-// Spec reports the sink's capabilities and configuration surface.
-func (s *Sink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{
-		Name:         "iceberg",
-		DisplayName:  "Apache Iceberg",
-		Description:  "Open table format for large-scale analytics on data lakes with schema evolution and time travel.",
-		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg",
-		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg",
-		Version:      "2",
-		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			catalogConfigField(),
-			tableConfigField(),
-			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables. Empty defaults to the normalized source connection name."},
-			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
-		}},
-		SchemaField: "namespace",
-		Capabilities: filament.SinkCapabilities{
-			Transactional: true,
-			Schematized:   true,
-			WritePolicies: commitDurableCapabilities(
-				filament.IngestionFullReplace,
-				filament.IngestionFullAppend,
-				filament.IngestionFullUpsert,
-				filament.IngestionIncrementalUpsert,
-				filament.IngestionIncrementalDelete,
-				filament.IngestionCDCMerge,
-				filament.IngestionCDCAppend,
-			),
-		},
-	}
-}
-
-func commitDurableCapabilities(types ...filament.IngestionType) []filament.WritePolicyCapability {
-	capabilities := filament.WriteCapabilities(types...)
-	for i := range capabilities {
-		capabilities[i].Durability = filament.DurabilityAfterCommit
-		capabilities[i].Atomicity = filament.AtomicityResource
-	}
-	return capabilities
-}
-
 // Name identifies this sink implementation.
 func (s *Sink) Name() string { return "iceberg" }
 
@@ -144,16 +89,12 @@ func (s *Sink) Name() string { return "iceberg" }
 // namespace listing. This exercises catalog authentication without creating
 // a namespace or table.
 func (s *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	setup, err := buildCatalogSetup(cfg)
+	setup, err := icebergcatalog.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)
 	}
-	cat, err := catalog.Load(ctx, "iceberg-validation", setup.Properties)
-	if err != nil {
-		return fmt.Errorf("iceberg sink: open catalog: %w", err)
-	}
-	if _, err := cat.ListNamespaces(ctx, nil); err != nil {
-		return fmt.Errorf("iceberg sink: list namespaces: %w", err)
+	if err := icebergcatalog.Test(ctx, setup); err != nil {
+		return fmt.Errorf("iceberg sink: %w", err)
 	}
 	return nil
 }
@@ -171,11 +112,11 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	setup, err := buildCatalogSetup(cfg)
+	setup, err := icebergcatalog.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)
 	}
-	cat, err := catalog.Load(ctx, "iceberg", setup.Properties)
+	cat, err := icebergcatalog.Open(ctx, "iceberg", setup)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: open catalog: %w", err)
 	}
@@ -192,61 +133,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// EnsureSchema creates the Iceberg table if absent, or evolves it by adding any
-// columns not yet present.
-func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
-	s.mu.Lock()
-	cat := s.cat
-	s.mu.Unlock()
-	if cat == nil {
-		return fmt.Errorf("iceberg sink: EnsureSchema called before Open")
-	}
-
-	// Create the namespace first: a strict REST catalog rejects CreateTable with
-	// NoSuchNamespace otherwise. Idempotent — an existing namespace is fine.
-	nsIdent := catalog.ToIdentifier(splitNamespace(s.namespace)...)
-	if err := cat.CreateNamespace(ctx, nsIdent, nil); err != nil &&
-		!errors.Is(err, catalog.ErrNamespaceAlreadyExists) {
-		return fmt.Errorf("iceberg sink: create namespace %s: %w", s.namespace, err)
-	}
-
-	iceSchema := buildIcebergSchema(schema)
-	ident := s.tableIdent(resource)
-	createOpts := []catalog.CreateTableOpt{
-		catalog.WithProperties(iceberg.Properties{"write.format.default": "parquet"}),
-	}
-	if s.tableLocationRoot != "" {
-		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), tableName(resource))
-		createOpts = append(createOpts, catalog.WithLocation(location))
-	}
-	tbl, err := cat.CreateTable(ctx, ident, iceSchema, createOpts...)
-	if errors.Is(err, catalog.ErrTableAlreadyExists) {
-		tbl, err = cat.LoadTable(ctx, ident)
-		if err != nil {
-			return fmt.Errorf("iceberg sink: load table %s: %w", resource, err)
-		}
-		if err := evolveSchema(ctx, tbl, schema); err != nil {
-			return fmt.Errorf("iceberg sink: evolve schema %s: %w", resource, err)
-		}
-		tbl, err = cat.LoadTable(ctx, ident)
-		if err != nil {
-			return fmt.Errorf("iceberg sink: reload table %s: %w", resource, err)
-		}
-	} else if err != nil {
-		return fmt.Errorf("iceberg sink: create table %s: %w", resource, err)
-	}
-
-	s.mu.Lock()
-	s.tables[resource] = &iceTable{
-		tbl:        tbl,
-		schema:     tbl.Schema(),
-		primaryKey: append([]string(nil), schema.PrimaryKey...),
-	}
-	s.writeModes[resource] = s.writeModeForResource(resource)
-	s.mu.Unlock()
-	return nil
-}
-
 // Stage opens a new staging scope; batches applied under it commit atomically.
 func (s *Sink) Stage(_ context.Context) (filament.StageID, error) {
 	s.mu.Lock()
@@ -258,55 +144,6 @@ func (s *Sink) Stage(_ context.Context) (filament.StageID, error) {
 	s.stages[id] = newStage(id)
 	s.curStage = id
 	return id, nil
-}
-
-// Apply validates the batch against the run's write policy and buffers it
-// for the resource's table, retaining its rows until commit (or spilling them).
-func (s *Sink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	s.mu.Lock()
-	it := s.tables[b.Resource]
-	if it == nil {
-		s.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
-	}
-	policy := opts.Policy
-	if len(policy.Keys) == 0 {
-		policy.Keys = append([]string(nil), it.primaryKey...)
-	}
-	if policy.Capability.RequiresPK && len(policy.Keys) == 0 {
-		s.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
-	}
-	st := s.activeStageLocked()
-	s.mu.Unlock()
-
-	if err := policy.ValidateBatch(b.Resource, b); err != nil {
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
-	}
-	nbytes := arrowbatch.Bytes(b.Rows())
-
-	st.mu.Lock()
-	rb := st.buf[b.Resource]
-	if rb == nil {
-		rb = newRecordBuf(s.stageBufLimitBytes)
-		st.buf[b.Resource] = rb
-	}
-	if err := rb.setPolicy(policy); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
-	if err := rb.append(b, nbytes); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
-	st.mu.Unlock()
-
-	return filament.WriteReceipt{
-		URI:      it.tbl.Location(),
-		Bytes:    nbytes,
-		Rows:     b.NumRows(),
-		WriteCRC: b.IntegrityCRC(),
-	}, nil
 }
 
 // Promote drains each resource buffer into the Iceberg table, one transaction
@@ -473,7 +310,7 @@ func (s *Sink) dropStage(id filament.StageID) {
 
 func (s *Sink) tableIdent(resource string) icetable.Identifier {
 	parts := splitNamespace(s.namespace)
-	return catalog.ToIdentifier(append(parts, tableName(resource))...)
+	return icecatalog.ToIdentifier(append(parts, tableName(resource))...)
 }
 
 func writeModeForPolicy(policy filament.WritePolicy) writeMode {
