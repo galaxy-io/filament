@@ -65,12 +65,13 @@ type Source struct {
 
 	// Replication-client identity and endpoint for the CDC path (see cdc.go),
 	// captured from the DSN at Configure.
-	serverID   uint32
-	binlogHost string
-	binlogPort uint16
-	binlogUser string
-	binlogPass string
-	binlogTLS  *tls.Config
+	serverID     uint32
+	snapshotMode filament.SnapshotMode
+	binlogHost   string
+	binlogPort   uint16
+	binlogUser   string
+	binlogPass   string
+	binlogTLS    *tls.Config
 }
 
 // New returns an unconfigured source.
@@ -127,6 +128,10 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "InnoDB pages per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
 			{Name: "server_id", Type: filament.FieldInt, Default: defaultServerID, Scope: filament.ScopePipeline, Help: "Replication client server_id for CDC (must be unique in the replica topology)"},
+			{Name: "snapshot_mode", Type: filament.FieldEnum, Default: string(filament.SnapshotInitial), Enum: []filament.EnumOption{
+				{Value: string(filament.SnapshotInitial), Label: "Initial"},
+				{Value: string(filament.SnapshotNone), Label: "None"},
+			}, Scope: filament.ScopePipeline, VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{string(filament.ReplicationCDC)}}, Help: "Initial reads a table in full before streaming its changes; None streams from the current position only"},
 		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
@@ -205,6 +210,10 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		if n := cfg.Int("server_id"); n > 0 && n <= math.MaxUint32 {
 			s.serverID = uint32(n)
 		}
+	}
+	s.snapshotMode = filament.SnapshotInitial
+	if v := cfg.String("snapshot_mode"); v != "" {
+		s.snapshotMode = filament.SnapshotMode(v)
 	}
 	if mc.Net == "tcp" {
 		host, port, err := splitHostPort(mc.Addr)

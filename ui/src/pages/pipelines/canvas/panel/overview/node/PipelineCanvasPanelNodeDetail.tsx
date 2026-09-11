@@ -1,19 +1,6 @@
-import { create } from "@bufbuild/protobuf";
-
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
-
-import Field from "@/components/fields/Field";
-import {
-  getFieldDefaults,
-  getPipelineScopedFields,
-  isFieldVisible,
-  updateConfigField,
-} from "@/components/fields/utils";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
@@ -35,8 +22,12 @@ import type {
   PipelineCanvasSinkNode,
   PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import PipelineNodeConfigFields, {
+  usePipelineNodeConfig,
+} from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+import { normalizeIdentifier } from "@/utils/naming";
 
 interface PipelineCanvasPanelNodeDetailProps {
   node: PipelineCanvasSourceNode | PipelineCanvasSinkNode;
@@ -50,22 +41,29 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
   const nodeEdges = state.edges.filter(
     (edge) => edge.source === node.id || edge.target === node.id,
   );
-  const connection = usePipelineCanvasConnections().get(node.id);
+  const connections = usePipelineCanvasConnections();
+  const connection = connections.get(node.id);
   const kind = PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP[node.type];
 
-  const { data } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, {
-      connector: connection?.connector ?? "",
-      kind,
-    }),
-    options: { enabled: !!connection?.connector },
-  });
-  const spec = data?.connector;
+  const upstreamConnections = new Map(
+    state.edges
+      .filter((edge) => edge.target === node.id)
+      .flatMap((edge) => {
+        const upstreamNode = state.nodes.find((candidate) => candidate.id === edge.source);
+        const upstreamConnection = connections.get(edge.source);
+        return upstreamNode?.type === PipelineCanvasNodeType.SOURCE && upstreamConnection
+          ? [[upstreamConnection.id, upstreamConnection] as const]
+          : [];
+      }),
+  );
+  const upstreamConnection =
+    upstreamConnections.size === 1 ? upstreamConnections.values().next().value : undefined;
+  const defaultSchema = upstreamConnection
+    ? normalizeIdentifier(upstreamConnection.name) || undefined
+    : undefined;
 
   const configValue = node.data.config ?? {};
-  const scopedFields = getPipelineScopedFields(spec?.configSchema?.fields ?? []);
-  const displayValue = { ...getFieldDefaults(scopedFields, configValue), ...configValue };
-  const fields = scopedFields.filter((field) => isFieldVisible(field, displayValue));
+  const nodeConfig = usePipelineNodeConfig(connection, kind, configValue, defaultSchema);
 
   return (
     <>
@@ -104,28 +102,18 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
 
         <PipelineCanvasPanelSection
           header="Configuration"
-          isEmpty={fields.length === 0}
+          isEmpty={nodeConfig.fields.length === 0}
           emptyHeader="No configuration"
           emptyMessage="This connector has no pipeline configuration."
           padding="12px"
         >
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            {fields.map((field) => (
-              <Field
-                key={field.name}
-                field={field}
-                value={displayValue[field.name] ?? null}
-                variant={InputVariant.TERTIARY}
-                onChange={(value) =>
-                  setNodeConfig(
-                    node.id,
-                    updateConfigField(scopedFields, configValue, field.name, value),
-                  )
-                }
-                isDisabled={isReadOnly}
-              />
-            ))}
-          </FlexWrapper>
+          <PipelineNodeConfigFields
+            {...nodeConfig}
+            config={configValue}
+            onChange={(config) => setNodeConfig(node.id, config)}
+            variant={InputVariant.TERTIARY}
+            isDisabled={isReadOnly}
+          />
         </PipelineCanvasPanelSection>
 
         <PipelineCanvasPanelResourceSection

@@ -6,14 +6,22 @@ import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
+import PipelineNodeConfigFields, {
+  usePipelineNodeConfig,
+} from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
+
+import { normalizeIdentifier } from "@/utils/naming";
 
 interface CreatePipelineModalDeliverySectionProps {
   header: string;
@@ -49,23 +57,77 @@ const CreatePipelineModalDeliverySchedule = () => {
   );
 };
 
-const CreatePipelineModalDeliveryAdvanced = () => {
-  const { workerConfiguration, workerConfigurationError } = useCreatePipelineModalState();
+const CreatePipelineModalDeliveryNodeConfig = ({
+  header,
+  connection,
+  kind,
+}: {
+  header: string;
+  connection: Connection;
+  kind: ConnectorKind;
+}) => {
+  const { nodeConfigs, sourceConnection } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
+  const config = nodeConfigs[connection.id] ?? {};
+  const defaultSchema =
+    kind === ConnectorKind.SINK
+      ? normalizeIdentifier(sourceConnection?.name ?? "") || undefined
+      : undefined;
+  const nodeConfig = usePipelineNodeConfig(connection, kind, config, defaultSchema);
+
+  if (nodeConfig.fields.length === 0) return null;
 
   return (
-    <Accordion header="Worker configuration" padding="16px" size={AccordionSize.LARGE}>
-      <PipelineWorkerConfigurationEditor
-        value={workerConfiguration}
-        error={workerConfigurationError}
+    <Accordion header={header} padding="16px" size={AccordionSize.LARGE}>
+      <PipelineNodeConfigFields
+        {...nodeConfig}
+        config={config}
         onChange={(payload) =>
           dispatch({
-            type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION,
-            payload,
+            type: CreatePipelineModalActionType.SET_NODE_CONFIG,
+            payload: { connectionId: connection.id, config: payload },
           })
         }
       />
     </Accordion>
+  );
+};
+
+const CreatePipelineModalDeliveryAdvanced = () => {
+  const { sourceConnection, sinks, workerConfiguration, workerConfigurationError } =
+    useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
+
+  return (
+    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+      {sourceConnection && (
+        <CreatePipelineModalDeliveryNodeConfig
+          header="Source configuration"
+          connection={sourceConnection}
+          kind={ConnectorKind.SOURCE}
+        />
+      )}
+      {sinks.map((sink) => (
+        <CreatePipelineModalDeliveryNodeConfig
+          key={sink.connection.id}
+          header="Sink configuration"
+          connection={sink.connection}
+          kind={ConnectorKind.SINK}
+        />
+      ))}
+      <Accordion header="Worker configuration" padding="16px" size={AccordionSize.LARGE}>
+        <PipelineWorkerConfigurationEditor
+          value={workerConfiguration}
+          error={workerConfigurationError}
+          onChange={(payload) =>
+            dispatch({
+              type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION,
+              payload,
+            })
+          }
+        />
+      </Accordion>
+    </FlexWrapper>
   );
 };
 
