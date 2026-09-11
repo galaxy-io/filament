@@ -4,6 +4,7 @@ package notifier
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -100,7 +101,7 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	}
 	frame, err := events.Marshal(f)
 	if err != nil {
-		return errors.New("notifier: could not encode trigger event")
+		return fmt.Errorf("notifier: encode trigger event: %w", err)
 	}
 	trigger := notification.Notification{
 		Tenant: f.Tenant, Run: f.Run, Resource: f.Resource,
@@ -116,7 +117,7 @@ func (m *Module) rulesFor(ctx context.Context, f events.Fact) ([]notification.No
 		return nil, filament.RunRequest{}, nil
 	}
 	if err != nil {
-		return nil, filament.RunRequest{}, errors.New("notifier: could not load run")
+		return nil, filament.RunRequest{}, fmt.Errorf("notifier: load run: %w", err)
 	}
 	if run.Request.PipelineID == "" {
 		return nil, run.Request, nil
@@ -126,14 +127,14 @@ func (m *Module) rulesFor(ctx context.Context, f events.Fact) ([]notification.No
 		return nil, run.Request, nil
 	}
 	if err != nil {
-		return nil, run.Request, errors.New("notifier: could not load pipeline")
+		return nil, run.Request, fmt.Errorf("notifier: load pipeline: %w", err)
 	}
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, run.Request, nil
 	}
 	rules, err := m.store.ListNotifiers(ctx, notification.Filter{Tenant: f.Tenant, PipelineID: run.Request.PipelineID})
 	if err != nil {
-		return nil, run.Request, errors.New("notifier: could not list pipeline rules")
+		return nil, run.Request, fmt.Errorf("notifier: list pipeline rules: %w", err)
 	}
 	selected := make([]notification.Notifier, 0, len(rules))
 	for _, n := range rules {

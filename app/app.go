@@ -39,6 +39,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
+	notification "github.com/galaxy-io/filament/internal/notifier"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -156,9 +157,12 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	notify := notifier.New()
 	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
-	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched, notify)
+	modules := []module.Module{tracker.New(), engine.New(), orch, sched}
+	if _, ok := cfg.Store.(notification.Store); ok {
+		modules = append(modules, notifier.New())
+	}
+	mods, err := module.MountAll(ctx, deps, modules...)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("mount: %w", err)
 	}

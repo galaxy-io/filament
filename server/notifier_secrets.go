@@ -49,7 +49,7 @@ func (a *Server) writeNotifierDestination(ctx context.Context, n notifier.Notifi
 	}
 	value, err := json.Marshal(destination)
 	if err != nil {
-		return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid webhook destination"))
+		return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("encode webhook destination: %w", err))
 	}
 	ref := notifierSecretPrefix(n) + uuid.NewString()
 	if err := a.secrets.Write(ctx, ref, filament.Secret{Tenant: n.Tenant, Value: value}); err != nil {
@@ -77,7 +77,7 @@ func (a *Server) validateNotifierDestinationRef(ctx context.Context, n notifier.
 		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("could not resolve destination secret"))
 	}
 	if _, err := webhook.ParseDestination(secret.Value); err != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("destination secret must contain a valid webhook destination"))
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("invalid webhook destination secret: %w", err))
 	}
 	return nil
 }
