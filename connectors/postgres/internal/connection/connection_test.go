@@ -14,11 +14,11 @@ func TestResolveFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Pool.ConnConfig.Host != "2001:db8::1" || resolved.Pool.ConnConfig.Port != 5432 {
-		t.Fatalf("address = %s:%d", resolved.Pool.ConnConfig.Host, resolved.Pool.ConnConfig.Port)
+	if resolved.DriverConfig.ConnConfig.Host != "2001:db8::1" || resolved.DriverConfig.ConnConfig.Port != 5432 {
+		t.Fatalf("address = %s:%d", resolved.DriverConfig.ConnConfig.Host, resolved.DriverConfig.ConnConfig.Port)
 	}
-	if resolved.Pool.ConnConfig.User != "user@example.com" || resolved.Pool.ConnConfig.Password != "p@ss:/word" || resolved.Pool.ConnConfig.Database != "app/data" {
-		t.Fatalf("connection config = %#v", resolved.Pool.ConnConfig)
+	if resolved.DriverConfig.ConnConfig.User != "user@example.com" || resolved.DriverConfig.ConnConfig.Password != "p@ss:/word" || resolved.DriverConfig.ConnConfig.Database != "app/data" {
+		t.Fatalf("connection config = %#v", resolved.DriverConfig.ConnConfig)
 	}
 }
 
@@ -29,8 +29,8 @@ func TestResolveLegacyDSN(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Pool.ConnConfig.Host != "localhost" || resolved.Pool.ConnConfig.Port != 5433 {
-		t.Fatalf("address = %s:%d", resolved.Pool.ConnConfig.Host, resolved.Pool.ConnConfig.Port)
+	if resolved.DriverConfig.ConnConfig.Host != "localhost" || resolved.DriverConfig.ConnConfig.Port != 5433 {
+		t.Fatalf("address = %s:%d", resolved.DriverConfig.ConnConfig.Host, resolved.DriverConfig.ConnConfig.Port)
 	}
 }
 

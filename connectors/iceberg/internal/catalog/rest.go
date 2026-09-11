@@ -1,4 +1,4 @@
-package iceberg
+package catalog
 
 import (
 	"fmt"
