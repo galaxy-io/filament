@@ -7,6 +7,7 @@ import {
   type SetActiveSinkAction,
   type SetDescriptionAction,
   type SetNameAction,
+  type SetNodeConfigAction,
   type SetResourceCursorAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
@@ -102,6 +103,16 @@ function setSinkWriteMode(
   };
 }
 
+function setNodeConfig(
+  state: CreatePipelineModalState,
+  action: SetNodeConfigAction,
+): CreatePipelineModalState {
+  return {
+    ...state,
+    nodeConfigs: { ...state.nodeConfigs, [action.payload.connectionId]: action.payload.config },
+  };
+}
+
 function setResourceCursor(
   state: CreatePipelineModalState,
   action: SetResourceCursorAction,
@@ -186,6 +197,8 @@ const createPipelineModalReducer = (
       return setResourceCursor(state, action);
     case CreatePipelineModalActionType.SET_SINK_WRITE_MODE:
       return setSinkWriteMode(state, action);
+    case CreatePipelineModalActionType.SET_NODE_CONFIG:
+      return setNodeConfig(state, action);
     case CreatePipelineModalActionType.SET_NAME:
       return setName(state, action);
     case CreatePipelineModalActionType.SET_DESCRIPTION:
