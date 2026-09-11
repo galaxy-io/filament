@@ -1,6 +1,7 @@
 package snowflake
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -10,15 +11,29 @@ import (
 const maxNumberPrecision = 38
 
 type columnDefinition struct {
+	name       string
 	identifier string
 	typ        string
+	logical    rowmodel.LogicalType
 	sql        string
 }
 
 type tableDefinition struct {
-	qualified string
-	columns   []columnDefinition
-	createSQL string
+	qualified     string
+	columns       []columnDefinition
+	keys          []string
+	operation     internalColumn
+	ordinal       internalColumn
+	temporary     string
+	createSQL     string
+	createTempSQL string
+	mergeSQL      string
+	replace       bool
+}
+
+type internalColumn struct {
+	name       string
+	identifier string
 }
 
 // quoteIdent preserves an identifier exactly as supplied and escapes embedded
@@ -45,9 +60,9 @@ func createSchemaDDL(database, schema string) (string, error) {
 	return "CREATE SCHEMA IF NOT EXISTS " + qualified(database, schema), nil
 }
 
-// defineTable validates a portable schema and renders the additive DDL used by
-// EnsureSchema. Primary keys are metadata in standard Snowflake tables; future
-// merge support will also use the source schema's key list directly.
+// defineTable validates a portable schema and renders the DDL used by
+// EnsureSchema. Primary keys are informational constraints in Snowflake and
+// also drive merge-key selection for keyed write modes.
 func defineTable(database, schema, table string, model rowmodel.Schema) (tableDefinition, error) {
 	if strings.TrimSpace(database) == "" {
 		return tableDefinition{}, fmt.Errorf("database name is empty")
@@ -79,7 +94,7 @@ func defineTable(database, schema, table string, model rowmodel.Schema) (tableDe
 		if !field.Nullable {
 			definition += " NOT NULL"
 		}
-		columns[i] = columnDefinition{identifier: identifier, typ: typ, sql: definition}
+		columns[i] = columnDefinition{name: field.Name, identifier: identifier, typ: typ, logical: field.Logical, sql: definition}
 		definitions[i] = definition
 	}
 
@@ -100,11 +115,81 @@ func defineTable(database, schema, table string, model rowmodel.Schema) (tableDe
 	}
 
 	name := qualified(database, schema, table)
-	return tableDefinition{
+	operation := uniqueInternalColumn(model.Fields, "_filament_internal_operation")
+	ordinal := uniqueInternalColumn(model.Fields, "_filament_internal_ordinal")
+	definition := tableDefinition{
 		qualified: name,
 		columns:   columns,
+		keys:      keys,
+		operation: operation,
+		ordinal:   ordinal,
 		createSQL: "CREATE TABLE IF NOT EXISTS " + name + " (\n\t" + strings.Join(definitions, ",\n\t") + "\n)",
-	}, nil
+	}
+	if len(keys) > 0 {
+		tableHash := sha256.Sum256([]byte(name))
+		definition.temporary = qualified(database, schema, fmt.Sprintf("_filament_load_%x", tableHash[:8]))
+		definition.createTempSQL = createTempTableSQL(definition)
+		definition.mergeSQL = mergeTableSQL(definition)
+	}
+	return definition, nil
+}
+
+func uniqueInternalColumn(fields []rowmodel.Field, base string) internalColumn {
+	used := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		used[field.Name] = true
+	}
+	name := base
+	for used[name] {
+		name += "_"
+	}
+	return internalColumn{name: name, identifier: quoteIdent(name)}
+}
+
+func createTempTableSQL(table tableDefinition) string {
+	definitions := make([]string, 0, len(table.columns)+2)
+	for _, column := range table.columns {
+		definitions = append(definitions, column.identifier+" "+column.typ)
+	}
+	definitions = append(definitions,
+		table.operation.identifier+" NUMBER(38,0) NOT NULL",
+		table.ordinal.identifier+" NUMBER(38,0) NOT NULL",
+	)
+	return "CREATE OR REPLACE TEMPORARY TABLE " + table.temporary + " (" + strings.Join(definitions, ", ") + ")"
+}
+
+// mergeTableSQL reduces a batch to its final operation per primary key, then
+// applies inserts, updates, and deletes in one atomic Snowflake statement.
+func mergeTableSQL(table tableDefinition) string {
+	columns := make([]string, len(table.columns))
+	keySet := make(map[string]bool, len(table.keys))
+	for _, key := range table.keys {
+		keySet[key] = true
+	}
+	updates := make([]string, 0, len(table.columns))
+	inserts := make([]string, len(table.columns))
+	for i, column := range table.columns {
+		columns[i] = column.identifier
+		inserts[i] = "s." + column.identifier
+		if !keySet[column.identifier] {
+			updates = append(updates, column.identifier+" = s."+column.identifier)
+		}
+	}
+	joins := make([]string, len(table.keys))
+	for i, key := range table.keys {
+		joins[i] = "EQUAL_NULL(t." + key + ", s." + key + ")"
+	}
+
+	sourceColumns := append(append([]string(nil), columns...), table.operation.identifier, table.ordinal.identifier)
+	statement := "MERGE INTO " + table.qualified + " AS t USING (SELECT " + strings.Join(sourceColumns, ", ") +
+		" FROM " + table.temporary + " QUALIFY ROW_NUMBER() OVER (PARTITION BY " + strings.Join(table.keys, ", ") +
+		" ORDER BY " + table.ordinal.identifier + " DESC) = 1) AS s ON " + strings.Join(joins, " AND ") +
+		fmt.Sprintf(" WHEN MATCHED AND s.%s = %d THEN DELETE", table.operation.identifier, rowmodel.OpDelete)
+	if len(updates) > 0 {
+		statement += " WHEN MATCHED THEN UPDATE SET " + strings.Join(updates, ", ")
+	}
+	return statement + fmt.Sprintf(" WHEN NOT MATCHED AND s.%s <> %d THEN INSERT (%s) VALUES (%s)",
+		table.operation.identifier, rowmodel.OpDelete, strings.Join(columns, ", "), strings.Join(inserts, ", "))
 }
 
 // columnType maps portable logical types to stable Snowflake types. Types that

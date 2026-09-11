@@ -4,7 +4,6 @@ package snowflake
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/galaxy-io/filament"
@@ -14,14 +13,17 @@ import (
 
 const sinkName = "snowflake"
 
-var errWritesUnavailable = errors.New("snowflake sink: writes are not implemented")
-
-// Sink owns the Snowflake session and materializes typed destination tables.
-// Row loading is added in a subsequent implementation tranche.
+// Sink owns the Snowflake sessions and the typed tables prepared for a run.
 type Sink struct {
 	db       *sql.DB
+	run      filament.RunID
 	database string
 	schema   string
+	policies map[string]filament.WritePolicy
+
+	// tables is populated during the engine's sequential EnsureSchema pass and
+	// only read once concurrent Apply calls begin, so it needs no lock.
+	tables map[string]tableDefinition
 }
 
 // New returns an unconfigured Snowflake sink.
@@ -34,8 +36,7 @@ var (
 	_ filament.Schematized       = (*Sink)(nil)
 )
 
-// Spec describes the sink's connection configuration. It intentionally
-// advertises no write policies until the snapshot implementation is available.
+// Spec describes the sink's connection configuration and write capabilities.
 func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         sinkName,
@@ -50,7 +51,20 @@ func (*Sink) Spec() filament.SinkSpec {
 		})},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized: true,
+			Schematized:        true,
+			Upsertable:         true,
+			EncodedIntegrity:   true,
+			PreferredBatchRows: 100_000,
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionFullReplace,
+				filament.IngestionFullAppend,
+				filament.IngestionFullUpsert,
+				filament.IngestionIncrementalAppend,
+				filament.IngestionIncrementalUpsert,
+				filament.IngestionIncrementalDelete,
+				filament.IngestionCDCMerge,
+				filament.IngestionCDCAppend,
+			),
 		},
 	}
 }
@@ -96,14 +110,25 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if err != nil {
 		return fmt.Errorf("snowflake sink: schema: %w", err)
 	}
+	// Every destination is fully qualified and writes stage through @~, so
+	// neither a current database nor schema is needed. Leaving both unset also
+	// preserves case-sensitive quoted names such as a normalized "local_pg";
+	// connection session parameters otherwise resolve them as unquoted names.
+	resolved.driverConfig.Database = ""
+	resolved.driverConfig.Schema = ""
 	db := resolved.open()
-	if _, err := db.ExecContext(ctx, ddl); err != nil {
+	_, err = db.ExecContext(ctx, ddl)
+	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("snowflake sink: create schema %s: %w", qualified(database, schema), err)
 	}
+
 	s.db = db
+	s.run = run.Run
 	s.database = database
 	s.schema = schema
+	s.policies = run.WritePolicies
+	s.tables = make(map[string]tableDefinition)
 	return nil
 }
 
@@ -120,7 +145,20 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	if _, err := s.db.ExecContext(ctx, table.createSQL); err != nil {
 		return fmt.Errorf("snowflake sink: create table %s: %w", table.qualified, err)
 	}
+	if s.modeFor(resource) == filament.WriteReplace {
+		if _, err := s.db.ExecContext(ctx, "TRUNCATE TABLE "+table.qualified); err != nil { //nolint:gosec // identifier is quoted
+			return fmt.Errorf("snowflake sink: truncate table %s: %w", table.qualified, err)
+		}
+		table.replace = true
+	}
+	existing, err := s.columnSet(ctx, resource)
+	if err != nil {
+		return fmt.Errorf("snowflake sink: inspect columns on %s: %w", table.qualified, err)
+	}
 	for _, column := range table.columns {
+		if existing[column.name] {
+			continue
+		}
 		//nolint:gosec // Identifiers are quoted and type spellings come only from columnType.
 		ddl := "ALTER TABLE " + table.qualified +
 			" ADD COLUMN IF NOT EXISTS " + column.sql
@@ -128,12 +166,66 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			return fmt.Errorf("snowflake sink: add column %s on %s: %w", column.identifier, table.qualified, err)
 		}
 	}
+	s.tables[resource] = table
 	return nil
 }
 
-// Apply is unavailable until the Snowflake write implementation is added.
-func (*Sink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
-	return filament.WriteReceipt{}, errWritesUnavailable
+func (s *Sink) columnSet(ctx context.Context, resource string) (map[string]bool, error) {
+	//nolint:gosec // The database and information-schema identifiers are quoted.
+	query := "SELECT COLUMN_NAME FROM " + qualified(s.database, "INFORMATION_SCHEMA", "COLUMNS") +
+		" WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"
+	rows, err := s.db.QueryContext(ctx, query, s.schema, resource)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
+}
+
+// Apply validates a batch and routes append/replace directly into the target;
+// key-based modes fold through a session-local table first.
+func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if s.db == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write before open")
+	}
+	if batch == nil || batch.Rows() == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write requires a record batch")
+	}
+	table, ok := s.tables[batch.Resource]
+	if !ok {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: no schema ensured for resource %q", batch.Resource)
+	}
+	mode := opts.Policy.Capability.Mode
+	if expected := s.modeFor(batch.Resource); expected != "" && mode != expected {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: apply policy %q does not match resource policy %q", mode, expected)
+	}
+	policy := opts.Policy
+	if mode == filament.WriteReplace {
+		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
+	}
+	if err := policy.ValidateBatch(batch.Resource, batch); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: %w", err)
+	}
+	switch mode {
+	case filament.WriteAppend, filament.WriteReplace:
+		return s.write(ctx, table, batch)
+	case filament.WriteUpsert, filament.WriteDelete, filament.WriteMerge:
+		if table.mergeSQL == "" {
+			return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write policy %q requires a primary key for resource %q", mode, batch.Resource)
+		}
+		return s.writeFold(ctx, table, batch)
+	default:
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write policy %q is not implemented", mode)
+	}
 }
 
 // Commit closes the session. Schema DDL is committed by Snowflake when issued.
@@ -142,10 +234,28 @@ func (s *Sink) Commit(context.Context) error {
 	return nil
 }
 
-// Abort closes the session. Additive schema changes are intentionally retained.
-func (s *Sink) Abort(context.Context) error {
-	s.release()
+// Abort removes partial full-replacement data and closes the session. Other
+// modes are replay-safe or must retain pre-existing destination rows.
+func (s *Sink) Abort(ctx context.Context) error {
+	defer s.release()
+	if s.db == nil {
+		return nil
+	}
+	cleanup := context.WithoutCancel(ctx)
+	for _, table := range s.tables {
+		if table.replace {
+			_, _ = s.db.ExecContext(cleanup, "TRUNCATE TABLE "+table.qualified) //nolint:gosec // identifier is quoted
+		}
+	}
 	return nil
+}
+
+func (s *Sink) modeFor(resource string) filament.WriteMode {
+	policy, ok := s.policies[resource]
+	if !ok {
+		policy = s.policies[""]
+	}
+	return policy.Capability.Mode
 }
 
 func (s *Sink) release() {
@@ -153,4 +263,6 @@ func (s *Sink) release() {
 		_ = s.db.Close()
 		s.db = nil
 	}
+	s.policies = nil
+	s.tables = nil
 }
