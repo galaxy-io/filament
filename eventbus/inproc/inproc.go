@@ -102,6 +102,7 @@ func (b *Bus) Ready(ctx context.Context) error {
 // Publish assigns a monotonic sequence, logs the payload for replay, and fans
 // it out to every matching subscription. The subject is split once and reused
 // across candidates. Delivery is synchronous and ordered.
+// Cancellation can leave delivery partial; the record remains available for replay.
 func (b *Bus) Publish(ctx context.Context, subject string, payload any) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -125,7 +126,9 @@ func (b *Bus) Publish(ctx context.Context, subject string, payload any) error {
 	b.mu.Unlock()
 
 	for _, s := range targets {
-		s.deliver(b.newMessage(rec, s))
+		if err := s.deliver(ctx, b.newMessage(rec, s)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -179,7 +182,7 @@ func (b *Bus) subscribe(pattern, durable string, fromSeq uint64) (eventbus.Subsc
 	if len(history) > 0 {
 		go func() {
 			for _, rec := range history {
-				s.deliver(b.newMessage(rec, s))
+				_ = s.deliver(context.Background(), b.newMessage(rec, s))
 			}
 		}()
 	}
@@ -256,14 +259,16 @@ var _ eventbus.Subscription = (*subscription)(nil)
 
 func (s *subscription) C() <-chan eventbus.Message { return s.ch }
 
-// deliver sends m to the subscriber, blocking on backpressure but bailing if the
-// subscription is closed. The inflight WaitGroup lets Close drain senders before
-// closing the channel, so a send-on-closed-channel panic is impossible.
-func (s *subscription) deliver(m eventbus.Message) {
+// deliver waits for buffer space, cancellation, or subscription closure.
+// Close waits for in-flight senders before closing the channel.
+func (s *subscription) deliver(ctx context.Context, m eventbus.Message) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
-		return
+		return nil
 	}
 	s.inflight.Add(1)
 	s.mu.Unlock()
@@ -272,7 +277,10 @@ func (s *subscription) deliver(m eventbus.Message) {
 	select {
 	case s.ch <- m:
 	case <-s.done:
+	case <-ctx.Done():
+		return ctx.Err()
 	}
+	return nil
 }
 
 // Close unsubscribes, unblocks any in-flight deliver, waits for them to drain,
@@ -322,6 +330,6 @@ func (m *message) Nak() error {
 		return nil
 	}
 	m.tries++
-	go m.sub.deliver(m)
+	go func() { _ = m.sub.deliver(context.Background(), m) }()
 	return nil
 }
