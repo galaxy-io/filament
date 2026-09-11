@@ -60,3 +60,36 @@ func TestBuilderCloseIsIdempotent(t *testing.T) {
 		t.Fatalf("EndRow after Close = %v, want ErrClosed", err)
 	}
 }
+
+func TestBuilderOwnsRetainedStreamMeta(t *testing.T) {
+	recv := &collect{}
+	builder := NewBuilder(Schema(rowmodel.Schema{Fields: []rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalInt64}}}), nil, Options{MaxRows: 10}, recv)
+	defer builder.Close()
+	meta := rowmodel.Meta{LSN: "bounded", Seq: 7, Stream: &rowmodel.StreamMeta{Identity: rowmodel.EventIdentity{Domain: rowmodel.DomainKey{Incarnation: "i", Domain: "d"}, Position: rowmodel.Position{Codec: "opaque", Value: []byte("p")}, Ordinal: 3}}}
+	builder.Int64(1)
+	if err := builder.EndRow(meta); err != nil {
+		t.Fatal(err)
+	}
+	// The source may reuse its metadata immediately after EndRow.
+	meta.Stream.Identity.Position.Value[0] = 'x'
+	meta.Stream.Identity.Ordinal = 9
+	if err := builder.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	defer recv.chunks[0].Release()
+	got := recv.chunks[0].Last
+	if got.Stream == meta.Stream || string(got.Stream.Identity.Position.Value) != "p" || got.Stream.Identity.Ordinal != 3 || got.LSN != "bounded" || got.Seq != 7 {
+		t.Fatalf("retained metadata aliases source: %+v", got)
+	}
+	builder.Int64(2)
+	if err := builder.EndRow(rowmodel.Meta{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := builder.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	defer recv.chunks[1].Release()
+	if recv.chunks[1].Last.Stream != nil {
+		t.Fatal("stream metadata leaked into bounded row")
+	}
+}

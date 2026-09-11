@@ -21,6 +21,9 @@ type Sink interface {
 
 // ApplyOptions carries the per-resource write policy governing one Apply.
 type ApplyOptions struct {
+	// Epoch is nil for bounded writes. Native sinks reject writes that do not
+	// match the currently open epoch; this is not destination fencing.
+	Epoch  *EpochRef
 	Policy WritePolicy
 }
 
@@ -65,6 +68,7 @@ type SinkSpec struct {
 // SinkCapabilities advertises the optional contracts and write modes a sink
 // supports, so the engine can match it to an ingestion type.
 type SinkCapabilities struct {
+	Stream        *StreamingSinkCapabilities
 	Transactional bool
 	Upsertable    bool
 	Schematized   bool
