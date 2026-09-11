@@ -135,8 +135,8 @@ A pipeline can have multiple independent notification rules, managed through
 and `DeletePipelineNotifier`. The messages are defined in
 `protos/ingestion/v1/notifiers.proto`.
 
-This API currently saves configuration only. Event consumption and webhook
-delivery will be added separately.
+The control plane and standalone application automatically deliver matching
+events as JSON webhooks using the configured secrets provider.
 
 Create takes `pipeline_id` and a `notifier` input:
 
@@ -162,7 +162,7 @@ Create takes `pipeline_id` and a `notifier` input:
 lifecycle events cannot trigger rules. Optional `resources` contains exact
 resource names; an empty list matches any resource. Headers are optional and
 can include a custom API-key header. Filament supplies `Content-Type` and
-`Filament-*` headers, so those names cannot be overridden.
+`X-Filament-*` headers, so those names cannot be overridden.
 
 The whole destination, including its URL, is stored through the configured
 secrets provider. Responses contain settings and `secret_refs`, never the URL
@@ -184,3 +184,7 @@ Notifiers are soft-deleted with their pipeline. Replaced or deleted secrets
 created by this API are removed on a best-effort basis after the database
 change succeeds; external references are never deleted. Managed destination
 references cannot be shared between notifiers.
+
+Webhook delivery makes up to 3 attempts with exponential backoff. Delivery
+failures do not affect pipeline results. Restarts can cause duplicate webhooks
+and receivers should use `X-Filament-Delivery-ID` to recognize them.

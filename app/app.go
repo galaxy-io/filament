@@ -1,6 +1,6 @@
 // Package app is the public composition root for a Filament ingestion service.
-// It wires the event plane (bus + datastore), the tracker, engine, and
-// orchestrator modules on a Host) and serves the ConnectRPC API, resolving
+// It wires the event plane (bus + datastore), tracker, engine, orchestrator,
+// scheduler, and notifier on a Host and serves the ConnectRPC API, resolving
 // source/sink providers at runtime from the process-wide default registry.
 //
 // A deployable binary is therefore just: blank-import the connectors it ships
@@ -35,9 +35,12 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/internal/modules/engine"
+	"github.com/galaxy-io/filament/internal/modules/notifier"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
+	notification "github.com/galaxy-io/filament/internal/notifier"
+	"github.com/galaxy-io/filament/internal/notifier/webhook"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
@@ -155,13 +158,18 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
+	notify := notifier.New(map[notification.NotificationType]notification.Sender{
+		notification.NotificationWebhook: webhook.New(nil),
+	})
 	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
-	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched)
+	mods, err := module.MountAll(ctx, deps, tracker.New(), engine.New(), orch, sched, notify)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("mount: %w", err)
 	}
 	h := host.New(cfg.Bus)
+	ctx, cancel := context.WithCancel(ctx)
 	cleanup = func() {
+		cancel()
 		_ = h.Close()
 		if c, ok := cfg.Bus.(io.Closer); ok {
 			_ = c.Close()

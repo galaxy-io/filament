@@ -123,6 +123,10 @@ uses the reaper to detect workers that stop reporting heartbeats. In `inproc`
 mode, runs execute inside the control-plane process. There are no worker Jobs,
 heartbeats, or reaper.
 
+Pipeline webhooks run automatically in the control plane and standalone app,
+using the existing datastore and secrets provider. Standalone uses environment
+secret references for destinations. See [Notifications](/pages/api-reference/service/pipelines#notifications).
+
 ### Kubernetes dispatch
 
 These variables apply only when `DISPATCH_MODE=kubernetes`. The Helm chart

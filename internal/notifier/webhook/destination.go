@@ -45,7 +45,7 @@ func NormalizeAndValidateDestination(d Destination) (Destination, error) {
 			return Destination{}, fmt.Errorf("webhook: invalid header name or value")
 		}
 		name = textproto.CanonicalMIMEHeaderKey(name)
-		if name == "Content-Type" || strings.HasPrefix(name, "Filament-") {
+		if name == "Content-Type" || strings.HasPrefix(name, "X-Filament-") {
 			return Destination{}, fmt.Errorf("webhook: header is set by Filament")
 		}
 		if _, exists := headers[name]; exists {

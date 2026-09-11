@@ -75,9 +75,9 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 		}
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Filament-Delivery-Id", n.DeliveryID)
-	req.Header.Set("Filament-Attempt-Id", n.AttemptID)
-	req.Header.Set("Filament-Event-Type", n.TriggerType)
+	req.Header.Set("X-Filament-Delivery-ID", n.DeliveryID)
+	req.Header.Set("X-Filament-Attempt-ID", n.AttemptID)
+	req.Header.Set("X-Filament-Event-Type", n.TriggerType)
 	result.RequestAttempted = true
 	response, err := s.client.Do(req)
 	if err != nil {
