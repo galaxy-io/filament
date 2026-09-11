@@ -1,16 +1,13 @@
 ---
 title: "GitHub"
-description: "Replicate GitHub organization, repository, community, project, and security data"
+description: "Read repositories, community activity, and collaboration data from a GitHub organization"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
 ---
 
-The GitHub source reads 57 resource types for one organization, including
-stargazers, watchers, issues, pull requests, Actions, Projects, and Discussions.
-It is built with an
-[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
-Only selected resources are emitted, but their parents are scanned to discover
-child URLs. For example, selecting `team_members` scans organization teams;
-selecting `workflow_jobs` scans repositories and workflow runs.
+The GitHub source reads repository and organization data, including stars,
+watchers, issues, and pull requests. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**beta**. Its resources are stable, though future releases may add columns.
 
 ## Configuration
 
@@ -19,195 +16,60 @@ selecting `workflow_jobs` scans repositories and workflow runs.
 | `token` | Connection | | Required. Secret. Personal access token or GitHub App installation token. |
 | `organization` | Connection | | Required. GitHub organization login. |
 
-The connector uses `api.github.com` and enumerates the organization's
-repositories accessible to the token. Organization resources such as members,
-teams, and Projects are read independently of the repository listing.
-
 ## Resources
 
-| Group | Resources |
-|---|---|
-| Repositories and community | `repositories`, `repository_details`, `stargazers`, `watchers`, `star_count`, `star_history`, `forks` |
-| Issues and pull requests | `issues`, `pull_requests`, `issue_comments`, `pull_request_review_comments`, `pull_request_reviews`, `pull_request_files`, `labels`, `milestones`, `issue_events`, `issue_timeline` |
-| Reactions | `issue_reactions`, `issue_comment_reactions`, `pull_request_review_comment_reactions` |
-| Releases and code | `releases`, `release_assets`, `branches`, `tags`, `commits`, `contributors`, `anonymous_contributors`, `languages` |
-| Organization and access | `members`, `teams`, `team_members`, `collaborators` |
-| Actions and deployments | `workflows`, `workflow_runs`, `workflow_jobs`, `deployments`, `deployment_statuses` |
-| Traffic and activity | `traffic_views`, `traffic_clones`, `traffic_referrers`, `traffic_paths`, `repository_events` |
-| Statistics | `commit_activity`, `code_frequency`, `contributor_statistics`, `participation`, `punch_card` |
-| Projects | `projects`, `project_fields`, `project_items`, `project_item_field_values` |
-| Security | `dependabot_alerts`, `code_scanning_alerts`, `secret_scanning_alerts` |
-| Discussions | `discussions`, `discussion_comments`, `discussion_replies` |
+Resources cover repositories, stars, watchers, forks, issues, pull requests,
+comments, reactions, releases, code, members, teams, Actions, deployments,
+traffic, statistics, Projects, security alerts, and Discussions. Only selected
+resources are emitted; their parents are scanned as needed.
 
-Resources project typed columns and preserve unprojected values in a `raw`
-JSON column. Relationships use parent IDs in their keys where the child ID is
-only unique within a parent. Repository names are retained for readable joins.
+Issues and pull requests include open and closed items. GitHub's issues
+endpoint also returns pull requests, identified by the `pull_request` marker.
+`stargazers` includes `starred_at`; `watchers` lists subscribers.
+`repository_details.subscribers_count` is the actual watcher count, while
+GitHub's legacy `watchers_count` counts stars.
 
-### Stars and watchers
+## Modes
 
-`repositories` projects star and fork counts without additional requests.
-`repository_details` makes one additional request per repository and includes
-`subscribers_count`, the actual watcher count. GitHub's legacy
-`watchers_count` is a star count.
+All resources support full reads. If interrupted, a full read of a top-level
+resource resumes after its last completed page. Child resources restart.
 
-`stargazers` uses GitHub's timestamp media type to expose `starred_at` and user
-identity, keyed by `(repository_id, user_id)`. `watchers` reads subscribers
-with the same key; GitHub does not provide a subscription timestamp in this
-listing. A stargazer without a usable user ID fails extraction rather than
-producing an invalid keyed row.
+Three resources support incremental reads:
 
-Since July 2026, GitHub restricts star and watcher identity listings to
-repository admins and collaborators. Validate the token's repository role
-before treating an empty list as a complete snapshot: GitHub's access-change
-notice allows restricted listings to be empty. Aggregate `star_count` and
-`star_history` are available separately.
-[Access restrictions](https://github.blog/changelog/2026-06-30-upcoming-access-restrictions-to-public-api-endpoints-and-ui-views/).
+| Resource | Cursor field | Request parameter | Checkpoint key |
+|---|---|---|---|
+| `issues` | `updated_at` | `since` (query) | `issues_updated_at` |
+| `issue_comments` | `updated_at` | `since` (query) | `issue_comments_updated_at` |
+| `pull_request_review_comments` | `updated_at` | `since` (query) | `pull_request_review_comments_updated_at` |
 
-### Collaboration, code, and Projects
+Each uses a `time` comparator, a shared watermark across repositories, and a
+300-second overlap. The cursor field is fixed; the lookback window is
+configurable. All other resources are full-only.
 
-Issues and pull requests include open and closed items. GitHub's issues list
-also contains pull requests; the `pull_request` marker distinguishes them.
-Issue comments include ordinary PR conversation comments. Reviews and review
-comments represent the separate review workflow.
+Use full replace for current membership, such as stars and watchers, to remove
+missing rows. `issue_timeline` has no primary key and supports replacement.
+Use full upsert for `traffic_views` and `traffic_clones` to retain history
+beyond GitHub's 14-day window.
 
-Reaction and timeline resources use complete parent enumerations, including
-old issues and comments, even when incremental issue/comment reads are selected.
-`issue_timeline` preserves heterogeneous events, including events without IDs,
-and therefore has **no primary key**. Use full replacement for current timelines.
+## Behavior
 
-`commits` walks every current branch and retains the branch in its key. The
-same commit can appear on several branches. This covers history reachable
-from current branches, not deleted branches or unreachable Git objects.
-`contributors` contains identified users; `anonymous_contributors` preserves
-anonymous entries separately by repository and email.
+- **Auth**: bearer token from `token`. Grant read permissions for selected
+  resources. Star and watcher identities require repository admin or
+  collaborator access; restricted listings can be empty. Installation tokens
+  are not refreshed automatically.
+- **Pagination**: `Link` headers with `per_page=100`; star history uses 30.
+  Discussions use GraphQL cursors.
+- **API version**: pinned via `X-GitHub-Api-Version: 2022-11-28`.
+- **Rate limiting**: one request per second, with manifest-defined throttling
+  rules honoring `Retry-After` and budget-reset headers.
+- **Statistics**: pending responses are retried; results retain their native
+  JSON shape. GitHub's endpoint-specific history and size limits still apply.
+- Every resource carries a `raw` remainder column preserving fields the
+  manifest does not project.
 
-Projects use the Projects V2 REST API. `project_items` preserves item content;
-`project_fields` lists field definitions. Because item listings return only
-the title field by default, `project_item_field_values` requests items once
-per project field and stores the returned `fields` JSON, keyed by project,
-item, and field. This can require substantially more requests than item listing.
-Discussions, comments, and replies use separately paginated GraphQL connections.
+## Troubleshooting
 
-## Read and write modes
-
-All resources support full reads. Use **full replace** for current membership
-and mutable collections, including stars, watchers, forks, teams, labels, and
-project items, so removed rows disappear from the destination. Full upsert
-retains rows that have disappeared from the source. Multi-page reads are not
-atomic snapshots; later runs reconcile changes made during a scan.
-
-Use **full upsert** for `traffic_views` and `traffic_clones` to retain daily
-history beyond GitHub's 14-day window while refreshing recent buckets.
-`traffic_referrers` and `traffic_paths` are current rolling rankings; retaining
-historical rankings requires an observation timestamp in your warehouse process.
-Neither star identities nor traffic lists expose an incremental lower bound.
-
-These three resources support incremental reads:
-
-| Resource | Cursor | Query parameter | Checkpoint key | Overlap |
-|---|---|---|---|---|
-| `issues` | `updated_at` | `since` | `issues_updated_at` | 300 seconds |
-| `issue_comments` | `updated_at` | `since` | `issue_comments_updated_at` | 300 seconds |
-| `pull_request_review_comments` | `updated_at` | `since` | `pull_request_review_comments_updated_at` | 300 seconds |
-
-Their cursor comparator is `time`. The cursor field is fixed; the pipeline can
-configure the lookback window. Each resource shares one watermark across all
-repositories, so choose a window that covers your scan duration and expected
-late changes. Use upsert to absorb repeated rows. Incremental reads do not
-capture deletions. PRs, reviews, workflow runs, and all other resources are full
-reads because their list APIs do not provide the required update cursor.
-
-An interrupted full read of a top-level resource resumes after its last
-completed page. Child resources restart their parent traversal.
-
-## Permissions
-
-Choose read permissions for the resources you select and grant the token
-access to the intended repositories. Fine-grained tokens may require
-organization approval; classic tokens may require SSO authorization.
-
-| Resources | Relevant fine-grained read permissions |
-|---|---|
-| Repository metadata, stars, watchers | Metadata; identity lists additionally require the repository role described above |
-| Branches, commits, contributors, releases, statistics | Contents |
-| Issues, comments, labels, milestones, issue events and reactions | Issues (some endpoints also accept Pull requests) |
-| Pull requests, reviews, review comments and files | Pull requests |
-| Workflows, runs and jobs | Actions |
-| Deployments and statuses | Deployments |
-| Members, teams and team membership | Organization Members |
-| Projects, fields, items and values | Organization Projects |
-| Discussions, comments and replies | Discussions |
-| Collaborators and traffic | Administration; traffic also requires repository write access |
-| Dependabot alerts | Dependabot alerts |
-| Code scanning alerts | Code scanning alerts |
-| Secret scanning alerts | Secret scanning alerts |
-
-These are endpoint requirements, not a promise that every token type can
-access every organization feature. Feature enablement, repository visibility,
-organization policies, and the caller's role also apply. A permission or
-feature failure fails the selected extraction; it is not converted into an
-empty table. Secret scanning requests use `hide_secret=true` so the source
-requests metadata without the detected secret value.
-[GitHub permission reference](https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens).
-
-A personal access token is convenient for repeated testing. Store it outside
-the repository and pass it as the secret connection value. Installation tokens
-expire after one hour; this static bearer-token connector does not mint or
-refresh them automatically.
-
-### Troubleshooting
-
-For a `teams` 403 error, grant **Organization permissions → Members → Read**
-on a fine-grained token, or `read:org` on a classic token. Complete any required
-organization approval or SSO authorization. If team data is unnecessary,
-deselect both `teams` and `team_members`.
+For a `teams` 403, grant **Organization permissions → Members → Read** on a
+fine-grained token, or `read:org` on a classic token, with any required approval
+or SSO authorization. Otherwise, deselect both `teams` and `team_members`.
 [List teams requirements](https://docs.github.com/en/rest/teams/teams#list-teams).
-
-## API behavior and completeness limits
-
-- REST requests use `X-GitHub-Api-Version: 2022-11-28`. Most lists follow
-  `Link: rel="next"` with 100 rows per page; star history uses 30.
-- Requests are paced at one per second and respect the remaining-budget/reset
-  headers. Identified 403 and 429 throttling responses are retried, honoring
-  `Retry-After` and exhausted-budget reset times. Ordinary forbidden responses
-  remain errors. GraphQL errors in HTTP 200 responses also fail extraction.
-- HTTP 204 means an empty result. Statistics endpoints poll HTTP 202 until data
-  is ready, within the engine's ten-attempt budget; exhaustion fails the run.
-  Each statistics table stores one native `statistics` JSON value per repository,
-  preserving arrays and numeric tuples without inventing row identities.
-- Traffic covers the last 14 days; paths and referrers contain only the top ten.
-  Repository events cover at most 300 events from the last 30 days and can lag.
-- PR file lists stop at GitHub's 3,000-file ceiling. Star history allows at most
-  100 pages of 30 weeks, with provider-defined week/day boundaries.
-- Repository statistics have provider-specific restrictions. In particular,
-  code frequency is unavailable for repositories with 10,000 or more commits.
-  A successful response reflects GitHub's reported statistics, not a full Git audit.
-
-See the official [traffic](https://docs.github.com/en/rest/metrics/traffic),
-[events](https://docs.github.com/en/rest/activity/events),
-[statistics](https://docs.github.com/en/rest/metrics/statistics),
-[PR files](https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files),
-and [starring](https://docs.github.com/en/rest/activity/starring) contracts.
-
-## Verification
-
-Local HTTP fixtures exercise every resource, pagination, inherited keys,
-incremental bounds, GraphQL errors, throttling, and asynchronous statistics.
-A PostgreSQL integration test verifies membership replacement, empty snapshots,
-traffic history upserts, and keyless timeline replacement.
-
-For opt-in, read-only live tests, provide a token-file path rather than putting
-the token in a command or source file. From the repository root:
-
-```sh
-FILAMENT_GITHUB_TOKEN_FILE=/absolute/path/to/token \
-FILAMENT_GITHUB_ORGANIZATION=your-org \
-go test ./connectors/http -run 'TestGitHubLive/(repositories|members|teams)$' -v -count=1
-```
-
-Select successive resource groups using Go's subtest expression. Omit the
-subtest suffix to test every resource. The default walks the organization;
-`FILAMENT_GITHUB_REPOSITORY` optionally narrows repository children for a focused
-pass without changing organization resources. Large organization scans may
-need a longer `go test -timeout`. Logs report row counts and key validation;
-empty responses do not verify populated response shapes.

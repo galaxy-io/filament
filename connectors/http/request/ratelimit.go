@@ -125,7 +125,7 @@ func (d *dynamicLimiter) Observe(resp *http.Response) {
 					"error", err)
 			} else if n <= 0 {
 				rs := resp.Header.Get(d.cfg.ResetHeader)
-				reset, perr := d.parseReset(rs)
+				reset, perr := ParseReset(rs, d.cfg.ResetFormat)
 				if perr != nil {
 					d.logger.Warn("rate-limit reset header parse failed",
 						"header", d.cfg.ResetHeader,
@@ -142,14 +142,14 @@ func (d *dynamicLimiter) Observe(resp *http.Response) {
 	d.base.Observe(resp)
 }
 
-// parseReset parses the reset header per ResetFormat. Returns (zero, error)
+// ParseReset parses a reset header using the configured format. Returns (zero, error)
 // for unparseable values so the caller can surface misconfigured manifests
 // via the logger.
-func (d *dynamicLimiter) parseReset(s string) (time.Time, error) {
+func ParseReset(s, format string) (time.Time, error) {
 	if s == "" {
 		return time.Time{}, nil
 	}
-	switch d.cfg.ResetFormat {
+	switch format {
 	case "unix_seconds", "":
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
@@ -169,5 +169,5 @@ func (d *dynamicLimiter) parseReset(s string) (time.Time, error) {
 		}
 		return t, nil
 	}
-	return time.Time{}, fmt.Errorf("%w: unknown ResetFormat %q", errs.ErrRateLimitParse, d.cfg.ResetFormat)
+	return time.Time{}, fmt.Errorf("%w: unknown reset format %q", errs.ErrRateLimitParse, format)
 }

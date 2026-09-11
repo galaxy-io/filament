@@ -58,6 +58,20 @@ connection:
       remaining_header: X-RateLimit-Remaining
       reset_header: X-RateLimit-Reset
       reset_format: unix_seconds
+    responses:
+      - status: 403
+        header: Retry-After
+      - status: 403
+        header: X-RateLimit-Remaining
+        header_value: "0"
+      - status: 403
+        body_path: message
+        body_contains: secondary rate limit
+        backoff_seconds: 60
+      - status: 429
+        body_path: message
+        body_contains: secondary rate limit
+        backoff_seconds: 60
 resources:
   - name: repositories
     path: /orgs/{organization}/repos

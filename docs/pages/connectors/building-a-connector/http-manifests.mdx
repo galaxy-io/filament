@@ -93,6 +93,24 @@ are referenced elsewhere in the manifest as `config.<name>`.
   timestamp, seconds from now, or an HTTP date.
 - `timeout_seconds` sets the request timeout and defaults to 60 seconds.
 
+Use `connection.rate_limit.responses` for provider-specific throttling signals:
+
+```yaml
+rate_limit:
+  responses:
+    - status: 403
+      body_path: error.detail
+      body_contains: capacity exhausted
+      backoff_seconds: 90
+```
+
+Each rule requires `status`. Optional `header` requires a nonempty header;
+`header_value` additionally requires an exact value. `body_path` is a GJSON path
+whose string value must contain `body_contains` (case-insensitive). All conditions
+in a rule must match; any matching rule identifies throttling. `backoff_seconds`
+sets an exponential starting delay when `Retry-After` is absent. If multiple
+rules match, the longest delay wins. HTTP 429 is always treated as throttling.
+
 ### Resources
 
 Each resource describes one endpoint:
@@ -180,12 +198,11 @@ re-read the window and let an upsert write mode absorb the duplicates.
 
 **Retries and limits.** Responses are handled by status:
 
-- HTTP 429 and identified HTTP 403 throttling responses are retried within a
+- HTTP 429 and manifest-matched throttling responses are retried within a
   ten-attempt budget and reported as `pressure.rate_limited`. Server-directed
-  `Retry-After` delays are honored without a 60-second cap. Exhausted GitHub
-  budgets also honor `X-RateLimit-Reset`; recognized secondary limits wait at
-  least a minute when no retry header is provided. Only fallback exponential
-  backoff is capped at 60 seconds.
+  `Retry-After` delays are honored without a 60-second cap. Exhausted budgets
+  honor the reset header and format configured in `rate_limit.dynamic`.
+  Only the built-in fallback exponential backoff is capped at 60 seconds.
 - 5xx responses are retried 3 times
 - other 4xx responses are fatal
 

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
@@ -83,8 +85,6 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
 
-		// A 204 is an authoritative empty response (for example, an empty
-		// GitHub repository's contributors). Other empty bodies are errors.
 		if resp.StatusCode == http.StatusNoContent {
 			return totalRecords, pageCount + 1, nil
 		}
@@ -248,16 +248,13 @@ func (c *Connector) doRequest(
 
 		switch {
 		case resp.StatusCode == http.StatusAccepted && res.Response.PollPending != nil && *res.Response.PollPending:
-			// Some read endpoints schedule computation and return 202 until
-			// a later request can return the actual dataset. Never emit the
-			// pending body or treat it as an authoritative empty snapshot.
 			if attempt+1 < maxRetries {
 				if err := sleepCtx(ctx, retryAfterDuration(resp, attempt)); err != nil {
 					return nil, nil, err
 				}
 			}
-		case isRateLimited(resp, body):
-			delay := rateLimitDelay(resp, body, attempt)
+		case isRateLimited(resp, body, c.manifest.Connection.RateLimit):
+			delay := rateLimitDelay(resp, body, attempt, c.manifest.Connection.RateLimit)
 			c.observe.Report(filament.SourceProgress{
 				Kind:       filament.SourceProgressRateLimited,
 				Resource:   resourceName,
@@ -318,41 +315,55 @@ func formatHTTPErrorBody(body []byte) string {
 	return errs.FormatTruncated(string(body))
 }
 
-// isRateLimited distinguishes a throttled 403 from permission denial. GitHub
-// can omit retry headers on secondary limits, but supplies a specific message.
-func isRateLimited(resp *http.Response, body []byte) bool {
+func isRateLimited(resp *http.Response, body []byte, spec manifest.RateLimit) bool {
 	if resp.StatusCode == http.StatusTooManyRequests {
 		return true
 	}
-	if resp.StatusCode != http.StatusForbidden {
-		return false
-	}
-	return resp.Header.Get("Retry-After") != "" ||
-		resp.Header.Get("X-RateLimit-Remaining") == "0" || isGitHubSecondaryLimit(body)
-}
-
-func isGitHubSecondaryLimit(body []byte) bool {
-	var envelope struct {
-		Message          string `json:"message"`
-		DocumentationURL string `json:"documentation_url"`
-	}
-	if json.Unmarshal(body, &envelope) != nil {
-		return false
-	}
-	return strings.HasPrefix(envelope.DocumentationURL, "https://docs.github.com/") &&
-		strings.Contains(strings.ToLower(envelope.Message), "secondary rate limit")
-}
-
-func rateLimitDelay(resp *http.Response, body []byte, attempt int) time.Duration {
-	delay := retryAfterDuration(resp, attempt)
-	if resp.Header.Get("X-RateLimit-Remaining") == "0" {
-		if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
-			delay = max(delay, time.Until(time.Unix(reset, 0)))
+	for _, rule := range spec.Responses {
+		if matchesRateLimit(resp, body, rule) {
+			return true
 		}
 	}
-	if resp.Header.Get("Retry-After") == "" && isGitHubSecondaryLimit(body) {
-		// GitHub asks for at least a minute, followed by increasing waits.
-		delay = max(delay, time.Minute*time.Duration(1<<uint(attempt)))
+	return false
+}
+
+func matchesRateLimit(resp *http.Response, body []byte, rule manifest.RateLimitResponse) bool {
+	if resp.StatusCode != rule.Status {
+		return false
+	}
+	if rule.Header != "" {
+		value := resp.Header.Get(rule.Header)
+		if value == "" || (rule.HeaderValue != "" && value != rule.HeaderValue) {
+			return false
+		}
+	}
+	if rule.BodyPath != "" {
+		if !gjson.ValidBytes(body) {
+			return false
+		}
+		value := gjson.GetBytes(body, rule.BodyPath)
+		if value.Type != gjson.String || !strings.Contains(strings.ToLower(value.String()), strings.ToLower(rule.BodyContains)) {
+			return false
+		}
+	}
+	return true
+}
+
+func rateLimitDelay(resp *http.Response, body []byte, attempt int, spec manifest.RateLimit) time.Duration {
+	delay := retryAfterDuration(resp, attempt)
+	if dynamic := spec.Dynamic; dynamic != nil {
+		if remaining, err := strconv.Atoi(resp.Header.Get(dynamic.RemainingHeader)); err == nil && remaining <= 0 {
+			if reset, err := request.ParseReset(resp.Header.Get(dynamic.ResetHeader), dynamic.ResetFormat); err == nil {
+				delay = max(delay, time.Until(reset))
+			}
+		}
+	}
+	if resp.Header.Get("Retry-After") == "" {
+		for _, rule := range spec.Responses {
+			if matchesRateLimit(resp, body, rule) {
+				delay = max(delay, time.Duration(rule.BackoffSeconds)*time.Second*time.Duration(1<<uint(attempt)))
+			}
+		}
 	}
 	return delay
 }

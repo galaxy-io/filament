@@ -435,3 +435,40 @@ resources:
 		t.Fatal("former v3 manifest parsed; v1 is the only supported contract")
 	}
 }
+
+func TestRateLimitResponseValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, rule string
+		valid      bool
+	}{
+		{"complete", `{status: 403, header: Budget, header_value: '0', body_path: error.detail, body_contains: exhausted, backoff_seconds: 90}`, true},
+		{"missing status", `{header: Budget}`, false},
+		{"header value without header", `{status: 403, header_value: '0'}`, false},
+		{"body path without condition", `{status: 403, body_path: error.detail}`, false},
+		{"body condition without path", `{status: 403, body_contains: exhausted}`, false},
+		{"empty body condition", `{status: 403, body_path: error.detail, body_contains: ''}`, false},
+		{"negative backoff", `{status: 403, backoff_seconds: -1}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse([]byte(`
+version: 1
+name: test
+display_name: Test
+description: Rate limit configuration test.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+  rate_limit:
+    responses:
+      - ` + tc.rule + `
+resources:
+  - name: items
+    path: /items
+`))
+			if (err == nil) != tc.valid {
+				t.Fatalf("valid=%v, error=%v", tc.valid, err)
+			}
+		})
+	}
+}

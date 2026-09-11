@@ -10,9 +10,11 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/request"
 )
 
@@ -792,5 +794,50 @@ func TestGitHubTeamsPermissionAndResourceSelection(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGitHubManifestRateLimits(t *testing.T) {
+	m, err := manifest.Parse(githubManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := m.Connection.RateLimit
+	body := []byte(`{"message":"You have exceeded a secondary rate limit.","documentation_url":"https://docs.github.com/rest/overview/resources-in-the-rest-api#secondary-rate-limits"}`)
+	for _, status := range []int{403, 429} {
+		resp := &http.Response{StatusCode: status, Header: make(http.Header)}
+		if !isRateLimited(resp, body, spec) {
+			t.Fatalf("HTTP %d was not recognized", status)
+		}
+		if got := rateLimitDelay(resp, body, 0, spec); got != time.Minute {
+			t.Fatalf("delay=%s, want one minute", got)
+		}
+		if got := rateLimitDelay(resp, body, 2, spec); got != 4*time.Minute {
+			t.Fatalf("delay=%s, want four minutes", got)
+		}
+		resp.Header.Set("Retry-After", "2")
+		if got := rateLimitDelay(resp, body, 0, spec); got != 2*time.Second {
+			t.Fatalf("explicit delay=%s", got)
+		}
+	}
+	resp := &http.Response{StatusCode: 403, Header: make(http.Header)}
+	if isRateLimited(resp, []byte(`{"message":"Resource not accessible by personal access token"}`), spec) {
+		t.Fatal("permission denial was classified as throttling")
+	}
+	resp.Header.Set("X-RateLimit-Remaining", "0")
+	resp.Header.Set("X-RateLimit-Reset", fmt.Sprint(time.Now().Add(5*time.Minute).Unix()))
+	if !isRateLimited(resp, nil, spec) {
+		t.Fatal("exhausted budget was not recognized")
+	}
+	if got := rateLimitDelay(resp, nil, 0, spec); got < 299*time.Second || got > 300*time.Second {
+		t.Fatalf("budget reset delay=%s", got)
+	}
+	resp.Header.Del("X-RateLimit-Remaining")
+	resp.Header.Set("Retry-After", "120")
+	if !isRateLimited(resp, nil, spec) {
+		t.Fatal("retry header was not recognized")
+	}
+	if got := rateLimitDelay(resp, nil, 0, spec); got != 120*time.Second {
+		t.Fatalf("retry header delay=%s", got)
 	}
 }

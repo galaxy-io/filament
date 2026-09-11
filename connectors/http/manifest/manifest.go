@@ -235,8 +235,20 @@ func referenceTemplate(value string) string {
 
 // RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
-	RequestsPerSecond float64       `yaml:"requests_per_second"`
-	Dynamic           *DynamicLimit `yaml:"dynamic,omitempty"`
+	RequestsPerSecond float64             `yaml:"requests_per_second"`
+	Dynamic           *DynamicLimit       `yaml:"dynamic,omitempty"`
+	Responses         []RateLimitResponse `yaml:"responses,omitempty"`
+}
+
+// RateLimitResponse identifies throttling using status and optional header/body
+// conditions. All supplied conditions must match.
+type RateLimitResponse struct {
+	Status         int    `yaml:"status"`
+	Header         string `yaml:"header,omitempty"`
+	HeaderValue    string `yaml:"header_value,omitempty"`
+	BodyPath       string `yaml:"body_path,omitempty"`
+	BodyContains   string `yaml:"body_contains,omitempty"`
+	BackoffSeconds int    `yaml:"backoff_seconds,omitempty"`
 }
 
 // DynamicLimit configures rate adjustment from response rate-limit headers.
