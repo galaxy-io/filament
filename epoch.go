@@ -14,12 +14,14 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
+// AttemptRef identifies a stream worker and its admitted ownership token.
 type AttemptRef struct {
 	RunID                 RunID
 	ExecutionID, StreamID string
 	Generation, Token     int64
 }
 
+// Validate requires complete attempt identity and positive generation and token values.
 func (a AttemptRef) Validate() error {
 	if a.RunID == "" || a.ExecutionID == "" || a.StreamID == "" || a.Generation <= 0 || a.Token <= 0 || !utf8.ValidString(string(a.RunID)) || !utf8.ValidString(a.ExecutionID) || !utf8.ValidString(a.StreamID) {
 		return errors.New("epoch: incomplete attempt identity")
@@ -27,11 +29,13 @@ func (a AttemptRef) Validate() error {
 	return nil
 }
 
+// EpochRef binds a commit cycle and membership revision to an admitted attempt.
 type EpochRef struct {
 	Attempt                   AttemptRef
 	Epoch, MembershipRevision int64
 }
 
+// Validate checks epoch identity without verifying live ownership or durability.
 func (e EpochRef) Validate() error {
 	if err := e.Attempt.Validate(); err != nil {
 		return err
@@ -53,11 +57,13 @@ func (e EpochRef) ValidateApply(opts ApplyOptions) error {
 	return nil
 }
 
+// EpochKey identifies a certificate across attempts within a stream generation.
 type EpochKey struct {
 	StreamID          string
 	Generation, Epoch int64
 }
 
+// Key returns the attempt-independent certificate identity.
 func (e EpochRef) Key() EpochKey { return EpochKey{e.Attempt.StreamID, e.Attempt.Generation, e.Epoch} }
 
 // InboxClaimRef identifies an exact claim, never a sequence watermark.
@@ -67,6 +73,8 @@ type InboxClaimRef struct {
 	RowID, Owner string
 	Token        int64
 }
+
+// Coverage holds either candidate domain progress or exact inbox claims, never both.
 type Coverage struct {
 	Positions DomainPositions
 	Claims    []InboxClaimRef
@@ -91,11 +99,15 @@ func (c Coverage) ValidateRepresentation() error {
 	}
 	return nil
 }
+
+// Clone returns independently owned positions and claims.
 func (c Coverage) Clone() Coverage {
 	c.Positions = c.Positions.Clone()
 	c.Claims = append([]InboxClaimRef(nil), c.Claims...)
 	return c
 }
+
+// Canonicalize validates the representation, copies it, and normalizes positions and claim order.
 func (c Coverage) Canonicalize(r CodecResolver) (Coverage, error) {
 	if err := c.ValidateRepresentation(); err != nil {
 		return Coverage{}, err
@@ -153,6 +165,7 @@ type ReceiptEvidence struct {
 	Payload []byte
 }
 
+// Validate checks a present evidence format and version; nil means absent.
 func (e *ReceiptEvidence) Validate() error {
 	if e == nil {
 		return nil
@@ -162,6 +175,8 @@ func (e *ReceiptEvidence) Validate() error {
 	}
 	return nil
 }
+
+// Clone copies evidence bytes and preserves absent evidence and nil-versus-empty payloads.
 func (e *ReceiptEvidence) Clone() *ReceiptEvidence {
 	if e == nil {
 		return nil
@@ -194,6 +209,7 @@ type EpochCertificate struct {
 	Records, Bytes    int64
 }
 
+// Clone returns independently owned coverage and receipt evidence.
 func (c EpochCertificate) Clone() EpochCertificate {
 	c.Coverage = c.Coverage.Clone()
 	c.Receipts = append([]EpochReceipt(nil), c.Receipts...)
@@ -240,6 +256,7 @@ func (c EpochCertificate) CanonicalBytes(r CodecResolver) ([]byte, error) {
 	return json.Marshal(c)
 }
 
+// Digest hashes the canonical immutable certificate content.
 func (c EpochCertificate) Digest(r CodecResolver) ([32]byte, error) {
 	data, err := c.CanonicalBytes(r)
 	if err != nil {
@@ -248,11 +265,13 @@ func (c EpochCertificate) Digest(r CodecResolver) ([32]byte, error) {
 	return sha256.Sum256(data), nil
 }
 
+// CommittedEpoch pairs a persisted certificate with its datastore-assigned commit time.
 type CommittedEpoch struct {
 	Certificate EpochCertificate
 	CommittedAt time.Time
 }
 
+// Stream error categories distinguish ownership, epoch binding, progress, and coverage failures.
 var (
 	ErrEpochMismatch        = errors.New("stream: epoch mismatch")
 	ErrFenced               = errors.New("stream: fenced")

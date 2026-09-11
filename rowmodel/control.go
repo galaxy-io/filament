@@ -2,8 +2,10 @@ package rowmodel
 
 import "errors"
 
+// ControlKind identifies a standalone source boundary marker.
 type ControlKind uint8
 
+// Control kinds distinguish source transactions, progress, and membership boundaries.
 const (
 	ControlUnspecified ControlKind = iota
 	TxnBegin
@@ -23,7 +25,10 @@ type Control struct {
 	MembershipRevision int64
 }
 
+// Clone returns a control with independently owned position bytes.
 func (c Control) Clone() Control { c.Position = c.Position.Clone(); return c }
+
+// Validate checks the control kind and its required source-boundary fields.
 func (c Control) Validate() error {
 	if err := c.Domain.Validate(); err != nil {
 		return err

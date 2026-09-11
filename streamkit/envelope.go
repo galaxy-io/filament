@@ -57,6 +57,7 @@ func DecodeIdentity(data []byte, r rowmodel.CodecResolver) (EventIdentity, error
 	return identity, nil
 }
 
+// EventID returns the SHA-256 hex digest of the canonical source event identity.
 func EventID(e EventIdentity, r rowmodel.CodecResolver) (string, error) {
 	data, err := CanonicalIdentity(e, r)
 	if err != nil {
@@ -66,6 +67,7 @@ func EventID(e EventIdentity, r rowmodel.CodecResolver) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// Envelope combines source identity with message content and lossless delivery metadata.
 type Envelope struct {
 	Identity    EventIdentity
 	Timestamp   *time.Time
@@ -85,12 +87,18 @@ type Projector struct {
 	codecs rowmodel.CodecResolver
 }
 
+// NewProjector binds an envelope writer to its position codecs.
+// The writer must have been opened with WithEnvelopeFields.
 func NewProjector(w arrowbatch.RowWriter, r rowmodel.CodecResolver) *Projector {
 	return &Projector{w, r}
 }
+
+// WithEnvelopeFields appends the SDK schema suffix after rejecting reserved-name collisions.
 func WithEnvelopeFields(s rowmodel.Schema) (rowmodel.Schema, error) {
 	return rowmodel.WithEnvelopeFields(s)
 }
+
+// EndEvent projects envelope columns and derives stream metadata before completing the row.
 func (w *Projector) EndEvent(e Envelope, meta rowmodel.Meta) error {
 	// Validate before appending any SDK column. On error the source must abandon
 	// the pending row/writer; RowWriter does not provide rollback of source fields.

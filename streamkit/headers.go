@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 )
 
+// ErrInvalidEnvelope reports malformed or contradictory envelope data.
 var ErrInvalidEnvelope = errors.New("streamkit: invalid envelope")
 
 // HeaderEncodingVersion identifies the ordered binary header encoding.
@@ -29,29 +31,37 @@ func EncodeHeaders(headers []Header) ([]byte, error) {
 		return out, nil
 	}
 	out[1] = 1
-	if uint64(len(headers)) > uint64(^uint32(0)) {
+	count, err := headerLength(len(headers))
+	if err != nil {
 		return nil, ErrInvalidEnvelope
 	}
-	out = binary.BigEndian.AppendUint32(out, uint32(len(headers)))
+	out = binary.BigEndian.AppendUint32(out, count)
 	for _, h := range headers {
 		if h.Null && len(h.Value) > 0 {
 			return nil, ErrInvalidEnvelope
 		}
-		if uint64(len(h.Key)) > uint64(^uint32(0)) || uint64(len(h.Value)) > uint64(^uint32(0)) {
+		keySize, err := headerLength(len(h.Key))
+		if err != nil {
+			return nil, err
+		}
+		valueSize, err := headerLength(len(h.Value))
+		if err != nil {
 			return nil, ErrInvalidEnvelope
 		}
-		out = binary.BigEndian.AppendUint32(out, uint32(len(h.Key)))
+		out = binary.BigEndian.AppendUint32(out, keySize)
 		out = append(out, h.Key...)
 		flag := byte(0)
 		if h.Null {
 			flag = 1
 		}
 		out = append(out, flag)
-		out = binary.BigEndian.AppendUint32(out, uint32(len(h.Value)))
+		out = binary.BigEndian.AppendUint32(out, valueSize)
 		out = append(out, h.Value...)
 	}
 	return out, nil
 }
+
+// DecodeHeaders validates and decodes headers into independently owned values.
 func DecodeHeaders(data []byte) ([]Header, error) {
 	if len(data) < 2 || data[0] != HeaderEncodingVersion || data[1] > 1 {
 		return nil, ErrInvalidEnvelope
@@ -64,12 +74,12 @@ func DecodeHeaders(data []byte) ([]Header, error) {
 	}
 	r := bytes.NewReader(data[2:])
 	var count uint32
-	if binary.Read(r, binary.BigEndian, &count) != nil || uint64(count) > uint64(r.Len()/9) {
+	if binary.Read(r, binary.BigEndian, &count) != nil || int64(count) > int64(r.Len()/9) {
 		return nil, ErrInvalidEnvelope
 	}
 	readBytes := func() ([]byte, error) {
 		var n uint32
-		if binary.Read(r, binary.BigEndian, &n) != nil || uint64(n) > uint64(r.Len()) {
+		if binary.Read(r, binary.BigEndian, &n) != nil || int64(n) > int64(r.Len()) {
 			return nil, ErrInvalidEnvelope
 		}
 		b := make([]byte, int(n))
@@ -99,4 +109,13 @@ func DecodeHeaders(data []byte) ([]Header, error) {
 		return nil, ErrInvalidEnvelope
 	}
 	return out, nil
+}
+
+// headerLength checks the wire limit before narrowing a platform-sized length.
+func headerLength(n int) (uint32, error) {
+	size := int64(n)
+	if size < 0 || size > math.MaxUint32 {
+		return 0, ErrInvalidEnvelope
+	}
+	return uint32(size), nil
 }
