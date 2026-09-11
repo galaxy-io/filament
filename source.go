@@ -245,6 +245,7 @@ type ConfigValidatable interface {
 // ConnectorSpec is a source's self-description: identity, supported modes and
 // policies, config schema, and resource capabilities. It powers the catalog.
 type ConnectorSpec struct {
+	Stream         *StreamCapabilities
 	Name           string
 	DisplayName    string
 	Description    string

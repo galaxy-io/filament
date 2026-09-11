@@ -82,6 +82,9 @@ func ShouldRun(state filament.RunState) bool {
 //
 //nolint:funlen,gocyclo // the run lifecycle reads best as one sequence
 func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
+	if err := spec.Options.Execution.ValidateExecution(); err != nil {
+		return err
+	}
 	deps.Log = scopedRunLogger(deps.Log, spec)
 	ctx, span, endSpan := startRunSpan(ctx, deps, spec)
 	defer endSpan()

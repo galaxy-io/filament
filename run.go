@@ -12,8 +12,9 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant TenantID
-	Run    RunID
+	Attempt *AttemptRef `json:",omitempty"`
+	Tenant  TenantID
+	Run     RunID
 	// StartedAt is the logical run's first start time. A zero value is stamped by
 	// the runner; resumed executions retain the original value.
 	StartedAt time.Time
@@ -165,6 +166,8 @@ func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine
 // defaults.
 type RunOptions struct {
+	Execution           ExecutionMode `json:",omitempty"`
+	EpochBoundary       *Boundary     `json:",omitempty"`
 	FetchSize           int
 	BatchMaxRows        int
 	BatchMaxBytes       int64
