@@ -3,7 +3,6 @@ package notifier
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -136,7 +135,7 @@ func (m *Module) resolveDestination(ctx context.Context, trigger notification.No
 		return rule, nil, errInactiveRule
 	}
 	if loadErr != nil {
-		return rule, nil, fmt.Errorf("could not reload notifier")
+		return rule, nil, errors.New("could not reload notifier")
 	}
 	if current.Tenant != trigger.Tenant || current.PipelineID != trigger.PipelineID || current.ID != rule.ID {
 		return rule, nil, errInvalidConfiguration
@@ -156,7 +155,7 @@ func (m *Module) readDestination(ctx context.Context, rule notification.Notifier
 		return nil, errInvalidConfiguration
 	}
 	if m.secrets == nil {
-		return nil, fmt.Errorf("secrets provider is unavailable")
+		return nil, errors.New("secrets provider is unavailable")
 	}
 	secret, err := m.secrets.Read(ctx, ref)
 	if err != nil {

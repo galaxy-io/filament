@@ -23,7 +23,8 @@ func (m *Module) report(ctx context.Context, a attempt) {
 		{Key: "error_code", Value: r.ErrorCode},
 	}
 	if m.log != nil {
-		m.log.Info("notification operation completed", fields...)
+		m.log.Info("notification operation completed",
+			append(fields, filament.Field{Key: "event.name", Value: "notifier.attempt.completed"})...)
 	}
 	_, err := n.NotificationType.Label()
 	if err == nil {
@@ -39,6 +40,7 @@ func (m *Module) report(ctx context.Context, a attempt) {
 		})
 	}
 	if err != nil && m.log != nil {
-		m.log.Warn("notification attempt report failed", fields...)
+		m.log.Warn("notification attempt report failed",
+			append(fields, filament.Field{Key: "event.name", Value: "notifier.report.failed"})...)
 	}
 }

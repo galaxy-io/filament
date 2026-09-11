@@ -4,7 +4,6 @@ package notifier
 import (
 	"context"
 	"errors"
-	"fmt"
 	"maps"
 	"time"
 
@@ -43,7 +42,7 @@ func New(senders map[notification.NotificationType]notification.Sender) *Module 
 // Name identifies this module.
 func (m *Module) Name() string { return "notifier" }
 
-// Subscriptions starts at the live tail; the durable resumes pending work on restart.
+// Subscriptions declares a live-tail consumer that resumes pending events on restart.
 func (m *Module) Subscriptions() []host.Subscription {
 	return []host.Subscription{{
 		Pattern: events.AllPattern(), Durable: "notifier", Replay: false,
@@ -55,12 +54,15 @@ func (m *Module) Subscriptions() []host.Subscription {
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	store, ok := d.DataStore.(notification.Store)
 	if !ok {
-		return fmt.Errorf("datastore does not support notifiers")
+		return errors.New("datastore does not support notifiers")
 	}
 	if d.Bus == nil {
-		return fmt.Errorf("notifier requires an event bus")
+		return errors.New("notifier requires an event bus")
 	}
-	m.ds, m.store, m.bus, m.secrets = d.DataStore, store, d.Bus, d.Secrets
+	m.ds = d.DataStore
+	m.store = store
+	m.bus = d.Bus
+	m.secrets = d.Secrets
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "notifier"})
 	}
@@ -82,7 +84,7 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return nil
 	}
 	if msg.Seq() == 0 {
-		return fmt.Errorf("notifier: trigger requires a stream sequence")
+		return errors.New("notifier: trigger requires a stream sequence")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -96,7 +98,7 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	}
 	frame, err := events.Marshal(f)
 	if err != nil {
-		return fmt.Errorf("notifier: could not encode trigger event")
+		return errors.New("notifier: could not encode trigger event")
 	}
 	trigger := notification.Notification{
 		Tenant: f.Tenant, Run: f.Run, Resource: f.Resource,
@@ -112,7 +114,7 @@ func (m *Module) rulesFor(ctx context.Context, f events.Fact) ([]notification.No
 		return nil, filament.RunRequest{}, nil
 	}
 	if err != nil {
-		return nil, filament.RunRequest{}, fmt.Errorf("notifier: could not load run")
+		return nil, filament.RunRequest{}, errors.New("notifier: could not load run")
 	}
 	if run.Request.PipelineID == "" {
 		return nil, run.Request, nil
@@ -122,19 +124,19 @@ func (m *Module) rulesFor(ctx context.Context, f events.Fact) ([]notification.No
 		return nil, run.Request, nil
 	}
 	if err != nil {
-		return nil, run.Request, fmt.Errorf("notifier: could not load pipeline")
+		return nil, run.Request, errors.New("notifier: could not load pipeline")
 	}
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, run.Request, nil
 	}
 	rules, err := m.store.ListNotifiers(ctx, notification.Filter{Tenant: f.Tenant, PipelineID: run.Request.PipelineID})
 	if err != nil {
-		return nil, run.Request, fmt.Errorf("notifier: could not list pipeline rules")
+		return nil, run.Request, errors.New("notifier: could not list pipeline rules")
 	}
 	selected := make([]notification.Notifier, 0, len(rules))
 	for _, n := range rules {
 		if n.Tenant != f.Tenant || n.PipelineID != run.Request.PipelineID {
-			return nil, run.Request, fmt.Errorf("notifier: rule does not belong to this pipeline")
+			return nil, run.Request, errors.New("notifier: rule does not belong to this pipeline")
 		}
 		if notification.Matches(n, f.Name, f.Resource) {
 			selected = append(selected, n)
@@ -145,7 +147,8 @@ func (m *Module) rulesFor(ctx context.Context, f events.Fact) ([]notification.No
 
 func (m *Module) ignored(reason string, sequence uint64) {
 	if m.log != nil {
-		m.log.Debug("notification event ignored",
+		m.log.Trace("notification event ignored",
+			filament.Field{Key: "event.name", Value: "notifier.fact.ignored"},
 			filament.Field{Key: "reason", Value: reason},
 			filament.Field{Key: "stream_sequence", Value: sequence})
 	}
@@ -165,7 +168,9 @@ func (m *Module) keepAlive(ctx context.Context, cancel context.CancelFunc, msg e
 		for {
 			if err := progress.InProgress(); err != nil {
 				if m.log != nil {
-					m.log.Warn("notification acknowledgement extension failed")
+					m.log.Warn("notification acknowledgement extension failed",
+						filament.Field{Key: "event.name", Value: "notifier.acknowledgement.failed"},
+						filament.Field{Key: "stream_sequence", Value: msg.Seq()})
 				}
 				cancel()
 				return
