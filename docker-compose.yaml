@@ -3,6 +3,8 @@ name: filament
 services:
   postgres:
     image: ${POSTGRES_IMAGE:-docker.io/library/postgres:16}
+    # Logical WAL so the local database can also serve as a CDC source.
+    command: ["postgres", "-c", "wal_level=logical"]
     networks:
       - filament
     ports:

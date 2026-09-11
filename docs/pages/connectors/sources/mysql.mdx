@@ -25,6 +25,7 @@ timestamp-watermark incremental reads, and binlog CDC. The connector is beta.
 | `shard_pages` | Pipeline | `16384` | InnoDB pages per parallel shard (≈256 MiB at 16 KiB pages). `0` disables sharding. |
 | `max_conns` | Pipeline | | Maximum source connections. |
 | `server_id` | Pipeline | `62347` | Replication client `server_id` for CDC. Must be unique in the replica topology. |
+| `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it, `none` streams from the current position only. |
 
 ## Snapshot reads
 
@@ -100,6 +101,12 @@ do not apply to this bootstrap read. The tables must use InnoDB, since only a
 transactional engine gives the snapshot one point in time. Binlog retention
 must cover the time the bootstrap read takes, or the stream cannot start from
 the captured position.
+
+`snapshot_mode=none` skips that read. A table without a checkpoint streams
+from the binlog position at the start of its first run, so the sink starts
+empty and fills in as rows change. Updates carry the full row, so a merge sink
+upserts rows it has never seen; deletes of unseen rows are no-ops. This mode
+needs neither `LOCK TABLES` nor InnoDB.
 
 Requirements:
 

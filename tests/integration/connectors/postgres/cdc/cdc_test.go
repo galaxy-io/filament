@@ -283,3 +283,52 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 		}
 	}
 }
+
+func TestPostgresCDCSnapshotModeNone(t *testing.T) {
+	ctx := context.Background()
+	pg := testcontainers.SharedPostgresCDC(t)
+	if _, err := pg.Pool().Exec(ctx, `
+		CREATE TABLE cdc_nosnap (id bigint PRIMARY KEY, name text NOT NULL);
+		ALTER TABLE cdc_nosnap REPLICA IDENTITY FULL;
+		INSERT INTO cdc_nosnap VALUES (1, 'Existing');
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	src := pgsource.New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"dsn": pg.DSN(), "slot_name": "filament_test_nosnap", "publication": "filament_test_nosnap",
+		"snapshot_mode": "none",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = src.Teardown(ctx) }()
+
+	// First run: a new slot, no baseline, only a stream mark at its consistent point.
+	first := &testutil.CollectSink{}
+	if err := src.ExtractChanges(ctx, first, filament.ChangeExtractOpts{Resources: []string{"cdc_nosnap"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := testutil.DataRecords(first.Records); len(got) != 0 {
+		t.Fatalf("snapshot_mode none emitted %d baseline rows, want 0", len(got))
+	}
+	cp := testutil.StreamCheckpoint(t, first.Records, "cdc_nosnap")
+
+	// Second run: only changes after that point.
+	if _, err := pg.Pool().Exec(ctx, `
+		INSERT INTO cdc_nosnap VALUES (2, 'Ada');
+		UPDATE cdc_nosnap SET name='Changed' WHERE id=1;
+	`); err != nil {
+		t.Fatal(err)
+	}
+	second := &testutil.CollectSink{}
+	if err := src.ExtractChanges(ctx, second, filament.ChangeExtractOpts{
+		Resources: []string{"cdc_nosnap"}, Checkpoints: map[string]filament.Checkpoint{"cdc_nosnap": cp},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data := testutil.DataRecords(second.Records)
+	if len(data) != 2 || data[0].ID != "2" || data[0].Op != filament.OpInsert || data[1].ID != "1" || data[1].Op != filament.OpUpdate {
+		t.Fatalf("post-start records = %#v, want WAL insert 2 then WAL update 1", data)
+	}
+}
