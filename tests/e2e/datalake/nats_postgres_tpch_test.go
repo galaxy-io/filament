@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
-	icebergsink "github.com/galaxy-io/filament/connectors/iceberg"
+	icebergsink "github.com/galaxy-io/filament/connectors/iceberg/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus/host"
