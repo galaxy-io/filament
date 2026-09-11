@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
+// ErrUnknownCodec reports an unregistered codec identifier or version.
 var ErrUnknownCodec = errors.New("streamkit: unknown codec")
 
 type codecKey struct {
@@ -26,6 +27,7 @@ type Registry struct {
 	codecs map[codecKey]rowmodel.PositionCodec
 }
 
+// Register adds a codec without allowing replacement of an existing registration.
 func (r *Registry) Register(name string, version int, c rowmodel.PositionCodec) error {
 	if name == "" || version < 0 || c == nil {
 		return errors.New("streamkit: invalid codec registration")
@@ -42,6 +44,8 @@ func (r *Registry) Register(name string, version int, c rowmodel.PositionCodec) 
 	r.codecs[key] = c
 	return nil
 }
+
+// Lookup resolves a registered codec or returns ErrUnknownCodec.
 func (r *Registry) Lookup(name string, version int) (rowmodel.PositionCodec, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -56,10 +60,15 @@ func (r *Registry) Lookup(name string, version int) (rowmodel.PositionCodec, err
 // Nil and empty payloads remain distinct. It does not interpret native cursors.
 type OpaqueCodec struct{}
 
+// Validate checks the position format identity without interpreting opaque bytes.
 func (OpaqueCodec) Validate(p rowmodel.Position) error { return p.Validate() }
+
+// Canonicalize validates and copies the value, preserving nil versus empty bytes.
 func (c OpaqueCodec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error) {
 	return p.Clone(), c.Validate(p)
 }
+
+// Compare permits exact equality only; different opaque values remain incomparable.
 func (c OpaqueCodec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, error) {
 	if a.Codec != b.Codec || a.Version != b.Version {
 		return rowmodel.PositionIncomparable, nil
@@ -81,6 +90,7 @@ func (c OpaqueCodec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, er
 // cursors merely because a sample happens to contain digits.
 type Uint64Codec struct{}
 
+// Validate requires decimal digits representing a value within the uint64 range.
 func (Uint64Codec) Validate(p rowmodel.Position) error {
 	if err := p.Validate(); err != nil {
 		return err
@@ -96,6 +106,8 @@ func (Uint64Codec) Validate(p rowmodel.Position) error {
 	_, err := strconv.ParseUint(string(p.Value), 10, 64)
 	return err
 }
+
+// Canonicalize returns independently owned decimal bytes without leading zeros.
 func (c Uint64Codec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error) {
 	if err := c.Validate(p); err != nil {
 		return rowmodel.Position{}, err
@@ -104,6 +116,8 @@ func (c Uint64Codec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error
 	p.Value = []byte(strconv.FormatUint(n, 10))
 	return p, nil
 }
+
+// Compare orders validated unsigned counters with matching codec identities.
 func (c Uint64Codec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, error) {
 	if a.Codec != b.Codec || a.Version != b.Version {
 		return rowmodel.PositionIncomparable, nil

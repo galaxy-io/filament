@@ -8,6 +8,7 @@ type EventIdentity struct {
 	Ordinal  uint64
 }
 
+// Clone returns an event identity with independently owned position bytes.
 func (e EventIdentity) Clone() EventIdentity { e.Position = e.Position.Clone(); return e }
 
 // StreamMeta carries native event metadata. Its presence does not select
@@ -15,6 +16,7 @@ func (e EventIdentity) Clone() EventIdentity { e.Position = e.Position.Clone(); 
 // It cannot certify coverage or replace the row-aligned envelope columns.
 type StreamMeta struct{ Identity EventIdentity }
 
+// Clone copies stream metadata and its position bytes, preserving nil metadata.
 func (m *StreamMeta) Clone() *StreamMeta {
 	if m == nil {
 		return nil

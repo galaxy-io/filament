@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// Reserved envelope column names identify row-aligned event metadata.
 const (
 	EventIDField        = "_filament_event_id"
 	EventIdentityField  = "_filament_event_identity"
