@@ -67,7 +67,8 @@ func (s *Sink) Spec() filament.SinkSpec {
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-stdout-light.svg",
 		Version:      "1",
 		Capabilities: filament.SinkCapabilities{
-			EncodedIntegrity: true,
+			EncodedIntegrity:    true,
+			PreferredBatchBytes: 4 << 20,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionFullAppend,
 				filament.IngestionCDCAppend,

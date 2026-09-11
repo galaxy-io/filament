@@ -76,4 +76,8 @@ type SinkCapabilities struct {
 	// run does not set Options.BatchMaxRows.
 	// 0 defers to the engine default.
 	PreferredBatchRows int
+	// PreferredBatchBytes is the sink's preferred approximate unencoded value
+	// bytes per Apply, used when the run does not set Options.BatchMaxBytes.
+	// 0 leaves batches unbounded by bytes.
+	PreferredBatchBytes int64
 }
