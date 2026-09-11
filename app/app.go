@@ -1,7 +1,8 @@
 // Package app is the public composition root for a Filament ingestion service.
 // It wires the event plane (bus + datastore), tracker, engine, orchestrator,
-// scheduler, and notifier on a Host and serves the ConnectRPC API, resolving
+// and scheduler on a Host and serves the ConnectRPC API, resolving
 // source/sink providers at runtime from the process-wide default registry.
+// WithNotifier adds webhook delivery.
 //
 // A deployable binary is therefore just: blank-import the connectors it ships
 // (which self-register via init()) and call Run.
@@ -39,15 +40,13 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
-	notification "github.com/galaxy-io/filament/internal/notifier"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
 )
 
 // Config is the resolved composition for a run. Zero value is invalid; build it
-// with newConfig + options. Each field is an interface so deployments can swap
-// transports and stores without touching the wiring below.
+// with newConfig + options.
 type Config struct {
 	Bus     eventbus.Bus
 	Store   filament.DataStore
@@ -57,6 +56,8 @@ type Config struct {
 	Sinks   filament.SinkRegistry
 	UI      http.Handler
 	Log     filament.Logger
+
+	notifierEnabled bool
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
@@ -80,6 +81,9 @@ func WithSinks(s filament.SinkRegistry) Option { return func(c *Config) { c.Sink
 
 // WithSecrets sets the secrets provider used to resolve secret refs (default: none).
 func WithSecrets(s filament.Secrets) Option { return func(c *Config) { c.Secrets = s } }
+
+// WithNotifier enables webhook delivery using the configured datastore and secrets.
+func WithNotifier() Option { return func(c *Config) { c.notifierEnabled = true } }
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
 // package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take
@@ -159,7 +163,7 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	sched := scheduler.New(scheduleStore)
 	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
 	modules := []module.Module{tracker.New(), engine.New(), orch, sched}
-	if _, ok := cfg.Store.(notification.Store); ok {
+	if cfg.notifierEnabled {
 		modules = append(modules, notifier.New())
 	}
 	mods, err := module.MountAll(ctx, deps, modules...)

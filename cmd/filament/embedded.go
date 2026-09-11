@@ -51,6 +51,7 @@ func (a *cliApp) embeddedOptions() ([]app.Option, filament.Secrets, error) {
 	}
 	secrets := layeredSecrets{stored: stored, env: secretenv.New()}
 	return []app.Option{
+		app.WithNotifier(),
 		app.WithDataStore(store),
 		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithSecrets(secrets),

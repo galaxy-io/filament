@@ -86,6 +86,7 @@ func run(ctx context.Context) error {
 	}
 
 	return app.Run(ctx,
+		app.WithNotifier(),
 		app.WithBus(bus),
 		app.WithDataStore(store),
 		app.WithMetricsStore(metrics.New(store.DB())),
