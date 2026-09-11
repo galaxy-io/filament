@@ -57,6 +57,12 @@ type Message interface {
 	Nak() error
 }
 
+// ProgressReporter is an optional message capability that extends the acknowledgement window.
+// Call InProgress periodically while handling a long-running message.
+type ProgressReporter interface {
+	InProgress() error
+}
+
 // Replayable is an optional capability: a subscription that receives the
 // retained backlog from fromSeq before tailing live.
 type Replayable interface {
