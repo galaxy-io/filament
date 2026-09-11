@@ -53,6 +53,47 @@ func (ns NullConnectorKind) Value() (driver.Value, error) {
 	return string(ns.ConnectorKind), nil
 }
 
+type NotificationType string
+
+const (
+	NotificationTypeWebhook NotificationType = "webhook"
+)
+
+func (e *NotificationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationType(s)
+	case string:
+		*e = NotificationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationType: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationType struct {
+	NotificationType NotificationType
+	Valid            bool // Valid is true if NotificationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationType), nil
+}
+
 type Connection struct {
 	ID              string
 	TenantID        string
@@ -69,6 +110,27 @@ type Connection struct {
 	DeletedByUserID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type Notifier struct {
+	ID               string
+	TenantID         string
+	PipelineID       string
+	Name             string
+	NotificationType NotificationType
+	IsEnabled        bool
+	Events           []byte
+	Resources        []byte
+	Config           []byte
+	SecretRefs       []byte
+	Version          int64
+	IsDeleted        bool
+	DeletedAt        pgtype.Timestamptz
+	CreatedByUserID  pgtype.Text
+	UpdatedByUserID  pgtype.Text
+	DeletedByUserID  pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }
 
 type Pipeline struct {
