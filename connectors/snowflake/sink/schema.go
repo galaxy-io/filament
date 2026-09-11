@@ -1,10 +1,12 @@
 package snowflake
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"strings"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -58,6 +60,65 @@ func createSchemaDDL(database, schema string) (string, error) {
 		return "", fmt.Errorf("schema name is empty")
 	}
 	return "CREATE SCHEMA IF NOT EXISTS " + qualified(database, schema), nil
+}
+
+// EnsureSchema creates a typed table and adds newly discovered columns. It
+// deliberately does not drop, rename, or alter existing columns.
+func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
+	if s.db == nil {
+		return fmt.Errorf("snowflake sink: ensure schema before open")
+	}
+	table, err := defineTable(s.database, s.schema, resource, schema)
+	if err != nil {
+		return fmt.Errorf("snowflake sink: schema for %q: %w", resource, err)
+	}
+	if _, err := s.db.ExecContext(ctx, table.createSQL); err != nil {
+		return fmt.Errorf("snowflake sink: create table %s: %w", table.qualified, err)
+	}
+	if s.modeFor(resource) == filament.WriteReplace {
+		if _, err := s.db.ExecContext(ctx, "TRUNCATE TABLE "+table.qualified); err != nil { //nolint:gosec // identifier is quoted
+			return fmt.Errorf("snowflake sink: truncate table %s: %w", table.qualified, err)
+		}
+		table.replace = true
+	}
+	existing, err := s.columnSet(ctx, resource)
+	if err != nil {
+		return fmt.Errorf("snowflake sink: inspect columns on %s: %w", table.qualified, err)
+	}
+	for _, column := range table.columns {
+		if existing[column.name] {
+			continue
+		}
+		//nolint:gosec // Identifiers are quoted and type spellings come only from columnType.
+		ddl := "ALTER TABLE " + table.qualified +
+			" ADD COLUMN IF NOT EXISTS " + column.sql
+		if _, err := s.db.ExecContext(ctx, ddl); err != nil {
+			return fmt.Errorf("snowflake sink: add column %s on %s: %w", column.identifier, table.qualified, err)
+		}
+	}
+	s.tables[resource] = table
+	return nil
+}
+
+func (s *Sink) columnSet(ctx context.Context, resource string) (map[string]bool, error) {
+	//nolint:gosec // The database and information-schema identifiers are quoted.
+	query := "SELECT COLUMN_NAME FROM " + qualified(s.database, "INFORMATION_SCHEMA", "COLUMNS") +
+		" WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?"
+	rows, err := s.db.QueryContext(ctx, query, s.schema, resource)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
 }
 
 // defineTable validates a portable schema and renders the DDL used by
