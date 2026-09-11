@@ -70,6 +70,7 @@ const CreatePipelineModalFooter = () => {
           sourceConnection: state.sourceConnection,
           rowsBySink: state.rowsBySink,
           sinks: state.sinks,
+          nodeConfigs: state.nodeConfigs,
           replication: state.replication,
           pipelineId,
         });

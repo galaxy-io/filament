@@ -40,6 +40,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   resourceReadModes: {},
   resourceCursors: {},
   sinkWriteModes: {},
+  nodeConfigs: {},
   name: "",
   isNameTouched: false,
   description: "",

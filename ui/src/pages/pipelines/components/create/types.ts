@@ -3,6 +3,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalStep {
@@ -27,6 +28,7 @@ export interface CreatePipelineModalState {
   resourceReadModes: Record<Connection["id"], Record<Resource["name"], ReadMode>>;
   resourceCursors: Record<Connection["id"], Record<Resource["name"], ResourceColumn["name"]>>;
   sinkWriteModes: Record<Connection["id"], WriteMode>;
+  nodeConfigs: Record<Connection["id"], PipelineNodeConfig>;
   name: Pipeline["name"];
   isNameTouched: boolean;
   description: Pipeline["description"];

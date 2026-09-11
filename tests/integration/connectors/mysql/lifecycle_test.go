@@ -440,6 +440,53 @@ func TestMySQLConnectorLifecycle(t *testing.T) {
 		}
 	})
 
+	t.Run("CDC snapshot_mode none streams from the current position", func(t *testing.T) {
+		if _, err := db.DB.ExecContext(ctx, `
+			CREATE TABLE cdc_nosnap (id bigint PRIMARY KEY, name varchar(80) NOT NULL);
+			INSERT INTO cdc_nosnap VALUES (1, 'one'), (2, 'two');
+		`); err != nil {
+			t.Fatal(err)
+		}
+		src := mysqlsource.New()
+		if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": db.DSN, "replication": "cdc", "server_id": 62352, "snapshot_mode": "none"})); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = src.Teardown(ctx) }()
+
+		// First run: no baseline, only a stream mark at the current position.
+		first := &testutil.CollectSink{}
+		defer first.Release()
+		if err := src.ExtractChanges(ctx, first, filament.ChangeExtractOpts{Resources: []string{"cdc_nosnap"}}); err != nil {
+			t.Fatal(err)
+		}
+		if got := testutil.DataRecords(first.Records); len(got) != 0 {
+			t.Fatalf("snapshot_mode none emitted %d baseline rows, want 0", len(got))
+		}
+		cp := testutil.StreamCheckpoint(t, first.Records, "cdc_nosnap")
+
+		// Second run: only changes after that position, still no baseline.
+		if _, err := db.DB.ExecContext(ctx, `
+			INSERT INTO cdc_nosnap VALUES (3, 'three');
+			UPDATE cdc_nosnap SET name='uno' WHERE id=1;
+		`); err != nil {
+			t.Fatal(err)
+		}
+		second := &testutil.CollectSink{}
+		defer second.Release()
+		if err := src.ExtractChanges(ctx, second, filament.ChangeExtractOpts{
+			Resources: []string{"cdc_nosnap"}, Checkpoints: map[string]filament.Checkpoint{"cdc_nosnap": cp},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, row := range testutil.DataRecords(second.Records) {
+			got = append(got, fmt.Sprintf("%s:%s", filament.OperationName(row.Op), row.ID))
+		}
+		if want := []string{"insert:3", "update:1"}; !slices.Equal(got, want) {
+			t.Fatalf("post-start records = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("CDC bootstrap delivers a write during the snapshot exactly once", func(t *testing.T) {
 		if _, err := db.DB.ExecContext(ctx, `
 			CREATE TABLE cdc_handoff (id bigint PRIMARY KEY, name varchar(80) NOT NULL);

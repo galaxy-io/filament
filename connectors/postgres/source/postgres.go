@@ -87,6 +87,7 @@ type Source struct {
 	publication       string
 	slotName          string
 	managePublication bool
+	snapshotMode      filament.SnapshotMode
 }
 
 // New returns an unconfigured source.
@@ -94,6 +95,7 @@ func New() *Source {
 	return &Source{
 		schema: defaultSchema, pageSize: defaultPageSize, shardPages: defaultShardPages,
 		publication: defaultPublication, slotName: defaultSlotName, managePublication: true,
+		snapshotMode: filament.SnapshotInitial,
 	}
 }
 
@@ -155,6 +157,14 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
 				Help:        "Create the CDC publication and add selected tables when needed",
+			},
+			{
+				Name: "snapshot_mode", Type: filament.FieldEnum, Default: string(filament.SnapshotInitial), Enum: []filament.EnumOption{
+					{Value: string(filament.SnapshotInitial), Label: "Initial"},
+					{Value: string(filament.SnapshotNone), Label: "None"},
+				}, Scope: filament.ScopePipeline,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Initial reads a table in full before streaming its changes; None streams from the current position only",
 			},
 		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
@@ -299,6 +309,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	if cfg.Has("manage_publication") {
 		s.managePublication = cfg.Bool("manage_publication")
+	}
+	if v := cfg.String("snapshot_mode"); v != "" {
+		s.snapshotMode = filament.SnapshotMode(v)
 	}
 	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
