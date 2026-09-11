@@ -2,6 +2,7 @@ package iceberg
 
 import (
 	"github.com/galaxy-io/filament"
+	sink "github.com/galaxy-io/filament/connectors/iceberg/sink"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -10,5 +11,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/iceberg"
 func init() {
-	registry.RegisterSink("iceberg", filament.MaturityAlpha, func() filament.Sink { return New() })
+	registry.RegisterSink("iceberg", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
 }
