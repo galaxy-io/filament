@@ -40,6 +40,7 @@ const (
 
 // Schema is one resource's column layout.
 type Schema struct {
+	envelope   bool
 	Resource   string
 	Fields     []Field
 	PrimaryKey []string
@@ -48,7 +49,7 @@ type Schema struct {
 
 // Equal reports whether two supplied schemas describe the same resource model.
 func (s Schema) Equal(other Schema) bool {
-	return s.Resource == other.Resource && s.Engine == other.Engine &&
+	return s.envelope == other.envelope && s.Resource == other.Resource && s.Engine == other.Engine &&
 		slices.Equal(s.PrimaryKey, other.PrimaryKey) && slices.Equal(s.Fields, other.Fields)
 }
 
