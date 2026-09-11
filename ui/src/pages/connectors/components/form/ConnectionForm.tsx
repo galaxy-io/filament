@@ -231,7 +231,10 @@ const ConnectionForm = ({
     [dispatch],
   );
 
-  const fieldDefaults = useMemo(() => getFieldDefaults(fields), [fields]);
+  const fieldDefaults = useMemo(
+    () => getFieldDefaults(fields, state.config),
+    [fields, state.config],
+  );
 
   const getFieldValue = (fieldName: ConfigField["name"]): JsonValue => {
     return state.config[fieldName] ?? fieldDefaults[fieldName] ?? null;

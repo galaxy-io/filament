@@ -187,11 +187,27 @@ func (s *Source) ExtractChanges(ctx context.Context, sink arrowbatch.Inlet, opts
 	// change. A newly-created slot supplies the exact exported snapshot at its
 	// consistent point; an existing slot (for example after an interrupted first
 	// attempt) supplies the older replay position while a fresh snapshot is read.
+	//
+	// Under SnapshotNone no baseline is read: the resource's floor is the
+	// slot's consistent point (new slot) or the current WAL position (existing
+	// slot), and its stream starts there.
 	bootstrapResources := resourcesWithoutCheckpoints(opts.Resources, opts.Checkpoints)
 	var bootstrapShards []shard
 	var bootstrapSnapshot *snapshot
 	bootstrapFloor := slot.start
-	if len(bootstrapResources) > 0 {
+	switch {
+	case len(bootstrapResources) == 0:
+	case s.snapshotMode == filament.SnapshotNone:
+		if slot.snapshotID == "" {
+			bootstrapFloor, err = s.currentLSN(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		for _, resource := range bootstrapResources {
+			run.floors[resource] = bootstrapFloor
+		}
+	default:
 		bootstrapShards, err = s.planShards(ctx, bootstrapResources, 1)
 		if err != nil {
 			return fmt.Errorf("postgres cdc: plan initial snapshot: %w", err)

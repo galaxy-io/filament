@@ -472,8 +472,10 @@ func resourcesWithoutCheckpoints(resources []string, cps map[string]filament.Che
 // read. It runs before the snapshot connection is taken, so the pool stays
 // usable with max_conns=1 while the snapshot transaction is held.
 func (r *cdcRun) prepare(ctx context.Context, s *Source, resources []string) error {
-	if err := s.requireInnoDB(ctx, resources); err != nil {
-		return err
+	if s.snapshotMode != filament.SnapshotNone {
+		if err := s.requireInnoDB(ctx, resources); err != nil {
+			return err
+		}
 	}
 	for _, resource := range resources {
 		if _, err := r.table(ctx, s, resource, -1); err != nil {
@@ -531,7 +533,13 @@ const lockWait = 10 * time.Second
 // snapshot opens, then releases before the scan. Everything committed before
 // the floor is in the snapshot; everything after arrives from the stream.
 // Row limits do not apply — a partial baseline is worse than a long first cycle.
+//
+// Under SnapshotNone there is no baseline to pair with: the floor is captured
+// without a lock or a scan, and the stream starts from there.
 func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources []string, captureFloor func(context.Context) error) error {
+	if s.snapshotMode == filament.SnapshotNone {
+		return captureFloor(ctx)
+	}
 	unlock, err := s.lockTables(ctx, resources)
 	if err != nil {
 		return err
