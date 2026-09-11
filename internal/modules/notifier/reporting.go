@@ -5,7 +5,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/events"
-	notification "github.com/galaxy-io/filament/internal/notifier"
 )
 
 func (m *Module) report(ctx context.Context, a attempt) {
@@ -13,11 +12,6 @@ func (m *Module) report(ctx context.Context, a attempt) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), reportTimeout)
 	defer cancel()
 	n, r := a.notification, a.result
-	kind, err := n.NotificationType.Label()
-	if err != nil {
-		kind = "unknown"
-	}
-	m.observe(kind, r)
 	fields := []filament.Field{
 		{Key: "notifier_id", Value: n.NotifierID},
 		{Key: "tenant_id", Value: n.Tenant},
@@ -31,6 +25,7 @@ func (m *Module) report(ctx context.Context, a attempt) {
 	if m.log != nil {
 		m.log.Info("notification operation completed", fields...)
 	}
+	_, err := n.NotificationType.Label()
 	if err == nil {
 		err = events.Emit(ctx, m.bus, events.NotifierAttempted, events.Envelope{
 			Tenant: n.Tenant, Run: n.Run, Resource: n.Resource, At: a.completedAt,
@@ -43,33 +38,7 @@ func (m *Module) report(ctx context.Context, a attempt) {
 			StatusCode: r.StatusCode, DurationMs: r.Duration.Milliseconds(), ErrorCode: r.ErrorCode,
 		})
 	}
-	if err != nil {
-		if m.log != nil {
-			m.log.Warn("notification attempt report failed", fields...)
-		}
-		if m.mx != nil {
-			m.mx.Counter("filament_notifier_report_failures_total", filament.Label{Key: "notification_type", Value: kind}).Inc()
-		}
-	}
-}
-
-func (m *Module) observe(kind string, r notification.DeliveryResult) {
-	if m.mx == nil {
-		return
-	}
-	labels := []filament.Label{
-		{Key: "notification_type", Value: kind},
-		{Key: "outcome", Value: string(r.Outcome)},
-	}
-	m.mx.Counter("filament_notifier_operations_total", labels...).Inc()
-	m.mx.Histogram("filament_notifier_operation_duration_seconds", labels...).Observe(r.Duration.Seconds())
-	if r.RequestAttempted {
-		m.mx.Counter("filament_notifier_requests_total", labels...).Inc()
-	}
-	if r.ErrorCode == notification.ErrorSecretUnavailable || r.ErrorCode == notification.ErrorInvalidConfiguration {
-		m.mx.Counter("filament_notifier_configuration_failures_total",
-			filament.Label{Key: "notification_type", Value: kind},
-			filament.Label{Key: "error_code", Value: string(r.ErrorCode)},
-		).Inc()
+	if err != nil && m.log != nil {
+		m.log.Warn("notification attempt report failed", fields...)
 	}
 }

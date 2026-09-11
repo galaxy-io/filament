@@ -21,7 +21,6 @@ const (
 	reportTimeout    = 7 * time.Second
 	progressInterval = 10 * time.Second
 	maxConcurrent    = 8
-	maxAttempts      = 3
 )
 
 // Module matches current pipeline rules and reports delivery attempts.
@@ -31,7 +30,6 @@ type Module struct {
 	bus     eventbus.Bus
 	secrets filament.Secrets
 	log     filament.Logger
-	mx      filament.Metrics
 	senders map[notification.NotificationType]notification.Sender
 }
 
@@ -63,7 +61,6 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		return fmt.Errorf("notifier requires an event bus")
 	}
 	m.ds, m.store, m.bus, m.secrets = d.DataStore, store, d.Bus, d.Secrets
-	m.mx = d.Metrics
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "notifier"})
 	}
@@ -151,5 +148,37 @@ func (m *Module) ignored(reason string, sequence uint64) {
 		m.log.Debug("notification event ignored",
 			filament.Field{Key: "reason", Value: reason},
 			filament.Field{Key: "stream_sequence", Value: sequence})
+	}
+}
+
+// keepAlive prevents redelivery while a large batch is still being processed.
+func (m *Module) keepAlive(ctx context.Context, cancel context.CancelFunc, msg eventbus.Message) func() {
+	progress, ok := msg.(eventbus.ProgressReporter)
+	if !ok {
+		return func() {}
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(progressInterval)
+		defer ticker.Stop()
+		for {
+			if err := progress.InProgress(); err != nil {
+				if m.log != nil {
+					m.log.Warn("notification acknowledgement extension failed")
+				}
+				cancel()
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	return func() {
+		cancel()
+		<-done
 	}
 }

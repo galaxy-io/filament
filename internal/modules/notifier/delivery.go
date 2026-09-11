@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/galaxy-io/filament"
 	notification "github.com/galaxy-io/filament/internal/notifier"
@@ -23,6 +24,47 @@ type attempt struct {
 	result       notification.DeliveryResult
 	completedAt  time.Time
 	skipped      bool
+}
+
+// deliverAll processes every matching rule, with at most eight in flight.
+func (m *Module) deliverAll(ctx context.Context, trigger notification.Notification, rules []notification.Notifier) error {
+	var group errgroup.Group
+	group.SetLimit(maxConcurrent)
+	for _, rule := range rules {
+		if ctx.Err() != nil {
+			break
+		}
+		group.Go(func() error {
+			m.deliverWithRetry(ctx, trigger, rule)
+			return ctx.Err()
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
+// deliverWithRetry makes up to three attempts, then moves on even if delivery failed.
+func (m *Module) deliverWithRetry(ctx context.Context, trigger notification.Notification, rule notification.Notifier) {
+	for _, delay := range []time.Duration{0, time.Second, 2 * time.Second} {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		a := m.deliver(ctx, trigger, rule)
+		if a.skipped {
+			return
+		}
+		m.report(ctx, a)
+		if !a.result.Retryable {
+			return
+		}
+	}
 }
 
 func (m *Module) deliver(ctx context.Context, trigger notification.Notification, rule notification.Notifier) (out attempt) {
