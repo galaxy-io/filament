@@ -8,5 +8,6 @@ use (
 	./connectors/snowflake
 	./identity/zitadel
 	./secret/aws
+	./secret/gcp
 	./tests
 )

@@ -46,11 +46,13 @@ event bus.
 
 | Variable | Default | Description |
 |---|---|---|
-| `SECRET_PROVIDER` | unset | Unset uses the configured datastore. The only explicit value is `aws-secrets-manager` |
+| `SECRET_PROVIDER` | unset | Unset uses the configured datastore. External values are `aws-secrets-manager` and `gcp-secret-manager` |
 | `ENCRYPTION_KEY` | — | Base64-encoded AES key. Required when `SECRET_PROVIDER` is unset; it must decode to 16, 24, or 32 bytes |
 | `ENCRYPTION_KEY_ID` | `default` | Identifier stored with secrets written by the datastore-backed provider |
-| `SECRETS_PREFIX` | empty | Prefix added to secret names in AWS Secrets Manager |
+| `SECRETS_PREFIX` | empty | Prefix added to external secret IDs; GCP prefixes may contain letters, digits, `_`, and `-` |
 | `AWS_REGION` | AWS SDK chain | AWS region. Startup fails if the SDK cannot resolve one |
+| `GCP_PROJECT_ID` | — | GCP project containing Secret Manager secrets. Required for `gcp-secret-manager` |
+| `GCP_REGION` | — | GCP region containing Secret Manager secrets. Required for `gcp-secret-manager` |
 
 The datastore-backed provider stores AES-GCM encrypted values in PostgreSQL or
 SQLite. Every service must receive the same encryption key.
@@ -63,6 +65,12 @@ a multi-key rotation mechanism.
 
 The AWS provider loads credentials through the standard AWS SDK chain. It
 stores each Filament secret as a JSON envelope in AWS Secrets Manager.
+
+The GCP provider loads Application Default Credentials and uses regional Secret
+Manager secrets. Filament refs are mapped to deterministic
+GCP-safe IDs and retained in secret annotations. Grant workloads access through
+their attached service account or Workload Identity. Deleting a connection
+permanently deletes its managed GCP secrets.
 
 ### Logs and OpenTelemetry
 

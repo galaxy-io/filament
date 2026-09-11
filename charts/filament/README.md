@@ -24,7 +24,7 @@ The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See t
 
 ## Runtime configuration
 
-Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
+Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS and GCP Secret Manager use their own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
 
 To use an existing Secret:
 
@@ -154,8 +154,10 @@ helm upgrade --install filament \
 | secrets.aws.region | string | `""` | AWS region for Secrets Manager, stored in the ConfigMap as `AWS_REGION`. Leave empty to use the SDK default chain (env, IMDS). |
 | secrets.datastore.encryptionKey | string | required | Base64-encoded AES key stored in the chart-created Secret as `ENCRYPTION_KEY`. Required unless `existingSecret` is set. |
 | secrets.datastore.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
+| secrets.gcp.projectId | string | `""` | GCP project containing Secret Manager secrets, stored as `GCP_PROJECT_ID`. Required when `secrets.type` is `gcp-secret-manager`. |
+| secrets.gcp.region | string | `""` | GCP region containing Secret Manager secrets, stored as `GCP_REGION`. Required when `secrets.type` is `gcp-secret-manager`. |
 | secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by datastore. |
-| secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; `aws-secrets-manager` is stored in the ConfigMap as `SECRET_PROVIDER`. |
+| secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; external provider names are stored in the ConfigMap as `SECRET_PROVIDER`. |
 
 ## Event bus parameters
 
