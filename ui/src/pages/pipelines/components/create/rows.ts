@@ -133,7 +133,7 @@ const buildResourceRows = ({
     const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected =
       state.resourceSelection[sinkId]?.[resource.name] ??
-      resource.metadata.default_enabled !== "false";
+      resource.metadata.default_resources !== "false";
     const cursorField = state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor;
 
     return {

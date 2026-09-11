@@ -1029,7 +1029,7 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	}
 	var enabled []string
 	for _, resource := range discovered.Resources {
-		if resource.Metadata["default_enabled"] == "true" {
+		if resource.Metadata["default_resources"] == "true" {
 			enabled = append(enabled, resource.Name)
 		}
 	}
@@ -2684,15 +2684,15 @@ func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
 	}
 }
 
-func TestStaticDiscoveryDefaultEnabled(t *testing.T) {
+func TestStaticDiscoveryDefaultResources(t *testing.T) {
 	for _, tc := range []struct {
 		name, defaults string
 		want           []string
 	}{
 		{"omitted", "", []string{"", ""}},
-		{"subset", "  default_enabled: [one]\n", []string{"true", "false"}},
-		{"none", "  default_enabled: []\n", []string{"false", "false"}},
-		{"all", "  default_enabled: [one, two]\n", []string{"true", "true"}},
+		{"subset", "  default_resources: [one]\n", []string{"true", "false"}},
+		{"none", "  default_resources: []\n", []string{"false", "false"}},
+		{"all", "  default_resources: [one, two]\n", []string{"true", "true"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := NewManifest([]byte(`version: 1
@@ -2723,7 +2723,7 @@ discovery:
 				t.Fatal("defaults must not filter discovery")
 			}
 			for i, r := range got.Resources {
-				if !r.Selectable || r.Metadata["default_enabled"] != tc.want[i] {
+				if !r.Selectable || r.Metadata["default_resources"] != tc.want[i] {
 					t.Fatalf("resource %s: selectable=%v metadata=%v", r.Name, r.Selectable, r.Metadata)
 				}
 			}

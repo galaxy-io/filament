@@ -329,11 +329,11 @@ func (m *Manifest) validateSemantics() error {
 	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
 		_ = agg.Addf("discovery.include", "is only supported in static mode")
 	}
-	if m.Discovery.Mode != "static" && m.Discovery.DefaultEnabled != nil {
-		_ = agg.Addf("discovery.default_enabled", "is only supported in static mode")
+	if m.Discovery.Mode != "static" && m.Discovery.DefaultResources != nil {
+		_ = agg.Addf("discovery.default_resources", "is only supported in static mode")
 	}
-	for i, name := range m.Discovery.DefaultEnabled {
-		path := fmt.Sprintf("discovery.default_enabled[%d]", i)
+	for i, name := range m.Discovery.DefaultResources {
+		path := fmt.Sprintf("discovery.default_resources[%d]", i)
 		if _, ok := names[name]; !ok {
 			_ = agg.Addf(path, "unknown resource %q", name)
 		} else if byName[name].CaptureOnly {

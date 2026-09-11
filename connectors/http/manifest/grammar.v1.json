@@ -161,7 +161,7 @@
       "properties": {
         "mode": { "type": "string", "enum": ["static", "dynamic"] },
         "include": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "default_enabled": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "default_resources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "resources": {
           "type": "array",
           "items": {

@@ -1301,7 +1301,7 @@ resources:
       raw: { path: $, type: json, mode: remainder }
 discovery:
   mode: static
-  default_enabled:
+  default_resources:
     - repositories
     - repository_details
     - star_history
