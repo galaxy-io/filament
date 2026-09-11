@@ -214,7 +214,7 @@ func (c *Connector) TestConnection(ctx context.Context) error {
 	build := func(ctx context.Context) (*http.Request, error) {
 		return c.builder.Build(ctx, *probe, template.Scope{Config: c.creds, Env: c.env})
 	}
-	_, body, err := c.doRequest(ctx, build, probe.Name)
+	_, body, err := c.doRequest(ctx, build, *probe)
 	if err != nil {
 		return fmt.Errorf("connection probe: %w", err)
 	}

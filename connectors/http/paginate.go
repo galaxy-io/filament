@@ -7,7 +7,10 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/tidwall/gjson"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/errs"
@@ -82,6 +85,9 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
 
+		if resp.StatusCode == http.StatusNoContent {
+			return totalRecords, pageCount + 1, nil
+		}
 		records, err := extractor.Records(raw)
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
@@ -195,7 +201,7 @@ func (c *Connector) fetchPage(
 		return req, nil
 	}
 
-	return c.doRequest(ctx, build, res.Name)
+	return c.doRequest(ctx, build, res)
 }
 
 // mustEncode picks an encoder for the resolved body. Defaults to JSON.
@@ -207,13 +213,14 @@ func mustEncode(encoding string, body any) (io.Reader, string, error) {
 	return enc.Encode(body)
 }
 
-// doRequest sends one HTTP request with retry on 429/5xx. The build closure
+// doRequest retries throttling, pending responses, and server errors. The build closure
 // is invoked per attempt so request bodies can be re-read.
 func (c *Connector) doRequest(
 	ctx context.Context,
 	build func(context.Context) (*http.Request, error),
-	resourceName string,
+	res manifest.Resource,
 ) (*http.Response, []byte, error) {
+	resourceName := res.Name
 	var serverRetries int
 	for attempt := range maxRetries {
 		if err := c.limiter.Wait(ctx); err != nil {
@@ -237,10 +244,16 @@ func (c *Connector) doRequest(
 		}
 
 		c.limiter.Observe(resp)
+		delay, limited := rateLimitDelay(resp, body, attempt, c.manifest.Connection.RateLimit)
 
 		switch {
-		case resp.StatusCode == 429:
-			delay := retryAfterDuration(resp, attempt)
+		case resp.StatusCode == http.StatusAccepted && res.Response.PollPending != nil && *res.Response.PollPending:
+			if attempt+1 < maxRetries {
+				if err := sleepCtx(ctx, retryAfterDuration(resp, attempt)); err != nil {
+					return nil, nil, err
+				}
+			}
+		case limited:
 			c.observe.Report(filament.SourceProgress{
 				Kind:       filament.SourceProgressRateLimited,
 				Resource:   resourceName,
@@ -301,19 +314,57 @@ func formatHTTPErrorBody(body []byte) string {
 	return errs.FormatTruncated(string(body))
 }
 
+// rateLimitDelay applies response rules; budget-reset waits remain owned by the limiter.
+func rateLimitDelay(resp *http.Response, body []byte, attempt int, spec manifest.RateLimit) (time.Duration, bool) {
+	delay := retryAfterDuration(resp, attempt)
+	limited := resp.StatusCode == http.StatusTooManyRequests
+	for _, rule := range spec.Responses {
+		if !matchesRateLimit(resp, body, rule) {
+			continue
+		}
+		limited = true
+		if resp.Header.Get("Retry-After") == "" {
+			delay = max(delay, time.Duration(rule.BackoffSeconds)*time.Second<<uint(attempt))
+		}
+	}
+	return delay, limited
+}
+
+func matchesRateLimit(resp *http.Response, body []byte, rule manifest.RateLimitResponse) bool {
+	if resp.StatusCode != rule.Status {
+		return false
+	}
+	if rule.Header != "" {
+		value := resp.Header.Get(rule.Header)
+		if value == "" || (rule.HeaderValue != "" && value != rule.HeaderValue) {
+			return false
+		}
+	}
+	if rule.BodyPath != "" {
+		if !gjson.ValidBytes(body) {
+			return false
+		}
+		value := gjson.GetBytes(body, rule.BodyPath)
+		if value.Type != gjson.String || !strings.Contains(strings.ToLower(value.String()), strings.ToLower(rule.BodyContains)) {
+			return false
+		}
+	}
+	return true
+}
+
 // retryAfterDuration parses the Retry-After header (seconds or HTTP-date),
 // otherwise computes exponential backoff capped at maxRetryBackoff.
 func retryAfterDuration(resp *http.Response, attempt int) time.Duration {
 	if ra := resp.Header.Get("Retry-After"); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
-			return min(time.Duration(secs)*time.Second, maxRetryBackoff)
+			return time.Duration(secs) * time.Second
 		}
 		if t, err := http.ParseTime(ra); err == nil {
 			d := time.Until(t)
 			if d <= 0 {
 				return time.Second
 			}
-			return min(d, maxRetryBackoff)
+			return d
 		}
 	}
 	return min(time.Second<<uint(attempt), maxRetryBackoff)

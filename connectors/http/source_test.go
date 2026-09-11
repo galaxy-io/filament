@@ -1022,7 +1022,30 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
-	want := []string{"repositories", "issues", "pull_requests"}
+	wantEnabled := []string{
+		"repositories", "issues", "pull_requests", "repository_details", "star_history",
+		"forks", "issue_comments", "pull_request_review_comments", "labels", "milestones",
+		"contributors", "languages",
+	}
+	var enabled []string
+	for _, resource := range discovered.Resources {
+		if resource.Metadata["default_resources"] == "true" {
+			enabled = append(enabled, resource.Name)
+		}
+	}
+	if !slices.Equal(enabled, wantEnabled) {
+		t.Fatalf("default enabled = %v, want %v", enabled, wantEnabled)
+	}
+	want := []string{
+		"repositories", "issues", "pull_requests", "repository_details", "stargazers", "watchers", "star_history", "star_count", "forks",
+		"issue_comments", "pull_request_review_comments", "pull_request_reviews", "labels", "milestones", "releases", "release_assets", "issue_events",
+		"issue_reactions", "issue_comment_reactions", "pull_request_review_comment_reactions",
+		"branches", "tags", "commits", "contributors", "languages", "members", "teams", "team_members", "collaborators", "workflows", "workflow_runs", "workflow_jobs", "deployments", "deployment_statuses", "traffic_views", "traffic_clones", "traffic_referrers", "traffic_paths",
+		"projects", "project_fields", "project_items", "project_item_field_values", "dependabot_alerts", "code_scanning_alerts", "secret_scanning_alerts",
+		"discussions", "discussion_comments", "discussion_replies",
+		"pull_request_files", "repository_events", "commit_activity", "code_frequency", "contributor_statistics", "participation", "punch_card", "anonymous_contributors",
+		"issue_timeline",
+	}
 	if len(discovered.Resources) != len(want) {
 		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
 	}
@@ -2667,5 +2690,56 @@ func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
 	}
 	if len(sink.records) != 2 {
 		t.Fatalf("records = %d, want both pages of events", len(sink.records))
+	}
+}
+
+func TestStaticDiscoveryDefaultResources(t *testing.T) {
+	for _, tc := range []struct {
+		name, defaults string
+		want           []string
+	}{
+		{"omitted", "", []string{"", ""}},
+		{"subset", "  default_resources: [one]\n", []string{"true", "false"}},
+		{"none", "  default_resources: []\n", []string{"false", "false"}},
+		{"all", "  default_resources: [one, two]\n", []string{"true", "true"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := NewManifest([]byte(`version: 1
+name: test
+display_name: Test
+description: Static selection defaults.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: one
+    path: /one
+  - name: two
+    path: /two
+discovery:
+  mode: static
+` + tc.defaults))
+			if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+				t.Fatal(err)
+			}
+			defer src.Teardown(t.Context())
+			got, err := src.Discover(t.Context(), filament.DiscoverOpts{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Resources) != 2 {
+				t.Fatal("defaults must not filter discovery")
+			}
+			for i, r := range got.Resources {
+				if !r.Selectable || r.Metadata["default_resources"] != tc.want[i] {
+					t.Fatalf("resource %s: selectable=%v metadata=%v", r.Name, r.Selectable, r.Metadata)
+				}
+			}
+			planned, err := src.PlanResources(t.Context(), []string{"two"}, nil)
+			if err != nil || !slices.Equal(planned, []string{"two"}) {
+				t.Fatalf("explicit selection: %v, %v", planned, err)
+			}
+		})
 	}
 }

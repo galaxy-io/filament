@@ -85,9 +85,10 @@ type Manifest struct {
 // DiscoverySpec chooses stable manifest resources or dynamically projected
 // upstream objects. Static discovery performs no HTTP requests.
 type DiscoverySpec struct {
-	Mode      string      `yaml:"mode"` // static | dynamic
-	Include   []string    `yaml:"include,omitempty"`
-	Resources []Discovery `yaml:"resources,omitempty"`
+	Mode             string      `yaml:"mode"` // static | dynamic
+	Include          []string    `yaml:"include,omitempty"`
+	Resources        []Discovery `yaml:"resources,omitempty"`
+	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 }
 
 // ConfigSpec declares one user-facing connector configuration field. Enum is
@@ -235,8 +236,19 @@ func referenceTemplate(value string) string {
 
 // RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
-	RequestsPerSecond float64       `yaml:"requests_per_second"`
-	Dynamic           *DynamicLimit `yaml:"dynamic,omitempty"`
+	RequestsPerSecond float64             `yaml:"requests_per_second"`
+	Dynamic           *DynamicLimit       `yaml:"dynamic,omitempty"`
+	Responses         []RateLimitResponse `yaml:"responses,omitempty"`
+}
+
+// RateLimitResponse identifies throttling. All configured conditions must match.
+type RateLimitResponse struct {
+	Status         int    `yaml:"status"`
+	Header         string `yaml:"header,omitempty"`
+	HeaderValue    string `yaml:"header_value,omitempty"`
+	BodyPath       string `yaml:"body_path,omitempty"`
+	BodyContains   string `yaml:"body_contains,omitempty"`
+	BackoffSeconds int    `yaml:"backoff_seconds,omitempty"`
 }
 
 // DynamicLimit configures rate adjustment from response rate-limit headers.
@@ -340,7 +352,8 @@ type BodySpec struct {
 type ResponseSpec struct {
 	Root        string          `yaml:"root"` // array | object (default object)
 	RecordsPath string          `yaml:"records_path"`
-	Cardinality string          `yaml:"cardinality,omitempty"` // many (default) | one
+	Cardinality string          `yaml:"cardinality,omitempty"`  // many (default) | one
+	PollPending *bool           `yaml:"poll_pending,omitempty"` // retry HTTP 202 until ready
 	Error       *ErrorSpec      `yaml:"error,omitempty"`
 	Records     string          `yaml:"records,omitempty"`
 	Pagination  *PaginationSpec `yaml:"pagination,omitempty"`

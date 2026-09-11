@@ -1,11 +1,11 @@
 ---
 title: "GitHub"
-description: "Read repositories, issues, and pull requests from a GitHub organization"
+description: "Read repository, community, and collaboration data from a GitHub organization"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
 ---
 
-The GitHub source reads repositories, issues, and pull requests for one
-organization. It is built with an
+The GitHub source reads repositories, stars, watchers, and collaboration data
+for one organization. It is built with an
 [HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
 **beta**. Its resources are stable, though future releases may add columns.
 
@@ -24,36 +24,55 @@ repository name to each row. Both include open and closed items. GitHub's
 issues endpoint also returns pull requests, so issue rows retain a
 `pull_request` marker that lets you distinguish them.
 
+Additional resources cover comments, reactions, releases, code, members, teams,
+Actions, deployments, traffic, statistics, Projects, security, and Discussions.
+Only selected resources are emitted; their parents are scanned as needed.
+The picker defaults to repositories, repository details, star history, forks,
+issues, pull requests, issue and review comments, labels, milestones,
+contributors, and languages. All other resources are opt-in.
+`stargazers` includes `starred_at`. Actual watchers are subscribers, counted by
+`repository_details.subscribers_count`; GitHub's `watchers_count` counts stars.
+
 ## Modes
 
 All resources support full reads. If interrupted, a full read of a top-level
 resource resumes after its last completed page.
 
-`issues` is the one incremental resource.
+`issues`, `issue_comments`, and `pull_request_review_comments` support
+incremental reads:
 
 | | |
 |---|---|
 | Cursor field | `updated_at` |
 | Request parameter | `since` (query) |
 | Comparator | `time` |
-| Checkpoint key | `issues_updated_at` |
+| Checkpoint key | `<resource>_updated_at` |
 | Overlap | 300 seconds |
 
 The cursor field is fixed by the manifest. Only a lookback window is
-user-configurable, and only because the comparator is `time`. Issues fan out
-across repositories but share a single durable watermark for the whole
-resource. The 300-second overlap re-reads a window on each run to cover
-repositories that changed while an earlier repository was being scanned.
-`pull_requests` has no incremental block and is always read in full.
+user-configurable, and only because the comparator is `time`. Each resource
+shares a single durable watermark across repositories. The 300-second overlap
+re-reads a window to cover repositories that changed during the scan.
+All other resources are read in full.
+
+Use full replace for current membership such as stars and watchers, and for
+keyless `issue_timeline` rows. Use full upsert for `traffic_views` and
+`traffic_clones` to retain history beyond GitHub's 14-day window.
 
 ## Behavior
 
-- **Auth**: bearer token from `token` on every request.
+- **Auth**: bearer token from `token` on every request, with read permissions
+  for selected resources. Teams require Organization Members read access; star
+  and watcher identities require repository admin or collaborator access.
+  Restricted identity listings can be empty.
 - **Pagination**: RFC 5988 `Link` headers (`rel="next"`), with `per_page=100`
-  set as a default query parameter.
+  set as a default query parameter. Star history uses 30; Discussions use
+  GraphQL cursors.
 - **API version**: pinned via `X-GitHub-Api-Version: 2022-11-28`, so response
   fields do not change with GitHub's rolling default.
-- **Rate limiting**: no client-side limiter is configured. The engine backs
-  off on 429 responses using `Retry-After`.
+- **Rate limiting**: one request per second, with manifest-defined throttling
+  rules honoring `Retry-After` and configured budget-reset headers.
+- **Statistics**: pending responses are retried; results preserve their native
+  JSON shape. GitHub's endpoint-specific history and size limits still apply.
 - Every resource carries a `raw` remainder column preserving fields the
   manifest does not project.
