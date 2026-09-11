@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -327,6 +328,19 @@ func (m *Manifest) validateSemantics() error {
 	}
 	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
 		_ = agg.Addf("discovery.include", "is only supported in static mode")
+	}
+	if m.Discovery.Mode != "static" && m.Discovery.DefaultEnabled != nil {
+		_ = agg.Addf("discovery.default_enabled", "is only supported in static mode")
+	}
+	for i, name := range m.Discovery.DefaultEnabled {
+		path := fmt.Sprintf("discovery.default_enabled[%d]", i)
+		if _, ok := names[name]; !ok {
+			_ = agg.Addf(path, "unknown resource %q", name)
+		} else if byName[name].CaptureOnly {
+			_ = agg.Addf(path, "resource %q is capture_only", name)
+		} else if len(m.Discovery.Include) > 0 && !slices.Contains(m.Discovery.Include, name) {
+			_ = agg.Addf(path, "resource %q is not in discovery.include", name)
+		}
 	}
 	for i := range m.Discovery.Resources {
 		path := fmt.Sprintf("discovery[%d]", i)

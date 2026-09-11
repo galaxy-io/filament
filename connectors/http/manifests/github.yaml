@@ -1301,3 +1301,16 @@ resources:
       raw: { path: $, type: json, mode: remainder }
 discovery:
   mode: static
+  default_enabled:
+    - repositories
+    - repository_details
+    - star_history
+    - issues
+    - pull_requests
+    - issue_comments
+    - pull_request_review_comments
+    - forks
+    - labels
+    - milestones
+    - contributors
+    - languages

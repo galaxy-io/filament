@@ -165,6 +165,10 @@ that value could cause later runs to miss records.
 is static. A `stream` mode (`ndjson | sse | chunked_array`) exists per
 resource as an alternative to pagination. No shipped manifest uses it.
 
+For static discovery, `default_enabled: [issues, comments]` sets the initial
+selection when creating a pipeline. All resources remain listed and selectable.
+Omit it to select all by default, or use `[]` to select none by default.
+
 ## Runtime behavior
 
 **Available modes.** Every manifest can run a full read. Incremental reads are

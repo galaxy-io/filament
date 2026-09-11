@@ -1022,6 +1022,20 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
+	wantEnabled := []string{
+		"repositories", "issues", "pull_requests", "repository_details", "star_history",
+		"forks", "issue_comments", "pull_request_review_comments", "labels", "milestones",
+		"contributors", "languages",
+	}
+	var enabled []string
+	for _, resource := range discovered.Resources {
+		if resource.Metadata["default_enabled"] == "true" {
+			enabled = append(enabled, resource.Name)
+		}
+	}
+	if !slices.Equal(enabled, wantEnabled) {
+		t.Fatalf("default enabled = %v, want %v", enabled, wantEnabled)
+	}
 	want := githubExpectedResources
 	if len(discovered.Resources) != len(want) {
 		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
@@ -2667,5 +2681,56 @@ func TestPostHogIncrementalLeavesServerNextURLUntouched(t *testing.T) {
 	}
 	if len(sink.records) != 2 {
 		t.Fatalf("records = %d, want both pages of events", len(sink.records))
+	}
+}
+
+func TestStaticDiscoveryDefaultEnabled(t *testing.T) {
+	for _, tc := range []struct {
+		name, defaults string
+		want           []string
+	}{
+		{"omitted", "", []string{"", ""}},
+		{"subset", "  default_enabled: [one]\n", []string{"true", "false"}},
+		{"none", "  default_enabled: []\n", []string{"false", "false"}},
+		{"all", "  default_enabled: [one, two]\n", []string{"true", "true"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := NewManifest([]byte(`version: 1
+name: test
+display_name: Test
+description: Static selection defaults.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: one
+    path: /one
+  - name: two
+    path: /two
+discovery:
+  mode: static
+` + tc.defaults))
+			if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+				t.Fatal(err)
+			}
+			defer src.Teardown(t.Context())
+			got, err := src.Discover(t.Context(), filament.DiscoverOpts{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Resources) != 2 {
+				t.Fatal("defaults must not filter discovery")
+			}
+			for i, r := range got.Resources {
+				if !r.Selectable || r.Metadata["default_enabled"] != tc.want[i] {
+					t.Fatalf("resource %s: selectable=%v metadata=%v", r.Name, r.Selectable, r.Metadata)
+				}
+			}
+			planned, err := src.PlanResources(t.Context(), []string{"two"}, nil)
+			if err != nil || !slices.Equal(planned, []string{"two"}) {
+				t.Fatalf("explicit selection: %v, %v", planned, err)
+			}
+		})
 	}
 }

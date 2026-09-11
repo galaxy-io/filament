@@ -472,3 +472,37 @@ resources:
 		})
 	}
 }
+
+func TestStaticDiscoveryRejectsInvalidDefaults(t *testing.T) {
+	for _, tc := range []struct{ name, discovery, want string }{
+		{"unknown", "mode: static\n  default_enabled: [missing]", "unknown resource"},
+		{"hidden", "mode: static\n  default_enabled: [hidden]", "capture_only"},
+		{"excluded", "mode: static\n  include: [one]\n  default_enabled: [two]", "not in discovery.include"},
+		{"dynamic", "mode: dynamic\n  default_enabled: []", "only supported in static mode"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse([]byte(`version: 1
+name: test
+display_name: Test
+description: Static selection validation.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: one
+    path: /one
+  - name: two
+    path: /two
+  - name: hidden
+    path: /hidden
+    capture_only: true
+    capture: { id: id }
+discovery:
+  ` + tc.discovery))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error=%v, want %q", err, tc.want)
+			}
+		})
+	}
+}

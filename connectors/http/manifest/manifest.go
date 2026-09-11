@@ -85,9 +85,10 @@ type Manifest struct {
 // DiscoverySpec chooses stable manifest resources or dynamically projected
 // upstream objects. Static discovery performs no HTTP requests.
 type DiscoverySpec struct {
-	Mode      string      `yaml:"mode"` // static | dynamic
-	Include   []string    `yaml:"include,omitempty"`
-	Resources []Discovery `yaml:"resources,omitempty"`
+	Mode           string      `yaml:"mode"` // static | dynamic
+	Include        []string    `yaml:"include,omitempty"`
+	DefaultEnabled []string    `yaml:"default_enabled,omitempty"` // nil selects all; empty selects none
+	Resources      []Discovery `yaml:"resources,omitempty"`
 }
 
 // ConfigSpec declares one user-facing connector configuration field. Enum is

@@ -27,6 +27,9 @@ issues endpoint also returns pull requests, so issue rows retain a
 Additional resources cover comments, reactions, releases, code, members, teams,
 Actions, deployments, traffic, statistics, Projects, security, and Discussions.
 Only selected resources are emitted; their parents are scanned as needed.
+The picker defaults to repositories, repository details, star history, forks,
+issues, pull requests, issue and review comments, labels, milestones,
+contributors, and languages. All other resources are opt-in.
 `stargazers` includes `starred_at`. Actual watchers are subscribers, counted by
 `repository_details.subscribers_count`; GitHub's `watchers_count` counts stars.
 
