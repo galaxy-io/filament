@@ -72,9 +72,12 @@ type Field struct {
 
 // Meta accompanies a row without becoming an Arrow column.
 type Meta struct {
-	Op     Operation
-	Key    []string
-	Coarse bool
-	LSN    string
-	Seq    uint64
+	Domain   DomainKey
+	Position Position
+	Ordinal  uint64
+	Op       Operation
+	Key      []string
+	Coarse   bool
+	LSN      string
+	Seq      uint64
 }
