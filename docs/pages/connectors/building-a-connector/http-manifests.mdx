@@ -91,6 +91,11 @@ are referenced elsewhere in the manifest as `config.<name>`.
 - `rate_limit.requests_per_second` sets a shared limit for the connection. A
   `dynamic` block can adjust that limit from response headers using a Unix
   timestamp, seconds from now, or an HTTP date.
+- `rate_limit.responses` defines additional throttling rules. Each requires
+  `status`; optional `header` tests for presence and `header_value` for equality.
+  `body_path` (GJSON) and `body_contains` match a string case-insensitively. All
+  conditions in a rule must match. `backoff_seconds` sets the exponential
+  starting delay when `Retry-After` is absent; the longest matching delay wins.
 - `timeout_seconds` sets the request timeout and defaults to 60 seconds.
 
 ### Resources
@@ -180,8 +185,12 @@ re-read the window and let an upsert write mode absorb the duplicates.
 
 **Retries and limits.** Responses are handled by status:
 
-- HTTP 429 is retried up to 10 attempts, honoring `Retry-After` capped at 60
-  seconds and reported as `pressure.rate_limited`
+- HTTP 429 and manifest-matched throttling responses are retried up to 10
+  attempts, honoring `Retry-After` and reported as `pressure.rate_limited`.
+  Only fallback exponential backoff is capped at 60 seconds.
+- HTTP 202 is polled within the same attempt budget when
+  `response.poll_pending: true`; exhaustion fails instead of emitting pending data.
+- HTTP 204 produces an empty result
 - 5xx responses are retried 3 times
 - other 4xx responses are fatal
 

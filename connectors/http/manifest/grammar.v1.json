@@ -109,6 +109,27 @@
           "additionalProperties": false,
           "properties": {
             "requests_per_second": { "type": "number", "minimum": 0 },
+            "responses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["status"],
+                "dependentRequired": {
+                  "header_value": ["header"],
+                  "body_path": ["body_contains"],
+                  "body_contains": ["body_path"]
+                },
+                "properties": {
+                  "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+                  "header": { "type": "string", "minLength": 1 },
+                  "header_value": { "type": "string", "minLength": 1 },
+                  "body_path": { "type": "string", "minLength": 1 },
+                  "body_contains": { "type": "string", "minLength": 1 },
+                  "backoff_seconds": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
             "dynamic": {
               "type": "object",
               "additionalProperties": false,
@@ -281,6 +302,7 @@
         "records": { "type": "string", "minLength": 1 },
         "pagination": { "$ref": "#/$defs/pagination" },
         "cardinality": { "type": "string", "enum": ["many", "one", ""] },
+        "poll_pending": { "type": "boolean" },
         "error": {
           "type": "object",
           "additionalProperties": false,
