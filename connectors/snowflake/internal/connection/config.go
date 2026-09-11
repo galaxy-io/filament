@@ -9,9 +9,8 @@ const (
 	// DefaultSchema is Snowflake's conventional default schema.
 	DefaultSchema = "PUBLIC"
 
-	authKeyPair  = "key_pair"
-	authPAT      = "pat"
-	authPassword = "password"
+	authKeyPair = "key_pair"
+	authPAT     = "pat"
 )
 
 // Fields returns the connection-scoped configuration for Snowflake.
@@ -39,11 +38,9 @@ func authField(visible *filament.FieldCondition) filament.ConfigField {
 			{Name: "type", Type: filament.FieldEnum, Required: true, Default: authKeyPair, Help: "Authentication method", Enum: []filament.EnumOption{
 				{Value: authKeyPair, Label: "Key pair"},
 				{Value: authPAT, Label: "Programmatic access token"},
-				{Value: authPassword, Label: "Password"},
 			}},
 			{Name: "private_key", Type: filament.FieldSecret, Required: true, Help: "Unencrypted PEM-encoded RSA private key", VisibleWhen: authCondition(authKeyPair)},
 			{Name: "token", Type: filament.FieldSecret, Required: true, Help: "Snowflake programmatic access token", VisibleWhen: authCondition(authPAT)},
-			{Name: "password", Type: filament.FieldSecret, Required: true, Help: "Snowflake password", VisibleWhen: authCondition(authPassword)},
 		},
 	}
 }

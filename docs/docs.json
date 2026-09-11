@@ -154,6 +154,7 @@
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
               "pages/connectors/sinks/clickhouse",
+              "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/iceberg",
               "pages/connectors/sinks/aws-s3",
               "pages/connectors/sinks/standard-output"

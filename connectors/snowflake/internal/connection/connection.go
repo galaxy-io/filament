@@ -124,13 +124,6 @@ func applyAuth(driverConfig *gosnowflake.Config, cfg filament.Config) error {
 		}
 		driverConfig.Authenticator = gosnowflake.AuthTypePat
 		driverConfig.Token = token
-	case authPassword:
-		password := cfg.Secret("password")
-		if password == "" {
-			return fmt.Errorf("auth.password is required when auth.type is %q", authPassword)
-		}
-		driverConfig.Authenticator = gosnowflake.AuthTypeSnowflake
-		driverConfig.Password = password
 	default:
 		return fmt.Errorf("unsupported auth.type %q", authType)
 	}
