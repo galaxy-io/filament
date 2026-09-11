@@ -340,7 +340,8 @@ type BodySpec struct {
 type ResponseSpec struct {
 	Root        string          `yaml:"root"` // array | object (default object)
 	RecordsPath string          `yaml:"records_path"`
-	Cardinality string          `yaml:"cardinality,omitempty"` // many (default) | one
+	Cardinality string          `yaml:"cardinality,omitempty"`  // many (default) | one
+	PollPending *bool           `yaml:"poll_pending,omitempty"` // retry HTTP 202 until the result is ready
 	Error       *ErrorSpec      `yaml:"error,omitempty"`
 	Records     string          `yaml:"records,omitempty"`
 	Pagination  *PaginationSpec `yaml:"pagination,omitempty"`

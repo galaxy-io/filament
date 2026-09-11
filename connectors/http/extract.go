@@ -53,7 +53,7 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 		}
 	}
 	if firstErr != nil {
-		return fmt.Errorf("extraction failed (%d/%d resources succeeded): %w", succeeded, len(topLevel), firstErr)
+		return fmt.Errorf("extraction aborted before child resources (%d/%d top-level resources succeeded): %w", succeeded, len(topLevel), firstErr)
 	}
 
 	sortedChildren := manifest.SortResources(children)

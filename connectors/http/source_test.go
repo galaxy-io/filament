@@ -1022,7 +1022,7 @@ func TestNewGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover: %v", err)
 	}
-	want := []string{"repositories", "issues", "pull_requests"}
+	want := githubExpectedResources
 	if len(discovered.Resources) != len(want) {
 		t.Fatalf("resources = %#v, want %v", discovered.Resources, want)
 	}

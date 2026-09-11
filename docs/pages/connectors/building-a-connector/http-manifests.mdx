@@ -180,10 +180,20 @@ re-read the window and let an upsert write mode absorb the duplicates.
 
 **Retries and limits.** Responses are handled by status:
 
-- HTTP 429 is retried up to 10 attempts, honoring `Retry-After` capped at 60
-  seconds and reported as `pressure.rate_limited`
+- HTTP 429 and identified HTTP 403 throttling responses are retried within a
+  ten-attempt budget and reported as `pressure.rate_limited`. Server-directed
+  `Retry-After` delays are honored without a 60-second cap. Exhausted GitHub
+  budgets also honor `X-RateLimit-Reset`; recognized secondary limits wait at
+  least a minute when no retry header is provided. Only fallback exponential
+  backoff is capped at 60 seconds.
 - 5xx responses are retried 3 times
 - other 4xx responses are fatal
+
+HTTP 204 produces an empty result without JSON decoding. For read endpoints
+that return HTTP 202 while computing a result, set `response.poll_pending: true`.
+The engine polls within the same ten-attempt budget and fails if data never
+becomes ready; it does not emit the pending body as an empty snapshot. This flag
+defaults to false and can be inherited from manifest response defaults.
 
 Responses are capped at 100 MB. Top-level resources extract concurrently,
 children after their parents.

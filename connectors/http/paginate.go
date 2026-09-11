@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -82,6 +83,11 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
 
+		// A 204 is an authoritative empty response (for example, an empty
+		// GitHub repository's contributors). Other empty bodies are errors.
+		if resp.StatusCode == http.StatusNoContent {
+			return totalRecords, pageCount + 1, nil
+		}
 		records, err := extractor.Records(raw)
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
@@ -128,7 +134,7 @@ func (c *Connector) paginate(
 }
 
 // fetchPage builds and sends one page request, applying pagination + watermark
-// overrides. Retries 429/5xx internally with backoff.
+// overrides. Retries throttling, pending responses, and 5xx internally with backoff.
 func (c *Connector) fetchPage(
 	ctx context.Context,
 	res manifest.Resource,
@@ -195,7 +201,7 @@ func (c *Connector) fetchPage(
 		return req, nil
 	}
 
-	return c.doRequest(ctx, build, res.Name)
+	return c.doRequest(ctx, build, res)
 }
 
 // mustEncode picks an encoder for the resolved body. Defaults to JSON.
@@ -207,13 +213,15 @@ func mustEncode(encoding string, body any) (io.Reader, string, error) {
 	return enc.Encode(body)
 }
 
-// doRequest sends one HTTP request with retry on 429/5xx. The build closure
+// doRequest sends one HTTP request with retry for throttling, pending responses,
+// and 5xx. The build closure
 // is invoked per attempt so request bodies can be re-read.
 func (c *Connector) doRequest(
 	ctx context.Context,
 	build func(context.Context) (*http.Request, error),
-	resourceName string,
+	res manifest.Resource,
 ) (*http.Response, []byte, error) {
+	resourceName := res.Name
 	var serverRetries int
 	for attempt := range maxRetries {
 		if err := c.limiter.Wait(ctx); err != nil {
@@ -239,8 +247,17 @@ func (c *Connector) doRequest(
 		c.limiter.Observe(resp)
 
 		switch {
-		case resp.StatusCode == 429:
-			delay := retryAfterDuration(resp, attempt)
+		case resp.StatusCode == http.StatusAccepted && res.Response.PollPending != nil && *res.Response.PollPending:
+			// Some read endpoints schedule computation and return 202 until
+			// a later request can return the actual dataset. Never emit the
+			// pending body or treat it as an authoritative empty snapshot.
+			if attempt+1 < maxRetries {
+				if err := sleepCtx(ctx, retryAfterDuration(resp, attempt)); err != nil {
+					return nil, nil, err
+				}
+			}
+		case isRateLimited(resp, body):
+			delay := rateLimitDelay(resp, body, attempt)
 			c.observe.Report(filament.SourceProgress{
 				Kind:       filament.SourceProgressRateLimited,
 				Resource:   resourceName,
@@ -301,19 +318,58 @@ func formatHTTPErrorBody(body []byte) string {
 	return errs.FormatTruncated(string(body))
 }
 
-// retryAfterDuration parses the Retry-After header (seconds or HTTP-date),
-// otherwise computes exponential backoff capped at maxRetryBackoff.
+// isRateLimited distinguishes a throttled 403 from permission denial. GitHub
+// can omit retry headers on secondary limits, but supplies a specific message.
+func isRateLimited(resp *http.Response, body []byte) bool {
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return true
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		return false
+	}
+	return resp.Header.Get("Retry-After") != "" ||
+		resp.Header.Get("X-RateLimit-Remaining") == "0" || isGitHubSecondaryLimit(body)
+}
+
+func isGitHubSecondaryLimit(body []byte) bool {
+	var envelope struct {
+		Message          string `json:"message"`
+		DocumentationURL string `json:"documentation_url"`
+	}
+	if json.Unmarshal(body, &envelope) != nil {
+		return false
+	}
+	return strings.HasPrefix(envelope.DocumentationURL, "https://docs.github.com/") &&
+		strings.Contains(strings.ToLower(envelope.Message), "secondary rate limit")
+}
+
+func rateLimitDelay(resp *http.Response, body []byte, attempt int) time.Duration {
+	delay := retryAfterDuration(resp, attempt)
+	if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+		if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+			delay = max(delay, time.Until(time.Unix(reset, 0)))
+		}
+	}
+	if resp.Header.Get("Retry-After") == "" && isGitHubSecondaryLimit(body) {
+		// GitHub asks for at least a minute, followed by increasing waits.
+		delay = max(delay, time.Minute*time.Duration(1<<uint(attempt)))
+	}
+	return delay
+}
+
+// retryAfterDuration honors server-directed waits without shortening them.
+// Only the fallback exponential backoff is capped at maxRetryBackoff.
 func retryAfterDuration(resp *http.Response, attempt int) time.Duration {
 	if ra := resp.Header.Get("Retry-After"); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
-			return min(time.Duration(secs)*time.Second, maxRetryBackoff)
+			return time.Duration(secs) * time.Second
 		}
 		if t, err := http.ParseTime(ra); err == nil {
 			d := time.Until(t)
 			if d <= 0 {
 				return time.Second
 			}
-			return min(d, maxRetryBackoff)
+			return d
 		}
 	}
 	return min(time.Second<<uint(attempt), maxRetryBackoff)

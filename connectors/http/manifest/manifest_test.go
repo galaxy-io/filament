@@ -5,6 +5,38 @@ import (
 	"testing"
 )
 
+func TestPendingResponsePollingDefaultsCanBeOverridden(t *testing.T) {
+	m, err := Parse([]byte(`
+version: 1
+name: async
+display_name: Async
+description: Asynchronous response test.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+defaults:
+  response:
+    poll_pending: true
+resources:
+  - name: computed
+    path: /computed
+  - name: immediate
+    path: /immediate
+    response:
+      poll_pending: false
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Resources[0].Response.PollPending == nil || !*m.Resources[0].Response.PollPending {
+		t.Fatal("pending-response polling default was not inherited")
+	}
+	if m.Resources[1].Response.PollPending == nil || *m.Resources[1].Response.PollPending {
+		t.Fatal("explicit false did not disable inherited polling")
+	}
+}
+
 func TestParseCatalogMetadata(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1

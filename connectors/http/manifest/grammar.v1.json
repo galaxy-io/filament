@@ -281,6 +281,7 @@
         "records": { "type": "string", "minLength": 1 },
         "pagination": { "$ref": "#/$defs/pagination" },
         "cardinality": { "type": "string", "enum": ["many", "one", ""] },
+        "poll_pending": { "type": "boolean" },
         "error": {
           "type": "object",
           "additionalProperties": false,

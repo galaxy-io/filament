@@ -59,6 +59,9 @@ func (m *Manifest) Normalize() {
 		if r.Response.Cardinality == "" {
 			r.Response.Cardinality = m.Defaults.Response.Cardinality
 		}
+		if r.Response.PollPending == nil {
+			r.Response.PollPending = m.Defaults.Response.PollPending
+		}
 		if r.Response.Error == nil {
 			r.Response.Error = m.Defaults.Response.Error
 		}
