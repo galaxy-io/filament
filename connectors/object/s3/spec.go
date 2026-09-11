@@ -46,8 +46,9 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{
-			EncodedIntegrity: true,
-			Schematized:      true,
+			EncodedIntegrity:    true,
+			Schematized:         true,
+			PreferredBatchBytes: defaultPartSizeMiB << 20,
 			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullAppend,
 				filament.IngestionCDCAppend,

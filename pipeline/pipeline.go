@@ -103,6 +103,10 @@ func New(cfg Config) *Pipeline {
 	if rows <= 0 {
 		rows = defaultBatchRows
 	}
+	bytes := cfg.Options.BatchMaxBytes
+	if bytes <= 0 {
+		bytes = sinkCapabilities.PreferredBatchBytes
+	}
 	ivl := cfg.FlushInterval
 	if ivl <= 0 {
 		ivl = defaultFlushInterval
@@ -126,7 +130,7 @@ func New(cfg Config) *Pipeline {
 		sink:             cfg.Sink,
 		emit:             emit,
 		writePolicies:    cfg.WritePolicies,
-		opts:             arrowbatch.Options{MaxRows: rows, MaxBytes: cfg.Options.BatchMaxBytes},
+		opts:             arrowbatch.Options{MaxRows: rows, MaxBytes: bytes},
 		flushIvl:         ivl,
 		writers:          writers,
 		log:              cfg.Log,
