@@ -22,6 +22,24 @@ defaults:
     pagination:
       link: next
 field_sets:
+  repository_scope:
+    repository_id: { path: parent.repository_id, type: int64 }
+    repository: { path: parent.repository, type: string }
+  repository_counts:
+    stargazers_count: int64?
+    forks_count: int64?
+    open_issues_count: int64?
+    size: int64?
+  user_summary:
+    user_id: { path: id, type: int64 }
+    login: string
+    node_id: string?
+    html_url: string?
+    avatar_url: string?
+    type: string?
+  timestamps:
+    created_at: timestamptz
+    updated_at: timestamptz
   issue_lifecycle:
     created_at: timestamptz
     updated_at: timestamptz
@@ -33,6 +51,27 @@ connection:
   headers:
     Accept: application/vnd.github+json
     X-GitHub-Api-Version: "2022-11-28"
+  rate_limit:
+    # 3,600 requests/hour leaves room in the standard 5,000-request budget.
+    requests_per_second: 1
+    dynamic:
+      remaining_header: X-RateLimit-Remaining
+      reset_header: X-RateLimit-Reset
+      reset_format: unix_seconds
+    responses:
+      - status: 403
+        header: Retry-After
+      - status: 403
+        header: X-RateLimit-Remaining
+        header_value: "0"
+      - status: 403
+        body_path: message
+        body_contains: secondary rate limit
+        backoff_seconds: 60
+      - status: 429
+        body_path: message
+        body_contains: secondary rate limit
+        backoff_seconds: 60
 resources:
   - name: repositories
     path: /orgs/{organization}/repos
@@ -43,6 +82,7 @@ resources:
       sort: full_name
       direction: asc
     primary_key: [id]
+    use_fields: [repository_counts]
     fields:
       id: int64
       node_id: string
@@ -65,6 +105,7 @@ resources:
       raw: { path: $, type: json, mode: remainder }
     capture:
       repository: name
+      repository_id: id
   - name: issues
     path: /repos/{organization}/{repository}/issues
     params:
@@ -139,5 +180,1137 @@ resources:
       merged_at: timestamptz?
       raw: { path: $, type: json, mode: remainder }
     for_each: repositories
+    capture:
+      pull_number: number
+      pull_request_id: id
+  - name: repository_details
+    path: /repos/{organization}/{repository}
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+    primary_key: [id]
+    use_fields: [repository_counts]
+    fields:
+      id: int64
+      name: string
+      full_name: string
+      subscribers_count: int64
+      network_count: int64?
+      default_branch: string?
+      description: string?
+      homepage: string?
+      language: string?
+      license: json?
+      topics: json?
+      permissions: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      pushed_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: stargazers
+    path: /repos/{organization}/{repository}/stargazers
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    headers:
+      Accept: application/vnd.github.star+json
+    primary_key: [repository_id, user_id]
+    use_fields: [repository_scope]
+    fields:
+      user_id: { path: user.id, type: int64 }
+      login: { path: user.login, type: string }
+      node_id: { path: user.node_id, type: string, nullable: true }
+      html_url: { path: user.html_url, type: string, nullable: true }
+      avatar_url: { path: user.avatar_url, type: string, nullable: true }
+      type: { path: user.type, type: string, nullable: true }
+      starred_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: watchers
+    path: /repos/{organization}/{repository}/subscribers
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, user_id]
+    use_fields: [repository_scope, user_summary]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+  - name: star_history
+    path: /repos/{organization}/{repository}/stargazers/history
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query:
+      per_page: "30"
+    primary_key: [repository_id, week]
+    use_fields: [repository_scope]
+    fields:
+      week: int64
+      total: int64
+      days: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: star_count
+    path: /repos/{organization}/{repository}/stargazers/count
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      count: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: forks
+    path: /repos/{organization}/{repository}/forks
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query:
+      sort: oldest
+    primary_key: [repository_id, id]
+    use_fields: [repository_scope, repository_counts]
+    fields:
+      id: int64
+      node_id: string?
+      name: string
+      full_name: string
+      html_url: string?
+      owner: json?
+      private: bool?
+      archived: bool?
+      default_branch: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      pushed_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: issue_comments
+    path: /repos/{organization}/{repository}/issues/comments
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { sort: updated, direction: asc }
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      issue_url: string
+      html_url: string?
+      body: string?
+      user: json?
+      author_association: string?
+      reactions: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: since
+      inject_into: query
+      checkpoint_key: issue_comments_updated_at
+      comparator: time
+      overlap_seconds: 300
+  - name: pull_request_review_comments
+    path: /repos/{organization}/{repository}/pulls/comments
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { sort: updated, direction: asc }
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      pull_request_review_id: int64?
+      pull_request_url: string
+      html_url: string?
+      body: string?
+      user: json?
+      path: string?
+      line: int64?
+      original_line: int64?
+      start_line: int64?
+      side: string?
+      diff_hunk: string?
+      commit_id: string?
+      original_commit_id: string?
+      in_reply_to_id: int64?
+      author_association: string?
+      reactions: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: since
+      inject_into: query
+      checkpoint_key: pull_request_review_comments_updated_at
+      comparator: time
+      overlap_seconds: 300
+  - name: pull_request_reviews
+    path: /repos/{organization}/{repository}/pulls/{pull_number}/reviews
+    params:
+      organization: config.organization
+      repository: parent.repository
+      pull_number: parent.pull_number
+    for_each: pull_requests
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      pull_request_id: { path: parent.pull_request_id, type: int64 }
+      pull_number: { path: parent.pull_number, type: int64 }
+      user: json?
+      body: string?
+      state: string
+      submitted_at: timestamptz?
+      commit_id: string?
+      html_url: string?
+      author_association: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: labels
+    path: /repos/{organization}/{repository}/labels
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      name: string
+      description: string?
+      color: string?
+      default: bool?
+      url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: milestones
+    path: /repos/{organization}/{repository}/milestones
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { state: all }
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      number: int64
+      title: string
+      description: string?
+      state: string
+      creator: json?
+      open_issues: int64?
+      closed_issues: int64?
+      due_on: timestamptz?
+      closed_at: timestamptz?
+      html_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: releases
+    path: /repos/{organization}/{repository}/releases
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      tag_name: string
+      target_commitish: string?
+      name: string?
+      body: string?
+      draft: bool
+      prerelease: bool
+      immutable: bool?
+      created_at: timestamptz
+      published_at: timestamptz?
+      author: json?
+      html_url: string?
+      assets: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      release_id: id
+  - name: release_assets
+    path: /repos/{organization}/{repository}/releases/{release_id}/assets
+    params:
+      organization: config.organization
+      repository: parent.repository
+      release_id: parent.release_id
+    for_each: releases
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      release_id: { path: parent.release_id, type: int64 }
+      name: string
+      label: string?
+      state: string?
+      content_type: string?
+      size: int64
+      download_count: int64
+      digest: string?
+      browser_download_url: string?
+      uploader: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: issue_events
+    path: /repos/{organization}/{repository}/issues/events
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      event: string
+      created_at: timestamptz
+      actor: json?
+      issue: json?
+      commit_id: string?
+      label: json?
+      assignee: json?
+      milestone: json?
+      rename: json?
+      raw: { path: $, type: json, mode: remainder }
+  # Reaction parents must enumerate all history independently of incremental
+  # issue/comment resources: new reactions can target old records.
+  - name: issue_history
+    capture_only: true
+    path: /repos/{organization}/{repository}/issues
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { state: all, sort: created, direction: asc }
+    capture: { issue_number: number, issue_id: id }
+  - name: issue_reactions
+    path: /repos/{organization}/{repository}/issues/{issue_number}/reactions
+    params:
+      organization: config.organization
+      repository: parent.repository
+      issue_number: parent.issue_number
+    for_each: issue_history
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      issue_id: { path: parent.issue_id, type: int64 }
+      issue_number: { path: parent.issue_number, type: int64 }
+      content: string
+      user: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: reaction_issue_comments
+    capture_only: true
+    path: /repos/{organization}/{repository}/issues/comments
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    capture: { comment_id: id }
+  - name: issue_comment_reactions
+    path: /repos/{organization}/{repository}/issues/comments/{comment_id}/reactions
+    params:
+      organization: config.organization
+      repository: parent.repository
+      comment_id: parent.comment_id
+    for_each: reaction_issue_comments
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      comment_id: { path: parent.comment_id, type: int64 }
+      content: string
+      user: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: reaction_review_comments
+    capture_only: true
+    path: /repos/{organization}/{repository}/pulls/comments
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    capture: { comment_id: id }
+  - name: pull_request_review_comment_reactions
+    path: /repos/{organization}/{repository}/pulls/comments/{comment_id}/reactions
+    params:
+      organization: config.organization
+      repository: parent.repository
+      comment_id: parent.comment_id
+    for_each: reaction_review_comments
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      comment_id: { path: parent.comment_id, type: int64 }
+      content: string
+      user: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+  - name: branches
+    path: /repos/{organization}/{repository}/branches
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, name]
+    use_fields: [repository_scope]
+    fields:
+      name: string
+      protected: bool?
+      commit: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { branch: name }
+  - name: tags
+    path: /repos/{organization}/{repository}/tags
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, name]
+    use_fields: [repository_scope]
+    fields:
+      name: string
+      node_id: string?
+      commit: json?
+      zipball_url: string?
+      tarball_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: commits
+    path: /repos/{organization}/{repository}/commits
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: branches
+    query: { sha: '{{ parent.branch }}' }
+    primary_key: [repository_id, branch, sha]
+    use_fields: [repository_scope]
+    fields:
+      sha: string
+      branch: { path: parent.branch, type: string }
+      node_id: string?
+      html_url: string?
+      message: { path: commit.message, type: string, nullable: true }
+      author: json?
+      committer: json?
+      commit_author: { path: commit.author, type: json, nullable: true }
+      commit_committer: { path: commit.committer, type: json, nullable: true }
+      verification: { path: commit.verification, type: json, nullable: true }
+      parents: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: contributors
+    path: /repos/{organization}/{repository}/contributors
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { anon: 'false' }
+    primary_key: [repository_id, user_id]
+    use_fields: [repository_scope, user_summary]
+    fields:
+      contributions: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: languages
+    path: /repos/{organization}/{repository}/languages
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      languages: { path: $, type: json }
+      raw: { path: $, type: json, mode: remainder }
+  - name: members
+    path: /orgs/{organization}/members
+    params:
+      organization: config.organization
+    primary_key: [user_id]
+    use_fields: [user_summary]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+  - name: teams
+    path: /orgs/{organization}/teams
+    params:
+      organization: config.organization
+    primary_key: [id]
+    fields:
+      id: int64
+      node_id: string?
+      name: string
+      slug: string
+      description: string?
+      privacy: string?
+      permission: string?
+      parent: json?
+      html_url: string?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { team_slug: slug, team_id: id }
+  - name: team_members
+    path: /orgs/{organization}/teams/{team_slug}/members
+    params:
+      organization: config.organization
+      team_slug: parent.team_slug
+    for_each: teams
+    primary_key: [team_id, user_id]
+    use_fields: [user_summary]
+    fields:
+      team_id: { path: parent.team_id, type: int64 }
+      team_slug: { path: parent.team_slug, type: string }
+      raw: { path: $, type: json, mode: remainder }
+  - name: collaborators
+    path: /repos/{organization}/{repository}/collaborators
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { affiliation: all }
+    primary_key: [repository_id, user_id]
+    use_fields: [repository_scope, user_summary]
+    fields:
+      permissions: json?
+      role_name: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: workflows
+    path: /repos/{organization}/{repository}/actions/workflows
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    records: $.workflows
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      name: string
+      path: string
+      state: string
+      html_url: string?
+      badge_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: workflow_runs
+    path: /repos/{organization}/{repository}/actions/runs
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    records: $.workflow_runs
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      workflow_id: int64
+      name: string?
+      display_title: string?
+      run_number: int64
+      run_attempt: int64?
+      event: string
+      status: string?
+      conclusion: string?
+      head_branch: string?
+      head_sha: string
+      run_started_at: timestamptz?
+      actor: json?
+      triggering_actor: json?
+      html_url: string?
+      pull_requests: json?
+      head_commit: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { run_id: id }
+  - name: workflow_jobs
+    path: /repos/{organization}/{repository}/actions/runs/{run_id}/jobs
+    params:
+      organization: config.organization
+      repository: parent.repository
+      run_id: parent.run_id
+    for_each: workflow_runs
+    query: { filter: all }
+    records: $.jobs
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: int64
+      node_id: string?
+      run_id: int64
+      run_attempt: int64?
+      name: string
+      status: string
+      conclusion: string?
+      created_at: timestamptz?
+      started_at: timestamptz?
+      completed_at: timestamptz?
+      runner_id: int64?
+      runner_name: string?
+      runner_group_id: int64?
+      runner_group_name: string?
+      steps: json?
+      labels: json?
+      html_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: deployments
+    path: /repos/{organization}/{repository}/deployments
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      sha: string
+      ref: string
+      task: string?
+      environment: string?
+      description: string?
+      creator: json?
+      payload: json?
+      transient_environment: bool?
+      production_environment: bool?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { deployment_id: id }
+  - name: deployment_statuses
+    path: /repos/{organization}/{repository}/deployments/{deployment_id}/statuses
+    params:
+      organization: config.organization
+      repository: parent.repository
+      deployment_id: parent.deployment_id
+    for_each: deployments
+    primary_key: [id]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      deployment_id: { path: parent.deployment_id, type: int64 }
+      state: string
+      description: string?
+      environment: string?
+      environment_url: string?
+      log_url: string?
+      target_url: string?
+      creator: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: traffic_views
+    path: /repos/{organization}/{repository}/traffic/views
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { per: day }
+    pagination: none
+    records: $.views
+    primary_key: [repository_id, timestamp]
+    use_fields: [repository_scope]
+    fields:
+      timestamp: timestamptz
+      count: int64
+      uniques: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: traffic_clones
+    path: /repos/{organization}/{repository}/traffic/clones
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { per: day }
+    pagination: none
+    records: $.clones
+    primary_key: [repository_id, timestamp]
+    use_fields: [repository_scope]
+    fields:
+      timestamp: timestamptz
+      count: int64
+      uniques: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: traffic_referrers
+    path: /repos/{organization}/{repository}/traffic/popular/referrers
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    primary_key: [repository_id, referrer]
+    use_fields: [repository_scope]
+    fields:
+      referrer: string
+      count: int64
+      uniques: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: traffic_paths
+    path: /repos/{organization}/{repository}/traffic/popular/paths
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    primary_key: [repository_id, path]
+    use_fields: [repository_scope]
+    fields:
+      path: string
+      title: string?
+      count: int64
+      uniques: int64
+      raw: { path: $, type: json, mode: remainder }
+  - name: projects
+    path: /orgs/{organization}/projectsV2
+    params:
+      organization: config.organization
+    primary_key: [id]
+    use_fields: [timestamps]
+    fields:
+      id: int64
+      node_id: string?
+      number: int64
+      title: string
+      description: string?
+      short_description: string?
+      public: bool?
+      state: string?
+      closed_at: timestamptz?
+      deleted_at: timestamptz?
+      owner: json?
+      creator: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { project_id: id, project_number: number }
+  - name: project_fields
+    path: /orgs/{organization}/projectsV2/{project_number}/fields
+    params:
+      organization: config.organization
+      project_number: parent.project_number
+    for_each: projects
+    primary_key: [project_id, id]
+    use_fields: [timestamps]
+    fields:
+      project_id: { path: parent.project_id, type: int64 }
+      project_number: { path: parent.project_number, type: int64 }
+      id: int64
+      node_id: string?
+      name: string
+      data_type: string
+      options: json?
+      configuration: json?
+      raw: { path: $, type: json, mode: remainder }
+    capture: { field_id: id }
+  - name: project_items
+    path: /orgs/{organization}/projectsV2/{project_number}/items
+    params:
+      organization: config.organization
+      project_number: parent.project_number
+    for_each: projects
+    primary_key: [project_id, id]
+    use_fields: [timestamps]
+    fields:
+      project_id: { path: parent.project_id, type: int64 }
+      project_number: { path: parent.project_number, type: int64 }
+      id: int64
+      node_id: string?
+      content_type: string
+      content: json?
+      creator: json?
+      archived_at: timestamptz?
+      fields: json?
+      item_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: project_item_field_values
+    path: /orgs/{organization}/projectsV2/{project_number}/items
+    params:
+      organization: config.organization
+      project_number: parent.project_number
+    for_each: project_fields
+    query: { fields: '{{ parent.field_id }}' }
+    primary_key: [project_id, item_id, field_id]
+    use_fields: [timestamps]
+    fields:
+      project_id: { path: parent.project_id, type: int64 }
+      project_number: { path: parent.project_number, type: int64 }
+      item_id: { path: id, type: int64 }
+      field_id: { path: parent.field_id, type: int64 }
+      fields: json?
+      content_type: string
+      archived_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: dependabot_alerts
+    path: /repos/{organization}/{repository}/dependabot/alerts
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, number]
+    use_fields: [repository_scope, timestamps]
+    fields:
+      number: int64
+      state: string
+      dependency: json?
+      security_advisory: json?
+      security_vulnerability: json?
+      dismissed_at: timestamptz?
+      dismissed_by: json?
+      dismissed_reason: string?
+      dismissed_comment: string?
+      fixed_at: timestamptz?
+      auto_dismissed_at: timestamptz?
+      html_url: string?
+      assignees: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: code_scanning_alerts
+    path: /repos/{organization}/{repository}/code-scanning/alerts
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, number]
+    use_fields: [repository_scope]
+    fields:
+      created_at: timestamptz
+      updated_at: timestamptz?
+      number: int64
+      state: string?
+      rule: json?
+      tool: json?
+      most_recent_instance: json?
+      fixed_at: timestamptz?
+      dismissed_at: timestamptz?
+      dismissed_by: json?
+      dismissed_reason: string?
+      dismissed_comment: string?
+      html_url: string?
+      assignees: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: secret_scanning_alerts
+    path: /repos/{organization}/{repository}/secret-scanning/alerts
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { hide_secret: 'true' }
+    primary_key: [repository_id, number]
+    use_fields: [repository_scope]
+    fields:
+      number: int64
+      state: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      secret_type: string?
+      secret_type_display_name: string?
+      resolution: string?
+      resolved_at: timestamptz?
+      resolved_by: json?
+      resolution_comment: string?
+      push_protection_bypassed: bool?
+      validity: string?
+      publicly_leaked: bool?
+      multi_repo: bool?
+      html_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: discussions
+    path: /graphql
+    method: POST
+    for_each: repositories
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: string
+      body: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      url: string?
+      author: json?
+      upvote_count: { path: upvoteCount, type: int64, nullable: true }
+      number: int64
+      title: string
+      closed: bool?
+      closed_at: { path: closedAt, type: timestamptz, nullable: true }
+      locked: bool?
+      category: json?
+      answer: json?
+      answer_chosen_at: { path: answerChosenAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture: { discussion_id: id, discussion_number: number }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Discussions($owner: String!, $name: String!, $after: String) {
+            repository(owner: $owner, name: $name) {
+              discussions(first: 100, after: $after) {
+                nodes { id number title body createdAt updatedAt url closed closedAt locked upvoteCount author { login url avatarUrl } category { id name slug } answer { id } answerChosenAt }
+                pageInfo { hasNextPage endCursor }
+              }
+            }
+          }
+        variables: { owner: '{{ config.organization }}', name: '{{ parent.repository }}' }
+    response:
+      records: $.data.repository.discussions.nodes
+      error: { path: errors, when_present: true, message_path: errors.0.message }
+      pagination:
+        cursor:
+          response: data.repository.discussions.pageInfo.endCursor
+          request: body.variables.after
+          more: data.repository.discussions.pageInfo.hasNextPage
+          null_terminates: true
+  - name: discussion_comments
+    path: /graphql
+    method: POST
+    for_each: discussions
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: string
+      body: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      url: string?
+      author: json?
+      upvote_count: { path: upvoteCount, type: int64, nullable: true }
+      discussion_id: { path: parent.discussion_id, type: string }
+      discussion_number: { path: parent.discussion_number, type: int64 }
+      is_answer: { path: isAnswer, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture: { discussion_comment_id: id }
+    body:
+      encoding: json
+      template:
+        query: 'query DiscussionComments($id: ID!, $after: String) { node(id: $id) { ... on Discussion { comments(first: 100, after: $after) { nodes { id body createdAt updatedAt url isAnswer upvoteCount author { login url avatarUrl } } pageInfo { hasNextPage endCursor } } } } }'
+        variables: { id: '{{ parent.discussion_id }}' }
+    response:
+      records: $.data.node.comments.nodes
+      error: { path: errors, when_present: true, message_path: errors.0.message }
+      pagination:
+        cursor:
+          response: data.node.comments.pageInfo.endCursor
+          request: body.variables.after
+          more: data.node.comments.pageInfo.hasNextPage
+          null_terminates: true
+  - name: discussion_replies
+    path: /graphql
+    method: POST
+    for_each: discussion_comments
+    primary_key: [id]
+    use_fields: [repository_scope]
+    fields:
+      id: string
+      body: string?
+      created_at: { path: createdAt, type: timestamptz }
+      updated_at: { path: updatedAt, type: timestamptz }
+      url: string?
+      author: json?
+      upvote_count: { path: upvoteCount, type: int64, nullable: true }
+      discussion_id: { path: parent.discussion_id, type: string }
+      discussion_number: { path: parent.discussion_number, type: int64 }
+      discussion_comment_id: { path: parent.discussion_comment_id, type: string }
+      is_answer: { path: isAnswer, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture: {  }
+    body:
+      encoding: json
+      template:
+        query: 'query DiscussionReplies($id: ID!, $after: String) { node(id: $id) { ... on DiscussionComment { replies(first: 100, after: $after) { nodes { id body createdAt updatedAt url isAnswer upvoteCount author { login url avatarUrl } } pageInfo { hasNextPage endCursor } } } } }'
+        variables: { id: '{{ parent.discussion_comment_id }}' }
+    response:
+      records: $.data.node.replies.nodes
+      error: { path: errors, when_present: true, message_path: errors.0.message }
+      pagination:
+        cursor:
+          response: data.node.replies.pageInfo.endCursor
+          request: body.variables.after
+          more: data.node.replies.pageInfo.hasNextPage
+          null_terminates: true
+  - name: pull_request_files
+    path: /repos/{organization}/{repository}/pulls/{pull_number}/files
+    params:
+      organization: config.organization
+      repository: parent.repository
+      pull_number: parent.pull_number
+    for_each: pull_requests
+    primary_key: [pull_request_id, filename]
+    use_fields: [repository_scope]
+    fields:
+      pull_request_id: { path: parent.pull_request_id, type: int64 }
+      pull_number: { path: parent.pull_number, type: int64 }
+      filename: string
+      sha: string?
+      status: string?
+      additions: int64?
+      deletions: int64?
+      changes: int64?
+      patch: string?
+      previous_filename: string?
+      blob_url: string?
+      raw_url: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: repository_events
+    path: /repos/{organization}/{repository}/events
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    primary_key: [repository_id, id]
+    use_fields: [repository_scope]
+    fields:
+      id: string
+      type: string?
+      actor: json?
+      payload: json?
+      public: bool?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+  - name: commit_activity
+    path: /repos/{organization}/{repository}/stats/commit_activity
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+      poll_pending: true
+    records: '{"statistics":@this}'
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      statistics: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: code_frequency
+    path: /repos/{organization}/{repository}/stats/code_frequency
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+      poll_pending: true
+    records: '{"statistics":@this}'
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      statistics: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: contributor_statistics
+    path: /repos/{organization}/{repository}/stats/contributors
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+      poll_pending: true
+    records: '{"statistics":@this}'
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      statistics: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: participation
+    path: /repos/{organization}/{repository}/stats/participation
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+      poll_pending: true
+    records: '{"statistics":@this}'
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      statistics: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: punch_card
+    path: /repos/{organization}/{repository}/stats/punch_card
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    pagination: none
+    response:
+      cardinality: one
+      poll_pending: true
+    records: '{"statistics":@this}'
+    primary_key: [repository_id]
+    use_fields: [repository_scope]
+    fields:
+      statistics: json
+      raw: { path: $, type: json, mode: remainder }
+  - name: anonymous_contributors
+    path: /repos/{organization}/{repository}/contributors
+    params:
+      organization: config.organization
+      repository: parent.repository
+    for_each: repositories
+    query: { anon: 'true' }
+    records: '#(type=="Anonymous")#'
+    primary_key: [repository_id, email]
+    use_fields: [repository_scope]
+    fields:
+      email: string
+      name: string?
+      contributions: int64
+      type: string
+      raw: { path: $, type: json, mode: remainder }
+  # Timeline event types do not share a stable key; use full replacement.
+  - name: issue_timeline
+    path: /repos/{organization}/{repository}/issues/{issue_number}/timeline
+    params:
+      organization: config.organization
+      repository: parent.repository
+      issue_number: parent.issue_number
+    for_each: issue_history
+    primary_key: []
+    use_fields: [repository_scope]
+    fields:
+      issue_id: { path: parent.issue_id, type: int64 }
+      issue_number: { path: parent.issue_number, type: int64 }
+      id: int64?
+      node_id: string?
+      event: string?
+      sha: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      actor: json?
+      user: json?
+      source: json?
+      comments: json?
+      body: string?
+      raw: { path: $, type: json, mode: remainder }
 discovery:
   mode: static
+  default_resources:
+    - repositories
+    - repository_details
+    - star_history
+    - issues
+    - pull_requests
+    - issue_comments
+    - pull_request_review_comments
+    - forks
+    - labels
+    - milestones
+    - contributors
+    - languages

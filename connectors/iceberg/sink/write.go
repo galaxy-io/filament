@@ -9,8 +9,59 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/iceberg-go/table"
 
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
+
+// Apply validates the batch against the run's write policy and buffers it
+// for the resource's table, retaining its rows until commit (or spilling them).
+func (s *Sink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	s.mu.Lock()
+	it := s.tables[b.Resource]
+	if it == nil {
+		s.mu.Unlock()
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: no schema ensured for resource %q", b.Resource)
+	}
+	policy := opts.Policy
+	if len(policy.Keys) == 0 {
+		policy.Keys = append([]string(nil), it.primaryKey...)
+	}
+	if policy.Capability.RequiresPK && len(policy.Keys) == 0 {
+		s.mu.Unlock()
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
+	}
+	st := s.activeStageLocked()
+	s.mu.Unlock()
+
+	if err := policy.ValidateBatch(b.Resource, b); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: %w", err)
+	}
+	nbytes := arrowbatch.Bytes(b.Rows())
+
+	st.mu.Lock()
+	rb := st.buf[b.Resource]
+	if rb == nil {
+		rb = newRecordBuf(s.stageBufLimitBytes)
+		st.buf[b.Resource] = rb
+	}
+	if err := rb.setPolicy(policy); err != nil {
+		st.mu.Unlock()
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
+	if err := rb.append(b, nbytes); err != nil {
+		st.mu.Unlock()
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
+	st.mu.Unlock()
+
+	return filament.WriteReceipt{
+		URI:      it.tbl.Location(),
+		Bytes:    nbytes,
+		Rows:     b.NumRows(),
+		WriteCRC: b.IntegrityCRC(),
+	}, nil
+}
 
 // writeBuffer streams a resource buffer into the Iceberg table in one
 // transaction, one batch at a time. It reloads the table from the catalog

@@ -1,4 +1,4 @@
-package iceberg
+package catalog
 
 import (
 	"fmt"
@@ -16,7 +16,8 @@ const (
 	catalogProviderLakekeeper = "lakekeeper"
 )
 
-type catalogSetup struct {
+// Setup contains resolved Iceberg catalog properties and table location settings.
+type Setup struct {
 	Properties        iceberg.Properties
 	TableLocationRoot string
 }
@@ -34,6 +35,11 @@ var catalogProviders = []catalogProvider{
 	restCatalogProvider,
 	polarisCatalogProvider,
 	lakekeeperCatalogProvider,
+}
+
+// Fields returns the connection-scoped catalog and table configuration.
+func Fields() []filament.ConfigField {
+	return []filament.ConfigField{catalogConfigField(), tableConfigField()}
 }
 
 func catalogConfigField() filament.ConfigField {
@@ -76,22 +82,23 @@ func tableConfigField() filament.ConfigField {
 	}
 }
 
-func buildCatalogSetup(cfg filament.Config) (catalogSetup, error) {
+// Resolve translates connector configuration into catalog setup.
+func Resolve(cfg filament.Config) (Setup, error) {
 	catalogCfg := cfg.Sub("catalog")
 	providerName := catalogCfg.String("provider")
 	index := slices.IndexFunc(catalogProviders, func(provider catalogProvider) bool {
 		return provider.option.Value == providerName
 	})
 	if index < 0 {
-		return catalogSetup{}, fmt.Errorf("unsupported catalog provider %q", providerName)
+		return Setup{}, fmt.Errorf("unsupported catalog provider %q", providerName)
 	}
 
 	properties, err := catalogProviders[index].build(catalogCfg)
 	if err != nil {
-		return catalogSetup{}, fmt.Errorf("%s catalog: %w", providerName, err)
+		return Setup{}, fmt.Errorf("%s catalog: %w", providerName, err)
 	}
 
-	return catalogSetup{
+	return Setup{
 		Properties:        properties,
 		TableLocationRoot: cfg.Sub("table").String("location_root"),
 	}, nil

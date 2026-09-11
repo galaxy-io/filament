@@ -14,11 +14,12 @@ func TestResolveFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Addr != "[2001:db8::1]:3306" || resolved.User != "loader" || resolved.Passwd != "p@ss:/word" || resolved.DBName != "app" || resolved.TLSConfig != "true" {
+	driverConfig := resolved.DriverConfig
+	if driverConfig.Addr != "[2001:db8::1]:3306" || driverConfig.User != "loader" || driverConfig.Passwd != "p@ss:/word" || driverConfig.DBName != "app" || driverConfig.TLSConfig != "true" {
 		t.Fatalf("connection config = %#v", resolved)
 	}
-	if resolved.TLS == nil || resolved.TLS.InsecureSkipVerify {
-		t.Fatalf("normalized TLS config = %#v", resolved.TLS)
+	if driverConfig.TLS == nil || driverConfig.TLS.InsecureSkipVerify {
+		t.Fatalf("normalized TLS config = %#v", driverConfig.TLS)
 	}
 }
 
@@ -30,11 +31,12 @@ func TestResolveMySQLURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Addr != "[2001:db8::1]:3307" || resolved.User != "user@example.com" || resolved.Passwd != "p@ss/word" || resolved.DBName != "app/data" {
+	driverConfig := resolved.DriverConfig
+	if driverConfig.Addr != "[2001:db8::1]:3307" || driverConfig.User != "user@example.com" || driverConfig.Passwd != "p@ss/word" || driverConfig.DBName != "app/data" {
 		t.Fatalf("connection config = %#v", resolved)
 	}
-	if resolved.TLS == nil || resolved.TLS.InsecureSkipVerify || !resolved.ParseTime {
-		t.Fatalf("URL options were not normalized: TLS=%#v ParseTime=%v", resolved.TLS, resolved.ParseTime)
+	if driverConfig.TLS == nil || driverConfig.TLS.InsecureSkipVerify || !driverConfig.ParseTime {
+		t.Fatalf("URL options were not normalized: TLS=%#v ParseTime=%v", driverConfig.TLS, driverConfig.ParseTime)
 	}
 }
 
@@ -46,7 +48,8 @@ func TestResolveMariaDBURLUsesDefaultPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Addr != "db.example.com:3306" || resolved.TLS == nil || !resolved.AllowFallbackToPlaintext {
+	driverConfig := resolved.DriverConfig
+	if driverConfig.Addr != "db.example.com:3306" || driverConfig.TLS == nil || !driverConfig.AllowFallbackToPlaintext {
 		t.Fatalf("connection config = %#v", resolved)
 	}
 }
@@ -58,7 +61,8 @@ func TestResolveLegacyDSN(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Addr != "localhost:3307" || resolved.User != "legacy" || resolved.DBName != "app" {
+	driverConfig := resolved.DriverConfig
+	if driverConfig.Addr != "localhost:3307" || driverConfig.User != "legacy" || driverConfig.DBName != "app" {
 		t.Fatalf("connection config = %#v", resolved)
 	}
 }
@@ -70,8 +74,9 @@ func TestResolveNativeDSNWithMySQLUsername(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.User != "mysql" || resolved.Passwd != "secret" {
-		t.Fatalf("credentials = %q/%q", resolved.User, resolved.Passwd)
+	driverConfig := resolved.DriverConfig
+	if driverConfig.User != "mysql" || driverConfig.Passwd != "secret" {
+		t.Fatalf("credentials = %q/%q", driverConfig.User, driverConfig.Passwd)
 	}
 }
 

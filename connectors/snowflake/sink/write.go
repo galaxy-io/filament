@@ -26,6 +26,43 @@ import (
 
 var encodedCRCTable = crc32.MakeTable(crc32.Castagnoli)
 
+// Apply validates a batch and routes append/replace directly into the target;
+// key-based modes fold through a session-local table first.
+func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if s.db == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write before open")
+	}
+	if batch == nil || batch.Rows() == nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write requires a record batch")
+	}
+	table, ok := s.tables[batch.Resource]
+	if !ok {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: no schema ensured for resource %q", batch.Resource)
+	}
+	mode := opts.Policy.Capability.Mode
+	if expected := s.modeFor(batch.Resource); expected != "" && mode != expected {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: apply policy %q does not match resource policy %q", mode, expected)
+	}
+	policy := opts.Policy
+	if mode == filament.WriteReplace {
+		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
+	}
+	if err := policy.ValidateBatch(batch.Resource, batch); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: %w", err)
+	}
+	switch mode {
+	case filament.WriteAppend, filament.WriteReplace:
+		return s.write(ctx, table, batch)
+	case filament.WriteUpsert, filament.WriteDelete, filament.WriteMerge:
+		if table.mergeSQL == "" {
+			return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write policy %q requires a primary key for resource %q", mode, batch.Resource)
+		}
+		return s.writeFold(ctx, table, batch)
+	default:
+		return filament.WriteReceipt{}, fmt.Errorf("snowflake sink: write policy %q is not implemented", mode)
+	}
+}
+
 // write serializes one batch as a complete Parquet file, uploads it to the
 // user's internal stage, and atomically copies that file into the table.
 func (s *Sink) write(ctx context.Context, table tableDefinition, batch *arrowbatch.Batch) (filament.WriteReceipt, error) {

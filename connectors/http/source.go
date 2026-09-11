@@ -306,12 +306,17 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		out := make([]filament.Resource, 0, len(staticResources))
 		for _, r := range staticResources {
 			schema, _ := s.Schema(ctx, r.Name)
+			var metadata map[string]string
+			if defaults := s.connector.manifest.Discovery.DefaultResources; defaults != nil {
+				metadata = map[string]string{"default_resources": strconv.FormatBool(slices.Contains(defaults, r.Name))}
+			}
 			out = append(out, filament.Resource{
 				Name:       r.Name,
 				Selector:   r.Name,
 				Selectable: true,
 				PrimaryKey: append([]string(nil), r.PrimaryKey...),
 				Schema:     &schema,
+				Metadata:   metadata,
 			})
 		}
 		return filament.DiscoverResult{Resources: out}, nil
