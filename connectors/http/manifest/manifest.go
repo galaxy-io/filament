@@ -87,8 +87,8 @@ type Manifest struct {
 type DiscoverySpec struct {
 	Mode             string      `yaml:"mode"` // static | dynamic
 	Include          []string    `yaml:"include,omitempty"`
-	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 	Resources        []Discovery `yaml:"resources,omitempty"`
+	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 }
 
 // ConfigSpec declares one user-facing connector configuration field. Enum is
