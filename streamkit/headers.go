@@ -9,6 +9,9 @@ import (
 
 var ErrInvalidEnvelope = errors.New("streamkit: invalid envelope")
 
+// HeaderEncodingVersion identifies the ordered binary header encoding.
+const HeaderEncodingVersion byte = 1
+
 // Header preserves provider order, duplicate names and arbitrary binary values.
 // Null is authoritative; a null header with nonempty bytes is invalid.
 type Header struct {
@@ -21,7 +24,7 @@ type Header struct {
 // u32-length key, null byte, u32-length value. Integers are big endian. Nil and
 // empty lists differ; null values differ from non-null empty bytes.
 func EncodeHeaders(headers []Header) ([]byte, error) {
-	out := []byte{1, 0}
+	out := []byte{HeaderEncodingVersion, 0}
 	if headers == nil {
 		return out, nil
 	}
@@ -50,7 +53,7 @@ func EncodeHeaders(headers []Header) ([]byte, error) {
 	return out, nil
 }
 func DecodeHeaders(data []byte) ([]Header, error) {
-	if len(data) < 2 || data[0] != 1 || data[1] > 1 {
+	if len(data) < 2 || data[0] != HeaderEncodingVersion || data[1] > 1 {
 		return nil, ErrInvalidEnvelope
 	}
 	if data[1] == 0 {

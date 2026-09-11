@@ -12,9 +12,11 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Attempt *AttemptRef `json:",omitempty"`
-	Tenant  TenantID
-	Run     RunID
+	// StreamAttempt is authoritative for continuous execution. Existing dispatch
+	// fields, when populated, must agree with the admitted attempt.
+	StreamAttempt *AttemptRef `json:",omitempty"`
+	Tenant        TenantID
+	Run           RunID
 	// StartedAt is the logical run's first start time. A zero value is stamped by
 	// the runner; resumed executions retain the original value.
 	StartedAt time.Time

@@ -23,10 +23,11 @@ func (d DomainKey) Validate() error {
 type Position struct {
 	Codec   string
 	Version int
-	Payload []byte
+	// Value is the codec-encoded source position, not message content.
+	Value []byte
 }
 
-func (p Position) Clone() Position { p.Payload = bytes.Clone(p.Payload); return p }
+func (p Position) Clone() Position { p.Value = bytes.Clone(p.Value); return p }
 func (p Position) Validate() error {
 	if p.Codec == "" || p.Version < 0 || !utf8.ValidString(p.Codec) {
 		return errors.New("progress: missing codec or negative version")

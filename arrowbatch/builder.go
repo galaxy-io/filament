@@ -314,6 +314,9 @@ func (b *Builder) EndRow(meta rowmodel.Meta) error {
 	if b.ops != nil {
 		b.ops = append(b.ops, meta.Op)
 	}
+	// EndRow borrows stream metadata; retain an independent copy. Nil leaves
+	// the ordinary bounded path allocation-free.
+	meta.Stream = meta.Stream.Clone()
 	b.last = meta
 	b.rows++
 	b.total++

@@ -25,13 +25,11 @@ func (e ExecutionMode) Normalize() ExecutionMode {
 
 var ErrContinuousDisabled = errors.New("continuous execution is disabled")
 
-// ValidateExecution keeps the runtime default-off while public contracts land.
-func (e ExecutionMode) ValidateExecution() error {
+// Validate checks the mode, independently of runtime availability.
+func (e ExecutionMode) Validate() error {
 	switch e.Normalize() {
-	case ExecutionBounded:
+	case ExecutionBounded, ExecutionContinuous:
 		return nil
-	case ExecutionContinuous:
-		return ErrContinuousDisabled
 	default:
 		return fmt.Errorf("unknown execution mode %q", e)
 	}
@@ -63,6 +61,8 @@ type Boundary struct {
 	MaxBytes        int64
 	MaxWait, MaxAge time.Duration
 }
+type StreamMeta = rowmodel.StreamMeta
+type EventIdentity = rowmodel.EventIdentity
 type DomainKey = rowmodel.DomainKey
 type Position = rowmodel.Position
 type DomainPosition = rowmodel.DomainPosition
@@ -120,4 +120,28 @@ type StreamRecordSink interface {
 type StreamingSinkCapabilities struct {
 	OwnerFencing, IsolatedEpochs bool
 	InFlightBound                *time.Duration
+}
+
+// ValidateStreamAttempt checks admitted continuous ownership against duplicated
+// run/dispatch identities. It does not grant authority or check runtime support.
+// Bounded specifications do not interpret this optional continuous context.
+func (s RunSpec) ValidateStreamAttempt() error {
+	if err := s.Options.Execution.Validate(); err != nil {
+		return err
+	}
+	if s.Options.Execution.Normalize() != ExecutionContinuous {
+		return nil
+	}
+	if s.StreamAttempt == nil {
+		return errors.New("stream: admitted attempt required")
+	}
+	a := s.StreamAttempt
+	if err := a.Validate(); err != nil {
+		return err
+	}
+	if (s.Run != "" && s.Run != a.RunID) || (s.ExecutionID != "" && s.ExecutionID != a.ExecutionID) ||
+		(s.ReplicationStream != nil && (s.ReplicationStream.ID != a.StreamID || s.ReplicationStream.Generation != a.Generation)) {
+		return errors.New("stream: run identity conflicts with admitted attempt")
+	}
+	return nil
 }

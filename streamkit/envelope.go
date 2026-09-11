@@ -6,27 +6,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"time"
-	"unicode/utf8"
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
-// EventIdentity is independent of runs, generations, attempts and consumer names.
-// Ordinal distinguishes changes sharing a transaction position without overflow
-// at uint32. Sources must supply stable event positions, including on replay.
-type EventIdentity struct {
-	Domain   rowmodel.DomainKey
-	Position rowmodel.Position
-	Ordinal  uint64
-}
+// IdentityEncodingVersion identifies the canonical event identity encoding.
+const IdentityEncodingVersion = 1
 
-func (e EventIdentity) CanonicalBytes(r rowmodel.CodecResolver) ([]byte, error) {
+// EventIdentity shares the neutral value type; encoding belongs to this SDK.
+type EventIdentity = rowmodel.EventIdentity
+
+// CanonicalIdentity encodes an identity with its codec-canonical position.
+func CanonicalIdentity(e EventIdentity, r rowmodel.CodecResolver) ([]byte, error) {
 	if err := e.Domain.Validate(); err != nil {
 		return nil, err
-	}
-	if !utf8.ValidString(e.Domain.Incarnation) || !utf8.ValidString(e.Domain.Domain) || !utf8.ValidString(e.Position.Codec) {
-		return nil, ErrInvalidEnvelope
 	}
 	p, err := rowmodel.CanonicalPosition(r, e.Position)
 	if err != nil {
@@ -36,7 +30,7 @@ func (e EventIdentity) CanonicalBytes(r rowmodel.CodecResolver) ([]byte, error) 
 	return json.Marshal(struct {
 		Version  int
 		Identity EventIdentity
-	}{1, e})
+	}{IdentityEncodingVersion, e})
 }
 
 // DecodeIdentity accepts only the canonical versioned SDK representation. It
@@ -49,26 +43,27 @@ func DecodeIdentity(data []byte, r rowmodel.CodecResolver) (EventIdentity, error
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return EventIdentity{}, err
 	}
-	if wire.Version != 1 {
+	if wire.Version != IdentityEncodingVersion {
 		return EventIdentity{}, ErrInvalidEnvelope
 	}
-	canonical, err := wire.Identity.CanonicalBytes(r)
+	identity := wire.Identity
+	canonical, err := CanonicalIdentity(identity, r)
 	if err != nil {
 		return EventIdentity{}, err
 	}
 	if !bytes.Equal(data, canonical) {
 		return EventIdentity{}, ErrInvalidEnvelope
 	}
-	return wire.Identity, nil
+	return identity, nil
 }
 
-func (e EventIdentity) ID(r rowmodel.CodecResolver) (string, error) {
-	data, err := e.CanonicalBytes(r)
+func EventID(e EventIdentity, r rowmodel.CodecResolver) (string, error) {
+	data, err := CanonicalIdentity(e, r)
 	if err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(data)
-	return "v1:" + hex.EncodeToString(sum[:]), nil
+	return hex.EncodeToString(sum[:]), nil
 }
 
 type Envelope struct {
@@ -82,11 +77,11 @@ type Envelope struct {
 }
 
 // Projector wraps a schema-ordered writer opened with WithEnvelopeFields. Source
-// fields are appended first; EndRow projects every envelope before batching and
+// fields are appended first; EndEvent projects every envelope before batching and
 // before any outer audit writer appends legacy lineage. No last-row Meta is used
 // to reconstruct earlier envelopes. A projector is owned by one producer loop.
 type Projector struct {
-	arrowbatch.RowWriter
+	writer arrowbatch.RowWriter
 	codecs rowmodel.CodecResolver
 }
 
@@ -96,13 +91,13 @@ func NewProjector(w arrowbatch.RowWriter, r rowmodel.CodecResolver) *Projector {
 func WithEnvelopeFields(s rowmodel.Schema) (rowmodel.Schema, error) {
 	return rowmodel.WithEnvelopeFields(s)
 }
-func (w *Projector) EndRow(e Envelope, meta rowmodel.Meta) error {
+func (w *Projector) EndEvent(e Envelope, meta rowmodel.Meta) error {
 	// Validate before appending any SDK column. On error the source must abandon
 	// the pending row/writer; RowWriter does not provide rollback of source fields.
 	if (e.KeyNull && len(e.Key) > 0) || (e.PayloadNull && len(e.Payload) > 0) {
 		return ErrInvalidEnvelope
 	}
-	identity, err := e.Identity.CanonicalBytes(w.codecs)
+	identity, err := CanonicalIdentity(e.Identity, w.codecs)
 	if err != nil {
 		return err
 	}
@@ -118,26 +113,24 @@ func (w *Projector) EndRow(e Envelope, meta rowmodel.Meta) error {
 		timestamp = e.Timestamp.UTC().Format(time.RFC3339Nano)
 	}
 	sum := sha256.Sum256(identity)
-	w.String("v1:" + hex.EncodeToString(sum[:]))
-	w.Bytes(identity)
+	w.writer.String(hex.EncodeToString(sum[:]))
+	w.writer.Bytes(identity)
 	if e.Timestamp == nil {
-		w.Null()
+		w.writer.Null()
 	} else {
-		w.String(timestamp)
+		w.writer.String(timestamp)
 	}
-	w.Bytes(headers)
+	w.writer.Bytes(headers)
 	if e.KeyNull {
-		w.Null()
+		w.writer.Null()
 	} else {
-		w.Bytes(e.Key)
+		w.writer.Bytes(e.Key)
 	}
 	if e.PayloadNull {
-		w.Null()
+		w.writer.Null()
 	} else {
-		w.Bytes(e.Payload)
+		w.writer.Bytes(e.Payload)
 	}
-	meta.Domain = e.Identity.Domain
-	meta.Position = e.Identity.Position.Clone()
-	meta.Ordinal = e.Identity.Ordinal
-	return w.RowWriter.EndRow(meta)
+	meta.Stream = &rowmodel.StreamMeta{Identity: e.Identity.Clone()}
+	return w.writer.EndRow(meta)
 }

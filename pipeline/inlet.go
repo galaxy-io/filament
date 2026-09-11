@@ -41,6 +41,9 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	key := partKey{resource: resource, part: part}
 	p.registryMu.Lock()
 	defer p.registryMu.Unlock()
+	if err := rowmodel.ValidateReservedFields(supplied); err != nil {
+		return nil, fmt.Errorf("pipeline: %w", err)
+	}
 	schema := supplied.Clone()
 	if schema.Resource == "" {
 		schema.Resource = resource

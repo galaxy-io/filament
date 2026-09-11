@@ -70,7 +70,7 @@ func (c OpaqueCodec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, er
 	if err := c.Validate(b); err != nil {
 		return rowmodel.PositionIncomparable, err
 	}
-	if (a.Payload == nil) == (b.Payload == nil) && bytes.Equal(a.Payload, b.Payload) {
+	if (a.Value == nil) == (b.Value == nil) && bytes.Equal(a.Value, b.Value) {
 		return rowmodel.PositionEqual, nil
 	}
 	return rowmodel.PositionIncomparable, nil
@@ -85,23 +85,23 @@ func (Uint64Codec) Validate(p rowmodel.Position) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
-	if len(p.Payload) == 0 {
+	if len(p.Value) == 0 {
 		return errors.New("streamkit: empty counter")
 	}
-	for _, b := range p.Payload {
+	for _, b := range p.Value {
 		if b < '0' || b > '9' {
 			return errors.New("streamkit: non-decimal counter")
 		}
 	}
-	_, err := strconv.ParseUint(string(p.Payload), 10, 64)
+	_, err := strconv.ParseUint(string(p.Value), 10, 64)
 	return err
 }
 func (c Uint64Codec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error) {
 	if err := c.Validate(p); err != nil {
 		return rowmodel.Position{}, err
 	}
-	n, _ := strconv.ParseUint(string(p.Payload), 10, 64)
-	p.Payload = []byte(strconv.FormatUint(n, 10))
+	n, _ := strconv.ParseUint(string(p.Value), 10, 64)
+	p.Value = []byte(strconv.FormatUint(n, 10))
 	return p, nil
 }
 func (c Uint64Codec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, error) {
@@ -114,8 +114,8 @@ func (c Uint64Codec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, er
 	if err := c.Validate(b); err != nil {
 		return rowmodel.PositionIncomparable, err
 	}
-	x, _ := strconv.ParseUint(string(a.Payload), 10, 64)
-	y, _ := strconv.ParseUint(string(b.Payload), 10, 64)
+	x, _ := strconv.ParseUint(string(a.Value), 10, 64)
+	y, _ := strconv.ParseUint(string(b.Value), 10, 64)
 	if x < y {
 		return rowmodel.PositionBefore, nil
 	}

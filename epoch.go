@@ -6,7 +6,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"sort"
+	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -27,12 +28,12 @@ func (a AttemptRef) Validate() error {
 }
 
 type EpochRef struct {
-	AttemptRef
+	Attempt                   AttemptRef
 	Epoch, MembershipRevision int64
 }
 
 func (e EpochRef) Validate() error {
-	if err := e.AttemptRef.Validate(); err != nil {
+	if err := e.Attempt.Validate(); err != nil {
 		return err
 	}
 	if e.Epoch <= 0 || e.MembershipRevision <= 0 {
@@ -47,7 +48,7 @@ func (e EpochRef) ValidateApply(opts ApplyOptions) error {
 		return err
 	}
 	if opts.Epoch == nil || *opts.Epoch != e {
-		return ErrFenced
+		return ErrEpochMismatch
 	}
 	return nil
 }
@@ -57,7 +58,7 @@ type EpochKey struct {
 	Generation, Epoch int64
 }
 
-func (e EpochRef) Key() EpochKey { return EpochKey{e.StreamID, e.Generation, e.Epoch} }
+func (e EpochRef) Key() EpochKey { return EpochKey{e.Attempt.StreamID, e.Attempt.Generation, e.Epoch} }
 
 // InboxClaimRef identifies an exact claim, never a sequence watermark.
 // The enclosing certificate supplies tenant scope. No inbox infrastructure is
@@ -71,10 +72,10 @@ type Coverage struct {
 	Claims    []InboxClaimRef
 }
 
-// Validate checks representation only; it cannot prove contiguous processing,
+// ValidateRepresentation checks representation only; it cannot prove contiguous processing,
 // transaction completion, claim authority or pipeline durability. Empty coverage
 // is rejected until a coordinator defines an explicit idle/no-progress policy.
-func (c Coverage) Validate() error {
+func (c Coverage) ValidateRepresentation() error {
 	if (len(c.Positions) == 0) == (len(c.Claims) == 0) {
 		return ErrIncompleteCoverage
 	}
@@ -96,7 +97,7 @@ func (c Coverage) Clone() Coverage {
 	return c
 }
 func (c Coverage) Canonicalize(r CodecResolver) (Coverage, error) {
-	if err := c.Validate(); err != nil {
+	if err := c.ValidateRepresentation(); err != nil {
 		return Coverage{}, err
 	}
 	c = c.Clone()
@@ -107,8 +108,28 @@ func (c Coverage) Canonicalize(r CodecResolver) (Coverage, error) {
 		}
 		c.Positions[domain] = v
 	}
-	sort.Slice(c.Claims, func(i, j int) bool { return c.Claims[i].RowID < c.Claims[j].RowID })
+	slices.SortFunc(c.Claims, func(a, b InboxClaimRef) int { return strings.Compare(a.RowID, b.RowID) })
 	return c, nil
+}
+
+// NewPositionCoverage validates and takes an independent copy of candidate
+// positions. Receiving boundaries must still validate exported fields.
+func NewPositionCoverage(positions DomainPositions) (Coverage, error) {
+	c := Coverage{Positions: positions}
+	if err := c.ValidateRepresentation(); err != nil {
+		return Coverage{}, err
+	}
+	return c.Clone(), nil
+}
+
+// NewClaimCoverage validates and copies exact claims; it does not verify live
+// claim ownership or settle inbox rows.
+func NewClaimCoverage(claims []InboxClaimRef) (Coverage, error) {
+	c := Coverage{Claims: claims}
+	if err := c.ValidateRepresentation(); err != nil {
+		return Coverage{}, err
+	}
+	return c.Clone(), nil
 }
 
 // StreamingSink extends an opened Sink with a native reusable epoch lifecycle.
@@ -123,14 +144,42 @@ type StreamingSink interface {
 	CloseSession(context.Context) error
 }
 
+// ReceiptEvidence is destination-owned evidence, not comparable source progress.
+// Nil evidence means absent. A present value must name its format and have a
+// nonnegative version selected by that destination format.
+type ReceiptEvidence struct {
+	Format  string
+	Version int
+	Payload []byte
+}
+
+func (e *ReceiptEvidence) Validate() error {
+	if e == nil {
+		return nil
+	}
+	if e.Format == "" || !utf8.ValidString(e.Format) || e.Version < 0 {
+		return errors.New("epoch: invalid receipt evidence")
+	}
+	return nil
+}
+func (e *ReceiptEvidence) Clone() *ReceiptEvidence {
+	if e == nil {
+		return nil
+	}
+	return &ReceiptEvidence{Format: e.Format, Version: e.Version, Payload: bytes.Clone(e.Payload)}
+}
+
 // EpochReceipt contains stable aggregate evidence; it is not a dedup guarantee.
 // Evidence uses a destination-owned versioned encoding, immutable across retries.
 type EpochReceipt struct {
 	Resource    string
 	Rows, Bytes int64
 	WriteCRC    uint32
-	Evidence    Position
+	Evidence    *ReceiptEvidence
 }
+
+// EpochCertificateFormatVersion identifies the canonical certificate format.
+const EpochCertificateFormatVersion = 1
 
 // EpochCertificate is immutable input to a future fenced store transaction.
 // Structural canonicalization does not seal coverage or authorize its commit.
@@ -159,7 +208,7 @@ func (c EpochCertificate) Clone() EpochCertificate {
 // Position canonicalization is codec-owned. Receipt evidence is already encoded
 // by the destination and is not interpreted as source progress.
 func (c EpochCertificate) CanonicalBytes(r CodecResolver) ([]byte, error) {
-	if c.FormatVersion != 1 || c.Tenant == "" || c.PipelineVersionID == "" || c.Records < 0 || c.Bytes < 0 || !utf8.ValidString(string(c.Tenant)) || !utf8.ValidString(c.PipelineVersionID) {
+	if c.FormatVersion != EpochCertificateFormatVersion || c.Tenant == "" || c.PipelineVersionID == "" || c.Records < 0 || c.Bytes < 0 || !utf8.ValidString(string(c.Tenant)) || !utf8.ValidString(c.PipelineVersionID) {
 		return nil, errors.New("epoch: invalid certificate")
 	}
 	if err := c.Ref.Validate(); err != nil {
@@ -178,21 +227,19 @@ func (c EpochCertificate) CanonicalBytes(r CodecResolver) ([]byte, error) {
 		if receipt.Resource == "" || receipt.Rows < 0 || receipt.Bytes < 0 || !utf8.ValidString(receipt.Resource) {
 			return nil, errors.New("epoch: invalid receipt")
 		}
-		if receipt.Evidence.Codec != "" {
-			if err := receipt.Evidence.Validate(); err != nil {
-				return nil, err
-			}
-		} else if receipt.Evidence.Version != 0 || receipt.Evidence.Payload != nil {
-			return nil, errors.New("epoch: unversioned receipt evidence")
+		if err := receipt.Evidence.Validate(); err != nil {
+			return nil, err
 		}
 	}
-	sort.Slice(c.Receipts, func(i, j int) bool {
-		a, _ := json.Marshal(c.Receipts[i])
-		b, _ := json.Marshal(c.Receipts[j])
-		return bytes.Compare(a, b) < 0
+	// Receipt ordering has no semantic meaning.
+	slices.SortFunc(c.Receipts, func(a, b EpochReceipt) int {
+		left, _ := json.Marshal(a)
+		right, _ := json.Marshal(b)
+		return bytes.Compare(left, right)
 	})
 	return json.Marshal(c)
 }
+
 func (c EpochCertificate) Digest(r CodecResolver) ([32]byte, error) {
 	data, err := c.CanonicalBytes(r)
 	if err != nil {
@@ -207,6 +254,7 @@ type CommittedEpoch struct {
 }
 
 var (
+	ErrEpochMismatch        = errors.New("stream: epoch mismatch")
 	ErrFenced               = errors.New("stream: fenced")
 	ErrLeaseExpired         = errors.New("stream: lease expired")
 	ErrEpochConflict        = errors.New("stream: epoch conflict")
