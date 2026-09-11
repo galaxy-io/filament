@@ -23,8 +23,6 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
-	notification "github.com/galaxy-io/filament/internal/notifier"
-	"github.com/galaxy-io/filament/internal/notifier/webhook"
 	"github.com/galaxy-io/filament/module"
 
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
@@ -90,9 +88,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("datastore %q does not support schedules", deps.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	notify := notifier.New(map[notification.NotificationType]notification.Sender{
-		notification.NotificationWebhook: webhook.New(nil),
-	})
+	notify := notifier.New()
 	mods := []module.Module{tracker.New(), dispatcher, sched, notify}
 	// The reaper mounts only under kubernetes dispatch: staleness means death
 	// only where heartbeats exist, and inproc runs don't emit them. The

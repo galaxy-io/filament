@@ -4,7 +4,6 @@ package notifier
 import (
 	"context"
 	"errors"
-	"maps"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -12,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
 	notification "github.com/galaxy-io/filament/internal/notifier"
+	"github.com/galaxy-io/filament/internal/notifier/webhook"
 	"github.com/galaxy-io/filament/module"
 )
 
@@ -35,8 +35,10 @@ type Module struct {
 var _ module.Module = (*Module)(nil)
 
 // New returns an unmounted notifier with its supported senders.
-func New(senders map[notification.NotificationType]notification.Sender) *Module {
-	return &Module{senders: maps.Clone(senders)}
+func New() *Module {
+	return &Module{senders: map[notification.NotificationType]notification.Sender{
+		notification.NotificationWebhook: webhook.New(nil),
+	}}
 }
 
 // Name identifies this module.
