@@ -2,10 +2,13 @@ package connection
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/galaxy-io/filament"
 )
+
+var locationPattern = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
 
 // Resolved contains the validated options needed to create a BigQuery client.
 // Authentication is intentionally absent: the official client discovers
@@ -38,7 +41,7 @@ func resolved(projectID, location string) (Resolved, error) {
 		return Resolved{}, fmt.Errorf("project_id is required")
 	}
 	location = strings.TrimSpace(location)
-	if location != "" && (strings.ContainsAny(location, "/\\") || strings.ContainsAny(location, " \t\r\n")) {
+	if location != "" && !locationPattern.MatchString(location) {
 		return Resolved{}, fmt.Errorf("location must be a location ID")
 	}
 	return Resolved{ProjectID: projectID, Location: location}, nil
