@@ -49,7 +49,7 @@ type (
 		MemoryPeakBytes int64   `json:"memoryPeakBytes,omitempty"`
 	}
 
-	// ResourceStartedEvent marks extraction beginning for one resource.
+	// ResourceStartedEvent marks preparation beginning for one resource.
 	ResourceStartedEvent struct{}
 	// PageFetchedEvent counts one fetched page of a resource.
 	PageFetchedEvent struct {

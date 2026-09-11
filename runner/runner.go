@@ -57,16 +57,12 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 // ShouldRun reports whether a persisted run is this attempt's to execute. Only a
 // freshly requested or resumable-partial run qualifies, so a redelivered trigger
 // for a run already running or finished is a no-op rather than duplicated work.
-//
-// A completed CDC run is the exception: it is a catch-up cycle by construction,
-// so re-requesting it continues the change stream from its persisted cursor,
-// draining the source up to a fresh watermark and completing again.
+// Each new CDC catch-up has its own run and resumes from the route checkpoint;
+// a completed run must not be resurrected by a late trigger redelivery.
 func ShouldRun(state filament.RunState) bool {
 	switch state.Status {
 	case filament.RunRequested, filament.RunPartial:
 		return true
-	case filament.RunCompleted:
-		return filament.IsCDC(state.Request.IngestionTypes)
 	default:
 		return false
 	}
@@ -178,6 +174,13 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 
+	// Resource preparation is part of the run's visible work. Announce resources
+	// before schema discovery and destination DDL so observers do not show an
+	// active run with every resource still waiting during a slow sink startup.
+	for _, res := range spec.Resources {
+		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
+	}
+
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
@@ -186,13 +189,8 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(fmt.Errorf("ensure schema: %w", err), nil, false)
+		em.failed(fmt.Errorf("ensure schema: %w", err), spec.Resources, false)
 		return nil
-	}
-
-	// Announce the resources this run will touch (when known up front).
-	for _, res := range spec.Resources {
-		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
 	}
 
 	extractor, err := resolveExtractor(extractCtx, deps.DataStore, src, spec, plan, deps.Log)
