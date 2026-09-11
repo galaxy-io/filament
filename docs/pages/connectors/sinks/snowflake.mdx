@@ -1,0 +1,217 @@
+---
+title: "Snowflake"
+description: "Write typed analytical tables to Snowflake"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-snowflake-dark.svg"
+---
+
+The Snowflake sink (**alpha**) writes each resource to a typed Snowflake table.
+It supports snapshot, incremental, and CDC pipelines using Parquet files staged
+through the Snowflake user's internal stage.
+
+## Snowflake setup
+
+Key-pair authentication is the recommended setup for the dedicated Filament
+service user. Filament currently accepts an unencrypted RSA private key in
+PKCS#8 or PKCS#1 PEM format.
+
+### 1. Generate a key pair
+
+From a secure local directory, generate a 2048-bit RSA private key and its
+public key:
+
+```bash
+cd ~/.ssh
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_filament_snow_key.p8 -nocrypt
+openssl rsa -in snowflake_filament_snow_key.p8 -pubout -out snowflake_filament_snow_key.pub
+chmod 600 snowflake_filament_snow_key.p8
+```
+
+The private key is a secret. Do not commit it or send it to Snowflake. Snowflake
+receives only the public key.
+
+Print the public-key body without the PEM delimiters or line breaks:
+
+```bash
+grep -v '^-----' snowflake_filament_snow_key.pub | tr -d '\n'
+```
+
+Copy that output for `<PUBLIC_KEY_BODY>` in the SQL below. See Snowflake's
+[key-pair authentication guide](https://docs.snowflake.com/en/user-guide/key-pair-auth)
+for key rotation and fingerprint verification.
+
+### 2. Create the role, warehouse, database, and service user
+
+Run the following as an account administrator. Change the uppercase object
+names if your organization uses different names.
+
+```sql
+-- Create the Filament role and place it beneath SYSADMIN.
+USE ROLE SECURITYADMIN;
+
+CREATE ROLE IF NOT EXISTS FILAMENT_ROLE;
+GRANT ROLE FILAMENT_ROLE TO ROLE SYSADMIN;
+
+-- Create the destination warehouse and database as SYSADMIN.
+USE ROLE SYSADMIN;
+
+CREATE WAREHOUSE IF NOT EXISTS FILAMENT_WAREHOUSE
+    WAREHOUSE_SIZE = XSMALL
+    WAREHOUSE_TYPE = STANDARD
+    AUTO_SUSPEND = 60
+    AUTO_RESUME = TRUE
+    INITIALLY_SUSPENDED = TRUE;
+
+CREATE DATABASE IF NOT EXISTS FILAMENT_DATABASE;
+
+GRANT USAGE ON WAREHOUSE FILAMENT_WAREHOUSE TO ROLE FILAMENT_ROLE;
+GRANT USAGE, CREATE SCHEMA ON DATABASE FILAMENT_DATABASE TO ROLE FILAMENT_ROLE;
+
+-- PUBLIC already exists. These grants allow it to be selected as the
+-- destination and allow Filament to create tables there.
+GRANT USAGE, CREATE TABLE ON SCHEMA FILAMENT_DATABASE.PUBLIC TO ROLE FILAMENT_ROLE;
+
+-- Create the non-interactive user and assign the public key.
+USE ROLE SECURITYADMIN;
+
+CREATE USER IF NOT EXISTS FILAMENT_USER
+    TYPE = SERVICE
+    DEFAULT_ROLE = FILAMENT_ROLE
+    DEFAULT_WAREHOUSE = FILAMENT_WAREHOUSE;
+
+GRANT ROLE FILAMENT_ROLE TO USER FILAMENT_USER;
+
+ALTER USER FILAMENT_USER SET BINARY_INPUT_FORMAT = 'BASE64';
+ALTER USER FILAMENT_USER SET TIMESTAMP_INPUT_FORMAT = 'AUTO';
+
+ALTER USER FILAMENT_USER SET RSA_PUBLIC_KEY = '<PUBLIC_KEY_BODY>';
+```
+
+Filament runs `CREATE SCHEMA IF NOT EXISTS` for the pipeline destination. A
+schema created by `FILAMENT_ROLE` is owned by that role, so it can create and
+evolve tables inside it. When targeting a pre-existing schema, grant at least
+`USAGE` and `CREATE TABLE` on that schema. Pre-existing destination tables must
+also permit the role to insert, update, delete, truncate, and add columns; using
+a Filament-owned schema avoids managing those table grants individually.
+
+### 3. Configure the connection
+
+Use these values when creating the Snowflake connection in Filament:
+
+| Field | Value |
+| --- | --- |
+| Account | The Snowflake account identifier in `organization-account` form |
+| Username | `FILAMENT_USER` |
+| Warehouse | `FILAMENT_WAREHOUSE` |
+| Database Name | `FILAMENT_DATABASE` |
+| Schema Name | `PUBLIC`, or another default schema |
+| Role | `FILAMENT_ROLE` |
+| Auth Type | `Key pair` |
+| Private Key | The complete contents of `snowflake_filament_snow_key.p8`, including the `BEGIN PRIVATE KEY` and `END PRIVATE KEY` lines |
+
+On macOS, `pbcopy < snowflake_filament_snow_key.p8` copies the complete private
+key while preserving its line breaks. Paste it directly into the Private Key
+field and validate the connection.
+
+Fields-mode connections support key-pair authentication and Snowflake
+programmatic access tokens. Password authentication is not exposed; Snowflake
+`SERVICE` users are intended for non-interactive authentication.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `connection_method` | Connection | `fields` | `fields` builds the driver configuration from the fields below. `url` uses `dsn` directly. |
+| `dsn` | Connection | — | Snowflake connection string. Required when `connection_method` is `url`. Secret. |
+| `account` | Connection | — | Account identifier in `organization-account` form. Required in `fields` mode. |
+| `username` | Connection | — | Snowflake service user. Required in `fields` mode. |
+| `warehouse` | Connection | — | Virtual warehouse used for loading. Required in `fields` mode. |
+| `database_name` | Connection | — | Destination database. Required in `fields` mode. |
+| `schema_name` | Connection | `PUBLIC` | Default schema used when testing the connection and when no pipeline override is supplied. |
+| `role` | Connection | — | Optional Snowflake role. |
+| `auth.type` | Connection | `key_pair` | `key_pair` or `pat`. |
+| `auth.private_key` | Connection | — | Complete unencrypted RSA private-key PEM. Required for `key_pair`. Secret. |
+| `auth.token` | Connection | — | Snowflake programmatic access token. Required for `pat`. Secret. |
+| `schema` | Pipeline | `PUBLIC` | Destination schema. |
+
+The sink prefers batches no larger than 100,000 rows or approximately 256 MiB,
+whichever limit is reached first.
+
+## Supported write modes
+
+The sink advertises `full_replace`, `full_append`, `full_upsert`,
+`incremental_append`, `incremental_upsert`, `incremental_delete`, `cdc_append`,
+and `cdc_merge`. See
+[replication modes](/pages/guides/concepts/replication-modes).
+
+- Replace truncates the destination before loading the snapshot.
+- Append copies each batch directly into the destination.
+- Upsert, delete, and merge load each batch into a temporary table and execute
+  one Snowflake `MERGE`. These modes require a primary key.
+
+## Table management
+
+Before extraction, `EnsureSchema` runs per resource:
+
+1. Create the destination schema and typed table if they do not exist.
+2. Truncate the table when the selected mode is replace.
+3. Inspect `INFORMATION_SCHEMA.COLUMNS` and add missing columns with
+   `ADD COLUMN IF NOT EXISTS`.
+
+Schema evolution is add-only. Existing columns are not dropped, renamed, or
+altered. Primary-key constraints are informational in Snowflake, but Filament
+uses the key columns to build deterministic merge conditions.
+
+### Type mapping
+
+| Logical type | Snowflake type |
+| --- | --- |
+| `bool` | `BOOLEAN` |
+| `int16` / `int32` / `int64` | `NUMBER(38,0)` |
+| `float32` / `float64` | `FLOAT` |
+| `decimal` | `NUMBER(p,s)` when precision is valid and at most 38; otherwise `TEXT` |
+| `string` / `array` / `uuid` / unknown | `TEXT` |
+| `bytes` | `BINARY` |
+| `date` | `DATE` |
+| `time` | `TIME(6)` |
+| `timestamp` | `TIMESTAMP_NTZ(6)` |
+| `timestamptz` | `TIMESTAMP_TZ(6)` |
+| `json` | `VARIANT` |
+
+## Write mechanics and atomicity
+
+Each Arrow batch is encoded as a Snappy-compressed Parquet file in memory. The
+sink uploads it with `PUT` to a run-scoped path under the user's `@~` stage,
+loads it with `COPY INTO`, and removes the staged object. No external storage
+integration is required.
+
+Append and replace copy into the live destination. Key-based modes create a
+session-local temporary table, load the batch there, reduce repeated keys to
+their final operation, and apply the result with one `MERGE` transaction.
+Writes become visible per batch; there is no transaction covering an entire
+pipeline run.
+
+The sink verifies the encoded Parquet checksum before returning the write
+receipt. This validates the serialization boundary but does not query the
+committed table back from Snowflake.
+
+## Failure behavior
+
+An append run can leave successfully loaded batches in the destination after a
+later failure. Upsert, delete, and merge runs can also leave completed batch
+merges, but retries converge through the primary key. Replace truncates before
+loading, and `Abort` truncates the replacement tables again, so a failed replace
+leaves those destinations empty rather than restoring their previous contents.
+
+## Troubleshooting
+
+- `must contain an RSA private-key PEM block`: paste the complete private key,
+  including its PEM delimiters. Do not paste the `.pub` file.
+- `encrypted PEM keys are not supported`: generate the key with `-nocrypt` as
+  shown above. Protect the resulting file with restrictive filesystem
+  permissions.
+- JWT fingerprint errors: confirm that the private key matches the public key
+  registered on `FILAMENT_USER`. Snowflake documents additional checks in its
+  [key-pair troubleshooting guide](https://docs.snowflake.com/en/user-guide/key-pair-auth-troubleshooting).
+- Schema authorization errors: verify `USAGE` and `CREATE SCHEMA` on the
+  database, plus `USAGE` and `CREATE TABLE` on any pre-existing destination
+  schema.

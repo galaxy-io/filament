@@ -20,9 +20,10 @@ func (t *Sink) Spec() filament.SinkSpec {
 		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized:      true,
-			Upsertable:       true,
-			EncodedIntegrity: true,
+			Schematized:         true,
+			Upsertable:          true,
+			EncodedIntegrity:    true,
+			PreferredBatchBytes: 16 << 20,
 			WritePolicies: filament.WriteCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
