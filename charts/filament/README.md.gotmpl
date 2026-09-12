@@ -30,7 +30,7 @@ The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See t
 
 ## Runtime configuration
 
-Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS Secrets Manager uses its own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
+Filament requires a PostgreSQL DSN and a NATS URL. The default PostgreSQL-backed secret provider also requires a base64-encoded encryption key; AWS and GCP Secret Manager use their own credentials instead. Provide the values through `existingSecret` or through chart values so the chart can create the Secret.
 
 To use an existing Secret:
 

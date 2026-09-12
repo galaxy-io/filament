@@ -41,8 +41,10 @@ Secret that contains `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY`. Add
 `AUTH_PAT` when using an external Zitadel provider. When `existingSecret` is
 set, the chart does not create a Secret.
 
-If you use AWS Secrets Manager instead of the datastore-backed provider, you
-do not need `ENCRYPTION_KEY`. See
+If you use AWS or GCP Secret Manager instead of the datastore-backed provider,
+you do not need `ENCRYPTION_KEY`. For GKE, configure Workload Identity on the
+server, control-plane, and worker ServiceAccounts using their existing
+`serviceAccount.name` or `serviceAccount.annotations` values. See
 [Configuration](/pages/guides/deployment/configuration) for provider settings.
 
 ## Resources
