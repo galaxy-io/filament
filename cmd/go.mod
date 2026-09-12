@@ -7,6 +7,7 @@ require (
 	connectrpc.com/connect v1.20.0
 	github.com/atterpac/dado v0.2.12
 	github.com/galaxy-io/filament v0.0.0
+	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/snowflake v0.0.0
@@ -44,6 +45,7 @@ require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
+	cloud.google.com/go/bigquery v1.83.0 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.11.0 // indirect
 	cloud.google.com/go/monitoring v1.29.0 // indirect
@@ -68,6 +70,7 @@ require (
 	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/apache/arrow-go/v18 v18.7.0 // indirect
+	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/apache/iceberg-go v0.6.1-0.20260805181059-d785b279495f // indirect
 	github.com/apache/thrift v0.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.0 // indirect
@@ -253,8 +256,10 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/tools v0.48.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/api v0.289.0 // indirect
 	google.golang.org/genproto v0.0.0-20260519071638-aa98bba5eb94 // indirect
@@ -281,6 +286,8 @@ require (
 )
 
 replace github.com/galaxy-io/filament => ..
+
+replace github.com/galaxy-io/filament/connectors/bigquery => ../connectors/bigquery
 
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
 
