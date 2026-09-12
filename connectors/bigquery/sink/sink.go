@@ -3,28 +3,31 @@ package bigquery
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/bigquery"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/arrowbatch"
 	bigqueryconnection "github.com/galaxy-io/filament/connectors/bigquery/internal/connection"
 )
 
 const sinkName = "bigquery"
 
-var errWritesUnavailable = errors.New("bigquery sink: writes are not implemented")
-
-// Sink owns the BigQuery client and materializes typed destination tables.
-// Row loading is added in a subsequent implementation tranche.
+// Sink owns the BigQuery client and the typed tables prepared for a run.
 type Sink struct {
 	client   *bigquery.Client
+	run      filament.RunID
 	project  string
 	dataset  string
 	location string
+	policies map[string]filament.WritePolicy
+	tables   map[string]tableDefinition
+
+	stageMu sync.Mutex
+	stages  map[string]struct{}
 }
 
 // New returns an unconfigured BigQuery sink.
@@ -81,30 +84,62 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return fmt.Errorf("bigquery sink: open: %w", err)
 	}
 	s.client = client
+	s.run = run.Run
 	s.project = resolved.ProjectID
 	s.dataset = dataset
 	s.location = resolved.Location
+	s.policies = run.WritePolicies
+	s.tables = make(map[string]tableDefinition)
+	s.stages = make(map[string]struct{})
 	if err := s.execute(ctx, ddl); err != nil {
 		s.release()
 		return fmt.Errorf("bigquery sink: create dataset %s: %w", qualified(s.project, s.dataset), err)
 	}
+	metadata, err := client.DatasetInProject(s.project, s.dataset).Metadata(ctx)
+	if err != nil {
+		s.release()
+		return fmt.Errorf("bigquery sink: inspect dataset %s: %w", qualified(s.project, s.dataset), err)
+	}
+	s.location = metadata.Location
+	s.client.Location = metadata.Location
 	return nil
 }
 
-// Apply is unavailable until the BigQuery write implementation is added.
-func (*Sink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {
-	return filament.WriteReceipt{}, errWritesUnavailable
-}
-
-// Commit closes the client. BigQuery schema DDL is committed when each job
-// completes.
-func (s *Sink) Commit(context.Context) error {
+// Commit atomically promotes each staged full replacement, then closes the
+// client. Append and keyed writes are durable when their Apply jobs complete.
+func (s *Sink) Commit(ctx context.Context) error {
+	if s.client == nil {
+		return fmt.Errorf("bigquery sink: commit before open")
+	}
+	resources := make([]string, 0, len(s.tables))
+	for resource := range s.tables {
+		resources = append(resources, resource)
+	}
+	sort.Strings(resources)
+	for _, resource := range resources {
+		table := s.tables[resource]
+		if table.replacement == "" {
+			continue
+		}
+		if err := s.promoteReplacement(ctx, table); err != nil {
+			return fmt.Errorf("bigquery sink: promote replacement for %q: %w", resource, err)
+		}
+		s.deleteStage(context.WithoutCancel(ctx), table.replacement)
+	}
 	s.release()
 	return nil
 }
 
-// Abort closes the client. Additive schema changes are intentionally retained.
-func (s *Sink) Abort(context.Context) error {
+// Abort removes run-scoped staging tables and closes the client. Additive
+// destination schema changes are intentionally retained.
+func (s *Sink) Abort(ctx context.Context) error {
+	if s.client == nil {
+		return nil
+	}
+	cleanup := context.WithoutCancel(ctx)
+	for _, stage := range s.stageIDs() {
+		s.deleteStage(cleanup, stage)
+	}
 	s.release()
 	return nil
 }
@@ -129,5 +164,53 @@ func (s *Sink) release() {
 	if s.client != nil {
 		_ = s.client.Close()
 		s.client = nil
+	}
+	s.run = ""
+	s.project = ""
+	s.dataset = ""
+	s.location = ""
+	s.policies = nil
+	s.tables = nil
+	s.stageMu.Lock()
+	s.stages = nil
+	s.stageMu.Unlock()
+}
+
+func (s *Sink) modeFor(resource string) filament.WriteMode {
+	policy, ok := s.policies[resource]
+	if !ok {
+		policy = s.policies[""]
+	}
+	return policy.Capability.Mode
+}
+
+func (s *Sink) trackStage(stage string) {
+	s.stageMu.Lock()
+	defer s.stageMu.Unlock()
+	s.stages[stage] = struct{}{}
+}
+
+func (s *Sink) untrackStage(stage string) {
+	s.stageMu.Lock()
+	defer s.stageMu.Unlock()
+	delete(s.stages, stage)
+}
+
+func (s *Sink) stageIDs() []string {
+	s.stageMu.Lock()
+	defer s.stageMu.Unlock()
+	stages := make([]string, 0, len(s.stages))
+	for stage := range s.stages {
+		stages = append(stages, stage)
+	}
+	return stages
+}
+
+func (s *Sink) deleteStage(ctx context.Context, stage string) {
+	if s.client == nil {
+		return
+	}
+	if err := s.client.DatasetInProject(s.project, s.dataset).Table(stage).Delete(ctx); err == nil {
+		s.untrackStage(stage)
 	}
 }
