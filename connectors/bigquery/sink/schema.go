@@ -2,10 +2,12 @@ package bigquery
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -20,9 +22,28 @@ const (
 var datasetPattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
 type tableDefinition struct {
-	qualified string
-	createSQL string
-	alterSQL  string
+	name        string
+	qualified   string
+	columns     []columnDefinition
+	keys        []string
+	operation   internalColumn
+	ordinal     internalColumn
+	replacement string
+	createSQL   string
+	alterSQL    string
+}
+
+type columnDefinition struct {
+	name       string
+	identifier string
+	typ        string
+	logical    rowmodel.LogicalType
+	sql        string
+}
+
+type internalColumn struct {
+	name       string
+	identifier string
 }
 
 // quoteIdent preserves an identifier exactly as supplied using GoogleSQL's
@@ -72,6 +93,14 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	if err := s.execute(ctx, table.alterSQL); err != nil {
 		return fmt.Errorf("bigquery sink: add columns on %s: %w", table.qualified, err)
 	}
+	if s.modeFor(resource) == filament.WriteReplace {
+		table.replacement = stagingTableID(table.qualified, s.run, "replace")
+		if err := s.execute(ctx, createTypedStageSQL(s.project, s.dataset, table, table.replacement)); err != nil {
+			return fmt.Errorf("bigquery sink: create replacement table for %s: %w", table.qualified, err)
+		}
+		s.trackStage(table.replacement)
+	}
+	s.tables[resource] = table
 	return nil
 }
 
@@ -92,6 +121,7 @@ func defineTable(project, dataset, table string, model rowmodel.Schema) (tableDe
 	}
 
 	fields := make(map[string]bool, len(model.Fields))
+	columns := make([]columnDefinition, len(model.Fields))
 	definitions := make([]string, len(model.Fields))
 	additions := make([]string, len(model.Fields))
 	for i, field := range model.Fields {
@@ -107,6 +137,10 @@ func defineTable(project, dataset, table string, model rowmodel.Schema) (tableDe
 		definition := identifier + " " + typ
 		if !field.Nullable {
 			definition += " NOT NULL"
+		}
+		columns[i] = columnDefinition{
+			name: field.Name, identifier: identifier, typ: typ,
+			logical: field.Logical, sql: definition,
 		}
 		definitions[i] = definition
 		additions[i] = "ADD COLUMN IF NOT EXISTS " + identifier + " " + typ
@@ -129,11 +163,116 @@ func defineTable(project, dataset, table string, model rowmodel.Schema) (tableDe
 	}
 
 	name := qualified(project, dataset, table)
+	operation := uniqueInternalColumn(model.Fields, "_filament_internal_operation")
+	ordinal := uniqueInternalColumn(model.Fields, "_filament_internal_ordinal")
 	return tableDefinition{
+		name:      table,
 		qualified: name,
+		columns:   columns,
+		keys:      keys,
+		operation: operation,
+		ordinal:   ordinal,
 		createSQL: "CREATE TABLE IF NOT EXISTS " + name + " (\n\t" + strings.Join(definitions, ",\n\t") + "\n)",
 		alterSQL:  "ALTER TABLE " + name + "\n\t" + strings.Join(additions, ",\n\t"),
 	}, nil
+}
+
+func uniqueInternalColumn(fields []rowmodel.Field, base string) internalColumn {
+	used := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		used[field.Name] = true
+	}
+	name := base
+	for used[name] {
+		name += "_"
+	}
+	return internalColumn{name: name, identifier: quoteIdent(name)}
+}
+
+func stagingTableID(destination string, run filament.RunID, purpose string) string {
+	hash := sha256.Sum256([]byte(destination + "\x00" + string(run) + "\x00" + purpose))
+	return fmt.Sprintf("_filament_%s_%x", purpose, hash[:8])
+}
+
+func createTypedStageSQL(project, dataset string, table tableDefinition, stage string) string {
+	definitions := make([]string, len(table.columns))
+	for i, column := range table.columns {
+		definitions[i] = column.sql
+	}
+	return "CREATE TABLE IF NOT EXISTS " + qualified(project, dataset, stage) + " (\n\t" + strings.Join(definitions, ",\n\t") +
+		"\n) OPTIONS(expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY))"
+}
+
+func insertTableSQL(table tableDefinition, destination, source string) string {
+	targets := make([]string, len(table.columns))
+	values := make([]string, len(table.columns))
+	for i, column := range table.columns {
+		targets[i] = column.identifier
+		values[i] = sourceValue(column, "s")
+	}
+	return "INSERT INTO " + destination + " (" + strings.Join(targets, ", ") + ") SELECT " +
+		strings.Join(values, ", ") + " FROM " + source + " AS s"
+}
+
+func replaceTableSQL(table tableDefinition, source string) string {
+	targets := make([]string, len(table.columns))
+	values := make([]string, len(table.columns))
+	for i, column := range table.columns {
+		targets[i] = column.identifier
+		values[i] = "s." + column.identifier
+	}
+	return "BEGIN TRANSACTION;\nTRUNCATE TABLE " + table.qualified + ";\nINSERT INTO " + table.qualified +
+		" (" + strings.Join(targets, ", ") + ") SELECT " + strings.Join(values, ", ") + " FROM " + source +
+		" AS s;\nCOMMIT TRANSACTION"
+}
+
+// mergeTableSQL folds repeated keys in one batch to their last operation, then
+// applies the resulting inserts, updates, and deletes atomically.
+func mergeTableSQL(table tableDefinition, source string) string {
+	columns := make([]string, len(table.columns))
+	projected := make([]string, 0, len(table.columns)+2)
+	keySet := make(map[string]bool, len(table.keys))
+	for _, key := range table.keys {
+		keySet[key] = true
+	}
+	updates := make([]string, 0, len(table.columns))
+	inserts := make([]string, len(table.columns))
+	for i, column := range table.columns {
+		columns[i] = column.identifier
+		projected = append(projected, sourceValue(column, "r")+" AS "+column.identifier)
+		inserts[i] = "s." + column.identifier
+		if !keySet[column.identifier] {
+			updates = append(updates, column.identifier+" = s."+column.identifier)
+		}
+	}
+	projected = append(projected, "r."+table.operation.identifier, "r."+table.ordinal.identifier)
+
+	joins := make([]string, len(table.keys))
+	for i, key := range table.keys {
+		joins[i] = "(t." + key + " = s." + key + " OR (t." + key + " IS NULL AND s." + key + " IS NULL))"
+	}
+	sourceQuery := "SELECT * FROM (SELECT " + strings.Join(projected, ", ") + " FROM " + source +
+		" AS r) AS projected QUALIFY ROW_NUMBER() OVER (PARTITION BY " + strings.Join(table.keys, ", ") +
+		" ORDER BY " + table.ordinal.identifier + " DESC) = 1"
+	statement := "MERGE INTO " + table.qualified + " AS t USING (" + sourceQuery + ") AS s ON " +
+		strings.Join(joins, " AND ") + fmt.Sprintf(" WHEN MATCHED AND s.%s = %d THEN DELETE", table.operation.identifier, rowmodel.OpDelete)
+	if len(updates) > 0 {
+		statement += " WHEN MATCHED THEN UPDATE SET " + strings.Join(updates, ", ")
+	}
+	return statement + fmt.Sprintf(" WHEN NOT MATCHED AND s.%s <> %d THEN INSERT (%s) VALUES (%s)",
+		table.operation.identifier, rowmodel.OpDelete, strings.Join(columns, ", "), strings.Join(inserts, ", "))
+}
+
+func sourceValue(column columnDefinition, alias string) string {
+	value := alias + "." + column.identifier
+	switch column.logical {
+	case rowmodel.LogicalJSON:
+		return "PARSE_JSON(" + value + ")"
+	case rowmodel.LogicalTimestamp:
+		return "DATETIME(" + value + ", 'UTC')"
+	default:
+		return value
+	}
 }
 
 func validDataset(dataset string) bool {

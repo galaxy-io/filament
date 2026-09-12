@@ -4,6 +4,7 @@ go 1.26.4
 
 require (
 	cloud.google.com/go/bigquery v1.83.0
+	github.com/apache/arrow-go/v18 v18.7.0
 	github.com/galaxy-io/filament v0.0.0
 )
 
@@ -14,8 +15,9 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.11.0 // indirect
 	cloud.google.com/go/storage v1.63.1 // indirect
-	github.com/apache/arrow-go/v18 v18.7.0 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
+	github.com/apache/thrift v0.24.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
