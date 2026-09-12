@@ -20,5 +20,8 @@ func (*Sink) Spec() filament.SinkSpec {
 			Help: "Destination dataset. Empty defaults to the normalized source connection name.",
 		})},
 		SchemaField: "dataset",
+		Capabilities: filament.SinkCapabilities{
+			Schematized: true,
+		},
 	}
 }
