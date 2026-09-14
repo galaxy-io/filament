@@ -142,6 +142,9 @@ type StreamSession interface {
 }
 
 // StreamRecordSink extends row writing with owner-ordered source boundary controls.
+// Control runs on the producer owner, flushes affected builders synchronously,
+// and returns success only after preceding Apply calls and integrity checks
+// complete. It does not commit a sink epoch or certify durable progress.
 type StreamRecordSink interface {
 	RecordSink
 	Control(context.Context, Control) error

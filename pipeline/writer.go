@@ -16,11 +16,20 @@ import (
 func (p *Pipeline) writer(ctx context.Context) {
 	defer p.wg.Done()
 
-	for b := range p.batchCh {
+	for item := range p.batchCh {
+		b := item.batch
+		if p.stream != nil && ctx.Err() != nil {
+			p.setErr(ctx.Err())
+		}
 		// Once any writer fails, the source is stopped but already queued batches
 		// still belong to the pipeline. Drain and release them without calling the
 		// sink so every successful ownership transfer has a terminal Release.
 		if p.Err() != nil {
+			b.Release()
+			continue
+		}
+		if b.Control != nil {
+			item.complete <- BarrierReceipt{Sequence: b.Seq, Boundary: b.Control.Clone()}
 			b.Release()
 			continue
 		}
@@ -59,7 +68,7 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 			events.BatchWrittenEvent{
 				Records: int64(b.NumRows()), Bytes: receipt.Bytes,
 				URI: receipt.URI, CRC: receipt.WriteCRC,
-				Checkpoint:       receiptCheckpoint(receipt, b),
+				Checkpoint:       p.receiptCheckpoint(receipt, b),
 				CheckpointPolicy: policy.Checkpoint,
 			}))
 		p.publish(events.NewFact(events.IntegrityVerified, events.Envelope{Resource: b.Resource},
@@ -103,7 +112,10 @@ func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {
 	return filament.WritePolicy{}, fmt.Errorf("missing write policy for resource %q", resource)
 }
 
-func receiptCheckpoint(receipt filament.WriteReceipt, b *arrowbatch.Batch) *filament.CheckpointData {
+func (p *Pipeline) receiptCheckpoint(receipt filament.WriteReceipt, b *arrowbatch.Batch) *filament.CheckpointData {
+	if p.stream != nil {
+		return nil
+	}
 	if receipt.Checkpoint != nil {
 		return receipt.Checkpoint
 	}
