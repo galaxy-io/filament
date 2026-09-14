@@ -21,11 +21,35 @@ func Render(s string, scope Scope) (string, error) {
 }
 
 // RenderAny walks v recursively rendering string leaves. Maps and slices are
-// rebuilt with rendered children. Non-string scalars pass through unchanged.
+// rebuilt with rendered children. A standalone split expression produces an
+// array. Non-string scalars pass through unchanged.
 func RenderAny(v any, scope Scope) (any, error) {
 	switch x := v.(type) {
 	case string:
-		return Render(x, scope)
+		if !strings.Contains(x, "{{") {
+			return x, nil
+		}
+		parsed, err := Parse(x)
+		if err != nil {
+			return nil, err
+		}
+		if len(parsed.chunks) == 1 {
+			if ref, ok := parsed.chunks[0].(refChunk); ok && ref.split {
+				ref.split = false
+				value, err := ref.render(scope)
+				if err != nil {
+					return nil, err
+				}
+				values := []any{}
+				for _, item := range strings.Split(value, ref.separator) {
+					if item = strings.TrimSpace(item); item != "" {
+						values = append(values, item)
+					}
+				}
+				return values, nil
+			}
+		}
+		return parsed.Render(scope)
 	case map[string]any:
 		out := make(map[string]any, len(x))
 		for k, val := range x {

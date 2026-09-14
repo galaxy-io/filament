@@ -82,6 +82,7 @@ type Connector struct {
 	incrementalLookbacks map[string]int
 	incrementalResources map[string]bool
 	watermarkReported    sync.Map
+	extractionStarted    time.Time
 }
 
 type resourceRef struct {

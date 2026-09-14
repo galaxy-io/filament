@@ -55,6 +55,7 @@ type Tracker struct {
 	// watermark advances as records arrive, but changing the request filter
 	// between pages can invalidate a server cursor and skip records.
 	start string
+	end   string
 
 	wm     *atomicwatermark.Watermark
 	cmp    atomicwatermark.Comparator
@@ -68,6 +69,11 @@ type Option func(*Tracker)
 // and other non-fatal anomalies. Defaults to slog.Default().
 func WithLogger(l *slog.Logger) Option {
 	return func(t *Tracker) { t.logger = obs.Logger(l) }
+}
+
+// WithEndTime shares a fixed upper bound across all parents of an extraction.
+func WithEndTime(end time.Time) Option {
+	return func(t *Tracker) { t.end = end.UTC().Format(time.RFC3339Nano) }
 }
 
 // New builds a Tracker. initialWatermark seeds from a stored checkpoint;
@@ -106,6 +112,7 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 		spec:     spec,
 		resource: resource,
 		start:    start,
+		end:      time.Now().UTC().Format(time.RFC3339Nano),
 		wm:       wm,
 		cmp:      cmp,
 	}
@@ -225,11 +232,21 @@ func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
 	case "query":
 		q := req.URL.Query()
 		q.Set(t.spec.StartParam, v)
+		if t.spec.EndParam != "" {
+			q.Set(t.spec.EndParam, t.end)
+		}
 		req.URL.RawQuery = q.Encode()
 	case "header":
 		req.Header.Set(t.spec.StartParam, v)
+		if t.spec.EndParam != "" {
+			req.Header.Set(t.spec.EndParam, t.end)
+		}
 	case "body":
-		return map[string]any{t.spec.StartParam: v}, nil
+		overrides := map[string]any{t.spec.StartParam: v}
+		if t.spec.EndParam != "" {
+			overrides[t.spec.EndParam] = t.end
+		}
+		return overrides, nil
 	}
 	return nil, nil
 }

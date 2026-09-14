@@ -507,6 +507,47 @@ type IncrementalSpec struct {
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
+	// Request replaces only the supplied request components in incremental mode.
+	Request *IncrementalRequest `yaml:"request,omitempty"`
+	// EndParam receives the extraction start time as a fixed RFC3339 upper bound.
+	EndParam string `yaml:"end_param,omitempty"`
+	// CheckpointOnComplete holds the watermark until all selected reads finish.
+	// Use when records are not globally ordered by their modification time.
+	CheckpointOnComplete bool `yaml:"checkpoint_on_complete,omitempty"`
+	// DisabledWhen names a boolean configuration setting incompatible with incremental reads.
+	DisabledWhen string `yaml:"disabled_when,omitempty"`
+}
+
+// IncrementalRequest overrides request components without changing the output schema.
+type IncrementalRequest struct {
+	Path       string            `yaml:"path,omitempty"`
+	Method     string            `yaml:"method,omitempty"`
+	Query      map[string]string `yaml:"query,omitempty"`
+	Body       *BodySpec         `yaml:"body,omitempty"`
+	Pagination *PaginationSpec   `yaml:"pagination,omitempty"`
+}
+
+// Apply preserves output fields, captures, and any request components not overridden.
+func (s IncrementalRequest) Apply(r Resource) Resource {
+	if s.Path != "" {
+		r.Path = s.Path
+	}
+	if s.Method != "" {
+		r.Method = s.Method
+	}
+	if s.Query != nil {
+		r.Query = s.Query
+	}
+	if s.Body != nil {
+		r.Body = *s.Body
+	}
+	if s.Pagination != nil {
+		r.Pagination = *s.Pagination
+		if r.Pagination.Type == "none" {
+			r.Pagination.Type = ""
+		}
+	}
+	return r
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.

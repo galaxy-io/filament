@@ -451,7 +451,7 @@ func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		sink:    newRowSink(ctx, s, sink),
 		reducer: newIncrementalRecordReducer(s, resumeWatermarks),
 	}
-	return s.connector.Extract(ctx, reducingSink, extractOptions{
+	err := s.connector.Extract(ctx, reducingSink, extractOptions{
 		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
@@ -460,6 +460,10 @@ func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		IncrementalLookbacks: s.incrementalLookbacks,
 		IncrementalResources: s.incrementalResourceSet(),
 	})
+	if err != nil {
+		return err
+	}
+	return reducingSink.finish()
 }
 
 func (s *Source) incrementalResourceSet() map[string]bool {
@@ -827,7 +831,7 @@ func (s *Source) CursorColumns(_ context.Context, resource string) ([]filament.C
 	if !ok {
 		return nil, fmt.Errorf("httpapi source: unknown resource %q", resource)
 	}
-	if res.Incremental == nil {
+	if res.Incremental == nil || s.incrementalDisabled(res) {
 		return nil, nil
 	}
 	field, ok := manifest.IncrementalCursorField(res)
@@ -872,6 +876,9 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		}
 		if res.Incremental == nil {
 			return nil, fmt.Errorf("httpapi source: resource %q has no incremental watermark in its manifest", resource)
+		}
+		if s.incrementalDisabled(res) {
+			return nil, fmt.Errorf("httpapi source: incremental %q is unavailable when %s is true; use a full read", resource, res.Incremental.DisabledWhen)
 		}
 		field, ok := manifest.IncrementalCursorField(res)
 		if !ok {
@@ -927,12 +934,22 @@ func watermarkKey(value string) []string {
 	return []string{value}
 }
 
+func (s *Source) incrementalDisabled(res manifest.Resource) bool {
+	if res.Incremental == nil || res.Incremental.DisabledWhen == "" {
+		return false
+	}
+	disabled, _ := strconv.ParseBool(s.connector.creds[res.Incremental.DisabledWhen])
+	return disabled
+}
+
 func incrementalCursorWarning(resource manifest.Resource) string {
 	var warnings []string
 	if resource.Incremental.Comparator == "lex" || resource.Incremental.Comparator == "" {
 		warnings = append(warnings, "Lexical cursors must have a representation whose byte ordering matches source ordering")
 	}
-	if resource.Parent != nil {
+	if resource.Incremental.CheckpointOnComplete {
+		warnings = append(warnings, "Interrupted reads restart from the previous completed watermark")
+	} else if resource.Parent != nil {
 		warnings = append(warnings, "Fan-out resources use one aggregate watermark; configure a lookback large enough to cover late arrivals during extraction")
 	}
 	return strings.Join(warnings, "; ")
@@ -998,6 +1015,8 @@ type incrementalRecordSink struct {
 	mu      sync.Mutex
 	sink    recordSink
 	reducer *incrementalRecordReducer
+	// Retain one record per opt-in resource to carry the completed watermark.
+	pending map[string]record
 }
 
 func (s *incrementalRecordSink) Push(rec record) error {
@@ -1007,7 +1026,43 @@ func (s *incrementalRecordSink) Push(rec record) error {
 	if err != nil {
 		return err
 	}
+	spec, ok := s.reducer.source.incrementalResources[rec.Resource]
+	if !ok {
+		spec = s.reducer.source.incrementalResources[s.reducer.source.baseResourceName(rec.Resource)]
+	}
+	if spec.CheckpointOnComplete {
+		if s.pending == nil {
+			s.pending = map[string]record{}
+		}
+		if previous, ok := s.pending[rec.Resource]; ok {
+			seed := s.reducer.seeds[rec.Resource][spec.DurableCheckpointKey()]
+			if seed == "" {
+				seed = s.reducer.seeds[s.reducer.source.baseResourceName(rec.Resource)][spec.DurableCheckpointKey()]
+			}
+			if seed == "" {
+				seed = spec.Initial
+			}
+			previous.Key = watermarkKey(seed)
+			if err := s.sink.Push(previous); err != nil {
+				return err
+			}
+		}
+		s.pending[rec.Resource] = converted
+		return nil
+	}
 	return s.sink.Push(converted)
+}
+
+// finish is called only after every selected resource and parent has completed.
+// A failure leaves the previous durable watermark intact, even if newer records
+// were already delivered. The next run safely replays that interval.
+func (s *incrementalRecordSink) finish() error {
+	for _, rec := range s.pending {
+		if err := s.sink.Push(rec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *incrementalRecordSink) PushBatch(records []record) error {

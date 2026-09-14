@@ -45,6 +45,9 @@ func (m *Manifest) Normalize() {
 		}
 		for name, ref := range r.Params {
 			r.Path = strings.ReplaceAll(r.Path, "{"+name+"}", referenceTemplate(ref))
+			if r.Incremental != nil && r.Incremental.Request != nil {
+				r.Incremental.Request.Path = strings.ReplaceAll(r.Incremental.Request.Path, "{"+name+"}", referenceTemplate(ref))
+			}
 		}
 		if r.Method == "" {
 			r.Method = m.Defaults.Method
@@ -266,6 +269,32 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
 		if r.Incremental != nil {
+			spec := r.Incremental
+			if spec.DisabledWhen != "" {
+				if config, ok := m.Config[spec.DisabledWhen]; !ok || config.Type != "bool" {
+					_ = agg.Addf(path+".incremental.disabled_when", "must name a boolean configuration setting")
+				}
+			}
+			if spec.EndParam != "" {
+				if spec.Comparator != "time" {
+					_ = agg.Addf(path+".incremental.end_param", "requires comparator time")
+				}
+				if spec.EndParam == spec.StartParam {
+					_ = agg.Addf(path+".incremental.end_param", "must differ from start_param")
+				}
+			}
+			if (spec.CheckpointOnComplete || spec.EndParam != "") && spec.Initial == "" {
+				_ = agg.Addf(path+".incremental.initial", "required with checkpoint_on_complete or end_param")
+			}
+			if override := spec.Request; override != nil {
+				validateTemplate(&agg, path+".incremental.request.path", override.Path)
+				for k, v := range override.Query {
+					validateTemplate(&agg, path+".incremental.request.query."+k, v)
+				}
+				if override.Body != nil {
+					validateTemplateAny(&agg, path+".incremental.request.body.template", override.Body.Template)
+				}
+			}
 			if r.Incremental.CursorField == "" {
 				_ = agg.Addf(path+".incremental.cursor_field", "is required")
 			}
@@ -295,8 +324,19 @@ func (m *Manifest) validateSemantics() error {
 					_ = agg.Addf(path+".incremental.comparator", "comparator %q is incompatible with cursor field %q type %q", comparatorName(r.Incremental.Comparator), cursor.Name, cursor.Type)
 				}
 			}
-			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
+			pagination := r.Pagination
+			if spec.Request != nil {
+				pagination = spec.Request.Apply(*r).Pagination
+			}
+			if paginationInjectionCollides(pagination, *r.Incremental) {
 				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)
+			}
+			if spec.EndParam != "" {
+				end := *spec
+				end.StartParam = spec.EndParam
+				if paginationInjectionCollides(pagination, end) {
+					_ = agg.Addf(path+".incremental.end_param", "conflicts with the pagination injection target")
+				}
 			}
 		}
 		if r.Stream != nil {

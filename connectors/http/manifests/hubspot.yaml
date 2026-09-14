@@ -1,0 +1,2061 @@
+version: 1
+name: hubspot
+display_name: HubSpot
+description: "CRM, commerce, marketing, conversations, content, and automation data."
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-hubspot-light.svg
+config:
+  api_key:
+    type: secret
+    required: true
+    help: "HubSpot service key or access token with read scopes for the selected resources."
+  properties:
+    type: string
+    default: ""
+    scope: pipeline
+    help: "Comma-separated CRM property names, including custom properties. Empty uses the API defaults. Applies to all selected CRM object types."
+  archived:
+    type: bool
+    default: false
+    scope: pipeline
+    help: "Read archived instead of active CRM records, owners, forms, and conversations. Does not include both."
+  object_type:
+    type: string
+    default: contacts
+    scope: pipeline
+    help: "Object type ID or name for objects, properties, property_groups, pipelines, and the source side of associations."
+  association_target_type:
+    type: string
+    default: companies
+    scope: pipeline
+    help: "Target object type ID or name for associations and association_labels."
+  data_sensitivity:
+    type: enum
+    enum: [non_sensitive, sensitive, highly_sensitive]
+    default: non_sensitive
+    scope: pipeline
+    help: "Property category for the properties resource. Sensitive property definitions require the corresponding scopes."
+# Current stable REST endpoints where available; remaining numbered routes have
+# no equivalent stable endpoint for the same account-wide read.
+# Contracts: https://developers.hubspot.com/docs/api-reference/latest/overview
+defaults:
+  method: GET
+  response:
+    records: $.results
+    pagination:
+      cursor:
+        response: paging.next.after
+        request: query.after
+field_sets:
+  crm_record:
+    id: string
+    created_at: { path: createdAt, type: timestamptz, nullable: true }
+    updated_at: { path: updatedAt, type: timestamptz }
+    archived: bool?
+    archived_at: { path: archivedAt, type: timestamptz, nullable: true }
+    properties: json?
+  dated_record:
+    id: string
+    created_at: { path: createdAt, type: timestamptz, nullable: true }
+    updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+  content_record:
+    id: string
+    created_at: { path: created, type: timestamptz, nullable: true }
+    updated_at: { path: updated, type: timestamptz, nullable: true }
+    name: string?
+    slug: string?
+    url: string?
+  incremental_content_record:
+    id: string
+    created_at: { path: created, type: timestamptz, nullable: true }
+    updated_at: { path: updated, type: timestamptz }
+    name: string?
+    slug: string?
+    url: string?
+connection:
+  base_url: https://api.hubapi.com
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  # Service keys allow at least 100 requests / 10 seconds. The interval header
+  # is a window in milliseconds, not a reset time; do not use dynamic.reset.
+  rate_limit:
+    requests_per_second: 5
+resources:
+  - name: owners
+    path: /crm/owners/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+    use_fields: [dated_record]
+    fields:
+      email: string?
+      first_name: { path: firstName, type: string, nullable: true }
+      last_name: { path: lastName, type: string, nullable: true }
+      user_id: { path: userId, type: int64, nullable: true }
+      archived: bool?
+      teams: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # CRM list endpoints return API defaults unless properties are requested.
+  # Incremental search advances by record ID inside a fixed update interval.
+  # Each request starts a new query, avoiding Search's 10,000-result paging limit.
+  - name: contacts
+    path: /crm/objects/2026-09/contacts
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: contacts_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/contacts/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: companies
+    path: /crm/objects/2026-09/companies
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: companies_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/companies/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: deals
+    path: /crm/objects/2026-09/deals
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: deals_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/deals/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: tickets
+    path: /crm/objects/2026-09/tickets
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: tickets_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/tickets/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: products
+    path: /crm/objects/2026-09/products
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: products_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/products/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: line_items
+    path: /crm/objects/2026-09/line_items
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: line_items_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/line_items/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: quotes
+    path: /crm/objects/2026-09/quotes
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: quotes_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/quotes/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: calls
+    path: /crm/objects/2026-09/calls
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: calls_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/calls/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: emails
+    path: /crm/objects/2026-09/emails
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: emails_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/emails/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: meetings
+    path: /crm/objects/2026-09/meetings
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: meetings_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/meetings/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: notes
+    path: /crm/objects/2026-09/notes
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: notes_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/notes/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: tasks
+    path: /crm/objects/2026-09/tasks
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: tasks_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/tasks/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: communications
+    path: /crm/objects/2026-09/communications
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: postal_mail
+    path: /crm/objects/2026-09/postal_mail
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: leads
+    path: /crm/objects/2026-09/leads
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: leads_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/leads/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: feedback_submissions
+    path: /crm/objects/2026-09/feedback_submissions
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: feedback_submissions_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/feedback_submissions/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: goals
+    path: /crm/objects/2026-09/goal_targets
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: goals_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/goal_targets/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: invoices
+    path: /crm/objects/2026-09/invoices
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: invoices_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/invoices/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: payments
+    path: /crm/objects/2026-09/commerce_payments
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: payments_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/commerce_payments/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: subscriptions
+    path: /crm/objects/2026-09/subscriptions
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: subscriptions_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/subscriptions/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: orders
+    path: /crm/objects/2026-09/orders
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: orders_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/orders/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: carts
+    path: /crm/objects/2026-09/carts
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: carts_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/carts/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: discounts
+    path: /crm/objects/2026-09/discounts
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: discounts_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/discounts/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: fees
+    path: /crm/objects/2026-09/fees
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: fees_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/fees/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: taxes
+    path: /crm/objects/2026-09/taxes
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: taxes_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/taxes/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: appointments
+    path: /crm/objects/2026-09/0-421
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: courses
+    path: /crm/objects/2026-09/0-410
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: listings
+    path: /crm/objects/2026-09/0-420
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: services
+    path: /crm/objects/2026-09/0-162
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: projects
+    path: /crm/objects/2026-09/0-970
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: contracts
+    path: /crm/objects/2026-09/contracts
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: crm_users
+    path: /crm/objects/2026-09/users
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: partner_clients
+    path: /crm/objects/2026-09/partner_clients
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: partner_services
+    path: /crm/objects/2026-09/partner_services
+    primary_key: [id]
+    use_fields: [crm_record]
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  # Custom records share one stream, keyed by fully qualified type and ID.
+  - name: custom_object_schemas
+    path: /crm-object-schemas/2026-09/schemas
+    primary_key: [id]
+    pagination: none
+    capture:
+      object_type: fullyQualifiedName
+    fields:
+      id: string
+      name: string?
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      fully_qualified_name: { path: fullyQualifiedName, type: string, nullable: true }
+      labels: json?
+      properties: json?
+      associations: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: custom_objects
+    path: /crm/objects/2026-09/{objectType}
+    primary_key: [object_type, id]
+    use_fields: [crm_record]
+    for_each: custom_object_schemas
+    params: { objectType: parent.object_type }
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      object_type: { path: parent.object_type, type: string }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: filterGroups.0.filters.0.value
+      end_param: filterGroups.0.filters.1.value
+      inject_into: body
+      comparator: time
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: custom_objects_updated_at
+      overlap_seconds: 300
+      checkpoint_on_complete: true
+      disabled_when: archived
+      request:
+        path: /crm/objects/2026-09/{objectType}/search
+        method: POST
+        query: {}
+        body:
+          template:
+            limit: 200
+            sorts: [hs_object_id]
+            properties: '{{ config.properties | split "," }}'
+            filterGroups:
+              - filters:
+                  - { propertyName: hs_lastmodifieddate, operator: GTE, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_lastmodifieddate, operator: LT, value: "1970-01-01T00:00:00Z" }
+                  - { propertyName: hs_object_id, operator: GT, value: "0" }
+        pagination:
+          cursor:
+            response: results.-1.id
+            request: body.filterGroups.0.filters.2.value
+
+  - name: properties
+    path: /crm/properties/2026-09/{objectType}
+    primary_key: [name]
+    params: { objectType: config.object_type }
+    query:
+      dataSensitivity: "{{ config.data_sensitivity }}"
+    pagination: none
+    fields:
+      name: string
+      label: string?
+      type: string?
+      field_type: { path: fieldType, type: string, nullable: true }
+      group_name: { path: groupName, type: string, nullable: true }
+      options: json?
+      archived: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: property_groups
+    path: /crm/properties/2026-09/{objectType}/groups
+    primary_key: [name]
+    params: { objectType: config.object_type }
+    pagination: none
+    fields:
+      name: string
+      label: string?
+      display_order: { path: displayOrder, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: pipelines
+    path: /crm/pipelines/2026-09/{objectType}
+    primary_key: [id]
+    params: { objectType: config.object_type }
+    pagination: none
+    fields:
+      id: string
+      label: string?
+      display_order: { path: displayOrder, type: int64, nullable: true }
+      archived: bool?
+      stages: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # One directional object pair per pipeline; paginate v4 relationships so
+  # embedded association arrays cannot silently truncate the extraction.
+  - name: association_labels
+    path: /crm/associations/2026-09/{fromType}/{toType}/labels
+    primary_key: [category, type_id]
+    params: { fromType: config.object_type, toType: config.association_target_type }
+    pagination: none
+    fields:
+      type_id: { path: typeId, type: int64 }
+      category: string
+      label: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: association_objects
+    path: /crm/objects/2026-09/{objectType}
+    params: { objectType: config.object_type }
+    query:
+      limit: "100"
+    capture_only: true
+    capture:
+      from_id: id
+
+  - name: associations
+    path: /crm/objects/2026-09/{fromType}/{objectId}/associations/{toType}
+    primary_key: [from_id, to_id]
+    params: { fromType: config.object_type, objectId: parent.from_id, toType: config.association_target_type }
+    for_each: association_objects
+    query:
+      limit: "500"
+    fields:
+      from_id: { path: parent.from_id, type: string }
+      to_id: { path: toObjectId, type: int64 }
+      association_types: { path: associationTypes, type: json }
+      raw: { path: $, type: json, mode: remainder }
+
+  # List search uses an integer body offset and count (maximum 500).
+  # GET /crm/lists/2026-09 reads selected IDs, not the account-wide catalog.
+  - name: lists
+    path: /crm/lists/2026-09/search
+    primary_key: [list_id]
+    method: POST
+    body:
+      encoding: json
+      template:
+        offset: 0
+        count: 500
+        additionalProperties:
+          - hs_list_size
+          - hs_last_record_added_at
+          - hs_last_record_removed_at
+          - hs_folder_name
+          - hs_list_reference_count
+    records: $.lists
+    pagination:
+      offset:
+        offset: body.offset
+        limit: body.count
+        page_size: 500
+    capture:
+      list_id: listId
+    fields:
+      list_id: { path: listId, type: string }
+      name: string?
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      processing_type: { path: processingType, type: string, nullable: true }
+      processing_status: { path: processingStatus, type: string, nullable: true }
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: list_details
+    path: /crm/lists/2026-09/{listId}
+    primary_key: [list_id]
+    params: { listId: parent.list_id }
+    for_each: lists
+    query:
+      includeFilters: "true"
+    response:
+      records: $.list
+      cardinality: one
+    pagination: none
+    fields:
+      list_id: { path: listId, type: string }
+      name: string?
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      filter_branch: { path: filterBranch, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: list_memberships
+    path: /crm/lists/2026-09/{listId}/memberships
+    primary_key: [list_id, record_id]
+    params: { listId: parent.list_id }
+    for_each: lists
+    query:
+      limit: "100"
+    fields:
+      list_id: { path: parent.list_id, type: string }
+      record_id: { path: recordId, type: string }
+      membership_timestamp: { path: membershipTimestamp, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: forms
+    path: /marketing/v3/forms
+    primary_key: [id]
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+      formTypes: all
+    use_fields: [dated_record]
+    capture:
+      form_id: id
+    fields:
+      name: string?
+      form_type: { path: formType, type: string, nullable: true }
+      archived: bool?
+      field_groups: { path: fieldGroups, type: json, nullable: true }
+      configuration: json?
+      legal_consent_options: { path: legalConsentOptions, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  # Blog-comment forms cannot export submissions through this API.
+  - name: submission_forms
+    path: /marketing/v3/forms?formTypes=hubspot&formTypes=captured&formTypes=flow
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+    capture_only: true
+    capture:
+      form_id: id
+
+  - name: form_submissions
+    path: /form-integrations/v1/submissions/forms/{formId}
+    primary_key: [form_id, conversion_id]
+    params: { formId: parent.form_id }
+    for_each: submission_forms
+    query:
+      limit: "50"
+    fields:
+      form_id: { path: parent.form_id, type: string }
+      conversion_id: { path: conversionId, type: string }
+      submitted_at: { path: submittedAt, type: int64 }
+      values: json
+      page_url: { path: pageUrl, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_emails
+    path: /marketing/emails/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+      includeStats: "true"
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: marketing_emails_updated_at
+      overlap_seconds: 300
+    fields:
+      id: string
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
+      name: string?
+      subject: string?
+      state: string?
+      content: json?
+      stats: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaigns
+    path: /marketing/campaigns/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+      properties: hs_name,hs_start_date,hs_end_date,hs_campaign_status,hs_currency_code
+    use_fields: [dated_record]
+    fields:
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_events
+    path: /marketing/marketing-events/2026-09
+    primary_key: [object_id]
+    query:
+      limit: "100"
+    fields:
+      object_id: { path: objectId, type: string }
+      event_name: { path: eventName, type: string, nullable: true }
+      event_type: { path: eventType, type: string, nullable: true }
+      event_organizer: { path: eventOrganizer, type: string, nullable: true }
+      start_date_time: { path: startDateTime, type: timestamptz, nullable: true }
+      end_date_time: { path: endDateTime, type: timestamptz, nullable: true }
+      registrants: int64?
+      attendees: int64?
+      cancellations: int64?
+      custom_properties: { path: customProperties, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      event_id: objectId
+
+  - name: email_events
+    path: /email/public/v1/events
+    primary_key: [id]
+    query:
+      limit: "1000"
+    records: $.events
+    pagination:
+      cursor:
+        response: offset
+        request: query.offset
+        more: hasMore
+    incremental:
+      cursor_field: created
+      start_param: startTimestamp
+      inject_into: query
+      comparator: numeric
+      checkpoint_key: email_events_created
+    fields:
+      id: string
+      created: int64
+      type: string?
+      recipient: string?
+      email_campaign_id: { path: emailCampaignId, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: email_campaigns
+    path: /email/public/v1/campaigns/by-id
+    primary_key: [id]
+    query:
+      limit: "100"
+    records: $.campaigns
+    pagination:
+      cursor:
+        response: offset
+        request: query.offset
+        more: hasMore
+    fields:
+      id: int64
+      app_id: { path: appId, type: int64, nullable: true }
+      app_name: { path: appName, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subscription_definitions
+    path: /communication-preferences/2026-09/definitions
+    primary_key: [id]
+    pagination: none
+    fields:
+      id: string
+      name: string?
+      description: string?
+      is_active: { path: isActive, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: inboxes
+    path: /conversations/conversations/2026-09/inboxes
+    primary_key: [id]
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      type: string?
+      archived: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: conversation_channels
+    path: /conversations/conversations/2026-09/channels
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - created_at
+      - updated_at
+
+  - name: conversation_channel_accounts
+    path: /conversations/conversations/2026-09/channel-accounts
+    primary_key: [id]
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      channel_id: { path: channelId, type: string, nullable: true }
+      inbox_id: { path: inboxId, type: string, nullable: true }
+      active: bool?
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - updated_at
+
+  - name: conversation_threads
+    path: /conversations/conversations/2026-09/threads
+    primary_key: [id]
+    query:
+      limit: "100"
+      archived: "{{ config.archived }}"
+    use_fields: [dated_record]
+    fields:
+      status: string?
+      inbox_id: { path: inboxId, type: string, nullable: true }
+      archived: bool?
+      latest_message_timestamp: { path: latestMessageTimestamp, type: timestamptz, nullable: true }
+      assigned_to: { path: assignedTo, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture:
+      thread_id: id
+    exclude_fields:
+      - updated_at
+
+  - name: conversation_messages
+    path: /conversations/conversations/2026-09/threads/{threadId}/messages
+    primary_key: [thread_id, id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    params: { threadId: parent.thread_id }
+    for_each: conversation_threads
+    capture:
+      message_id: id
+    fields:
+      thread_id: { path: parent.thread_id, type: string }
+      type: string?
+      text: string?
+      rich_text: { path: richText, type: string, nullable: true }
+      truncation_status: { path: truncationStatus, type: string, nullable: true }
+      attachments: json?
+      senders: json?
+      recipients: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # Message list bodies can truncate; this endpoint returns original content.
+  - name: conversation_message_content
+    path: /conversations/conversations/2026-09/threads/{threadId}/messages/{messageId}/original-content
+    primary_key: [thread_id, message_id]
+    response:
+      records: $
+      cardinality: one
+    pagination: none
+    params: { threadId: parent.thread_id, messageId: parent.message_id }
+    for_each: conversation_messages
+    fields:
+      thread_id: { path: parent.thread_id, type: string }
+      message_id: { path: parent.message_id, type: string }
+      text: string?
+      rich_text: { path: richText, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: blog_posts
+    path: /cms/blogs/2026-09/posts
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      created_at: { path: created, type: timestamptz, nullable: true }
+      updated_at: { path: updated, type: timestamptz }
+      name: string?
+      slug: string?
+      url: string?
+      post_body: { path: postBody, type: string, nullable: true }
+      post_summary: { path: postSummary, type: string, nullable: true }
+      tag_ids: { path: tagIds, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: blog_posts_updated_at
+      overlap_seconds: 300
+
+  - name: blog_authors
+    path: /cms/blogs/2026-09/authors
+    primary_key: [id]
+    query:
+      limit: "100"
+      sort: updatedAt
+    use_fields: [incremental_content_record]
+    fields:
+      email: string?
+      full_name: { path: fullName, type: string, nullable: true }
+      bio: string?
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - url
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: blog_authors_updated_at
+      overlap_seconds: 300
+
+
+  - name: blog_tags
+    path: /cms/blogs/2026-09/tags
+    primary_key: [id]
+    query:
+      limit: "100"
+      sort: updatedAt
+    use_fields: [incremental_content_record]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - url
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: blog_tags_updated_at
+      overlap_seconds: 300
+
+
+  - name: blogs
+    path: /cms/blog-settings/2026-09/settings
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [content_record]
+    fields:
+      description: string?
+      language: string?
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - url
+
+  - name: site_pages
+    path: /cms/pages/2026-09/site-pages
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
+      name: string?
+      slug: string?
+      url: string?
+      state: string?
+      layout_sections: { path: layoutSections, type: json, nullable: true }
+      widgets: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: site_pages_updated_at
+      overlap_seconds: 300
+
+  - name: landing_pages
+    path: /cms/pages/2026-09/landing-pages
+    primary_key: [id]
+    query:
+      limit: "100"
+    fields:
+      id: string
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz }
+      name: string?
+      slug: string?
+      url: string?
+      state: string?
+      layout_sections: { path: layoutSections, type: json, nullable: true }
+      widgets: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updatedAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: landing_pages_updated_at
+      overlap_seconds: 300
+
+  - name: domains
+    path: /cms/domains/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [content_record]
+    fields:
+      domain: string?
+      is_ssl_enabled: { path: isSslEnabled, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - name
+      - slug
+      - url
+
+  - name: url_redirects
+    path: /cms/url-redirects/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [content_record]
+    fields:
+      destination: string?
+      route_prefix: { path: routePrefix, type: string, nullable: true }
+      redirect_style: { path: redirectStyle, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - name
+      - slug
+      - url
+
+  # File/folder search has a documented maximum offset of 10,000. Large
+  # libraries need partitioned requests in a custom manifest. No binary download.
+  - name: files
+    path: /files/2026-09/files/search
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      path: string?
+      parent_folder_id: { path: parentFolderId, type: string, nullable: true }
+      archived: bool?
+      url: string?
+      type: string?
+      size: int64?
+      access: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: folders
+    path: /files/2026-09/folders/search
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      path: string?
+      parent_folder_id: { path: parentFolderId, type: string, nullable: true }
+      archived: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: hubdb_tables
+    path: /cms/hubdb/2026-09/tables
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    capture:
+      table_id: id
+    fields:
+      name: string?
+      label: string?
+      columns: json?
+      published: bool?
+      row_count: { path: rowCount, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: hubdb_draft_tables
+    path: /cms/hubdb/2026-09/tables/draft
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    capture:
+      table_id: id
+    fields:
+      name: string?
+      label: string?
+      columns: json?
+      published: bool?
+      row_count: { path: rowCount, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: hubdb_rows
+    path: /cms/hubdb/2026-09/tables/{tableId}/rows
+    primary_key: [table_id, id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    params: { tableId: parent.table_id }
+    for_each: hubdb_tables
+    fields:
+      table_id: { path: parent.table_id, type: string }
+      name: string?
+      path: string?
+      values: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: hubdb_draft_rows
+    path: /cms/hubdb/2026-09/tables/{tableId}/rows/draft
+    primary_key: [table_id, id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    params: { tableId: parent.table_id }
+    for_each: hubdb_draft_tables
+    fields:
+      table_id: { path: parent.table_id, type: string }
+      name: string?
+      path: string?
+      values: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workflows
+    path: /automation/v4/flows
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    capture:
+      flow_id: id
+    fields:
+      name: string?
+      is_enabled: { path: isEnabled, type: bool, nullable: true }
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workflow_details
+    path: /automation/v4/flows/{flowId}
+    primary_key: [id]
+    response:
+      records: $
+      cardinality: one
+    pagination: none
+    params: { flowId: parent.flow_id }
+    for_each: workflows
+    fields:
+      id: string
+      name: string?
+      actions: json?
+      enrollment_criteria: { path: enrollmentCriteria, type: json, nullable: true }
+      is_enabled: { path: isEnabled, type: bool, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workflow_email_campaigns
+    path: /automation/v4/flows/email-campaigns
+    primary_key: [flow_id, email_campaign_id, email_content_id]
+    query:
+      flowId: "{{ parent.flow_id }}"
+    for_each: workflows
+    pagination: none
+    fields:
+      flow_id: { path: flowId, type: string }
+      email_campaign_id: { path: emailCampaignId, type: string }
+      email_content_id: { path: emailContentId, type: string }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: users
+    path: /settings/users/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    capture:
+      user_id: id
+    fields:
+      email: string?
+      first_name: { path: firstName, type: string, nullable: true }
+      last_name: { path: lastName, type: string, nullable: true }
+      primary_team_id: { path: primaryTeamId, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    exclude_fields:
+      - created_at
+      - updated_at
+
+  - name: teams
+    path: /settings/users/2026-09/teams
+    primary_key: [id]
+    pagination: none
+    fields:
+      id: string
+      name: string?
+      user_ids: { path: userIds, type: json, nullable: true }
+      secondary_user_ids: { path: secondaryUserIds, type: json, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: roles
+    path: /settings/users/2026-09/roles
+    primary_key: [id]
+    pagination: none
+    fields:
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # 2026-03 supports account-level credentials; 2026-09 requires user-level auth.
+  - name: sequences
+    path: /automation/sequences/2026-03
+    primary_key: [user_id, id]
+    query:
+      limit: "100"
+      userId: "{{ parent.user_id }}"
+    for_each: users
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      user_id: { path: parent.user_id, type: string }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: meeting_links
+    path: /scheduler/2026-03/meetings/meeting-links
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      link: string?
+      type: string?
+      organizer_user_id: { path: organizerUserId, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: imports
+    path: /crm/imports/2026-09
+    primary_key: [id]
+    query:
+      limit: "100"
+    use_fields: [dated_record]
+    fields:
+      import_name: { path: importName, type: string, nullable: true }
+      state: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: event_definitions
+    path: /events/2026-09/event-definitions
+    primary_key: [id]
+    query:
+      limit: "100"
+      includeProperties: "true"
+    use_fields: [dated_record]
+    fields:
+      name: string?
+      object_type_id: { path: objectTypeId, type: string, nullable: true }
+      properties: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: account_details
+    path: /account-info/2026-09/details
+    primary_key: [portal_id]
+    response:
+      records: $
+      cardinality: one
+    pagination: none
+    fields:
+      portal_id: { path: portalId, type: int64 }
+      account_type: { path: accountType, type: string, nullable: true }
+      time_zone: { path: timeZone, type: string, nullable: true }
+      company_currency: { path: companyCurrency, type: string, nullable: true }
+      data_hosting_location: { path: dataHostingLocation, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: daily_api_usage
+    path: /account-info/2026-09/api-usage/daily/private-apps
+    primary_key: [name]
+    pagination: none
+    fields:
+      name: string
+      current_usage: { path: currentUsage, type: int64, nullable: true }
+      usage_limit: { path: usageLimit, type: int64, nullable: true }
+      collected_at: { path: collectedAt, type: timestamptz, nullable: true }
+      resets_at: { path: resetsAt, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: objects
+    path: /crm/objects/2026-09/{objectType}
+    primary_key: [id]
+    use_fields: [crm_record]
+    params: { objectType: config.object_type }
+    query:
+      limit: "100"
+      properties: "{{ config.properties }}"
+      archived: "{{ config.archived }}"
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_event_participations
+    path: /marketing/v3/marketing-events/participations/{eventId}/breakdown
+    primary_key: [event_id, contact_id, attendance_state, occurred_at]
+    params: { eventId: parent.event_id }
+    for_each: marketing_events
+    query:
+      limit: "100"
+    fields:
+      event_id: { path: parent.event_id, type: string }
+      contact_id: { path: associations.contact.contactId, type: string }
+      attendance_state: { path: properties.attendanceState, type: string }
+      occurred_at: { path: properties.occurredAt, type: int64 }
+      properties: json?
+      associations: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: marketing_event_counters
+    path: /marketing/v3/marketing-events/participations/{eventId}
+    primary_key: [event_id]
+    response:
+      records: $
+      cardinality: one
+    pagination: none
+    params: { eventId: parent.event_id }
+    for_each: marketing_events
+    fields:
+      event_id: { path: parent.event_id, type: string }
+      attended: int64?
+      cancelled: int64?
+      registered: int64?
+      no_shows: { path: noShows, type: int64, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+discovery:
+  mode: static
+  default_resources: [contacts, companies, deals, owners, calls, meetings, notes, tasks]

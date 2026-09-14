@@ -113,6 +113,11 @@ Each resource describes one endpoint:
 - `body` describes JSON, form, multipart, raw, or empty request bodies. Linear
   uses this support for GraphQL requests.
 
+In JSON body templates, `{{ config.properties | split "," }}` converts a
+comma-separated setting into an array, trimming whitespace and omitting empty
+items. Body injection paths can address existing array elements, such as
+`filters.0.value`.
+
 Choose the pagination style that matches the API:
 
 - `link: <rel>` (RFC 5988 headers, default rel `next`)
@@ -158,6 +163,17 @@ An `incremental` block turns a resource into an incremental read:
 The lower bound remains fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping
 that value could cause later runs to miss records.
+
+For APIs that use a separate incremental endpoint, `incremental.request` can
+override `path`, `method`, `query`, `body`, and `pagination`. Supplied components
+replace their full-read counterparts; omitted components are preserved.
+`disabled_when` names a boolean config setting that prevents incremental reads.
+
+With `comparator: time`, `end_param` receives the extraction start time as a
+fixed RFC3339 upper bound. Use `checkpoint_on_complete: true` when results are
+not ordered by the watermark, including concurrent parent reads. This holds
+checkpoint advancement until all selected reads complete; interrupted runs
+replay from the previous watermark. Set `initial` for this mode.
 
 ### Discovery and streaming
 

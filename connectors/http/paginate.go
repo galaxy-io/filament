@@ -187,7 +187,10 @@ func (c *Connector) fetchPage(
 		// res.Body.Template) so {{ parent.* }} / {{ config.* }} / {{ state.* }}
 		// fields are preserved on body-inject pagination.
 		if len(pagOverrides) > 0 || len(trackerOverrides) > 0 {
-			merged := request.MergeOverrides(rendered.Body.Template, pagOverrides, trackerOverrides)
+			merged, err := request.MergeOverrides(rendered.Body.Template, pagOverrides, trackerOverrides)
+			if err != nil {
+				return nil, err
+			}
 			body, ct, err := mustEncode(rendered.Body.Encoding, merged)
 			if err != nil {
 				return nil, err

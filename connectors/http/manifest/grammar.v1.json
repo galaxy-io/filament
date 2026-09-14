@@ -246,7 +246,21 @@
             "initial": { "type": "string" },
             "checkpoint_key": { "type": "string" },
             "comparator": { "type": "string", "enum": ["lex", "numeric", "time"] },
-            "overlap_seconds": { "type": "integer", "minimum": 0 }
+            "overlap_seconds": { "type": "integer", "minimum": 0 },
+            "end_param": { "type": "string", "minLength": 1 },
+            "checkpoint_on_complete": { "type": "boolean" },
+            "disabled_when": { "type": "string", "minLength": 1 },
+            "request": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string", "minLength": 1 },
+                "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] },
+                "query": { "type": "object", "additionalProperties": { "type": "string" } },
+                "body": { "$ref": "#/$defs/resource/properties/body" },
+                "pagination": { "$ref": "#/$defs/pagination" }
+              }
+            }
           }
         },
         "parent": {

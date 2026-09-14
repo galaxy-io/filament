@@ -1,0 +1,87 @@
+---
+title: "HubSpot"
+description: "Read CRM, marketing, and content data from HubSpot"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg"
+---
+
+The HubSpot source reads CRM records, activities, marketing data, and content.
+It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**, so its resources and columns may change between releases.
+
+## Configuration
+
+Use a service key or access token with read access to your selected resources.
+Connection validation also requires `crm.objects.owners.read`. OAuth token
+refresh is not supported.
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. HubSpot service key or access token. |
+| `properties` | Pipeline | | Comma-separated CRM property names. Empty uses API defaults. |
+| `archived` | Pipeline | `false` | Read archived records instead of active records, where supported. |
+| `object_type` | Pipeline | `contacts` | Object name or type ID for generic object, schema, pipeline, and association reads. |
+| `association_target_type` | Pipeline | `companies` | Target object type for associations. |
+| `data_sensitivity` | Pipeline | `non_sensitive` | Property definitions to read: `non_sensitive`, `sensitive`, or `highly_sensitive`. |
+
+## Resources
+
+Contacts, companies, deals, owners, calls, meetings, notes, and tasks are selected
+by default in the UI. These cover core CRM data and everyday sales activity.
+
+Additional resources cover tickets, commerce, lists, forms, marketing, content,
+workflows, and account settings. Choose these in the resource picker as needed;
+access depends on your HubSpot subscription and token permissions. Parent
+resources are read automatically when selecting their children.
+
+## Custom properties and objects
+
+Set `properties` to the property names you need, including custom properties.
+The setting applies to every selected CRM object type. Values remain in the
+`properties` JSON column; property history is not extracted. To find available
+names, select the `properties` resource and set `object_type`.
+
+Select `custom_objects` to read all types returned by `custom_object_schemas`.
+Records share one stream keyed by object type and record ID. To read a single
+type, select `objects` and set `object_type` to its name or type ID.
+
+## Modes
+
+Incremental reads are available for core CRM records and activities, most
+commerce objects, and custom objects. Marketing emails, blog posts, authors,
+tags, site pages, and landing pages also support incremental reads. These use
+update times with a five-minute overlap; `email_events` uses creation time.
+
+CRM incremental reads use Search within an update interval ending at the start
+of the run. They advance by record ID to avoid Search's 10,000-result paging
+limit. Checkpoints advance after extraction completes, so interrupted runs
+replay the interval. Custom property selections apply to incremental reads too.
+
+Other resources use full reads. Archived CRM records require a full read;
+deletions are not propagated to the destination.
+
+## Behavior
+
+- **Associations**: each pipeline reads one directional object pair. Use
+  `object_type` and `association_target_type` to choose the pair.
+- **Pipelines**: set `object_type` to a type with pipelines, such as `deals` or
+  `tickets`. Stages remain nested JSON.
+- **Forms**: submission reads include standard, captured, and pop-up forms.
+  Blog-comment submissions are excluded.
+- **Rate limiting**: five requests per second, shared across resources.
+  Throttled requests are retried; account-wide daily quotas still apply.
+- **API versions**: 2026-09 where available, 2026-03 for meeting links and
+  sequences, and numbered endpoints for the remaining reads.
+- **Output**: a `raw` JSON column preserves fields not projected into columns.
+
+## Limitations
+
+- Conversation thread reads can repeat an empty-page cursor indefinitely.
+  Keep threads, messages, and message content unselected until validated for
+  your account.
+- File and folder search, meeting links, partner objects, and marketing-event
+  participations did not pass sandbox validation despite the requested scopes.
+  These resources remain opt-in.
+- Files contain metadata only. File and folder search excludes hidden and
+  archived files and has a maximum offset of 10,000; larger libraries require
+  partitioned requests.

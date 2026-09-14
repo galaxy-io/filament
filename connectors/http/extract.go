@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -17,6 +18,7 @@ import (
 
 // Extract runs a full extraction across all enabled resources.
 func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOptions) error {
+	c.extractionStarted = time.Now()
 	c.observe = opts.Observe
 	c.watermarkReported.Clear()
 	defer func() {
@@ -137,14 +139,11 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
 func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
-	pag, err := pagination.New(res.Pagination)
-	if err != nil {
-		return fmt.Errorf("paginator: %w", err)
-	}
 	extractor := response.New(res.Response)
 
 	stateResource := res.Name
 	if parent != nil && res.EmitAs != "" {
+		var err error
 		stateResource, err = emittedResourceName(res, parent, c.env)
 		if err != nil {
 			return fmt.Errorf("resource name: %w", err)
@@ -153,6 +152,13 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	tracker, err := c.newTracker(res, stateResource)
 	if err != nil {
 		return err
+	}
+	if tracker != nil && res.Incremental.Request != nil {
+		res = res.Incremental.Request.Apply(res)
+	}
+	pag, err := pagination.New(res.Pagination)
+	if err != nil {
+		return fmt.Errorf("paginator: %w", err)
 	}
 
 	if res.Mode == "stream" {
@@ -195,7 +201,7 @@ func (c *Connector) newTracker(res manifest.Resource, stateResource string) (*in
 			seed = c.resumeWatermarks[res.Name][spec.DurableCheckpointKey()]
 		}
 	}
-	tracker, err := incremental.New(spec, stateResource, seed)
+	tracker, err := incremental.New(spec, stateResource, seed, incremental.WithEndTime(c.extractionStarted))
 	if err != nil {
 		return nil, fmt.Errorf("incremental: %w", err)
 	}

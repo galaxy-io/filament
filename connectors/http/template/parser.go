@@ -10,7 +10,7 @@ import (
 // Grammar (informal):
 //
 //	template       := (text | placeholder)*
-//	placeholder    := "{{" ws ref ws ("|" ws "default" ws stringlit ws)? "}}"
+//	placeholder    := "{{" ws ref ws ("|" ws ("default" | "split") ws stringlit ws)? "}}"
 //	ref            := identifier ("." key)?
 //	key            := segment ("." segment)*
 //	segment        := [A-Za-z0-9_-]+
@@ -44,10 +44,15 @@ type refChunk struct {
 	key        string // "" when ref is just `{{ scope }}`
 	hasDefault bool
 	defaultV   string
+	split      bool
+	separator  string
 	raw        string // original text for error messages
 }
 
 func (r refChunk) render(scope Scope) (string, error) {
+	if r.split {
+		return "", fmt.Errorf("%w: split requires a standalone JSON body value", errs.ErrTemplateSyntax)
+	}
 	if r.scope == "cursor" && r.key != "" {
 		return "", fmt.Errorf("%w: cursor scope takes no sub-key (in %q)",
 			errs.ErrTemplateSyntax, r.raw)
@@ -185,25 +190,33 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 
 	var hasDefault bool
 	var defaultV string
+	var split bool
+	var separator string
 	if p.peek() == '|' {
 		p.pos++
 		p.skipWS()
 		fname := p.readIdent()
-		if fname != "default" {
+		if fname != "default" && fname != "split" {
 			return refChunk{}, p.errf(start,
-				"unknown filter %q (only `default` is supported)", fname)
+				"unknown filter %q (expected default or split)", fname)
 		}
 		p.skipWS()
 		if p.peek() != '"' {
 			return refChunk{}, p.errf(start,
-				"`default` filter requires a quoted string")
+				"filter requires a quoted string")
 		}
 		s, err := p.readString(start)
 		if err != nil {
 			return refChunk{}, err
 		}
-		hasDefault = true
-		defaultV = s
+		if fname == "split" {
+			if s == "" {
+				return refChunk{}, p.errf(start, "split separator must not be empty")
+			}
+			split, separator = true, s
+		} else {
+			hasDefault, defaultV = true, s
+		}
 		p.skipWS()
 	}
 
@@ -216,6 +229,8 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 		key:        key,
 		hasDefault: hasDefault,
 		defaultV:   defaultV,
+		split:      split,
+		separator:  separator,
 		raw:        p.src[start:end],
 	}, nil
 }

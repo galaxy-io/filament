@@ -12,7 +12,7 @@
 //
 //	scope := template.Scope{Config: creds, Cursor: state.Cursor}
 //	rendered, err := request.RenderResource(res, scope)   // template substitutions
-//	rendered.Body.Template = request.MergeOverrides(rendered.Body.Template, pagOverrides, nil)
+//	rendered.Body.Template, err = request.MergeOverrides(rendered.Body.Template, pagOverrides, nil)
 //	req, err := builder.BuildRendered(ctx, rendered, scope) // encode + auth
 //
 // Single-phase callers use Build, which wraps RenderResource + BuildRendered

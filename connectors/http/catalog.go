@@ -16,6 +16,9 @@ var attioManifest []byte
 //go:embed manifests/github.yaml
 var githubManifest []byte
 
+//go:embed manifests/hubspot.yaml
+var hubspotManifest []byte
+
 //go:embed manifests/slack.yaml
 var slackManifest []byte
 
@@ -46,6 +49,11 @@ func NewAttio() *Source {
 // NewGitHub returns a Source backed by the embedded GitHub REST API manifest.
 func NewGitHub() *Source {
 	return newCatalogSource(githubManifest)
+}
+
+// NewHubSpot returns a Source backed by the embedded HubSpot REST API manifest.
+func NewHubSpot() *Source {
+	return newCatalogSource(hubspotManifest)
 }
 
 // NewSlack returns a Source backed by the embedded Slack Web API manifest.
