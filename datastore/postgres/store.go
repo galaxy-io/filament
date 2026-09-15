@@ -186,6 +186,9 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
 	if desired != nil {
+		if desired.Tenant != r.Tenant || desired.PipelineID != r.Request.PipelineID || desired.Route != r.Request.CheckpointRoute {
+			return fmt.Errorf("datastore/postgres: desired replication stream does not match run route identity")
+		}
 		stream, err := resolveReplicationStream(ctx, q, *desired)
 		if err != nil {
 			return err
@@ -241,7 +244,7 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 
 func replicationRouteConflict(err error) bool {
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) {
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
 		return false
 	}
 	switch pgErr.ConstraintName {
