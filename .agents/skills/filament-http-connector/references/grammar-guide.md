@@ -287,7 +287,12 @@ pagination: none
 ```
 
 Cursor response paths use bare dot paths such as `records.cursor`, not the
-`$.items` records shorthand. Missing or empty cursors terminate the walk.
+`$.items` records shorthand. `continuation_query: [limit]` makes pages after
+the first send only the cursor plus the listed manifest query keys, and skips
+the incremental lower bound on those pages. Use it when the API encodes the
+first page's filters in the cursor and rejects or ignores repeated filters,
+as Recharge does. It requires `request: query.<name>`, and every listed key
+must be a declared query parameter. Missing or empty cursors terminate the walk.
 Explicit null requires `null_terminates: true`. A configured `more` flag takes
 precedence and a missing, null, or false flag stops pagination, so do not invent
 a has-more field. Cursor pagination does not stop merely because a page is short.

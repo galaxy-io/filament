@@ -157,6 +157,14 @@ func (c *Connector) fetchPage(
 			return nil, fmt.Errorf("render resource %q: %w", res.Name, err)
 		}
 
+		// A cursor page can be declared self-describing: the server's cursor
+		// already encodes the first page's filters, so only the listed query
+		// keys survive and the incremental lower bound is not re-applied.
+		continuation := state.Cursor != "" && res.Pagination.ContinuationQuery != nil
+		if continuation {
+			rendered.Query = continuationQuery(rendered.Query, res.Pagination.ContinuationQuery)
+		}
+
 		req, err := c.builder.BuildRendered(ctx, rendered, scope)
 		if err != nil {
 			return nil, err
@@ -180,7 +188,7 @@ func (c *Connector) fetchPage(
 		// filtered query. Cursor/offset/page strategies rebuild the request from
 		// the manifest and need the fixed lower bound applied on every page.
 		var trackerOverrides map[string]any
-		if tracker != nil && state.NextURL == "" {
+		if tracker != nil && state.NextURL == "" && !continuation {
 			trackerOverrides, err = tracker.Apply(req)
 			if err != nil {
 				return nil, fmt.Errorf("incremental apply: %w", err)
@@ -206,6 +214,17 @@ func (c *Connector) fetchPage(
 	}
 
 	return c.doRequest(ctx, build, res)
+}
+
+// continuationQuery keeps only the query keys a cursor page may repeat.
+func continuationQuery(query map[string]string, keep []string) map[string]string {
+	out := make(map[string]string, len(keep))
+	for _, key := range keep {
+		if value, ok := query[key]; ok {
+			out[key] = value
+		}
+	}
+	return out
 }
 
 // mustEncode picks an encoder for the resolved body. Defaults to JSON.

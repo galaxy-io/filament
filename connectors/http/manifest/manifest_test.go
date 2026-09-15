@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -556,5 +557,46 @@ discovery:
 				t.Fatalf("error=%v, want %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestParseCursorContinuationQuery(t *testing.T) {
+	const base = `
+version: 1
+name: continuation
+display_name: Continuation
+description: Cursor pages that only repeat selected query keys.
+dark_logo_url: https://cdn.example.com/dark.svg
+light_logo_url: https://cdn.example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    query: { limit: "250", sort_by: updated_at-asc }
+    records: $.items
+    primary_key: [id]
+    fields:
+      id: int64
+    pagination:
+      cursor:
+        response: next_cursor
+        request: %s
+        continuation_query: [%s]
+`
+	m, err := Parse([]byte(fmt.Sprintf(base, "query.cursor", "limit")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := m.Resources[0].Pagination.ContinuationQuery; len(got) != 1 || got[0] != "limit" {
+		t.Fatalf("continuation_query = %#v", got)
+	}
+	for name, args := range map[string][2]string{
+		"undeclared key": {"query.cursor", "page_size"},
+		"body cursor":    {"body.cursor", "limit"},
+	} {
+		if _, err := Parse([]byte(fmt.Sprintf(base, args[0], args[1]))); err == nil {
+			t.Fatalf("%s: manifest was accepted", name)
+		}
 	}
 }

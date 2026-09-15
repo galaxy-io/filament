@@ -391,6 +391,12 @@ type PaginationSpec struct {
 	// signal from missing to null doesn't masquerade as the end of data.
 	// Opt in only when the upstream contract documents null-as-terminator.
 	AllowNullTerminates bool `yaml:"allow_null_terminates,omitempty"`
+	// ContinuationQuery, when set, lists the only manifest query keys sent on
+	// pages after the first. Every other query parameter, including the
+	// incremental lower bound, is dropped once a cursor is in play because the
+	// cursor already encodes the original filters. Some APIs reject or ignore
+	// repeated filters alongside a cursor. nil means "resend everything".
+	ContinuationQuery []string `yaml:"continuation_query,omitempty"`
 
 	// offset
 	OffsetParam      string `yaml:"offset_param,omitempty"`
@@ -449,10 +455,11 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		return value.Decode(&p.NextURLPath)
 	case "cursor":
 		var spec struct {
-			Response       string `yaml:"response"`
-			Request        string `yaml:"request"`
-			More           string `yaml:"more"`
-			NullTerminates bool   `yaml:"null_terminates"`
+			Response          string   `yaml:"response"`
+			Request           string   `yaml:"request"`
+			More              string   `yaml:"more"`
+			NullTerminates    bool     `yaml:"null_terminates"`
+			ContinuationQuery []string `yaml:"continuation_query"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
@@ -462,6 +469,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 			return fmt.Errorf("cursor.request must be query.<name>, body.<path>, or header.<name>")
 		}
 		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
+		p.ContinuationQuery = spec.ContinuationQuery
 	case "offset":
 		var spec struct {
 			Offset   string `yaml:"offset"`

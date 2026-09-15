@@ -276,6 +276,16 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
+		if r.Pagination.ContinuationQuery != nil {
+			if r.Pagination.Type != "cursor" || r.Pagination.InjectInto != "query" {
+				_ = agg.Addf(path+".pagination.continuation_query", "requires cursor pagination injected into query")
+			}
+			for _, key := range r.Pagination.ContinuationQuery {
+				if _, ok := r.Query[key]; !ok {
+					_ = agg.Addf(path+".pagination.continuation_query", "key %q is not a declared query parameter", key)
+				}
+			}
+		}
 		if r.Incremental != nil {
 			if r.Incremental.CursorField == "" {
 				_ = agg.Addf(path+".incremental.cursor_field", "is required")
