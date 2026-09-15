@@ -7,6 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/streamproof"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -29,13 +30,18 @@ func NewStream(cfg Config, ordering filament.Ordering) (*Pipeline, error) {
 }
 
 type streamInlet struct {
-	p            *Pipeline
-	strict       bool
-	writers      []*streamWriter
-	active       *streamWriter
-	transactions map[rowmodel.DomainKey]string
-	sequence     uint64
-	closed       bool
+	p                     *Pipeline
+	strict                bool
+	writers               []*streamWriter
+	active                *streamWriter
+	transactions          map[rowmodel.DomainKey]string
+	sequence              uint64
+	closed                bool
+	epoch                 *filament.EpochRef
+	touched, sealed       bool
+	completed             filament.DomainPositions
+	epochRows, epochBytes int64
+	epochResources        map[string]streamproof.ResourceTotals
 }
 
 var _ filament.StreamRecordSink = (*streamInlet)(nil)

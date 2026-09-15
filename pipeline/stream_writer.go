@@ -5,6 +5,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -20,6 +21,12 @@ type streamWriter struct {
 }
 
 func (w *streamWriter) beforeWrite() bool {
+	if w.in.sealed {
+		_ = w.in.fail(filament.ErrEpochMismatch)
+		return false
+	}
+	w.in.touched = true
+	clear(w.in.completed)
 	if w.in.ready() != nil {
 		return false
 	}

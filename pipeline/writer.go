@@ -33,11 +33,11 @@ func (p *Pipeline) writer(ctx context.Context) {
 			b.Release()
 			continue
 		}
-		p.processBatch(ctx, b)
+		p.processBatch(ctx, b, item.epoch)
 	}
 }
 
-func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bool) {
+func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch *filament.EpochRef) (ok bool) {
 	defer b.Release()
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
@@ -53,7 +53,7 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	}
 
 	readCRC := b.IntegrityCRC()
-	receipt, err := p.writeBatch(ctx, b, policy)
+	receipt, err := p.writeBatch(ctx, b, policy, epoch)
 	if err != nil {
 		p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
 		return false
@@ -64,6 +64,14 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	}
 
 	if receipt.WriteCRC == readCRC {
+		if epoch != nil {
+			p.stream.epochRows += int64(b.NumRows())
+			p.stream.epochBytes += receipt.Bytes
+			total := p.stream.epochResources[b.Resource]
+			total.Rows += int64(b.NumRows())
+			total.Bytes += receipt.Bytes
+			p.stream.epochResources[b.Resource] = total
+		}
 		p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
 			events.BatchWrittenEvent{
 				Records: int64(b.NumRows()), Bytes: receipt.Bytes,
@@ -95,8 +103,8 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	return false
 }
 
-func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy) (filament.WriteReceipt, error) {
-	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy})
+func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy, epoch *filament.EpochRef) (filament.WriteReceipt, error) {
+	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy, Epoch: epoch})
 }
 
 func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {
