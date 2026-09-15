@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -18,6 +19,7 @@ type BarrierReceipt struct {
 
 type queuedBatch struct {
 	batch    *arrowbatch.Batch
+	epoch    *filament.EpochRef
 	complete chan BarrierReceipt
 }
 
@@ -30,6 +32,10 @@ func (p *Pipeline) Barrier(ctx context.Context, control rowmodel.Control) (Barri
 		return BarrierReceipt{}, errors.New("pipeline: barriers require NewStream")
 	}
 	in := p.stream
+	if in.sealed {
+		return BarrierReceipt{}, filament.ErrEpochMismatch
+	}
+	in.touched = true
 	if err := in.ready(); err != nil {
 		return BarrierReceipt{}, err
 	}
@@ -68,6 +74,9 @@ func (p *Pipeline) Barrier(ctx context.Context, control rowmodel.Control) (Barri
 			return BarrierReceipt{}, err
 		}
 		in.acceptControl(control)
+		if in.epoch != nil && len(in.transactions) == 0 && (control.Kind == rowmodel.TxnEnd || control.Kind == rowmodel.ProgressBoundary) {
+			in.completed[control.Domain] = control.Position.Clone()
+		}
 		return receipt, nil
 	case <-p.done:
 		return BarrierReceipt{}, in.failure()

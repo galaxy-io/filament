@@ -196,9 +196,9 @@ type EpochReceipt struct {
 // EpochCertificateFormatVersion identifies the canonical certificate format.
 const EpochCertificateFormatVersion = 1
 
-// EpochCertificate is immutable input to a future fenced store transaction.
-// Structural canonicalization does not seal coverage or authorize its commit.
-// PR 06 must bind this content to private source and completed barrier evidence.
+// EpochCertificate is immutable content for a fenced store transaction.
+// Structural canonicalization does not authorize a commit; EpochCommit binds
+// new certificates to private completed pipeline evidence.
 type EpochCertificate struct {
 	FormatVersion     int
 	Tenant            TenantID

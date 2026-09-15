@@ -157,8 +157,13 @@ func (s *slot) Drained(meta filament.RowMeta, total int) error {
 // (or ErrPipelineClosed) once the writer has given up, so a Source stops
 // extracting instead of spinning against a dead pipeline.
 func (s *slot) send(b *arrowbatch.Batch) error {
+	var epoch *filament.EpochRef
+	if s.p.stream != nil && s.p.stream.epoch != nil {
+		ref := *s.p.stream.epoch
+		epoch = &ref
+	}
 	select {
-	case s.p.batchCh <- queuedBatch{batch: b}:
+	case s.p.batchCh <- queuedBatch{batch: b, epoch: epoch}:
 		return nil
 	case <-s.p.done:
 		if err := s.p.Err(); err != nil {
