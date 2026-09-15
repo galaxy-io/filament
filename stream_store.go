@@ -2,17 +2,19 @@ package filament
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
 // StreamRuntimeStore is an optional engine extension, not part of DataStore or
-// connector lifecycles. Definitions only: no backend implements it yet.
+// connector lifecycles. PostgreSQL provides an explicitly configured runtime store.
 // All operations are tenant-scoped. StartAttempt, renewal and certification must
 // serialize authority. Tokens increase across generations. Identical certificate
 // retries return historical success without granting current ack authority.
 // New epoch commits require sealed pipeline completion, in addition to source
 // coverage and destination durability receipts. Historical retries grant no authority.
 type StreamRuntimeStore interface {
+	ActivateStream(context.Context, StreamActivation) (StreamState, error)
 	StartAttempt(context.Context, StartAttemptRequest) (Attempt, error)
 	RenewLease(context.Context, LeaseToken, time.Duration) error
 	EndAttempt(context.Context, EndAttemptRequest) error
@@ -55,8 +57,20 @@ type StartAttemptRequest struct {
 	TTL                                   time.Duration
 }
 
+// StreamActivation initializes immutable execution for an already admitted run.
+// Compatible execution revisions are a later compiler feature; initialization is
+// idempotent only for the same specification. The spec must not contain attempt identity.
+type StreamActivation struct {
+	StreamStateRequest
+	Spec RunSpec
+}
+
 // Attempt describes one admitted worker lifetime and its lease interval.
 type Attempt struct {
+	Spec                 RunSpec
+	Revision             int64
+	Termination          AttemptTermination
+	Reason               string
 	Lease                LeaseToken
 	StartedAt, ExpiresAt time.Time
 	EndedAt              *time.Time
@@ -120,3 +134,6 @@ type EpochLookup struct {
 	Tenant TenantID
 	Key    EpochKey
 }
+
+// ErrTakeoverBlocked reports that predecessor quiescence has not been proven.
+var ErrTakeoverBlocked = errors.New("stream: takeover blocked")
