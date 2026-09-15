@@ -19,12 +19,14 @@ func (testCodec) Canonicalize(p f.Position) (f.Position, error) {
 	p.Value = bytes.ToLower(p.Value)
 	return p, nil
 }
+
 func (testCodec) Compare(a, b f.Position) (f.PositionOrder, error) {
 	if bytes.Equal(a.Value, b.Value) {
 		return f.PositionEqual, nil
 	}
 	return f.PositionIncomparable, nil
 }
+
 func TestStreamDefaultsAndApplyBinding(t *testing.T) {
 	var opts f.RunOptions
 	if err := json.Unmarshal([]byte(`{"BatchMaxRows":10}`), &opts); err != nil {
@@ -52,6 +54,7 @@ func TestStreamDefaultsAndApplyBinding(t *testing.T) {
 		t.Fatal("unbound write accepted")
 	}
 }
+
 func TestCanonicalCertificateAndCoverageOwnership(t *testing.T) {
 	a, b := f.DomainKey{Incarnation: "i", Domain: "a"}, f.DomainKey{Incarnation: "i", Domain: "b"}
 	cert := f.EpochCertificate{FormatVersion: f.EpochCertificateFormatVersion, Tenant: "t", PipelineVersionID: "p", Ref: f.EpochRef{Attempt: f.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: "s", Generation: 1, Token: 1}, Epoch: 1, MembershipRevision: 1}, Coverage: f.Coverage{Positions: f.DomainPositions{b: {Codec: "c", Version: 1, Value: []byte("B")}, a: {Codec: "c", Version: 1, Value: []byte("A")}}}, Receipts: []f.EpochReceipt{{Resource: "b"}, {Resource: "a"}}}
@@ -104,6 +107,7 @@ func TestCanonicalCertificateAndCoverageOwnership(t *testing.T) {
 		t.Fatal("incarnation ordering inferred")
 	}
 }
+
 func TestControlValidationAndOwnership(t *testing.T) {
 	c := f.Control{Kind: f.ProgressBoundary, Domain: f.DomainKey{Incarnation: "i", Domain: "d"}, Position: f.Position{Codec: "c", Value: []byte("p")}}
 	if err := c.Validate(); err != nil {

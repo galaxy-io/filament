@@ -3,8 +3,9 @@ package runner
 import (
 	"context"
 	"errors"
-	"github.com/galaxy-io/filament"
 	"testing"
+
+	"github.com/galaxy-io/filament"
 )
 
 func TestContinuousExecutionDisabledBeforeSideEffects(t *testing.T) {
