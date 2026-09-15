@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/postgres"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 func admissionFixture(t *testing.T) (*postgres.Store, filament.ReplicationStream, []string) {
@@ -41,9 +42,11 @@ func admissionFixture(t *testing.T) (*postgres.Store, filament.ReplicationStream
 	}
 	return s, filament.ReplicationStream{ID: replicationOne, Tenant: tenantA, PipelineID: pipelineOne, Route: "route", SourceConnectionID: connectionOne, SinkConnectionID: connectionTwo, ConsumerName: "admission", ContinuityFingerprint: "same", CreatedFromPipelineVersionID: versions[0]}, versions
 }
+
 func admissionRun(version, route string, status filament.RunStatus) filament.RunState {
 	return filament.RunState{Run: filament.RunID(uuid.NewString()), Tenant: tenantA, Status: status, Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: version, CheckpointRoute: route}}
 }
+
 func TestStore_CrossVersionAdmissionRace(t *testing.T) {
 	s, desired, versions := admissionFixture(t)
 	ctx := context.Background()
@@ -75,6 +78,7 @@ func TestStore_CrossVersionAdmissionRace(t *testing.T) {
 		t.Fatalf("admitted=%d conflicts=%d", admitted, conflicts)
 	}
 }
+
 func TestStore_CrossVersionSuccessorRollback(t *testing.T) {
 	s, desired, versions := admissionFixture(t)
 	ctx := context.Background()
@@ -97,6 +101,7 @@ func TestStore_CrossVersionSuccessorRollback(t *testing.T) {
 		t.Fatalf("successor persisted: %v", err)
 	}
 }
+
 func TestStore_AdmissionStatusesAndBoundedCompatibility(t *testing.T) {
 	for _, status := range []filament.RunStatus{filament.RunRequested, filament.RunRunning, filament.RunPaused, filament.RunScheduled, filament.RunCompleted, filament.RunFailed, filament.RunCanceled, filament.RunPartial} {
 		t.Run(fmt.Sprint(status), func(t *testing.T) {
