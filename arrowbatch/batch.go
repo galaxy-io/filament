@@ -25,7 +25,9 @@ type Batch struct {
 	Seq      uint64
 	Cursor   *rowmodel.CheckpointData
 	Drained  bool
-	Last     rowmodel.Meta
+	// Control is a borrowed, immutable stream marker, independent of Drained.
+	Control *rowmodel.Control
+	Last    rowmodel.Meta
 }
 
 // NewBatch takes ownership of rows and ops. Ops must not be mutated afterward.
@@ -95,5 +97,6 @@ func (b *Batch) Release() {
 			b.rows = nil
 		}
 		b.ops = Operations{}
+		b.Control = nil
 	}
 }

@@ -137,6 +137,12 @@ type ReplicationStream struct {
 	DeletedByUserID              pgtype.Text
 	CreatedAt                    pgtype.Timestamptz
 	UpdatedAt                    pgtype.Timestamptz
+	MembershipRevision           int64
+	CurrentRunID                 pgtype.Text
+	DesiredState                 string
+	DesiredRevision              int64
+	RunSpec                      []byte
+	LastEpoch                    int64
 }
 
 type ReplicationStreamResource struct {
@@ -257,6 +263,30 @@ type Secret struct {
 	DeletedByUserID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type StreamAttempt struct {
+	Token           int64
+	StreamID        string
+	TenantID        string
+	ExecutionID     string
+	DesiredRevision int64
+	RequestTtlUs    int64
+	StartedAt       pgtype.Timestamptz
+	ExpiresAt       pgtype.Timestamptz
+	EndedAt         pgtype.Timestamptz
+	Termination     pgtype.Text
+	Reason          string
+}
+
+type StreamEpoch struct {
+	StreamID     string
+	TenantID     string
+	Epoch        int64
+	AttemptToken int64
+	Certificate  []byte
+	Positions    []byte
+	CommittedAt  pgtype.Timestamptz
 }
 
 type Tenant struct {

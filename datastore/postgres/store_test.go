@@ -895,6 +895,18 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if stream.ID != replicationOne || stream.Generation != 1 || stream.Status != filament.ReplicationStreamActive {
 		t.Fatalf("first stream = %+v", stream)
 	}
+	assertMembershipRevision := func(want int64) {
+		t.Helper()
+		var got int64
+		if err := store.Pool().QueryRow(ctx,
+			"SELECT membership_revision FROM replication_streams WHERE id = $1", stream.ID).Scan(&got); err != nil {
+			t.Fatalf("load membership revision: %v", err)
+		}
+		if got != want {
+			t.Fatalf("membership revision = %d, want %d", got, want)
+		}
+	}
+	assertMembershipRevision(1)
 
 	// A compatible immutable pipeline version reuses the stream and slot.
 	reusedDesired := desired
@@ -916,6 +928,11 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if len(resources) != 2 || resources[0].ID == "" || resources[0].Resource != "customers" || resources[0].Status != filament.ReplicationStreamResourcePending {
 		t.Fatalf("initial resources = %+v", resources)
 	}
+	assertMembershipRevision(2)
+	if _, err := store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"orders", "customers"}, "snapshot"); err != nil {
+		t.Fatalf("ReconcileReplicationStreamResources unchanged: %v", err)
+	}
+	assertMembershipRevision(2)
 
 	if err := store.SaveRun(ctx, filament.RunState{
 		Run: runOne, Tenant: tenantA, Status: filament.RunCompleted,
@@ -939,6 +956,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint: %v", err)
 	}
+	assertMembershipRevision(3)
 	if err := store.SaveRun(ctx, filament.RunState{
 		Run: runHighWater, Tenant: tenantA, Status: filament.RunCompleted,
 		Request: filament.RunRequest{Tenant: tenantA, PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId()},
@@ -950,6 +968,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SaveResourceCheckpoint second: %v", err)
 	}
+	assertMembershipRevision(3)
 	loaded, err := store.LoadResourceCheckpoint(ctx, tenantA, key)
 	if err != nil {
 		t.Fatalf("LoadResourceCheckpoint: %v", err)
@@ -993,6 +1012,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 		statuses["orders"] != filament.ReplicationStreamResourceRetired {
 		t.Fatalf("updated resource statuses = %+v", statuses)
 	}
+	assertMembershipRevision(4)
 	listed, err := store.ListResourceCheckpoints(ctx, tenantA, filament.ResourceCheckpointRoute{
 		PipelineID: pipelineOne, PipelineVersionID: versionTwo.GetId(), Route: stream.Route,
 		ReplicationStreamID: stream.ID,
@@ -1005,6 +1025,7 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if _, err := store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"products"}, "snapshot"); err != nil {
 		t.Fatalf("retire active resource: %v", err)
 	}
+	assertMembershipRevision(5)
 	resources, err = store.ReconcileReplicationStreamResources(ctx, stream.ID, tenantA, []string{"customers", "products"}, "snapshot")
 	if err != nil {
 		t.Fatalf("re-add active resource: %v", err)
@@ -1021,6 +1042,17 @@ func TestStore_ReplicationStreamLifecycleAndCheckpoints(t *testing.T) {
 	if !foundCustomers {
 		t.Fatal("re-added customers replication resource not found")
 	}
+	assertMembershipRevision(6)
+	if err := store.SaveResourceCheckpoint(ctx, tenantA, filament.ResourceCheckpointState{
+		Key: key, Run: runHighWater, Checkpoint: checkpoint.NewStreamDelta("customers", "0/40", 6),
+	}); err != nil {
+		t.Fatalf("SaveResourceCheckpoint after re-add: %v", err)
+	}
+	assertMembershipRevision(7)
+	if err := store.DeleteResourceCheckpoint(ctx, tenantA, key); err != nil {
+		t.Fatalf("DeleteResourceCheckpoint: %v", err)
+	}
+	assertMembershipRevision(8)
 
 	// A continuity-breaking edit creates a new stream generation and slot.
 	fork := reusedDesired
