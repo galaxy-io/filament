@@ -48,6 +48,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.statusCommand(),
 		a.contextCommand(),
 		a.authCommand(),
+		a.upgradeCommand(),
 		a.versionCommand(),
 	)
 	return root
