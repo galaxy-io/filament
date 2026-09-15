@@ -18,6 +18,7 @@ func init() {
 	registry.RegisterSource("attio", filament.MaturityAlpha, func() filament.Source { return NewAttio() })
 	registry.RegisterSource("github", filament.MaturityBeta, func() filament.Source { return NewGitHub() })
 	registry.RegisterSource("granola", filament.MaturityAlpha, func() filament.Source { return NewGranola() })
+	registry.RegisterSource("gong", filament.MaturityAlpha, func() filament.Source { return NewGong() })
 	registry.RegisterSource("slack", filament.MaturityAlpha, func() filament.Source { return NewSlack() })
 	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
 	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })

@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
-import Button from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   FlexDirection,
   FlexGap,
@@ -50,11 +50,13 @@ const PipelineSettingsPageGeneral = () => {
 
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
 
-  const [state, setState] = useState<PipelineSettingsPageGeneralState>(() => ({
+  const createInitialState = (): PipelineSettingsPageGeneralState => ({
     ...DEFAULT_STATE,
     name: stripDeletedName(pipeline?.name ?? ""),
     description: pipeline?.description ?? "",
-  }));
+  });
+
+  const [state, setState] = useState<PipelineSettingsPageGeneralState>(createInitialState);
 
   if (!pipeline) return null;
 
@@ -72,6 +74,10 @@ const PipelineSettingsPageGeneral = () => {
     state.name.trim() !== pipelineName || state.description.trim() !== pipeline.description;
 
   const canSave = hasChanges && state.name.trim().length > 0;
+
+  const handleCancel = () => {
+    setState(createInitialState());
+  };
 
   const handleSave = () => {
     const request = create(UpdatePipelineRequestSchema, {
@@ -117,7 +123,13 @@ const PipelineSettingsPageGeneral = () => {
           label="Description"
           fillWidth
         />
-        <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
+        <FlexWrapper justifyContent={JustifyContent.END} gap={8} fillWidth>
+          <Button
+            label="Cancel"
+            variant={ButtonVariant.SECONDARY}
+            isDisabled={!hasChanges || isSaving}
+            onClick={handleCancel}
+          />
           <Button label="Save" isDisabled={!canSave} isLoading={isSaving} onClick={handleSave} />
         </FlexWrapper>
       </FlexWrapper>

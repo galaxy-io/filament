@@ -22,6 +22,7 @@
 package paths
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -84,6 +85,8 @@ func (v value) asString() (string, bool, error) {
 
 func (v value) toInt() (int64, error) {
 	switch x := v.raw.(type) {
+	case json.Number:
+		return scalar.NumberInt64(x)
 	case int:
 		return int64(x), nil
 	case int32:
@@ -272,7 +275,7 @@ func classify(v any) value {
 		return value{kind: kindString, raw: x}
 	case bool:
 		return value{kind: kindBool, raw: x}
-	case float64, int, int32, int64:
+	case float64, int, int32, int64, json.Number:
 		return value{kind: kindNumber, raw: x}
 	case []any:
 		return value{kind: kindArray, raw: x}

@@ -35,7 +35,9 @@ Every connector is registered with one of three maturity levels.
 | [MySQL](/pages/connectors/sources/mysql) | beta | Full, incremental, CDC |
 | [Attio](/pages/connectors/sources/attio) | alpha | Full |
 | [GitHub](/pages/connectors/sources/github) | beta | Full, incremental |
+| [Gong](/pages/connectors/sources/gong) | alpha | Full |
 | [Granola](/pages/connectors/sources/granola) | alpha | Full, incremental |
+| [HubSpot](/pages/connectors/sources/hubspot) | alpha | Full, incremental |
 | [Linear](/pages/connectors/sources/linear) | beta | Full, incremental |
 | [Notion](/pages/connectors/sources/notion) | beta | Full, incremental |
 | [PostHog](/pages/connectors/sources/posthog) | beta | Full, incremental |
@@ -44,8 +46,7 @@ Every connector is registered with one of three maturity levels.
 | [Stripe](/pages/connectors/sources/stripe) | beta | Full, incremental |
 | [Sample](/pages/connectors/sources/sample) | stable | Full |
 
-The SaaS sources are not separate codebases.
-Each is a YAML manifest interpreted by one generic
+Most SaaS sources are YAML manifests interpreted by one generic
 [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
 Adding another SaaS API is
 usually a new manifest, not a new connector. The manifest format is

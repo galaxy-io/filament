@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
-import Button from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
@@ -51,15 +51,21 @@ const PipelineSettingsPageSchedule = () => {
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
 
-  const [state, setState] = useState<PipelineSettingsPageScheduleState>(() => ({
+  const createInitialState = (): PipelineSettingsPageScheduleState => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     ...(schedule?.config ? mapPipelineScheduleCronToState(schedule.config.cron) : {}),
     isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
-  }));
+  });
+
+  const [state, setState] = useState<PipelineSettingsPageScheduleState>(createInitialState);
 
   const handleScheduleChange = (partial: Partial<PipelineSettingsPageScheduleState>) => {
     setState((prev) => ({ ...prev, ...partial }));
+  };
+
+  const handleCancel = () => {
+    setState(createInitialState());
   };
 
   const handleSave = () => {
@@ -128,9 +134,20 @@ const PipelineSettingsPageSchedule = () => {
     <Accordion header="Schedule" isOpenInitial>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
         <PipelineScheduleFields state={state} onChange={handleScheduleChange} />
-        <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} fillWidth>
+        <FlexWrapper
+          alignItems={AlignItems.CENTER}
+          justifyContent={JustifyContent.END}
+          gap={8}
+          fillWidth
+        >
           <Button
-            label={"Save"}
+            label="Cancel"
+            variant={ButtonVariant.SECONDARY}
+            isDisabled={!hasChanges || isCreating || isUpdating}
+            onClick={handleCancel}
+          />
+          <Button
+            label="Save"
             isDisabled={!canSave}
             isLoading={isCreating || isUpdating}
             onClick={handleSave}

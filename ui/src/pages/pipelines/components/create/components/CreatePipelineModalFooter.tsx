@@ -20,10 +20,13 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
+  mapCreatePipelineNotifierToRequest,
   mapCreatePipelineStateToRequest,
   mapCreatePipelineStateToVersionRequest,
 } from "@/pages/pipelines/components/create/serialize";
+import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
 
+import { useCreatePipelineNotifierMutation } from "@/api/queries/notifiers";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 
@@ -48,11 +51,28 @@ const CreatePipelineModalFooter = () => {
 
   const { mutate: createPipeline } = useCreatePipelineMutation();
   const { mutate: createPipelineVersion } = useCreatePipelineVersionMutation();
+  const { mutateAsync: createPipelineNotifier } = useCreatePipelineNotifierMutation();
 
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
   const handleNavigateToCanvas = (pipelineId: Pipeline["id"]) => {
     void navigate({ to: "/pipelines/$id/canvas", params: { id: pipelineId } });
+  };
+
+  const handleFinish = async (pipelineId: Pipeline["id"], notifiers: PipelineNotifier[]) => {
+    for (const notifier of notifiers) {
+      try {
+        await createPipelineNotifier(mapCreatePipelineNotifierToRequest(notifier, pipelineId));
+      } catch (error) {
+        showToast({
+          variant: ToastVariant.ERROR,
+          header: "Pipeline created without all notifiers",
+          subheader: getErrorMessage(error, `Failed to add notifier ${notifier.name}`),
+        });
+        break;
+      }
+    }
+    handleNavigateToCanvas(pipelineId);
   };
 
   const handleCreate = () => {
@@ -82,7 +102,7 @@ const CreatePipelineModalFooter = () => {
               header: "Pipeline created",
               subheader: "Your pipeline has been created successfully.",
             });
-            handleNavigateToCanvas(pipelineId);
+            void handleFinish(pipelineId, state.notifiers);
           },
           onError: (error) => {
             showToast({
@@ -90,7 +110,7 @@ const CreatePipelineModalFooter = () => {
               header: "Pipeline created without connections",
               subheader: getErrorMessage(error, "Failed to add connections"),
             });
-            handleNavigateToCanvas(pipelineId);
+            void handleFinish(pipelineId, state.notifiers);
           },
         });
       },

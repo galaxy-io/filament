@@ -11,8 +11,10 @@
 package response
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/tidwall/gjson"
 
@@ -152,10 +154,12 @@ func resultToMap(r gjson.Result) (map[string]any, error) {
 	if !r.IsObject() {
 		return nil, nil
 	}
-	v := r.Value()
-	m, ok := v.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("response: gjson value not a map (got %T)", v)
+	// IDs may exceed float64's exact integer range, including inside JSON fields.
+	decoder := json.NewDecoder(strings.NewReader(r.Raw))
+	decoder.UseNumber()
+	var m map[string]any
+	if err := decoder.Decode(&m); err != nil {
+		return nil, fmt.Errorf("response: decode record: %w", err)
 	}
 	return m, nil
 }
