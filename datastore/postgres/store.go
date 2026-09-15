@@ -592,6 +592,7 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, tenant filament.Tena
 	var rows int64
 	if state.Key.ReplicationStreamID != "" {
 		rows, err = s.q.SaveStreamResourceCheckpoint(ctx, sqlcgen.SaveStreamResourceCheckpointParams{
+			TenantID:   string(tenant),
 			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
 			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
 			ReplicationStreamID: state.Key.ReplicationStreamID,
@@ -712,6 +713,7 @@ func (s *Store) DeleteResourceCheckpoint(ctx context.Context, tenant filament.Te
 	var err error
 	if key.ReplicationStreamID != "" {
 		err = s.q.DeleteStreamResourceCheckpoint(ctx, sqlcgen.DeleteStreamResourceCheckpointParams{
+			TenantID:            string(tenant),
 			ReplicationStreamID: key.ReplicationStreamID, ResourceName: key.Resource,
 		})
 	} else {
