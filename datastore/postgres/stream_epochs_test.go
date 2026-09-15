@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/rowmodel"
-	"github.com/google/uuid"
 )
 
 type epochTestSink struct{ bound filament.EpochRef }

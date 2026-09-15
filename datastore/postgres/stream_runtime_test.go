@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/streamkit"
-	"github.com/google/uuid"
 )
 
 type runtimeFixture struct {
