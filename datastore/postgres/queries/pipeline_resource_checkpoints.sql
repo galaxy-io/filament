@@ -36,7 +36,20 @@ WHERE tenant_id = @tenant_id
   AND resource_name = @resource_name;
 
 -- name: SaveStreamResourceCheckpoint :execrows
-WITH activated AS (
+WITH locked_stream AS MATERIALIZED (
+  SELECT s.id
+  FROM replication_streams AS s
+  WHERE s.id = @replication_stream_id
+    AND s.tenant_id = @tenant_id
+  FOR UPDATE
+), target AS MATERIALIZED (
+  SELECT r.id, r.status
+  FROM replication_stream_resources AS r
+  JOIN locked_stream AS s ON s.id = r.replication_stream_id
+  WHERE r.resource_name = @resource_name
+    AND r.status <> 3
+  FOR UPDATE OF r
+), activated AS (
   UPDATE replication_stream_resources AS r
   SET status = 2,
       bootstrap_run_id = COALESCE(r.bootstrap_run_id, @last_run_id),
@@ -44,10 +57,17 @@ WITH activated AS (
       retired_at = NULL,
       error = NULL,
       updated_at = now()
-  WHERE r.replication_stream_id = @replication_stream_id
-    AND r.resource_name = @resource_name
-    AND r.status <> 3
-  RETURNING r.id, r.tenant_id
+  FROM target
+  WHERE r.id = target.id
+  RETURNING r.id, r.tenant_id, r.replication_stream_id,
+            target.status AS previous_status
+), bumped_revision AS (
+  UPDATE replication_streams AS s
+  SET membership_revision = membership_revision + 1
+  FROM activated AS a
+  WHERE s.id = a.replication_stream_id
+    AND a.previous_status <> 2
+  RETURNING s.id
 ), removed_conflict AS (
   DELETE FROM pipeline_resource_checkpoints AS c
   USING activated AS a
@@ -66,6 +86,7 @@ SELECT tenant_id, @pipeline_id, @pipeline_version_id, @route_key, @resource_name
        id, @cursor, @last_run_id, now()
 FROM activated
 CROSS JOIN (SELECT count(*) FROM removed_conflict) AS removed
+CROSS JOIN (SELECT count(*) FROM bumped_revision) AS bumped
 ON CONFLICT (replication_stream_resource_id)
   WHERE replication_stream_resource_id IS NOT NULL
 DO UPDATE SET
@@ -96,15 +117,32 @@ WHERE r.replication_stream_id = @replication_stream_id
 ORDER BY c.resource_name;
 
 -- name: DeleteStreamResourceCheckpoint :exec
-WITH deleted AS (
+WITH locked_stream AS MATERIALIZED (
+  SELECT s.id
+  FROM replication_streams AS s
+  WHERE s.id = @replication_stream_id
+    AND s.tenant_id = @tenant_id
+  FOR UPDATE
+), target AS MATERIALIZED (
+  SELECT r.id, r.status
+  FROM replication_stream_resources AS r
+  JOIN locked_stream AS s ON s.id = r.replication_stream_id
+  WHERE r.resource_name = @resource_name
+  FOR UPDATE OF r
+), deleted AS (
   DELETE FROM pipeline_resource_checkpoints AS c
-  USING replication_stream_resources AS r
-  WHERE c.replication_stream_resource_id = r.id
-    AND r.replication_stream_id = @replication_stream_id
-    AND r.resource_name = @resource_name
+  USING target
+  WHERE c.replication_stream_resource_id = target.id
+), reset AS (
+  UPDATE replication_stream_resources AS r
+  SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
+  FROM target
+  WHERE r.id = target.id
+    AND target.status <> 3
+  RETURNING r.replication_stream_id, target.status AS previous_status
 )
-UPDATE replication_stream_resources AS r
-SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
-WHERE r.replication_stream_id = @replication_stream_id
-  AND r.resource_name = @resource_name
-  AND r.status <> 3;
+UPDATE replication_streams AS s
+SET membership_revision = membership_revision + 1
+FROM reset
+WHERE s.id = reset.replication_stream_id
+  AND reset.previous_status <> 0;

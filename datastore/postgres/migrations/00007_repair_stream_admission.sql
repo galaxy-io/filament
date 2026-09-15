@@ -32,7 +32,9 @@ END $$;
 ALTER TABLE runs ADD CONSTRAINT runs_replication_route_identity_check
   CHECK (coalesce(nullif(request->'ReplicationStream'->>'ID', ''), nullif(request->>'ReplicationStreamID', '')) IS NULL OR
          (pipeline_id IS NOT NULL AND nullif(request->>'CheckpointRoute', '') IS NOT NULL));
+
 DROP INDEX runs_active_replication_route_idx;
+
 CREATE UNIQUE INDEX runs_active_replication_route_idx
   ON runs (pipeline_id, (request->>'CheckpointRoute'))
   WHERE status IN (0, 1, 5) AND coalesce(nullif(request->'ReplicationStream'->>'ID', ''), nullif(request->>'ReplicationStreamID', '')) IS NOT NULL;
