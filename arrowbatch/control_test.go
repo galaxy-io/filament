@@ -1,8 +1,9 @@
 package arrowbatch
 
 import (
-	"github.com/galaxy-io/filament/rowmodel"
 	"testing"
+
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestControlOwnership(t *testing.T) {

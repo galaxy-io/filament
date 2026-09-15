@@ -20,10 +20,12 @@ type controlSink struct {
 func (*controlSink) Builder(string, int, rowmodel.Schema) (arrowbatch.RowWriter, error) {
 	return nil, errors.New("unused")
 }
+
 func (s *controlSink) Control(_ context.Context, c rowmodel.Control) error {
 	s.controls = append(s.controls, c.Clone())
 	return s.err
 }
+
 func testControl(kind rowmodel.ControlKind) rowmodel.Control {
 	c := rowmodel.Control{Kind: kind, Domain: rowmodel.DomainKey{Incarnation: "source", Domain: "log"}, Position: rowmodel.Position{Codec: "opaque", Value: []byte("1")}}
 	if kind == rowmodel.TxnBegin || kind == rowmodel.TxnEnd {
@@ -31,6 +33,7 @@ func testControl(kind rowmodel.ControlKind) rowmodel.Control {
 	}
 	return c
 }
+
 func tracker(t *testing.T, limits filament.Boundary) *BoundaryTracker {
 	t.Helper()
 	b, err := NewBoundaryTracker(limits)
@@ -40,6 +43,7 @@ func tracker(t *testing.T, limits filament.Boundary) *BoundaryTracker {
 	t.Cleanup(b.Close)
 	return b
 }
+
 func add(t *testing.T, b *BoundaryTracker, records int, nbytes int64) {
 	t.Helper()
 	if err := b.Add(records, nbytes); err != nil {
