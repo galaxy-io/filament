@@ -349,7 +349,8 @@
                 "response": { "type": "string", "minLength": 1 },
                 "request": { "type": "string", "minLength": 3 },
                 "more": { "type": "string" },
-                "null_terminates": { "type": "boolean" }
+                "null_terminates": { "type": "boolean" },
+                "continuation_query": { "type": "array", "items": { "type": "string", "minLength": 1 } }
               }
             },
             "offset": {

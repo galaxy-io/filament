@@ -1,0 +1,492 @@
+version: 1
+name: recharge
+display_name: Recharge
+description: Customers, addresses, subscriptions, charges, orders, one-time products, discounts, plans, and store settings from Recharge.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-recharge-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-recharge-light.svg
+config:
+  api_token:
+    type: secret
+    required: true
+    help: API token from the merchant portal under Tools & apps > API tokens, with read access to the resources you select.
+defaults:
+  method: GET
+  response:
+    pagination:
+      cursor:
+        response: next_cursor
+        request: query.cursor
+        null_terminates: true
+        # Recharge cursors encode the first page's filters. Later pages may
+        # only repeat the page size.
+        continuation_query: [limit]
+field_sets:
+  metafield:
+    id: int64
+    owner_resource: string?
+    owner_id: string?
+    namespace: string?
+    key: string?
+    value: string?
+    value_type: string?
+    description: string?
+    created_at: timestamptz?
+    updated_at: timestamptz?
+    raw: { path: $, type: json, mode: remainder }
+connection:
+  base_url: https://api.rechargeapps.com
+  auth:
+    header:
+      name: X-Recharge-Access-Token
+      value: config.api_token
+  headers:
+    Accept: application/json
+    X-Recharge-Version: "2021-11"
+  timeout_seconds: 60
+  rate_limit:
+    # Recharge's standard token bucket leaks 2 requests per second.
+    requests_per_second: 2
+resources:
+  # store is first so the connection probe is one cheap request.
+  - name: store
+    path: /store
+    records: $.store
+    response:
+      cardinality: one
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      currency: string?
+      external_platform: string?
+      checkout_platform: string?
+      identifier: string?
+      default_api_version: string?
+      timezone: json?
+      enabled_presentment_currencies: json?
+      weight_unit: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: customers
+    path: /customers
+    query: { limit: "250" }
+    records: $.customers
+    primary_key: [id]
+    fields:
+      id: int64
+      email: string?
+      first_name: string?
+      last_name: string?
+      phone: string?
+      hash: string?
+      external_customer_id: json?
+      has_valid_payment_method: bool?
+      has_payment_method_in_dunning: bool?
+      subscriptions_active_count: int64?
+      subscriptions_total_count: int64?
+      tax_exempt: bool?
+      first_charge_processed_at: timestamptz?
+      analytics_data: json?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: customers_updated_at
+
+  - name: addresses
+    path: /addresses
+    query: { limit: "250" }
+    records: $.addresses
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: int64?
+      payment_method_id: int64?
+      first_name: string?
+      last_name: string?
+      company: string?
+      address1: string?
+      address2: string?
+      city: string?
+      province: string?
+      zip: string?
+      country_code: string?
+      phone: string?
+      presentment_currency: string?
+      order_note: string?
+      discounts: json?
+      order_attributes: json?
+      shipping_lines_override: json?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: addresses_updated_at
+
+  - name: subscriptions
+    path: /subscriptions
+    query: { limit: "250" }
+    records: $.subscriptions
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: int64?
+      address_id: int64?
+      status: string?
+      product_title: string?
+      variant_title: string?
+      sku: string?
+      price: decimal?
+      quantity: int64?
+      presentment_currency: string?
+      external_product_id: json?
+      external_variant_id: json?
+      order_interval_unit: string?
+      order_interval_frequency: int64?
+      charge_interval_frequency: string?
+      order_day_of_month: int64?
+      order_day_of_week: int64?
+      expire_after_specific_number_of_charges: int64?
+      next_charge_scheduled_at: timestamptz?
+      is_prepaid: bool?
+      is_skippable: bool?
+      is_swappable: bool?
+      has_queued_charges: bool?
+      max_retries_reached: bool?
+      cancelled_at: timestamptz?
+      cancellation_reason: string?
+      cancellation_reason_comments: string?
+      properties: json?
+      analytics_data: json?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: subscriptions_updated_at
+
+  - name: charges
+    path: /charges
+    query: { limit: "250" }
+    records: $.charges
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: { path: customer.id, type: int64, nullable: true }
+      address_id: int64?
+      status: string?
+      type: string?
+      currency: string?
+      total_price: decimal?
+      subtotal_price: decimal?
+      total_tax: decimal?
+      total_discounts: decimal?
+      total_refunds: decimal?
+      total_line_items_price: decimal?
+      scheduled_at: date?
+      processed_at: timestamptz?
+      payment_processor: string?
+      orders_count: int64?
+      external_order_id: json?
+      external_transaction_id: json?
+      customer: json?
+      line_items: json?
+      discounts: json?
+      shipping_lines: json?
+      tax_lines: json?
+      billing_address: json?
+      shipping_address: json?
+      error: string?
+      error_type: string?
+      charge_attempts: int64?
+      retry_date: date?
+      tags: string?
+      note: string?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: charges_updated_at
+
+  - name: orders
+    path: /orders
+    query: { limit: "250" }
+    records: $.orders
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: { path: customer.id, type: int64, nullable: true }
+      address_id: int64?
+      charge_id: { path: charge.id, type: int64, nullable: true }
+      status: string?
+      type: string?
+      currency: string?
+      total_price: decimal?
+      subtotal_price: decimal?
+      total_tax: decimal?
+      total_discounts: decimal?
+      total_refunds: decimal?
+      total_duties: decimal?
+      is_prepaid: bool?
+      scheduled_at: timestamptz?
+      processed_at: timestamptz?
+      external_order_id: json?
+      external_cart_token: string?
+      customer: json?
+      charge: json?
+      line_items: json?
+      discounts: json?
+      shipping_lines: json?
+      tax_lines: json?
+      billing_address: json?
+      shipping_address: json?
+      tags: string?
+      note: string?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: orders_updated_at
+
+  - name: onetimes
+    path: /onetimes
+    query: { limit: "250", include_cancelled: "true" }
+    records: $.onetimes
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: int64?
+      address_id: int64?
+      product_title: string?
+      variant_title: string?
+      sku: string?
+      price: decimal?
+      quantity: int64?
+      is_cancelled: bool?
+      next_charge_scheduled_at: timestamptz?
+      external_product_id: json?
+      external_variant_id: json?
+      properties: json?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: onetimes_updated_at
+
+  - name: discounts
+    path: /discounts
+    query: { limit: "250" }
+    records: $.discounts
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      status: string?
+      value: decimal?
+      value_type: string?
+      starts_at: timestamptz?
+      ends_at: timestamptz?
+      first_time_customer_restriction: bool?
+      prerequisite_subtotal_min: decimal?
+      applies_to: json?
+      usage_limits: json?
+      channel_settings: json?
+      external_discount_id: json?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: discounts_updated_at
+
+  - name: plans
+    path: /plans
+    query: { limit: "250" }
+    records: $.plans
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string?
+      type: string?
+      external_product_id: json?
+      external_variant_ids: json?
+      external_plan_id: string?
+      external_plan_group_id: string?
+      external_plan_name: string?
+      discount_amount: decimal?
+      discount_type: string?
+      sort_order: int64?
+      has_variant_restrictions: bool?
+      subscription_preferences: json?
+      channel_settings: json?
+      deleted_at: timestamptz?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: plans_updated_at
+
+  - name: products
+    path: /products
+    query: { limit: "250" }
+    records: $.products
+    primary_key: [external_product_id]
+    fields:
+      external_product_id: string
+      title: string?
+      brand: string?
+      vendor: string?
+      requires_shipping: bool?
+      published_at: timestamptz?
+      external_created_at: timestamptz?
+      external_updated_at: timestamptz?
+      images: json?
+      options: json?
+      variants: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: collections
+    path: /collections
+    query: { limit: "250" }
+    records: $.collections
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string?
+      description: string?
+      type: string?
+      sort_order: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: payment_methods
+    path: /payment_methods
+    query: { limit: "250" }
+    records: $.payment_methods
+    primary_key: [id]
+    fields:
+      id: int64
+      customer_id: int64?
+      payment_type: string?
+      processor_name: string?
+      status: string?
+      status_reason: string?
+      default: bool?
+      billing_address: json?
+      payment_details: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: customer_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: customer }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: subscription_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: subscription }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: address_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: address }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: order_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: order }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: charge_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: charge }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: store_metafields
+    path: /metafields
+    query: { limit: "250", owner_resource: store }
+    records: $.metafields
+    primary_key: [id]
+    use_fields: [metafield]
+
+  - name: events
+    path: /events
+    query: { limit: "250" }
+    records: $.events
+    primary_key: [id]
+    fields:
+      id: int64
+      object_type: string?
+      object_id: int64?
+      customer_id: int64?
+      verb: string?
+      description: string?
+      updated_attributes: json?
+      source: json?
+      custom_attributes: json?
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: created_at
+      start_param: created_at_min
+      inject_into: query
+      comparator: lex
+      checkpoint_key: events_created_at
+discovery:
+  mode: static
+  default_resources:
+    - store
+    - customers
+    - addresses
+    - subscriptions
+    - charges
+    - orders
+    - onetimes
+    - discounts
+    - plans
