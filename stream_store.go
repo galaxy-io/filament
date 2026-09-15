@@ -10,8 +10,8 @@ import (
 // All operations are tenant-scoped. StartAttempt, renewal and certification must
 // serialize authority. Tokens increase across generations. Identical certificate
 // retries return historical success without granting current ack authority.
-// CommitEpoch must verify sealed source/barrier evidence in addition to these
-// public value types; the transaction and evidence contract lands in PRs 04–06.
+// New epoch commits require sealed pipeline completion, in addition to source
+// coverage and destination durability receipts. Historical retries grant no authority.
 type StreamRuntimeStore interface {
 	StartAttempt(context.Context, StartAttemptRequest) (Attempt, error)
 	RenewLease(context.Context, LeaseToken, time.Duration) error
@@ -19,7 +19,7 @@ type StreamRuntimeStore interface {
 	LoadStreamState(context.Context, StreamStateRequest) (StreamState, error)
 	ListReconcileCandidates(context.Context, ReconcileQuery) (ReconcilePage, error)
 	SetDesiredState(context.Context, DesiredStateChange) error
-	CommitEpoch(context.Context, EpochCertificate) (CommittedEpoch, error)
+	CommitEpoch(context.Context, EpochCommit) (CommittedEpoch, error)
 	GetEpoch(context.Context, EpochLookup) (CommittedEpoch, error)
 }
 
