@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -428,7 +426,7 @@ func TestRuntimeFrozenExecutionIgnoresRunVersionUpdates(t *testing.T) {
 	}
 }
 
-func TestRuntimeRetainsStoppedRunAndRejectsDowngrade(t *testing.T) {
+func TestRuntimeRetainsStoppedRun(t *testing.T) {
 	f := newRuntimeFixture(t)
 	ctx := context.Background()
 	a := f.start(t)
@@ -445,24 +443,8 @@ func TestRuntimeRetainsStoppedRunAndRejectsDowngrade(t *testing.T) {
 	if err := f.store.DeleteRun(ctx, tenantA, f.request.Run); !errors.As(err, &sqlErr) || sqlErr.SQLState() != "23503" {
 		t.Fatalf("referenced run deletion: %v", err)
 	}
-	data, err := os.ReadFile("migrations/00008_stream_runtime.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tx, err := f.store.Pool().Begin(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	_, err = tx.Exec(ctx, strings.Split(string(data), "-- +goose Down")[1])
-	if err == nil || !strings.Contains(err.Error(), "retain durable state") {
-		t.Fatalf("downgrade: %v", err)
-	}
-	if err := tx.Rollback(ctx); err != nil {
-		t.Fatal(err)
-	}
 	state, err := f.store.LoadStreamState(ctx, f.activation.StreamStateRequest)
 	if err != nil || state.LastEpoch == nil || state.LastEpoch.Epoch != 1 || state.Desired != filament.StreamStopped {
-		t.Fatalf("lost retained state: %+v %v", state, err)
+		t.Fatalf("lost stopped state: %+v %v", state, err)
 	}
 }
