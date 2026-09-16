@@ -7,6 +7,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
 const (
@@ -89,11 +90,11 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 	if out.bucket == "" {
 		return sinkConfig{}, fmt.Errorf("s3 sink: bucket is required")
 	}
-	partitionText := defaultPartition
+	partitionText := object.DefaultPartition
 	if cfg.Has("partition") {
 		partitionText = strings.Trim(cfg.String("partition"), "/")
 	}
-	if out.partition, err = parsePartition(partitionText); err != nil {
+	if out.partition, err = object.ParsePartition(partitionText); err != nil {
 		return sinkConfig{}, fmt.Errorf("s3 sink: partition: %w", err)
 	}
 	if out.authMethod == "" {

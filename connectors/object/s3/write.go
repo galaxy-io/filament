@@ -61,9 +61,9 @@ func (s *Sink) beginApply(resource string) (*multipartSession, string, string, e
 	if s.state != stateOpen || s.session == nil {
 		return nil, "", "", fmt.Errorf("s3 sink: write requires an open run")
 	}
-	key, err := s.layout.object(resource)
+	key, err := s.layout.Object(resource)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", "", fmt.Errorf("s3 sink: %w", err)
 	}
 	s.applyWG.Add(1)
 	return s.session, s.bucket, key, nil
@@ -103,7 +103,7 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *multipartSession) 
 		encoded, crc, err := resourceEncoder.encoder.Finalize(buffer)
 		if err == nil && len(encoded) > 0 && resourceEncoder.hasRows {
 			var key string
-			if key, err = layout.object(resource); err == nil {
+			if key, err = layout.Object(resource); err == nil {
 				err = session.Append(ctx, resource, key, encoded, 0, crc)
 			}
 		}

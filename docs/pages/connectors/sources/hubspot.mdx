@@ -1,0 +1,70 @@
+---
+title: "HubSpot"
+description: "Full and incremental reads of HubSpot CRM records and custom objects"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg"
+---
+
+The HubSpot source reads CRM records, activities, commerce objects, and owners.
+Custom objects are discovered as separate resources. The connector is alpha.
+
+## Configuration
+
+| Field | Scope | Description |
+|---|---|---|
+| `api_key` | Connection | Required. Secret. HubSpot service key or static app access token. |
+
+Grant read access to the selected objects and their property definitions.
+Custom objects also require access to their schemas. Resources unavailable
+under the account's permissions or subscription cannot be selected.
+
+## Resources
+
+Enabled by default: **contacts, companies, deals, owners, calls, meetings,
+notes, and tasks**.
+
+Optional resources include:
+
+- **CRM:** tickets, leads, goals, feedback submissions, and CRM users.
+- **Activities:** emails, communications, and postal mail.
+- **Commerce:** products, line items, quotes, invoices, payments, subscriptions,
+  orders, carts, discounts, fees, and taxes.
+- **Additional objects:** appointments, courses, listings, services, and projects.
+
+Each custom object has a stable resource name such as `custom_objects_2_123`
+and displays its HubSpot label. Custom objects are optional.
+
+## Properties
+
+Records have typed `id`, `created_at`, `updated_at`, `modified_at`, `archived`,
+and `archived_at` columns. Standard and custom properties are discovered
+automatically and preserved in a `properties` JSON column, using their HubSpot
+internal names. Newly added properties are included on the next run; records
+already synced need an update or a full refresh to pick up those values.
+
+Sensitive properties and property history are not included. Owners keep their
+details and team memberships in `properties` and have no `modified_at` column.
+
+## Incremental
+
+All CRM object resources support full and incremental reads. Owners are full-only.
+Use incremental upsert to reconcile repeated records.
+
+The first incremental run reads all active records. Later runs search by
+`modified_at`, using a fixed upper timestamp and a lookback to account for
+HubSpot's indexing delay. The default lookback is five minutes. Reads advance
+by object ID within the interval to avoid Search's 10,000-result paging limit.
+
+A resource's watermark advances only when its read completes and the destination
+commits. Interrupted or limited reads replay from the previous watermark.
+Interrupted initial reads restart from the beginning. Empty intervals retain
+their watermark.
+
+## Limitations
+
+This version covers CRM object records. Associations, archived-record feeds,
+marketing, and CMS resources are not included. Incremental reads do not propagate
+deletions, and indexing delays longer than the lookback can require a full refresh.
+
+Requests use HubSpot's `2026-09` APIs and are paced at five per second per source
+instance. Rate limits and server errors are retried; concurrent pipelines sharing
+an account can still be throttled.

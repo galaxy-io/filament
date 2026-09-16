@@ -468,7 +468,9 @@ func (r *Renderer) runInteractiveForm(ctx context.Context, form *inline.Form) (i
 	if r.stdin != nil {
 		options = append(options, inline.WithSessionInput(r.stdin))
 	}
-	return inline.NewSession(r.interactiveRenderer, options...).Run(ctx, form.SetTheme(r.theme).QuitOnQ(true))
+	return inline.NewSession(r.interactiveRenderer, options...).Run(ctx,
+		form.SetTheme(r.theme).QuitOnQ(true).NavigateAtBoundaries(true),
+	)
 }
 
 func (r *Renderer) clearInteractive() error {
@@ -479,7 +481,11 @@ func (r *Renderer) clearInteractive() error {
 }
 
 func interactiveCancelled(err error) bool {
-	return errors.Is(err, inline.ErrFormCancelled)
+	return errors.Is(err, inline.ErrFormCancelled) || interactivePrevious(err)
+}
+
+func interactivePrevious(err error) bool {
+	return errors.Is(err, inline.ErrFormPrevious)
 }
 
 func interactiveInterrupted(err error) bool {

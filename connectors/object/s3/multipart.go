@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
 const (
@@ -52,14 +54,6 @@ type objectWriter struct {
 type uploadPart struct {
 	number int32
 	body   *partBuffer
-}
-
-type resourceResult struct {
-	resource string
-	key      string
-	rows     int64
-	bytes    int64
-	crc32c   uint32
 }
 
 func newMultipartSession(
@@ -160,7 +154,7 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 	}
 
 	upload.mu.Lock()
-	upload.crc32c = combineCRC32C(upload.crc32c, encodedCRC, int64(len(payload)))
+	upload.crc32c = object.CombineCRC32C(upload.crc32c, encodedCRC, int64(len(payload)))
 	upload.rows += int64(rows)
 	upload.bytes += int64(len(payload))
 	upload.mu.Unlock()

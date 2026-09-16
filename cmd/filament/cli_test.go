@@ -44,6 +44,18 @@ func TestNonTerminalWithoutCommandFallsBackToHelp(t *testing.T) {
 	}
 }
 
+func TestRootIncludesUpgradeCommand(t *testing.T) {
+	t.Parallel()
+	app := cliApp{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	command, _, err := app.rootCommand().Find([]string{"upgrade"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if command.Name() != "upgrade" {
+		t.Fatalf("command = %q, want upgrade", command.Name())
+	}
+}
+
 func TestUnreachableRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 	t.Parallel()
 	directory := t.TempDir()

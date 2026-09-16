@@ -23,6 +23,7 @@ import {
   type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
 import {
   DEFAULT_WORKER_CONFIGURATION_TEXT,
   parseWorkerConfiguration,
@@ -49,6 +50,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
     isEnabled: true,
     frequency: PipelineScheduleFrequency.HOURLY,
   },
+  notifiers: [],
   workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,
   isSubmitting: false,
 };
@@ -105,6 +107,7 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
 
     const isScheduleValid =
       !state.schedule.isEnabled || formatPipelineScheduleSummary(state.schedule) !== null;
+    const isNotifiersValid = state.notifiers.every(isPipelineNotifierValid);
     const workerConfigurationError = parseWorkerConfiguration(state.workerConfiguration).error;
     const isConnectionsValid = !!state.sourceConnection && state.sinkConnections.length > 0;
     const isResourcesValid = !blockingMessages.length;
@@ -112,7 +115,10 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     const isNextDisabled = match(state.step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => !isConnectionsValid)
       .with(CreatePipelineModalStep.RESOURCES, () => !isResourcesValid)
-      .with(CreatePipelineModalStep.DELIVERY, () => !isScheduleValid || !!workerConfigurationError)
+      .with(
+        CreatePipelineModalStep.DELIVERY,
+        () => !isScheduleValid || !isNotifiersValid || !!workerConfigurationError,
+      )
       .with(CreatePipelineModalStep.DETAILS, () => !isNameValid(effectiveName))
       .exhaustive();
 
@@ -123,11 +129,13 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     const stepIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(state.step);
     const blockingHints = blockingMessages.length
       ? blockingMessages
-      : state.step === CreatePipelineModalStep.DELIVERY &&
-          isScheduleValid &&
-          workerConfigurationError
-        ? ["Fix the worker configuration to continue"]
-        : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
+      : state.step === CreatePipelineModalStep.DELIVERY && isScheduleValid && !isNotifiersValid
+        ? ["Complete the notifiers to continue"]
+        : state.step === CreatePipelineModalStep.DELIVERY &&
+            isScheduleValid &&
+            workerConfigurationError
+          ? ["Fix the worker configuration to continue"]
+          : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
 
     return {
       ...state,

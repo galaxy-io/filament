@@ -5,6 +5,58 @@ import (
 	"testing"
 )
 
+func TestEmptyResponseValidation(t *testing.T) {
+	const base = `
+version: 1
+name: empty
+display_name: Empty
+description: Empty response fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    response:
+      empty: %s
+  - name: other
+    path: /other
+`
+	for _, tc := range []struct {
+		rule  string
+		valid bool
+	}{
+		{`{status: 404, body_path: errors, body_equals: [No results]}`, true},
+		{`{status: 404}`, false},
+		{`{body_path: errors, body_equals: [No results]}`, false},
+		{`{status: 404, body_path: "", body_equals: [No results]}`, false},
+		{`{status: 404, body_path: errors, body_equals: []}`, false},
+		{`{status: 404, body_path: errors, body_equals: [""]}`, false},
+		{`{status: 404, body_path: errors, body_equals: No results}`, false},
+		{`{status: 404, body_path: errors, body_equals: [123]}`, false},
+		{`{status: 200, body_path: errors, body_equals: [No results]}`, false},
+		{`{status: 500, body_path: errors, body_equals: [No results]}`, false},
+		{`{status: 404, body_path: errors, body_equals: [No results], typo: true}`, false},
+	} {
+		t.Run(tc.rule, func(t *testing.T) {
+			m, err := Parse([]byte(strings.Replace(base, "%s", tc.rule, 1)))
+			if (err == nil) != tc.valid {
+				t.Fatalf("error=%v, valid=%v", err, tc.valid)
+			}
+			if err == nil && (m.Resources[0].Response.Empty == nil || m.Resources[1].Response.Empty != nil) {
+				t.Fatal("empty response rule was lost or inherited by another resource")
+			}
+		})
+	}
+	defaults := "defaults:\n  response:\n    empty: {status: 404, body_path: errors, body_equals: [No results]}\n"
+	data := strings.Replace(base, "resources:", defaults+"resources:", 1)
+	data = strings.Replace(data, "%s", "{status: 404, body_path: errors, body_equals: [No results]}", 1)
+	if _, err := Parse([]byte(data)); err == nil || !strings.Contains(err.Error(), "individual resources") {
+		t.Fatalf("empty rule in defaults: %v", err)
+	}
+}
+
 func TestPendingResponsePollingDefaultsCanBeOverridden(t *testing.T) {
 	m, err := Parse([]byte(`
 version: 1

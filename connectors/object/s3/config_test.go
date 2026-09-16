@@ -6,6 +6,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
 // testRun starts late on the 9th in US Eastern so the partition date proves UTC.
@@ -34,11 +35,12 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 		if cfg.fileFormat != test.wantFormat || cfg.compression != test.wantCompress {
 			t.Fatalf("options %q/%q parsed as %q/%q", test.format, test.compression, cfg.fileFormat, cfg.compression)
 		}
-		layout := newKeyLayout(cfg, testRun)
-		if got, err := layout.object("accounts"); err != nil || got != test.key {
+		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
+		layout := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun)
+		if got, err := layout.Object("accounts"); err != nil || got != test.key {
 			t.Fatalf("object key = %q, %v, want %q", got, err, test.key)
 		}
-		if got, want := layout.success(), "exports/_runs/run/_SUCCESS.json"; got != want {
+		if got, want := layout.Success(), "exports/_runs/run/_SUCCESS.json"; got != want {
 			t.Fatalf("success key = %q, want %q", got, want)
 		}
 	}
@@ -71,7 +73,8 @@ func TestLegacyEncodingCompatibility(t *testing.T) {
 		if cfg.fileFormat != test.wantFormat || cfg.compression != test.compression {
 			t.Fatalf("legacy options parsed as %q/%q", cfg.fileFormat, cfg.compression)
 		}
-		if got, err := newKeyLayout(cfg, testRun).object("accounts"); err != nil || got != test.key {
+		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
+		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts"); err != nil || got != test.key {
 			t.Fatalf("legacy object key = %q, %v, want %q", got, err, test.key)
 		}
 	}
@@ -92,7 +95,8 @@ func TestPartitionTemplate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("partition %q: %v", test.partition, err)
 		}
-		if got, err := newKeyLayout(cfg, testRun).object("accounts"); err != nil || got != test.key {
+		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
+		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts"); err != nil || got != test.key {
 			t.Fatalf("partition %q key = %q, %v, want %q", test.partition, got, err, test.key)
 		}
 	}

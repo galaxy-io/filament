@@ -1,0 +1,538 @@
+version: 1
+name: pipedrive
+display_name: Pipedrive
+description: Deals, leads, persons, organizations, activities, notes, products, users, pipelines, stages, and field definitions from Pipedrive.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-light.svg
+config:
+  api_token:
+    type: secret
+    required: true
+    help: Personal API token from your account name > Company settings > Personal preferences > API.
+  host:
+    type: string
+    default: https://api.pipedrive.com
+    help: API host. Use https://<company>.pipedrive.com, your company domain, for faster routing.
+defaults:
+  method: GET
+  response:
+    records: $.data
+    pagination:
+      cursor:
+        response: additional_data.next_cursor
+        request: query.cursor
+        null_terminates: true
+field_sets:
+  deal:
+    id: int64
+    title: string?
+    status: string?
+    value: float64?
+    currency: string?
+    owner_id: int64?
+    person_id: int64?
+    org_id: int64?
+    pipeline_id: int64?
+    stage_id: int64?
+    probability: float64?
+    expected_close_date: date?
+    origin: string?
+    origin_id: string?
+    source_lead_id: string?
+    lost_reason: string?
+    visible_to: int64?
+    is_archived: bool?
+    is_deleted: bool?
+    label_ids: json?
+    custom_fields: json?
+    add_time: timestamptz?
+    update_time: timestamptz
+    stage_change_time: timestamptz?
+    won_time: timestamptz?
+    lost_time: timestamptz?
+    close_time: timestamptz?
+    raw: { path: $, type: json, mode: remainder }
+  lead:
+    id: string
+    title: string?
+    owner_id: int64?
+    creator_id: int64?
+    person_id: int64?
+    organization_id: int64?
+    source_deal_id: int64?
+    source_name: string?
+    origin: string?
+    origin_id: string?
+    channel: int64?
+    channel_id: string?
+    label_ids: json?
+    value: json?
+    expected_close_date: date?
+    next_activity_id: int64?
+    is_archived: bool?
+    was_seen: bool?
+    cc_email: string?
+    add_time: timestamptz?
+    update_time: timestamptz
+    raw: { path: $, type: json, mode: remainder }
+  field_definition:
+    field_code: string
+    field_name: string?
+    field_type: string?
+    is_custom_field: bool?
+    is_optional_response_field: bool?
+    options: json?
+    subfields: json?
+    raw: { path: $, type: json, mode: remainder }
+connection:
+  base_url: "{{ config.host }}"
+  auth:
+    header:
+      name: x-api-token
+      value: config.api_token
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    # Burst limits are per token and start at 20 requests per 2 seconds on the
+    # Lite plan. Five per second stays under that on every plan.
+    requests_per_second: 5
+resources:
+  # users is first so the connection probe hits an endpoint every token can read.
+  - name: users
+    path: /api/v1/users
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      active_flag: bool?
+      is_deleted: bool?
+      role_id: int64?
+      default_currency: string?
+      locale: string?
+      timezone_name: string?
+      timezone_offset: string?
+      created: timestamptz?
+      modified: timestamptz?
+      last_login: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: deals
+    path: /api/v2/deals
+    query: { limit: "500" }
+    primary_key: [id]
+    use_fields: [deal]
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: deals_update_time
+      overlap_seconds: 60
+
+  - name: deals_archived
+    path: /api/v2/deals/archived
+    query: { limit: "500" }
+    primary_key: [id]
+    use_fields: [deal]
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: deals_archived_update_time
+      overlap_seconds: 60
+
+  - name: persons
+    path: /api/v2/persons
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      first_name: string?
+      last_name: string?
+      owner_id: int64?
+      org_id: int64?
+      job_title: string?
+      emails: json?
+      phones: json?
+      im: json?
+      postal_address: json?
+      birthday: string?
+      picture_id: int64?
+      visible_to: int64?
+      is_deleted: bool?
+      label_ids: json?
+      custom_fields: json?
+      add_time: timestamptz?
+      update_time: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: persons_update_time
+      overlap_seconds: 60
+
+  - name: organizations
+    path: /api/v2/organizations
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      owner_id: int64?
+      address: json?
+      website: string?
+      linkedin: string?
+      industry: int64?
+      annual_revenue: int64?
+      employee_count: int64?
+      visible_to: int64?
+      is_deleted: bool?
+      label_ids: json?
+      custom_fields: json?
+      add_time: timestamptz?
+      update_time: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: organizations_update_time
+      overlap_seconds: 60
+
+  - name: activities
+    path: /api/v2/activities
+    query: { limit: "500", include_fields: attendees }
+    primary_key: [id]
+    fields:
+      id: int64
+      subject: string?
+      type: string?
+      done: bool?
+      due_date: date?
+      due_time: string?
+      duration: string?
+      owner_id: int64?
+      creator_user_id: int64?
+      deal_id: int64?
+      lead_id: string?
+      person_id: int64?
+      org_id: int64?
+      project_id: int64?
+      note: string?
+      public_description: string?
+      location: json?
+      participants: json?
+      attendees: json?
+      busy: bool?
+      priority: int64?
+      outcome: int64?
+      is_deleted: bool?
+      marked_as_done_time: timestamptz?
+      add_time: timestamptz?
+      update_time: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: activities_update_time
+      overlap_seconds: 60
+
+  - name: leads
+    path: /api/v1/leads
+    pagination:
+      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+    primary_key: [id]
+    use_fields: [lead]
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: leads_update_time
+      overlap_seconds: 60
+
+  - name: leads_archived
+    path: /api/v1/leads/archived
+    pagination:
+      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+    primary_key: [id]
+    use_fields: [lead]
+
+  - name: notes
+    path: /api/v1/notes
+    pagination:
+      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+    primary_key: [id]
+    fields:
+      id: int64
+      content: string?
+      user_id: int64?
+      last_update_user_id: int64?
+      deal_id: int64?
+      person_id: int64?
+      org_id: int64?
+      lead_id: string?
+      project_id: int64?
+      task_id: int64?
+      active_flag: bool?
+      pinned_to_deal_flag: bool?
+      pinned_to_person_flag: bool?
+      pinned_to_organization_flag: bool?
+      pinned_to_lead_flag: bool?
+      pinned_to_project_flag: bool?
+      pinned_to_task_flag: bool?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: products
+    path: /api/v2/products
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      code: string?
+      description: string?
+      unit: string?
+      tax: float64?
+      category: string?
+      owner_id: int64?
+      is_linkable: bool?
+      is_deleted: bool?
+      billing_frequency: string?
+      billing_frequency_cycles: int64?
+      prices: json?
+      custom_fields: json?
+      add_time: timestamptz?
+      update_time: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: update_time
+      start_param: updated_since
+      inject_into: query
+      comparator: time
+      checkpoint_key: products_update_time
+      overlap_seconds: 60
+
+  - name: pipelines
+    path: /api/v2/pipelines
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      order_nr: int64?
+      is_deleted: bool?
+      is_deal_probability_enabled: bool?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: stages
+    path: /api/v2/stages
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      pipeline_id: int64?
+      order_nr: int64?
+      deal_probability: int64?
+      is_deal_rot_enabled: bool?
+      days_to_rotten: int64?
+      is_deleted: bool?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: deal_fields
+    path: /api/v2/dealFields
+    query: { limit: "500" }
+    primary_key: [field_code]
+    use_fields: [field_definition]
+
+  - name: person_fields
+    path: /api/v2/personFields
+    query: { limit: "500" }
+    primary_key: [field_code]
+    use_fields: [field_definition]
+
+  - name: organization_fields
+    path: /api/v2/organizationFields
+    query: { limit: "500" }
+    primary_key: [field_code]
+    use_fields: [field_definition]
+
+  - name: activity_fields
+    path: /api/v2/activityFields
+    query: { limit: "500" }
+    primary_key: [field_code]
+    use_fields: [field_definition]
+
+  - name: product_fields
+    path: /api/v2/productFields
+    query: { limit: "500" }
+    primary_key: [field_code]
+    use_fields: [field_definition]
+
+  - name: activity_types
+    path: /api/v1/activityTypes
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      key_string: string?
+      icon_key: string?
+      color: string?
+      order_nr: int64?
+      active_flag: bool?
+      is_custom_flag: bool?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: lead_labels
+    path: /api/v1/leadLabels
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      color: string?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: currencies
+    path: /api/v1/currencies
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      name: string?
+      symbol: string?
+      decimal_points: int64?
+      active_flag: bool?
+      is_custom_flag: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: filters
+    path: /api/v1/filters
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      type: string?
+      user_id: int64?
+      active_flag: bool?
+      filter_code: string?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: projects
+    path: /api/v2/projects
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string?
+      description: string?
+      status: string?
+      owner_id: int64?
+      board_id: int64?
+      phase_id: int64?
+      start_date: date?
+      end_date: date?
+      health_status: int64?
+      deal_ids: json?
+      person_ids: json?
+      org_ids: json?
+      label_ids: json?
+      custom_fields: json?
+      status_change_time: timestamptz?
+      archive_time: timestamptz?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: tasks
+    path: /api/v2/tasks
+    query: { limit: "500" }
+    primary_key: [id]
+    fields:
+      id: int64
+      title: string?
+      description: string?
+      project_id: int64?
+      parent_task_id: int64?
+      creator_id: int64?
+      assignee_ids: json?
+      is_done: bool?
+      is_milestone: bool?
+      priority: int64?
+      start_date: date?
+      due_date: date?
+      marked_as_done_time: timestamptz?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: files
+    path: /api/v1/files
+    pagination:
+      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      file_name: string?
+      file_size: int64?
+      url: string?
+      remote_location: string?
+      remote_id: string?
+      user_id: int64?
+      deal_id: int64?
+      person_id: int64?
+      org_id: int64?
+      lead_id: string?
+      product_id: int64?
+      activity_id: int64?
+      project_id: int64?
+      mail_message_id: string?
+      active_flag: bool?
+      inline_flag: bool?
+      add_time: timestamptz?
+      update_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  default_resources:
+    - users
+    - deals
+    - persons
+    - organizations
+    - activities
+    - leads
+    - notes
+    - pipelines
+    - stages
+    - deal_fields
+    - person_fields
+    - organization_fields
+    - activity_types
+    - lead_labels

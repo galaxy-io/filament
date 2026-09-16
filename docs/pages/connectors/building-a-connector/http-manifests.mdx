@@ -5,8 +5,8 @@ description: "Declarative YAML manifests that drive the generic HTTP API source"
 
 Use an HTTP manifest when an API can be described through endpoints,
 authentication, pagination, and JSON field mappings. You write YAML instead of
-a new Go connector. Filament's Notion, Linear, Attio, GitHub, Slack, Resend,
-Stripe, and PostHog sources all use this path.
+a new Go connector. Filament's Notion, Linear, Attio, GitHub, Gong, Granola, Slack,
+Resend, Stripe, PostHog, and Pipedrive sources all use this path.
 
 To try a manifest without recompiling Filament, create an `httpapi` connection
 and set its required `manifest_path` to your v1 YAML file. Once embedded in the
@@ -196,7 +196,28 @@ re-read the window and let an upsert write mode absorb the duplicates.
   `response.poll_pending: true`; exhaustion fails instead of emitting pending data.
 - HTTP 204 produces an empty result
 - 5xx responses are retried 3 times
-- other 4xx responses are fatal
+- other 4xx responses are fatal unless they match the resource's `response.empty` rule
+
+Some APIs return an error status when a collection is empty. A resource can
+recognize that response with an exact status and body match:
+
+```yaml
+response:
+  empty:
+    status: 404
+    body_path: errors
+    body_equals: [No calls found corresponding to the provided filters]
+```
+
+`status` must be a 4xx code. `body_path` uses dot-path syntax and must point to
+an array of strings. The entire array must equal `body_equals`, including case
+and order. Extra messages, a different status, or invalid JSON do not match.
+A match ends the page walk without emitting a row or advancing a watermark.
+Rows already read are kept. Throttling rules take precedence.
+
+Declare this rule on individual resources, not in `defaults`. Verify the API's
+actual response before adding a rule so an unrelated error cannot look like an
+empty collection.
 
 Responses are capped at 100 MB. Top-level resources extract concurrently,
 children after their parents.

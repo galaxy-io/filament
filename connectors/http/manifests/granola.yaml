@@ -1,0 +1,126 @@
+version: 1
+name: granola
+display_name: Granola
+description: Meeting notes, AI summaries, transcripts, folders, and webhook configuration from Granola.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-light.svg
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Granola personal or workspace API key from Settings > Connectors > API keys. Audit API keys are not supported.
+defaults:
+  method: GET
+  response:
+    pagination:
+      cursor:
+        response: cursor
+        request: query.cursor
+        more: hasMore
+        null_terminates: true
+field_sets:
+  note:
+    id: string
+    object: string
+    title: string?
+    owner: json
+    created_at: timestamptz
+    updated_at: timestamptz
+connection:
+  base_url: https://public-api.granola.ai
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 5
+resources:
+  - name: notes
+    path: /v1/notes
+    query: { page_size: "30" }
+    records: $.notes
+    primary_key: [id]
+    use_fields: [note]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    capture: { note_id: id }
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_after
+      inject_into: query
+      checkpoint_key: notes_updated_at
+      comparator: time
+      overlap_seconds: 300
+
+  - name: note_details
+    path: /v1/notes/{note_id}
+    params: { note_id: parent.note_id }
+    for_each: notes
+    primary_key: [id]
+    use_fields: [note]
+    fields:
+      web_url: string
+      calendar_event: json?
+      attendees: json
+      folder_membership: json
+      summary_text: string
+      summary_markdown: string?
+      private_notes_text: string?
+      private_notes_markdown: string?
+      raw: { path: $, type: json, mode: remainder }
+    # Fetch transcripts separately: include=transcript can fail with 413.
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: transcripts
+    path: /v1/notes/{note_id}/transcript
+    params: { note_id: parent.note_id }
+    for_each: notes
+    query: { page_size: "100" }
+    records: $.transcript
+    # Transcript items have no stable ID or documented unique tuple.
+    # Keep every item, including repeated speech, using full replacement.
+    primary_key: []
+    fields:
+      note_id: { path: parent.note_id, type: string }
+      speaker: json
+      text: string
+      start_time: timestamptz
+      end_time: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: folders
+    path: /v1/folders
+    query: { page_size: "30" }
+    records: $.folders
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      name: string
+      parent_folder_id: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: webhook_endpoints
+    path: /v1/webhook-endpoints
+    records: $.webhook_endpoints
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      object: string
+      url: string
+      url_redacted: bool
+      events: json
+      folder_ids: json
+      scopes: json
+      created_by: json?
+      enabled: bool
+      created_at: timestamptz
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  default_resources: [notes, note_details, transcripts, folders]

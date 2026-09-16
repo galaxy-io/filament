@@ -9,9 +9,7 @@ import (
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
-	gzipencoder "github.com/galaxy-io/filament/connectors/internal/gzip"
-	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
-	parquetencoder "github.com/galaxy-io/filament/connectors/internal/parquet"
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -45,33 +43,11 @@ func (s *Sink) encoderFor(resource string, schema *arrow.Schema) (*resourceEncod
 		}
 		return enc, nil
 	}
-	stream, err := newEncoder(s.format, s.compression, schema)
+	stream, err := object.NewEncoder(s.format, s.compression, schema)
 	if err != nil {
 		return nil, fmt.Errorf("s3 sink: create %s/%s encoder for %s: %w", s.format, s.compression, resource, err)
 	}
 	enc := &resourceEncoder{schema: schema, encoder: stream}
 	s.enc[resource] = enc
 	return enc, nil
-}
-
-func newEncoder(format encoder.FileFormat, compression encoder.Compression, schema *arrow.Schema) (encoder.Encoder, error) {
-	options := encoder.Options{FileFormat: format, Compression: compression}
-	if err := options.Validate(); err != nil {
-		return nil, err
-	}
-	var stream encoder.Encoder
-	switch format {
-	case encoder.FileFormatNDJSON, encoder.FileFormatJSONL:
-		stream = jsonencoder.NewEncoder(schema)
-	case encoder.FileFormatJSON:
-		stream = jsonencoder.NewArrayEncoder(schema)
-	case encoder.FileFormatParquet:
-		return parquetencoder.NewEncoder(schema, compression)
-	default:
-		return nil, fmt.Errorf("unsupported file format %q", format)
-	}
-	if compression == encoder.CompressionGZIP {
-		stream = gzipencoder.NewEncoder(stream)
-	}
-	return stream, nil
 }

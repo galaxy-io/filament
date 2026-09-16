@@ -93,6 +93,9 @@ func mutationProcedure(procedure string) bool {
 		ingestionv1connect.IngestionServiceDeletePipelineProcedure,
 		ingestionv1connect.IngestionServiceCreatePipelineScheduleProcedure,
 		ingestionv1connect.IngestionServiceUpdatePipelineScheduleProcedure,
+		ingestionv1connect.IngestionServiceCreatePipelineNotifierProcedure,
+		ingestionv1connect.IngestionServiceUpdatePipelineNotifierProcedure,
+		ingestionv1connect.IngestionServiceDeletePipelineNotifierProcedure,
 		ingestionv1connect.IngestionServiceRunPipelineProcedure,
 		ingestionv1connect.IngestionServiceSignalRunProcedure:
 		return true

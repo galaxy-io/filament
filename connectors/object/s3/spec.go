@@ -3,6 +3,7 @@ package s3
 import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
 // Spec describes the sink's configuration and commit-durable write modes.
@@ -22,15 +23,15 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination S3 bucket."},
 			{Name: "prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Root folder for this pipeline. Each resource gets its own folder beneath it, and run manifests land in _runs. Empty defaults to the normalized source connection name."},
-			{Name: "partition", Type: filament.FieldString, Default: defaultPartition, Scope: filament.ScopePipeline, Help: "Folders between each resource and its files. Use {{.Date}}, {{.StartedAt}}, {{.Resource}}, and {{.Run}}, for example {{.Resource}}/dt={{.Date}}. The default writes one folder per day. Leave empty to write files directly under the resource."},
+			{Name: "partition", Type: filament.FieldString, Default: object.DefaultPartition, Scope: filament.ScopePipeline, Help: "Folders between each resource and its files. Use {{.Date}}, {{.StartedAt}}, {{.Resource}}, and {{.Run}}, for example {{.Resource}}/dt={{.Date}}. The default writes one folder per day. Leave empty to write files directly under the resource."},
 			{Name: "file_format", Type: filament.FieldEnum, Default: string(encoder.DefaultFileFormat), Scope: filament.ScopePipeline, Help: "File format used for each resource object. NDJSON and JSONL contain one object per line; JSON contains one array.", Enum: []filament.EnumOption{
 				{Value: string(encoder.FileFormatNDJSON), Label: "NDJSON"},
 				{Value: string(encoder.FileFormatJSONL), Label: "JSONL"},
 				{Value: string(encoder.FileFormatJSON), Label: "JSON"},
 				{Value: string(encoder.FileFormatParquet), Label: "Parquet"},
 			}},
-			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatNDJSON.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: jsonFormat, Help: "Compression used for JSON files.", Enum: compressionOptions(encoder.FileFormatNDJSON)},
-			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatParquet.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: parquetFormat, Help: "Compression used for Parquet files.", Enum: compressionOptions(encoder.FileFormatParquet)},
+			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatNDJSON.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: jsonFormat, Help: "Compression used for JSON files.", Enum: object.CompressionOptions(encoder.FileFormatNDJSON)},
+			{Name: "compression", Type: filament.FieldEnum, Default: string(encoder.FileFormatParquet.DefaultCompression()), Scope: filament.ScopePipeline, VisibleWhen: parquetFormat, Help: "Compression used for Parquet files.", Enum: object.CompressionOptions(encoder.FileFormatParquet)},
 			{Name: "region", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "AWS region; defaults to the SDK's resolved region."},
 			{Name: "endpoint", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Custom S3 endpoint, such as MinIO; defaults to AWS."},
 			{Name: "path_style", Type: filament.FieldBool, Scope: filament.ScopeConnection, Help: "Use path-style bucket addressing. Defaults to true for custom endpoints."},
@@ -49,42 +50,11 @@ func (s *Sink) Spec() filament.SinkSpec {
 			EncodedIntegrity:    true,
 			Schematized:         true,
 			PreferredBatchBytes: defaultPartSizeMiB << 20,
-			WritePolicies: commitDurableCapabilities(
+			WritePolicies: object.CommitDurableCapabilities(
 				filament.IngestionFullAppend,
 				filament.IngestionCDCAppend,
 				filament.IngestionFullReplace,
 			),
 		},
 	}
-}
-
-func compressionOptions(format encoder.FileFormat) []filament.EnumOption {
-	compressions := format.SupportedCompressions()
-	options := make([]filament.EnumOption, len(compressions))
-	for i, compression := range compressions {
-		options[i] = filament.EnumOption{Value: string(compression), Label: compressionLabel(compression)}
-	}
-	return options
-}
-
-func compressionLabel(compression encoder.Compression) string {
-	switch compression {
-	case encoder.CompressionNone:
-		return "None"
-	case encoder.CompressionGZIP:
-		return "Gzip"
-	case encoder.CompressionSnappy:
-		return "Snappy"
-	default:
-		return string(compression)
-	}
-}
-
-func commitDurableCapabilities(types ...filament.IngestionType) []filament.WritePolicyCapability {
-	capabilities := filament.WriteCapabilities(types...)
-	for i := range capabilities {
-		capabilities[i].Durability = filament.DurabilityAfterCommit
-		capabilities[i].Atomicity = filament.AtomicityResource
-	}
-	return capabilities
 }

@@ -1,0 +1,91 @@
+---
+title: "Granola"
+description: "Read meeting notes, AI summaries, transcripts, folders, and webhook configuration from Granola"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg"
+---
+
+The Granola source reads meeting notes, summaries, transcripts, and folders
+that your API key can access. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It has been checked against Granola's API docs and tested with mock
+responses, but has not yet been tested against a live account.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Personal or workspace API key. |
+
+Create a key in **Settings → Connectors → API keys** in Granola. API access
+requires a Business or Enterprise plan. On Enterprise, admins choose which
+access scopes members can use.
+
+A personal key can read notes covered by the scopes you chose when creating
+it. A workspace key can read public workspace notes and notes in spaces with
+API access enabled. See [Granola's API guide](https://docs.granola.ai/introduction)
+for setup details.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `notes` | `GET /v1/notes` | |
+| `note_details` | `GET /v1/notes/{note_id}` | `notes` |
+| `transcripts` | `GET /v1/notes/{note_id}/transcript` | `notes` |
+| `folders` | `GET /v1/folders` | |
+| `webhook_endpoints` | `GET /v1/webhook-endpoints` | |
+
+Notes, note details, transcripts, and folders are selected by default. You can
+also select webhook configuration. Filament only writes the resources you
+select, though it still lists notes to fetch their details or transcripts.
+
+`notes` contains IDs, titles, owners, and timestamps. `note_details` adds
+summaries in text and Markdown, private notes, calendar details, attendees,
+and folder membership. Private notes are only returned when the key belongs
+to the note's creator. Otherwise, those fields are null. Nested objects and
+arrays are stored as JSON.
+
+`transcripts` returns one row per transcript item, with the note ID, speaker,
+text, and start and end times. The speaker field keeps any names, attribution,
+and anonymous speaker labels Granola provides. Transcripts are fetched in
+pages so long meetings can be read in full.
+
+`folders` includes `parent_folder_id` so you can follow the folder hierarchy.
+`webhook_endpoints` lists webhook URLs, subscribed events, scopes, folder
+filters, and whether each endpoint is enabled. It only reads this configuration.
+It does not create webhooks or receive their events.
+
+The [Enterprise Audit API](https://docs.granola.ai/audit) uses a separate
+audit-only key and is not included in this connector.
+
+## Modes
+
+All resources support full reads. `notes` also supports incremental reads
+using `updated_at`. Each run sends the saved timestamp as `updated_after`,
+with a five-minute lookback by default. This re-reads recently updated notes
+to help catch changes around the last run. You can adjust the lookback, but
+the cursor field is fixed. The checkpoint key is `notes_updated_at` and uses
+the `time` comparator.
+
+Details, transcripts, folders, and webhook configuration are read in full.
+Use **full replace** for transcripts. Granola does not give transcript items
+stable IDs, and speaker names and timestamps are not guaranteed to be unique.
+
+Full replacement also removes deleted notes and refreshes folder membership.
+Incremental note reads cannot detect deletions. They can also miss newly
+shared notes if those notes were last updated before the lookback window.
+
+## Behavior
+
+- **Auth**: every request uses `api_key` as a bearer token and goes to
+  `https://public-api.granola.ai`.
+- **Pagination**: notes and folders request 30 items per page. Transcripts
+  request 100. Filament passes the returned `cursor` to the next request and
+  stops when `hasMore` is false. Details and webhook configuration do not use
+  pagination.
+- **Rate limiting**: five requests per second, shared across resources in the
+  connection. Granola applies its limit per user or workspace, so other clients
+  using that quota can cause throttling.
+- **Availability**: notes only appear in the API once they have a generated
+  summary and transcript. Notes still being processed are not returned.
+- The `raw` column keeps any fields that are not mapped to their own columns.

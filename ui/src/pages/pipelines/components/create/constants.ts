@@ -100,7 +100,7 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP: Record<
   [CreatePipelineModalStep.RESOURCES]:
     "Pick the resources you want to ingest and how each one is read and written.",
   [CreatePipelineModalStep.DELIVERY]:
-    "Set a schedule so the pipeline runs on its own, or leave it manual and trigger runs yourself.",
+    "Set a schedule so the pipeline runs on its own, or leave it manual and trigger runs yourself. Optionally get notified when runs complete or fail.",
   [CreatePipelineModalStep.DETAILS]:
     "Name your pipeline and add an optional description so your team knows what it does.",
 };

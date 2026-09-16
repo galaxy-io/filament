@@ -19,3 +19,23 @@ func TestRecordsSupportsSingleObjectCardinality(t *testing.T) {
 		t.Fatalf("records = %#v, want one widget", records)
 	}
 }
+
+func TestRecordsTreatsMissingOrNullPathAsEmpty(t *testing.T) {
+	extractor := New(manifest.ResponseSpec{RecordsPath: "data"})
+	for name, body := range map[string]string{
+		"missing": `{"success":true}`,
+		"null":    `{"success":true,"data":null}`,
+		"empty":   `{"success":true,"data":[]}`,
+	} {
+		records, err := extractor.Records([]byte(body))
+		if err != nil || len(records) != 0 {
+			t.Fatalf("%s: records=%#v err=%v", name, records, err)
+		}
+	}
+	if _, err := extractor.Records([]byte(`{"success":true,"data":{"id":1}}`)); err == nil {
+		t.Fatal("object at records path was accepted as a page")
+	}
+	if _, err := extractor.Records([]byte(`{"success":true,"data":"none"}`)); err == nil {
+		t.Fatal("string at records path was accepted as a page")
+	}
+}

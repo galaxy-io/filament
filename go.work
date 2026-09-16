@@ -3,10 +3,12 @@ go 1.26.4
 use (
 	.
 	./cmd
+	./connectors/bigquery
 	./connectors/iceberg
 	./connectors/object
 	./connectors/snowflake
 	./identity/zitadel
 	./secret/aws
+	./secret/gcp
 	./tests
 )

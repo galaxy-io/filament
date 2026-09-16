@@ -583,13 +583,17 @@ type message struct {
 	seq     uint64
 }
 
-var _ eventbus.Message = (*message)(nil)
+var (
+	_ eventbus.Message          = (*message)(nil)
+	_ eventbus.ProgressReporter = (*message)(nil)
+)
 
-func (m *message) Subject() string { return m.subject }
-func (m *message) Payload() any    { return m.payload }
-func (m *message) Seq() uint64     { return m.seq }
-func (m *message) Ack() error      { return m.msg.Ack() }
-func (m *message) Nak() error      { return m.msg.NakWithDelay(nakRedeliveryDelay) }
+func (m *message) Subject() string   { return m.subject }
+func (m *message) Payload() any      { return m.payload }
+func (m *message) Seq() uint64       { return m.seq }
+func (m *message) InProgress() error { return m.msg.InProgress() }
+func (m *message) Ack() error        { return m.msg.Ack() }
+func (m *message) Nak() error        { return m.msg.NakWithDelay(nakRedeliveryDelay) }
 
 func maxInFlight(opt, fallback int) int {
 	if opt > 0 {
