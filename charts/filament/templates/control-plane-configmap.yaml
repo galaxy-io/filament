@@ -54,6 +54,10 @@ data:
   AWS_REGION: {{ . | quote }}
   {{- end }}
   {{- end }}
+  {{- if eq .Values.secrets.type "gcp-secret-manager" }}
+  GCP_PROJECT_ID: {{ required "secrets.gcp.projectId is required for gcp-secret-manager" .Values.secrets.gcp.projectId | quote }}
+  GCP_REGION: {{ required "secrets.gcp.region is required for gcp-secret-manager" .Values.secrets.gcp.region | quote }}
+  {{- end }}
 
   # Worker
   K8S_NAMESPACE: {{ include "filament.namespace" . }}

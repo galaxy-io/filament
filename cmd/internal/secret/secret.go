@@ -11,14 +11,15 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/secret/aws"
+	"github.com/galaxy-io/filament/secret/gcp"
 	"github.com/galaxy-io/filament/secret/postgres"
 	"github.com/galaxy-io/filament/secret/sqlite"
 )
 
 // FromEnv selects the provider per SECRET_PROVIDER. Unset, secrets live in
 // the datastore: the provider is chosen by the store's native handle, so it
-// follows PERSISTENCE_PROVIDER. aws-secrets-manager uses the default AWS
-// config chain and prefixes refs with SECRETS_PREFIX when set.
+// follows PERSISTENCE_PROVIDER. External providers use their SDK's default
+// credential chain and prefix refs with SECRETS_PREFIX when set.
 func FromEnv(ctx context.Context, store filament.DataStore) (filament.Secrets, error) {
 	switch provider := os.Getenv("SECRET_PROVIDER"); provider {
 	case "":
@@ -35,7 +36,13 @@ func FromEnv(ctx context.Context, store filament.DataStore) (filament.Secrets, e
 			opts = append(opts, aws.WithPrefix(prefix))
 		}
 		return aws.NewFromConfig(ctx, opts...)
+	case "gcp-secret-manager":
+		var opts []gcp.Option
+		if prefix := os.Getenv("SECRETS_PREFIX"); prefix != "" {
+			opts = append(opts, gcp.WithPrefix(prefix))
+		}
+		return gcp.NewFromConfig(ctx, os.Getenv("GCP_PROJECT_ID"), os.Getenv("GCP_REGION"), opts...)
 	default:
-		return nil, fmt.Errorf("secret: unknown SECRET_PROVIDER %q (unset for the datastore, aws-secrets-manager)", provider)
+		return nil, fmt.Errorf("secret: unknown SECRET_PROVIDER %q (unset for the datastore, aws-secrets-manager, gcp-secret-manager)", provider)
 	}
 }

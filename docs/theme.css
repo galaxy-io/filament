@@ -39,6 +39,9 @@ html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-stripe-dar
 html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"] {
   content: url("https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg");
 }
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-gcs-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-gcs-light.svg");
+}
 html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg"] {
   content: url("https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg");
 }

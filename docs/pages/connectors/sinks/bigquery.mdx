@@ -1,0 +1,124 @@
+---
+title: "Google BigQuery"
+description: "Write typed analytical tables to Google BigQuery"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-bigquery-dark.svg"
+---
+
+The BigQuery sink (**alpha**) writes each resource to a typed BigQuery table.
+It supports snapshot, incremental, and CDC pipelines using Parquet load jobs
+staged through short-lived tables in the destination dataset.
+
+## BigQuery setup
+
+Authentication uses Application Default Credentials, so the connection has no
+credential fields. On GKE, use Workload Identity. For local development, run
+`gcloud auth application-default login` before starting Filament.
+
+Grant the credential `roles/bigquery.jobUser` on the project and
+`roles/bigquery.dataEditor` on the project or on a pre-existing destination
+dataset. Filament runs `CREATE SCHEMA IF NOT EXISTS` for the pipeline dataset,
+so creating a new dataset requires the project-level grant.
+
+`TestConnection` authenticates and executes `SELECT 1`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `project_id` | Connection | — | Required. Google Cloud project used for BigQuery jobs. |
+| `location` | Connection | — | Optional dataset and job location, such as `us-central1`. Applied when Filament creates the dataset. Afterwards the dataset's own location wins. |
+| `dataset` | Pipeline | — | Destination dataset. Empty defaults to the normalized source connection name. |
+
+The sink prefers batches no larger than 100,000 rows or approximately 256 MiB,
+whichever limit is reached first.
+
+## Supported write modes
+
+The sink advertises `full_replace`, `full_append`, `full_upsert`,
+`incremental_append`, `incremental_upsert`, `incremental_delete`, `cdc_append`,
+and `cdc_merge`. See
+[replication modes](/pages/guides/concepts/replication-modes).
+
+- Replace loads the snapshot into a run-scoped replacement table and promotes
+  it at commit.
+- Append inserts each batch directly into the destination.
+- Upsert, delete, and merge apply each batch with one BigQuery `MERGE`. These
+  modes require a primary key.
+
+## Table management
+
+When a run opens, the sink creates the destination dataset if it does not
+exist. Before extraction, `EnsureSchema` then runs per resource.
+
+1. Create the typed table if it does not exist.
+2. Add missing columns with `ADD COLUMN IF NOT EXISTS`.
+3. For replace, create a run-scoped replacement table with a seven-day
+   expiration.
+
+Schema evolution is add-only. Existing columns are not dropped, renamed, or
+altered. Primary keys are declared `NOT ENFORCED`, and Filament uses the key
+columns to build deterministic merge conditions. BigQuery allows at most 16
+key columns of key-eligible types, and schemas beyond either limit are
+rejected before extraction.
+
+### Type mapping
+
+| Logical type | BigQuery type |
+| --- | --- |
+| `bool` | `BOOL` |
+| `int16` / `int32` / `int64` | `INT64` |
+| `float32` / `float64` | `FLOAT64` |
+| `decimal` | `NUMERIC(p,s)` or `BIGNUMERIC(p,s)` when precision and scale fit, otherwise `STRING` |
+| `string` / `array` / `uuid` / unknown | `STRING` |
+| `bytes` | `BYTES` |
+| `date` | `DATE` |
+| `time` | `TIME` |
+| `timestamp` | `DATETIME` |
+| `timestamptz` | `TIMESTAMP` |
+| `json` | `JSON` |
+
+## Write mechanics and atomicity
+
+Each Arrow batch is encoded as a Snappy-compressed Parquet file in memory and
+loaded into a short-lived `_filament_load_*` table in the destination dataset.
+A typed query then moves the rows onward. Append and replace run one
+`INSERT INTO ... SELECT`, and keyed modes run one `MERGE` that folds repeated
+keys to their final operation. The staging table is deleted after the typed
+write, with a seven-day expiration as a fallback. No external storage bucket
+is required.
+
+Load and query jobs use deterministic job IDs derived from the run, batch, and
+payload, so an exact retry reuses the completed BigQuery job instead of
+loading the data twice.
+
+Append and keyed writes become visible per batch, and no transaction covers an
+entire pipeline run. Replace batches accumulate in the replacement table, and
+`Commit` promotes each one by truncating the destination and inserting the
+replacement rows in a single transaction.
+
+The sink verifies each load job's row count and records the encoded Parquet
+checksum in the write receipt. This validates the load boundary but does not
+query the committed table back from BigQuery.
+
+## Failure behavior
+
+An append run can leave successfully loaded batches in the destination after a
+later failure. Upsert, delete, and merge runs can also leave completed batch
+merges, but retries converge through the primary key. A failed replace leaves
+the destination untouched, because the replacement is staged separately and
+promoted only at commit. `Abort` deletes the run's staging tables and retains
+additive schema changes.
+
+## Troubleshooting
+
+- `could not find default credentials` means Application Default Credentials
+  are missing from Filament's environment. Attach a service account, configure
+  Workload Identity, or run `gcloud auth application-default login`.
+- Permission errors on jobs or datasets usually mean the credential lacks
+  `roles/bigquery.jobUser` on the project or `roles/bigquery.dataEditor` on
+  the destination dataset.
+- A dataset-not-found error naming an unexpected location means the dataset
+  lives somewhere other than the connection's `location` value. Match the
+  connection to the dataset or leave `location` empty.
+- Dataset IDs allow only letters, numbers, and underscores, so hyphens or dots
+  in the pipeline's `dataset` value are rejected.

@@ -19,6 +19,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/dispatch"
 	"github.com/galaxy-io/filament/cmd/internal/health"
 	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/internal/modules/notifier"
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
@@ -40,6 +41,8 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
 		return err
@@ -68,15 +71,7 @@ func run(ctx context.Context) error {
 	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
 	healthErr := make(chan error, 1)
 	go func() { healthErr <- healthSrv.ListenAndServe() }()
-	defer func() {
-		healthState.MarkStopping()
-		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := healthSrv.Shutdown(shutCtx); err != nil {
-			log.Error("control-plane health server shutdown failed", err,
-				filament.Field{Key: "event.name", Value: "control_plane.health.shutdown_failed"})
-		}
-	}()
+	defer shutdownHealth(healthSrv, healthState, log)
 
 	eventBus, closeBus, err := boot.Bus()
 	if err != nil {
@@ -93,7 +88,8 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("datastore %q does not support schedules", deps.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	mods := []module.Module{tracker.New(), dispatcher, sched}
+	notify := notifier.New()
+	mods := []module.Module{tracker.New(), dispatcher, sched, notify}
 	// The reaper mounts only under kubernetes dispatch: staleness means death
 	// only where heartbeats exist, and inproc runs don't emit them. The
 	// workload probe holds kills for workers that are up but silent and for
@@ -110,6 +106,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer func() {
+		cancel()
 		if err := h.Close(); err != nil {
 			log.Warn("control-plane host close failed",
 				filament.Field{Key: "event.name", Value: "control_plane.host.close_failed"},
@@ -142,5 +139,15 @@ func run(ctx context.Context) error {
 			return nil
 		}
 		return fmt.Errorf("control-plane health server: %w", err)
+	}
+}
+
+func shutdownHealth(srv *http.Server, state *health.State, log filament.Logger) {
+	state.MarkStopping()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error("control-plane health server shutdown failed", err,
+			filament.Field{Key: "event.name", Value: "control_plane.health.shutdown_failed"})
 	}
 }

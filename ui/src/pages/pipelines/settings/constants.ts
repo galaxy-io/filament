@@ -6,6 +6,8 @@ import {
   type PipelineSettingsPageScheduleState,
 } from "@/pages/pipelines/settings/types";
 
+export const PIPELINE_SETTINGS_INPUT_WIDTH = 351;
+
 export const PIPELINE_SCHEDULE_DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState = {

@@ -1,8 +1,10 @@
 import {
+  type AddNotifierAction,
   type CreatePipelineModalAction,
   CreatePipelineModalActionType,
   type GoToStepAction,
   type OpenSinkResourcesAction,
+  type RemoveNotifierAction,
   type SelectSourceAction,
   type SetActiveSinkAction,
   type SetDescriptionAction,
@@ -16,6 +18,7 @@ import {
   type SetSubmittingAction,
   type SetWorkerConfigurationAction,
   type ToggleSinkAction,
+  type UpdateNotifierAction,
 } from "@/pages/pipelines/components/create/actions";
 import { CREATE_PIPELINE_MODAL_STEP_ORDER } from "@/pages/pipelines/components/create/constants";
 import {
@@ -145,6 +148,35 @@ function setSchedule(
   return { ...state, schedule: { ...state.schedule, ...action.payload } };
 }
 
+function addNotifier(
+  state: CreatePipelineModalState,
+  action: AddNotifierAction,
+): CreatePipelineModalState {
+  return { ...state, notifiers: [...state.notifiers, action.payload] };
+}
+
+function updateNotifier(
+  state: CreatePipelineModalState,
+  action: UpdateNotifierAction,
+): CreatePipelineModalState {
+  return {
+    ...state,
+    notifiers: state.notifiers.map((notifier) =>
+      notifier.id === action.payload.id ? { ...notifier, ...action.payload.partial } : notifier,
+    ),
+  };
+}
+
+function removeNotifier(
+  state: CreatePipelineModalState,
+  action: RemoveNotifierAction,
+): CreatePipelineModalState {
+  return {
+    ...state,
+    notifiers: state.notifiers.filter((notifier) => notifier.id !== action.payload),
+  };
+}
+
 function setWorkerConfiguration(
   state: CreatePipelineModalState,
   action: SetWorkerConfigurationAction,
@@ -205,6 +237,12 @@ const createPipelineModalReducer = (
       return setDescription(state, action);
     case CreatePipelineModalActionType.SET_SCHEDULE:
       return setSchedule(state, action);
+    case CreatePipelineModalActionType.ADD_NOTIFIER:
+      return addNotifier(state, action);
+    case CreatePipelineModalActionType.UPDATE_NOTIFIER:
+      return updateNotifier(state, action);
+    case CreatePipelineModalActionType.REMOVE_NOTIFIER:
+      return removeNotifier(state, action);
     case CreatePipelineModalActionType.SET_WORKER_CONFIGURATION:
       return setWorkerConfiguration(state, action);
     case CreatePipelineModalActionType.GO_TO_STEP:

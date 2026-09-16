@@ -139,8 +139,12 @@
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/github",
+              "pages/connectors/sources/gong",
+              "pages/connectors/sources/granola",
+              "pages/connectors/sources/hubspot",
               "pages/connectors/sources/linear",
               "pages/connectors/sources/notion",
+              "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
@@ -155,7 +159,9 @@
               "pages/connectors/sinks/mysql",
               "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/snowflake",
+              "pages/connectors/sinks/bigquery",
               "pages/connectors/sinks/iceberg",
+              "pages/connectors/sinks/gcs",
               "pages/connectors/sinks/aws-s3",
               "pages/connectors/sinks/standard-output"
             ]

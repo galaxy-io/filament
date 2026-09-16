@@ -36,6 +36,8 @@ brew install galaxy-io/tap/filament
 
 Prebuilt binaries for Linux and macOS are on the [releases page](https://github.com/galaxy-io/filament/releases).
 
+Upgrade a direct installation with `filament upgrade`. For Homebrew installations, use `brew upgrade galaxy-io/tap/filament`.
+
 ## Getting started
 
 To run Filament locally, install Go, Docker, `just`, Node.js, and pnpm. On macOS, the repository's `Brewfile` installs the toolchain:

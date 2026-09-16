@@ -30,7 +30,8 @@ type Deps struct {
 }
 
 // FromEnv builds the logger, datastore, secrets, and otel providers. The
-// returned close flushes otel and closes the store; call it on the way out.
+// returned close flushes otel and closes the secrets provider and store; call
+// it on the way out.
 // The event bus is deliberately separate (Bus) so binaries can start health
 // listeners before the connect wait.
 func FromEnv(ctx context.Context) (Deps, func(), error) {
@@ -52,8 +53,14 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 		closeStore()
 		return Deps{}, nil, err
 	}
+	closeSecrets := func() {
+		if c, ok := secrets.(io.Closer); ok {
+			_ = c.Close()
+		}
+	}
 	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
 	if err != nil {
+		closeSecrets()
 		closeStore()
 		return Deps{}, nil, err
 	}
@@ -61,6 +68,7 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = otelShutdown(flushCtx)
+		closeSecrets()
 		closeStore()
 	}
 	return Deps{Log: lg, Store: store, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil

@@ -31,12 +31,17 @@ func (t *Target) Discover(ctx context.Context, request model.DiscoverRequest) (m
 	resources := response.Msg.GetResources()
 	list := model.ResourceList{Source: request.Source, Items: make([]model.ResourceSummary, 0, len(resources))}
 	for _, resource := range resources {
-		list.Items = append(list.Items, model.ResourceSummary{
-			Name:        resource.GetName(),
-			DisplayName: resource.GetDisplayName(),
-			Selectable:  resource.GetIsSelectable(),
-			PrimaryKey:  resource.GetPrimaryKey(),
-		})
+		list.Items = append(list.Items, summarizeResource(resource))
 	}
 	return list, nil
+}
+
+func summarizeResource(resource *ingestionv1.Resource) model.ResourceSummary {
+	return model.ResourceSummary{
+		Name:        resource.GetName(),
+		DisplayName: resource.GetDisplayName(),
+		Selectable:  resource.GetIsSelectable(),
+		Enabled:     resource.GetMetadata()["default_resources"] != "false",
+		PrimaryKey:  resource.GetPrimaryKey(),
+	}
 }

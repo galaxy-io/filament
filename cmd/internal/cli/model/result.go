@@ -126,6 +126,7 @@ type ResourceSummary struct {
 	Name          string
 	DisplayName   string
 	Selectable    bool
+	Enabled       bool
 	PrimaryKey    []string
 	EstimatedRows int64
 }
