@@ -6,6 +6,7 @@ use (
 	./connectors/bigquery
 	./connectors/iceberg
 	./connectors/object
+	./connectors/redshift
 	./connectors/snowflake
 	./identity/zitadel
 	./secret/aws
