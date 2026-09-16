@@ -17,6 +17,7 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
 import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
@@ -47,7 +48,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const {
     isCdc,
     isLoading,
+    sourceConnectionId,
     coveredResources,
+    columnsByResource,
     readModeOptions,
     writeModeOptions,
     effectiveReadMode,
@@ -99,6 +102,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
       readMode: mode,
       writeMode: nextWriteMode,
       cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+      transform: edge.data?.transform,
     });
     if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
   };
@@ -110,6 +114,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     setEdgeConfig(edge.id, {
       readMode,
       writeMode,
+      transform: edge.data?.transform,
       cursors: [
         ...cursors.filter((cursor) => cursor.resource !== resourceName),
         create(ResourceCursorConfigSchema, {
@@ -219,6 +224,12 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               ))}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
+        <PipelineCanvasPanelResourceTransformSection
+          edge={edge}
+          sourceConnectionId={sourceConnectionId}
+          resources={coveredResources}
+          columnsByResource={columnsByResource}
+        />
       </PipelineCanvasPanelBody>
     </>
   );

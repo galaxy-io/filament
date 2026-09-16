@@ -39,6 +39,7 @@ export const getCanvasEdgeConfig = (
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
+  transform: edge.data ? edge.data.transform : baseEdge?.transform,
 });
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
