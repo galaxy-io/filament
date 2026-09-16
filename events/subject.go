@@ -33,6 +33,12 @@ func SubjectPattern[T any](t EventType[T]) string {
 	return join(t.entity, eventbus.TokenWildcard, eventbus.TokenWildcard, t.name)
 }
 
+// Pattern is SubjectPattern for a registry entry, for callers holding a
+// Definition rather than a typed EventType.
+func (d Definition) Pattern() string {
+	return join(d.Entity, eventbus.TokenWildcard, eventbus.TokenWildcard, d.Event)
+}
+
 // RunPattern matches every fact of one run (any kind).
 func RunPattern(tenant filament.TenantID, run filament.RunID) string {
 	return join(eventbus.TokenWildcard, string(tenant), string(run), eventbus.TokenWildcard)

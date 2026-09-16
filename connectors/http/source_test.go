@@ -2743,3 +2743,229 @@ discovery:
 		})
 	}
 }
+
+func TestNewGranolaSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := NewGranola()
+	spec := src.Spec()
+	if spec.Name != "granola" || spec.DisplayName != "Granola" {
+		t.Fatalf("spec identity = %q/%q, want granola/Granola", spec.Name, spec.DisplayName)
+	}
+	if len(spec.Config.Fields) != 1 {
+		t.Fatalf("config fields = %#v, want api_key", spec.Config.Fields)
+	}
+	field := spec.Config.Fields[0]
+	if field.Name != "api_key" || field.Type != filament.FieldSecret || !field.Required {
+		t.Fatalf("api_key field = %#v, want required secret", field)
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("validate without API key succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "grn_test"})); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(ctx)
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names, enabled []string
+	for _, resource := range discovered.Resources {
+		names = append(names, resource.Name)
+		if resource.Metadata["default_resources"] == "true" {
+			enabled = append(enabled, resource.Name)
+		}
+	}
+	want := []string{"notes", "note_details", "transcripts", "folders", "webhook_endpoints"}
+	if !slices.Equal(names, want) || !slices.Equal(enabled, want[:4]) {
+		t.Fatalf("resources = %v, defaults = %v", names, enabled)
+	}
+	for _, name := range want {
+		schema, err := src.Schema(ctx, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name == "transcripts" {
+			if len(schema.PrimaryKey) != 0 {
+				t.Fatalf("transcript primary key = %v, want keyless", schema.PrimaryKey)
+			}
+		} else if !slices.Equal(schema.PrimaryKey, []string{"id"}) {
+			t.Fatalf("%s primary key = %v, want id", name, schema.PrimaryKey)
+		}
+	}
+}
+
+func TestGranolaExtractionPaginationAndFanOut(t *testing.T) {
+	ctx := context.Background()
+	// Both transcript pages intentionally contain the same item. No invented
+	// primary key may collapse repeated speech or coincident timestamps.
+	item := `{"speaker":{"source":"microphone","diarization_label":"Speaker A","name":"Alice"},"text":"Hello","start_time":"2026-01-27T15:30:00Z","end_time":"2026-01-27T15:30:01Z","confidence":0.9}`
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer grn_test" || r.Header.Get("Accept") != "application/json" {
+			t.Errorf("unexpected request: %s %s, headers %v", r.Method, r.URL, r.Header)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		q := r.URL.Query()
+		switch r.URL.Path {
+		case "/v1/notes":
+			if q.Get("page_size") != "30" || q.Has("updated_after") {
+				t.Errorf("full note query = %v", q)
+			}
+			id, more, cursor := "not_1d3tmYTlCICgjy", true, `"notes-2"`
+			if q.Get("cursor") != "" {
+				if q.Get("cursor") != "notes-2" {
+					t.Errorf("note cursor = %q", q.Get("cursor"))
+				}
+				id, more, cursor = "not_2d3tmYTlCICgjy", false, "null"
+			}
+			fmt.Fprintf(w, `{"notes":[{"id":%q,"object":"note","title":null,"owner":{"name":null,"email":"alice@example.com"},"created_at":"2026-01-27T15:30:00Z","updated_at":"2026-01-27T16:45:00Z","extra":"kept"}],"hasMore":%t,"cursor":%s}`, id, more, cursor)
+		case "/v1/notes/not_1d3tmYTlCICgjy", "/v1/notes/not_2d3tmYTlCICgjy":
+			if len(q) != 0 {
+				t.Errorf("detail request must not inherit pagination or include transcript: %v", q)
+			}
+			id := strings.TrimPrefix(r.URL.Path, "/v1/notes/")
+			fmt.Fprintf(w, `{"id":%q,"object":"note","title":null,"owner":{"name":null,"email":"alice@example.com"},"created_at":"2026-01-27T15:30:00Z","updated_at":"2026-01-27T16:45:00Z","web_url":"https://notes.granola.ai/d/example","calendar_event":null,"attendees":[{"name":"Alice","email":"alice@example.com"}],"folder_membership":[{"id":"fol_4y6LduVdwSKC27","object":"folder","name":"Team","parent_folder_id":null}],"summary_text":"Meeting summary","summary_markdown":"## Meeting summary","private_notes_text":null,"private_notes_markdown":null,"transcript":null}`, id)
+		case "/v1/notes/not_1d3tmYTlCICgjy/transcript":
+			if q.Get("page_size") != "100" {
+				t.Errorf("transcript page size = %q", q.Get("page_size"))
+			}
+			if q.Get("cursor") == "" {
+				fmt.Fprintf(w, `{"transcript":[%s],"hasMore":true,"cursor":"transcript-2"}`, item)
+			} else {
+				if q.Get("cursor") != "transcript-2" {
+					t.Errorf("transcript cursor = %q", q.Get("cursor"))
+				}
+				fmt.Fprintf(w, `{"transcript":[%s],"hasMore":false,"cursor":null}`, item)
+			}
+		case "/v1/notes/not_2d3tmYTlCICgjy/transcript":
+			if q.Get("cursor") != "" || q.Get("page_size") != "100" {
+				t.Errorf("second parent's transcript query = %v", q)
+			}
+			fmt.Fprint(w, `{"transcript":[],"hasMore":false,"cursor":null}`)
+		case "/v1/folders":
+			if q.Get("page_size") != "30" {
+				t.Errorf("folder page size = %q", q.Get("page_size"))
+			}
+			if q.Get("cursor") == "" {
+				fmt.Fprint(w, `{"folders":[{"id":"fol_4y6LduVdwSKC27","object":"folder","name":"Team","parent_folder_id":null}],"hasMore":true,"cursor":"folders-2"}`)
+			} else {
+				if q.Get("cursor") != "folders-2" {
+					t.Errorf("folder cursor = %q", q.Get("cursor"))
+				}
+				fmt.Fprint(w, `{"folders":[{"id":"fol_a74g2hvl98iUHG","object":"folder","name":"Weekly","parent_folder_id":"fol_4y6LduVdwSKC27"}],"hasMore":false}`)
+			}
+		case "/v1/webhook-endpoints":
+			if len(q) != 0 {
+				t.Errorf("webhook query = %v, want none", q)
+			}
+			fmt.Fprint(w, `{"webhook_endpoints":[{"id":"whe_2mKr8fQxLp7Ta3","object":"webhook_endpoint","url":"https://example.com","url_redacted":true,"events":["note.edited"],"folder_ids":[],"scopes":["workspace"],"created_by":null,"enabled":true,"created_at":"2026-01-27T15:30:00Z"}]}`)
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	data := strings.Replace(string(granolaManifest), "https://public-api.granola.ai", api.URL, 1)
+	data = strings.Replace(data, "requests_per_second: 5", "requests_per_second: 1000", 1)
+	src := NewManifest([]byte(data))
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "grn_test"})); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(ctx)
+	for _, selected := range [][]string{
+		{"notes", "note_details", "transcripts", "folders", "webhook_endpoints"},
+		{"note_details", "transcripts"},
+	} {
+		var sink collectSink
+		if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: selected}); err != nil {
+			t.Fatal(err)
+		}
+		counts := map[string]int{}
+		for _, rec := range sink.records {
+			counts[rec.Resource]++
+			if !slices.Contains(selected, rec.Resource) {
+				t.Fatalf("unselected resource emitted: %s", rec.Resource)
+			}
+			var row map[string]any
+			if err := json.Unmarshal(rec.Data, &row); err != nil {
+				t.Fatal(err)
+			}
+			switch rec.Resource {
+			case "notes":
+				if row["raw"].(map[string]any)["extra"] != "kept" || row["title"] != nil {
+					t.Fatalf("note projection = %#v", row)
+				}
+			case "note_details":
+				if row["summary_text"] != "Meeting summary" || row["calendar_event"] != nil || len(row["folder_membership"].([]any)) != 1 {
+					t.Fatalf("detail projection = %#v", row)
+				}
+			case "transcripts":
+				if row["note_id"] != "not_1d3tmYTlCICgjy" || row["speaker"].(map[string]any)["diarization_label"] != "Speaker A" || row["raw"].(map[string]any)["confidence"] != 0.9 {
+					t.Fatalf("transcript projection = %#v", row)
+				}
+			case "webhook_endpoints":
+				if row["url_redacted"] != true || row["created_by"] != nil {
+					t.Fatalf("webhook projection = %#v", row)
+				}
+			}
+		}
+		for _, name := range selected {
+			want := 2
+			if name == "webhook_endpoints" {
+				want = 1
+			}
+			if counts[name] != want {
+				t.Fatalf("%s rows = %d, want %d", name, counts[name], want)
+			}
+		}
+	}
+}
+
+func TestGranolaNotesIncrementalPagination(t *testing.T) {
+	ctx := context.Background()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if r.URL.Path != "/v1/notes" || q.Get("updated_after") != "2026-01-27T15:25:00Z" || q.Get("page_size") != "30" {
+			t.Errorf("incremental request = %s", r.URL)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if q.Get("cursor") == "" {
+			fmt.Fprint(w, `{"notes":[{"id":"not_1d3tmYTlCICgjy","object":"note","title":null,"owner":{"name":null,"email":"alice@example.com"},"created_at":"2026-01-27T15:30:00Z","updated_at":"2026-01-27T16:45:00Z"}],"hasMore":true,"cursor":"next"}`)
+		} else {
+			if q.Get("cursor") != "next" {
+				t.Errorf("cursor = %q", q.Get("cursor"))
+			}
+			fmt.Fprint(w, `{"notes":[{"id":"not_2d3tmYTlCICgjy","object":"note","title":null,"owner":{"name":null,"email":"alice@example.com"},"created_at":"2026-01-27T15:30:00Z","updated_at":"2026-01-27T16:00:00Z"}],"hasMore":false,"cursor":null}`)
+		}
+	}))
+	defer api.Close()
+	data := strings.Replace(string(granolaManifest), "https://public-api.granola.ai", api.URL, 1)
+	src := NewManifest([]byte(data))
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "grn_test"})); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(ctx)
+	prev := map[string]filament.Checkpoint{
+		"notes": checkpoint.KeysetCheckpoint{
+			Mode: checkpoint.ModeIncremental, Cols: []string{"notes_updated_at"}, Types: []string{"timestamptz"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"2026-01-27T15:30:00Z"}}},
+		}.ToCheckpoint("notes"),
+	}
+	plan, err := src.PlanIncremental(ctx, []string{"notes"}, prev, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(ctx, &sink, filament.ExtractOpts{Resources: []string{"notes"}}, plan); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("rows = %d, want 2", len(sink.records))
+	}
+	for _, rec := range sink.records {
+		if !slices.Equal(rec.Key, []string{"2026-01-27T16:45:00Z"}) {
+			t.Fatalf("watermark = %v, want maximum updated_at without page cursor", rec.Key)
+		}
+	}
+}

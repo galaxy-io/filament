@@ -120,6 +120,10 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 
 func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, existing *model.Connection) error {
 	creating := existing == nil
+	doc, err := r.service.Configuration(ctx)
+	if err != nil {
+		return err
+	}
 	connectorName := ""
 	if existing != nil {
 		connectorName = existing.Type
@@ -131,48 +135,105 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 	if connectorName == "" {
 		connectorName = connectorOptions[0].value
 	}
+
+	stage := 1
 	if creating {
-		header, err := newWizardHeader(connectionSteps.at(0), nil, r.theme)
-		if err != nil {
+		stage = 0
+	}
+	var wizard *schemaWizard
+	wizardConnector := ""
+	configFromEnd := false
+	for {
+		switch stage {
+		case 0:
+			name, connectorName, err = r.connectionIdentity(ctx, kind, name, connectorName, connectorOptions, doc)
+			if interactivePrevious(err) {
+				return inline.ErrFormCancelled
+			}
+			if err != nil {
+				return err
+			}
+			stage = 1
+
+		case 1:
+			if wizard == nil || wizardConnector != connectorName {
+				var initial map[string]any
+				if existing != nil && existing.Type == connectorName {
+					initial = cliapp.ConfigWithSecretPlaceholders(existing.Config, existing.SecretRefs)
+				}
+				schema, err := r.connectionSchema(kind, connectorName)
+				if err != nil {
+					return err
+				}
+				wizard = newSchemaWizard(schema, filament.ScopeConnection, initial)
+				wizardConnector = connectorName
+			}
+			err := wizard.runFrom(ctx, r, connectionSteps.at(1), configFromEnd)
+			configFromEnd = false
+			if interactivePrevious(err) {
+				if !creating {
+					return inline.ErrFormCancelled
+				}
+				stage = 0
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			stage = 2
+
+		case 2:
+			err := r.finishConnectionWizard(ctx, kind, name, connectorName, creating, wizard)
+			if interactivePrevious(err) {
+				if len(wizard.steps()) == 0 {
+					if !creating {
+						return inline.ErrFormCancelled
+					}
+					stage = 0
+					continue
+				}
+				configFromEnd = true
+				stage = 1
+				continue
+			}
 			return err
 		}
-		form := inline.NewForm("").SetHeader(header).Add(
-			inline.NewTextField("name", "Name").
-				SetValue(name).
-				Required().
-				Validate(func(value string) error { return validateName(kind, value) }),
-			connectorSelectField(connectorName, connectorOptions),
-		)
-		result, err := r.runInteractiveForm(ctx, form)
-		if err != nil {
-			return err
-		}
-		name, _ = result["name"].(string)
-		connectorName, _ = result["connector"].(string)
 	}
+}
 
-	doc, err := r.service.Configuration(ctx)
+func (r *Renderer) connectionIdentity(
+	ctx context.Context,
+	kind, name, connectorName string,
+	connectorOptions []interactiveOption,
+	doc model.Document,
+) (string, string, error) {
+	header, err := newWizardHeader(connectionSteps.at(0), nil, r.theme)
 	if err != nil {
-		return err
+		return name, connectorName, err
 	}
-	if creating {
-		if _, exists := connectionMap(kind, doc)[name]; exists {
-			return fmt.Errorf("%s %q already exists", kind, name)
-		}
-	}
-	var initial map[string]any
-	if existing != nil && existing.Type == connectorName {
-		initial = cliapp.ConfigWithSecretPlaceholders(existing.Config, existing.SecretRefs)
-	}
-	schema, err := r.connectionSchema(kind, connectorName)
+	nameField := inline.NewTextField("name", "Name").
+		SetValue(name).
+		Required().
+		Validate(func(value string) error { return validateName(kind, value) })
+	connectorField := connectorSelectField(connectorName, connectorOptions)
+	result, err := r.runInteractiveForm(ctx, inline.NewForm("").SetHeader(header).Add(nameField, connectorField))
 	if err != nil {
-		return err
+		return name, connectorName, err
 	}
-	wizard := newSchemaWizard(schema, filament.ScopeConnection, initial)
-	if err := wizard.run(ctx, r, connectionSteps.at(1)); err != nil {
-		return err
+	name, _ = result["name"].(string)
+	connectorName, _ = result["connector"].(string)
+	if _, exists := connectionMap(kind, doc)[name]; exists {
+		return name, connectorName, fmt.Errorf("%s %q already exists", kind, name)
 	}
+	return name, connectorName, nil
+}
 
+func (r *Renderer) finishConnectionWizard(
+	ctx context.Context,
+	kind, name, connectorName string,
+	creating bool,
+	wizard *schemaWizard,
+) error {
 	verb := "Create"
 	if !creating {
 		verb = "Update"
@@ -204,19 +265,25 @@ func (r *Renderer) connectorChoices(kind string) []interactiveOption {
 		if kind == "sink" {
 			spec := r.catalog.Sinks[connector]
 			option.description = spec.Description
-			if spec.DisplayName != "" {
-				option.label = spec.DisplayName
-			}
 		} else {
 			spec := r.catalog.Sources[connector]
 			option.description = spec.Description
-			if spec.DisplayName != "" {
-				option.label = spec.DisplayName
-			}
 		}
+		option.label = r.connectorDisplayName(kind, connector)
 		options = append(options, option)
 	}
 	return options
+}
+
+func (r *Renderer) connectorDisplayName(kind, connector string) string {
+	if kind == "sink" {
+		if displayName := r.catalog.Sinks[connector].DisplayName; displayName != "" {
+			return displayName
+		}
+	} else if displayName := r.catalog.Sources[connector].DisplayName; displayName != "" {
+		return displayName
+	}
+	return connector
 }
 
 func connectorSelectField(preferred string, options []interactiveOption) *inline.SelectField {
@@ -264,22 +331,32 @@ func newSchemaWizard(schema filament.ConfigSchema, scope filament.FieldScope, in
 }
 
 func (w *schemaWizard) run(ctx context.Context, renderer *Renderer, stage wizardSteps) error {
-	completed := map[*schemaWizardField]bool{}
+	return w.runFrom(ctx, renderer, stage, false)
+}
+
+// runFrom walks the currently visible schema fields in either direction. A
+// previous-form signal from the first field is left for the enclosing wizard
+// to handle as a stage transition.
+func (w *schemaWizard) runFrom(ctx context.Context, renderer *Renderer, stage wizardSteps, fromEnd bool) error {
+	steps := w.steps()
+	if len(steps) == 0 {
+		return nil
+	}
+	currentIndex := 0
+	if fromEnd {
+		currentIndex = len(steps) - 1
+	}
 	for {
-		steps := w.steps()
-		lines := []headerLine{}
-		currentIndex := -1
-		for index, step := range steps {
-			if completed[step.field] {
-				lines = append(lines, headerLine{kind: headerPrompt, key: step.path, value: step.field.transcript()})
-				continue
-			}
-			if currentIndex < 0 {
-				currentIndex = index
-			}
+		steps = w.steps()
+		if currentIndex >= len(steps) {
+			return nil
 		}
 		if currentIndex < 0 {
-			return nil
+			return inline.ErrFormPrevious
+		}
+		lines := make([]headerLine, 0, currentIndex+2)
+		for _, step := range steps[:currentIndex] {
+			lines = append(lines, headerLine{kind: headerPrompt, key: step.path, value: step.field.transcript()})
 		}
 		current := steps[currentIndex]
 		if len(lines) > 0 {
@@ -294,11 +371,23 @@ func (w *schemaWizard) run(ctx context.Context, renderer *Renderer, stage wizard
 		}
 		field, apply := current.field.dadoField()
 		result, err := renderer.runInteractiveForm(ctx, inline.NewForm("").SetHeader(header).Add(field))
+		if interactivePrevious(err) {
+			currentIndex--
+			continue
+		}
 		if err != nil {
 			return err
 		}
 		apply(result[current.field.schema.Name])
-		completed[current.field] = true
+
+		next := w.steps()
+		currentIndex = min(currentIndex, len(next))
+		for index, step := range next {
+			if step.field == current.field {
+				currentIndex = index + 1
+				break
+			}
+		}
 	}
 }
 

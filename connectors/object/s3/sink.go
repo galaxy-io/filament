@@ -11,12 +11,12 @@ package s3
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
+	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
 type sinkState uint8
@@ -34,7 +34,7 @@ type Sink struct {
 	mu          sync.Mutex
 	state       sinkState
 	bucket      string
-	layout      keyLayout
+	layout      object.Layout
 	session     *multipartSession
 	applyWG     sync.WaitGroup
 	format      encoder.FileFormat
@@ -101,7 +101,8 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 
 	s.state = stateOpen
 	s.bucket = cfg.bucket
-	s.layout = newKeyLayout(cfg, run)
+	options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
+	s.layout = object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), run)
 	s.format = cfg.fileFormat
 	s.compression = cfg.compression
 	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, objectMetadata{
@@ -128,18 +129,11 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	manifest := successManifest{Version: 1, Run: string(layout.run), Resources: make([]manifestResource, len(results))}
-	for i, result := range results {
-		manifest.Resources[i] = manifestResource{
-			Name: result.resource, Key: result.key, URI: fmt.Sprintf("s3://%s/%s", bucket, result.key),
-			Rows: result.rows, Bytes: result.bytes, CRC32C: fmt.Sprintf("%08x", result.crc32c),
-		}
-	}
-	body, err := json.Marshal(manifest)
+	body, err := object.EncodeManifest(layout.Run(), "s3", bucket, results)
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, layout.success(), objectMetadata{contentType: manifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
+	if err := session.PutObject(ctx, layout.Success(), objectMetadata{contentType: object.ManifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 

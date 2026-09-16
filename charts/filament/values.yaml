@@ -198,8 +198,8 @@ persistence:
 
 secrets:
   # -- Secret storage provider. `datastore` keeps secrets in the persistence
-  # store and emits no `SECRET_PROVIDER`; `aws-secrets-manager` is stored in the
-  # ConfigMap as `SECRET_PROVIDER`.
+  # store and emits no `SECRET_PROVIDER`; external provider names are stored in
+  # the ConfigMap as `SECRET_PROVIDER`.
   type: datastore
 
   # -- Extra name prefix external secret stores apply to every secret reference,
@@ -220,8 +220,13 @@ secrets:
     # Leave empty to use the SDK default chain (env, IMDS).
     region: ""
 
-  # @ignore
-  gcp: {}
+  gcp:
+    # -- GCP project containing Secret Manager secrets, stored as `GCP_PROJECT_ID`.
+    # Required when `secrets.type` is `gcp-secret-manager`.
+    projectId: ""
+    # -- GCP region containing Secret Manager secrets, stored as `GCP_REGION`.
+    # Required when `secrets.type` is `gcp-secret-manager`.
+    region: ""
 
   # @ignore
   azure: {}
