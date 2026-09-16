@@ -34,6 +34,9 @@ var posthogManifest []byte
 //go:embed manifests/stripe.yaml
 var stripeManifest []byte
 
+//go:embed manifests/pipedrive.yaml
+var pipedriveManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return newCatalogSource(notionManifest)
@@ -82,6 +85,11 @@ func NewStripe() *Source {
 // NewPostHog returns a Source backed by the embedded PostHog REST API manifest.
 func NewPostHog() *Source {
 	return newCatalogSource(posthogManifest)
+}
+
+// NewPipedrive returns a Source backed by the embedded Pipedrive REST API manifest.
+func NewPipedrive() *Source {
+	return newCatalogSource(pipedriveManifest)
 }
 
 func newCatalogSource(data []byte) *Source {

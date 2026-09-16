@@ -68,7 +68,8 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 		arr = gjson.GetBytes(raw, e.spec.RecordsPath)
 	}
 
-	if !arr.Exists() {
+	// A missing or explicitly null records path is an empty page
+	if !arr.Exists() || arr.Type == gjson.Null {
 		return nil, nil
 	}
 	if !arr.IsArray() {

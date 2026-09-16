@@ -23,4 +23,5 @@ func init() {
 	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
 	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })
 	registry.RegisterSource("posthog", filament.MaturityBeta, func() filament.Source { return NewPostHog() })
+	registry.RegisterSource("pipedrive", filament.MaturityAlpha, func() filament.Source { return NewPipedrive() })
 }
