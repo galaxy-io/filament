@@ -93,6 +93,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := validateTransforms(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -132,6 +135,22 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&ingestionv1.CreatePipelineVersionResponse{Version: v}), nil
+}
+
+// validateTransforms rejects a graph whose edge transforms fail the grammar
+// or name a resource the edge does not carry. Column and type checks against
+// the source schema are ValidateTransform's job while editing, and the run's
+// when it starts.
+func validateTransforms(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		if edge.GetTransform() == nil {
+			continue
+		}
+		if _, err := compile.TransformResources(edge); err != nil {
+			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
+		}
+	}
+	return nil
 }
 
 // normalizeEdgeModes makes defaults explicit, validates the available levers,
