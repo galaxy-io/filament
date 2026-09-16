@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // nullSink is a zero-I/O filament.Sink. It recomputes the write-side CRC exactly as a
@@ -63,6 +64,58 @@ func BenchmarkNullSinkPipeline(b *testing.B) {
 			WritePolicies: map[string]filament.WritePolicy{"bench": appendPolicy("bench")},
 			Options:       filament.RunOptions{BatchMaxRows: 1000},
 			FlushInterval: time.Hour, // row-count + close drive batching, not the timer
+		})
+		p.Start(ctx)
+		w, err := p.Records().Builder("bench", 0, benchSchema)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for i := range rows {
+			if err := benchRow(w, i); err != nil {
+				b.Fatalf("row: %v", err)
+			}
+		}
+		p.CloseIngest(nil)
+		if err := p.Wait(); err != nil {
+			b.Fatalf("wait: %v", err)
+		}
+		processed += rows
+	}
+	if s := b.Elapsed().Seconds(); s > 0 {
+		b.ReportMetric(float64(processed)/s, "rows/sec")
+	}
+}
+
+// benchTransform touches every step kind: a rename, a conditional overwrite
+// through the string kernel, and a new column from the compare kernel.
+var benchTransform = &transform.Definition{Version: 1, Resources: map[string]transform.Resource{
+	"bench": {Steps: []transform.Step{
+		{Rename: map[string]string{"name": "label"}},
+		{
+			Set:   map[string]transform.Expr{"payload": {Fn: "lower", Args: []transform.Expr{{Col: "payload"}}}},
+			Where: &transform.Expr{Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}},
+		},
+		{Set: map[string]transform.Expr{"is_row": {Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}}}},
+	}},
+}}
+
+// BenchmarkNullSinkPipelineTransform is BenchmarkNullSinkPipeline with the
+// transform stage in the path. The difference between the two is the stage's
+// whole cost: channel hop, plan, kernels, and the rebuilt record.
+func BenchmarkNullSinkPipelineTransform(b *testing.B) {
+	const rows = 20_000
+	ctx := context.Background()
+
+	b.ReportAllocs()
+	var processed int64
+	for b.Loop() {
+		p := New(Config{
+			Run:           "bench",
+			Sink:          nullSink{},
+			WritePolicies: map[string]filament.WritePolicy{"bench": appendPolicy("bench")},
+			Options:       filament.RunOptions{BatchMaxRows: 1000},
+			FlushInterval: time.Hour,
+			Transform:     benchTransform,
 		})
 		p.Start(ctx)
 		w, err := p.Records().Builder("bench", 0, benchSchema)

@@ -77,6 +77,13 @@ type (
 		Records int64 `json:"records"`
 		Bytes   int64 `json:"bytes"`
 	}
+	// BatchTransformedEvent records one batch through the transform stage: its
+	// size after the plan and the time the plan took.
+	BatchTransformedEvent struct {
+		Records  int64         `json:"records"`
+		Bytes    int64         `json:"bytes"`
+		Duration time.Duration `json:"duration"`
+	}
 	// BatchWrittenEvent marks one batch durably applied to the sink.
 	BatchWrittenEvent struct {
 		Records          int64                     `json:"records"`
@@ -162,6 +169,7 @@ var (
 	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
 
 	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
+	BatchTransformed         = define[BatchTransformedEvent]("batch.transformed")
 	BatchWritten             = define[BatchWrittenEvent]("batch.written")
 	IntegrityVerified        = define[IntegrityVerifiedEvent]("batch.integrity_verified")
 	EncodedIntegrityVerified = define[EncodedIntegrityVerifiedEvent]("batch.encoded_integrity_verified")
