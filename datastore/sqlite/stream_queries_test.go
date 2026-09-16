@@ -43,6 +43,7 @@ func streamQueryOK(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
 func streamQueryRows(t *testing.T, got int64, err error, want int64) {
 	t.Helper()
 	streamQueryOK(t, err)
