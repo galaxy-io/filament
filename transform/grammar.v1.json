@@ -26,13 +26,13 @@
       "properties": {
         "rename": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "minLength": 1 } },
         "drop": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "set": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/expr" } },
+        "compute": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/expr" } },
         "where": { "$ref": "#/$defs/expr" }
       },
       "oneOf": [
-        { "required": ["rename"], "not": { "anyOf": [{ "required": ["drop"] }, { "required": ["set"] }, { "required": ["where"] }] } },
-        { "required": ["drop"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["set"] }, { "required": ["where"] }] } },
-        { "required": ["set"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["drop"] }] } }
+        { "required": ["rename"], "not": { "anyOf": [{ "required": ["drop"] }, { "required": ["compute"] }, { "required": ["where"] }] } },
+        { "required": ["drop"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["compute"] }, { "required": ["where"] }] } },
+        { "required": ["compute"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["drop"] }] } }
       ]
     },
     "expr": {

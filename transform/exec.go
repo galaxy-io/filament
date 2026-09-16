@@ -44,21 +44,21 @@ func (o dropOp) apply(_ context.Context, f *frame) error {
 	return nil
 }
 
-// setOp evaluates every entry against the frame as it stood before the step,
+// computeOp evaluates every entry against the frame as it stood before the step,
 // then assigns all of them. Under where, each new value is merged with the
 // existing column so unmatched rows keep what they had.
-type setOp struct {
+type computeOp struct {
 	where   node
-	entries []setEntry
+	entries []computeEntry
 }
 
-// setEntry is one assignment in a setOp.
-type setEntry struct {
+// computeEntry is one assignment in a computeOp.
+type computeEntry struct {
 	idx  int // -1 appends a new column
 	expr node
 }
 
-func (o setOp) apply(ctx context.Context, f *frame) error {
+func (o computeOp) apply(ctx context.Context, f *frame) error {
 	var mask *array.Boolean
 	if o.where != nil {
 		m, err := evalArray(ctx, o.where, f)
