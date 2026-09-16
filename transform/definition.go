@@ -7,6 +7,7 @@ package transform
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
@@ -26,16 +27,16 @@ type Resource struct {
 	Steps []Step `yaml:"steps"`
 }
 
-// Step is one of rename, drop, or set; the grammar allows exactly one per
-// step. Where belongs to set alone and limits which rows the set rewrites.
-// No step removes rows. Entries of one set are independent of each other,
-// so their order carries no meaning; columns a set creates are appended in
-// name order.
+// Step is one of rename, drop, or compute; the grammar allows exactly one
+// per step. Where belongs to compute alone and limits which rows it
+// rewrites. No step removes rows. Entries of one compute are independent of
+// each other, so their order carries no meaning; columns a compute creates
+// are appended in name order.
 type Step struct {
-	Rename map[string]string `yaml:"rename,omitempty"`
-	Drop   []string          `yaml:"drop,omitempty"`
-	Set    map[string]Expr   `yaml:"set,omitempty"`
-	Where  *Expr             `yaml:"where,omitempty"`
+	Rename  map[string]string `yaml:"rename,omitempty"`
+	Drop    []string          `yaml:"drop,omitempty"`
+	Compute map[string]Expr   `yaml:"compute,omitempty"`
+	Where   *Expr             `yaml:"where,omitempty"`
 }
 
 // Expr is a column reference, a literal, or a function call, and exactly one
@@ -92,6 +93,10 @@ func (e *Expr) UnmarshalYAML(n *yaml.Node) error {
 // knows nothing about schemas; column and type checks happen in Compile.
 func Parse(data []byte) (*Definition, error) {
 	if err := validateGrammar(data); err != nil {
+		var errs *Errors
+		if errors.As(err, &errs) {
+			return nil, errs
+		}
 		return nil, fmt.Errorf("transform grammar: %w", err)
 	}
 	var d Definition
@@ -101,7 +106,9 @@ func Parse(data []byte) (*Definition, error) {
 		return nil, fmt.Errorf("parse transform: %w", err)
 	}
 	if d.Version != supportedVersion {
-		return nil, fmt.Errorf("unsupported transform version %d (want %d)", d.Version, supportedVersion)
+		var errs Errors
+		errs.addf("version", "unsupported transform version %d (want %d)", d.Version, supportedVersion)
+		return nil, &errs
 	}
 	return &d, nil
 }

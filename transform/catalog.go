@@ -13,10 +13,10 @@ import (
 	"github.com/galaxy-io/filament/transform/kernel"
 )
 
-// argSpec constrains one positional argument of a catalog function. Types
+// ArgSpec constrains one positional argument of a catalog function. Types
 // lists the logical types it accepts; an empty list accepts any. Literal and
 // Column say whether the argument must be a constant or a column.
-type argSpec struct {
+type ArgSpec struct {
 	Name     string
 	Types    []rowmodel.LogicalType // accepted logical types; empty accepts any
 	Literal  bool                   // must be a literal
@@ -24,12 +24,13 @@ type argSpec struct {
 	Optional bool
 }
 
-// functionSpec is a catalog function's signature: its arguments and the
-// logical type it returns.
-type functionSpec struct {
-	Name    string
-	Args    []argSpec
-	Returns rowmodel.LogicalType
+// FunctionSpec is a catalog function's signature: its arguments, the logical
+// type it returns, and a one-line description for a builder to show.
+type FunctionSpec struct {
+	Name        string
+	Description string
+	Args        []ArgSpec
+	Returns     rowmodel.LogicalType
 }
 
 // argType is what the compiler knows about a compiled expression: its logical
@@ -43,7 +44,7 @@ type argType struct {
 // function is one catalog entry. check is derived from spec; validate adds
 // rules that span arguments; exec is the kernel that runs at batch time.
 type function struct {
-	spec     functionSpec
+	spec     FunctionSpec
 	validate func(args []argType) error
 	exec     func(ctx context.Context, args []compute.Datum) (compute.Datum, error)
 }
@@ -58,31 +59,31 @@ var (
 // the two drift.
 var catalog = map[string]function{
 	"lower": {
-		spec: functionSpec{
-			Name: "lower",
-			Args: []argSpec{{Name: "value", Types: stringTypes, Column: true}}, Returns: rowmodel.LogicalString,
+		spec: FunctionSpec{
+			Name: "lower", Description: "Lower-cases a string column.",
+			Args: []ArgSpec{{Name: "value", Types: stringTypes, Column: true}}, Returns: rowmodel.LogicalString,
 		},
 		exec: kernel.Lower,
 	},
 	"trim": {
-		spec: functionSpec{
-			Name: "trim",
-			Args: []argSpec{{Name: "value", Types: stringTypes, Column: true}}, Returns: rowmodel.LogicalString,
+		spec: FunctionSpec{
+			Name: "trim", Description: "Removes leading and trailing whitespace from a string column.",
+			Args: []ArgSpec{{Name: "value", Types: stringTypes, Column: true}}, Returns: rowmodel.LogicalString,
 		},
 		exec: kernel.Trim,
 	},
 	"eq": {
-		spec: functionSpec{
-			Name: "eq",
-			Args: []argSpec{{Name: "left"}, {Name: "right"}}, Returns: rowmodel.LogicalBool,
+		spec: FunctionSpec{
+			Name: "eq", Description: "Compares two values of the same type; true where they are equal.",
+			Args: []ArgSpec{{Name: "left"}, {Name: "right"}}, Returns: rowmodel.LogicalBool,
 		},
 		validate: sameType("eq"),
 		exec:     kernel.Equal,
 	},
 	"to_date": {
-		spec: functionSpec{
-			Name: "to_date",
-			Args: []argSpec{
+		spec: FunctionSpec{
+			Name: "to_date", Description: "Parses a string column into a date, by an optional Go time layout.",
+			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "layout", Types: stringTypes, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalDate,
@@ -91,23 +92,23 @@ var catalog = map[string]function{
 		exec:     kernel.ToDate,
 	},
 	"year": {
-		spec: functionSpec{
-			Name: "year",
-			Args: []argSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
+		spec: FunctionSpec{
+			Name: "year", Description: "The calendar year of a date or timestamp column.",
+			Args: []ArgSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
 		},
 		exec: kernel.Year,
 	},
 	"month": {
-		spec: functionSpec{
-			Name: "month",
-			Args: []argSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
+		spec: FunctionSpec{
+			Name: "month", Description: "The calendar month, 1 to 12, of a date or timestamp column.",
+			Args: []ArgSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
 		},
 		exec: kernel.Month,
 	},
 	"day": {
-		spec: functionSpec{
-			Name: "day",
-			Args: []argSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
+		spec: FunctionSpec{
+			Name: "day", Description: "The day of the month of a date or timestamp column.",
+			Args: []ArgSpec{{Name: "value", Types: temporalTypes, Column: true}}, Returns: rowmodel.LogicalInt64,
 		},
 		exec: kernel.Day,
 	},

@@ -51,8 +51,8 @@ func (c *compiler) step(path string, st Step) {
 		c.rename(path+".rename", st.Rename)
 	case st.Drop != nil:
 		c.drop(path+".drop", st.Drop)
-	case st.Set != nil:
-		c.set(path, st.Set, st.Where)
+	case st.Compute != nil:
+		c.compute(path, st.Compute, st.Where)
 	}
 }
 
@@ -97,13 +97,13 @@ func (c *compiler) drop(path string, names []string) {
 	}
 }
 
-// set compiles every entry against the layout as it stood before the step and
+// compute compiles every entry against the layout as it stood before the step and
 // applies the resulting changes together, so entries in one step cannot refer
 // to each other. Entries are visited in name order, which fixes where new
 // columns land. Under where, an entry must target an existing column and
 // keep its type, because the unmatched rows keep their old values.
-func (c *compiler) set(path string, entries map[string]Expr, where *Expr) {
-	o := setOp{}
+func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
+	o := computeOp{}
 	if where != nil {
 		n, t, ok := c.expr(path+".where", *where)
 		if ok && t.logical != rowmodel.LogicalBool {
@@ -122,7 +122,7 @@ func (c *compiler) set(path string, entries map[string]Expr, where *Expr) {
 	}
 	var changes []pending
 	for _, name := range slices.Sorted(maps.Keys(entries)) {
-		epath := fmt.Sprintf("%s.set.%s", path, name)
+		epath := fmt.Sprintf("%s.compute[%q]", path, name)
 		n, t, ok := c.expr(epath, entries[name])
 		if !ok {
 			continue
@@ -139,7 +139,7 @@ func (c *compiler) set(path string, entries map[string]Expr, where *Expr) {
 		if !exists {
 			idx = -1
 		}
-		o.entries = append(o.entries, setEntry{idx: idx, expr: n})
+		o.entries = append(o.entries, computeEntry{idx: idx, expr: n})
 		changes = append(changes, pending{idx: idx, field: rowmodel.Field{Name: name, Nullable: true, Logical: t.logical}})
 	}
 	if len(o.entries) == 0 {
