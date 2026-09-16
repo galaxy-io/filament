@@ -41,10 +41,10 @@ const steps = `
     steps:
       - rename: {tenant: tenant_id}
       - drop: [payload]
-      - set:
+      - compute:
           tenant_id: "eu"
         where: {eq: [{col: tenant_id}, "t0"]}
-      - set:
+      - compute:
           updated_year: {year: {col: updated_at}}
           updated_day: {day: {col: updated_at}}
 `

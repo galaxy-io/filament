@@ -21,7 +21,7 @@ import (
 var renameAndSet = &transform.Definition{Version: 1, Resources: map[string]transform.Resource{
 	"users": {Steps: []transform.Step{
 		{Rename: map[string]string{"n": "name"}},
-		{Set: map[string]transform.Expr{"name": {Lit: "hello"}}},
+		{Compute: map[string]transform.Expr{"name": {Lit: "hello"}}},
 	}},
 }}
 
@@ -144,7 +144,7 @@ func TestPipelineTransformErrorReleasesBatches(t *testing.T) {
 	alloc := memory.NewCheckedAllocator(memory.DefaultAllocator)
 	failing := &transform.Definition{Version: 1, Resources: map[string]transform.Resource{
 		"users": {Steps: []transform.Step{
-			{Set: map[string]transform.Expr{"d": {Fn: "to_date", Args: []transform.Expr{{Col: "n"}}}}},
+			{Compute: map[string]transform.Expr{"d": {Fn: "to_date", Args: []transform.Expr{{Col: "n"}}}}},
 		}},
 	}}
 	sink := &fakeSink{}

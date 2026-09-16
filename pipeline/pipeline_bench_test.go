@@ -92,10 +92,10 @@ var benchTransform = &transform.Definition{Version: 1, Resources: map[string]tra
 	"bench": {Steps: []transform.Step{
 		{Rename: map[string]string{"name": "label"}},
 		{
-			Set:   map[string]transform.Expr{"payload": {Fn: "lower", Args: []transform.Expr{{Col: "payload"}}}},
-			Where: &transform.Expr{Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}},
+			Compute: map[string]transform.Expr{"payload": {Fn: "lower", Args: []transform.Expr{{Col: "payload"}}}},
+			Where:   &transform.Expr{Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}},
 		},
-		{Set: map[string]transform.Expr{"is_row": {Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}}}},
+		{Compute: map[string]transform.Expr{"is_row": {Fn: "eq", Args: []transform.Expr{{Col: "label"}, {Lit: "row"}}}}},
 	}},
 }}
 
