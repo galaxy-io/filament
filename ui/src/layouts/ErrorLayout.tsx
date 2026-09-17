@@ -1,22 +1,41 @@
+import { type Icon as PhosphorIcon, WarningCircleIcon } from "@phosphor-icons/react";
+
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+
+import {
+  LAYOUT_SIZE_TO_GAP_MAP,
+  LAYOUT_SIZE_TO_GLYPH_SIZE_MAP,
+  LAYOUT_SIZE_TO_HEADER_SIZE_MAP,
+  LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP,
+} from "@/layouts/constants";
+import { LayoutSize } from "@/layouts/types";
 
 import { IS_DEBUG } from "@/constants";
 
 interface ErrorLayoutProps {
-  icon?: React.ReactNode;
+  size?: LayoutSize;
+  icon?: PhosphorIcon;
   header?: string;
   message?: string;
   error?: Error;
   actions?: React.ReactNode;
 }
 
-const ErrorLayout = ({ icon, header, message, error, actions }: ErrorLayoutProps) => {
+const ErrorLayout = ({
+  size = LayoutSize.MEDIUM,
+  icon = WarningCircleIcon,
+  header,
+  message,
+  error,
+  actions,
+}: ErrorLayoutProps) => {
   return (
     <FlexWrapper
       fillWidth
@@ -24,17 +43,25 @@ const ErrorLayout = ({ icon, header, message, error, actions }: ErrorLayoutProps
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={FlexGap.LARGE}
+      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
-      {icon}
+      <Icon
+        component={icon}
+        size={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
+        variant={IconVariant.ERROR}
+      />
       <FlexWrapper
         direction={FlexDirection.COLUMN}
         alignItems={AlignItems.CENTER}
         gap={FlexGap.SMALL}
       >
-        {header && <Text size={TextSize.BODY_LG}>{header}</Text>}
+        {header && (
+          <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
+            {header}
+          </Text>
+        )}
         {message && (
-          <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
+          <Text size={LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
             {message}
           </Text>
         )}

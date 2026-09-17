@@ -13,9 +13,11 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -85,6 +87,7 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 
   flex-shrink: 0;
 
@@ -264,22 +267,35 @@ const PipelineLayoutNavbar = () => {
 
   return (
     <PipelineLayoutNavbarWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
-        <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        <PipelineName pipelineId={id} />
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} grow={1} minWidth={0}>
+        <FlexItem shrink={0}>
+          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
+        </FlexItem>
+        <FlexItem shrink={0}>
+          <PipelineName pipelineId={id} />
+        </FlexItem>
         {versionOptions.length > 0 && (
-          <SelectInput
-            options={versionOptions}
-            value={selectedVersionOption}
-            onChange={handleVersionChange}
-            size={InputSize.SMALL}
-            dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
-            isDisabled={hasUnsavedChanges}
-          />
+          <FlexItem shrink={0}>
+            <SelectInput
+              options={versionOptions}
+              value={selectedVersionOption}
+              onChange={handleVersionChange}
+              size={InputSize.SMALL}
+              dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
+              isDisabled={hasUnsavedChanges}
+            />
+          </FlexItem>
+        )}
+        {pipeline.description && (
+          <FlexItem grow={1} minWidth={0}>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
+              {pipeline.description}
+            </Text>
+          </FlexItem>
         )}
       </FlexWrapper>
 
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
         {isPreview && (
           <Button
             label="Back to latest"

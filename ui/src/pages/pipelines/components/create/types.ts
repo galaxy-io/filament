@@ -4,6 +4,7 @@ import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb"
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalStep {
@@ -33,6 +34,7 @@ export interface CreatePipelineModalState {
   isNameTouched: boolean;
   description: Pipeline["description"];
   schedule: PipelineSettingsPageScheduleState;
+  notifiers: PipelineNotifier[];
   workerConfiguration: string;
   isSubmitting: boolean;
 }

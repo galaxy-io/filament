@@ -26,6 +26,26 @@ type Connection struct {
 	UpdatedAt       int64
 }
 
+type Notifier struct {
+	ID               string
+	TenantID         string
+	PipelineID       string
+	Name             string
+	NotificationType string
+	IsEnabled        int64
+	Events           string
+	Resources        string
+	Config           string
+	SecretRefs       string
+	IsDeleted        int64
+	DeletedAt        sql.NullInt64
+	CreatedByUserID  sql.NullString
+	UpdatedByUserID  sql.NullString
+	DeletedByUserID  sql.NullString
+	CreatedAt        int64
+	UpdatedAt        int64
+}
+
 type Pipeline struct {
 	ID                  string
 	TenantID            string
@@ -43,15 +63,16 @@ type Pipeline struct {
 }
 
 type PipelineResourceCheckpoint struct {
-	TenantID          string
-	PipelineID        string
-	PipelineVersionID string
-	RouteKey          string
-	ResourceName      string
-	Cursor            string
-	LastRunID         string
-	CreatedAt         int64
-	UpdatedAt         int64
+	TenantID                    string
+	PipelineID                  string
+	PipelineVersionID           string
+	RouteKey                    string
+	ResourceName                string
+	Cursor                      string
+	LastRunID                   string
+	CreatedAt                   int64
+	UpdatedAt                   int64
+	ReplicationStreamResourceID sql.NullString
 }
 
 type PipelineVersion struct {
@@ -65,6 +86,55 @@ type PipelineVersion struct {
 	DeletedByUserID sql.NullString
 	CreatedAt       int64
 	UpdatedAt       int64
+}
+
+type ReplicationStream struct {
+	ID                           string
+	TenantID                     string
+	PipelineID                   string
+	RouteKey                     string
+	Generation                   int64
+	SourceConnectionID           string
+	SinkConnectionID             string
+	ConsumerName                 string
+	ConsumerConfig               string
+	ContinuityFingerprint        string
+	Status                       int64
+	CreatedFromPipelineVersionID string
+	Error                        sql.NullString
+	RetiredAt                    sql.NullInt64
+	CreatedByUserID              sql.NullString
+	UpdatedByUserID              sql.NullString
+	DeletedByUserID              sql.NullString
+	CreatedAt                    int64
+	UpdatedAt                    int64
+	MembershipRevision           int64
+	CurrentRunID                 sql.NullString
+	DesiredState                 string
+	DesiredRevision              int64
+	RunSpec                      sql.NullString
+	LastEpoch                    int64
+}
+
+type ReplicationStreamResource struct {
+	ID                  string
+	ReplicationStreamID string
+	TenantID            string
+	ResourceName        string
+	Status              int64
+	BootstrapMode       string
+	BootstrapConfig     string
+	SchemaFingerprint   sql.NullString
+	BootstrapRunID      sql.NullString
+	BootstrapStartedAt  sql.NullInt64
+	ActivatedAt         sql.NullInt64
+	RetiredAt           sql.NullInt64
+	Error               sql.NullString
+	CreatedByUserID     sql.NullString
+	UpdatedByUserID     sql.NullString
+	DeletedByUserID     sql.NullString
+	CreatedAt           int64
+	UpdatedAt           int64
 }
 
 type Run struct {
@@ -148,6 +218,30 @@ type Secret struct {
 	Metadata   string
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type StreamAttempt struct {
+	Token           int64
+	StreamID        string
+	TenantID        string
+	ExecutionID     string
+	DesiredRevision int64
+	RequestTtlUs    int64
+	StartedAt       int64
+	ExpiresAt       int64
+	EndedAt         sql.NullInt64
+	Termination     sql.NullString
+	Reason          string
+}
+
+type StreamEpoch struct {
+	StreamID     string
+	TenantID     string
+	Epoch        int64
+	AttemptToken int64
+	Certificate  []byte
+	Positions    string
+	CommittedAt  int64
 }
 
 type Tenant struct {

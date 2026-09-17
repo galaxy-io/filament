@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 
 import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
@@ -51,7 +50,6 @@ const CreatePipelineModalResources = () => {
     return (
       <FlexWrapper padding={24} fillWidth fillHeight>
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
           header="Could not list resources"
           message="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
           error={discoverError}
