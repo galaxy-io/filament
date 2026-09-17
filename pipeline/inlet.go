@@ -122,7 +122,9 @@ func (s *slot) Chunk(b *arrowbatch.Batch) error {
 	b.Resource = s.resource
 	b.Part = s.part
 	b.Seq = seq
-	b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
+	if s.p.stream == nil {
+		b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
+	}
 	if err := s.send(b); err != nil {
 		return err
 	}
@@ -156,7 +158,7 @@ func (s *slot) Drained(meta filament.RowMeta, total int) error {
 // extracting instead of spinning against a dead pipeline.
 func (s *slot) send(b *arrowbatch.Batch) error {
 	select {
-	case s.p.batchCh <- b:
+	case s.p.batchCh <- queuedBatch{batch: b}:
 		return nil
 	case <-s.p.done:
 		if err := s.p.Err(); err != nil {

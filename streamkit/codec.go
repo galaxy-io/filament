@@ -1,5 +1,6 @@
 // Package streamkit provides optional public helpers for native stream connectors.
-// It supplies encoding mechanics, never runtime admission or delivery guarantees.
+// It supplies encoding, boundary, and protocol-heartbeat mechanics, never
+// runtime admission or delivery guarantees.
 package streamkit
 
 import (
