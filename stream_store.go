@@ -67,6 +67,8 @@ type StreamActivation struct {
 
 // Attempt describes one admitted worker lifetime and its lease interval.
 type Attempt struct {
+	// Claimed records that a worker began executing this attempt.
+	Claimed              bool
 	Spec                 RunSpec
 	Revision             int64
 	Termination          AttemptTermination

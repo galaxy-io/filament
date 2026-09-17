@@ -63,6 +63,14 @@ enum ReplicationMode {
   REPLICATION_MODE_CDC = 2;
 }
 
+// ExecutionMode is independent of replication and write semantics.
+// Unspecified preserves bounded execution for existing clients.
+enum ExecutionMode {
+  EXECUTION_MODE_UNSPECIFIED = 0;
+  EXECUTION_MODE_BOUNDED = 1;
+  EXECUTION_MODE_CONTINUOUS = 2;
+}
+
 // ReadMode is the per-resource read lever on Standard connections.
 enum ReadMode {
   READ_MODE_UNSPECIFIED = 0;

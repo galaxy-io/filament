@@ -26,6 +26,45 @@ enum RunSignal {
   RUN_SIGNAL_PAUSE = 1;
   RUN_SIGNAL_RESUME = 2;
   RUN_SIGNAL_CANCEL = 3;
+  // Continuous only: drain and persist stopped intent, disabling restart.
+  RUN_SIGNAL_STOP = 4;
+}
+
+// ExecutionDesiredState is the persisted intent for continuous execution.
+enum ExecutionDesiredState {
+  EXECUTION_DESIRED_STATE_UNSPECIFIED = 0;
+  EXECUTION_DESIRED_STATE_ENABLED = 1;
+  EXECUTION_DESIRED_STATE_PAUSED = 2;
+  EXECUTION_DESIRED_STATE_STOPPED = 3;
+}
+
+// ExecutionObservedState describes progress toward the requested state.
+// An idle source can remain RUNNING; lack of arriving records is not a failure.
+enum ExecutionObservedState {
+  EXECUTION_OBSERVED_STATE_UNSPECIFIED = 0;
+  EXECUTION_OBSERVED_STATE_STARTING = 1;
+  EXECUTION_OBSERVED_STATE_RUNNING = 2;
+  EXECUTION_OBSERVED_STATE_DRAINING = 3;
+  EXECUTION_OBSERVED_STATE_PAUSED = 4;
+  EXECUTION_OBSERVED_STATE_STOPPED = 5;
+  EXECUTION_OBSERVED_STATE_RETRYING = 6;
+  EXECUTION_OBSERVED_STATE_BLOCKED = 7;
+  EXECUTION_OBSERVED_STATE_FAILED = 8;
+}
+
+// ExecutionStatus is the user-facing state of continuous execution, loaded from
+// durable state. GetRun/ListRuns remain authoritative after missed live events.
+// Pause/resume and worker restarts retain the run ID; starting again after stop
+// creates a new run. Desired and observed states can differ while draining.
+message ExecutionStatus {
+  ExecutionDesiredState desired_state = 1;
+  ExecutionObservedState observed_state = 2;
+  // Opaque revision for SignalRunRequest.expected_revision; clients echo it.
+  int64 revision = 3;
+  // User-facing explanation, including actionable blocked/failed conditions.
+  string reason = 4;
+  // Epoch milliseconds of the most recent durable commit; zero means none yet.
+  int64 last_committed_at = 5;
 }
 
 // RatePolicy throttles source reads.
@@ -43,6 +82,9 @@ message RunOptions {
   RatePolicy rate_limit = 4;
   int32 snapshot_parallelism = 5;
   int32 checkpoint_every = 6;
+  // Unspecified inherits the pipeline mode. Explicit values override this start.
+  // Continuous creates a durable activation; unavailable profiles are rejected.
+  ExecutionMode execution = 7;
 }
 
 message RunPipelineRequest {
@@ -104,6 +146,9 @@ message RunInfo {
   int64 scheduled_at = 16;
   int64 requested_at = 17;
   int64 updated_at = 18;
+  ExecutionMode execution = 19;
+  // Present for continuous runs. records/bytes above reflect committed progress.
+  ExecutionStatus execution_status = 20;
 }
 
 message RunSnapshot {
@@ -141,9 +186,16 @@ message ListRunsResponse {
 message SignalRunRequest {
   string run_id = 1;
   RunSignal signal = 2;
+  // Optional CAS for continuous desired state. A stale revision is rejected.
+  // Absent permits a transition against the current revision.
+  optional int64 expected_revision = 3;
 }
 
-message SignalRunResponse {}
+// Continuous success confirms persisted intent, not completed worker drainage.
+// Bounded responses leave execution_status absent.
+message SignalRunResponse {
+  ExecutionStatus execution_status = 1;
+}
 
 message TailRunRequest {
   string run_id = 1;
@@ -161,7 +213,8 @@ message RunEventFields {
   string error = 5;
   int64 retry_after_ms = 6;
   int64 parents_total = 7;
-  // checkpoint preserves the connector cursor together with its resource.
+  // Legacy bounded cursor payload. Continuous progress is read through GetRun;
+  // continuous events do not carry raw customer cursors.
   google.protobuf.Struct checkpoint = 8;
 }
 
