@@ -21,6 +21,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
 			Schematized:         true,
+			Stream:              &filament.StreamingSinkCapabilities{},
 			Upsertable:          true,
 			EncodedIntegrity:    true,
 			PreferredBatchBytes: 16 << 20,
