@@ -24,7 +24,8 @@ type Subscription struct {
 	// MaxInFlight caps unacked deliveries across every process bound to the
 	// durable (0 = transport default). 1 serializes the consumer: one message
 	// at a time, in stream order, no matter how many replicas subscribe —
-	// required by handlers that fold with read-modify-write.
+	// required by handlers that fold with read-modify-write. Above 1, the host
+	// also runs that many handler workers for the subscription; 0 keeps one.
 	MaxInFlight int
 
 	Handler Handler
@@ -75,9 +76,10 @@ func New(bus eventbus.Bus, opts ...Option) *Host {
 	return h
 }
 
-// Run subscribes every module's subscriptions and spawns one pump goroutine per
-// subscription. Pumps run until ctx is cancelled or Close is called. Safe to
-// call again to add modules to a live Host.
+// Run subscribes every module's subscriptions and spawns its pump goroutines:
+// one per subscription, or MaxInFlight of them when that is above one. Pumps
+// run until ctx is cancelled or Close is called. Safe to call again to add
+// modules to a live Host.
 func (h *Host) Run(ctx context.Context, mods ...Runnable) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -92,8 +94,14 @@ func (h *Host) Run(ctx context.Context, mods ...Runnable) error {
 				return fmt.Errorf("subscribe %q for module %q: %w", s.Pattern, m.Name(), err)
 			}
 			h.subs = append(h.subs, sub)
-			h.wg.Add(1)
-			go h.pump(ctx, m, s, sub)
+			workers := s.MaxInFlight
+			if workers < 1 {
+				workers = 1
+			}
+			h.wg.Add(workers)
+			for i := 0; i < workers; i++ {
+				go h.pump(ctx, m, s, sub)
+			}
 		}
 		h.logf("mounted module %q", m.Name())
 	}

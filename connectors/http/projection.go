@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -230,6 +231,8 @@ func scalarString(value any) (string, error) {
 
 func scalarInt(value any) (int64, error) {
 	switch v := value.(type) {
+	case json.Number:
+		return scalar.NumberInt64(v)
 	case int:
 		return int64(v), nil
 	case int64:
@@ -249,6 +252,8 @@ func scalarInt(value any) (int64, error) {
 
 func scalarFloat(value any) (float64, error) {
 	switch v := value.(type) {
+	case json.Number:
+		return v.Float64()
 	case int:
 		return float64(v), nil
 	case int64:

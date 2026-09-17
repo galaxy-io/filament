@@ -1,0 +1,216 @@
+version: 1
+name: gong
+display_name: Gong
+description: Calls, transcripts, users, workspaces, tracker and scorecard definitions, and call libraries from Gong.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-light.svg
+config:
+  access_key:
+    type: secret
+    required: true
+    help: Gong API access key from Company settings > Ecosystem > API.
+  access_key_secret:
+    type: secret
+    required: true
+    help: Gong API access key secret.
+  base_url:
+    type: string
+    required: true
+    help: API base URL shown in your Gong API settings. Copy the URL for your account.
+defaults:
+  method: GET
+  response:
+    pagination:
+      cursor:
+        response: records.cursor
+        request: query.cursor
+        null_terminates: true
+field_sets:
+  library_folder:
+    id: string
+    name: string?
+    created_by: { path: createdBy, type: string, nullable: true }
+    updated_at: { path: updated, type: timestamptz, nullable: true }
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    basic:
+      username: config.access_key
+      password: config.access_key_secret
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 3
+resources:
+  - name: users
+    path: /v2/users
+    records: $.users
+    primary_key: [id]
+    fields:
+      id: string
+      email: { path: emailAddress, type: string, nullable: true }
+      first_name: { path: firstName, type: string, nullable: true }
+      last_name: { path: lastName, type: string, nullable: true }
+      title: string?
+      active: bool?
+      created_at: { path: created, type: timestamptz, nullable: true }
+      manager_id: { path: managerId, type: string, nullable: true }
+      settings: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: calls
+    method: POST
+    path: /v2/calls/extensive
+    body:
+      encoding: json
+      template:
+        filter: {}
+        contentSelector:
+          context: Extended
+          exposedFields:
+            parties: true
+            content:
+              structure: true
+              topics: true
+              trackers: true
+              trackerOccurrences: true
+              brief: true
+              outline: true
+              highlights: true
+              callOutcome: true
+              keyPoints: true
+            interaction:
+              speakers: true
+              video: true
+              personInteractionStats: true
+              questions: true
+            collaboration:
+              publicComments: true
+    response:
+      records: $.calls
+      pagination:
+        cursor:
+          response: records.cursor
+          request: body.cursor
+          null_terminates: true
+      empty:
+        status: 404
+        body_path: errors
+        body_equals: [No calls found corresponding to the provided filters]
+    primary_key: [id]
+    fields:
+      id: { path: metaData.id, type: string }
+      title: { path: metaData.title, type: string, nullable: true }
+      url: { path: metaData.url, type: string, nullable: true }
+      scheduled_at: { path: metaData.scheduled, type: timestamptz, nullable: true }
+      started_at: { path: metaData.started, type: timestamptz, nullable: true }
+      duration: { path: metaData.duration, type: int64, nullable: true }
+      primary_user_id: { path: metaData.primaryUserId, type: string, nullable: true }
+      workspace_id: { path: metaData.workspaceId, type: string, nullable: true }
+      direction: { path: metaData.direction, type: string, nullable: true }
+      language: { path: metaData.language, type: string, nullable: true }
+      is_private: { path: metaData.isPrivate, type: bool, nullable: true }
+      context: json?
+      parties: json?
+      content: json?
+      interaction: json?
+      collaboration: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: transcripts
+    method: POST
+    path: /v2/calls/transcript
+    body:
+      encoding: json
+      template:
+        filter: {}
+    response:
+      records: $.callTranscripts
+      pagination:
+        cursor:
+          response: records.cursor
+          request: body.cursor
+          null_terminates: true
+      empty:
+        status: 404
+        body_path: errors
+        body_equals: [No calls found corresponding to the provided filters]
+    primary_key: [call_id]
+    fields:
+      call_id: { path: callId, type: string }
+      transcript: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspaces
+    path: /v2/workspaces
+    records: $.workspaces
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: keyword_trackers
+    path: /v2/settings/trackers
+    records: $.keywordTrackers
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: { path: trackerId, type: string }
+      name: { path: trackerName, type: string, nullable: true }
+      workspace_id: { path: workspaceId, type: string, nullable: true }
+      language_keywords: { path: languageKeywords, type: json, nullable: true }
+      include_related_forms: { path: includeRelatedForms, type: bool, nullable: true }
+      affiliation: string?
+      filter_query: { path: filterQuery, type: string, nullable: true }
+      created_at: { path: created, type: timestamptz, nullable: true }
+      updated_at: { path: updated, type: timestamptz, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: scorecards
+    path: /v2/settings/scorecards
+    records: $.scorecards
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: { path: scorecardId, type: string }
+      name: { path: scorecardName, type: string, nullable: true }
+      workspace_id: { path: workspaceId, type: string, nullable: true }
+      enabled: bool?
+      review_method: { path: reviewMethod, type: string, nullable: true }
+      questions: json?
+      created_at: { path: created, type: timestamptz, nullable: true }
+      updated_at: { path: updated, type: timestamptz, nullable: true }
+      updater_user_id: { path: updaterUserId, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: library_folders
+    path: /v2/library/folders
+    records: $.folders
+    pagination: none
+    primary_key: [id]
+    use_fields: [library_folder]
+    fields:
+      parent_folder_id: { path: parentFolderId, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    capture: { folder_id: id }
+
+  - name: library_folder_contents
+    path: /v2/library/folder-content
+    for_each: library_folders
+    query: { folderId: "{{ parent.folder_id }}" }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    use_fields: [library_folder]
+    fields:
+      calls: json?
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  default_resources: [users, calls, transcripts]

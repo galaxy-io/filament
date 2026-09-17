@@ -17,6 +17,7 @@ jobs:
       go: ${{ steps.filter.outputs.go }}
       ui: ${{ steps.filter.outputs.ui }}
       chart: ${{ steps.filter.outputs.chart }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -34,6 +35,8 @@ jobs:
               - "ui/**"
             chart:
               - "charts/**"
+            migrations:
+              - "datastore/*/migrations/**"
 
   go:
     needs: changes
@@ -149,8 +152,48 @@ jobs:
             crane digest "ghcr.io/${owner}/filament/${image}:${app_version}"
           done
 
+  migrations:
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+
+      - name: Validate
+        run: |
+          version=$(go list -m -f '{{.Version}}' github.com/pressly/goose/v3)
+          for dir in datastore/*/migrations; do
+            go run "github.com/pressly/goose/v3/cmd/goose@${version}" -dir "$dir" validate -v
+          done
+
+      - name: Versions
+        run: |
+          for dir in datastore/*/migrations; do
+            versions=$(ls "$dir" | sed -E 's/^([0-9]+)_.*\.sql$/\1/' | sort -n)
+            if ! diff <(echo "$versions") <(seq -f '%05g' 1 "$(echo "$versions" | wc -l)"); then
+              echo "$dir: versions must be unique and contiguous from 00001"
+              exit 1
+            fi
+          done
+
+      - name: Append-only
+        run: |
+          changed=$(git diff --name-only --diff-filter=MDR "origin/${GITHUB_BASE_REF}...HEAD" -- 'datastore/*/migrations/')
+          if [[ -n "$changed" ]]; then
+            echo "shipped migrations are append-only; changed:"
+            echo "$changed"
+            exit 1
+          fi
+
   lint-ok:
-    needs: [go, ui, chart]
+    needs: [go, ui, chart, migrations]
     if: always()
     runs-on: ubuntu-latest
     steps:
