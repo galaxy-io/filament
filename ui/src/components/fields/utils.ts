@@ -9,6 +9,7 @@ const ACRONYMS_TO_CAPITALIZE: string[] = [
   "id",
   "s3",
   "aws",
+  "iam",
   "sql",
   "json",
   "http",

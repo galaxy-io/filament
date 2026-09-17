@@ -1,0 +1,187 @@
+---
+title: "Amazon Redshift"
+description: "Write typed analytical tables to Amazon Redshift"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-redshift-dark.svg"
+---
+
+The Amazon Redshift sink (**alpha**) writes each resource to a typed Redshift
+table. It supports snapshot, incremental, and CDC pipelines on provisioned
+clusters and Redshift Serverless workgroups. Batches are encoded as Parquet,
+staged in a user-provided S3 bucket, and loaded with Redshift `COPY` manifests.
+
+## Redshift setup
+
+The connector does not have a provisioned/Serverless switch. Supply the
+provisioned cluster endpoint or Serverless workgroup endpoint as `host`; both
+use the same PostgreSQL-compatible connection. The default port is `5439`.
+The security group associated with the cluster or workgroup must allow inbound
+traffic from the Filament worker on the configured port. See AWS's
+[Redshift network configuration guide](https://docs.aws.amazon.com/redshift/latest/mgmt/rs-security-group-public-private.html).
+
+Filament currently connects with a Redshift database username and password.
+The user needs permission to create and use the destination schema, create
+temporary tables, and create and alter destination tables. A dedicated schema
+owned by the Filament user is the simplest setup. Pre-existing destination
+tables must also allow the user to insert and delete rows.
+
+### S3 load staging
+
+Create a private, general-purpose S3 bucket in the same AWS Region as the
+Redshift cluster or Serverless workgroup. Loading requires two distinct AWS
+identities:
+
+- The **Filament worker identity** uses the AWS SDK default credential chain.
+  It needs `s3:ListBucket` on the bucket and `s3:PutObject` plus
+  `s3:DeleteObject` under the configured staging prefix.
+- The **Redshift associated IAM role** needs `s3:ListBucket` and
+  `s3:GetObject` for the same bucket and prefix. Associate the role with the
+  provisioned cluster or Serverless namespace before using it for `COPY`.
+
+AWS documents role creation and association in
+[Authorizing Amazon Redshift to access AWS services](https://docs.aws.amazon.com/redshift/latest/mgmt/authorizing-redshift-service.html).
+Set **Associated IAM Role** to `default` when the S3-read role is Redshift's
+default role, or provide its full ARN. If role use is restricted by database
+user, grant the Filament user `ASSUMEROLE` permission for `COPY`.
+
+<Note>
+The worker identity uploads and deletes staged objects; the associated Redshift
+role reads them. Granting S3 access to only one identity is not sufficient.
+</Note>
+
+The default object prefix is `filament/load-staging`. Filament appends the
+pipeline ID and run-scoped hashes to prevent pipelines and runs from sharing
+objects:
+
+```text
+s3://<bucket>/filament/load-staging/<pipeline-id>/redshift/<destination-hash>/<run-hash>/...
+```
+
+The sink deletes staged objects after each batch on a best-effort basis. An S3
+lifecycle rule on the staging prefix is recommended as a fallback. If the
+bucket uses SSE-KMS with a customer-managed key, the worker must be able to
+write with that key and the associated Redshift role must be able to decrypt
+it.
+
+Connection validation checks the SQL endpoint. The staging bucket is checked
+when a run opens on the worker because the API server and worker can use
+different AWS identities.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `connection_method` | Connection | `fields` | `fields` builds the PostgreSQL connection URL from the fields below. `url` uses `dsn` directly. |
+| `dsn` | Connection | — | Redshift connection URL. Required when `connection_method` is `url`. Secret. |
+| `host` | Connection | — | Provisioned cluster or Serverless workgroup endpoint. Required in `fields` mode. |
+| `port` | Connection | `5439` | Redshift database port. |
+| `username` | Connection | — | Redshift database user. Required in `fields` mode. |
+| `password` | Connection | — | Redshift database password. Required in `fields` mode. Secret. |
+| `database_name` | Connection | — | Destination database. Required in `fields` mode. |
+| `ssl_mode` | Connection | `verify-full` | `disable`, `require`, `verify-ca`, or `verify-full`. |
+| `schema_name` | Connection | `public` | Default destination schema when the pipeline has no override. |
+| `staging_bucket` | Connection | — | Required S3 bucket name for transient Parquet files and manifests. Do not include `s3://` or a path. |
+| `staging_bucket_region` | Connection | AWS SDK Region | Region of both the bucket and Redshift. Required when the worker environment does not provide an AWS Region. |
+| `associated_iam_role` | Connection | `default` | Role Redshift assumes for `COPY`: `default` or a full role ARN associated with the cluster or namespace. |
+| `schema` | Pipeline | `public` | Destination schema. Empty falls back to `schema_name`. |
+| `staging_prefix` | Pipeline | `filament/load-staging` | Base S3 key prefix. The pipeline ID is appended automatically. |
+
+The sink prefers batches no larger than 100,000 rows or approximately 256 MiB,
+whichever limit is reached first.
+
+## Supported write modes
+
+The sink advertises `full_replace`, `full_append`, `full_upsert`,
+`incremental_append`, `incremental_upsert`, `incremental_delete`, `cdc_append`,
+and `cdc_merge`. See
+[replication modes](/pages/guides/concepts/replication-modes).
+
+- Replace loads a run-scoped replacement table and promotes it at commit.
+- Append adds each batch directly to the destination.
+- Upsert, delete, and merge fold repeated keys to their final operation, delete
+  matching destination keys, and insert surviving rows in one transaction.
+  These modes require a primary key.
+
+## Table management
+
+Before extraction, `EnsureSchema` runs per resource:
+
+1. Create the destination schema and typed table if they do not exist.
+2. Inspect `information_schema.columns` and add missing columns.
+3. For replace, create an empty run-scoped replacement table.
+
+Schema evolution is add-only. Existing columns are not dropped, renamed, or
+altered. Redshift primary-key constraints are informational; Filament uses the
+key fields itself when applying upserts, deletes, and CDC merges.
+
+Every Filament-created permanent table uses `DISTSTYLE AUTO`, `SORTKEY AUTO`,
+and `ENCODE AUTO`, allowing Redshift to evolve distribution, sorting, and
+compression based on the workload. See AWS's
+[automatic table optimization](https://docs.aws.amazon.com/redshift/latest/dg/t_Creating_tables.html)
+documentation.
+
+### Type mapping
+
+| Logical type | Redshift type |
+| --- | --- |
+| `bool` | `BOOLEAN` |
+| `int16` / `int32` / `int64` | `SMALLINT` / `INTEGER` / `BIGINT` |
+| `float32` / `float64` | `REAL` / `DOUBLE PRECISION` |
+| `decimal` | `DECIMAL(p,s)` when precision is valid and at most 38; otherwise `VARCHAR(MAX)` |
+| `string` / `array` / unknown | `VARCHAR(MAX)` |
+| `bytes` | `VARBYTE(16777216)` |
+| `date` | `DATE` |
+| `time` | `TIME` |
+| `timestamp` | `TIMESTAMP` |
+| `timestamptz` | `TIMESTAMPTZ` |
+| `json` | `SUPER` |
+| `uuid` | `VARCHAR(36)` |
+
+## Write mechanics and atomicity
+
+Each Arrow batch is encoded as Snappy-compressed Parquet files. The file count
+is based on approximately 64 MiB of unencoded input per file and, when the row
+count permits, rounded up to a multiple of eight for parallel `COPY` work.
+
+Each manifest contains at most 128 Parquet files. Larger batches produce
+multiple manifests, which are copied sequentially into the same temporary
+table and transaction. This is a per-manifest boundary, not a row or run limit;
+large initial syncs continue across normal engine batches.
+
+The sink verifies S3 uploads with CRC32C, compares the loaded row count with the
+submitted batch, and returns an encoded checksum in the write receipt. The
+temporary load table, destination mutation, and replay token commit in one
+Redshift transaction.
+
+Append and keyed writes become visible per batch; no transaction covers an
+entire run. Replace batches remain in a replacement table until `Commit`, which
+locks, clears, and refills the live table in one transaction per resource.
+Multiple resources are promoted independently.
+
+A replay ledger named `_filament_load_batches` prevents the same batch from
+being applied twice. Reusing a replay token with different content is treated
+as an integrity error.
+
+## Failure behavior
+
+A failed append run can leave earlier committed batches in the destination,
+but retrying the same run does not duplicate them. Upsert, delete, and merge
+retries converge through both the replay ledger and primary key.
+
+A failed replace leaves the previous destination rows intact. `Abort` drops the
+run-scoped replacement table and its replay entries. Additive schema changes
+made before the failure remain in place.
+
+## Troubleshooting
+
+- A connection timeout usually means the Redshift endpoint is not reachable
+  from the worker or its associated security group does not allow the database
+  port.
+- `access bucket` means the worker identity cannot inspect the configured
+  bucket. Check the bucket name, Region, bucket policy, and `s3:ListBucket`.
+- S3 upload or cleanup errors require `s3:PutObject` and `s3:DeleteObject` on
+  the configured staging prefix for the worker identity.
+- A `COPY manifest` access error concerns the associated Redshift role, not the
+  worker role. Confirm its `s3:GetObject` access and its association with the
+  cluster or namespace.
+- Region errors require the staging bucket and Redshift deployment to use the
+  same AWS Region.

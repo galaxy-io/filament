@@ -81,6 +81,10 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, err
 		}
 
+		if matchesEmptyResponse(resp, raw, res.Response.Empty) {
+			return totalRecords, pageCount + 1, nil
+		}
+
 		if err := extractor.CheckError(raw); err != nil {
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
@@ -281,6 +285,8 @@ func (c *Connector) doRequest(
 				resp.StatusCode, formatHTTPErrorBody(body))
 			c.reportRetryExhausted(resourceName, err)
 			return resp, body, err
+		case matchesEmptyResponse(resp, body, res.Response.Empty):
+			return resp, body, nil
 		case resp.StatusCode >= 400:
 			return resp, body, fmt.Errorf("%s %s HTTP %d: %s",
 				resourceName, req.URL.Redacted(),
@@ -292,6 +298,26 @@ func (c *Connector) doRequest(
 	err := fmt.Errorf("retries exhausted after %d attempts on %s", maxRetries, resourceName)
 	c.reportRetryExhausted(resourceName, err)
 	return nil, nil, err
+}
+
+func matchesEmptyResponse(resp *http.Response, body []byte, rule *manifest.EmptyResponseSpec) bool {
+	if rule == nil || resp.StatusCode != rule.Status || !gjson.ValidBytes(body) {
+		return false
+	}
+	value := gjson.GetBytes(body, rule.BodyPath)
+	if !value.IsArray() {
+		return false
+	}
+	messages := value.Array()
+	if len(messages) != len(rule.BodyEquals) {
+		return false
+	}
+	for i, message := range messages {
+		if message.Type != gjson.String || message.String() != rule.BodyEquals[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Connector) reportRetryExhausted(resource string, err error) {

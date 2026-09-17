@@ -10,6 +10,7 @@ require (
 	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/redshift v0.0.0
 	github.com/galaxy-io/filament/connectors/snowflake v0.0.0
 	github.com/galaxy-io/filament/identity/zitadel v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/secret/aws v0.0.0-00010101000000-000000000000
@@ -292,6 +293,8 @@ replace github.com/galaxy-io/filament/connectors/bigquery => ../connectors/bigqu
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
 
 replace github.com/galaxy-io/filament/connectors/object => ../connectors/object
+
+replace github.com/galaxy-io/filament/connectors/redshift => ../connectors/redshift
 
 replace github.com/galaxy-io/filament/connectors/snowflake => ../connectors/snowflake
 
