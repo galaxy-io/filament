@@ -142,7 +142,7 @@ func TestStore_AdmissionStatusesAndBoundedCompatibility(t *testing.T) {
 }
 
 func TestAdmissionMigrationHistoricalRequests(t *testing.T) {
-	data, err := os.ReadFile("migrations/00007_repair_stream_admission.sql")
+	data, err := os.ReadFile("migrations/00008_repair_stream_admission.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
