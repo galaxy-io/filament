@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	natssource "github.com/galaxy-io/filament/connectors/nats/source"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/streamkit"
 )
 
 // FromEnv selects the datastore per PERSISTENCE_PROVIDER; postgres is the
@@ -25,11 +27,15 @@ func FromEnv(ctx context.Context) (filament.DataStore, error) {
 		if err != nil {
 			return nil, err
 		}
+		codecs := &streamkit.Registry{}
+		if err := natssource.RegisterCodec(codecs); err != nil {
+			return nil, err
+		}
 		pool, err := ctlpg.NewPool(ctx, dsn)
 		if err != nil {
 			return nil, err
 		}
-		return ctlpg.New(pool), nil
+		return ctlpg.NewStreamRuntime(ctlpg.New(pool), codecs), nil
 	case "sqlite":
 		path, err := storePathFromEnv()
 		if err != nil {

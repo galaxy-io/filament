@@ -111,6 +111,12 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 		{Name: "RUN_ID", Value: string(spec.Run)},
 	}
 
+	if spec.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		if err := spec.ValidateStreamAttempt(); err != nil {
+			return nil, err
+		}
+		env = append(env, corev1.EnvVar{Name: "EXECUTION_ID", Value: spec.ExecutionID})
+	}
 	resources, err := workerResources(spec.WorkerConfiguration.Resources)
 	if err != nil {
 		return nil, err
@@ -148,6 +154,16 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 		ActiveDeadlineSeconds:         m.cfg.WorkerActiveDeadlineSeconds,
 	}
 
+	backoff := m.cfg.BackoffLimit
+	if spec.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		backoff = 0
+		podSpec.ActiveDeadlineSeconds = nil
+		podSpec.RestartPolicy = corev1.RestartPolicyNever
+		grace := int64(45)
+		if podSpec.TerminationGracePeriodSeconds == nil || *podSpec.TerminationGracePeriodSeconds < grace {
+			podSpec.TerminationGracePeriodSeconds = &grace
+		}
+	}
 	return &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{APIVersion: "batch/v1", Kind: "Job"},
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +171,7 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 			Labels: m.jobLabels(spec),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit:            &m.cfg.BackoffLimit,
+			BackoffLimit:            &backoff,
 			TTLSecondsAfterFinished: m.cfg.TTLSecondsAfterFinished,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: m.jobLabels(spec)},

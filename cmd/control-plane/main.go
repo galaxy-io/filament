@@ -22,8 +22,11 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/notifier"
 	"github.com/galaxy-io/filament/internal/modules/reaper"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
+	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/runner"
 
 	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
@@ -113,6 +116,10 @@ func run(ctx context.Context) error {
 				filament.Field{Key: "error", Value: err.Error()})
 		}
 	}()
+	remote, _ := dispatcher.(filament.Dispatcher)
+	streams := streamsupervisor.New(runner.Deps{DataStore: deps.Store, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, remote)
+	streams.Start(ctx)
+	defer streams.Close()
 	sched.Start(ctx)
 	if reap != nil {
 		reap.Start(ctx)

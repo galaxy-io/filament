@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
+	"github.com/galaxy-io/filament/internal/streamcontrol"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 
@@ -63,6 +64,17 @@ func run(ctx context.Context) error {
 	state, err := deps.Store.LoadRun(ctx, tenant, runID)
 	if err != nil {
 		return err
+	}
+	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		runtime, ok := deps.Store.(streamcontrol.Store)
+		if !ok {
+			return filament.ErrContinuousDisabled
+		}
+		spec, err := runner.LoadContinuousAttempt(ctx, runtime, state, os.Getenv("EXECUTION_ID"))
+		if err != nil {
+			return err
+		}
+		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{DataStore: deps.Store, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, spec)
 	}
 	if !runner.ShouldRun(state) {
 		workerLog.Info("worker run skipped",
