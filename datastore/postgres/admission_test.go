@@ -160,7 +160,7 @@ func TestAdmissionMigrationHistoricalRequests(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer tx.Rollback(ctx)
-			// A transaction-local pre-00007 runs table isolates migration fixtures from
+			// A transaction-local pre-00008 runs table isolates migration fixtures from
 			// the real datastore and tests actual PostgreSQL constraint/index SQL.
 			_, err = tx.Exec(ctx, `CREATE TEMP TABLE runs(id uuid PRIMARY KEY,pipeline_id uuid,status smallint,request jsonb); CREATE UNIQUE INDEX runs_active_replication_route_idx ON runs(pipeline_id,(request->>'CheckpointRoute')) WHERE status IN(0,1,5) AND nullif(request->>'ReplicationStreamID','') IS NOT NULL`)
 			if err != nil {

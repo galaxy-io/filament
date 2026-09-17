@@ -121,6 +121,24 @@ type (
 
 	// ScheduleFiredEvent marks a schedule triggering a run request.
 	ScheduleFiredEvent struct{}
+
+	// NotifierAttemptedEvent records an observed notification operation.
+	NotifierAttemptedEvent struct {
+		NotifierID            string `json:"notifier_id"`
+		NotificationType      string `json:"notification_type"`
+		PipelineID            string `json:"pipeline_id"`
+		PipelineVersionID     string `json:"pipeline_version_id,omitempty"`
+		DeliveryID            string `json:"delivery_id"`
+		AttemptID             string `json:"attempt_id"`
+		TriggerType           string `json:"trigger_type"`
+		TriggerStreamSequence uint64 `json:"trigger_stream_sequence,string"`
+		Outcome               string `json:"outcome"`
+		RequestAttempted      bool   `json:"request_attempted"`
+		Retryable             bool   `json:"retryable"`
+		StatusCode            int    `json:"status_code,omitempty"`
+		DurationMs            int64  `json:"duration_ms"`
+		ErrorCode             string `json:"error_code,omitempty"`
+	}
 )
 
 // The event kinds, one per payload type above; each value is the capability
@@ -156,4 +174,6 @@ var (
 	RetryExhausted = define[RetryExhaustedEvent]("pressure.retry_exhausted")
 
 	ScheduleFired = define[ScheduleFiredEvent]("schedule.fired")
+
+	NotifierAttempted = define[NotifierAttemptedEvent]("notifier.attempted")
 )

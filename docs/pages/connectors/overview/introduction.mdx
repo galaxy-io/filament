@@ -1,3 +1,4 @@
+| [Pipedrive](/pages/connectors/sources/pipedrive) | alpha | Full, incremental |
 ---
 title: "Overview"
 description: "The sources and sinks that plug into Filament, and how mature each one is"
@@ -35,7 +36,9 @@ Every connector is registered with one of three maturity levels.
 | [MySQL](/pages/connectors/sources/mysql) | beta | Full, incremental, CDC |
 | [Attio](/pages/connectors/sources/attio) | alpha | Full |
 | [GitHub](/pages/connectors/sources/github) | beta | Full, incremental |
+| [Gong](/pages/connectors/sources/gong) | alpha | Full |
 | [Granola](/pages/connectors/sources/granola) | alpha | Full, incremental |
+| [HubSpot](/pages/connectors/sources/hubspot) | alpha | Full, incremental |
 | [Linear](/pages/connectors/sources/linear) | beta | Full, incremental |
 | [Notion](/pages/connectors/sources/notion) | beta | Full, incremental |
 | [PostHog](/pages/connectors/sources/posthog) | beta | Full, incremental |
@@ -44,8 +47,7 @@ Every connector is registered with one of three maturity levels.
 | [Stripe](/pages/connectors/sources/stripe) | beta | Full, incremental |
 | [Sample](/pages/connectors/sources/sample) | stable | Full |
 
-The SaaS sources are not separate codebases.
-Each is a YAML manifest interpreted by one generic
+Most SaaS sources are YAML manifests interpreted by one generic
 [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
 Adding another SaaS API is
 usually a new manifest, not a new connector. The manifest format is
@@ -60,6 +62,7 @@ documented in
 | [MySQL](/pages/connectors/sinks/mysql) | alpha | Typed tables. Same write policies as the PostgreSQL sink |
 | [ClickHouse](/pages/connectors/sinks/clickhouse) | alpha | MergeTree tables. Atomic replace via staging, no CDC |
 | [Snowflake](/pages/connectors/sinks/snowflake) | alpha | Typed tables loaded from staged Parquet batches |
+| [Amazon Redshift](/pages/connectors/sinks/redshift) | alpha | Typed tables loaded from S3-staged Parquet manifests |
 | [Iceberg](/pages/connectors/sinks/iceberg) | alpha | Parquet tables; data commits per resource at run end |
 | [Amazon S3](/pages/connectors/sinks/aws-s3) | alpha | NDJSON objects, one per resource per run |
 | [stdout](/pages/connectors/sinks/standard-output) | stable | NDJSON to standard output, the reference sink |

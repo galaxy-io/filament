@@ -22,6 +22,7 @@ import {
   PIPELINE_SCHEDULE_FREQUENCY_OPTIONS,
   PIPELINE_SCHEDULE_HOUR_OPTIONS,
   PIPELINE_SCHEDULE_TIMEZONE_OPTIONS,
+  PIPELINE_SETTINGS_INPUT_WIDTH,
 } from "@/pages/pipelines/settings/constants";
 import {
   PipelineScheduleFrequency,
@@ -32,8 +33,6 @@ import {
   isPipelineScheduleCronValid,
   mapPipelineScheduleStateToCron,
 } from "@/pages/pipelines/settings/utils";
-
-const PIPELINE_SCHEDULE_INPUT_WIDTH = 351;
 
 const CollapsibleContent = styled.div<{ $isOpen: boolean }>`
   display: grid;
@@ -169,7 +168,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                     value={selectedDayOptions}
                     onChange={handleDaysChange}
                     size={InputSize.LARGE}
-                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    width={PIPELINE_SETTINGS_INPUT_WIDTH}
                     placeholder="Select days"
                   />
                 </FlexWrapper>
@@ -186,7 +185,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                     value={selectedDayOfMonthOption}
                     onChange={handleDayOfMonthChange}
                     size={InputSize.LARGE}
-                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    width={PIPELINE_SETTINGS_INPUT_WIDTH}
                   />
                 </FlexWrapper>
               )}
@@ -203,7 +202,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                     error={cronError}
                     placeholder="0 * * * *"
                     size={InputSize.LARGE}
-                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    width={PIPELINE_SETTINGS_INPUT_WIDTH}
                     isMonospace
                   />
                 </FlexWrapper>
@@ -221,7 +220,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                       value={selectedHourOption}
                       onChange={handleHourChange}
                       size={InputSize.LARGE}
-                      width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                      width={PIPELINE_SETTINGS_INPUT_WIDTH}
                     />
                   </FlexWrapper>
                 )}
@@ -239,7 +238,7 @@ const PipelineScheduleFields = ({ state, onChange }: PipelineScheduleFieldsProps
                     onSearch={handleTimezoneSearch}
                     debounceMs={100}
                     size={InputSize.LARGE}
-                    width={PIPELINE_SCHEDULE_INPUT_WIDTH}
+                    width={PIPELINE_SETTINGS_INPUT_WIDTH}
                   />
                 </FlexWrapper>
               )}

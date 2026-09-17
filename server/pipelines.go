@@ -486,6 +486,7 @@ func (a *Server) DeletePipeline(ctx context.Context, req *connect.Request[ingest
 	if err := a.store.DeletePipeline(ctx, tenant, req.Msg.GetId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	a.deletePipelineNotifierSecrets(ctx, tenant, req.Msg.GetId())
 	return connect.NewResponse(&ingestionv1.DeletePipelineResponse{}), nil
 }
 

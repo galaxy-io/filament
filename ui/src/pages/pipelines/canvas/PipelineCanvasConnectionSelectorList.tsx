@@ -12,7 +12,8 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { Flow } from "@/layouts/app/types";
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import { LayoutSize } from "@/layouts/types";
 
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
@@ -31,11 +32,9 @@ const ConnectionList = withTheme(styled.div<PropsWithTheme>`
 
 const PipelineCanvasConnectionSelectorEmpty = ({
   message,
-  icon,
   connectorKind,
 }: {
   message: string;
-  icon?: React.ReactNode;
   connectorKind: ConnectorKind;
 }) => {
   const navigate = useNavigate();
@@ -62,9 +61,8 @@ const PipelineCanvasConnectionSelectorEmpty = ({
       padding={24}
     >
       <EmptyLayout
-        size={EmptyLayoutSize.SMALL}
+        size={LayoutSize.SMALL}
         message={message}
-        icon={icon}
         actions={[
           <Button
             key="create-connection"

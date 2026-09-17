@@ -1,0 +1,108 @@
+---
+title: "Gong"
+description: "Read calls, transcripts, users, and reference data from Gong"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-gong-dark.svg"
+---
+
+The Gong source reads conversation data and the users, workspaces, and settings
+associated with it. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It has been checked against Gong's API docs and tested with mock
+responses, but has not yet been tested against a live account.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `access_key` | Connection | | Required. Secret. Gong API access key. |
+| `access_key_secret` | Connection | | Required. Secret. Secret paired with the access key. |
+| `base_url` | Connection | | Required. API base URL from your Gong API settings. |
+
+A Gong technical administrator can create credentials under **Company settings
+→ Ecosystem → API**. Copy the base URL shown there for your account, along with
+the key and secret. See [Gong's API introduction](https://help.gong.io/apidocs/introduction-2)
+for setup and access requirements.
+
+The key needs access to each selected resource. Connection testing makes a
+request to the users endpoint, so user-read access is also required.
+
+| Resources | Required scope |
+|---|---|
+| `users` | `api:users:read` |
+| `calls` | `api:calls:read:extensive` |
+| `transcripts` | `api:calls:read:transcript` |
+| `workspaces` | `api:workspaces:read` |
+| `keyword_trackers` | `api:settings:trackers:read` |
+| `scorecards` | `api:settings:scorecards:read` |
+| `library_folders`, `library_folder_contents` | `api:library:read` |
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `users` | `GET /v2/users` | |
+| `calls` | `POST /v2/calls/extensive` | |
+| `transcripts` | `POST /v2/calls/transcript` | |
+| `workspaces` | `GET /v2/workspaces` | |
+| `keyword_trackers` | `GET /v2/settings/trackers` | |
+| `scorecards` | `GET /v2/settings/scorecards` | |
+| `library_folders` | `GET /v2/library/folders` | |
+| `library_folder_contents` | `GET /v2/library/folder-content` | `library_folders` |
+
+Users, calls, and transcripts are selected by default. The other resources are
+optional. Filament only writes the resources you select. To read folder contents,
+it also lists folders, even when you haven't selected the folder resource.
+
+`calls` includes call metadata, participants, extended CRM context, summaries,
+topics, trackers, interaction statistics, and public comments. Nested data stays
+together in JSON columns. Media download URLs are not requested. See
+[Gong's call data reference](https://help.gong.io/apidocs/retrieve-detailed-call-data-by-various-filters-v2callsextensive-2)
+for field availability.
+
+`transcripts` has one row per call, keyed by `call_id`. Its JSON transcript array
+keeps speakers, topics, sentences, and relative timestamps together. Transcripts
+are read directly in bulk, without a separate request for each call.
+
+`keyword_trackers` and `scorecards` contain definitions, including keyword rules
+and scorecard questions. Scorecards do not include submitted answers or scores.
+
+The library lists public, non-archived folders. `library_folder_contents` has
+one row per folder, with a JSON array of its calls and snippets. A call can appear
+more than once in that array, with a different snippet each time.
+
+IDs are stored as strings. Optional fields are nullable, timestamps include
+time zones, and the `raw` column keeps fields that aren't mapped to their own
+columns.
+
+## Modes
+
+All resources support full reads. Calls and transcripts are requested without
+date bounds. Use **full upsert** to refresh existing rows, or **full replace** to
+also remove rows that are no longer returned by Gong.
+
+Incremental reads are not supported. Gong's call date filters track when a call
+took place, rather than when its transcript, summary, or CRM context last changed.
+Using those dates as an update cursor could miss later edits to older calls.
+
+## Behavior
+
+- **Auth**: every request uses HTTP Basic authentication with the access key
+  and secret, against your configured base URL.
+- **Pagination**: users, calls, and transcripts follow `records.cursor` until
+  it is missing or empty. The other endpoints do not use pagination.
+- **Recovery**: interrupted top-level reads can resume from a saved page cursor.
+  If that request fails, the existing HTTP engine retries the resource from the
+  beginning. Library contents always restart from the folder listing.
+- **Rate limiting**: three requests per second, shared across resources in this
+  connection. Gong's default allowance is also 10,000 requests per company per
+  day, shared with other API clients. Filament honors `Retry-After` on throttled
+  requests but does not track the daily allowance.
+- **Empty results**: calls and transcripts accept a `404` only when Gong's
+  `errors` array contains exactly `No calls found corresponding to the provided filters`.
+  Other errors still fail the read. Gong also documents empty-result `404`
+  responses for scorecards and library folders. Those remain errors until their
+  exact bodies have been verified.
+
+This version covers conversation data and its reference tables. Activity and
+coaching reports, answered scorecards, audit logs, Engage, CRM imports, and media
+downloads are outside its scope.

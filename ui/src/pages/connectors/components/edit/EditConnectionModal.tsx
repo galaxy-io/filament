@@ -2,14 +2,9 @@ import { useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -21,6 +16,7 @@ import {
 } from "@/gen/ingestion/v1/connections_pb";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";
@@ -122,7 +118,6 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
     return (
       <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={24} variant={IconVariant.ERROR} />}
           header="Connection not found"
           message="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
@@ -134,17 +129,7 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
   if (!connection) {
     return (
       <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
-        <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
-          <TextShimmer height={36} width={36} />
-          <TextShimmer height={20} width={220} />
-        </FlexWrapper>
-        <HorizontalDivider />
-        <FlexWrapper direction={FlexDirection.COLUMN} padding="16px" gap={16} fillWidth>
-          <TextShimmer height={32} width="100%" />
-          <TextShimmer height={32} width="100%" />
-          <TextShimmer height={32} width="100%" />
-          <TextShimmer height={32} width="100%" />
-        </FlexWrapper>
+        <PendingLayout />
       </ConnectionFormWrapper>
     );
   }
