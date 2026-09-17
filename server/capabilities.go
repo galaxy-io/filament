@@ -20,11 +20,14 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 	if err != nil {
 		return nil, err
 	}
+	if err := a.validateExecution(req.Msg.GetExecutionMode()); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
 	graph := req.Msg.GetGraph()
-	resp, err := a.validatePipelineGraph(ctx, string(tenant), graph.GetNodes(), graph.GetEdges())
+	resp, err := a.validatePipelineGraph(ctx, string(tenant), graph.GetNodes(), graph.GetEdges(), req.Msg.GetExecutionMode())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -33,7 +36,11 @@ func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[inge
 
 // validatePipelineGraph is the shared validation path for the public probe and
 // persisted pipeline versions. Callers own the context deadline.
-func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graphNodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) (*ingestionv1.ValidatePipelineResponse, error) {
+func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graphNodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge, execution ...ingestionv1.ExecutionMode) (*ingestionv1.ValidatePipelineResponse, error) {
+	mode := ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	if len(execution) > 0 && execution[0] != ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		mode = execution[0]
+	}
 	nodes := make(map[string]*ingestionv1.PipelineNode, len(graphNodes))
 	for _, node := range graphNodes {
 		nodes[node.GetId()] = node
@@ -50,7 +57,7 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 
 	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
-		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
+		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp, mode); err != nil {
 			return nil, err
 		}
 		ev := resp.Edges[len(resp.Edges)-1]
@@ -117,7 +124,7 @@ func pipelineValidationMessage(resp *ingestionv1.ValidatePipelineResponse) strin
 
 // validateEdge appends the edge's verdict to resp; a non-nil return is an
 // internal failure that aborts the RPC, not a validation finding.
-func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, tenant string, probes *sourceProbes, resp *ingestionv1.ValidatePipelineResponse) error {
+func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, tenant string, probes *sourceProbes, resp *ingestionv1.ValidatePipelineResponse, mode ingestionv1.ExecutionMode) error {
 	ev := &ingestionv1.EdgeValidation{FromNode: edge.GetFromNode(), ToNode: edge.GetToNode(), Resource: edge.GetResource()}
 	resp.Edges = append(resp.Edges, ev)
 
@@ -152,6 +159,44 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	sink, err := a.sinks.Resolve(snkConn.Connector)
 	if err != nil {
 		edgeError(ev, "to_node", err.Error())
+		return nil
+	}
+	ev.EffectiveExecutionMode = mode
+	ev.SupportedExecutionModes = []ingestionv1.ExecutionMode{ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED}
+	if len(source.Spec().SourcePolicies) == 0 && source.Spec().Stream != nil {
+		ev.SupportedExecutionModes = nil
+	}
+	_, runtimeSupported := a.store.(filament.ContinuousRunStore)
+	_, planningSupported := source.(filament.ReplicationStreamPlanner)
+	if runtimeSupported && planningSupported && filament.ValidateContinuousConnectors(source, sink) == nil {
+		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
+	}
+	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+		ev.EffectiveWriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+		ev.SupportedWriteModes = []ingestionv1.WriteMode{ingestionv1.WriteMode_WRITE_MODE_APPEND}
+		if !runtimeSupported {
+			edgeError(ev, "execution_mode", filament.ErrContinuousDisabled.Error())
+		}
+		if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
+			edgeError(ev, "execution_mode", err.Error())
+		}
+		if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED && edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+			edgeError(ev, "write_mode", "continuous execution requires append")
+		}
+		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(edge.GetCursors()) > 0 {
+			edgeError(ev, "read_mode", "continuous execution does not accept bounded read modes or cursors")
+		}
+		if edge.GetSelector() != "" && edge.GetSelector() != edge.GetResource() {
+			edgeError(ev, "resource", "continuous execution requires fixed resources, not selectors")
+		}
+		var resources []string
+		if edge.Resource != "" {
+			resources = []string{edge.Resource}
+		}
+		ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
+		if _, err := compile.PlanContinuousSource(source, ref, resources); err != nil {
+			edgeError(ev, "from_node", err.Error())
+		}
 		return nil
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()

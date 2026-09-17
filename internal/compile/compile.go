@@ -63,12 +63,27 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
 	}
+	options.Execution, err = resolveExecution(pipeline.GetExecutionMode(), options.Execution)
+	if err != nil {
+		return nil, err
+	}
+	if options.Execution == filament.ExecutionContinuous {
+		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
+			return nil, fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
+		}
+	}
 	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("load pipeline version: %w", err)
+	}
+	if options.Execution == filament.ExecutionContinuous {
+		if scheduleID != "" {
+			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
+		}
+		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg)
 	}
 	nodes := map[string]*ingestionv1.PipelineNode{}
 	connections := map[string]filament.Connection{}

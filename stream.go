@@ -124,9 +124,9 @@ type StreamSource interface {
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
-// ValidateContinuousConnectors checks the contracts supported by the serial
-// append coordinator. Provider identity does not determine runtime support.
-// CDC bootstrap, ordered writes, and mutable membership need separate support.
+// ValidateContinuousConnectors checks the current serial append runtime contract.
+// Connector names do not determine support. CDC bootstrap and ordered writes
+// require separate runtime support.
 func ValidateContinuousConnectors(source Source, sink Sink) error {
 	if _, ok := source.(StreamSource); !ok {
 		return errors.New("continuous execution requires a native stream source with position codecs")
