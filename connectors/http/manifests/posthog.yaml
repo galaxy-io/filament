@@ -1,7 +1,7 @@
 version: 1
 name: posthog
 display_name: PostHog
-description: Product analytics platform covering people, events, cohorts, feature flags, experiments, and session replay.
+description: People, groups, cohorts, feature flags, experiments, saved analytics, data definitions, surveys, notebooks, and replay metadata from PostHog.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-light.svg
 
@@ -18,6 +18,10 @@ config:
     type: string
     default: https://us.posthog.com
     help: PostHog host — https://us.posthog.com (US Cloud), https://eu.posthog.com (EU Cloud), or a self-hosted origin. Not the us.i.posthog.com ingestion host, which does not serve /api.
+  session_recordings_start_date:
+    type: string
+    scope: pipeline
+    help: Required when selecting session_recordings. Earliest recording timestamp to read, in ISO 8601 format (for example, your project creation date). No implicit three-day window.
 
 connection:
   # Rendered once at Configure from config.host so US Cloud, EU Cloud and
@@ -31,7 +35,7 @@ connection:
   timeout_seconds: 120
   # PostHog enforces a per-minute and a per-hour ceiling per endpoint class.
   # The binding one is the analytics hourly bucket — 1200/hour shared by
-  # persons, events, insights and session_recordings — i.e. 0.333 rps
+  # persons, insights and session_recordings — i.e. 0.333 rps
   # sustained. One limiter serves the whole run, so the tightest ceiling
   # governs; 0.3 rps is 1080/hour, leaving headroom for the connection probe
   # and retries, and never approaches the 240/min burst ceiling.
@@ -50,19 +54,15 @@ defaults:
   method: GET
   query:
     limit: "100"
-  # Every list endpoint is DRF-paginated. The events endpoint omits `count`
-  # and `previous` but still carries `next` + `results`, so one envelope
-  # covers all eleven resources. `next` is an absolute URL echoing back limit,
-  # offset and every filter, so the manifest never computes an offset itself.
-  # Preferred over `offset:` because the events endpoint marks its `offset`
-  # param deprecated and fails above 100000.
+  # Most lists return results and an absolute next URL. Group types and
+  # replay listings override this envelope below.
   response:
     records: $.results
     pagination:
       next_url: next
 
 field_sets:
-  # created_by is a UserBasic object on the eight CRUD resources. The two
+  # Preserve both useful author columns and the complete embedded object. The two
   # promoted scalars are what anyone groups by; the object is kept whole so
   # uuid, names and role survive. Promoting through a nullable path is safe —
   # descending into a null intermediate yields a path error, which a nullable
@@ -72,6 +72,66 @@ field_sets:
     created_by_id: { path: created_by.id, type: int64, nullable: true }
     created_by_email: { path: created_by.email, type: string, nullable: true }
     created_by: json?
+
+  feature_flag:
+    id: int64
+    key: string
+    name: string?
+    active: bool?
+    archived: bool?
+    deleted: bool?
+    status: string?
+    evaluation_runtime: string?
+    version: int64?
+    ensure_experience_continuity: bool?
+    has_encrypted_payloads: bool?
+    is_remote_configuration: bool?
+    user_access_level: string?
+    last_called_at: timestamptz?
+    updated_at: timestamptz?
+    last_modified_by: json?
+    tags: json?
+    filters: json?
+    raw: { path: $, type: json, mode: remainder }
+
+  experiment:
+    id: int64
+    name: string?
+    description: string?
+    type: string?
+    status: string?
+    conclusion: string?
+    conclusion_comment: string?
+    feature_flag_key: string?
+    # Join key to feature_flags.id, lifted out of the embedded object.
+    feature_flag_id: { path: feature_flag.id, type: int64, nullable: true }
+    feature_flag: json?
+    holdout: json?
+    exposure_cohort: int64?
+    parameters: json?
+    start_date: timestamptz?
+    end_date: timestamptz?
+    updated_at: timestamptz?
+    archived: bool?
+    deleted: bool?
+    is_legacy: bool?
+    metrics: json?
+    metrics_secondary: json?
+    saved_metrics: json?
+    raw: { path: $, type: json, mode: remainder }
+
+  property_definition:
+    # Built-in virtual properties use IDs such as $builtin_$group_key.
+    id: string
+    name: string
+    description: string?
+    property_type: string?
+    is_numerical: bool?
+    is_seen_on_filtered_events: bool?
+    updated_at: timestamptz?
+    verified: bool?
+    hidden: bool?
+    tags: json?
 
 # Every path keeps its trailing slash — Django's APPEND_SLASH would otherwise
 # answer each request with a 301.
@@ -107,33 +167,8 @@ resources:
     # properties and search only. There is no updated-since parameter, so
     # every run is a full snapshot.
 
-  - name: events
-    path: /api/projects/{project_id}/events/
-    params:
-      project_id: config.project_id
-    primary_key: [id]
-    fields:
-      id: string
-      event: string
-      timestamp: timestamptz
-      distinct_id: string
-      person: json?
-      properties: json?
-      elements: json?
-      elements_chain: string?
-      raw: { path: $, type: json, mode: remainder }
-    incremental:
-      cursor_field: timestamp
-      start_param: after
-      inject_into: query
-      checkpoint_key: events_timestamp
-      comparator: time
-      # Event timestamps are client-supplied: buffered mobile SDKs persist
-      # events well behind wall clock, so a watermark set from the last run's
-      # max would skip them. The primary key dedupes the re-read.
-      overlap_seconds: 3600
-
   - name: cohorts
+    capture: { cohort_id: id }
     path: /api/projects/{project_id}/cohorts/
     params:
       project_id: config.project_id
@@ -161,62 +196,65 @@ resources:
     path: /api/projects/{project_id}/feature_flags/
     params:
       project_id: config.project_id
+    query: { archived: "false" }
     primary_key: [id]
-    use_fields: [authorship]
-    fields:
-      id: int64
-      key: string
-      name: string?
-      active: bool?
-      archived: bool?
-      deleted: bool?
-      status: string?
-      evaluation_runtime: string?
-      version: int64?
-      ensure_experience_continuity: bool?
-      has_encrypted_payloads: bool?
-      is_remote_configuration: bool?
-      user_access_level: string?
-      last_called_at: timestamptz?
-      updated_at: timestamptz?
-      last_modified_by: json?
-      tags: json?
-      filters: json?
-      raw: { path: $, type: json, mode: remainder }
+    use_fields: [authorship, feature_flag]
 
-  - name: experiments
-    path: /api/projects/{project_id}/experiments/
+  - name: feature_flags_archived
+    path: /api/projects/{project_id}/feature_flags/
     params:
       project_id: config.project_id
+    query: { archived: "true" }
     primary_key: [id]
-    use_fields: [authorship]
-    fields:
-      id: int64
-      name: string?
-      description: string?
-      type: string?
-      status: string?
-      conclusion: string?
-      conclusion_comment: string?
-      feature_flag_key: string?
-      # Join key to feature_flags.id, lifted out of the embedded object.
-      feature_flag_id: { path: feature_flag.id, type: int64, nullable: true }
-      feature_flag: json?
-      holdout: json?
-      exposure_cohort: int64?
-      parameters: json?
-      start_date: timestamptz?
-      end_date: timestamptz?
-      updated_at: timestamptz?
-      archived: bool?
-      deleted: bool?
-      is_legacy: bool?
-      raw: { path: $, type: json, mode: remainder }
+    use_fields: [authorship, feature_flag]
+
+  # The list serializer omits metric definitions; hydrate each experiment.
+  # https://github.com/PostHog/posthog/blob/master/products/experiments/backend/presentation/views.py
+  - name: experiment_ids
+    path: /api/projects/{project_id}/experiments/
+    params: { project_id: config.project_id }
+    query: { archived: "false" }
+    capture_only: true
+    capture: { experiment_id: id }
+
+  - name: experiments
+    path: /api/projects/{project_id}/experiments/{experiment_id}/
+    params:
+      project_id: config.project_id
+      experiment_id: parent.experiment_id
+    for_each: experiment_ids
+    primary_key: [id]
+    use_fields: [authorship, experiment]
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+
+  - name: experiment_ids_archived
+    path: /api/projects/{project_id}/experiments/
+    params: { project_id: config.project_id }
+    query: { archived: "true" }
+    capture_only: true
+    capture: { experiment_id: id }
+
+  - name: experiments_archived
+    path: /api/projects/{project_id}/experiments/{experiment_id}/
+    params:
+      project_id: config.project_id
+      experiment_id: parent.experiment_id
+    for_each: experiment_ids_archived
+    primary_key: [id]
+    use_fields: [authorship, experiment]
+    response:
+      records: $
+      cardinality: one
+      pagination: none
 
   - name: insights
     path: /api/projects/{project_id}/insights/
     params:
       project_id: config.project_id
+    query: { order: last_modified_at }
     primary_key: [id]
     use_fields: [authorship]
     fields:
@@ -233,27 +271,36 @@ resources:
       dashboards: json?
       last_refresh: timestamptz?
       last_viewed_at: timestamptz?
-      # Non-nullable by design: this is the incremental contract. A null here
-      # would silently stall the watermark, so fail loudly instead.
       last_modified_at: timestamptz
       last_modified_by: json?
       updated_at: timestamptz?
       user_access_level: string?
       tags: json?
       raw: { path: $, type: json, mode: remainder }
+    # Only definition edits advance this timestamp; full reads refresh other metadata.
     incremental:
       cursor_field: last_modified_at
       start_param: date_from
       inject_into: query
-      checkpoint_key: insights_last_modified_at
       comparator: time
-      # last_modified_at is server-set, so only clock skew needs covering.
-      overlap_seconds: 300
+      checkpoint_key: insights_modified_at
+      # Strict > filters must re-read timestamp ties.
+      overlap_seconds: 1
+
+  - name: dashboard_ids
+    path: /api/projects/{project_id}/dashboards/
+    params: { project_id: config.project_id }
+    capture_only: true
+    capture: { dashboard_id: id }
 
   - name: dashboards
-    path: /api/projects/{project_id}/dashboards/
+    path: /api/projects/{project_id}/dashboards/{dashboard_id}/
     params:
       project_id: config.project_id
+      dashboard_id: parent.dashboard_id
+    for_each: dashboard_ids
+    query: { refresh: force_cache }
+    response: { records: $, cardinality: one, pagination: none }
     primary_key: [id]
     use_fields: [authorship]
     fields:
@@ -271,6 +318,9 @@ resources:
       last_refresh: timestamptz?
       user_access_level: string?
       team_id: int64?
+      tiles: json?
+      filters: json?
+      variables: json?
       tags: json?
       raw: { path: $, type: json, mode: remainder }
 
@@ -322,6 +372,7 @@ resources:
       raw: { path: $, type: json, mode: remainder }
 
   - name: surveys
+    capture: { survey_id: id }
     path: /api/projects/{project_id}/surveys/
     params:
       project_id: config.project_id
@@ -348,7 +399,19 @@ resources:
       conditions: json?
       raw: { path: $, type: json, mode: remainder }
 
+  # The live implementation differs from the generated DRF API example.
+  # https://github.com/PostHog/posthog/blob/master/posthog/session_recordings/session_recording_api.py
   - name: session_recordings
+    query:
+      order: start_time
+      order_direction: ASC
+      date_from: "{{ config.session_recordings_start_date }}"
+    pagination:
+      cursor:
+        response: next_cursor
+        request: query.after
+        more: has_next
+        null_terminates: true
     path: /api/projects/{project_id}/session_recordings/
     params:
       project_id: config.project_id
@@ -371,12 +434,949 @@ resources:
       mouse_activity_count: int64?
       console_log_count: int64?
       console_error_count: int64?
-      start_time: timestamptz?
+      start_time: timestamptz
       end_time: timestamptz?
       start_url: string?
       snapshot_source: string?
       viewers: json?
       raw: { path: $, type: json, mode: remainder }
 
+    # Session start is not an update timestamp. Re-read the maximum session
+    # duration (24 hours); older uploads and metadata edits need full reads.
+    incremental:
+      cursor_field: start_time
+      start_param: date_from
+      inject_into: query
+      comparator: time
+      checkpoint_key: session_recordings_start_time
+      overlap_seconds: 86400
+
+  - name: group_types
+    path: /api/projects/{project_id}/groups_types/
+    params: { project_id: config.project_id }
+    capture: { group_type_index: group_type_index }
+    primary_key: [group_type_index]
+    # The implementation returns a root array, despite the singleton example.
+    # https://github.com/PostHog/posthog/blob/master/ee/clickhouse/views/groups.py
+    response: { records: $, pagination: none }
+    fields:
+      group_type_index: int64
+      group_type: string
+      name_singular: string?
+      name_plural: string?
+      detail_dashboard: int64?
+      default_columns: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: groups
+    path: /api/projects/{project_id}/groups/
+    params: { project_id: config.project_id }
+    for_each: group_types
+    query: { group_type_index: "{{ parent.group_type_index }}" }
+    primary_key: [group_type_index, group_key]
+    fields:
+      group_type_index: int64
+      group_key: string
+      group_properties: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: cohort_members
+    path: /api/projects/{project_id}/cohorts/{cohort_id}/persons/
+    params:
+      project_id: config.project_id
+      cohort_id: parent.cohort_id
+    for_each: cohorts
+    primary_key: [cohort_id, person_id]
+    fields:
+      cohort_id: { path: parent.cohort_id, type: int64 }
+      person_id: { path: id, type: string }
+      uuid: uuid?
+      name: string?
+      distinct_ids: json?
+      properties: json?
+      created_at: timestamptz?
+      is_identified: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: event_definitions
+    path: /api/projects/{project_id}/event_definitions/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: uuid
+      name: string
+      description: string?
+      owner: int64?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      last_seen_at: timestamptz?
+      verified: bool?
+      hidden: bool?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: event_property_definitions
+    path: /api/projects/{project_id}/property_definitions/
+    params: { project_id: config.project_id }
+    query: { type: event }
+    primary_key: [id]
+    use_fields: [property_definition]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: person_property_definitions
+    path: /api/projects/{project_id}/property_definitions/
+    params: { project_id: config.project_id }
+    query: { type: person }
+    primary_key: [id]
+    use_fields: [property_definition]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: session_property_definitions
+    path: /api/projects/{project_id}/property_definitions/
+    params: { project_id: config.project_id }
+    query: { type: session }
+    primary_key: [id]
+    use_fields: [property_definition]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: group_property_definitions
+    path: /api/projects/{project_id}/property_definitions/
+    params: { project_id: config.project_id }
+    for_each: group_types
+    query:
+      type: group
+      group_type_index: "{{ parent.group_type_index }}"
+    primary_key: [group_type_index, id]
+    use_fields: [property_definition]
+    fields:
+      group_type_index: { path: parent.group_type_index, type: int64 }
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: notebook_ids
+    path: /api/projects/{project_id}/notebooks/
+    params: { project_id: config.project_id }
+    capture_only: true
+    capture: { short_id: short_id }
+
+  - name: notebooks
+    path: /api/projects/{project_id}/notebooks/{short_id}/
+    params:
+      project_id: config.project_id
+      short_id: parent.short_id
+    for_each: notebook_ids
+    primary_key: [id]
+    use_fields: [authorship]
+    response: { records: $, cardinality: one, pagination: none }
+    fields:
+      id: uuid
+      short_id: string
+      title: string?
+      content: json?
+      text_content: string?
+      version: int64?
+      deleted: bool?
+      last_modified_at: timestamptz?
+      last_modified_by: json?
+      variables: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: early_access_features
+    path: /api/projects/{project_id}/early_access_feature/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    use_fields: [authorship]
+    fields:
+      id: uuid
+      name: string?
+      description: string?
+      stage: string?
+      documentation_url: string?
+      feature_flag_id: { path: feature_flag.id, type: int64, nullable: true }
+      feature_flag: json?
+      payload: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: session_recording_playlists
+    path: /api/projects/{project_id}/session_recording_playlists/
+    params: { project_id: config.project_id }
+    # Synthetic playlists have string IDs; short_id identifies both kinds.
+    primary_key: [short_id]
+    use_fields: [authorship]
+    fields:
+      short_id: string
+      id: string?
+      name: string?
+      derived_name: string?
+      description: string?
+      pinned: bool?
+      deleted: bool?
+      type: string?
+      is_synthetic: bool?
+      filters: json?
+      recordings_counts: json?
+      last_modified_at: timestamptz?
+      last_modified_by: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/activity-log
+  - name: activity_log
+    path: /api/projects/{project_id}/activity_log/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      activity: string?
+      scope: string?
+      item_id: string?
+      user: json?
+      detail: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/alerts
+  - name: alerts
+    path: /api/projects/{project_id}/alerts/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      enabled: bool?
+      insight: int64?
+      state: string?
+      threshold: json?
+      config: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/batch-exports-2
+  - name: batch_exports
+    path: /api/projects/{project_id}/batch_exports/
+    params: { project_id: config.project_id }
+    capture: { batch_export_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      model: json?
+      destination: json?
+      interval: string?
+      paused: bool?
+      created_at: timestamptz?
+      last_updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/dashboard-templates
+  - name: dashboard_templates
+    path: /api/projects/{project_id}/dashboard_templates/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      template_name: string?
+      dashboard_description: string?
+      dashboard_filters: json?
+      tiles: json?
+      variables: json?
+      scope: string?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/datasets
+  - name: datasets
+    path: /api/projects/{project_id}/datasets/
+    params: { project_id: config.project_id }
+    query: { archived: "false" }
+    capture: { dataset_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      metadata: json?
+      archived: bool?
+      current_revision_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/dataset-items
+  - name: dataset_items
+    path: /api/projects/{project_id}/dataset_items/
+    params: { project_id: config.project_id }
+    query: { archived: "false" }
+    capture: { dataset_item_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      dataset: string?
+      version: int64?
+      version_id: string?
+      archived: bool?
+      input: json?
+      expected_output: json?
+      source_output: json?
+      metadata: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/datasets
+  - name: datasets_archived
+    path: /api/projects/{project_id}/datasets/
+    params: { project_id: config.project_id }
+    query: { archived: "true" }
+    capture: { dataset_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      metadata: json?
+      archived: bool?
+      current_revision_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/dataset-items
+  - name: dataset_items_archived
+    path: /api/projects/{project_id}/dataset_items/
+    params: { project_id: config.project_id }
+    query: { archived: "true" }
+    capture: { dataset_item_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      dataset: string?
+      version: int64?
+      version_id: string?
+      archived: bool?
+      input: json?
+      expected_output: json?
+      source_output: json?
+      metadata: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/endpoints
+  - name: endpoints
+    path: /api/projects/{project_id}/endpoints/
+    params: { project_id: config.project_id }
+    capture: { endpoint_name: name }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      query: json?
+      is_active: bool?
+      current_version: int64?
+      current_version_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/evaluations
+  - name: evaluations
+    path: /api/projects/{project_id}/evaluations/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      enabled: bool?
+      evaluation_type: string?
+      evaluation_config: json?
+      conditions: json?
+      model_configuration: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/batch-exports-4
+  - name: file_download_batch_exports
+    path: /api/projects/{project_id}/file_download_batch_exports/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      status: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/hog-functions
+  - name: hog_functions
+    path: /api/projects/{project_id}/hog_functions/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      type: string?
+      enabled: bool?
+      hog: string?
+      filters: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-prompts
+  - name: llm_prompts
+    path: /api/projects/{project_id}/llm_prompts/
+    params: { project_id: config.project_id }
+    query: { content: full }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      prompt: json?
+      config: json?
+      version: int64?
+      labels: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics
+  - name: llm_clustering_jobs
+    path: /api/projects/{project_id}/llm_analytics/clustering_jobs/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      analysis_level: string?
+      event_filters: json?
+      enabled: bool?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics
+  - name: llm_evaluation_reports
+    path: /api/projects/{project_id}/llm_analytics/evaluation_reports/
+    params: { project_id: config.project_id }
+    capture: { report_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      evaluation: string?
+      enabled: bool?
+      frequency: string?
+      delivery_targets: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics-2
+  - name: llm_parser_recipes
+    path: /api/projects/{project_id}/llm_analytics/parser_recipes/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      source: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics-2
+  - name: llm_review_queue_items
+    path: /api/projects/{project_id}/llm_analytics/review_queue_items/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      queue_id: string?
+      trace_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics-3
+  - name: llm_review_queues
+    path: /api/projects/{project_id}/llm_analytics/review_queues/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      pending_item_count: int64?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics-3
+  - name: llm_score_definitions
+    path: /api/projects/{project_id}/llm_analytics/score_definitions/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      kind: string?
+      archived: bool?
+      config: json?
+      current_version_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics-3
+  - name: llm_trace_reviews
+    path: /api/projects/{project_id}/llm_analytics/trace_reviews/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      trace_id: string?
+      comment: string?
+      scores: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/subscriptions
+  - name: subscriptions
+    path: /api/projects/{project_id}/subscriptions/
+    params: { project_id: config.project_id }
+    capture: { subscription_id: id }
+    primary_key: [id]
+    fields:
+      id: string
+      title: string?
+      resource_type: string?
+      dashboard: int64?
+      insight: int64?
+      enabled: bool?
+      frequency: string?
+      target_type: string?
+      target_value: string?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking
+  - name: error_tracking_alerts
+    path: /api/projects/{project_id}/error_tracking/alerts/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      enabled: bool?
+      triggers: json?
+      filters: json?
+      destinations: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking
+  - name: error_tracking_assignment_rules
+    path: /api/projects/{project_id}/error_tracking/assignment_rules/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      filters: json?
+      assignee: json?
+      order_key: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking
+  - name: error_tracking_bypass_rules
+    path: /api/projects/{project_id}/error_tracking/bypass_rules/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      filters: json?
+      order_key: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-2
+  - name: error_tracking_external_references
+    path: /api/projects/{project_id}/error_tracking/external_references/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      integration: json?
+      external_url: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-2
+  - name: error_tracking_fingerprints
+    path: /api/projects/{project_id}/error_tracking/fingerprints/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      fingerprint: string?
+      issue_id: string?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-2
+  - name: error_tracking_grouping_rules
+    path: /api/projects/{project_id}/error_tracking/grouping_rules/
+    params: { project_id: config.project_id }
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      filters: json?
+      description: string?
+      issue: json?
+      order_key: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-2
+  - name: error_tracking_issues
+    path: /api/projects/{project_id}/error_tracking/issues/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      status: string?
+      severity: string?
+      first_seen: timestamptz?
+      assignee: json?
+      external_issues: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-4
+  - name: error_tracking_releases
+    path: /api/projects/{project_id}/error_tracking/releases/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      hash_id: string?
+      version: string?
+      project: string?
+      metadata: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-4
+  - name: error_tracking_severity_rules
+    path: /api/projects/{project_id}/error_tracking/severity_rules/
+    params: { project_id: config.project_id }
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      filters: json?
+      severity: string?
+      order_key: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-4
+  - name: error_tracking_spike_events
+    path: /api/projects/{project_id}/error_tracking/spike_events/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      issue: json?
+      detected_at: timestamptz?
+      computed_baseline: float64?
+      current_bucket_value: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-4
+  - name: error_tracking_stack_frames
+    path: /api/projects/{project_id}/error_tracking/stack_frames/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      raw_id: string?
+      contents: json?
+      resolved: bool?
+      context: json?
+      symbol_set_ref: string?
+      release: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-5
+  - name: error_tracking_suppression_rules
+    path: /api/projects/{project_id}/error_tracking/suppression_rules/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      filters: json?
+      order_key: int64?
+      sampling_rate: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/error-tracking-5
+  - name: error_tracking_symbol_sets
+    path: /api/projects/{project_id}/error_tracking/symbol_sets/
+    params: { project_id: config.project_id }
+    primary_key: [id]
+    fields:
+      id: string
+      ref: string?
+      failure_reason: string?
+      has_uploaded_file: bool?
+      release: json?
+      created_at: timestamptz?
+      last_used: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/batch-exports-2
+  - name: batch_export_runs
+    path: /api/projects/{project_id}/batch_exports/{batch_export_id}/runs/
+    params: { project_id: config.project_id, batch_export_id: parent.batch_export_id }
+    for_each: batch_exports
+    primary_key: [batch_export_id, id]
+    fields:
+      batch_export_id: { path: parent.batch_export_id, type: string }
+      id: string
+      status: string?
+      records_completed: int64?
+      records_failed: int64?
+      created_at: timestamptz?
+      last_updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/batch-exports-2
+  - name: batch_export_backfills
+    path: /api/projects/{project_id}/batch_exports/{batch_export_id}/backfills/
+    params: { project_id: config.project_id, batch_export_id: parent.batch_export_id }
+    for_each: batch_exports
+    primary_key: [batch_export_id, id]
+    fields:
+      batch_export_id: { path: parent.batch_export_id, type: string }
+      id: string
+      status: string?
+      progress: json?
+      start_at: timestamptz?
+      end_at: timestamptz?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/subscriptions
+  - name: subscription_deliveries
+    path: /api/projects/{project_id}/subscriptions/{subscription_id}/deliveries/
+    params: { project_id: config.project_id, subscription_id: parent.subscription_id }
+    for_each: subscriptions
+    primary_key: [subscription_id, id]
+    fields:
+      subscription_id: { path: parent.subscription_id, type: string }
+      id: string
+      status: string?
+      error: json?
+      recipient_results: json?
+      content_snapshot: json?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/llm-analytics
+  - name: llm_evaluation_report_runs
+    path: /api/projects/{project_id}/llm_analytics/evaluation_reports/{report_id}/runs/
+    params: { project_id: config.project_id, report_id: parent.report_id }
+    for_each: llm_evaluation_reports
+    primary_key: [report_id, id]
+    fields:
+      report_id: { path: parent.report_id, type: string }
+      id: string
+      content: json?
+      metadata: json?
+      delivery_status: string?
+      period_start: timestamptz?
+      period_end: timestamptz?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/endpoints
+  - name: endpoint_versions
+    path: /api/projects/{project_id}/endpoints/{endpoint_name}/versions/
+    params: { project_id: config.project_id, endpoint_name: parent.endpoint_name }
+    for_each: endpoints
+    primary_key: [endpoint_name, version_id]
+    fields:
+      endpoint_name: { path: parent.endpoint_name, type: string }
+      id: string
+      version_id: string
+      version: int64?
+      name: string?
+      query: json?
+      version_created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/datasets
+  - name: dataset_revisions
+    path: /api/projects/{project_id}/datasets/{dataset_id}/revisions/
+    params: { project_id: config.project_id, dataset_id: parent.dataset_id }
+    for_each: datasets
+    primary_key: [dataset_id, id]
+    fields:
+      dataset_id: { path: parent.dataset_id, type: string }
+      id: string
+      revision: int64?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/datasets
+  - name: dataset_revisions_archived
+    path: /api/projects/{project_id}/datasets/{dataset_id}/revisions/
+    params: { project_id: config.project_id, dataset_id: parent.dataset_id }
+    for_each: datasets_archived
+    primary_key: [dataset_id, id]
+    fields:
+      dataset_id: { path: parent.dataset_id, type: string }
+      id: string
+      revision: int64?
+      created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/dataset-items
+  - name: dataset_item_versions
+    path: /api/projects/{project_id}/dataset_items/{dataset_item_id}/versions/
+    params: { project_id: config.project_id, dataset_item_id: parent.dataset_item_id }
+    for_each: dataset_items
+    primary_key: [dataset_item_id, version_id]
+    fields:
+      dataset_item_id: { path: parent.dataset_item_id, type: string }
+      id: string
+      version_id: string
+      version: int64?
+      input: json?
+      expected_output: json?
+      metadata: json?
+      version_created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/dataset-items
+  - name: dataset_item_versions_archived
+    path: /api/projects/{project_id}/dataset_items/{dataset_item_id}/versions/
+    params: { project_id: config.project_id, dataset_item_id: parent.dataset_item_id }
+    for_each: dataset_items_archived
+    primary_key: [dataset_item_id, version_id]
+    fields:
+      dataset_item_id: { path: parent.dataset_item_id, type: string }
+      id: string
+      version_id: string
+      version: int64?
+      input: json?
+      expected_output: json?
+      metadata: json?
+      version_created_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  # https://posthog.com/docs/api/surveys
+  - name: survey_responses
+    path: /api/projects/{project_id}/surveys/{survey_id}/responses/
+    params: { project_id: config.project_id, survey_id: parent.survey_id }
+    for_each: surveys
+    query: { exclude_archived: "false" }
+    pagination:
+      offset: { offset: query.offset, limit: query.limit, page_size: 100 }
+    primary_key: [survey_id, uuid]
+    fields:
+      survey_id: { path: parent.survey_id, type: string }
+      uuid: string
+      distinct_id: string?
+      session_id: string?
+      submitted_at: timestamptz?
+      answers: json?
+      extra: json?
+      raw: { path: $, type: json, mode: remainder }
+
 discovery:
   mode: static
+  # Alphabetical discovery order preserves persons as the connection probe.
+  include:
+    - actions
+    - activity_log
+    - alerts
+    - annotations
+    - batch_export_backfills
+    - batch_export_runs
+    - batch_exports
+    - cohort_members
+    - cohorts
+    - dashboard_templates
+    - dashboards
+    - dataset_item_versions
+    - dataset_item_versions_archived
+    - dataset_items
+    - dataset_items_archived
+    - dataset_revisions
+    - dataset_revisions_archived
+    - datasets
+    - datasets_archived
+    - early_access_features
+    - endpoint_versions
+    - endpoints
+    - error_tracking_alerts
+    - error_tracking_assignment_rules
+    - error_tracking_bypass_rules
+    - error_tracking_external_references
+    - error_tracking_fingerprints
+    - error_tracking_grouping_rules
+    - error_tracking_issues
+    - error_tracking_releases
+    - error_tracking_severity_rules
+    - error_tracking_spike_events
+    - error_tracking_stack_frames
+    - error_tracking_suppression_rules
+    - error_tracking_symbol_sets
+    - evaluations
+    - event_definitions
+    - event_property_definitions
+    - experiments
+    - experiments_archived
+    - feature_flags
+    - feature_flags_archived
+    - file_download_batch_exports
+    - group_property_definitions
+    - group_types
+    - groups
+    - hog_functions
+    - insights
+    - llm_clustering_jobs
+    - llm_evaluation_report_runs
+    - llm_evaluation_reports
+    - llm_parser_recipes
+    - llm_prompts
+    - llm_review_queue_items
+    - llm_review_queues
+    - llm_score_definitions
+    - llm_trace_reviews
+    - notebooks
+    - person_property_definitions
+    - persons
+    - session_property_definitions
+    - session_recording_playlists
+    - session_recordings
+    - subscription_deliveries
+    - subscriptions
+    - survey_responses
+    - surveys
+  default_resources:
+    - actions
+    - annotations
+    - cohort_members
+    - cohorts
+    - dashboards
+    - experiments
+    - feature_flags
+    - groups
+    - insights
+    - notebooks
+    - persons
+    - session_recordings
+    - surveys

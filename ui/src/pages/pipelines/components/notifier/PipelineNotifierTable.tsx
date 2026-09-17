@@ -18,7 +18,8 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import { LayoutSize } from "@/layouts/types";
 
 import {
   PIPELINE_NOTIFIER_DEFAULT_STATE,
@@ -146,7 +147,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
           isLoading={isLoading}
           contentWhenEmpty={
             <EmptyLayout
-              size={EmptyLayoutSize.SMALL}
+              size={LayoutSize.SMALL}
               header={rows.length === 0 ? "No notifiers" : undefined}
               message={
                 rows.length === 0
