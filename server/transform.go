@@ -39,7 +39,7 @@ func (a *Server) ListTransformFunctions(ctx context.Context, req *connect.Reques
 			}
 			fn.Args = append(fn.Args, &ingestionv1.TransformArgument{
 				Name: arg.Name, LogicalTypes: types,
-				IsColumn: arg.Column, IsLiteral: arg.Literal, IsOptional: arg.Optional,
+				IsColumn: arg.Column, IsLiteral: arg.Literal, IsOptional: arg.Optional, IsVariadic: arg.Variadic,
 			})
 		}
 		resp.Functions = append(resp.Functions, fn)

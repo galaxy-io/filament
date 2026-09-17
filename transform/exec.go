@@ -10,6 +10,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/compute"
 	"github.com/apache/arrow-go/v18/arrow/scalar"
 
+	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform/kernel"
 )
 
@@ -117,18 +118,32 @@ func (n colNode) eval(_ context.Context, f *frame) (compute.Datum, error) {
 
 type literalNode struct{ sc scalar.Scalar }
 
-// newLiteralNode boxes a literal into an Arrow scalar once, at compile time, so
-// no batch pays for it.
-func newLiteralNode(v any) literalNode {
+// newLiteralNode boxes a literal into an Arrow scalar of the logical type t
+// once, at compile time, so no batch pays for it. The compiler has already
+// checked that v converts to t.
+func newLiteralNode(v any, t rowmodel.LogicalType) literalNode {
 	switch x := v.(type) {
 	case string:
 		return literalNode{sc: scalar.NewStringScalar(x)}
-	case int64:
-		return literalNode{sc: scalar.NewInt64Scalar(x)}
-	case float64:
-		return literalNode{sc: scalar.NewFloat64Scalar(x)}
 	case bool:
 		return literalNode{sc: scalar.NewBooleanScalar(x)}
+	case int64:
+		switch t {
+		case rowmodel.LogicalInt16:
+			return literalNode{sc: scalar.NewInt16Scalar(int16(x))} //nolint:gosec // range checked by coercible
+		case rowmodel.LogicalInt32:
+			return literalNode{sc: scalar.NewInt32Scalar(int32(x))} //nolint:gosec // range checked by coercible
+		case rowmodel.LogicalFloat32:
+			return literalNode{sc: scalar.NewFloat32Scalar(float32(x))}
+		case rowmodel.LogicalFloat64:
+			return literalNode{sc: scalar.NewFloat64Scalar(float64(x))}
+		}
+		return literalNode{sc: scalar.NewInt64Scalar(x)}
+	case float64:
+		if t == rowmodel.LogicalFloat32 {
+			return literalNode{sc: scalar.NewFloat32Scalar(float32(x))}
+		}
+		return literalNode{sc: scalar.NewFloat64Scalar(x)}
 	}
 	panic(fmt.Sprintf("transform: literal %T not admitted by Expr", v))
 }
