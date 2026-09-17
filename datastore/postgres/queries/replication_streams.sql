@@ -68,6 +68,12 @@ WHERE id = @replication_stream_id
   AND status = 0
 FOR UPDATE;
 
+-- name: BumpReplicationStreamMembershipRevision :exec
+UPDATE replication_streams
+SET membership_revision = membership_revision + 1
+WHERE id = @replication_stream_id
+  AND tenant_id = @tenant_id;
+
 -- name: UpsertReplicationStreamResource :exec
 INSERT INTO replication_stream_resources (
   replication_stream_id, tenant_id, resource_name, status,
