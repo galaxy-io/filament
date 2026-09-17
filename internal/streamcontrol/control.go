@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/streamkit"
 )
 
 const LeaseTTL = 2 * time.Minute
@@ -23,14 +22,6 @@ type Store interface {
 	RetireUnclaimedAttempt(context.Context, filament.LeaseToken) error
 	PendingStreamRuns(context.Context, string, int) ([]filament.RunState, error)
 	StreamProgress(context.Context, filament.TenantID, filament.RunID) (int64, int64, time.Time, error)
-}
-
-func Codecs() *streamkit.Registry {
-	r := &streamkit.Registry{}
-	if err := r.Register("nats.stream.sequence", 0, streamkit.Uint64Codec{}); err != nil {
-		panic(err)
-	}
-	return r
 }
 
 // Spec snapshots the submitted request without resolving secrets into persistence.
