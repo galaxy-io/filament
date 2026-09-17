@@ -15,6 +15,7 @@ import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSettingsPageAdvanced";
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";
 import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSettingsPageGeneral";
+import PipelineSettingsPageNotifications from "@/pages/pipelines/settings/PipelineSettingsPageNotifications";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -65,6 +66,7 @@ const PipelineSettingsPage = () => {
         >
           <PipelineSettingsPageGeneral />
           <PipelineSettingsPageSchedule />
+          <PipelineSettingsPageNotifications />
           <PipelineSettingsPageAdvanced />
           <PipelineSettingsPageDanger />
         </FlexWrapper>

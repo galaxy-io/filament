@@ -181,6 +181,47 @@ func TestHTTPNoContentIsEmptyButInvalidJSONFails(t *testing.T) {
 	}
 }
 
+func gongTestSource(t *testing.T, handler http.HandlerFunc) *Source {
+	t.Helper()
+	api := httptest.NewServer(handler)
+	t.Cleanup(api.Close)
+	src := NewManifest(gongManifest)
+	if err := src.Configure(t.Context(), filament.NewConfig(map[string]any{
+		"access_key":        "key",
+		"access_key_secret": "secret",
+		"base_url":          api.URL,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+	return src
+}
+
+func TestHTTPEmptyResponseRule(t *testing.T) {
+	// Gong answers 404 with this body when a filter matches no calls.
+	const emptyBody = `{"requestId":"sanitized","errors":["No calls found corresponding to the provided filters"]}`
+	for _, tc := range []struct {
+		name, body, resource string
+		wantEmpty            bool
+	}{
+		{"matched rule", emptyBody, "calls", true},
+		{"unrelated 404", `{"errors":["Resource not found"]}`, "calls", false},
+		{"resource without rule", emptyBody, "users", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := gongTestSource(t, func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, tc.body)
+			})
+			var sink collectSink
+			err := src.Extract(t.Context(), &sink, filament.ExtractOpts{Resources: []string{tc.resource}})
+			if (err == nil) != tc.wantEmpty || len(sink.records) != 0 {
+				t.Fatalf("rows=%d error=%v", len(sink.records), err)
+			}
+		})
+	}
+}
+
 func TestHTTPPendingResponseCanBeCancelled(t *testing.T) {
 	src := throttleTestSource(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", "3600")

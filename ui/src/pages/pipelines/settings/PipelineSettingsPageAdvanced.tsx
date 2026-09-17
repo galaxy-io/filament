@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
-import Button from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
   FlexDirection,
   FlexGap,
@@ -47,6 +47,10 @@ const PipelineSettingsPageAdvanced = () => {
   const hasChanges = !workerConfigurationEquals(parsed.configuration, pipeline.workerConfiguration);
   const canSave = hasChanges && !parsed.error;
 
+  const handleCancel = () => {
+    setWorkerConfiguration(formatWorkerConfiguration(pipeline.workerConfiguration));
+  };
+
   const handleSave = () => {
     updatePipeline(
       create(UpdatePipelineRequestSchema, {
@@ -82,7 +86,13 @@ const PipelineSettingsPageAdvanced = () => {
           onChange={setWorkerConfiguration}
           error={parsed.error}
         />
-        <FlexWrapper justifyContent={JustifyContent.END} fillWidth>
+        <FlexWrapper justifyContent={JustifyContent.END} gap={8} fillWidth>
+          <Button
+            label="Cancel"
+            variant={ButtonVariant.SECONDARY}
+            isDisabled={!hasChanges || isSaving}
+            onClick={handleCancel}
+          />
           <Button label="Save" isDisabled={!canSave} isLoading={isSaving} onClick={handleSave} />
         </FlexWrapper>
       </FlexWrapper>

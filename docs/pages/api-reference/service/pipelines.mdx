@@ -127,3 +127,70 @@ schedule is removed only when its pipeline is deleted. The scheduler
 pre-creates a `SCHEDULED` run row for the next fire. See
 [Runs](/pages/api-reference/service/runs#listruns) for how that appears in
 listings.
+
+## Notifications
+
+A pipeline can have multiple independent notifiers, managed through
+`CreatePipelineNotifier`, `UpdatePipelineNotifier`, `ListPipelineNotifiers`,
+and `DeletePipelineNotifier`. The messages are defined in
+`protos/ingestion/v1/notifiers.proto`.
+
+The control plane and standalone application automatically deliver matching
+events as JSON webhooks.
+
+Create takes `pipeline_id` and a `notifier` input:
+
+```json
+{
+  "pipelineId": "<pipeline-id>",
+  "notifier": {
+    "name": "Pipeline notifications",
+    "notificationType": "NOTIFICATION_TYPE_WEBHOOK",
+    "isEnabled": true,
+    "events": ["NOTIFIER_EVENT_RUN_COMPLETED", "NOTIFIER_EVENT_RUN_FAILED"],
+    "config": {
+      "url": "https://example.com/webhook",
+      "headers": {"Authorization": "Bearer <token>"}
+    }
+  }
+}
+```
+
+`events` lists one or more `NotifierEvent` values; there is no wildcard. The
+run lifecycle events are `NOTIFIER_EVENT_RUN_STARTED`,
+`NOTIFIER_EVENT_RUN_COMPLETED`, `NOTIFIER_EVENT_RUN_FAILED`,
+`NOTIFIER_EVENT_RUN_PARTIAL` (some resources landed, some failed),
+`NOTIFIER_EVENT_RUN_CANCELED`, and `NOTIFIER_EVENT_RUN_PAUSED`. Each webhook
+body carries the event `type` (for example `run.failed`), the `run_id`, and the
+time; `run.completed` adds `records` and `bytes`, and `run.paused` adds
+`committed`. Optional `resources` contains exact resource names; an empty list
+matches any resource. Headers are optional and can include a custom API-key header.
+Filament supplies `Content-Type` and `X-Filament-*` headers, so those names
+cannot be overridden.
+
+Notifier config follows the same split as connection config. The URL is plain
+configuration and is returned in `config.url`. Headers are the only secret:
+they are extracted from `config`, stored through the configured secrets
+provider, and appear in responses only as `secret_refs.headers`. A webhook
+without headers needs no secrets provider. To use a pre-existing secret, omit
+`config.headers` and supply `secret_refs.headers` instead; its value must be a
+JSON object of header names to string values. Read-only providers, including
+environment variables, support this reference form; inline values require a
+writable provider. Saving validates the destination's format but does not
+contact the endpoint or verify its credentials.
+
+Update takes `pipeline_id`, `notifier_id`, and the replacement `notifier`
+settings. Send `config.url` and echo the `secret_refs` you last read. Omit
+`config.headers` to keep the current header secret, send an empty object to
+remove it, or send new values to replace it. The notification type cannot
+change. The last write wins; updating or deleting a deleted notifier returns
+`not_found`. Delete takes the same IDs.
+
+List returns all live notifiers for the pipeline, including disabled ones.
+Notifiers are soft-deleted with their pipeline. Replaced or deleted secrets
+created by this API are removed on a best-effort basis after the database
+change succeeds; external references are never deleted.
+
+Webhook delivery makes up to 10 attempts with exponential backoff. Delivery
+failures do not affect pipeline results. Restarts can cause duplicate webhooks
+and receivers should use `X-Filament-Delivery-ID` to recognize them.

@@ -350,13 +350,22 @@ type BodySpec struct {
 
 // ResponseSpec configures where records live in the response body.
 type ResponseSpec struct {
-	Root        string          `yaml:"root"` // array | object (default object)
-	RecordsPath string          `yaml:"records_path"`
-	Cardinality string          `yaml:"cardinality,omitempty"`  // many (default) | one
-	PollPending *bool           `yaml:"poll_pending,omitempty"` // retry HTTP 202 until ready
-	Error       *ErrorSpec      `yaml:"error,omitempty"`
-	Records     string          `yaml:"records,omitempty"`
-	Pagination  *PaginationSpec `yaml:"pagination,omitempty"`
+	Root        string             `yaml:"root"` // array | object (default object)
+	RecordsPath string             `yaml:"records_path"`
+	Cardinality string             `yaml:"cardinality,omitempty"`  // many (default) | one
+	PollPending *bool              `yaml:"poll_pending,omitempty"` // retry HTTP 202 until ready
+	Error       *ErrorSpec         `yaml:"error,omitempty"`
+	Empty       *EmptyResponseSpec `yaml:"empty,omitempty"`
+	Records     string             `yaml:"records,omitempty"`
+	Pagination  *PaginationSpec    `yaml:"pagination,omitempty"`
+}
+
+// EmptyResponseSpec recognizes an API's empty-result error by status and an
+// exact array of messages. It applies only to the resource that declares it.
+type EmptyResponseSpec struct {
+	Status     int      `yaml:"status"`
+	BodyPath   string   `yaml:"body_path"`
+	BodyEquals []string `yaml:"body_equals"`
 }
 
 // ErrorSpec configures detection of errors wrapped in 200 responses.
