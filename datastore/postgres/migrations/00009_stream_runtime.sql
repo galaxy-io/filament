@@ -1,5 +1,5 @@
 -- +goose Up
-ALTER TABLE pipelines ADD COLUMN execution INTEGER NOT NULL DEFAULT 1 CHECK (execution IN (1, 2));
+ALTER TABLE pipelines ADD COLUMN execution_mode INTEGER NOT NULL DEFAULT 1 CHECK (execution_mode IN (1, 2));
 
 ALTER TABLE runs ADD CONSTRAINT runs_id_tenant_unique UNIQUE (id, tenant_id);
 ALTER TABLE replication_streams ADD COLUMN membership_revision BIGINT NOT NULL DEFAULT 1 CHECK (membership_revision > 0);
@@ -74,4 +74,4 @@ ALTER TABLE replication_streams
  DROP COLUMN membership_revision;
 
 ALTER TABLE runs DROP CONSTRAINT runs_id_tenant_unique;
-ALTER TABLE pipelines DROP COLUMN execution;
+ALTER TABLE pipelines DROP COLUMN execution_mode;

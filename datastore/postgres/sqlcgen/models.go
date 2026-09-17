@@ -146,7 +146,7 @@ type Pipeline struct {
 	DeletedByUserID     pgtype.Text
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
-	Execution           int32
+	ExecutionMode       int32
 }
 
 type PipelineResourceCheckpoint struct {

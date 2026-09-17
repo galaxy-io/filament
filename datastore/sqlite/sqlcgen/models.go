@@ -60,7 +60,7 @@ type Pipeline struct {
 	DeletedByUserID     sql.NullString
 	CreatedAt           int64
 	UpdatedAt           int64
-	Execution           int64
+	ExecutionMode       int64
 }
 
 type PipelineResourceCheckpoint struct {

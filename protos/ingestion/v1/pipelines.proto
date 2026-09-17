@@ -83,7 +83,7 @@ message Pipeline {
   // and orphan the resource checkpoints keyed by the old one.
   WorkerConfiguration worker_configuration = 15;
   // Default execution mode for subsequent starts; existing pipelines are bounded.
-  ExecutionMode execution = 16;
+  ExecutionMode execution_mode = 16;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -118,7 +118,7 @@ message CreatePipelineRequest {
   // pipeline's workers later through UpdatePipeline.
   WorkerConfiguration worker_configuration = 4;
   // Unspecified defaults to bounded.
-  ExecutionMode execution = 5;
+  ExecutionMode execution_mode = 5;
 }
 
 message CreatePipelineResponse {
@@ -159,7 +159,7 @@ message UpdatePipelineRequest {
   string description = 3;
   WorkerConfiguration worker_configuration = 4;
   // Unspecified preserves the saved mode; affects future starts only.
-  ExecutionMode execution = 5;
+  ExecutionMode execution_mode = 5;
 }
 
 message UpdatePipelineResponse {

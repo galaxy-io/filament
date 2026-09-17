@@ -50,10 +50,10 @@ func TestPipelineExecutionMigrationAndReopen(t *testing.T) {
 	}
 	store := New(db)
 	p, err := store.LoadPipeline(ctx, "t", "p")
-	if err != nil || p.Execution != ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED {
+	if err != nil || p.ExecutionMode != ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED {
 		t.Fatalf("legacy migration: %v %v", p, err)
 	}
-	p.Execution = ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS
+	p.ExecutionMode = ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS
 	if _, err := store.UpdatePipeline(ctx, p); err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestPipelineExecutionMigrationAndReopen(t *testing.T) {
 	}
 	defer reopened.Close()
 	p, err = reopened.LoadPipeline(ctx, "t", "p")
-	if err != nil || p.Execution != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+	if err != nil || p.ExecutionMode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
 		t.Fatalf("reopen: %v %v", p, err)
 	}
 }

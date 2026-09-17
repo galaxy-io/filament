@@ -132,7 +132,7 @@ type ValidatePipelineRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Graph *PipelineGraph         `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
 	// Unspecified means bounded. Validation and submission must use the same mode.
-	Execution     ExecutionMode `protobuf:"varint,2,opt,name=execution,proto3,enum=ingestion.v1.ExecutionMode" json:"execution,omitempty"`
+	ExecutionMode ExecutionMode `protobuf:"varint,2,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,9 +174,9 @@ func (x *ValidatePipelineRequest) GetGraph() *PipelineGraph {
 	return nil
 }
 
-func (x *ValidatePipelineRequest) GetExecution() ExecutionMode {
+func (x *ValidatePipelineRequest) GetExecutionMode() ExecutionMode {
 	if x != nil {
-		return x.Execution
+		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 }
@@ -424,7 +424,7 @@ type EdgeValidation struct {
 	// Unspecified for message streams, which do not use row cursor read modes.
 	EffectiveReadMode       ReadMode        `protobuf:"varint,9,opt,name=effective_read_mode,json=effectiveReadMode,proto3,enum=ingestion.v1.ReadMode" json:"effective_read_mode,omitempty"`
 	EffectiveWriteMode      WriteMode       `protobuf:"varint,10,opt,name=effective_write_mode,json=effectiveWriteMode,proto3,enum=ingestion.v1.WriteMode" json:"effective_write_mode,omitempty"`
-	EffectiveExecution      ExecutionMode   `protobuf:"varint,11,opt,name=effective_execution,json=effectiveExecution,proto3,enum=ingestion.v1.ExecutionMode" json:"effective_execution,omitempty"`
+	EffectiveExecutionMode  ExecutionMode   `protobuf:"varint,11,opt,name=effective_execution_mode,json=effectiveExecutionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"effective_execution_mode,omitempty"`
 	SupportedExecutionModes []ExecutionMode `protobuf:"varint,12,rep,packed,name=supported_execution_modes,json=supportedExecutionModes,proto3,enum=ingestion.v1.ExecutionMode" json:"supported_execution_modes,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
@@ -530,9 +530,9 @@ func (x *EdgeValidation) GetEffectiveWriteMode() WriteMode {
 	return WriteMode_WRITE_MODE_UNSPECIFIED
 }
 
-func (x *EdgeValidation) GetEffectiveExecution() ExecutionMode {
+func (x *EdgeValidation) GetEffectiveExecutionMode() ExecutionMode {
 	if x != nil {
-		return x.EffectiveExecution
+		return x.EffectiveExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 }
@@ -609,10 +609,10 @@ var File_ingestion_v1_capabilities_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\n" +
-	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"\x87\x01\n" +
+	"\x1fingestion/v1/capabilities.proto\x12\fingestion.v1\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/pipelines.proto\"\x90\x01\n" +
 	"\x17ValidatePipelineRequest\x121\n" +
-	"\x05graph\x18\x01 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\x129\n" +
-	"\texecution\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\texecution\"v\n" +
+	"\x05graph\x18\x01 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\x12B\n" +
+	"\x0eexecution_mode\x18\x02 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"v\n" +
 	"\x0eCandidateValue\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12 \n" +
 	"\vrecommended\x18\x02 \x01(\bR\vrecommended\x12\x12\n" +
@@ -631,7 +631,7 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\x12ResourceValidation\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12=\n" +
 	"\frequirements\x18\x02 \x03(\v2\x19.ingestion.v1.RequirementR\frequirements\x12H\n" +
-	"\x14supported_read_modes\x18\x03 \x03(\x0e2\x16.ingestion.v1.ReadModeR\x12supportedReadModes\"\xe0\x05\n" +
+	"\x14supported_read_modes\x18\x03 \x03(\x0e2\x16.ingestion.v1.ReadModeR\x12supportedReadModes\"\xe9\x05\n" +
 	"\x0eEdgeValidation\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x17\n" +
 	"\ato_node\x18\x02 \x01(\tR\x06toNode\x12\x1a\n" +
@@ -643,8 +643,8 @@ const file_ingestion_v1_capabilities_proto_rawDesc = "" +
 	"\vreplication\x18\b \x01(\x0e2\x1d.ingestion.v1.ReplicationModeR\vreplication\x12F\n" +
 	"\x13effective_read_mode\x18\t \x01(\x0e2\x16.ingestion.v1.ReadModeR\x11effectiveReadMode\x12I\n" +
 	"\x14effective_write_mode\x18\n" +
-	" \x01(\x0e2\x17.ingestion.v1.WriteModeR\x12effectiveWriteMode\x12L\n" +
-	"\x13effective_execution\x18\v \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\x12effectiveExecution\x12W\n" +
+	" \x01(\x0e2\x17.ingestion.v1.WriteModeR\x12effectiveWriteMode\x12U\n" +
+	"\x18effective_execution_mode\x18\v \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\x16effectiveExecutionMode\x12W\n" +
 	"\x19supported_execution_modes\x18\f \x03(\x0e2\x1b.ingestion.v1.ExecutionModeR\x17supportedExecutionModes\"\x9b\x01\n" +
 	"\x18ValidatePipelineResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x122\n" +
@@ -693,7 +693,7 @@ var file_ingestion_v1_capabilities_proto_goTypes = []any{
 }
 var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
 	8,  // 0: ingestion.v1.ValidatePipelineRequest.graph:type_name -> ingestion.v1.PipelineGraph
-	9,  // 1: ingestion.v1.ValidatePipelineRequest.execution:type_name -> ingestion.v1.ExecutionMode
+	9,  // 1: ingestion.v1.ValidatePipelineRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
 	0,  // 2: ingestion.v1.Requirement.kind:type_name -> ingestion.v1.RequirementKind
 	3,  // 3: ingestion.v1.Requirement.candidates:type_name -> ingestion.v1.CandidateValue
 	1,  // 4: ingestion.v1.Requirement.candidate_status:type_name -> ingestion.v1.CandidateStatus
@@ -706,7 +706,7 @@ var file_ingestion_v1_capabilities_proto_depIdxs = []int32{
 	13, // 11: ingestion.v1.EdgeValidation.replication:type_name -> ingestion.v1.ReplicationMode
 	10, // 12: ingestion.v1.EdgeValidation.effective_read_mode:type_name -> ingestion.v1.ReadMode
 	12, // 13: ingestion.v1.EdgeValidation.effective_write_mode:type_name -> ingestion.v1.WriteMode
-	9,  // 14: ingestion.v1.EdgeValidation.effective_execution:type_name -> ingestion.v1.ExecutionMode
+	9,  // 14: ingestion.v1.EdgeValidation.effective_execution_mode:type_name -> ingestion.v1.ExecutionMode
 	9,  // 15: ingestion.v1.EdgeValidation.supported_execution_modes:type_name -> ingestion.v1.ExecutionMode
 	6,  // 16: ingestion.v1.ValidatePipelineResponse.edges:type_name -> ingestion.v1.EdgeValidation
 	11, // 17: ingestion.v1.ValidatePipelineResponse.errors:type_name -> ingestion.v1.ValidationError

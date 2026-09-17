@@ -417,7 +417,7 @@ type RunOptions struct {
 	CheckpointEvery     int32                  `protobuf:"varint,6,opt,name=checkpoint_every,json=checkpointEvery,proto3" json:"checkpoint_every,omitempty"`
 	// Unspecified inherits the pipeline mode. Explicit values override this start.
 	// Continuous creates a durable activation; unavailable profiles are rejected.
-	Execution     ExecutionMode `protobuf:"varint,7,opt,name=execution,proto3,enum=ingestion.v1.ExecutionMode" json:"execution,omitempty"`
+	ExecutionMode ExecutionMode `protobuf:"varint,7,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -494,9 +494,9 @@ func (x *RunOptions) GetCheckpointEvery() int32 {
 	return 0
 }
 
-func (x *RunOptions) GetExecution() ExecutionMode {
+func (x *RunOptions) GetExecutionMode() ExecutionMode {
 	if x != nil {
-		return x.Execution
+		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 }
@@ -773,11 +773,11 @@ type RunInfo struct {
 	// scheduled_at the intended fire time (scheduled runs only), requested_at
 	// when the run was queued for dispatch. started_at/ended_at above are the
 	// worker's own start and finish.
-	CreatedAt   int64         `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ScheduledAt int64         `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
-	RequestedAt int64         `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
-	UpdatedAt   int64         `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Execution   ExecutionMode `protobuf:"varint,19,opt,name=execution,proto3,enum=ingestion.v1.ExecutionMode" json:"execution,omitempty"`
+	CreatedAt     int64         `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ScheduledAt   int64         `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RequestedAt   int64         `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	UpdatedAt     int64         `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExecutionMode ExecutionMode `protobuf:"varint,19,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	// Present for continuous runs. records/bytes above reflect committed progress.
 	ExecutionStatus *ExecutionStatus `protobuf:"bytes,20,opt,name=execution_status,json=executionStatus,proto3" json:"execution_status,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -940,9 +940,9 @@ func (x *RunInfo) GetUpdatedAt() int64 {
 	return 0
 }
 
-func (x *RunInfo) GetExecution() ExecutionMode {
+func (x *RunInfo) GetExecutionMode() ExecutionMode {
 	if x != nil {
-		return x.Execution
+		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 }
@@ -1682,7 +1682,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
-	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\xcb\x02\n" +
+	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\xd4\x02\n" +
 	"\n" +
 	"RunOptions\x12\x1d\n" +
 	"\n" +
@@ -1692,8 +1692,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
-	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x129\n" +
-	"\texecution\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\texecution\"\xe2\x01\n" +
+	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x12B\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xe2\x01\n" +
 	"\x12RunPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
@@ -1710,7 +1710,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x03 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xee\x05\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xf7\x05\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
@@ -1735,8 +1735,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\fscheduled_at\x18\x10 \x01(\x03R\vscheduledAt\x12!\n" +
 	"\frequested_at\x18\x11 \x01(\x03R\vrequestedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x129\n" +
-	"\texecution\x18\x13 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\texecution\x12H\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12B\n" +
+	"\x0eexecution_mode\x18\x13 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12H\n" +
 	"\x10execution_status\x18\x14 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
@@ -1880,14 +1880,14 @@ var file_ingestion_v1_runs_proto_depIdxs = []int32{
 	2,  // 0: ingestion.v1.ExecutionStatus.desired_state:type_name -> ingestion.v1.ExecutionDesiredState
 	3,  // 1: ingestion.v1.ExecutionStatus.observed_state:type_name -> ingestion.v1.ExecutionObservedState
 	5,  // 2: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
-	23, // 3: ingestion.v1.RunOptions.execution:type_name -> ingestion.v1.ExecutionMode
+	23, // 3: ingestion.v1.RunOptions.execution_mode:type_name -> ingestion.v1.ExecutionMode
 	6,  // 4: ingestion.v1.RunPipelineRequest.options:type_name -> ingestion.v1.RunOptions
 	24, // 5: ingestion.v1.RunPipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
 	11, // 6: ingestion.v1.PipelineEdgeRun.run:type_name -> ingestion.v1.RunInfo
 	8,  // 7: ingestion.v1.RunPipelineResponse.edge_runs:type_name -> ingestion.v1.PipelineEdgeRun
 	0,  // 8: ingestion.v1.RunResourceState.status:type_name -> ingestion.v1.RunStatus
 	0,  // 9: ingestion.v1.RunInfo.status:type_name -> ingestion.v1.RunStatus
-	23, // 10: ingestion.v1.RunInfo.execution:type_name -> ingestion.v1.ExecutionMode
+	23, // 10: ingestion.v1.RunInfo.execution_mode:type_name -> ingestion.v1.ExecutionMode
 	4,  // 11: ingestion.v1.RunInfo.execution_status:type_name -> ingestion.v1.ExecutionStatus
 	11, // 12: ingestion.v1.RunSnapshot.run:type_name -> ingestion.v1.RunInfo
 	10, // 13: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState

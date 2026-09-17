@@ -84,7 +84,7 @@ message RunOptions {
   int32 checkpoint_every = 6;
   // Unspecified inherits the pipeline mode. Explicit values override this start.
   // Continuous creates a durable activation; unavailable profiles are rejected.
-  ExecutionMode execution = 7;
+  ExecutionMode execution_mode = 7;
 }
 
 message RunPipelineRequest {
@@ -146,7 +146,7 @@ message RunInfo {
   int64 scheduled_at = 16;
   int64 requested_at = 17;
   int64 updated_at = 18;
-  ExecutionMode execution = 19;
+  ExecutionMode execution_mode = 19;
   // Present for continuous runs. records/bytes above reflect committed progress.
   ExecutionStatus execution_status = 20;
 }

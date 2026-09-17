@@ -11,7 +11,7 @@ import "ingestion/v1/pipelines.proto";
 message ValidatePipelineRequest {
   PipelineGraph graph = 1;
   // Unspecified means bounded. Validation and submission must use the same mode.
-  ExecutionMode execution = 2;
+  ExecutionMode execution_mode = 2;
 }
 
 enum RequirementKind {
@@ -76,7 +76,7 @@ message EdgeValidation {
   // Unspecified for message streams, which do not use row cursor read modes.
   ReadMode effective_read_mode = 9;
   WriteMode effective_write_mode = 10;
-  ExecutionMode effective_execution = 11;
+  ExecutionMode effective_execution_mode = 11;
   repeated ExecutionMode supported_execution_modes = 12;
 }
 

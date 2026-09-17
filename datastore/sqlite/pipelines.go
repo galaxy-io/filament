@@ -29,14 +29,14 @@ func (s *Store) createPipeline(ctx context.Context, q *sqlcgen.Queries, p *inges
 	now := nowMillis()
 	err = q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
 		PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(),
-		Execution: int32(p.GetExecution()), WorkerConfiguration: workerCfg, CreatedAt: now, UpdatedAt: now,
+		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, CreatedAt: now, UpdatedAt: now,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: create pipeline: %w", err)
 	}
 	out := proto.Clone(p).(*ingestionv1.Pipeline)
-	if out.Execution == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
-		out.Execution = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	if out.ExecutionMode == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		out.ExecutionMode = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
 	}
 	out.CreatedAt = now
 	out.UpdatedAt = now
@@ -119,7 +119,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	}
 	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{
 		TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(),
-		Execution: int32(p.GetExecution()), WorkerConfiguration: workerCfg, UpdatedAt: nowMillis(),
+		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, UpdatedAt: nowMillis(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: update pipeline: %w", err)
@@ -142,14 +142,14 @@ func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id s
 		return nil, fmt.Errorf("datastore/sqlite: get pipeline: %w", err)
 	}
 	return s.pipelineFromRow(ctx, tenant, row.ID, row.TenantID, row.Name, row.Description, row.CurrentVersionID,
-		row.Execution, row.WorkerConfiguration, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
+		row.ExecutionMode, row.WorkerConfiguration, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 }
 
 func (s *Store) pipelineFromRow(ctx context.Context, tenant filament.TenantID, id, tenantID, name, description string,
 	currentVersionID sql.NullString, execution int64, workerCfg string, createdAt, updatedAt int64, deletedAt sql.NullInt64,
 	createdBy, updatedBy, deletedBy string,
 ) (*ingestionv1.Pipeline, error) {
-	out := &ingestionv1.Pipeline{Id: id, TenantId: tenantID, Name: name, Description: description, Execution: ingestionv1.ExecutionMode(execution)}
+	out := &ingestionv1.Pipeline{Id: id, TenantId: tenantID, Name: name, Description: description, ExecutionMode: ingestionv1.ExecutionMode(execution)}
 	var err error
 	if currentVersionID.Valid && currentVersionID.String != "" {
 		out.CurrentVersion, err = s.loadPipelineVersionByID(ctx, tenant, id, currentVersionID.String)
