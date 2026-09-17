@@ -76,7 +76,13 @@ func newTestStore(t *testing.T) *postgres.Store {
 
 	// wipe between tests so each test starts from a clean slate against the
 	// same long-lived container/schema.
-	for _, table := range []string{"notifier", "secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "replication_stream_resources", "runs", "replication_streams", "schedules", "pipelines", "connections", "users", "tenants"} {
+	for _, table := range []string{"stream_epochs", "stream_attempts", "secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "replication_stream_resources", "runs", "replication_streams", "schedules", "pipelines", "connections", "users", "tenants"} {
+		if table == "runs" {
+			// Release current-run references after deleting continuous history.
+			if _, err := pool.Exec(ctx, "UPDATE replication_streams SET current_run_id=NULL, run_spec=NULL, desired_revision=0, desired_state='stopped', last_epoch=0"); err != nil {
+				t.Fatalf("clear stream execution: %v", err)
+			}
+		}
 		if _, err := pool.Exec(ctx, "DELETE FROM "+table); err != nil {
 			t.Fatalf("truncate %s: %v", table, err)
 		}
