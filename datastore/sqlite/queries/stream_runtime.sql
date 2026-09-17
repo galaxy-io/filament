@@ -42,8 +42,8 @@ ORDER BY a.token DESC LIMIT 1;
 SELECT * FROM stream_attempts WHERE stream_id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id) ORDER BY token DESC LIMIT 1;
 
 -- name: CreateStreamAttempt :one
-INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at)
-SELECT sqlc.arg(stream_id), sqlc.arg(tenant_id), sqlc.arg(execution_id), sqlc.arg(desired_revision), ttl_us, CAST(unixepoch('subsec') * 1000 AS INTEGER) + (ttl_us + 999) / 1000
+INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec)
+SELECT sqlc.arg(stream_id), sqlc.arg(tenant_id), sqlc.arg(execution_id), sqlc.arg(desired_revision), ttl_us, CAST(unixepoch('subsec') * 1000 AS INTEGER) + (ttl_us + 999) / 1000, (SELECT run_spec FROM replication_streams WHERE id=sqlc.arg(stream_id) AND tenant_id=sqlc.arg(tenant_id))
 FROM (SELECT CAST(sqlc.arg(ttl_us) AS INTEGER) AS ttl_us) RETURNING *;
 
 -- name: Now :one

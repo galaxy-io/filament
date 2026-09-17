@@ -4,7 +4,7 @@ import "fmt"
 
 const connectionColumns = `id, tenant_id, kind, name, connector, config, secret_refs, version, created_at, updated_at, deleted_at, coalesce(created_by_user_id, ''), coalesce(updated_by_user_id, ''), coalesce(deleted_by_user_id, '')`
 
-const pipelineColumns = `id, tenant_id, name, description, current_version_id, worker_configuration, created_at, updated_at, deleted_at, coalesce(created_by_user_id, ''), coalesce(updated_by_user_id, ''), coalesce(deleted_by_user_id, '')`
+const pipelineColumns = `id, tenant_id, name, description, current_version_id, execution, worker_configuration, created_at, updated_at, deleted_at, coalesce(created_by_user_id, ''), coalesce(updated_by_user_id, ''), coalesce(deleted_by_user_id, '')`
 
 const pipelineVersionColumns = `id, pipeline_id, version, graph, created_at, updated_at, coalesce(created_by_user_id, ''), coalesce(updated_by_user_id, ''), coalesce(deleted_by_user_id, '')`
 

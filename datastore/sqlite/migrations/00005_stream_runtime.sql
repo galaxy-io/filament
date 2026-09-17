@@ -1,6 +1,8 @@
 -- +goose Up
 -- Mirrors Postgres 00009_stream_runtime without rebuilding existing stream
 -- tables, so resource membership, checkpoints, and notifier history survive.
+ALTER TABLE pipelines ADD COLUMN execution INTEGER NOT NULL DEFAULT 1 CHECK (execution IN (1, 2));
+
 CREATE UNIQUE INDEX runs_id_tenant_unique ON runs (id, tenant_id);
 ALTER TABLE replication_streams
   ADD COLUMN membership_revision INTEGER NOT NULL DEFAULT 1 CHECK (membership_revision > 0);
@@ -63,6 +65,8 @@ CREATE TABLE stream_attempts (
  desired_revision INTEGER NOT NULL CHECK (desired_revision > 0),
  request_ttl_us INTEGER NOT NULL CHECK (request_ttl_us > 0),
  started_at INTEGER NOT NULL DEFAULT (CAST(unixepoch('subsec') * 1000 AS INTEGER)),
+ claimed_at INTEGER,
+ run_spec TEXT NOT NULL,
  expires_at INTEGER NOT NULL,
  ended_at INTEGER,
  termination TEXT CHECK (termination IN ('clean','reaped','unproven')),
@@ -106,3 +110,4 @@ ALTER TABLE replication_streams DROP COLUMN desired_state;
 ALTER TABLE replication_streams DROP COLUMN current_run_id;
 ALTER TABLE replication_streams DROP COLUMN membership_revision;
 DROP INDEX runs_id_tenant_unique;
+ALTER TABLE pipelines DROP COLUMN execution;

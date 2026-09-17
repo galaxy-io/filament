@@ -28,8 +28,8 @@ ORDER BY a.token DESC LIMIT 1;
 -- name: GetLatestStreamAttempt :one
 SELECT * FROM stream_attempts WHERE stream_id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id) ORDER BY token DESC LIMIT 1;
 -- name: CreateStreamAttempt :one
-INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at)
-VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(execution_id),sqlc.arg(desired_revision),sqlc.arg(ttl_us),clock_timestamp() + sqlc.arg(ttl_us)::bigint * interval '1 microsecond') RETURNING *;
+INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec)
+VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(execution_id),sqlc.arg(desired_revision),sqlc.arg(ttl_us),clock_timestamp() + sqlc.arg(ttl_us)::bigint * interval '1 microsecond', (SELECT run_spec FROM replication_streams WHERE id=sqlc.arg(stream_id))) RETURNING *;
 -- name: Now :one
 SELECT clock_timestamp()::timestamptz;
 -- name: RenewStreamAttempt :execrows
@@ -45,3 +45,48 @@ ORDER BY id::text LIMIT sqlc.arg(page_limit);
 -- name: LatestStreamPositions :one
 SELECT e.positions FROM replication_streams s JOIN stream_epochs e ON e.stream_id = s.id AND e.epoch = s.last_epoch
 WHERE s.id = sqlc.arg(stream_id) AND s.tenant_id = sqlc.arg(tenant_id);
+
+-- name: ClaimStreamAttempt :execrows
+UPDATE stream_attempts a SET claimed_at=clock_timestamp()
+FROM replication_streams s
+WHERE a.stream_id=s.id AND a.token=sqlc.arg(token) AND a.tenant_id=sqlc.arg(tenant_id)
+AND a.execution_id=sqlc.arg(execution_id) AND s.current_run_id=sqlc.arg(run_id)
+AND s.status=0 AND s.desired_state='enabled' AND a.claimed_at IS NULL
+AND a.ended_at IS NULL AND a.expires_at>clock_timestamp();
+
+-- name: RetireUnclaimedAttempt :execrows
+UPDATE stream_attempts a SET ended_at=clock_timestamp(),termination='clean',reason='dispatch retired before worker claim'
+WHERE a.token=sqlc.arg(token) AND a.tenant_id=sqlc.arg(tenant_id) AND a.claimed_at IS NULL
+AND a.ended_at IS NULL AND (a.expires_at<=clock_timestamp() OR EXISTS (SELECT 1 FROM replication_streams s WHERE s.id=a.stream_id AND s.desired_state<>'enabled'));
+
+-- name: PendingContinuousRuns :many
+SELECT r.id,r.tenant_id FROM runs r JOIN replication_streams s ON s.current_run_id=r.id
+WHERE s.status=0 AND r.ended_at IS NULL AND r.id::text>sqlc.arg(after_id)::text
+ORDER BY r.id::text LIMIT sqlc.arg(page_limit);
+
+-- name: ActivateMessageResource :exec
+INSERT INTO replication_stream_resources(replication_stream_id,tenant_id,resource_name,status,bootstrap_mode,bootstrap_config)
+VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(resource_name),2,'none','{}')
+ON CONFLICT (replication_stream_id,resource_name) DO NOTHING;
+
+-- name: ReplaceStoppedActivation :execrows
+UPDATE replication_streams SET current_run_id=sqlc.arg(run_id),run_spec=sqlc.arg(run_spec),desired_state='enabled',
+ desired_revision=desired_revision+1,updated_at=clock_timestamp()
+WHERE id=sqlc.arg(stream_id) AND tenant_id=sqlc.arg(tenant_id) AND desired_state='stopped';
+
+-- name: FinishStoppedContinuousRun :exec
+UPDATE runs r SET status=2,ended_at=clock_timestamp(),updated_at=clock_timestamp()
+FROM replication_streams s WHERE s.current_run_id=r.id AND s.id=sqlc.arg(stream_id) AND s.tenant_id=sqlc.arg(tenant_id)
+AND r.ended_at IS NULL AND s.desired_state='stopped' AND NOT EXISTS (SELECT 1 FROM stream_attempts a WHERE a.stream_id=s.id AND (a.ended_at IS NULL OR a.termination<>'clean'));
+
+-- name: MarkContinuousRunStarted :exec
+UPDATE runs SET status=1,started_at=coalesce(started_at,clock_timestamp()),updated_at=clock_timestamp()
+WHERE id=sqlc.arg(run_id) AND tenant_id=sqlc.arg(tenant_id) AND ended_at IS NULL;
+
+-- name: SyncContinuousRunPhase :exec
+UPDATE runs r SET status=CASE
+ WHEN EXISTS (SELECT 1 FROM stream_attempts a WHERE a.stream_id=s.id AND a.ended_at IS NULL AND a.claimed_at IS NOT NULL) THEN 1
+ WHEN s.desired_state='paused' THEN 5
+ ELSE 0 END,updated_at=clock_timestamp()
+FROM replication_streams s WHERE s.current_run_id=r.id AND s.id=sqlc.arg(stream_id) AND s.tenant_id=sqlc.arg(tenant_id)
+AND r.ended_at IS NULL AND s.desired_state<>'stopped';

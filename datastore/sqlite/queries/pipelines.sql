@@ -1,9 +1,10 @@
 -- name: CreatePipeline :exec
-INSERT INTO pipelines (id, tenant_id, name, description, worker_configuration, created_at, updated_at)
-VALUES (@pipeline_id, @tenant_id, @name, @description, coalesce(nullif(@worker_configuration, ''), '{}'), @created_at, @updated_at);
+INSERT INTO pipelines (id, tenant_id, name, description, execution, worker_configuration, created_at, updated_at)
+VALUES (@pipeline_id, @tenant_id, @name, @description, coalesce(nullif(@execution, 0), 1), coalesce(nullif(@worker_configuration, ''), '{}'), @created_at, @updated_at);
 
 -- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = @name, description = @description,
+  execution = coalesce(nullif(@execution, 0), execution),
   worker_configuration = coalesce(nullif(@worker_configuration, ''), worker_configuration),
   updated_at = @updated_at
 WHERE tenant_id = @tenant_id AND id = @pipeline_id AND is_deleted = 0;
@@ -25,7 +26,7 @@ UPDATE pipelines SET current_version_id = @version_id, updated_at = @updated_at
 WHERE tenant_id = @tenant_id AND id = @pipeline_id;
 
 -- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+SELECT id, tenant_id, name, description, current_version_id, execution, worker_configuration,
        created_at, updated_at, deleted_at,
        coalesce(created_by_user_id, '') AS created_by_user_id,
        coalesce(updated_by_user_id, '') AS updated_by_user_id,
