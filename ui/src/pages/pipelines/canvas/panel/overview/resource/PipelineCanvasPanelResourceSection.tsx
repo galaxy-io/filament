@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { FlowArrowIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, FunctionIcon } from "@phosphor-icons/react";
 
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, {
@@ -101,6 +101,9 @@ const PipelineCanvasPanelResourceSection = ({
                   </Text>
                 </FlexItem>
                 <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} shrink={0}>
+                  {edge.data?.transform && (
+                    <Icon component={FunctionIcon} variant={IconVariant.SECONDARY} size={14} />
+                  )}
                   <ConnectorTile
                     connector={sourceConnection?.connector ?? ""}
                     kind={ConnectorKind.SOURCE}

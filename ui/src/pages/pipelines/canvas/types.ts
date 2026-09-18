@@ -1,3 +1,4 @@
+import type { JsonObject } from "@bufbuild/protobuf";
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -41,7 +42,12 @@ export type CanvasNode =
   | PipelineCanvasSinkNode
   | PipelineCanvasPlaceholderNode;
 
-export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors">;
+/** A transform definition as the JSON object the grammar accepts. */
+export type PipelineCanvasEdgeTransform = JsonObject;
+
+export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors"> & {
+  transform?: PipelineCanvasEdgeTransform;
+};
 
 export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
 
