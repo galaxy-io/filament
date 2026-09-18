@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/internal/streamcontrol"
-	"github.com/galaxy-io/filament/runner"
 	"github.com/google/uuid"
+
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/runner"
 )
 
+// Supervisor reconciles durable intent and dispatches admitted worker attempts.
 type Supervisor struct {
 	deps     runner.Deps
-	store    streamcontrol.Store
+	store    filament.ContinuousRunStore
 	dispatch filament.Dispatcher
 	cancel   context.CancelFunc
 	done     chan struct{}
@@ -24,11 +25,13 @@ type Supervisor struct {
 	running  map[string]bool
 }
 
+// New creates a supervisor; a nil dispatcher executes workers in process.
 func New(deps runner.Deps, dispatch filament.Dispatcher) *Supervisor {
-	store, _ := deps.DataStore.(streamcontrol.Store)
+	store, _ := deps.DataStore.(filament.ContinuousRunStore)
 	return &Supervisor{deps: deps, store: store, dispatch: dispatch, running: map[string]bool{}}
 }
 
+// Start begins reconciliation until cancellation or Close. Call it once.
 func (s *Supervisor) Start(ctx context.Context) {
 	ctx, s.cancel = context.WithCancel(ctx)
 	s.done = make(chan struct{})
@@ -52,6 +55,7 @@ func (s *Supervisor) Start(ctx context.Context) {
 	}()
 }
 
+// Close stops reconciliation and waits for in-process workers to drain.
 func (s *Supervisor) Close() {
 	if s.cancel != nil {
 		s.cancel()
@@ -60,6 +64,7 @@ func (s *Supervisor) Close() {
 	}
 }
 
+// Reconcile dispatches pending runs using durable ownership and intent.
 func (s *Supervisor) Reconcile(ctx context.Context) error {
 	if s.store == nil {
 		return nil
@@ -85,7 +90,7 @@ func (s *Supervisor) Reconcile(ctx context.Context) error {
 }
 
 func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) error {
-	req, err := streamcontrol.StateRequest(r)
+	req, err := r.StreamStateRequest()
 	if err != nil {
 		return err
 	}
@@ -122,7 +127,7 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 				return nil
 			}
 		}
-		admitted, err := s.store.StartAttempt(ctx, filament.StartAttemptRequest{Tenant: r.Tenant, Stream: req.Stream, Run: r.Run, ExecutionID: uuid.NewString(), PipelineVersionID: state.PipelineVersionID, Route: state.Route, ExpectedRevision: state.Revision, TTL: streamcontrol.LeaseTTL})
+		admitted, err := s.store.StartAttempt(ctx, filament.StartAttemptRequest{Tenant: r.Tenant, Stream: req.Stream, Run: r.Run, ExecutionID: uuid.NewString(), PipelineVersionID: state.PipelineVersionID, Route: state.Route, ExpectedRevision: state.Revision, TTL: runner.DefaultLeaseTTL})
 		if err != nil {
 			return err
 		}

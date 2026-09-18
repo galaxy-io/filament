@@ -12,7 +12,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
-	"github.com/galaxy-io/filament/internal/streamcontrol"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 
@@ -66,7 +65,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		runtime, ok := deps.Store.(streamcontrol.Store)
+		runtime, ok := deps.Store.(filament.ContinuousRunStore)
 		if !ok {
 			return filament.ErrContinuousDisabled
 		}

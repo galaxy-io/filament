@@ -12,21 +12,15 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
-	"github.com/galaxy-io/filament/internal/streamcontrol"
 )
 
-var _ streamcontrol.Store = (*RuntimeStore)(nil)
+var _ filament.ContinuousRunStore = (*RuntimeStore)(nil)
 
-// initializeMessageActivation runs inside the same transaction as run admission.
-func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r filament.RunState) error {
+// initializeContinuousActivation runs inside the same transaction as run admission.
+func initializeContinuousActivation(ctx context.Context, q *sqlcgen.Queries, r filament.RunState) error {
 	ref := r.Request.ReplicationStream
-	if ref == nil || r.Request.Source.Connector != "nats" || r.Request.Sink.Connector != "postgres" || len(r.Request.Resources) != 1 {
-		return errors.New("stream: unsupported activation profile")
-	}
-	for _, mode := range r.Request.IngestionTypes {
-		if mode != filament.IngestionFullAppend {
-			return errors.New("stream: append required")
-		}
+	if ref == nil || len(r.Request.Resources) == 0 {
+		return errors.New("stream: identity and selected resources required")
 	}
 	stream, err := q.LockReplicationStreamGeneration(ctx, sqlcgen.LockReplicationStreamGenerationParams{StreamID: ref.ID, TenantID: string(r.Tenant), Generation: ref.Generation})
 	if err != nil {
@@ -39,7 +33,7 @@ func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r fila
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
-	spec := streamcontrol.Spec(r)
+	spec := r.ExecutionSpec()
 	data, err := json.Marshal(spec)
 	if err != nil {
 		return err
@@ -60,7 +54,12 @@ func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r fila
 			return err
 		}
 	}
-	return q.ActivateMessageResource(ctx, sqlcgen.ActivateMessageResourceParams{StreamID: ref.ID, TenantID: string(r.Tenant), ResourceName: r.Request.Resources[0]})
+	for _, resource := range r.Request.Resources {
+		if err := q.ActivateStreamResource(ctx, sqlcgen.ActivateStreamResourceParams{StreamID: ref.ID, TenantID: string(r.Tenant), ResourceName: resource}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ClaimStreamAttempt is a durable, one-time claim. Duplicate dispatches cannot

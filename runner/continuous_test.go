@@ -15,7 +15,7 @@ import (
 
 type continuousTestStore struct {
 	leaseLost bool
-	filament.StreamRuntimeStore
+	filament.ContinuousRunStore
 	mu         sync.Mutex
 	state      filament.StreamState
 	cert       *filament.CommittedEpoch
@@ -80,6 +80,14 @@ type continuousTestSource struct {
 	opened chan struct{}
 }
 
+func (*continuousTestSource) Lookup(string, int) (rowmodel.PositionCodec, error) {
+	return streamkit.OpaqueCodec{}, nil
+}
+
+func (*continuousTestSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Delivery: filament.DeliveryReplayableAtLeastOnce}}
+}
+
 func (*continuousTestSource) Configure(context.Context, filament.Config) error { return nil }
 func (*continuousTestSource) Teardown(context.Context) error                   { return nil }
 func (s *continuousTestSource) OpenStream(context.Context, filament.StreamOpenOpts) (filament.StreamSession, error) {
@@ -138,7 +146,9 @@ type continuousTestSink struct {
 	fail    bool
 }
 
-func (*continuousTestSink) Spec() filament.SinkSpec                      { return filament.SinkSpec{} }
+func (*continuousTestSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
+}
 func (*continuousTestSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (s *continuousTestSink) BeginEpoch(_ context.Context, r filament.EpochRef) error {
 	s.ref = r

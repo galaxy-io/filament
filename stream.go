@@ -118,6 +118,9 @@ const (
 
 // StreamSource is an optional native factory for reusable source sessions.
 type StreamSource interface {
+	// Lookup resolves pure position codecs without configuration or network access.
+	// The connector also registers these codecs for runtime persistence at composition.
+	CodecResolver
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
