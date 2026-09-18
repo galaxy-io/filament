@@ -38,6 +38,10 @@ message PipelineEdge {
   repeated ResourceCursorConfig cursors = 5;
   ReadMode read_mode = 6;
   WriteMode write_mode = 7;
+  // transform is the edge's transform definition as a JSON object matching
+  // the transform grammar, keyed by resource. A resource-specific edge may
+  // only define its own resource. Empty means rows pass through unchanged.
+  google.protobuf.Struct transform = 8;
 }
 
 message ResourceCursorConfig {
