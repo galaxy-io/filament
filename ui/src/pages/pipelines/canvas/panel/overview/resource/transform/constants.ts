@@ -1,11 +1,15 @@
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
+  type TransformExpression,
+  TransformRowScope,
   TransformStepKind,
   type TransformStepState,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/types";
 
 export const TRANSFORM_GRAMMAR_VERSION = 1;
+export const TRANSFORM_FLOW_SOURCE_WIDTH = 132;
+export const TRANSFORM_INLINE_BINARY_FUNCTION_WIDTH = 64;
 
 export const TRANSFORM_STEP_KIND_TO_LABEL_MAP: Record<TransformStepKind, string> = {
   [TransformStepKind.RENAME]: "Rename",
@@ -21,11 +25,17 @@ export const TRANSFORM_STEP_KIND_OPTIONS: SelectInputOption[] = Object.values(
   value: kind,
 }));
 
-export const TRANSFORM_STEP_DEFAULT_STATE: TransformStepState = {
-  resource: "",
-  column: "",
+export const createEmptyTransformExpression = (): TransformExpression => ({
+  source: { kind: "empty" },
+  calls: [],
+});
+
+export const createTransformStepDefaultState = (resource = ""): TransformStepState => ({
+  resource,
   kind: TransformStepKind.RENAME,
-  rename: "",
-  output: "",
-  expression: [],
-};
+  renames: [{ source: "", target: "" }],
+  drops: [""],
+  outputs: [{ name: "", expression: createEmptyTransformExpression() }],
+  rowScope: TransformRowScope.ALL,
+  where: createEmptyTransformExpression(),
+});

@@ -7,6 +7,9 @@ minimumReleaseAgeExclude:
 overrides:
   "@codemirror/state": "6.7.5"
   "@codemirror/view": "6.43.12"
+  # 1.5.431 was resolved before it cleared minimumReleaseAge. Keep installs
+  # reproducible on the newest accepted release until the next lock refresh.
+  "electron-to-chromium": "1.5.430"
 
 allowBuilds:
   "@bufbuild/buf": true

@@ -100,16 +100,14 @@ const PipelineCanvasPanelResourceTransformSection = ({
       emptyMessage="Columns arrive at the sink as they leave the source."
       isOpen={isOpen && hasContent}
       onToggle={() => setIsOpen((prev) => !prev)}
-      metric={
+      headerAction={
         isReadOnly ? undefined : (
           <Button
             label="Add step"
             icon={PlusIcon}
             variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
-            onClick={(e) => {
-              // The header toggles the section; the button opens it instead.
-              e.stopPropagation();
+            onClick={() => {
               setIsOpen(true);
               setIsCreating(true);
             }}
@@ -120,6 +118,7 @@ const PipelineCanvasPanelResourceTransformSection = ({
     >
       <PipelineCanvasPanelResourceTransformTable
         steps={steps}
+        sourceConnectionId={sourceConnectionId}
         resources={resources}
         columnsByResource={columnsByResource}
         functionsByName={functionsByName}
