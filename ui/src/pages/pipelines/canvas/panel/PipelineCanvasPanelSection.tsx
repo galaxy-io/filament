@@ -4,7 +4,8 @@ import { styled } from "@linaria/react";
 
 import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
 
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import { LayoutSize } from "@/layouts/types";
 
 interface PipelineCanvasPanelSectionProps {
   header: string;
@@ -57,7 +58,7 @@ const PipelineCanvasPanelSection = ({
       metric={metric}
     >
       {isEmpty ? (
-        <EmptyLayout size={EmptyLayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
       ) : (
         children
       )}
