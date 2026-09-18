@@ -1,44 +1,28 @@
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
+  FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-export enum EmptyLayoutSize {
-  SMALL = "SMALL",
-  MEDIUM = "MEDIUM",
-  LARGE = "LARGE",
-}
+import {
+  LAYOUT_SIZE_TO_GAP_MAP,
+  LAYOUT_SIZE_TO_HEADER_SIZE_MAP,
+  LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP,
+} from "@/layouts/constants";
+import { LayoutSize } from "@/layouts/types";
 
 interface EmptyLayoutProps {
-  size?: EmptyLayoutSize;
+  size?: LayoutSize;
   icon?: React.ReactNode;
   header?: string;
   message?: string;
   actions?: React.ReactNode;
 }
 
-const EMPTY_LAYOUT_SIZE_TO_GAP_MAP: Record<EmptyLayoutSize, number> = {
-  [EmptyLayoutSize.SMALL]: 12,
-  [EmptyLayoutSize.MEDIUM]: 20,
-  [EmptyLayoutSize.LARGE]: 24,
-};
-
-const EMPTY_LAYOUT_SIZE_TO_HEADER_SIZE_MAP: Record<EmptyLayoutSize, TextSize> = {
-  [EmptyLayoutSize.SMALL]: TextSize.BODY_MD,
-  [EmptyLayoutSize.MEDIUM]: TextSize.BODY_LG,
-  [EmptyLayoutSize.LARGE]: TextSize.HEADING_SM,
-};
-
-const EMPTY_LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP: Record<EmptyLayoutSize, TextSize> = {
-  [EmptyLayoutSize.SMALL]: TextSize.BODY_SM,
-  [EmptyLayoutSize.MEDIUM]: TextSize.BODY_MD,
-  [EmptyLayoutSize.LARGE]: TextSize.BODY_LG,
-};
-
 const EmptyLayout = ({
-  size = EmptyLayoutSize.MEDIUM,
+  size = LayoutSize.MEDIUM,
   icon,
   header,
   message,
@@ -51,17 +35,21 @@ const EmptyLayout = ({
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={EMPTY_LAYOUT_SIZE_TO_GAP_MAP[size]}
+      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
       {icon}
-      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
+      <FlexWrapper
+        direction={FlexDirection.COLUMN}
+        alignItems={AlignItems.CENTER}
+        gap={FlexGap.SMALL}
+      >
         {header && (
-          <Text size={EMPTY_LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
+          <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
             {header}
           </Text>
         )}
         {message && (
-          <Text size={EMPTY_LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
+          <Text size={LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
             {message}
           </Text>
         )}
