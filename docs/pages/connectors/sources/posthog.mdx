@@ -1,11 +1,11 @@
 ---
 title: "PostHog"
-description: "Read people, events, cohorts, feature flags, experiments, and session replay metadata from a PostHog project"
+description: "Read people, groups, cohorts, feature flags, experiments, and session replay metadata from a PostHog project"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg"
 ---
 
-The PostHog source reads people, events, cohorts, feature flags, experiments,
-insights, dashboards, actions, annotations, surveys, and session recordings
+The PostHog source reads people, groups, cohorts, feature flags, experiments,
+insights, dashboards, actions, annotations, surveys, notebooks, and session recordings
 from one project. It is built with an
 [HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
 **beta**. Its resources are stable, though future releases may add columns.
@@ -17,36 +17,49 @@ from one project. It is built with an
 | `api_key` | Connection | | Required. Secret. Personal API key with read scopes for the synced resources. |
 | `project_id` | Connection | | Required. The digits after `/project/` in the app URL. |
 | `host` | Connection | `https://us.posthog.com` | US Cloud, `https://eu.posthog.com`, or a self-hosted origin. |
+| `session_recordings_start_date` | Pipeline | | Required for session recordings. Earliest timestamp to read, in ISO 8601 format. |
 
 `host` must be the app origin, not the `us.i.posthog.com` ingestion host,
 which does not serve `/api`.
 
 ## Resources
 
-All resources are independent lists under `/api/projects/{project_id}/`.
+All resources read from endpoints under `/api/projects/{project_id}/`.
 `persons` is the endpoint used by an explicit live connection test. The
 service API's normal config validation does not make that request. Useful IDs
 from embedded objects are also exposed as columns, such as
 `experiments.feature_flag_id` and `session_recordings.person_id`.
 
+The 13 default resources are `actions`, `annotations`, `cohort_members`,
+`cohorts`, `dashboards`, `experiments`, `feature_flags`, `groups`, `insights`,
+`notebooks`, `persons`, `session_recordings`, and `surveys`. Dashboards,
+experiments, and notebooks fetch details; child resources fetch their parents.
+
+Optional resources include activity logs, alerts, archived catalogs, datasets,
+error tracking, export history, LLM records, property definitions, replay playlists,
+saved endpoints, subscriptions, and survey responses. Events are excluded.
+Optional resources require their corresponding read scopes; survey responses need
+both `survey:read` and `query:read`. Connection tests require `person:read`.
+
 ## Modes
 
-All resources support full reads. If interrupted, a full read resumes after
-the last completed page.
+All resources support full reads. If interrupted, top-level lists resume after
+the last completed page; child reads restart their parent traversal.
 
 Two resources are incremental.
 
 | Resource | Cursor field | Request parameter | Checkpoint key | Overlap |
 |---|---|---|---|---|
-| `events` | `timestamp` | `after` (query) | `events_timestamp` | 3600 s |
-| `insights` | `last_modified_at` | `date_from` (query) | `insights_last_modified_at` | 300 s |
+| `insights` | `last_modified_at` | `date_from` (query) | `insights_modified_at` | 1 s |
+| `session_recordings` | `start_time` | `date_from` (query) | `session_recordings_start_time` | 86400 s |
 
 Both use the `time` comparator. The cursor field is fixed by the manifest.
 Only a lookback window is user-configurable, and only because the comparator
-is `time`. The `events` overlap is a full hour because event timestamps are
-client-supplied. Buffered mobile SDKs deliver events well behind wall clock,
-and the primary key dedupes the re-read. `insights` covers only clock skew,
-since `last_modified_at` is server-set. `persons` has no incremental block.
+is `time`. Insights overlap by one second to re-read timestamp ties. Their
+cursor tracks name, description, and query edits; other metadata needs full reads.
+Session recordings re-read 24 hours for ongoing sessions; older uploads and later
+metadata changes need full reads. Incremental reads do not propagate deletions.
+Notebooks retain complete content through full reads. `persons` has no incremental block.
 The API offers no updated-since filter, so every run is a full snapshot.
 
 ## Behavior
@@ -55,9 +68,10 @@ The API offers no updated-since filter, so every run is a full snapshot.
 - **Regional base URL**: `base_url` is templated as `{{ config.host }}` and
   rendered once at Configure, against config only. One manifest serves US
   Cloud, EU Cloud, and self-hosted instances.
-- **Pagination**: every list endpoint returns a DRF envelope. The manifest
+- **Pagination**: most list endpoints return a DRF envelope. The manifest
   follows the absolute `next` URL rather than computing offsets, with
-  `limit=100` per page.
+  `limit=100` per page. Replay uses an opaque `after` page cursor; survey
+  responses use offset pagination. Detail reads and group types are unpaginated.
 - **Rate limiting**: a static 0.3 requests/second limiter, sized to the
   binding constraint (the analytics endpoints share a 1200-requests/hour
   bucket). Draining an hourly bucket is a run failure, not a slowdown.
@@ -68,3 +82,8 @@ The API offers no updated-since filter, so every run is a full snapshot.
   person and session-recording pages carry large embedded property blobs.
 - Every resource carries a `raw` remainder column preserving fields the
   manifest does not project.
+- **Coverage**: results depend on permissions, product access, and retention.
+  Survey responses include submitted answers. Dashboards read cached tiles;
+  insights and experiments do not calculate fresh results. Replay contains
+  metadata, not media; exports contain job metadata, not files. Organization
+  administration and arbitrary query execution are outside this connector.

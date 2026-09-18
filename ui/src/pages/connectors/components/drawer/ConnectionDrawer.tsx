@@ -5,11 +5,9 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
@@ -20,6 +18,7 @@ import DangerZone from "@/components/DangerZone";
 import Dialog from "@/components/Dialog";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
@@ -80,7 +79,7 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
     return (
       <DrawerWrapper>
         <ErrorLayout
-          icon={<Icon component={LinkBreakIcon} size={24} variant={IconVariant.ERROR} />}
+          icon={LinkBreakIcon}
           header="Connection not found"
           message="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
@@ -92,28 +91,7 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
   if (!connection) {
     return (
       <DrawerWrapper>
-        <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
-          <TextShimmer height={36} width={36} />
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
-            <TextShimmer height={18} width={160} />
-            <TextShimmer height={14} width={120} />
-          </FlexWrapper>
-        </FlexWrapper>
-        <HorizontalDivider />
-        <DrawerBody>
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
-            <ConnectionDrawerList>
-              <ConnectionDrawerKeyValueRow
-                label="Kind"
-                value={<TextShimmer height={16} width={60} />}
-              />
-              <ConnectionDrawerKeyValueRow
-                label="Version"
-                value={<TextShimmer height={16} width={40} />}
-              />
-            </ConnectionDrawerList>
-          </FlexWrapper>
-        </DrawerBody>
+        <PendingLayout />
       </DrawerWrapper>
     );
   }
