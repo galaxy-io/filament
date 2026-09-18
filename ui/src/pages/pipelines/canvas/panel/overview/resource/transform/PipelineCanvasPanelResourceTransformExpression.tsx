@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 
-import { PlusIcon, XIcon } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -19,9 +19,10 @@ import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import {
   createEmptyTransformExpression,
-  TRANSFORM_COMPARISON_FUNCTION_WIDTH,
   TRANSFORM_COMPARISON_SYMBOLS,
   TRANSFORM_FLOW_SOURCE_WIDTH,
+  TRANSFORM_INLINE_BINARY_FUNCTION_WIDTH,
+  TRANSFORM_INLINE_BINARY_SYMBOLS,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import type {
   TransformColumn,
@@ -547,20 +548,20 @@ const TransformFunctionCallBlock = ({
   const fn = selectedFunction;
   const slots = fn ? Math.max(minimumSlotCount(fn), call.args.length) : call.args.length;
   const variadic = fn ? fn.args[fn.args.length - 1]?.isVariadic === true : false;
-  const comparisonSymbol = fn ? TRANSFORM_COMPARISON_SYMBOLS.get(fn.name) : undefined;
-  const isInlineComparison = isColumnFlow && comparisonSymbol !== undefined && slots === 1;
+  const binarySymbol = fn ? TRANSFORM_INLINE_BINARY_SYMBOLS.get(fn.name) : undefined;
+  const isInlineBinary = isColumnFlow && binarySymbol !== undefined && slots === 1;
   const selected = options.find((option) => option.id === call.name) ?? null;
   const displayedSelection =
-    isInlineComparison && selected ? { ...selected, label: comparisonSymbol } : selected;
+    isInlineBinary && selected ? { ...selected, label: binarySymbol } : selected;
 
   const handleSelect = (name: string) => {
     const next = functionsByName.get(name);
     if (!next) return;
-    const keepComparisonOperand =
-      TRANSFORM_COMPARISON_SYMBOLS.has(call.name) && TRANSFORM_COMPARISON_SYMBOLS.has(name);
+    const keepBinaryOperand =
+      TRANSFORM_INLINE_BINARY_SYMBOLS.has(call.name) && TRANSFORM_INLINE_BINARY_SYMBOLS.has(name);
     onChange({
       name,
-      args: keepComparisonOperand ? call.args : initialArguments(next),
+      args: keepBinaryOperand ? call.args : initialArguments(next),
     });
   };
 
@@ -662,7 +663,7 @@ const TransformFunctionCallBlock = ({
             </FlexItem>
             {(isVariadicSlot || isExtra) && (
               <Button
-                icon={XIcon}
+                icon={TrashIcon}
                 variant={ButtonVariant.SECONDARY}
                 size={ButtonSize.MEDIUM}
                 onClick={() =>
@@ -690,7 +691,7 @@ const TransformFunctionCallBlock = ({
     </>
   );
 
-  if (isInlineComparison && fn) {
+  if (isInlineBinary && fn) {
     const spec = getTransformArgumentSpec(fn, 1);
     const argument = call.args[0] ?? createEmptyTransformExpression();
     const expectedTypes =
@@ -700,6 +701,13 @@ const TransformFunctionCallBlock = ({
     const inputLabel = describeSource(inputExpression.source);
     const inputOption: SelectInputOption = { id: inputLabel, label: inputLabel, value: inputLabel };
     const functionName = fn.displayName || fn.name;
+    const isComparison = TRANSFORM_COMPARISON_SYMBOLS.has(fn.name);
+    const operandLabel = isComparison
+      ? `${functionName} comparison value`
+      : `${functionName} right operand`;
+    const operandSourceActionLabel = isComparison
+      ? `Change ${functionName} comparison value source`
+      : `Change ${functionName} right operand source`;
     const functionAccessibleName =
       callIndex === 0
         ? `${functionName} function, left input ${inputLabel}`
@@ -720,23 +728,20 @@ const TransformFunctionCallBlock = ({
             />
           )}
         </FlexItem>
-        <FlexItem basis={TRANSFORM_COMPARISON_FUNCTION_WIDTH} shrink={0} minWidth={0}>
+        <FlexItem basis={TRANSFORM_INLINE_BINARY_FUNCTION_WIDTH} shrink={0} minWidth={0}>
           <fieldset aria-label={functionAccessibleName} style={INLINE_CONTROL_GROUP_STYLE}>
             {functionSelect}
           </fieldset>
         </FlexItem>
         <FlexItem grow={1} basis={0} minWidth={0}>
-          <fieldset
-            aria-label={`${functionName} comparison value`}
-            style={INLINE_CONTROL_GROUP_STYLE}
-          >
+          <fieldset aria-label={operandLabel} style={INLINE_CONTROL_GROUP_STYLE}>
             <PipelineCanvasPanelResourceTransformExpression
               expression={argument}
               columns={columns}
               functionsByName={functionsByName}
               onChange={(expression) => handleArgumentChange(0, expression)}
               sourcePlaceholder="Value"
-              sourceClearActionLabel={`Change ${functionName} comparison value source`}
+              sourceClearActionLabel={operandSourceActionLabel}
               logicalTypes={expectedTypes}
               isLiteralOnly={spec?.isLiteral}
               isColumnOnly={spec?.isColumn}

@@ -1,10 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { PlusIcon } from "@phosphor-icons/react";
-
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import InfiniteTable, { type ColumnDef, TableVariant } from "@galaxy-io/dls/table/InfiniteTable";
@@ -57,6 +53,13 @@ const PipelineCanvasPanelResourceTransformTable = ({
     setExpandedRowIds(next.filter((id) => steps.find((step) => step.id === id)?.raw === undefined));
   };
 
+  // Add step lives in the section header; starting a step closes the open row.
+  useEffect(() => {
+    if (isCreating) {
+      setExpandedRowIds([]);
+    }
+  }, [isCreating]);
+
   const columns: ColumnDef<TransformStep>[] = [
     {
       id: "step",
@@ -93,22 +96,8 @@ const PipelineCanvasPanelResourceTransformTable = ({
     <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
       {steps.length > 0 && (
         <>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px" fillWidth>
+          <FlexWrapper padding="8px" fillWidth>
             <TextInput placeholder="Search" value={search} onChange={setSearch} fillWidth />
-            {!isReadOnly && (
-              <FlexItem shrink={0}>
-                <Button
-                  label="Add step"
-                  icon={PlusIcon}
-                  variant={ButtonVariant.SECONDARY}
-                  onClick={() => {
-                    handleExpandedChange([]);
-                    onCreatingChange(true);
-                  }}
-                  isDisabled={isCreating}
-                />
-              </FlexItem>
-            )}
           </FlexWrapper>
           <HorizontalDivider />
         </>
