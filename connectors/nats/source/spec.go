@@ -2,6 +2,7 @@ package source
 
 import "github.com/galaxy-io/filament"
 
+// Spec describes the source's configuration and streaming capabilities.
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{Name: "nats", DisplayName: "NATS JetStream", Description: "Consume an existing dedicated JetStream durable consumer.", Version: "1", Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 		{Name: "url", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "NATS server URL"},
