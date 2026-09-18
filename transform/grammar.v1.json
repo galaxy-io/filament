@@ -50,7 +50,7 @@
           "type": "object",
           "minProperties": 1,
           "maxProperties": 1,
-          "propertyNames": { "enum": ["lower", "trim", "eq", "to_date", "year", "month", "day"] },
+          "propertyNames": { "enum": ["lower", "upper", "trim", "length", "replace", "substring", "concat", "regex_match", "regex_extract", "regex_replace", "add", "sub", "mul", "div", "abs", "floor", "ceil", "round", "eq", "neq", "gt", "gte", "lt", "lte", "and", "or", "not", "is_null", "coalesce", "to_date", "year", "month", "day"] },
           "additionalProperties": {
             "oneOf": [
               { "$ref": "#/$defs/expr" },

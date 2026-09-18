@@ -160,7 +160,8 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 	switch {
 	case e.Lit != nil:
-		return newLiteralNode(e.Lit), argType{logical: literalType(e.Lit), literal: true, value: e.Lit}, true
+		t := literalType(e.Lit)
+		return newLiteralNode(e.Lit, t), argType{logical: t, literal: true, value: e.Lit}, true
 	case e.Col != "":
 		i, ok := c.index(e.Col)
 		if !ok {
@@ -184,12 +185,57 @@ func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 		}
 		args[i], types[i] = n, t
 	}
+	if fn.spec.SameType {
+		coerceLiterals(fn.spec, args, types)
+	}
 	ret, err := fn.check(types)
 	if err != nil {
 		c.errs.addf(path, "%v", err)
 		return nil, argType{}, false
 	}
 	return callNode{fn: fn, args: args}, argType{logical: ret}, true
+}
+
+// coerceLiterals widens each literal argument to the type of the first column
+// argument when the value fits, so eq(int32_col, 1) reads as the author
+// meant it. A literal that cannot widen is left alone for check to reject.
+func coerceLiterals(spec FunctionSpec, args []node, types []argType) {
+	target := rowmodel.LogicalUnknown
+	for i, t := range types {
+		if !t.literal && !spec.argSpec(i).Literal {
+			target = t.logical
+			break
+		}
+	}
+	if target == rowmodel.LogicalUnknown {
+		return
+	}
+	for i, t := range types {
+		if !t.literal || spec.argSpec(i).Literal || t.logical == target || !coercible(t.value, target) {
+			continue
+		}
+		args[i] = newLiteralNode(t.value, target)
+		types[i].logical = target
+	}
+}
+
+// coercible reports whether literal v can stand in for a value of type to
+// without losing anything.
+func coercible(v any, to rowmodel.LogicalType) bool {
+	switch x := v.(type) {
+	case int64:
+		switch to {
+		case rowmodel.LogicalInt16:
+			return x >= -1<<15 && x < 1<<15
+		case rowmodel.LogicalInt32:
+			return x >= -1<<31 && x < 1<<31
+		case rowmodel.LogicalInt64, rowmodel.LogicalFloat32, rowmodel.LogicalFloat64:
+			return true
+		}
+	case float64:
+		return to == rowmodel.LogicalFloat32 || to == rowmodel.LogicalFloat64
+	}
+	return false
 }
 
 // literalType returns the logical type of a literal Expr admits.
