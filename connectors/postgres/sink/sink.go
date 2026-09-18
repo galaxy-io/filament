@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
+	"github.com/galaxy-io/filament/internal/stream"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -22,11 +23,8 @@ import (
 // implements filament.Schematized; the engine only runs schema discovery for sinks
 // that do.
 type Sink struct {
-	continuous  bool
-	attempt     filament.AttemptRef
-	epoch       *sinkEpoch
-	lastEpoch   *sinkEpoch
-	epochFailed bool
+	continuous bool
+	stream     streamSession
 
 	pool     *pgxpool.Pool
 	run      filament.RunID
@@ -129,7 +127,11 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 			}
 		}
 		t.continuous = true
-		t.attempt = *run.StreamAttempt
+		lifecycle, err := stream.New(*run.StreamAttempt)
+		if err != nil {
+			return err
+		}
+		t.stream = streamSession{lifecycle: lifecycle}
 	}
 	cfg := filament.NewConfig(run.Sink.Config)
 	resolved, err := pgconnection.Resolve(cfg)
