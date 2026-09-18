@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -22,18 +23,31 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) (err e
 	return err
 }
 
-// Discover lists existing JetStream streams as selectable resources.
+// Discover lists stored subject patterns as selectable logical resources.
 func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	js, err := jetstream.New(s.conn)
 	if err != nil {
 		return filament.DiscoverResult{}, err
 	}
 	names := js.StreamNames(ctx)
-	var resources []filament.Resource
+	var subjects []string
 	for name := range names.Name() {
-		resources = append(resources, filament.Resource{Name: name, Selectable: true})
+		info, err := s.js.StreamInfo(name, nats.Context(ctx))
+		if err != nil {
+			return filament.DiscoverResult{}, err
+		}
+		subjects = append(subjects, info.Config.Subjects...)
 	}
-	return filament.DiscoverResult{Resources: resources}, names.Err()
+	if err := names.Err(); err != nil {
+		return filament.DiscoverResult{}, err
+	}
+	slices.Sort(subjects)
+	subjects = slices.Compact(subjects)
+	var resources []filament.Resource
+	for _, subject := range subjects {
+		resources = append(resources, filament.Resource{Name: subject, Selectable: true})
+	}
+	return filament.DiscoverResult{Resources: resources}, nil
 }
 
 // Schema returns the fixed message envelope and subject column for a stream.
