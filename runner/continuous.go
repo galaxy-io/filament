@@ -37,7 +37,6 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		return err
 	}
 	spec := cfg.Spec
-	src := cfg.Source.(filament.StreamSource)
 	dst := cfg.Sink.(filament.StreamingSink)
 	lease := filament.LeaseToken{Tenant: spec.Tenant, Attempt: *spec.StreamAttempt}
 	cleanupInstalled := false
@@ -48,43 +47,14 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 			result = errors.Join(result, cfg.Store.EndAttempt(c, filament.EndAttemptRequest{Lease: lease, Termination: filament.AttemptClean, Reason: continuousReason(result)}))
 		}
 	}()
-	request := filament.StreamStateRequest{Tenant: spec.Tenant, Stream: filament.StreamRef{ID: lease.Attempt.StreamID, Generation: lease.Attempt.Generation}}
-	state, err := cfg.Store.LoadStreamState(ctx, request)
+	state, err := loadContinuousAttemptState(ctx, cfg, lease)
 	if err != nil {
-		return err
-	}
-	if state.Attempt == nil || state.Attempt.Lease != lease || state.Desired != filament.StreamEnabled || state.PipelineVersionID != spec.PipelineVersionID || state.Run != spec.Run {
-		return filament.ErrFenced
-	}
-	if err := cfg.Store.RenewLease(ctx, lease, cfg.LeaseTTL); err != nil {
 		return err
 	}
 	runCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	var stopping atomic.Bool
-	var drainStart time.Time
-	hb, err := streamkit.StartHeartbeat(context.WithoutCancel(ctx), min(cfg.LeaseTTL/3, time.Second), func(parent context.Context) error {
-		c, done := context.WithTimeout(parent, cfg.LeaseTTL/3)
-		defer done()
-		err := cfg.Store.RenewLease(c, lease, cfg.LeaseTTL)
-		if err == nil {
-			var current filament.StreamState
-			current, err = cfg.Store.LoadStreamState(c, request)
-			if err == nil && current.Desired != filament.StreamEnabled {
-				stopping.Store(true)
-				if drainStart.IsZero() {
-					drainStart = time.Now()
-				}
-				if time.Since(drainStart) >= cfg.DrainTimeout {
-					err = context.DeadlineExceeded
-				}
-			}
-		}
-		if err != nil {
-			cancel(err)
-		}
-		return err
-	})
+	hb, err := startContinuousHeartbeat(ctx, cfg, lease, &stopping, cancel)
 	if err != nil {
 		return err
 	}
@@ -129,7 +99,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := ensureContinuousSchemas(runCtx, cfg); err != nil {
 		return err
 	}
-	session, err = src.OpenStream(runCtx, filament.StreamOpenOpts{CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
@@ -139,6 +109,51 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	}
 	p.Start(runCtx)
 	return runEpochs(runCtx, cfg, p, session, dst, state, lease, &stopping, &activeEpoch)
+}
+
+func loadContinuousAttemptState(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken) (filament.StreamState, error) {
+	spec := cfg.Spec
+	request := filament.StreamStateRequest{Tenant: spec.Tenant, Stream: filament.StreamRef{ID: lease.Attempt.StreamID, Generation: lease.Attempt.Generation}}
+	state, err := cfg.Store.LoadStreamState(ctx, request)
+	if err != nil {
+		return filament.StreamState{}, err
+	}
+	if state.Attempt == nil || state.Attempt.Lease != lease || state.Desired != filament.StreamEnabled || state.PipelineVersionID != spec.PipelineVersionID || state.Run != spec.Run {
+		return filament.StreamState{}, filament.ErrFenced
+	}
+	if err := cfg.Store.RenewLease(ctx, lease, cfg.LeaseTTL); err != nil {
+		return filament.StreamState{}, err
+	}
+	return state, nil
+}
+
+// startContinuousHeartbeat renews ownership and observes pause/stop independently
+// of source reads and sink writes. Only the heartbeat task owns drainStart.
+func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, stopping *atomic.Bool, cancel context.CancelCauseFunc) (*streamkit.Heartbeat, error) {
+	request := filament.StreamStateRequest{Tenant: lease.Tenant, Stream: filament.StreamRef{ID: lease.Attempt.StreamID, Generation: lease.Attempt.Generation}}
+	var drainStart time.Time
+	return streamkit.StartHeartbeat(context.WithoutCancel(ctx), min(cfg.LeaseTTL/3, time.Second), func(parent context.Context) error {
+		c, done := context.WithTimeout(parent, cfg.LeaseTTL/3)
+		defer done()
+		err := cfg.Store.RenewLease(c, lease, cfg.LeaseTTL)
+		if err == nil {
+			var current filament.StreamState
+			current, err = cfg.Store.LoadStreamState(c, request)
+			if err == nil && current.Desired != filament.StreamEnabled {
+				stopping.Store(true)
+				if drainStart.IsZero() {
+					drainStart = time.Now()
+				}
+				if time.Since(drainStart) >= cfg.DrainTimeout {
+					err = context.DeadlineExceeded
+				}
+			}
+		}
+		if err != nil {
+			cancel(err)
+		}
+		return err
+	})
 }
 
 func validateContinuous(cfg ContinuousConfig) error {

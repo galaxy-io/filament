@@ -3,12 +3,14 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/pressly/goose/v3"
 	"io/fs"
 	"path/filepath"
 	"testing"
 	"testing/fstest"
+
+	"github.com/pressly/goose/v3"
+
+	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
 func TestPipelineExecutionMigrationAndReopen(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/google/uuid"
@@ -149,6 +150,9 @@ func (s *Store) pipelineFromRow(ctx context.Context, tenant filament.TenantID, i
 	currentVersionID sql.NullString, execution int64, workerCfg string, createdAt, updatedAt int64, deletedAt sql.NullInt64,
 	createdBy, updatedBy, deletedBy string,
 ) (*ingestionv1.Pipeline, error) {
+	if execution < math.MinInt32 || execution > math.MaxInt32 {
+		return nil, fmt.Errorf("datastore/sqlite: execution mode %d is outside the int32 range", execution)
+	}
 	out := &ingestionv1.Pipeline{Id: id, TenantId: tenantID, Name: name, Description: description, ExecutionMode: ingestionv1.ExecutionMode(execution)}
 	var err error
 	if currentVersionID.Valid && currentVersionID.String != "" {
