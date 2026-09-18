@@ -139,3 +139,23 @@ type EpochLookup struct {
 
 // ErrTakeoverBlocked reports that predecessor quiescence has not been proven.
 var ErrTakeoverBlocked = errors.New("stream: takeover blocked")
+
+// ContinuousRunStore adds durable run admission and dispatch to the epoch store.
+// Implementations serialize claims and ownership independently of connector type.
+type ContinuousRunStore interface {
+	DataStore
+	StreamRuntimeStore
+	ReplicationStreamRunStore
+	ClaimStreamAttempt(context.Context, LeaseToken) error
+	RetireUnclaimedAttempt(context.Context, LeaseToken) error
+	PendingStreamRuns(context.Context, string, int) ([]RunState, error)
+	StreamProgress(context.Context, TenantID, RunID) (int64, int64, time.Time, error)
+}
+
+// StreamStateRequest identifies the admitted stream for this run.
+func (s RunState) StreamStateRequest() (StreamStateRequest, error) {
+	if s.Request.ReplicationStream == nil {
+		return StreamStateRequest{}, errors.New("continuous run has no stream identity")
+	}
+	return StreamStateRequest{Tenant: s.Tenant, Stream: *s.Request.ReplicationStream}, nil
+}

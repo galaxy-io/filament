@@ -230,7 +230,7 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 	}
 
 	if desired != nil && r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		if err := initializeMessageActivation(ctx, q, r); err != nil {
+		if err := initializeContinuousActivation(ctx, q, r); err != nil {
 			return err
 		}
 	}

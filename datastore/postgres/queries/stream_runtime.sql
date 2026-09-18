@@ -64,7 +64,7 @@ SELECT r.id,r.tenant_id FROM runs r JOIN replication_streams s ON s.current_run_
 WHERE s.status=0 AND r.ended_at IS NULL AND r.id::text>sqlc.arg(after_id)::text
 ORDER BY r.id::text LIMIT sqlc.arg(page_limit);
 
--- name: ActivateMessageResource :exec
+-- name: ActivateStreamResource :exec
 INSERT INTO replication_stream_resources(replication_stream_id,tenant_id,resource_name,status,bootstrap_mode,bootstrap_config)
 VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(resource_name),2,'none','{}')
 ON CONFLICT (replication_stream_id,resource_name) DO NOTHING;

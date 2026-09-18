@@ -11,20 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const activateMessageResource = `-- name: ActivateMessageResource :exec
+const activateStreamResource = `-- name: ActivateStreamResource :exec
 INSERT INTO replication_stream_resources(replication_stream_id,tenant_id,resource_name,status,bootstrap_mode,bootstrap_config)
 VALUES($1,$2,$3,2,'none','{}')
 ON CONFLICT (replication_stream_id,resource_name) DO NOTHING
 `
 
-type ActivateMessageResourceParams struct {
+type ActivateStreamResourceParams struct {
 	StreamID     string
 	TenantID     string
 	ResourceName string
 }
 
-func (q *Queries) ActivateMessageResource(ctx context.Context, arg ActivateMessageResourceParams) error {
-	_, err := q.db.Exec(ctx, activateMessageResource, arg.StreamID, arg.TenantID, arg.ResourceName)
+func (q *Queries) ActivateStreamResource(ctx context.Context, arg ActivateStreamResourceParams) error {
+	_, err := q.db.Exec(ctx, activateStreamResource, arg.StreamID, arg.TenantID, arg.ResourceName)
 	return err
 }
 
