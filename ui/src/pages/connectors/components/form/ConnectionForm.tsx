@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
@@ -10,11 +10,9 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -36,8 +34,8 @@ import {
 } from "@/components/fields/utils";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
@@ -325,7 +323,6 @@ const ConnectionForm = ({
     return (
       <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
         <ErrorLayout
-          icon={<Icon component={WarningCircleIcon} size={24} variant={IconVariant.ERROR} />}
           header="Connector not found"
           message={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
           actions={
@@ -343,62 +340,7 @@ const ConnectionForm = ({
   if (!connector) {
     return (
       <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
-        <FlexItem grow={0} shrink={0}>
-          <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
-            <FlexItem shrink={0}>
-              <ConnectorTile
-                connector={connectorName}
-                kind={connectorKind}
-                size={ConnectorTileSize.LARGE}
-              />
-            </FlexItem>
-            <TextShimmer height={20} width={220} />
-          </FlexWrapper>
-        </FlexItem>
-        <FlexItem grow={0} shrink={0}>
-          <HorizontalDivider />
-        </FlexItem>
-        <BodyWrapper>
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
-            <TextInput
-              value={state.name}
-              onChange={handleNameChange}
-              size={InputSize.LARGE}
-              placeholder="Enter connection name..."
-              label="Name"
-              isRequired
-              fillWidth
-              autoFocus
-            />
-            <TextShimmer height={32} width="100%" />
-            <TextShimmer height={32} width="100%" />
-            <TextShimmer height={32} width="100%" />
-          </FlexWrapper>
-        </BodyWrapper>
-        <FlexItem grow={0} shrink={0}>
-          <HorizontalDivider />
-        </FlexItem>
-        <FooterWrapper>
-          {onBack ? (
-            <Button
-              size={ButtonSize.LARGE}
-              onClick={onBack}
-              icon={ArrowLeftIcon}
-              label="Back"
-              variant={ButtonVariant.SECONDARY}
-            />
-          ) : (
-            <div />
-          )}
-          <Button
-            size={ButtonSize.LARGE}
-            label="Validate"
-            icon={ArrowRightIcon}
-            onClick={NOOP}
-            isDisabled
-            isIconTrailing
-          />
-        </FooterWrapper>
+        <PendingLayout />
       </ConnectionFormWrapper>
     );
   }
