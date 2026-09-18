@@ -66,6 +66,12 @@ const (
 	// IngestionServiceValidatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// ValidatePipeline RPC.
 	IngestionServiceValidatePipelineProcedure = "/ingestion.v1.IngestionService/ValidatePipeline"
+	// IngestionServiceListTransformFunctionsProcedure is the fully-qualified name of the
+	// IngestionService's ListTransformFunctions RPC.
+	IngestionServiceListTransformFunctionsProcedure = "/ingestion.v1.IngestionService/ListTransformFunctions"
+	// IngestionServiceValidateTransformProcedure is the fully-qualified name of the IngestionService's
+	// ValidateTransform RPC.
+	IngestionServiceValidateTransformProcedure = "/ingestion.v1.IngestionService/ValidateTransform"
 	// IngestionServiceCreatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// CreatePipeline RPC.
 	IngestionServiceCreatePipelineProcedure = "/ingestion.v1.IngestionService/CreatePipeline"
@@ -141,6 +147,9 @@ type IngestionServiceClient interface {
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
+	// Transformations; the function catalog and per-resource compile check a builder needs.
+	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
+	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -244,6 +253,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceValidatePipelineProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("ValidatePipeline")),
+			connect.WithClientOptions(opts...),
+		),
+		listTransformFunctions: connect.NewClient[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse](
+			httpClient,
+			baseURL+IngestionServiceListTransformFunctionsProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListTransformFunctions")),
+			connect.WithClientOptions(opts...),
+		),
+		validateTransform: connect.NewClient[v1.ValidateTransformRequest, v1.ValidateTransformResponse](
+			httpClient,
+			baseURL+IngestionServiceValidateTransformProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
 			connect.WithClientOptions(opts...),
 		),
 		createPipeline: connect.NewClient[v1.CreatePipelineRequest, v1.CreatePipelineResponse](
@@ -376,6 +397,8 @@ type ingestionServiceClient struct {
 	listConnections        *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
 	deleteConnection       *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
 	validatePipeline       *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
+	listTransformFunctions *connect.Client[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse]
+	validateTransform      *connect.Client[v1.ValidateTransformRequest, v1.ValidateTransformResponse]
 	createPipeline         *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
 	createPipelineVersion  *connect.Client[v1.CreatePipelineVersionRequest, v1.CreatePipelineVersionResponse]
 	updatePipeline         *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
@@ -450,6 +473,16 @@ func (c *ingestionServiceClient) DeleteConnection(ctx context.Context, req *conn
 // ValidatePipeline calls ingestion.v1.IngestionService.ValidatePipeline.
 func (c *ingestionServiceClient) ValidatePipeline(ctx context.Context, req *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
 	return c.validatePipeline.CallUnary(ctx, req)
+}
+
+// ListTransformFunctions calls ingestion.v1.IngestionService.ListTransformFunctions.
+func (c *ingestionServiceClient) ListTransformFunctions(ctx context.Context, req *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error) {
+	return c.listTransformFunctions.CallUnary(ctx, req)
+}
+
+// ValidateTransform calls ingestion.v1.IngestionService.ValidateTransform.
+func (c *ingestionServiceClient) ValidateTransform(ctx context.Context, req *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
+	return c.validateTransform.CallUnary(ctx, req)
 }
 
 // CreatePipeline calls ingestion.v1.IngestionService.CreatePipeline.
@@ -564,6 +597,9 @@ type IngestionServiceHandler interface {
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
+	// Transformations; the function catalog and per-resource compile check a builder needs.
+	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
+	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -663,6 +699,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceValidatePipelineProcedure,
 		svc.ValidatePipeline,
 		connect.WithSchema(ingestionServiceMethods.ByName("ValidatePipeline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceListTransformFunctionsHandler := connect.NewUnaryHandler(
+		IngestionServiceListTransformFunctionsProcedure,
+		svc.ListTransformFunctions,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListTransformFunctions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceValidateTransformHandler := connect.NewUnaryHandler(
+		IngestionServiceValidateTransformProcedure,
+		svc.ValidateTransform,
+		connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreatePipelineHandler := connect.NewUnaryHandler(
@@ -803,6 +851,10 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceDeleteConnectionHandler.ServeHTTP(w, r)
 		case IngestionServiceValidatePipelineProcedure:
 			ingestionServiceValidatePipelineHandler.ServeHTTP(w, r)
+		case IngestionServiceListTransformFunctionsProcedure:
+			ingestionServiceListTransformFunctionsHandler.ServeHTTP(w, r)
+		case IngestionServiceValidateTransformProcedure:
+			ingestionServiceValidateTransformHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineProcedure:
 			ingestionServiceCreatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineVersionProcedure:
@@ -892,6 +944,14 @@ func (UnimplementedIngestionServiceHandler) DeleteConnection(context.Context, *c
 
 func (UnimplementedIngestionServiceHandler) ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidatePipeline is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListTransformFunctions is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidateTransform is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error) {
