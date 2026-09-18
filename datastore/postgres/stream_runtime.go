@@ -168,7 +168,9 @@ func loadRuntimeState(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.R
 		if err != nil {
 			return filament.StreamState{}, err
 		}
-		state.Attempt = &value
+		if value.Spec.Run == state.Run {
+			state.Attempt = &value
+		}
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return filament.StreamState{}, err
 	}
@@ -210,12 +212,28 @@ func (s *RuntimeStore) SetDesiredState(ctx context.Context, change filament.Desi
 	if stream.Status != 0 {
 		return filament.ErrFenced
 	}
+	current, err := q.GetStreamExecution(ctx, sqlcgen.GetStreamExecutionParams{StreamID: stream.ID, TenantID: stream.TenantID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return filament.ErrVersionConflict
+	}
+	if err != nil {
+		return err
+	}
+	if current.DesiredState == string(filament.StreamStopped) && change.Desired != filament.StreamStopped {
+		return errors.New("stream: stopped activation requires a new start")
+	}
 	rows, err := q.ChangeStreamDesiredState(ctx, sqlcgen.ChangeStreamDesiredStateParams{DesiredState: string(change.Desired), StreamID: stream.ID, TenantID: stream.TenantID, Revision: change.ExpectedRevision})
 	if err != nil {
 		return err
 	}
 	if rows != 1 {
 		return filament.ErrVersionConflict
+	}
+	if err := q.SyncContinuousRunPhase(ctx, sqlcgen.SyncContinuousRunPhaseParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
+		return err
+	}
+	if err := q.FinishStoppedContinuousRun(ctx, sqlcgen.FinishStoppedContinuousRunParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
+		return err
 	}
 	return tx.Commit(ctx)
 }
@@ -256,13 +274,13 @@ func validTTL(ttl time.Duration) bool { return ttl >= time.Microsecond && ttl <=
 // ActivateStream never changes an existing spec, so every attempt shares it.
 func attemptFromRow(row *sqlcgen.StreamAttempt, stream *sqlcgen.ReplicationStream) (filament.Attempt, error) {
 	var spec filament.RunSpec
-	if err := json.Unmarshal(stream.RunSpec, &spec); err != nil {
+	if err := json.Unmarshal(row.RunSpec, &spec); err != nil {
 		return filament.Attempt{}, fmt.Errorf("stream: attempt spec: %w", err)
 	}
 	ref := filament.AttemptRef{RunID: spec.Run, ExecutionID: row.ExecutionID, StreamID: stream.ID, Generation: stream.Generation, Token: row.Token}
 	spec.StreamAttempt = &ref
 	spec.ExecutionID = row.ExecutionID
-	return filament.Attempt{Lease: filament.LeaseToken{Tenant: filament.TenantID(row.TenantID), Attempt: ref}, Spec: spec, Revision: row.DesiredRevision, StartedAt: row.StartedAt.Time, ExpiresAt: row.ExpiresAt.Time, EndedAt: fromTimestamptz(row.EndedAt), Termination: filament.AttemptTermination(row.Termination.String), Reason: row.Reason}, nil
+	return filament.Attempt{Claimed: row.ClaimedAt.Valid, Lease: filament.LeaseToken{Tenant: filament.TenantID(row.TenantID), Attempt: ref}, Spec: spec, Revision: row.DesiredRevision, StartedAt: row.StartedAt.Time, ExpiresAt: row.ExpiresAt.Time, EndedAt: fromTimestamptz(row.EndedAt), Termination: filament.AttemptTermination(row.Termination.String), Reason: row.Reason}, nil
 }
 
 // latestPositions reads the cumulative snapshot stored with the last committed epoch.

@@ -1,4 +1,6 @@
 -- +goose Up
+ALTER TABLE pipelines ADD COLUMN execution_mode INTEGER NOT NULL DEFAULT 1 CHECK (execution_mode IN (1, 2));
+
 ALTER TABLE runs ADD CONSTRAINT runs_id_tenant_unique UNIQUE (id, tenant_id);
 ALTER TABLE replication_streams ADD COLUMN membership_revision BIGINT NOT NULL DEFAULT 1 CHECK (membership_revision > 0);
 
@@ -25,6 +27,8 @@ CREATE TABLE stream_attempts (
  desired_revision BIGINT NOT NULL CHECK (desired_revision > 0),
  request_ttl_us BIGINT NOT NULL CHECK (request_ttl_us > 0),
  started_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ claimed_at TIMESTAMPTZ,
+ run_spec JSONB NOT NULL,
  expires_at TIMESTAMPTZ NOT NULL,
  ended_at TIMESTAMPTZ,
  termination TEXT CHECK (termination IN ('clean','reaped','unproven')),
@@ -70,3 +74,4 @@ ALTER TABLE replication_streams
  DROP COLUMN membership_revision;
 
 ALTER TABLE runs DROP CONSTRAINT runs_id_tenant_unique;
+ALTER TABLE pipelines DROP COLUMN execution_mode;

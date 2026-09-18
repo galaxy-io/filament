@@ -98,6 +98,8 @@ const (
 	RunSignal_RUN_SIGNAL_PAUSE       RunSignal = 1
 	RunSignal_RUN_SIGNAL_RESUME      RunSignal = 2
 	RunSignal_RUN_SIGNAL_CANCEL      RunSignal = 3
+	// Continuous only: drain and persist stopped intent, disabling restart.
+	RunSignal_RUN_SIGNAL_STOP RunSignal = 4
 )
 
 // Enum value maps for RunSignal.
@@ -107,12 +109,14 @@ var (
 		1: "RUN_SIGNAL_PAUSE",
 		2: "RUN_SIGNAL_RESUME",
 		3: "RUN_SIGNAL_CANCEL",
+		4: "RUN_SIGNAL_STOP",
 	}
 	RunSignal_value = map[string]int32{
 		"RUN_SIGNAL_UNSPECIFIED": 0,
 		"RUN_SIGNAL_PAUSE":       1,
 		"RUN_SIGNAL_RESUME":      2,
 		"RUN_SIGNAL_CANCEL":      3,
+		"RUN_SIGNAL_STOP":        4,
 	}
 )
 
@@ -143,6 +147,211 @@ func (RunSignal) EnumDescriptor() ([]byte, []int) {
 	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{1}
 }
 
+// ExecutionDesiredState is the persisted intent for continuous execution.
+type ExecutionDesiredState int32
+
+const (
+	ExecutionDesiredState_EXECUTION_DESIRED_STATE_UNSPECIFIED ExecutionDesiredState = 0
+	ExecutionDesiredState_EXECUTION_DESIRED_STATE_ENABLED     ExecutionDesiredState = 1
+	ExecutionDesiredState_EXECUTION_DESIRED_STATE_PAUSED      ExecutionDesiredState = 2
+	ExecutionDesiredState_EXECUTION_DESIRED_STATE_STOPPED     ExecutionDesiredState = 3
+)
+
+// Enum value maps for ExecutionDesiredState.
+var (
+	ExecutionDesiredState_name = map[int32]string{
+		0: "EXECUTION_DESIRED_STATE_UNSPECIFIED",
+		1: "EXECUTION_DESIRED_STATE_ENABLED",
+		2: "EXECUTION_DESIRED_STATE_PAUSED",
+		3: "EXECUTION_DESIRED_STATE_STOPPED",
+	}
+	ExecutionDesiredState_value = map[string]int32{
+		"EXECUTION_DESIRED_STATE_UNSPECIFIED": 0,
+		"EXECUTION_DESIRED_STATE_ENABLED":     1,
+		"EXECUTION_DESIRED_STATE_PAUSED":      2,
+		"EXECUTION_DESIRED_STATE_STOPPED":     3,
+	}
+)
+
+func (x ExecutionDesiredState) Enum() *ExecutionDesiredState {
+	p := new(ExecutionDesiredState)
+	*p = x
+	return p
+}
+
+func (x ExecutionDesiredState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExecutionDesiredState) Descriptor() protoreflect.EnumDescriptor {
+	return file_ingestion_v1_runs_proto_enumTypes[2].Descriptor()
+}
+
+func (ExecutionDesiredState) Type() protoreflect.EnumType {
+	return &file_ingestion_v1_runs_proto_enumTypes[2]
+}
+
+func (x ExecutionDesiredState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExecutionDesiredState.Descriptor instead.
+func (ExecutionDesiredState) EnumDescriptor() ([]byte, []int) {
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{2}
+}
+
+// ExecutionObservedState describes progress toward the requested state.
+// An idle source can remain RUNNING; lack of arriving records is not a failure.
+type ExecutionObservedState int32
+
+const (
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_UNSPECIFIED ExecutionObservedState = 0
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_STARTING    ExecutionObservedState = 1
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_RUNNING     ExecutionObservedState = 2
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_DRAINING    ExecutionObservedState = 3
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_PAUSED      ExecutionObservedState = 4
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_STOPPED     ExecutionObservedState = 5
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_RETRYING    ExecutionObservedState = 6
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_BLOCKED     ExecutionObservedState = 7
+	ExecutionObservedState_EXECUTION_OBSERVED_STATE_FAILED      ExecutionObservedState = 8
+)
+
+// Enum value maps for ExecutionObservedState.
+var (
+	ExecutionObservedState_name = map[int32]string{
+		0: "EXECUTION_OBSERVED_STATE_UNSPECIFIED",
+		1: "EXECUTION_OBSERVED_STATE_STARTING",
+		2: "EXECUTION_OBSERVED_STATE_RUNNING",
+		3: "EXECUTION_OBSERVED_STATE_DRAINING",
+		4: "EXECUTION_OBSERVED_STATE_PAUSED",
+		5: "EXECUTION_OBSERVED_STATE_STOPPED",
+		6: "EXECUTION_OBSERVED_STATE_RETRYING",
+		7: "EXECUTION_OBSERVED_STATE_BLOCKED",
+		8: "EXECUTION_OBSERVED_STATE_FAILED",
+	}
+	ExecutionObservedState_value = map[string]int32{
+		"EXECUTION_OBSERVED_STATE_UNSPECIFIED": 0,
+		"EXECUTION_OBSERVED_STATE_STARTING":    1,
+		"EXECUTION_OBSERVED_STATE_RUNNING":     2,
+		"EXECUTION_OBSERVED_STATE_DRAINING":    3,
+		"EXECUTION_OBSERVED_STATE_PAUSED":      4,
+		"EXECUTION_OBSERVED_STATE_STOPPED":     5,
+		"EXECUTION_OBSERVED_STATE_RETRYING":    6,
+		"EXECUTION_OBSERVED_STATE_BLOCKED":     7,
+		"EXECUTION_OBSERVED_STATE_FAILED":      8,
+	}
+)
+
+func (x ExecutionObservedState) Enum() *ExecutionObservedState {
+	p := new(ExecutionObservedState)
+	*p = x
+	return p
+}
+
+func (x ExecutionObservedState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ExecutionObservedState) Descriptor() protoreflect.EnumDescriptor {
+	return file_ingestion_v1_runs_proto_enumTypes[3].Descriptor()
+}
+
+func (ExecutionObservedState) Type() protoreflect.EnumType {
+	return &file_ingestion_v1_runs_proto_enumTypes[3]
+}
+
+func (x ExecutionObservedState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ExecutionObservedState.Descriptor instead.
+func (ExecutionObservedState) EnumDescriptor() ([]byte, []int) {
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{3}
+}
+
+// ExecutionStatus is the user-facing state of continuous execution, loaded from
+// durable state. GetRun/ListRuns remain authoritative after missed live events.
+// Pause/resume and worker restarts retain the run ID; starting again after stop
+// creates a new run. Desired and observed states can differ while draining.
+type ExecutionStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DesiredState  ExecutionDesiredState  `protobuf:"varint,1,opt,name=desired_state,json=desiredState,proto3,enum=ingestion.v1.ExecutionDesiredState" json:"desired_state,omitempty"`
+	ObservedState ExecutionObservedState `protobuf:"varint,2,opt,name=observed_state,json=observedState,proto3,enum=ingestion.v1.ExecutionObservedState" json:"observed_state,omitempty"`
+	// Opaque revision for SignalRunRequest.expected_revision; clients echo it.
+	Revision int64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// User-facing explanation, including actionable blocked/failed conditions.
+	Reason string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	// Epoch milliseconds of the most recent durable commit; zero means none yet.
+	LastCommittedAt int64 `protobuf:"varint,5,opt,name=last_committed_at,json=lastCommittedAt,proto3" json:"last_committed_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ExecutionStatus) Reset() {
+	*x = ExecutionStatus{}
+	mi := &file_ingestion_v1_runs_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionStatus) ProtoMessage() {}
+
+func (x *ExecutionStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_runs_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionStatus.ProtoReflect.Descriptor instead.
+func (*ExecutionStatus) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ExecutionStatus) GetDesiredState() ExecutionDesiredState {
+	if x != nil {
+		return x.DesiredState
+	}
+	return ExecutionDesiredState_EXECUTION_DESIRED_STATE_UNSPECIFIED
+}
+
+func (x *ExecutionStatus) GetObservedState() ExecutionObservedState {
+	if x != nil {
+		return x.ObservedState
+	}
+	return ExecutionObservedState_EXECUTION_OBSERVED_STATE_UNSPECIFIED
+}
+
+func (x *ExecutionStatus) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ExecutionStatus) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ExecutionStatus) GetLastCommittedAt() int64 {
+	if x != nil {
+		return x.LastCommittedAt
+	}
+	return 0
+}
+
 // RatePolicy throttles source reads.
 type RatePolicy struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -154,7 +363,7 @@ type RatePolicy struct {
 
 func (x *RatePolicy) Reset() {
 	*x = RatePolicy{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[0]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +375,7 @@ func (x *RatePolicy) String() string {
 func (*RatePolicy) ProtoMessage() {}
 
 func (x *RatePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[0]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +388,7 @@ func (x *RatePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RatePolicy.ProtoReflect.Descriptor instead.
 func (*RatePolicy) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{0}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RatePolicy) GetRequestsPerSecond() float64 {
@@ -206,13 +415,16 @@ type RunOptions struct {
 	RateLimit           *RatePolicy            `protobuf:"bytes,4,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
 	SnapshotParallelism int32                  `protobuf:"varint,5,opt,name=snapshot_parallelism,json=snapshotParallelism,proto3" json:"snapshot_parallelism,omitempty"`
 	CheckpointEvery     int32                  `protobuf:"varint,6,opt,name=checkpoint_every,json=checkpointEvery,proto3" json:"checkpoint_every,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Unspecified inherits the pipeline mode. Explicit values override this start.
+	// Continuous creates a durable activation; unavailable profiles are rejected.
+	ExecutionMode ExecutionMode `protobuf:"varint,7,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunOptions) Reset() {
 	*x = RunOptions{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[1]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -224,7 +436,7 @@ func (x *RunOptions) String() string {
 func (*RunOptions) ProtoMessage() {}
 
 func (x *RunOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[1]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -237,7 +449,7 @@ func (x *RunOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOptions.ProtoReflect.Descriptor instead.
 func (*RunOptions) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{1}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RunOptions) GetFetchSize() int32 {
@@ -282,6 +494,13 @@ func (x *RunOptions) GetCheckpointEvery() int32 {
 	return 0
 }
 
+func (x *RunOptions) GetExecutionMode() ExecutionMode {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
 type RunPipelineRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	PipelineId string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`
@@ -302,7 +521,7 @@ type RunPipelineRequest struct {
 
 func (x *RunPipelineRequest) Reset() {
 	*x = RunPipelineRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[2]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +533,7 @@ func (x *RunPipelineRequest) String() string {
 func (*RunPipelineRequest) ProtoMessage() {}
 
 func (x *RunPipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[2]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +546,7 @@ func (x *RunPipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunPipelineRequest.ProtoReflect.Descriptor instead.
 func (*RunPipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{2}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RunPipelineRequest) GetPipelineId() string {
@@ -369,7 +588,7 @@ type PipelineEdgeRun struct {
 
 func (x *PipelineEdgeRun) Reset() {
 	*x = PipelineEdgeRun{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[3]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +600,7 @@ func (x *PipelineEdgeRun) String() string {
 func (*PipelineEdgeRun) ProtoMessage() {}
 
 func (x *PipelineEdgeRun) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[3]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +613,7 @@ func (x *PipelineEdgeRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineEdgeRun.ProtoReflect.Descriptor instead.
 func (*PipelineEdgeRun) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PipelineEdgeRun) GetPipelineEdgeKey() string {
@@ -420,7 +639,7 @@ type RunPipelineResponse struct {
 
 func (x *RunPipelineResponse) Reset() {
 	*x = RunPipelineResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[4]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +651,7 @@ func (x *RunPipelineResponse) String() string {
 func (*RunPipelineResponse) ProtoMessage() {}
 
 func (x *RunPipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[4]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +664,7 @@ func (x *RunPipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunPipelineResponse.ProtoReflect.Descriptor instead.
 func (*RunPipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RunPipelineResponse) GetEdgeRuns() []*PipelineEdgeRun {
@@ -469,7 +688,7 @@ type RunResourceState struct {
 
 func (x *RunResourceState) Reset() {
 	*x = RunResourceState{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[5]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +700,7 @@ func (x *RunResourceState) String() string {
 func (*RunResourceState) ProtoMessage() {}
 
 func (x *RunResourceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[5]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +713,7 @@ func (x *RunResourceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunResourceState.ProtoReflect.Descriptor instead.
 func (*RunResourceState) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RunResourceState) GetResourceName() string {
@@ -554,17 +773,20 @@ type RunInfo struct {
 	// scheduled_at the intended fire time (scheduled runs only), requested_at
 	// when the run was queued for dispatch. started_at/ended_at above are the
 	// worker's own start and finish.
-	CreatedAt     int64 `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ScheduledAt   int64 `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
-	RequestedAt   int64 `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
-	UpdatedAt     int64 `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CreatedAt     int64         `protobuf:"varint,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ScheduledAt   int64         `protobuf:"varint,16,opt,name=scheduled_at,json=scheduledAt,proto3" json:"scheduled_at,omitempty"`
+	RequestedAt   int64         `protobuf:"varint,17,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	UpdatedAt     int64         `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExecutionMode ExecutionMode `protobuf:"varint,19,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// Present for continuous runs. records/bytes above reflect committed progress.
+	ExecutionStatus *ExecutionStatus `protobuf:"bytes,20,opt,name=execution_status,json=executionStatus,proto3" json:"execution_status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
 	*x = RunInfo{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[6]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -576,7 +798,7 @@ func (x *RunInfo) String() string {
 func (*RunInfo) ProtoMessage() {}
 
 func (x *RunInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[6]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -589,7 +811,7 @@ func (x *RunInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunInfo.ProtoReflect.Descriptor instead.
 func (*RunInfo) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{6}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RunInfo) GetTenantId() string {
@@ -718,6 +940,20 @@ func (x *RunInfo) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *RunInfo) GetExecutionMode() ExecutionMode {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *RunInfo) GetExecutionStatus() *ExecutionStatus {
+	if x != nil {
+		return x.ExecutionStatus
+	}
+	return nil
+}
+
 type RunSnapshot struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *RunInfo               `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
@@ -729,7 +965,7 @@ type RunSnapshot struct {
 
 func (x *RunSnapshot) Reset() {
 	*x = RunSnapshot{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[7]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -741,7 +977,7 @@ func (x *RunSnapshot) String() string {
 func (*RunSnapshot) ProtoMessage() {}
 
 func (x *RunSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[7]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -754,7 +990,7 @@ func (x *RunSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSnapshot.ProtoReflect.Descriptor instead.
 func (*RunSnapshot) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{7}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RunSnapshot) GetRun() *RunInfo {
@@ -787,7 +1023,7 @@ type GetRunRequest struct {
 
 func (x *GetRunRequest) Reset() {
 	*x = GetRunRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -799,7 +1035,7 @@ func (x *GetRunRequest) String() string {
 func (*GetRunRequest) ProtoMessage() {}
 
 func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[8]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -812,7 +1048,7 @@ func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
 func (*GetRunRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{8}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetRunRequest) GetRunId() string {
@@ -831,7 +1067,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -843,7 +1079,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[9]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -856,7 +1092,7 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{9}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetRunResponse) GetSnapshot() *RunSnapshot {
@@ -884,7 +1120,7 @@ type ListRunsRequest struct {
 
 func (x *ListRunsRequest) Reset() {
 	*x = ListRunsRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -896,7 +1132,7 @@ func (x *ListRunsRequest) String() string {
 func (*ListRunsRequest) ProtoMessage() {}
 
 func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[10]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -909,7 +1145,7 @@ func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{10}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListRunsRequest) GetPipelineId() string {
@@ -978,7 +1214,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -990,7 +1226,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[11]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1003,7 +1239,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{11}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListRunsResponse) GetRuns() []*RunInfo {
@@ -1021,16 +1257,19 @@ func (x *ListRunsResponse) GetPagination() *PaginationResponse {
 }
 
 type SignalRunRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	Signal        RunSignal              `protobuf:"varint,2,opt,name=signal,proto3,enum=ingestion.v1.RunSignal" json:"signal,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	RunId  string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Signal RunSignal              `protobuf:"varint,2,opt,name=signal,proto3,enum=ingestion.v1.RunSignal" json:"signal,omitempty"`
+	// Optional CAS for continuous desired state. A stale revision is rejected.
+	// Absent permits a transition against the current revision.
+	ExpectedRevision *int64 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3,oneof" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SignalRunRequest) Reset() {
 	*x = SignalRunRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[12]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1042,7 +1281,7 @@ func (x *SignalRunRequest) String() string {
 func (*SignalRunRequest) ProtoMessage() {}
 
 func (x *SignalRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[12]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1055,7 +1294,7 @@ func (x *SignalRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalRunRequest.ProtoReflect.Descriptor instead.
 func (*SignalRunRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{12}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SignalRunRequest) GetRunId() string {
@@ -1072,15 +1311,25 @@ func (x *SignalRunRequest) GetSignal() RunSignal {
 	return RunSignal_RUN_SIGNAL_UNSPECIFIED
 }
 
+func (x *SignalRunRequest) GetExpectedRevision() int64 {
+	if x != nil && x.ExpectedRevision != nil {
+		return *x.ExpectedRevision
+	}
+	return 0
+}
+
+// Continuous success confirms persisted intent, not completed worker drainage.
+// Bounded responses leave execution_status absent.
 type SignalRunResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionStatus *ExecutionStatus       `protobuf:"bytes,1,opt,name=execution_status,json=executionStatus,proto3" json:"execution_status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SignalRunResponse) Reset() {
 	*x = SignalRunResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[13]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +1341,7 @@ func (x *SignalRunResponse) String() string {
 func (*SignalRunResponse) ProtoMessage() {}
 
 func (x *SignalRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[13]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1354,14 @@ func (x *SignalRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignalRunResponse.ProtoReflect.Descriptor instead.
 func (*SignalRunResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{13}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SignalRunResponse) GetExecutionStatus() *ExecutionStatus {
+	if x != nil {
+		return x.ExecutionStatus
+	}
+	return nil
 }
 
 type TailRunRequest struct {
@@ -1120,7 +1376,7 @@ type TailRunRequest struct {
 
 func (x *TailRunRequest) Reset() {
 	*x = TailRunRequest{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[14]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1132,7 +1388,7 @@ func (x *TailRunRequest) String() string {
 func (*TailRunRequest) ProtoMessage() {}
 
 func (x *TailRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[14]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1145,7 +1401,7 @@ func (x *TailRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailRunRequest.ProtoReflect.Descriptor instead.
 func (*TailRunRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{14}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *TailRunRequest) GetRunId() string {
@@ -1172,7 +1428,8 @@ type RunEventFields struct {
 	Error        string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
 	RetryAfterMs int64                  `protobuf:"varint,6,opt,name=retry_after_ms,json=retryAfterMs,proto3" json:"retry_after_ms,omitempty"`
 	ParentsTotal int64                  `protobuf:"varint,7,opt,name=parents_total,json=parentsTotal,proto3" json:"parents_total,omitempty"`
-	// checkpoint preserves the connector cursor together with its resource.
+	// Legacy bounded cursor payload. Continuous progress is read through GetRun;
+	// continuous events do not carry raw customer cursors.
 	Checkpoint    *structpb.Struct `protobuf:"bytes,8,opt,name=checkpoint,proto3" json:"checkpoint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1180,7 +1437,7 @@ type RunEventFields struct {
 
 func (x *RunEventFields) Reset() {
 	*x = RunEventFields{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[15]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1192,7 +1449,7 @@ func (x *RunEventFields) String() string {
 func (*RunEventFields) ProtoMessage() {}
 
 func (x *RunEventFields) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[15]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1205,7 +1462,7 @@ func (x *RunEventFields) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunEventFields.ProtoReflect.Descriptor instead.
 func (*RunEventFields) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{15}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RunEventFields) GetRecords() int64 {
@@ -1283,7 +1540,7 @@ type RunEvent struct {
 
 func (x *RunEvent) Reset() {
 	*x = RunEvent{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[16]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1295,7 +1552,7 @@ func (x *RunEvent) String() string {
 func (*RunEvent) ProtoMessage() {}
 
 func (x *RunEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[16]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1308,7 +1565,7 @@ func (x *RunEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunEvent.ProtoReflect.Descriptor instead.
 func (*RunEvent) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{16}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RunEvent) GetTenantId() string {
@@ -1376,7 +1633,7 @@ type TailRunResponse struct {
 
 func (x *TailRunResponse) Reset() {
 	*x = TailRunResponse{}
-	mi := &file_ingestion_v1_runs_proto_msgTypes[17]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1388,7 +1645,7 @@ func (x *TailRunResponse) String() string {
 func (*TailRunResponse) ProtoMessage() {}
 
 func (x *TailRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_runs_proto_msgTypes[17]
+	mi := &file_ingestion_v1_runs_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1401,7 +1658,7 @@ func (x *TailRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailRunResponse.ProtoReflect.Descriptor instead.
 func (*TailRunResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{17}
+	return file_ingestion_v1_runs_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TailRunResponse) GetEvent() *RunEvent {
@@ -1415,11 +1672,17 @@ var File_ingestion_v1_runs_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
-	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"R\n" +
+	"\x17ingestion/v1/runs.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\x88\x02\n" +
+	"\x0fExecutionStatus\x12H\n" +
+	"\rdesired_state\x18\x01 \x01(\x0e2#.ingestion.v1.ExecutionDesiredStateR\fdesiredState\x12K\n" +
+	"\x0eobserved_state\x18\x02 \x01(\x0e2$.ingestion.v1.ExecutionObservedStateR\robservedState\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12*\n" +
+	"\x11last_committed_at\x18\x05 \x01(\x03R\x0flastCommittedAt\"R\n" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
-	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\x90\x02\n" +
+	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\xd4\x02\n" +
 	"\n" +
 	"RunOptions\x12\x1d\n" +
 	"\n" +
@@ -1429,7 +1692,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
-	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\"\xe2\x01\n" +
+	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x12B\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xe2\x01\n" +
 	"\x12RunPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
@@ -1446,7 +1710,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x03 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xe9\x04\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xf7\x05\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
@@ -1471,7 +1735,9 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\fscheduled_at\x18\x10 \x01(\x03R\vscheduledAt\x12!\n" +
 	"\frequested_at\x18\x11 \x01(\x03R\vrequestedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\"\x8b\x01\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12B\n" +
+	"\x0eexecution_mode\x18\x13 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12H\n" +
+	"\x10execution_status\x18\x14 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
@@ -1497,11 +1763,14 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x04runs\x18\x01 \x03(\v2\x15.ingestion.v1.RunInfoR\x04runs\x12@\n" +
 	"\n" +
 	"pagination\x18\x02 \x01(\v2 .ingestion.v1.PaginationResponseR\n" +
-	"pagination\"Z\n" +
+	"pagination\"\xa2\x01\n" +
 	"\x10SignalRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12/\n" +
-	"\x06signal\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunSignalR\x06signal\"\x13\n" +
-	"\x11SignalRunResponse\"L\n" +
+	"\x06signal\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunSignalR\x06signal\x120\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03H\x00R\x10expectedRevision\x88\x01\x01B\x14\n" +
+	"\x12_expected_revision\"]\n" +
+	"\x11SignalRunResponse\x12H\n" +
+	"\x10execution_status\x18\x01 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\"L\n" +
 	"\x0eTailRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12#\n" +
 	"\rshould_replay\x18\x02 \x01(\bR\fshouldReplay\"\xfe\x01\n" +
@@ -1538,12 +1807,28 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x13RUN_STATUS_CANCELED\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_PAUSED\x10\x06\x12\x16\n" +
 	"\x12RUN_STATUS_PARTIAL\x10\a\x12\x18\n" +
-	"\x14RUN_STATUS_SCHEDULED\x10\b*k\n" +
+	"\x14RUN_STATUS_SCHEDULED\x10\b*\x80\x01\n" +
 	"\tRunSignal\x12\x1a\n" +
 	"\x16RUN_SIGNAL_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10RUN_SIGNAL_PAUSE\x10\x01\x12\x15\n" +
 	"\x11RUN_SIGNAL_RESUME\x10\x02\x12\x15\n" +
-	"\x11RUN_SIGNAL_CANCEL\x10\x03B\xaa\x01\n" +
+	"\x11RUN_SIGNAL_CANCEL\x10\x03\x12\x13\n" +
+	"\x0fRUN_SIGNAL_STOP\x10\x04*\xae\x01\n" +
+	"\x15ExecutionDesiredState\x12'\n" +
+	"#EXECUTION_DESIRED_STATE_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fEXECUTION_DESIRED_STATE_ENABLED\x10\x01\x12\"\n" +
+	"\x1eEXECUTION_DESIRED_STATE_PAUSED\x10\x02\x12#\n" +
+	"\x1fEXECUTION_DESIRED_STATE_STOPPED\x10\x03*\xf3\x02\n" +
+	"\x16ExecutionObservedState\x12(\n" +
+	"$EXECUTION_OBSERVED_STATE_UNSPECIFIED\x10\x00\x12%\n" +
+	"!EXECUTION_OBSERVED_STATE_STARTING\x10\x01\x12$\n" +
+	" EXECUTION_OBSERVED_STATE_RUNNING\x10\x02\x12%\n" +
+	"!EXECUTION_OBSERVED_STATE_DRAINING\x10\x03\x12#\n" +
+	"\x1fEXECUTION_OBSERVED_STATE_PAUSED\x10\x04\x12$\n" +
+	" EXECUTION_OBSERVED_STATE_STOPPED\x10\x05\x12%\n" +
+	"!EXECUTION_OBSERVED_STATE_RETRYING\x10\x06\x12$\n" +
+	" EXECUTION_OBSERVED_STATE_BLOCKED\x10\a\x12#\n" +
+	"\x1fEXECUTION_OBSERVED_STATE_FAILED\x10\bB\xaa\x01\n" +
 	"\x10com.ingestion.v1B\tRunsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -1558,60 +1843,70 @@ func file_ingestion_v1_runs_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_runs_proto_rawDescData
 }
 
-var file_ingestion_v1_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ingestion_v1_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_ingestion_v1_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_ingestion_v1_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_ingestion_v1_runs_proto_goTypes = []any{
 	(RunStatus)(0),              // 0: ingestion.v1.RunStatus
 	(RunSignal)(0),              // 1: ingestion.v1.RunSignal
-	(*RatePolicy)(nil),          // 2: ingestion.v1.RatePolicy
-	(*RunOptions)(nil),          // 3: ingestion.v1.RunOptions
-	(*RunPipelineRequest)(nil),  // 4: ingestion.v1.RunPipelineRequest
-	(*PipelineEdgeRun)(nil),     // 5: ingestion.v1.PipelineEdgeRun
-	(*RunPipelineResponse)(nil), // 6: ingestion.v1.RunPipelineResponse
-	(*RunResourceState)(nil),    // 7: ingestion.v1.RunResourceState
-	(*RunInfo)(nil),             // 8: ingestion.v1.RunInfo
-	(*RunSnapshot)(nil),         // 9: ingestion.v1.RunSnapshot
-	(*GetRunRequest)(nil),       // 10: ingestion.v1.GetRunRequest
-	(*GetRunResponse)(nil),      // 11: ingestion.v1.GetRunResponse
-	(*ListRunsRequest)(nil),     // 12: ingestion.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),    // 13: ingestion.v1.ListRunsResponse
-	(*SignalRunRequest)(nil),    // 14: ingestion.v1.SignalRunRequest
-	(*SignalRunResponse)(nil),   // 15: ingestion.v1.SignalRunResponse
-	(*TailRunRequest)(nil),      // 16: ingestion.v1.TailRunRequest
-	(*RunEventFields)(nil),      // 17: ingestion.v1.RunEventFields
-	(*RunEvent)(nil),            // 18: ingestion.v1.RunEvent
-	(*TailRunResponse)(nil),     // 19: ingestion.v1.TailRunResponse
-	(*WorkerConfiguration)(nil), // 20: ingestion.v1.WorkerConfiguration
-	(*PaginationRequest)(nil),   // 21: ingestion.v1.PaginationRequest
-	(*SortingRequest)(nil),      // 22: ingestion.v1.SortingRequest
-	(*PaginationResponse)(nil),  // 23: ingestion.v1.PaginationResponse
-	(*structpb.Struct)(nil),     // 24: google.protobuf.Struct
+	(ExecutionDesiredState)(0),  // 2: ingestion.v1.ExecutionDesiredState
+	(ExecutionObservedState)(0), // 3: ingestion.v1.ExecutionObservedState
+	(*ExecutionStatus)(nil),     // 4: ingestion.v1.ExecutionStatus
+	(*RatePolicy)(nil),          // 5: ingestion.v1.RatePolicy
+	(*RunOptions)(nil),          // 6: ingestion.v1.RunOptions
+	(*RunPipelineRequest)(nil),  // 7: ingestion.v1.RunPipelineRequest
+	(*PipelineEdgeRun)(nil),     // 8: ingestion.v1.PipelineEdgeRun
+	(*RunPipelineResponse)(nil), // 9: ingestion.v1.RunPipelineResponse
+	(*RunResourceState)(nil),    // 10: ingestion.v1.RunResourceState
+	(*RunInfo)(nil),             // 11: ingestion.v1.RunInfo
+	(*RunSnapshot)(nil),         // 12: ingestion.v1.RunSnapshot
+	(*GetRunRequest)(nil),       // 13: ingestion.v1.GetRunRequest
+	(*GetRunResponse)(nil),      // 14: ingestion.v1.GetRunResponse
+	(*ListRunsRequest)(nil),     // 15: ingestion.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),    // 16: ingestion.v1.ListRunsResponse
+	(*SignalRunRequest)(nil),    // 17: ingestion.v1.SignalRunRequest
+	(*SignalRunResponse)(nil),   // 18: ingestion.v1.SignalRunResponse
+	(*TailRunRequest)(nil),      // 19: ingestion.v1.TailRunRequest
+	(*RunEventFields)(nil),      // 20: ingestion.v1.RunEventFields
+	(*RunEvent)(nil),            // 21: ingestion.v1.RunEvent
+	(*TailRunResponse)(nil),     // 22: ingestion.v1.TailRunResponse
+	(ExecutionMode)(0),          // 23: ingestion.v1.ExecutionMode
+	(*WorkerConfiguration)(nil), // 24: ingestion.v1.WorkerConfiguration
+	(*PaginationRequest)(nil),   // 25: ingestion.v1.PaginationRequest
+	(*SortingRequest)(nil),      // 26: ingestion.v1.SortingRequest
+	(*PaginationResponse)(nil),  // 27: ingestion.v1.PaginationResponse
+	(*structpb.Struct)(nil),     // 28: google.protobuf.Struct
 }
 var file_ingestion_v1_runs_proto_depIdxs = []int32{
-	2,  // 0: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
-	3,  // 1: ingestion.v1.RunPipelineRequest.options:type_name -> ingestion.v1.RunOptions
-	20, // 2: ingestion.v1.RunPipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	8,  // 3: ingestion.v1.PipelineEdgeRun.run:type_name -> ingestion.v1.RunInfo
-	5,  // 4: ingestion.v1.RunPipelineResponse.edge_runs:type_name -> ingestion.v1.PipelineEdgeRun
-	0,  // 5: ingestion.v1.RunResourceState.status:type_name -> ingestion.v1.RunStatus
-	0,  // 6: ingestion.v1.RunInfo.status:type_name -> ingestion.v1.RunStatus
-	8,  // 7: ingestion.v1.RunSnapshot.run:type_name -> ingestion.v1.RunInfo
-	7,  // 8: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
-	9,  // 9: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
-	0,  // 10: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
-	21, // 11: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	22, // 12: ingestion.v1.ListRunsRequest.sorting:type_name -> ingestion.v1.SortingRequest
-	8,  // 13: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
-	23, // 14: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	1,  // 15: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
-	24, // 16: ingestion.v1.RunEventFields.checkpoint:type_name -> google.protobuf.Struct
-	17, // 17: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
-	18, // 18: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	2,  // 0: ingestion.v1.ExecutionStatus.desired_state:type_name -> ingestion.v1.ExecutionDesiredState
+	3,  // 1: ingestion.v1.ExecutionStatus.observed_state:type_name -> ingestion.v1.ExecutionObservedState
+	5,  // 2: ingestion.v1.RunOptions.rate_limit:type_name -> ingestion.v1.RatePolicy
+	23, // 3: ingestion.v1.RunOptions.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	6,  // 4: ingestion.v1.RunPipelineRequest.options:type_name -> ingestion.v1.RunOptions
+	24, // 5: ingestion.v1.RunPipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	11, // 6: ingestion.v1.PipelineEdgeRun.run:type_name -> ingestion.v1.RunInfo
+	8,  // 7: ingestion.v1.RunPipelineResponse.edge_runs:type_name -> ingestion.v1.PipelineEdgeRun
+	0,  // 8: ingestion.v1.RunResourceState.status:type_name -> ingestion.v1.RunStatus
+	0,  // 9: ingestion.v1.RunInfo.status:type_name -> ingestion.v1.RunStatus
+	23, // 10: ingestion.v1.RunInfo.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	4,  // 11: ingestion.v1.RunInfo.execution_status:type_name -> ingestion.v1.ExecutionStatus
+	11, // 12: ingestion.v1.RunSnapshot.run:type_name -> ingestion.v1.RunInfo
+	10, // 13: ingestion.v1.RunSnapshot.resources:type_name -> ingestion.v1.RunResourceState
+	12, // 14: ingestion.v1.GetRunResponse.snapshot:type_name -> ingestion.v1.RunSnapshot
+	0,  // 15: ingestion.v1.ListRunsRequest.status:type_name -> ingestion.v1.RunStatus
+	25, // 16: ingestion.v1.ListRunsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	26, // 17: ingestion.v1.ListRunsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	11, // 18: ingestion.v1.ListRunsResponse.runs:type_name -> ingestion.v1.RunInfo
+	27, // 19: ingestion.v1.ListRunsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	1,  // 20: ingestion.v1.SignalRunRequest.signal:type_name -> ingestion.v1.RunSignal
+	4,  // 21: ingestion.v1.SignalRunResponse.execution_status:type_name -> ingestion.v1.ExecutionStatus
+	28, // 22: ingestion.v1.RunEventFields.checkpoint:type_name -> google.protobuf.Struct
+	20, // 23: ingestion.v1.RunEvent.fields:type_name -> ingestion.v1.RunEventFields
+	21, // 24: ingestion.v1.TailRunResponse.event:type_name -> ingestion.v1.RunEvent
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_runs_proto_init() }
@@ -1622,14 +1917,15 @@ func file_ingestion_v1_runs_proto_init() {
 	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_sorting_proto_init()
-	file_ingestion_v1_runs_proto_msgTypes[10].OneofWrappers = []any{}
+	file_ingestion_v1_runs_proto_msgTypes[11].OneofWrappers = []any{}
+	file_ingestion_v1_runs_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_runs_proto_rawDesc), len(file_ingestion_v1_runs_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   18,
+			NumEnums:      4,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
