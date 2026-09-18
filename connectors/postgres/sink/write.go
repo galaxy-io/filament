@@ -18,6 +18,12 @@ import (
 // and append COPY into the table, upsert folds through a temp table, merge applies
 // the change stream in order.
 func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if t.continuous {
+		return t.applyEpoch(ctx, b, opts)
+	}
+	if opts.Epoch != nil {
+		return filament.WriteReceipt{}, filament.ErrEpochMismatch
+	}
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}

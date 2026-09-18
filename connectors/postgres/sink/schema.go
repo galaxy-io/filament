@@ -18,6 +18,9 @@ import (
 // (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
 // a COPY error (full type-change handling is deferred to schema evolution).
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
+	if t.continuous && (t.stream.active != nil || t.modeFor(resource) != filament.WriteAppend) {
+		return filament.ErrEpochMismatch
+	}
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
