@@ -196,11 +196,16 @@ type ReplicationAware interface {
 type ReplicationStreamPlanningRequest struct {
 	ReplicationStreamID string
 	Config              Config
+	// Resources fixes continuous membership. Empty asks the connector for its default.
+	Resources []string
 }
 
 // ReplicationStreamPlan describes the connector-specific external consumer and
 // the normalized config fields that determine whether its continuity is reusable.
 type ReplicationStreamPlan struct {
+	// Resources is the connector-resolved fixed membership for continuous admission.
+	// Bounded CDC planning may leave it empty.
+	Resources        []string
 	ConsumerName     string
 	ConsumerConfig   map[string]any
 	ContinuityConfig map[string]any

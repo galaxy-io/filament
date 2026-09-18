@@ -585,6 +585,13 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 		SnapshotParallelism: int(o.GetSnapshotParallelism()),
 		CheckpointEvery:     int(o.GetCheckpointEvery()),
 	}
+	// Callers validate the wire enum before conversion.
+	switch o.GetExecutionMode() {
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED:
+		opts.Execution = filament.ExecutionBounded
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS:
+		opts.Execution = filament.ExecutionContinuous
+	}
 	if rl := o.GetRateLimit(); rl != nil {
 		opts.RateLimit = &filament.RatePolicy{
 			RequestsPerSecond: rl.GetRequestsPerSecond(),

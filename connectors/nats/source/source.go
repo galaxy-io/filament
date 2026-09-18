@@ -1,4 +1,4 @@
-// Package source implements serial consumption of a dedicated JetStream consumer.
+// Package source implements consumption of dedicated JetStream consumers.
 package source
 
 import (
@@ -11,12 +11,16 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
-// Source binds an existing, exclusively assigned, user-owned durable consumer.
-// Consumer provisioning/deletion is deliberately outside this first-slice connector.
+// Source reads subject resources using managed consumers, or binds explicit
+// user-owned consumers for compatibility. One connection serves all resources.
 type Source struct {
 	conn                       *nats.Conn
 	js                         nats.JetStreamContext
 	stream, consumer, identity string
+	bindings                   []streamBinding
+	resource                   string
+	filters                    []string
+	managed                    bool
 }
 
 // New returns an unconfigured source.
@@ -36,6 +40,17 @@ func (*Source) Validate(cfg filament.Config) error {
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
+	}
+	var bindings []streamBinding
+	if cfg.Has("streams") || cfg.Has("stream") || cfg.Has("consumer") {
+		if cfg.Has("subjects") {
+			return fmt.Errorf("nats: subject resources cannot be combined with explicit stream consumers")
+		}
+		var err error
+		bindings, err = configuredStreams(cfg)
+		if err != nil {
+			return err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -61,6 +76,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	s.stream = cfg.String("stream")
 	s.consumer = cfg.String("consumer")
 	s.identity = cfg.String("source_identity")
+	// An empty binding set selects managed subject resources at OpenStream.
+	s.bindings = bindings
 	return nil
 }
 
