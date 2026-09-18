@@ -15,7 +15,7 @@ import (
 
 // streamSession combines shared lifecycle rules with Postgres transaction state.
 type streamSession struct {
-	lifecycle stream.Lifecycle
+	lifecycle stream.SinkLifecycle
 	active    *sinkEpoch
 	// cleanupErr conservatively retains uncertainty from failed rollback attempts.
 	cleanupErr error

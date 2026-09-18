@@ -127,7 +127,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 			}
 		}
 		t.continuous = true
-		lifecycle, err := stream.New(*run.StreamAttempt)
+		lifecycle, err := stream.NewSinkLifecycle(*run.StreamAttempt)
 		if err != nil {
 			return err
 		}
