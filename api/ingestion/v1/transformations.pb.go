@@ -79,7 +79,9 @@ type TransformArgument struct {
 	IsLiteral    bool                   `protobuf:"varint,4,opt,name=is_literal,json=isLiteral,proto3" json:"is_literal,omitempty"`
 	IsOptional   bool                   `protobuf:"varint,5,opt,name=is_optional,json=isOptional,proto3" json:"is_optional,omitempty"`
 	// is_variadic on the last argument lets a call repeat it any number of times.
-	IsVariadic    bool `protobuf:"varint,6,opt,name=is_variadic,json=isVariadic,proto3" json:"is_variadic,omitempty"`
+	IsVariadic bool `protobuf:"varint,6,opt,name=is_variadic,json=isVariadic,proto3" json:"is_variadic,omitempty"`
+	// display_name is the field label a builder shows for this argument.
+	DisplayName   string `protobuf:"bytes,7,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -156,6 +158,13 @@ func (x *TransformArgument) GetIsVariadic() bool {
 	return false
 }
 
+func (x *TransformArgument) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 // TransformFunction is one catalog entry. name is what a definition calls;
 // display_name is what a builder shows for it. operator_symbol is optional
 // presentation metadata for a binary function that can use compact infix UI.
@@ -169,8 +178,14 @@ type TransformFunction struct {
 	SameType       bool                   `protobuf:"varint,6,opt,name=same_type,json=sameType,proto3" json:"same_type,omitempty"`
 	ReturnsInput   bool                   `protobuf:"varint,7,opt,name=returns_input,json=returnsInput,proto3" json:"returns_input,omitempty"`
 	OperatorSymbol string                 `protobuf:"bytes,8,opt,name=operator_symbol,json=operatorSymbol,proto3" json:"operator_symbol,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// condition_operator marks functions suitable for the compact row-condition picker.
+	ConditionOperator bool `protobuf:"varint,9,opt,name=condition_operator,json=conditionOperator,proto3" json:"condition_operator,omitempty"`
+	// variadic_add_label names the action that appends another variadic argument.
+	VariadicAddLabel string `protobuf:"bytes,10,opt,name=variadic_add_label,json=variadicAddLabel,proto3" json:"variadic_add_label,omitempty"`
+	// condition_join is "and" or "or" for functions that join compact conditions.
+	ConditionJoin string `protobuf:"bytes,11,opt,name=condition_join,json=conditionJoin,proto3" json:"condition_join,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TransformFunction) Reset() {
@@ -255,6 +270,27 @@ func (x *TransformFunction) GetReturnsInput() bool {
 func (x *TransformFunction) GetOperatorSymbol() string {
 	if x != nil {
 		return x.OperatorSymbol
+	}
+	return ""
+}
+
+func (x *TransformFunction) GetConditionOperator() bool {
+	if x != nil {
+		return x.ConditionOperator
+	}
+	return false
+}
+
+func (x *TransformFunction) GetVariadicAddLabel() string {
+	if x != nil {
+		return x.VariadicAddLabel
+	}
+	return ""
+}
+
+func (x *TransformFunction) GetConditionJoin() string {
+	if x != nil {
+		return x.ConditionJoin
 	}
 	return ""
 }
@@ -454,7 +490,7 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\n" +
 	"\"ingestion/v1/transformations.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1dingestion/v1/connectors.proto\"B\n" +
 	"\x1dListTransformFunctionsRequest\x12!\n" +
-	"\flogical_type\x18\x01 \x01(\tR\vlogicalType\"\xca\x01\n" +
+	"\flogical_type\x18\x01 \x01(\tR\vlogicalType\"\xed\x01\n" +
 	"\x11TransformArgument\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rlogical_types\x18\x02 \x03(\tR\flogicalTypes\x12\x1b\n" +
@@ -464,7 +500,8 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\vis_optional\x18\x05 \x01(\bR\n" +
 	"isOptional\x12\x1f\n" +
 	"\vis_variadic\x18\x06 \x01(\bR\n" +
-	"isVariadic\"\xa6\x02\n" +
+	"isVariadic\x12!\n" +
+	"\fdisplay_name\x18\a \x01(\tR\vdisplayName\"\xaa\x03\n" +
 	"\x11TransformFunction\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x123\n" +
@@ -473,7 +510,11 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\x12\x1b\n" +
 	"\tsame_type\x18\x06 \x01(\bR\bsameType\x12#\n" +
 	"\rreturns_input\x18\a \x01(\bR\freturnsInput\x12'\n" +
-	"\x0foperator_symbol\x18\b \x01(\tR\x0eoperatorSymbol\"\xaf\x01\n" +
+	"\x0foperator_symbol\x18\b \x01(\tR\x0eoperatorSymbol\x12-\n" +
+	"\x12condition_operator\x18\t \x01(\bR\x11conditionOperator\x12,\n" +
+	"\x12variadic_add_label\x18\n" +
+	" \x01(\tR\x10variadicAddLabel\x12%\n" +
+	"\x0econdition_join\x18\v \x01(\tR\rconditionJoin\"\xaf\x01\n" +
 	"\x1eListTransformFunctionsResponse\x12=\n" +
 	"\tfunctions\x18\x01 \x03(\v2\x1f.ingestion.v1.TransformFunctionR\tfunctions\x12'\n" +
 	"\x0fgrammar_version\x18\x02 \x01(\x05R\x0egrammarVersion\x12%\n" +

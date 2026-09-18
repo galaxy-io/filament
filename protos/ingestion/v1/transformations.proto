@@ -22,6 +22,8 @@ message TransformArgument {
   bool is_optional = 5;
   // is_variadic on the last argument lets a call repeat it any number of times.
   bool is_variadic = 6;
+  // display_name is the field label a builder shows for this argument.
+  string display_name = 7;
 }
 
 // TransformFunction is one catalog entry. name is what a definition calls;
@@ -36,6 +38,12 @@ message TransformFunction {
   bool same_type = 6;
   bool returns_input = 7;
   string operator_symbol = 8;
+  // condition_operator marks functions suitable for the compact row-condition picker.
+  bool condition_operator = 9;
+  // variadic_add_label names the action that appends another variadic argument.
+  string variadic_add_label = 10;
+  // condition_join is "and" or "or" for functions that join compact conditions.
+  string condition_join = 11;
 }
 
 // ListTransformFunctionsResponse carries the catalog, the grammar version a

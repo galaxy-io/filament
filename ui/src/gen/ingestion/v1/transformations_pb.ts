@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/transformations.proto.
  */
 export const file_ingestion_v1_transformations: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIokBChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgizwEKEVRyYW5zZm9ybUZ1bmN0aW9uEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSLQoEYXJncxgDIAMoCzIfLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1Bcmd1bWVudBIPCgdyZXR1cm5zGAQgASgJEhQKDGRpc3BsYXlfbmFtZRgFIAEoCRIRCglzYW1lX3R5cGUYBiABKAgSFQoNcmV0dXJuc19pbnB1dBgHIAEoCBIXCg9vcGVyYXRvcl9zeW1ib2wYCCABKAkihQEKHkxpc3RUcmFuc2Zvcm1GdW5jdGlvbnNSZXNwb25zZRIyCglmdW5jdGlvbnMYASADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtRnVuY3Rpb24SFwoPZ3JhbW1hcl92ZXJzaW9uGAIgASgFEhYKDmdyYW1tYXJfc2NoZW1hGAMgASgJInYKGFZhbGlkYXRlVHJhbnNmb3JtUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCRIQCghyZXNvdXJjZRgCIAEoCRIqCgl0cmFuc2Zvcm0YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Io8BChlWYWxpZGF0ZVRyYW5zZm9ybVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmlzc3VlcxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISNAoOb3V0cHV0X2NvbHVtbnMYAyADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5iBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
+  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIp8BChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgSFAoMZGlzcGxheV9uYW1lGAcgASgJIp8CChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCRIUCgxkaXNwbGF5X25hbWUYBSABKAkSEQoJc2FtZV90eXBlGAYgASgIEhUKDXJldHVybnNfaW5wdXQYByABKAgSFwoPb3BlcmF0b3Jfc3ltYm9sGAggASgJEhoKEmNvbmRpdGlvbl9vcGVyYXRvchgJIAEoCBIaChJ2YXJpYWRpY19hZGRfbGFiZWwYCiABKAkSFgoOY29uZGl0aW9uX2pvaW4YCyABKAkihQEKHkxpc3RUcmFuc2Zvcm1GdW5jdGlvbnNSZXNwb25zZRIyCglmdW5jdGlvbnMYASADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtRnVuY3Rpb24SFwoPZ3JhbW1hcl92ZXJzaW9uGAIgASgFEhYKDmdyYW1tYXJfc2NoZW1hGAMgASgJInYKGFZhbGlkYXRlVHJhbnNmb3JtUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCRIQCghyZXNvdXJjZRgCIAEoCRIqCgl0cmFuc2Zvcm0YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Io8BChlWYWxpZGF0ZVRyYW5zZm9ybVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmlzc3VlcxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISNAoOb3V0cHV0X2NvbHVtbnMYAyADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5iBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
 
 /**
  * ListTransformFunctionsRequest asks for the transform catalog. With a
@@ -74,6 +74,13 @@ export type TransformArgument = Message<"ingestion.v1.TransformArgument"> & {
    * @generated from field: bool is_variadic = 6;
    */
   isVariadic: boolean;
+
+  /**
+   * display_name is the field label a builder shows for this argument.
+   *
+   * @generated from field: string display_name = 7;
+   */
+  displayName: string;
 };
 
 /**
@@ -130,6 +137,27 @@ export type TransformFunction = Message<"ingestion.v1.TransformFunction"> & {
    * @generated from field: string operator_symbol = 8;
    */
   operatorSymbol: string;
+
+  /**
+   * condition_operator marks functions suitable for the compact row-condition picker.
+   *
+   * @generated from field: bool condition_operator = 9;
+   */
+  conditionOperator: boolean;
+
+  /**
+   * variadic_add_label names the action that appends another variadic argument.
+   *
+   * @generated from field: string variadic_add_label = 10;
+   */
+  variadicAddLabel: string;
+
+  /**
+   * condition_join is "and" or "or" for functions that join compact conditions.
+   *
+   * @generated from field: string condition_join = 11;
+   */
+  conditionJoin: string;
 };
 
 /**

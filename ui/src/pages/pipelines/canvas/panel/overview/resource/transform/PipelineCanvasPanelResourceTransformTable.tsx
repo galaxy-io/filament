@@ -6,6 +6,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import InfiniteTable, { type ColumnDef, TableVariant } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
@@ -19,6 +20,7 @@ import { formatTransformStepSummary } from "@/pages/pipelines/canvas/panel/overv
 
 interface PipelineCanvasPanelResourceTransformTableProps {
   steps: TransformStep[];
+  sourceConnectionId: Connection["id"];
   resources: Resource["name"][];
   columnsByResource: Map<Resource["name"], ResourceColumn[]>;
   functionsByName: Map<string, TransformFunction>;
@@ -36,6 +38,7 @@ interface PipelineCanvasPanelResourceTransformTableProps {
  */
 const PipelineCanvasPanelResourceTransformTable = ({
   steps,
+  sourceConnectionId,
   resources,
   columnsByResource,
   functionsByName,
@@ -106,6 +109,7 @@ const PipelineCanvasPanelResourceTransformTable = ({
         <>
           <PipelineCanvasPanelResourceTransformForm
             initialState={defaultState}
+            sourceConnectionId={sourceConnectionId}
             resources={resources}
             columnsByResource={columnsByResource}
             functionsByName={functionsByName}
@@ -130,6 +134,7 @@ const PipelineCanvasPanelResourceTransformTable = ({
           onRowExpand={(row) => (
             <PipelineCanvasPanelResourceTransformForm
               initialState={row.original}
+              sourceConnectionId={sourceConnectionId}
               resources={resources}
               columnsByResource={columnsByResource}
               functionsByName={functionsByName}

@@ -19,12 +19,13 @@ import (
 // Column say whether the argument must be a constant or a column. Variadic
 // on the last argument lets a call repeat it any number of times.
 type ArgSpec struct {
-	Name     string
-	Types    []rowmodel.LogicalType // accepted logical types; empty accepts any
-	Literal  bool                   // must be a literal
-	Column   bool                   // must be a column-shaped value
-	Optional bool
-	Variadic bool
+	Name        string
+	DisplayName string
+	Types       []rowmodel.LogicalType // accepted logical types; empty accepts any
+	Literal     bool                   // must be a literal
+	Column      bool                   // must be a column-shaped value
+	Optional    bool
+	Variadic    bool
 }
 
 // FunctionSpec is a catalog function's signature: its arguments, the logical
@@ -34,14 +35,17 @@ type ArgSpec struct {
 // column among them; a literal is widened to the column's type when it fits.
 // ReturnsInput means the result takes that shared type.
 type FunctionSpec struct {
-	Name           string
-	DisplayName    string
-	Description    string
-	OperatorSymbol string
-	Args           []ArgSpec
-	Returns        rowmodel.LogicalType
-	SameType       bool
-	ReturnsInput   bool
+	Name              string
+	DisplayName       string
+	Description       string
+	OperatorSymbol    string
+	ConditionOperator bool
+	ConditionJoin     string
+	VariadicAddLabel  string
+	Args              []ArgSpec
+	Returns           rowmodel.LogicalType
+	SameType          bool
+	ReturnsInput      bool
 }
 
 // argType is what the compiler knows about a compiled expression: its logical
@@ -87,9 +91,9 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "replace", DisplayName: "Replace", Description: "Replaces every occurrence of a substring in a string column.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "find", Types: stringTypes, Literal: true},
-				{Name: "with", Types: stringTypes, Literal: true},
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "find", DisplayName: "Find", Types: stringTypes, Literal: true},
+				{Name: "with", DisplayName: "Replace with", Types: stringTypes, Literal: true},
 			}, Returns: rowmodel.LogicalString,
 		},
 		exec: kernel.Replace,
@@ -98,9 +102,9 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "substring", DisplayName: "Substring", Description: "A slice of a string column, counting characters from 1.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "start", Types: int64Types, Literal: true},
-				{Name: "length", Types: int64Types, Literal: true, Optional: true},
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "start", DisplayName: "Start position", Types: int64Types, Literal: true},
+				{Name: "length", DisplayName: "Length", Types: int64Types, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalString,
 		},
 		validate: positive("substring", 1),
@@ -109,8 +113,8 @@ var catalog = map[string]function{
 	"concat": {
 		spec: FunctionSpec{
 			Name: "concat", DisplayName: "Concatenate", Description: "Joins strings end to end; null in any part gives null.",
-			Args: []ArgSpec{{Name: "part", Types: stringTypes, Variadic: true}}, Returns: rowmodel.LogicalString,
-			SameType: true,
+			Args: []ArgSpec{{Name: "part", DisplayName: "Append", Types: stringTypes, Variadic: true}}, Returns: rowmodel.LogicalString,
+			SameType: true, VariadicAddLabel: "Add part",
 		},
 		exec: kernel.Concat,
 	},
@@ -118,9 +122,9 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "regex_match", DisplayName: "Regex match", Description: "True where a string column matches a Go regular expression.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "pattern", Types: stringTypes, Literal: true},
-			}, Returns: rowmodel.LogicalBool,
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "pattern", DisplayName: "Pattern", Types: stringTypes, Literal: true},
+			}, Returns: rowmodel.LogicalBool, ConditionOperator: true,
 		},
 		validate: validPattern("regex_match", 1),
 		exec:     kernel.RegexMatch,
@@ -129,21 +133,21 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "regex_extract", DisplayName: "Regex extract", Description: "The first match of a Go regular expression, or of one of its groups.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "pattern", Types: stringTypes, Literal: true},
-				{Name: "group", Types: int64Types, Literal: true, Optional: true},
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "pattern", DisplayName: "Pattern", Types: stringTypes, Literal: true},
+				{Name: "group", DisplayName: "Group", Types: int64Types, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalString,
 		},
-		validate: validPattern("regex_extract", 1),
+		validate: validators(validPattern("regex_extract", 1), nonnegative("regex_extract", "group", 2)),
 		exec:     kernel.RegexExtract,
 	},
 	"regex_replace": {
 		spec: FunctionSpec{
 			Name: "regex_replace", DisplayName: "Regex replace", Description: "Replaces every match of a Go regular expression; $1 refers to a group.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "pattern", Types: stringTypes, Literal: true},
-				{Name: "with", Types: stringTypes, Literal: true},
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "pattern", DisplayName: "Pattern", Types: stringTypes, Literal: true},
+				{Name: "with", DisplayName: "Replace with", Types: stringTypes, Literal: true},
 			}, Returns: rowmodel.LogicalString,
 		},
 		validate: validPattern("regex_replace", 1),
@@ -158,7 +162,7 @@ var catalog = map[string]function{
 	"abs": {
 		spec: FunctionSpec{
 			Name: "abs", DisplayName: "Absolute value", Description: "The absolute value of a number column.",
-			Args: []ArgSpec{{Name: "value", Types: numericTypes, Column: true}}, ReturnsInput: true, SameType: true,
+			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Types: numericTypes, Column: true}}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Abs,
 	},
@@ -168,8 +172,8 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "round", DisplayName: "Round", Description: "Rounds a decimal column to a number of places, halves to even.",
 			Args: []ArgSpec{
-				{Name: "value", Types: floatTypes, Column: true},
-				{Name: "places", Types: int64Types, Literal: true, Optional: true},
+				{Name: "value", DisplayName: "Value", Types: floatTypes, Column: true},
+				{Name: "places", DisplayName: "Places", Types: int64Types, Literal: true, Optional: true},
 			}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Round,
@@ -187,14 +191,14 @@ var catalog = map[string]function{
 	"and": {
 		spec: FunctionSpec{
 			Name: "and", DisplayName: "And", Description: "True where both conditions are true.",
-			Args: []ArgSpec{{Name: "left", Types: boolTypes}, {Name: "right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true,
+			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "and",
 		},
 		exec: kernel.And,
 	},
 	"or": {
 		spec: FunctionSpec{
 			Name: "or", DisplayName: "Or", Description: "True where either condition is true.",
-			Args: []ArgSpec{{Name: "left", Types: boolTypes}, {Name: "right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true,
+			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "or",
 		},
 		exec: kernel.Or,
 	},
@@ -204,14 +208,14 @@ var catalog = map[string]function{
 	"is_null": {
 		spec: FunctionSpec{
 			Name: "is_null", DisplayName: "Is null", Description: "True where a column has no value.",
-			Args: []ArgSpec{{Name: "value", Column: true}}, Returns: rowmodel.LogicalBool,
+			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Column: true}}, Returns: rowmodel.LogicalBool, ConditionOperator: true,
 		},
 		exec: kernel.IsNull,
 	},
 	"coalesce": {
 		spec: FunctionSpec{
 			Name: "coalesce", DisplayName: "Coalesce", Description: "The first value that is not null, left to right.",
-			Args: []ArgSpec{{Name: "value", Variadic: true}}, ReturnsInput: true, SameType: true,
+			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Variadic: true}}, ReturnsInput: true, SameType: true, VariadicAddLabel: "Add value",
 		},
 		exec: kernel.Coalesce,
 	},
@@ -221,8 +225,8 @@ var catalog = map[string]function{
 		spec: FunctionSpec{
 			Name: "to_date", DisplayName: "To date", Description: "Parses a string column into a date, by an optional Go time layout.",
 			Args: []ArgSpec{
-				{Name: "value", Types: stringTypes, Column: true},
-				{Name: "layout", Types: stringTypes, Literal: true, Optional: true},
+				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
+				{Name: "layout", DisplayName: "Format", Types: stringTypes, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalDate,
 		},
 		validate: validLayout("to_date", 1),
@@ -238,7 +242,7 @@ func unary(name, display, desc string, types []rowmodel.LogicalType, returns row
 	return function{
 		spec: FunctionSpec{
 			Name: name, DisplayName: display, Description: desc,
-			Args:    []ArgSpec{{Name: "value", Types: types, Column: true}},
+			Args:    []ArgSpec{{Name: "value", DisplayName: "Value", Types: types, Column: true}},
 			Returns: returns, ReturnsInput: returns == "", SameType: returns == "",
 		},
 		exec: exec,
@@ -250,7 +254,7 @@ func arithmetic(name, display, symbol, desc string, exec func(context.Context, [
 	return function{
 		spec: FunctionSpec{
 			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol,
-			Args:         []ArgSpec{{Name: "left", Types: numericTypes}, {Name: "right", Types: numericTypes}},
+			Args:         []ArgSpec{{Name: "left", DisplayName: "Left", Types: numericTypes}, {Name: "right", DisplayName: "Right", Types: numericTypes}},
 			ReturnsInput: true, SameType: true,
 		},
 		exec: exec,
@@ -262,8 +266,8 @@ func arithmetic(name, display, symbol, desc string, exec func(context.Context, [
 func comparison(name, display, symbol, desc string, types []rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol,
-			Args: []ArgSpec{{Name: "left", Types: types}, {Name: "right", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
+			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol, ConditionOperator: true,
+			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: types}, {Name: "right", DisplayName: "Compare with", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
 		exec: exec,
 	}
@@ -406,6 +410,32 @@ func positive(name string, index int) func([]argType) error {
 		}
 		if v, _ := args[index].value.(int64); v < 1 {
 			return fmt.Errorf("%s %s must be 1 or more, got %d", name, "start", v)
+		}
+		return nil
+	}
+}
+
+// nonnegative requires an optional integer literal to be zero or more.
+func nonnegative(name, argument string, index int) func([]argType) error {
+	return func(args []argType) error {
+		if len(args) <= index {
+			return nil
+		}
+		if v, _ := args[index].value.(int64); v < 0 {
+			return fmt.Errorf("%s %s must be zero or more, got %d", name, argument, v)
+		}
+		return nil
+	}
+}
+
+// validators composes function-specific checks while keeping the catalog's
+// public constraint metadata independent from the compiler implementation.
+func validators(checks ...func([]argType) error) func([]argType) error {
+	return func(args []argType) error {
+		for _, check := range checks {
+			if err := check(args); err != nil {
+				return err
+			}
 		}
 		return nil
 	}

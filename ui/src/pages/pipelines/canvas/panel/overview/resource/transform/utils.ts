@@ -466,23 +466,6 @@ const callInfo = (
         `${functionName} needs matching types; ${spec.name} is ${logicalTypePhrase(info.type)}, while the left input is ${logicalTypePhrase(shared)}.`,
       );
     }
-
-    if (
-      fn.name === "substring" &&
-      index === 1 &&
-      typeof info.literalValue === "number" &&
-      info.literalValue < 1
-    ) {
-      return incomplete("Substring's start must be 1 or more.");
-    }
-    if (
-      fn.name === "regex_extract" &&
-      index === 2 &&
-      typeof info.literalValue === "number" &&
-      info.literalValue < 0
-    ) {
-      return incomplete("Regex extract's group must be zero or more.");
-    }
   }
 
   const type = fn.returnsInput ? shared || input.type : fn.returns;
@@ -519,6 +502,35 @@ export const getCompatibleTransformFunctions = (
     if (first.isLiteral && !input.isLiteral) return false;
     return first.logicalTypes.length === 0 || first.logicalTypes.includes(input.type);
   });
+};
+
+/**
+ * Condition-role fields were added after the original catalog endpoint. Keep
+ * the builder stable while an older server response is still cached during a
+ * rolling deploy, but prefer the explicit backend roles as soon as they exist.
+ */
+const hasConditionRoleMetadata = (functionsByName: Map<string, TransformFunction>): boolean =>
+  [...functionsByName.values()].some(
+    (fn) => fn.conditionOperator || fn.conditionJoin === "and" || fn.conditionJoin === "or",
+  );
+
+export const isTransformConditionOperator = (
+  fn: TransformFunction | undefined,
+  functionsByName: Map<string, TransformFunction>,
+): boolean => {
+  if (!fn) return false;
+  if (hasConditionRoleMetadata(functionsByName)) return fn.conditionOperator;
+  return fn.returns === "bool" && fn.name !== "and" && fn.name !== "or" && fn.name !== "not";
+};
+
+export const getTransformConditionJoin = (
+  fn: TransformFunction | undefined,
+  functionsByName: Map<string, TransformFunction>,
+): "and" | "or" | undefined => {
+  if (!fn) return undefined;
+  if (fn.conditionJoin === "and" || fn.conditionJoin === "or") return fn.conditionJoin;
+  if (hasConditionRoleMetadata(functionsByName)) return undefined;
+  return fn.name === "and" || fn.name === "or" ? fn.name : undefined;
 };
 
 export const getTransformStepValidationError = (
@@ -602,55 +614,6 @@ export const isTransformStepValid = (
   columns: TransformColumn[],
   functionsByName: Map<string, TransformFunction>,
 ): boolean => getTransformStepValidationError(state, columns, functionsByName) === null;
-
-/** The schema immediately before `beforeIndex`, after all earlier steps for the resource. */
-export const getTransformColumnsBeforeStep = (
-  sourceColumns: TransformColumn[],
-  steps: TransformStep[],
-  resource: Resource["name"],
-  beforeIndex: number,
-  functionsByName: Map<string, TransformFunction>,
-): TransformColumn[] => {
-  let columns = sourceColumns.map((column) => ({ ...column }));
-  const earlier = steps
-    .filter((step) => step.resource === resource && step.index < beforeIndex)
-    .sort((left, right) => left.index - right.index);
-
-  for (const step of earlier) {
-    if (step.raw !== undefined) continue;
-    switch (step.kind) {
-      case TransformStepKind.RENAME:
-        for (const rename of [...step.renames].sort((left, right) =>
-          left.source.localeCompare(right.source),
-        )) {
-          const column = columns.find((candidate) => candidate.name === rename.source);
-          const target = rename.target.trim();
-          if (column && !columns.some((candidate) => candidate.name === target)) {
-            column.name = target;
-          }
-        }
-        break;
-      case TransformStepKind.DROP:
-        columns = columns.filter((column) => !step.drops.includes(column.name));
-        break;
-      case TransformStepKind.COMPUTE: {
-        const before = columns.map((column) => ({ ...column }));
-        for (const output of [...step.outputs].sort((left, right) =>
-          getTransformOutputName(left).localeCompare(getTransformOutputName(right)),
-        )) {
-          const info = getTransformExpressionInfo(output.expression, before, functionsByName);
-          const name = getTransformOutputName(output);
-          if (!info.complete || name === "") continue;
-          const existing = columns.find((column) => column.name === name);
-          if (existing) existing.logicalType = info.type;
-          else columns.push({ name, logicalType: info.type, isPrimaryKey: false });
-        }
-        break;
-      }
-    }
-  }
-  return columns;
-};
 
 const formatExpression = (expression: TransformExpression): string => {
   let value: string;

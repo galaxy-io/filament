@@ -39,8 +39,10 @@ import {
 import {
   getCompatibleTransformFunctions,
   getTransformArgumentSpec,
+  getTransformConditionJoin,
   getTransformExpressionInfo,
   getTransformOutputName,
+  isTransformConditionOperator,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/utils";
 
 interface PipelineCanvasPanelResourceTransformFieldsProps {
@@ -115,17 +117,28 @@ interface ConditionGroup {
   conditions: TransformExpression[];
 }
 
-const splitConditionGroup = (expression: TransformExpression): ConditionGroup | null => {
-  const firstJoin = expression.calls.findIndex(
-    (call) => (call.name === "and" || call.name === "or") && call.args.length === 1,
-  );
+const splitConditionGroup = (
+  expression: TransformExpression,
+  functionsByName: Map<string, TransformFunction>,
+): ConditionGroup | null => {
+  const firstJoin = expression.calls.findIndex((call) => {
+    const join = getTransformConditionJoin(functionsByName.get(call.name), functionsByName);
+    return (join === "and" || join === "or") && call.args.length === 1;
+  });
   if (firstJoin === -1) return { mode: "and", conditions: [expression] };
 
   const joins = expression.calls.slice(firstJoin);
-  const mode = joins[0]?.name;
+  const mode = getTransformConditionJoin(
+    functionsByName.get(joins[0]?.name ?? ""),
+    functionsByName,
+  );
   if (
     (mode !== "and" && mode !== "or") ||
-    !joins.every((call) => call.name === mode && call.args.length === 1)
+    !joins.every(
+      (call) =>
+        getTransformConditionJoin(functionsByName.get(call.name), functionsByName) === mode &&
+        call.args.length === 1,
+    )
   ) {
     return null;
   }
@@ -142,11 +155,19 @@ const splitConditionGroup = (expression: TransformExpression): ConditionGroup | 
 const joinConditionGroup = (
   conditions: TransformExpression[],
   mode: ConditionGroup["mode"],
+  functionsByName: Map<string, TransformFunction>,
 ): TransformExpression => {
   const [first = createEmptyTransformExpression(), ...rest] = conditions;
+  const joinFunction = [...functionsByName.values()].find(
+    (fn) => getTransformConditionJoin(fn, functionsByName) === mode,
+  );
+  if (!joinFunction) return first;
   return {
     ...first,
-    calls: [...first.calls, ...rest.map((condition) => ({ name: mode, args: [condition] }))],
+    calls: [
+      ...first.calls,
+      ...rest.map((condition) => ({ name: joinFunction.name, args: [condition] })),
+    ],
   };
 };
 
@@ -160,8 +181,7 @@ const isCompactCondition = (
   if (!call) return true;
   const fn = functionsByName.get(call.name);
   return (
-    fn !== undefined &&
-    fn.returns === "bool" &&
+    isTransformConditionOperator(fn, functionsByName) &&
     call.args.every((argument) => argument.calls.length === 0)
   );
 };
@@ -191,7 +211,7 @@ const CompactCondition = ({
   const selectedCall = expression.calls.length === 1 ? expression.calls[0] : undefined;
   const selectedFunction = selectedCall ? functionsByName.get(selectedCall.name) : undefined;
   const compatibleFunctions = getCompatibleTransformFunctions(inputInfo, functionsByName).filter(
-    (fn) => fn.returns === "bool" && !["and", "or", "not"].includes(fn.name),
+    (fn) => isTransformConditionOperator(fn, functionsByName),
   );
   const availableFunctions =
     selectedFunction &&
@@ -314,10 +334,12 @@ const CompactCondition = ({
             />
           </fieldset>
         </FlexItem>
-        {argumentCount > 0 && (
+        {argumentCount > 0 ? (
           <FlexItem grow={1} basis={0} minWidth={0}>
             {renderArgument(0)}
           </FlexItem>
+        ) : (
+          <FlexItem grow={1} basis={0} minWidth={0} />
         )}
         {onRemove && (
           <Button
@@ -430,7 +452,7 @@ const PipelineCanvasPanelResourceTransformFields = ({
         : outputTarget.logicalType !== outputInfo.type
           ? `${outputName} is ${outputTarget.logicalType}; this expression returns ${outputInfo.type}.`
           : undefined;
-  const conditionGroup = splitConditionGroup(state.where);
+  const conditionGroup = splitConditionGroup(state.where, functionsByName);
   const useCompactConditions =
     conditionGroup?.conditions.every((condition) =>
       isCompactCondition(condition, functionsByName),
@@ -477,25 +499,9 @@ const PipelineCanvasPanelResourceTransformFields = ({
       onClick: () => !isDisabled && onChange({ rowScope: TransformRowScope.MATCHING }),
     },
   ];
-  const conditionModeItems: SwitcherInputItem[] = [
-    {
-      id: "and",
-      label: "All conditions",
-      onClick: () => {
-        if (!isDisabled && conditionGroup) {
-          onChange({ where: joinConditionGroup(conditionGroup.conditions, "and") });
-        }
-      },
-    },
-    {
-      id: "or",
-      label: "Any condition",
-      onClick: () => {
-        if (!isDisabled && conditionGroup) {
-          onChange({ where: joinConditionGroup(conditionGroup.conditions, "or") });
-        }
-      },
-    },
+  const conditionModeOptions: SelectInputOption[] = [
+    { id: "and", label: "All conditions", value: "and" },
+    { id: "or", label: "Any condition", value: "or" },
   ];
 
   return (
@@ -649,11 +655,28 @@ const PipelineCanvasPanelResourceTransformFields = ({
               {useCompactConditions && conditionGroup ? (
                 <>
                   {conditionGroup.conditions.length > 1 && (
-                    <SwitcherInput
-                      items={conditionModeItems}
-                      selectedId={conditionGroup.mode}
+                    <SelectInput
+                      options={conditionModeOptions}
+                      value={
+                        conditionModeOptions.find((option) => option.id === conditionGroup.mode) ??
+                        null
+                      }
+                      onChange={(option) => {
+                        const mode = option.value;
+                        if (!isDisabled && conditionGroup && (mode === "and" || mode === "or")) {
+                          onChange({
+                            where: joinConditionGroup(
+                              conditionGroup.conditions,
+                              mode,
+                              functionsByName,
+                            ),
+                          });
+                        }
+                      }}
                       variant={InputVariant.TERTIARY}
                       size={InputSize.MEDIUM}
+                      width={180}
+                      isDisabled={isDisabled}
                     />
                   )}
                   {conditionGroup.conditions.map((condition, index) => (
@@ -667,7 +690,13 @@ const PipelineCanvasPanelResourceTransformFields = ({
                         const conditions = conditionGroup.conditions.map((candidate, slot) =>
                           slot === index ? next : candidate,
                         );
-                        onChange({ where: joinConditionGroup(conditions, conditionGroup.mode) });
+                        onChange({
+                          where: joinConditionGroup(
+                            conditions,
+                            conditionGroup.mode,
+                            functionsByName,
+                          ),
+                        });
                       }}
                       onRemove={
                         conditionGroup.conditions.length > 1
@@ -676,7 +705,11 @@ const PipelineCanvasPanelResourceTransformFields = ({
                                 (_, slot) => slot !== index,
                               );
                               onChange({
-                                where: joinConditionGroup(conditions, conditionGroup.mode),
+                                where: joinConditionGroup(
+                                  conditions,
+                                  conditionGroup.mode,
+                                  functionsByName,
+                                ),
                               });
                             }
                           : undefined
@@ -695,6 +728,7 @@ const PipelineCanvasPanelResourceTransformFields = ({
                           where: joinConditionGroup(
                             [...conditionGroup.conditions, createEmptyTransformExpression()],
                             conditionGroup.mode,
+                            functionsByName,
                           ),
                         })
                       }

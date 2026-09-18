@@ -1,6 +1,14 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  forwardRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
+import { type Icon as PhosphorIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -73,21 +81,11 @@ const describeSource = (source: TransformExpressionSource): string => {
 };
 
 const getArgumentLabel = (fn: TransformFunction, index: number, fallback: string): string => {
-  if (["eq", "neq", "gt", "gte", "lt", "lte"].includes(fn.name) && index === 1) {
-    return "Compare with";
-  }
-  if (fn.name === "concat") return "Append";
-  if (fn.name === "replace" && index === 1) return "Find";
-  if ((fn.name === "replace" || fn.name === "regex_replace") && index === 2) {
-    return "Replace with";
-  }
-  if (fn.name === "substring" && index === 1) return "Start position";
-  return fallback;
+  return getTransformArgumentSpec(fn, index)?.displayName || fallback;
 };
 
-const getArgumentPlaceholder = (label: string, isOptional: boolean): string | undefined => {
+const getArgumentPlaceholder = (isOptional: boolean): string | undefined => {
   if (isOptional) return "Optional";
-  if (label === "Compare with") return "Choose a column or value";
   return undefined;
 };
 
@@ -98,20 +96,19 @@ const isUnfilledDraftError = (error: string): boolean =>
   error.endsWith("needs another argument.") ||
   /: (Choose a column or value|Enter a value|Choose a function)\.$/.test(error);
 
-/** The DLS trailing-input action has no aria-label prop, so scope its existing button here. */
-const useTrailingActionLabel = (label: string | undefined) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!label) return;
-    const action = inputRef.current?.parentElement?.querySelector<HTMLButtonElement>("button");
-    if (!action) return;
-    action.setAttribute("aria-label", label);
-    return () => action.removeAttribute("aria-label");
+/**
+ * DLS Input does not yet accept an accessible name for its trailing action.
+ * Give the icon an accessible name so the containing DLS button derives the
+ * same name without depending on DLS's private DOM structure.
+ */
+const useAccessibleClearIcon = (label: string | undefined): PhosphorIcon =>
+  useMemo(() => {
+    const AccessibleClearIcon = forwardRef<SVGSVGElement, ComponentPropsWithoutRef<typeof XIcon>>(
+      (props, ref) => <XIcon {...props} ref={ref} role="img" aria-label={label} />,
+    );
+    AccessibleClearIcon.displayName = "AccessibleClearIcon";
+    return AccessibleClearIcon;
   }, [label]);
-
-  return inputRef;
-};
 
 interface TransformLiteralFieldProps {
   source: Extract<TransformExpressionSource, { kind: "literal" }>;
@@ -136,7 +133,7 @@ const TransformLiteralField = ({
   size,
   isDisabled,
 }: TransformLiteralFieldProps) => {
-  const inputRef = useTrailingActionLabel(onClear ? clearActionLabel : undefined);
+  const clearIcon = useAccessibleClearIcon(onClear ? clearActionLabel : undefined);
   const integerOnly =
     logicalTypes.length > 0 && logicalTypes.every((type) => isIntegerLogicalType(type));
   const numericError =
@@ -186,12 +183,11 @@ const TransformLiteralField = ({
 
   return (
     <TextInput
-      ref={inputRef}
       label={label}
       value={typeof source.value === "string" ? source.value : ""}
       onChange={(value) => onChange({ ...source, value })}
       placeholder={placeholder}
-      trailing={onClear ? { icon: XIcon, onClick: onClear } : undefined}
+      trailing={onClear ? { icon: clearIcon, onClick: onClear } : undefined}
       variant={InputVariant.TERTIARY}
       size={size}
       isDisabled={isDisabled}
@@ -226,7 +222,7 @@ const TransformNumberLiteralInput = ({
   size,
   isDisabled,
 }: TransformNumberLiteralInputProps) => {
-  const inputRef = useTrailingActionLabel(onClear ? clearActionLabel : undefined);
+  const clearIcon = useAccessibleClearIcon(onClear ? clearActionLabel : undefined);
   const [raw, setRaw] = useState(source.value === null ? "" : String(source.value));
   const emittedValue = useRef(source.value);
   const parsedRaw = raw.trim() === "" ? null : Number(raw);
@@ -245,7 +241,6 @@ const TransformNumberLiteralInput = ({
 
   return (
     <Input<string>
-      ref={inputRef}
       type="text"
       parse={(value) => value}
       label={label}
@@ -264,7 +259,7 @@ const TransformNumberLiteralInput = ({
       }}
       placeholder={placeholder}
       error={error ?? rawError}
-      trailing={onClear ? { icon: XIcon, onClick: onClear } : undefined}
+      trailing={onClear ? { icon: clearIcon, onClick: onClear } : undefined}
       variant={InputVariant.TERTIARY}
       size={size}
       isDisabled={isDisabled}
@@ -649,7 +644,7 @@ const TransformFunctionCallBlock = ({
                 onChange={(expression) => handleArgumentChange(index, expression)}
                 label={label}
                 sourceLabel={label}
-                sourcePlaceholder={getArgumentPlaceholder(label, spec?.isOptional === true)}
+                sourcePlaceholder={getArgumentPlaceholder(spec?.isOptional === true)}
                 logicalTypes={expectedTypes}
                 isLiteralOnly={spec?.isLiteral}
                 isColumnOnly={spec?.isColumn}
@@ -677,7 +672,7 @@ const TransformFunctionCallBlock = ({
       })}
       {variadic && fn && (
         <Button
-          label={fn.name === "concat" ? "Add part" : "Add value"}
+          label={fn.variadicAddLabel || "Add value"}
           icon={PlusIcon}
           variant={ButtonVariant.SECONDARY}
           size={ButtonSize.SMALL}
