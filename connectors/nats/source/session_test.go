@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/stream"
 	"github.com/galaxy-io/filament/pipeline"
 )
 
@@ -22,7 +23,16 @@ func (*testSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filament.ApplyO
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
 
-func TestSessionIdleHeartbeatAndRecreation(t *testing.T) {
+type failingControl struct {
+	filament.StreamRecordSink
+	err error
+}
+
+func (s failingControl) Control(context.Context, filament.Control) error { return s.err }
+
+func TestSessionIdleHeartbeatAndRecreation(t *testing.T) { testSession(t, false) }
+func TestSessionPartialReadFailure(t *testing.T)         { testSession(t, true) }
+func testSession(t *testing.T, failControl bool) {
 	url := os.Getenv("FILAMENT_TEST_NATS_URL")
 	if url == "" {
 		t.Skip("set FILAMENT_TEST_NATS_URL")
@@ -79,9 +89,33 @@ func TestSessionIdleHeartbeatAndRecreation(t *testing.T) {
 	if _, err := js.Publish(name, []byte("event")); err != nil {
 		t.Fatal(err)
 	}
+	if failControl {
+		cause := errors.New("boundary failed after row emission")
+		_, err := opened.Read(ctx, failingControl{StreamRecordSink: records, err: cause}, boundary)
+		if !errors.Is(err, cause) {
+			t.Fatalf("partial read: %v", err)
+		}
+		if _, err := opened.Read(ctx, records, boundary); !errors.Is(err, cause) {
+			t.Fatalf("read reused failed writer: %v", err)
+		}
+		if err := opened.Acknowledge(ctx, filament.Coverage{}); !errors.Is(err, cause) {
+			t.Fatalf("ack accepted failed read: %v", err)
+		}
+		return
+	}
 	coverage, err = opened.Read(ctx, records, boundary)
 	if err != nil || len(coverage.Positions) != 1 {
 		t.Fatalf("read: %+v %v", coverage, err)
+	}
+	if _, err := opened.Read(ctx, records, boundary); !errors.Is(err, stream.ErrAcknowledgementPending) {
+		t.Fatalf("read with pending coverage: %v", err)
+	}
+	wrong := coverage.Clone()
+	for _, p := range wrong.Positions {
+		p.Value[0] = '9'
+	}
+	if err := opened.Acknowledge(ctx, wrong); !errors.Is(err, filament.ErrIncompleteCoverage) {
+		t.Fatalf("mismatched acknowledgement: %v", err)
 	}
 	// Hold the message longer than AckWait. A second pull must not redeliver it
 	// while the session's independent InProgress task maintains the delivery.
