@@ -8,19 +8,55 @@ export enum TransformStepKind {
   COMPUTE = "COMPUTE",
 }
 
-/** One function applied to the value produced so far, with its optional literal argument. */
+export enum TransformRowScope {
+  ALL = "ALL",
+  MATCHING = "MATCHING",
+}
+
+export type TransformLiteral = string | number | boolean;
+export type TransformLiteralKind = "string" | "number" | "boolean";
+export type TransformColumn = Pick<ResourceColumn, "name" | "logicalType" | "isPrimaryKey">;
+
+/** The leaf an expression starts from before its function chain is applied. */
+export type TransformExpressionSource =
+  | { kind: "empty" }
+  | { kind: "column"; column: ResourceColumn["name"] }
+  | { kind: "literal"; literalKind: TransformLiteralKind; value: TransformLiteral | null };
+
+/**
+ * One function applied to the value flowing through an expression. `args`
+ * contains every argument after that flowing value and may itself be nested.
+ */
 export interface TransformFunctionCall {
   name: string;
-  literal: string;
+  args: TransformExpression[];
+}
+
+/** A leaf followed by zero or more calls. Later call arguments recurse. */
+export interface TransformExpression {
+  source: TransformExpressionSource;
+  calls: TransformFunctionCall[];
+}
+
+export interface TransformRename {
+  source: ResourceColumn["name"];
+  target: ResourceColumn["name"];
+}
+
+export interface TransformComputeOutput {
+  name: ResourceColumn["name"];
+  expression: TransformExpression;
 }
 
 export interface TransformStepState {
   resource: Resource["name"];
-  column: ResourceColumn["name"];
   kind: TransformStepKind;
-  rename: string;
-  output: string;
-  expression: TransformFunctionCall[];
+  renames: TransformRename[];
+  drops: ResourceColumn["name"][];
+  outputs: TransformComputeOutput[];
+  rowScope: TransformRowScope;
+  /** Kept as a draft when rowScope is ALL and serialized only when MATCHING. */
+  where: TransformExpression;
 }
 
 /**

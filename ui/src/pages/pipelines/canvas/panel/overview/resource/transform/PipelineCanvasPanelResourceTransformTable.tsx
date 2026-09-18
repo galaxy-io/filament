@@ -1,14 +1,19 @@
 import { useState } from "react";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import { PlusIcon } from "@phosphor-icons/react";
+
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
+import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import InfiniteTable, { type ColumnDef, TableVariant } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
-import { TRANSFORM_STEP_DEFAULT_STATE } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
+import { createTransformStepDefaultState } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import PipelineCanvasPanelResourceTransformForm from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformForm";
 import type {
   TransformStep,
@@ -46,6 +51,7 @@ const PipelineCanvasPanelResourceTransformTable = ({
   isReadOnly = false,
 }: PipelineCanvasPanelResourceTransformTableProps) => {
   const [expandedRowIds, setExpandedRowIds] = useState<TransformStep["id"][]>([]);
+  const [search, setSearch] = useState("");
 
   const handleExpandedChange = (next: TransformStep["id"][]) => {
     setExpandedRowIds(next.filter((id) => steps.find((step) => step.id === id)?.raw === undefined));
@@ -70,13 +76,43 @@ const PipelineCanvasPanelResourceTransformTable = ({
     },
   ];
 
-  const defaultState: TransformStepState = {
-    ...TRANSFORM_STEP_DEFAULT_STATE,
-    resource: resources.length === 1 ? resources[0] : "",
-  };
+  const defaultState: TransformStepState = createTransformStepDefaultState(
+    resources.length === 1 ? resources[0] : "",
+  );
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredSteps =
+    normalizedSearch === ""
+      ? steps
+      : steps.filter((step) =>
+          `${formatTransformStepSummary(step)} ${step.resource}`
+            .toLowerCase()
+            .includes(normalizedSearch),
+        );
 
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+      {steps.length > 0 && (
+        <>
+          <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px" fillWidth>
+            <TextInput placeholder="Search" value={search} onChange={setSearch} fillWidth />
+            {!isReadOnly && (
+              <FlexItem shrink={0}>
+                <Button
+                  label="Add step"
+                  icon={PlusIcon}
+                  variant={ButtonVariant.SECONDARY}
+                  onClick={() => {
+                    handleExpandedChange([]);
+                    onCreatingChange(true);
+                  }}
+                  isDisabled={isCreating}
+                />
+              </FlexItem>
+            )}
+          </FlexWrapper>
+          <HorizontalDivider />
+        </>
+      )}
       {isCreating && (
         <>
           <PipelineCanvasPanelResourceTransformForm
@@ -84,6 +120,8 @@ const PipelineCanvasPanelResourceTransformTable = ({
             resources={resources}
             columnsByResource={columnsByResource}
             functionsByName={functionsByName}
+            steps={steps}
+            stepIndex={Number.POSITIVE_INFINITY}
             onSave={(next) => {
               onCreate(next);
               onCreatingChange(false);
@@ -96,7 +134,7 @@ const PipelineCanvasPanelResourceTransformTable = ({
       {steps.length > 0 && (
         <InfiniteTable<TransformStep>
           columns={columns}
-          data={steps}
+          data={filteredSteps}
           getRowId={(step) => step.id}
           expandedRowIds={expandedRowIds}
           onExpandedChange={isReadOnly ? undefined : handleExpandedChange}
@@ -106,6 +144,8 @@ const PipelineCanvasPanelResourceTransformTable = ({
               resources={resources}
               columnsByResource={columnsByResource}
               functionsByName={functionsByName}
+              steps={steps}
+              stepIndex={row.original.index}
               onSave={(next) => {
                 onUpdate(row.original, next);
                 handleExpandedChange([]);

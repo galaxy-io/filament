@@ -28,12 +28,13 @@ type ArgSpec struct {
 }
 
 // FunctionSpec is a catalog function's signature: its arguments, the logical
-// type it returns, and a one-line description for a builder to show. A
-// SameType function needs every argument to share one type, and at least one
-// column among them; a literal is widened to the column's type when it fits.
-// ReturnsInput means the result takes that shared type.
+// type it returns, and a display name and one-line description for a builder
+// to show. A SameType function needs every argument to share one type, and at
+// least one column among them; a literal is widened to the column's type when
+// it fits. ReturnsInput means the result takes that shared type.
 type FunctionSpec struct {
 	Name         string
+	DisplayName  string
 	Description  string
 	Args         []ArgSpec
 	Returns      rowmodel.LogicalType
@@ -58,12 +59,17 @@ type function struct {
 }
 
 var (
-	stringTypes   = []rowmodel.LogicalType{rowmodel.LogicalString}
-	boolTypes     = []rowmodel.LogicalType{rowmodel.LogicalBool}
-	int64Types    = []rowmodel.LogicalType{rowmodel.LogicalInt64}
-	floatTypes    = []rowmodel.LogicalType{rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
-	numericTypes  = []rowmodel.LogicalType{rowmodel.LogicalInt16, rowmodel.LogicalInt32, rowmodel.LogicalInt64, rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
-	temporalTypes = []rowmodel.LogicalType{rowmodel.LogicalDate, rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ}
+	stringTypes    = []rowmodel.LogicalType{rowmodel.LogicalString}
+	boolTypes      = []rowmodel.LogicalType{rowmodel.LogicalBool}
+	int64Types     = []rowmodel.LogicalType{rowmodel.LogicalInt64}
+	floatTypes     = []rowmodel.LogicalType{rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
+	numericTypes   = []rowmodel.LogicalType{rowmodel.LogicalInt16, rowmodel.LogicalInt32, rowmodel.LogicalInt64, rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
+	temporalTypes  = []rowmodel.LogicalType{rowmodel.LogicalDate, rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ}
+	orderableTypes = []rowmodel.LogicalType{
+		rowmodel.LogicalInt16, rowmodel.LogicalInt32, rowmodel.LogicalInt64,
+		rowmodel.LogicalFloat32, rowmodel.LogicalFloat64, rowmodel.LogicalDecimal,
+		rowmodel.LogicalDate, rowmodel.LogicalTime, rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ,
+	}
 )
 
 // catalog is the closed set of functions a definition may call. The names
@@ -71,13 +77,13 @@ var (
 // the two drift.
 var catalog = map[string]function{
 	// strings
-	"lower":  unary("lower", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
-	"upper":  unary("upper", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
-	"trim":   unary("trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
-	"length": unary("length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
+	"lower":  unary("lower", "Lowercase", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
+	"upper":  unary("upper", "Uppercase", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
+	"trim":   unary("trim", "Trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
+	"length": unary("length", "Length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
 	"replace": {
 		spec: FunctionSpec{
-			Name: "replace", Description: "Replaces every occurrence of a substring in a string column.",
+			Name: "replace", DisplayName: "Replace", Description: "Replaces every occurrence of a substring in a string column.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "find", Types: stringTypes, Literal: true},
@@ -88,7 +94,7 @@ var catalog = map[string]function{
 	},
 	"substring": {
 		spec: FunctionSpec{
-			Name: "substring", Description: "A slice of a string column, counting characters from 1.",
+			Name: "substring", DisplayName: "Substring", Description: "A slice of a string column, counting characters from 1.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "start", Types: int64Types, Literal: true},
@@ -100,7 +106,7 @@ var catalog = map[string]function{
 	},
 	"concat": {
 		spec: FunctionSpec{
-			Name: "concat", Description: "Joins strings end to end; null in any part gives null.",
+			Name: "concat", DisplayName: "Concatenate", Description: "Joins strings end to end; null in any part gives null.",
 			Args: []ArgSpec{{Name: "part", Types: stringTypes, Variadic: true}}, Returns: rowmodel.LogicalString,
 			SameType: true,
 		},
@@ -108,7 +114,7 @@ var catalog = map[string]function{
 	},
 	"regex_match": {
 		spec: FunctionSpec{
-			Name: "regex_match", Description: "True where a string column matches a Go regular expression.",
+			Name: "regex_match", DisplayName: "Regex match", Description: "True where a string column matches a Go regular expression.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "pattern", Types: stringTypes, Literal: true},
@@ -119,7 +125,7 @@ var catalog = map[string]function{
 	},
 	"regex_extract": {
 		spec: FunctionSpec{
-			Name: "regex_extract", Description: "The first match of a Go regular expression, or of one of its groups.",
+			Name: "regex_extract", DisplayName: "Regex extract", Description: "The first match of a Go regular expression, or of one of its groups.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "pattern", Types: stringTypes, Literal: true},
@@ -131,7 +137,7 @@ var catalog = map[string]function{
 	},
 	"regex_replace": {
 		spec: FunctionSpec{
-			Name: "regex_replace", Description: "Replaces every match of a Go regular expression; $1 refers to a group.",
+			Name: "regex_replace", DisplayName: "Regex replace", Description: "Replaces every match of a Go regular expression; $1 refers to a group.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "pattern", Types: stringTypes, Literal: true},
@@ -143,22 +149,22 @@ var catalog = map[string]function{
 	},
 
 	// numbers
-	"add": arithmetic("add", "Adds two numbers.", kernel.Add),
-	"sub": arithmetic("sub", "Subtracts the second number from the first.", kernel.Sub),
-	"mul": arithmetic("mul", "Multiplies two numbers.", kernel.Mul),
-	"div": arithmetic("div", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
+	"add": arithmetic("add", "Add", "Adds two numbers.", kernel.Add),
+	"sub": arithmetic("sub", "Subtract", "Subtracts the second number from the first.", kernel.Sub),
+	"mul": arithmetic("mul", "Multiply", "Multiplies two numbers.", kernel.Mul),
+	"div": arithmetic("div", "Divide", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
 	"abs": {
 		spec: FunctionSpec{
-			Name: "abs", Description: "The absolute value of a number column.",
+			Name: "abs", DisplayName: "Absolute value", Description: "The absolute value of a number column.",
 			Args: []ArgSpec{{Name: "value", Types: numericTypes, Column: true}}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Abs,
 	},
-	"floor": unary("floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
-	"ceil":  unary("ceil", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
+	"floor": unary("floor", "Floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
+	"ceil":  unary("ceil", "Ceiling", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
 	"round": {
 		spec: FunctionSpec{
-			Name: "round", Description: "Rounds a decimal column to a number of places, halves to even.",
+			Name: "round", DisplayName: "Round", Description: "Rounds a decimal column to a number of places, halves to even.",
 			Args: []ArgSpec{
 				{Name: "value", Types: floatTypes, Column: true},
 				{Name: "places", Types: int64Types, Literal: true, Optional: true},
@@ -168,41 +174,41 @@ var catalog = map[string]function{
 	},
 
 	// comparisons
-	"eq":  comparison("eq", "True where two values are equal.", kernel.Eq),
-	"neq": comparison("neq", "True where two values differ.", kernel.Neq),
-	"gt":  comparison("gt", "True where the first value is greater than the second.", kernel.Gt),
-	"gte": comparison("gte", "True where the first value is greater than or equal to the second.", kernel.Gte),
-	"lt":  comparison("lt", "True where the first value is less than the second.", kernel.Lt),
-	"lte": comparison("lte", "True where the first value is less than or equal to the second.", kernel.Lte),
+	"eq":  comparison("eq", "Equals", "True where two values are equal.", nil, kernel.Eq),
+	"neq": comparison("neq", "Not equals", "True where two values differ.", nil, kernel.Neq),
+	"gt":  comparison("gt", "Greater than", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
+	"gte": comparison("gte", "Greater than or equal", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
+	"lt":  comparison("lt", "Less than", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
+	"lte": comparison("lte", "Less than or equal", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
 
 	// logic
 	"and": {
 		spec: FunctionSpec{
-			Name: "and", Description: "True where both conditions are true.",
+			Name: "and", DisplayName: "And", Description: "True where both conditions are true.",
 			Args: []ArgSpec{{Name: "left", Types: boolTypes}, {Name: "right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
 		exec: kernel.And,
 	},
 	"or": {
 		spec: FunctionSpec{
-			Name: "or", Description: "True where either condition is true.",
+			Name: "or", DisplayName: "Or", Description: "True where either condition is true.",
 			Args: []ArgSpec{{Name: "left", Types: boolTypes}, {Name: "right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
 		exec: kernel.Or,
 	},
-	"not": unary("not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
+	"not": unary("not", "Not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
 
 	// nulls
 	"is_null": {
 		spec: FunctionSpec{
-			Name: "is_null", Description: "True where a column has no value.",
+			Name: "is_null", DisplayName: "Is null", Description: "True where a column has no value.",
 			Args: []ArgSpec{{Name: "value", Column: true}}, Returns: rowmodel.LogicalBool,
 		},
 		exec: kernel.IsNull,
 	},
 	"coalesce": {
 		spec: FunctionSpec{
-			Name: "coalesce", Description: "The first value that is not null, left to right.",
+			Name: "coalesce", DisplayName: "Coalesce", Description: "The first value that is not null, left to right.",
 			Args: []ArgSpec{{Name: "value", Variadic: true}}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Coalesce,
@@ -211,7 +217,7 @@ var catalog = map[string]function{
 	// dates
 	"to_date": {
 		spec: FunctionSpec{
-			Name: "to_date", Description: "Parses a string column into a date, by an optional Go time layout.",
+			Name: "to_date", DisplayName: "To date", Description: "Parses a string column into a date, by an optional Go time layout.",
 			Args: []ArgSpec{
 				{Name: "value", Types: stringTypes, Column: true},
 				{Name: "layout", Types: stringTypes, Literal: true, Optional: true},
@@ -220,16 +226,16 @@ var catalog = map[string]function{
 		validate: validLayout("to_date", 1),
 		exec:     kernel.ToDate,
 	},
-	"year":  unary("year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
-	"month": unary("month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
-	"day":   unary("day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
+	"year":  unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
+	"month": unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
+	"day":   unary("day", "Day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
 }
 
 // unary builds a one-column function. An empty returns means the input type.
-func unary(name, desc string, types []rowmodel.LogicalType, returns rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+func unary(name, display, desc string, types []rowmodel.LogicalType, returns rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, Description: desc,
+			Name: name, DisplayName: display, Description: desc,
 			Args:    []ArgSpec{{Name: "value", Types: types, Column: true}},
 			Returns: returns, ReturnsInput: returns == "", SameType: returns == "",
 		},
@@ -238,10 +244,10 @@ func unary(name, desc string, types []rowmodel.LogicalType, returns rowmodel.Log
 }
 
 // arithmetic builds a two-number function whose result takes the numbers' type.
-func arithmetic(name, desc string, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+func arithmetic(name, display, desc string, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, Description: desc,
+			Name: name, DisplayName: display, Description: desc,
 			Args:         []ArgSpec{{Name: "left", Types: numericTypes}, {Name: "right", Types: numericTypes}},
 			ReturnsInput: true, SameType: true,
 		},
@@ -249,12 +255,13 @@ func arithmetic(name, desc string, exec func(context.Context, []compute.Datum) (
 	}
 }
 
-// comparison builds a two-value predicate over any shared type.
-func comparison(name, desc string, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+// comparison builds a two-value predicate over a shared type. A nil types
+// admits every type; ordering comparisons pass the types that order.
+func comparison(name, display, desc string, types []rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, Description: desc,
-			Args: []ArgSpec{{Name: "left"}, {Name: "right"}}, Returns: rowmodel.LogicalBool, SameType: true,
+			Name: name, DisplayName: display, Description: desc,
+			Args: []ArgSpec{{Name: "left", Types: types}, {Name: "right", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
 		exec: exec,
 	}

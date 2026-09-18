@@ -31,7 +31,10 @@ func (a *Server) ListTransformFunctions(ctx context.Context, req *connect.Reques
 		GrammarSchema:  string(transform.Grammar()),
 	}
 	for _, spec := range specs {
-		fn := &ingestionv1.TransformFunction{Name: spec.Name, Description: spec.Description, Returns: string(spec.Returns)}
+		fn := &ingestionv1.TransformFunction{
+			Name: spec.Name, DisplayName: spec.DisplayName, Description: spec.Description,
+			Returns: string(spec.Returns), SameType: spec.SameType, ReturnsInput: spec.ReturnsInput,
+		}
 		for _, arg := range spec.Args {
 			types := make([]string, len(arg.Types))
 			for i, t := range arg.Types {

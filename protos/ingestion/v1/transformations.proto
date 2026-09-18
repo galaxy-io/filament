@@ -24,11 +24,16 @@ message TransformArgument {
   bool is_variadic = 6;
 }
 
+// TransformFunction is one catalog entry. name is what a definition calls;
+// display_name is what a builder shows for it.
 message TransformFunction {
   string name = 1;
   string description = 2;
   repeated TransformArgument args = 3;
   string returns = 4;
+  string display_name = 5;
+  bool same_type = 6;
+  bool returns_input = 7;
 }
 
 // ListTransformFunctionsResponse carries the catalog, the grammar version a

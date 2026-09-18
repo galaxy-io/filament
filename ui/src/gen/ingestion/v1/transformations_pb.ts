@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/transformations.proto.
  */
 export const file_ingestion_v1_transformations: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJInQKEVRyYW5zZm9ybUFyZ3VtZW50EgwKBG5hbWUYASABKAkSFQoNbG9naWNhbF90eXBlcxgCIAMoCRIRCglpc19jb2x1bW4YAyABKAgSEgoKaXNfbGl0ZXJhbBgEIAEoCBITCgtpc19vcHRpb25hbBgFIAEoCCJ2ChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCSKFAQoeTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1Jlc3BvbnNlEjIKCWZ1bmN0aW9ucxgBIAMoCzIfLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1GdW5jdGlvbhIXCg9ncmFtbWFyX3ZlcnNpb24YAiABKAUSFgoOZ3JhbW1hcl9zY2hlbWEYAyABKAkidgoYVmFsaWRhdGVUcmFuc2Zvcm1SZXF1ZXN0EhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAEgASgJEhAKCHJlc291cmNlGAIgASgJEioKCXRyYW5zZm9ybRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QijwEKGVZhbGlkYXRlVHJhbnNmb3JtUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGaXNzdWVzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchI0Cg5vdXRwdXRfY29sdW1ucxgDIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbmIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
+  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIokBChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgitgEKEVRyYW5zZm9ybUZ1bmN0aW9uEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSLQoEYXJncxgDIAMoCzIfLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1Bcmd1bWVudBIPCgdyZXR1cm5zGAQgASgJEhQKDGRpc3BsYXlfbmFtZRgFIAEoCRIRCglzYW1lX3R5cGUYBiABKAgSFQoNcmV0dXJuc19pbnB1dBgHIAEoCCKFAQoeTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1Jlc3BvbnNlEjIKCWZ1bmN0aW9ucxgBIAMoCzIfLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1GdW5jdGlvbhIXCg9ncmFtbWFyX3ZlcnNpb24YAiABKAUSFgoOZ3JhbW1hcl9zY2hlbWEYAyABKAkidgoYVmFsaWRhdGVUcmFuc2Zvcm1SZXF1ZXN0EhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAEgASgJEhAKCHJlc291cmNlGAIgASgJEioKCXRyYW5zZm9ybRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QijwEKGVZhbGlkYXRlVHJhbnNmb3JtUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGaXNzdWVzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchI0Cg5vdXRwdXRfY29sdW1ucxgDIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbmIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
 
 /**
  * ListTransformFunctionsRequest asks for the transform catalog. With a
@@ -67,6 +67,13 @@ export type TransformArgument = Message<"ingestion.v1.TransformArgument"> & {
    * @generated from field: bool is_optional = 5;
    */
   isOptional: boolean;
+
+  /**
+   * is_variadic on the last argument lets a call repeat it any number of times.
+   *
+   * @generated from field: bool is_variadic = 6;
+   */
+  isVariadic: boolean;
 };
 
 /**
@@ -77,6 +84,9 @@ export const TransformArgumentSchema: GenMessage<TransformArgument> = /*@__PURE_
   messageDesc(file_ingestion_v1_transformations, 1);
 
 /**
+ * TransformFunction is one catalog entry. name is what a definition calls;
+ * display_name is what a builder shows for it.
+ *
  * @generated from message ingestion.v1.TransformFunction
  */
 export type TransformFunction = Message<"ingestion.v1.TransformFunction"> & {
@@ -99,6 +109,21 @@ export type TransformFunction = Message<"ingestion.v1.TransformFunction"> & {
    * @generated from field: string returns = 4;
    */
   returns: string;
+
+  /**
+   * @generated from field: string display_name = 5;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: bool same_type = 6;
+   */
+  sameType: boolean;
+
+  /**
+   * @generated from field: bool returns_input = 7;
+   */
+  returnsInput: boolean;
 };
 
 /**

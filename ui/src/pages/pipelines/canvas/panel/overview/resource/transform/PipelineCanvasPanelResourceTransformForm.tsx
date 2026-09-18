@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { InfoIcon, TrashIcon } from "@phosphor-icons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, {
@@ -8,9 +8,7 @@ import FlexWrapper, {
   FlexDirection,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -18,12 +16,15 @@ import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import PipelineCanvasPanelResourceTransformFields from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformFields";
 import {
+  type TransformStep,
   TransformStepKind,
   type TransformStepState,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/types";
 import {
-  getTransformExpressionType,
-  isTransformStepValid,
+  getTransformColumnsBeforeStep,
+  getTransformExpressionInfo,
+  getTransformOutputName,
+  getTransformStepValidationError,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/utils";
 
 interface PipelineCanvasPanelResourceTransformFormProps {
@@ -31,17 +32,31 @@ interface PipelineCanvasPanelResourceTransformFormProps {
   resources: Resource["name"][];
   columnsByResource: Map<Resource["name"], ResourceColumn[]>;
   functionsByName: Map<string, TransformFunction>;
+  steps: TransformStep[];
+  stepIndex: number;
   onSave: (state: TransformStepState) => void;
   onCancel: () => void;
   onDelete?: () => void;
   isDisabled?: boolean;
 }
 
+const isIdentityCompute = (state: TransformStepState): boolean => {
+  if (state.kind !== TransformStepKind.COMPUTE || state.outputs.length !== 1) return false;
+  const output = state.outputs[0];
+  return (
+    output.expression.source.kind === "column" &&
+    output.expression.calls.length === 0 &&
+    getTransformOutputName(output) === output.expression.source.column
+  );
+};
+
 const PipelineCanvasPanelResourceTransformForm = ({
   initialState,
   resources,
   columnsByResource,
   functionsByName,
+  steps,
+  stepIndex,
   onSave,
   onCancel,
   onDelete,
@@ -53,21 +68,46 @@ const PipelineCanvasPanelResourceTransformForm = ({
     setState((prev) => ({ ...prev, ...partial }));
   };
 
-  const columnType =
-    columnsByResource.get(state.resource)?.find((column) => column.name === state.column)
-      ?.logicalType ?? "";
-  const outputType =
-    state.kind === TransformStepKind.COMPUTE && state.expression.length > 0
-      ? getTransformExpressionType(columnType, state.expression, functionsByName)
-      : columnType;
-  // A drop has no output, so nothing to say; a rename or compute shows what the
-  // column is, and what it becomes when the expression changes its type.
-  const typeFlow =
-    columnType === "" || state.kind === TransformStepKind.DROP
-      ? ""
-      : outputType !== "" && outputType !== columnType
-        ? `${columnType} → ${outputType}`
-        : columnType;
+  const originalPosition = Number.isFinite(stepIndex)
+    ? steps.findIndex((step) => step.resource === initialState.resource && step.index === stepIndex)
+    : -1;
+  const effectiveStepIndex =
+    Number.isFinite(stepIndex) && state.resource !== initialState.resource
+      ? steps
+          .slice(0, Math.max(0, originalPosition))
+          .filter((step) => step.resource === state.resource).length
+      : stepIndex;
+  const columns = getTransformColumnsBeforeStep(
+    columnsByResource.get(state.resource) ?? [],
+    steps,
+    state.resource,
+    effectiveStepIndex,
+    functionsByName,
+  );
+  const selectedColumn =
+    state.kind === TransformStepKind.RENAME
+      ? state.renames[0]?.source
+      : state.kind === TransformStepKind.DROP
+        ? state.drops[0]
+        : state.outputs[0]?.expression.source.kind === "column"
+          ? state.outputs[0].expression.source.column
+          : undefined;
+  const selectedType = columns.find((column) => column.name === selectedColumn)?.logicalType ?? "";
+  const firstExpression = state.outputs[0]?.expression;
+  const outputInfo = firstExpression
+    ? getTransformExpressionInfo(firstExpression, columns, functionsByName)
+    : null;
+  const typeSummary =
+    state.kind === TransformStepKind.COMPUTE && outputInfo?.complete
+      ? selectedType !== "" && selectedType !== outputInfo.type
+        ? `${selectedType} → ${outputInfo.type}`
+        : outputInfo.type
+      : selectedType;
+  const validationError =
+    getTransformStepValidationError(state, columns, functionsByName) ??
+    (isIdentityCompute(state) && !isIdentityCompute(initialState)
+      ? "Choose a function or save the result to another column."
+      : null);
 
   return (
     <FlexWrapper padding="12px" fillWidth>
@@ -77,7 +117,7 @@ const PipelineCanvasPanelResourceTransformForm = ({
           <PipelineCanvasPanelResourceTransformFields
             state={state}
             resources={resources}
-            columnsByResource={columnsByResource}
+            columns={columns}
             functionsByName={functionsByName}
             onChange={handleChange}
             isDisabled={isDisabled}
@@ -88,18 +128,13 @@ const PipelineCanvasPanelResourceTransformForm = ({
             gap={8}
             fillWidth
           >
-            {state.kind === TransformStepKind.DROP ? (
-              <Tooltip body="The column is dropped before rows reach the sink.">
-                <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={16} />
-              </Tooltip>
-            ) : (
-              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY} isMonospace isEllipsis>
-                {typeFlow}
-              </Text>
-            )}
+            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY} isMonospace isEllipsis>
+              {typeSummary}
+            </Text>
             <FlexWrapper alignItems={AlignItems.CENTER} gap={8} shrink={0}>
               {onDelete && (
                 <Button
+                  label="Delete"
                   icon={TrashIcon}
                   variant={ButtonVariant.SECONDARY}
                   size={ButtonSize.MEDIUM}
@@ -119,7 +154,7 @@ const PipelineCanvasPanelResourceTransformForm = ({
                 label="Save"
                 size={ButtonSize.MEDIUM}
                 onClick={() => onSave(state)}
-                isDisabled={isDisabled || !isTransformStepValid(state)}
+                isDisabled={isDisabled || validationError !== null}
               />
             </FlexWrapper>
           </FlexWrapper>

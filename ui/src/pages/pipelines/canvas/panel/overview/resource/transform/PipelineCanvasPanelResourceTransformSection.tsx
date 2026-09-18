@@ -100,8 +100,8 @@ const PipelineCanvasPanelResourceTransformSection = ({
       emptyMessage="Columns arrive at the sink as they leave the source."
       isOpen={isOpen && hasContent}
       onToggle={() => setIsOpen((prev) => !prev)}
-      metric={
-        isReadOnly ? undefined : (
+      headerAction={
+        isReadOnly || steps.length > 0 ? undefined : (
           <Button
             label="Add step"
             icon={PlusIcon}
