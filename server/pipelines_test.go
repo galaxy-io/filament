@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -262,5 +263,36 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("valid Incremental resource: %v", err)
+	}
+}
+
+func TestValidateTransforms(t *testing.T) {
+	def := func(resources map[string]any) *structpb.Struct {
+		s, err := structpb.NewStruct(map[string]any{"version": 1, "resources": resources})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	rename := map[string]any{"steps": []any{map[string]any{"rename": map[string]any{"a": "b"}}}}
+	if err := validateTransforms([]*ingestionv1.PipelineEdge{
+		{Resource: "users", Transform: def(map[string]any{"users": rename})},
+		{Transform: def(map[string]any{"orders": rename})},
+		{Resource: "events"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for name, edge := range map[string]*ingestionv1.PipelineEdge{
+		"foreign resource": {Resource: "users", Transform: def(map[string]any{"orders": rename})},
+		"bad grammar":      {Transform: def(map[string]any{"users": map[string]any{"steps": []any{map[string]any{"shout": "x"}}}})},
+		"wrong version": {Transform: func() *structpb.Struct {
+			s := def(map[string]any{"users": rename})
+			s.Fields["version"] = structpb.NewNumberValue(2)
+			return s
+		}()},
+	} {
+		if err := validateTransforms([]*ingestionv1.PipelineEdge{edge}); err == nil {
+			t.Errorf("%s: expected an error", name)
+		}
 	}
 }

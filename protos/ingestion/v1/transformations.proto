@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "google/protobuf/struct.proto";
+import "ingestion/v1/connectors.proto";
+
+// ListTransformFunctionsRequest asks for the transform catalog. With a
+// logical_type only the functions that accept a column of that type are
+// returned, so a builder can offer exactly what applies to the column at hand.
+message ListTransformFunctionsRequest {
+  string logical_type = 1;
+}
+
+// TransformArgument is one positional argument of a catalog function. An empty
+// logical_types accepts any type.
+message TransformArgument {
+  string name = 1;
+  repeated string logical_types = 2;
+  bool is_column = 3;
+  bool is_literal = 4;
+  bool is_optional = 5;
+}
+
+message TransformFunction {
+  string name = 1;
+  string description = 2;
+  repeated TransformArgument args = 3;
+  string returns = 4;
+}
+
+// ListTransformFunctionsResponse carries the catalog, the grammar version a
+// definition must declare, and the grammar's JSON schema for client-side
+// shape checks.
+message ListTransformFunctionsResponse {
+  repeated TransformFunction functions = 1;
+  int32 grammar_version = 2;
+  string grammar_schema = 3;
+}
+
+// ValidateTransformRequest compiles a transform against one resource's
+// schema, read from the source connection, exactly as a run would. The
+// transform is the same JSON object an edge carries.
+message ValidateTransformRequest {
+  string source_connection_id = 1;
+  string resource = 2;
+  google.protobuf.Struct transform = 3;
+}
+
+// ValidateTransformResponse lists every issue with the path in the definition
+// it sits at, or on success the columns the resource will have after the
+// transform.
+message ValidateTransformResponse {
+  bool valid = 1;
+  repeated ValidationError issues = 2;
+  repeated ResourceColumn output_columns = 3;
+}

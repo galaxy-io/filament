@@ -35,6 +35,24 @@ func NewBatch(rows arrow.RecordBatch, ops Operations) *Batch {
 	return b
 }
 
+// WithRows returns a new owned batch carrying rows in place of b's, sharing
+// b's operations and metadata. It takes ownership of rows; b is untouched and
+// still needs its own Release. Row count must match so operations stay aligned.
+func (b *Batch) WithRows(rows arrow.RecordBatch) *Batch {
+	out := &Batch{
+		rows:     rows,
+		ops:      b.ops,
+		Resource: b.Resource,
+		Part:     b.Part,
+		Seq:      b.Seq,
+		Cursor:   b.Cursor,
+		Drained:  b.Drained,
+		Last:     b.Last,
+	}
+	out.refs.Store(1)
+	return out
+}
+
 // NewMarker constructs a rowless, owned completion marker.
 func NewMarker() *Batch {
 	b := &Batch{Drained: true}
