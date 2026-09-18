@@ -6,13 +6,16 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // ensureSchemas drives a Schematized sink's DDL from a SchemaProvider source for
 // each named resource. It is a no-op when the sink isn't schema-aware. A
 // schema-aware sink paired with a source that can't supply schemas is a
-// misconfiguration and fails the run before any data moves.
-func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, spec filament.RunSpec) error {
+// misconfiguration and fails the run before any data moves. A transform is
+// applied to the source schema before the CDC and audit shaping, in the same
+// order the pipeline inlet applies it to rows.
+func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, spec filament.RunSpec, def *transform.Definition) error {
 	sch, ok := snk.(filament.Schematized)
 	if !ok {
 		return nil
@@ -25,6 +28,16 @@ func ensureSchemas(ctx context.Context, src filament.Source, snk filament.Sink, 
 		schema, err := prov.Schema(ctx, res)
 		if err != nil {
 			return fmt.Errorf("schema for %q: %w", res, err)
+		}
+		if def != nil {
+			if schema.Resource == "" {
+				schema.Resource = res
+			}
+			plan, err := transform.Compile(def, schema)
+			if err != nil {
+				return fmt.Errorf("transform for %q: %w", res, err)
+			}
+			schema = plan.Schema()
 		}
 		ingestionType := filament.TypeFor(spec.IngestionTypes, res)
 		if ingestionType == filament.IngestionCDCAppend {

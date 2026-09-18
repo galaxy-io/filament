@@ -59,7 +59,11 @@ func (leverSource) Discover(context.Context, filament.DiscoverOpts) (filament.Di
 
 func (leverSource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
 	if resource == "orders" {
-		return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}}, nil
+		return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "email", Logical: filament.LogicalString, Nullable: true},
+			{Name: "created_at", Logical: filament.LogicalTimestamp},
+		}}, nil
 	}
 	return filament.RecordSchema{Resource: resource}, nil
 }
