@@ -3,8 +3,9 @@ package postgres_test
 import (
 	"context"
 	"errors"
-	"github.com/galaxy-io/filament"
 	"testing"
+
+	"github.com/galaxy-io/filament"
 )
 
 func TestStreamWorkerClaimIsExclusive(t *testing.T) {

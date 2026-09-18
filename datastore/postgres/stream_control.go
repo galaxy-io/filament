@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 	"github.com/galaxy-io/filament/internal/streamcontrol"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var _ streamcontrol.Store = (*RuntimeStore)(nil)
@@ -94,6 +95,8 @@ func (s *RuntimeStore) ClaimStreamAttempt(ctx context.Context, lease filament.Le
 	return tx.Commit(ctx)
 }
 
+// RetireUnclaimedAttempt ends an unclaimed dispatch after expiry or disabled
+// intent, then synchronizes the logical run without retiring a claimed worker.
 func (s *RuntimeStore) RetireUnclaimedAttempt(ctx context.Context, lease filament.LeaseToken) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

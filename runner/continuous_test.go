@@ -28,6 +28,7 @@ func (s *continuousTestStore) LoadStreamState(context.Context, filament.StreamSt
 	defer s.mu.Unlock()
 	return s.state, nil
 }
+
 func (s *continuousTestStore) RenewLease(context.Context, filament.LeaseToken, time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -37,12 +38,14 @@ func (s *continuousTestStore) RenewLease(context.Context, filament.LeaseToken, t
 	}
 	return nil
 }
+
 func (s *continuousTestStore) EndAttempt(_ context.Context, r filament.EndAttemptRequest) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Attempt.Termination = r.Termination
 	return nil
 }
+
 func (s *continuousTestStore) CommitEpoch(_ context.Context, r filament.EpochCommit) (filament.CommittedEpoch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -56,6 +59,7 @@ func (s *continuousTestStore) CommitEpoch(_ context.Context, r filament.EpochCom
 	}
 	return c, nil
 }
+
 func (s *continuousTestStore) GetEpoch(context.Context, filament.EpochLookup) (filament.CommittedEpoch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -115,6 +119,7 @@ func (s *continuousTestSource) Read(ctx context.Context, out filament.StreamReco
 	}
 	return filament.Coverage{Positions: filament.DomainPositions{d: p}}, nil
 }
+
 func (s *continuousTestSource) Acknowledge(context.Context, filament.Coverage) error {
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
@@ -140,6 +145,7 @@ func (s *continuousTestSink) BeginEpoch(_ context.Context, r filament.EpochRef) 
 	s.rows = 0
 	return nil
 }
+
 func (s *continuousTestSink) Apply(_ context.Context, b *arrowbatch.Batch, o filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if o.Epoch == nil || *o.Epoch != s.ref {
 		return filament.WriteReceipt{}, filament.ErrEpochMismatch
@@ -147,6 +153,7 @@ func (s *continuousTestSink) Apply(_ context.Context, b *arrowbatch.Batch, o fil
 	s.rows += int64(b.NumRows())
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
+
 func (s *continuousTestSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
 	if s.fail {
 		return nil, errors.New("sink failed")
@@ -192,6 +199,7 @@ func TestContinuousCommitWindows(t *testing.T) {
 		})
 	}
 }
+
 func TestContinuousLeaseRenewalDuringBlockedRead(t *testing.T) {
 	cfg, store, src, _ := continuousFixture(t)
 	src.block = true
@@ -222,6 +230,7 @@ func TestContinuousLeaseRenewalDuringBlockedRead(t *testing.T) {
 		}
 	}
 }
+
 func TestContinuousGateRejectsBeforeSideEffects(t *testing.T) {
 	cfg, _, _, _ := continuousFixture(t)
 	cfg.Enabled = false

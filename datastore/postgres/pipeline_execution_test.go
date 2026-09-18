@@ -2,9 +2,10 @@ package postgres_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"testing"
 )
 
 func TestPipelineExecutionPersistence(t *testing.T) {
