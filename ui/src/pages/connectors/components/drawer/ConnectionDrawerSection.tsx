@@ -3,7 +3,8 @@ import type { ComponentProps, PropsWithChildren } from "react";
 import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import { LayoutSize } from "@/layouts/types";
 
 interface ConnectionDrawerSectionProps {
   header: string;
@@ -32,7 +33,7 @@ const ConnectionDrawerSection = ({
       padding={count > 0 ? 0 : "24px"}
     >
       {count === 0 ? (
-        <EmptyLayout size={EmptyLayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
       ) : (
         children
       )}

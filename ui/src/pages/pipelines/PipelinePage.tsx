@@ -5,7 +5,6 @@ import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
 import { notFound, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -47,7 +46,7 @@ const PipelinePage = () => {
   if (pipeline.deletedAt) {
     return (
       <ErrorLayout
-        icon={<Icon component={LinkBreakIcon} size={24} variant={IconVariant.ERROR} />}
+        icon={LinkBreakIcon}
         header="Deleted pipeline"
         message="The pipeline you are looking for has been deleted"
         actions={

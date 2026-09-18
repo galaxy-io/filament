@@ -3,7 +3,6 @@ import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -33,7 +32,7 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
 
   return (
     <ErrorLayout
-      icon={<Icon component={BugIcon} size={24} variant={IconVariant.ERROR} />}
+      icon={BugIcon}
       header="Could not reach the server"
       message="Please try again later"
       error={error}

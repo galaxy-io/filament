@@ -4,7 +4,6 @@ import { createFileRoute, type ErrorComponentProps, useNavigate } from "@tanstac
 import z from "zod";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -21,7 +20,7 @@ const PipelineNotFoundComponent = () => {
 
   return (
     <ErrorLayout
-      icon={<Icon component={ImageBrokenIcon} size={24} variant={IconVariant.SECONDARY} />}
+      icon={ImageBrokenIcon}
       header="Pipeline not found"
       message="The pipeline you are looking for does not exist"
       actions={
