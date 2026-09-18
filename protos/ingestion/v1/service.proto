@@ -8,6 +8,7 @@ import "ingestion/v1/connectors.proto";
 import "ingestion/v1/notifiers.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/runs.proto";
+import "ingestion/v1/transformations.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
@@ -29,6 +30,10 @@ service IngestionService {
 
   // Pipeline options and validation are resolved for the complete graph.
   rpc ValidatePipeline(ValidatePipelineRequest) returns (ValidatePipelineResponse);
+
+  // Transformations; the function catalog and per-resource compile check a builder needs.
+  rpc ListTransformFunctions(ListTransformFunctionsRequest) returns (ListTransformFunctionsResponse);
+  rpc ValidateTransform(ValidateTransformRequest) returns (ValidateTransformResponse);
 
   // Pipelines; the persisted node graph.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);

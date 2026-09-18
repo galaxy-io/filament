@@ -169,9 +169,13 @@ type PipelineEdge struct {
 	// cursors contains durable-incremental overrides. An all-resource edge may
 	// configure several resources; a resource-specific edge may configure only
 	// its own resource. Omitted resources use connector auto-detection.
-	Cursors       []*ResourceCursorConfig `protobuf:"bytes,5,rep,name=cursors,proto3" json:"cursors,omitempty"`
-	ReadMode      ReadMode                `protobuf:"varint,6,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
-	WriteMode     WriteMode               `protobuf:"varint,7,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
+	Cursors   []*ResourceCursorConfig `protobuf:"bytes,5,rep,name=cursors,proto3" json:"cursors,omitempty"`
+	ReadMode  ReadMode                `protobuf:"varint,6,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
+	WriteMode WriteMode               `protobuf:"varint,7,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
+	// transform is the edge's transform definition as a JSON object matching
+	// the transform grammar, keyed by resource. A resource-specific edge may
+	// only define its own resource. Empty means rows pass through unchanged.
+	Transform     *structpb.Struct `protobuf:"bytes,8,opt,name=transform,proto3" json:"transform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -253,6 +257,13 @@ func (x *PipelineEdge) GetWriteMode() WriteMode {
 		return x.WriteMode
 	}
 	return WriteMode_WRITE_MODE_UNSPECIFIED
+}
+
+func (x *PipelineEdge) GetTransform() *structpb.Struct {
+	if x != nil {
+		return x.Transform
+	}
+	return nil
 }
 
 type ResourceCursorConfig struct {
@@ -1852,7 +1863,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"secretRefs\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x02\n" +
 	"\fPipelineEdge\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x17\n" +
@@ -1861,7 +1872,8 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\acursors\x18\x05 \x03(\v2\".ingestion.v1.ResourceCursorConfigR\acursors\x123\n" +
 	"\tread_mode\x18\x06 \x01(\x0e2\x16.ingestion.v1.ReadModeR\breadMode\x126\n" +
 	"\n" +
-	"write_mode\x18\a \x01(\x0e2\x17.ingestion.v1.WriteModeR\twriteMode\"s\n" +
+	"write_mode\x18\a \x01(\x0e2\x17.ingestion.v1.WriteModeR\twriteMode\x125\n" +
+	"\ttransform\x18\b \x01(\v2\x17.google.protobuf.StructR\ttransform\"s\n" +
 	"\x14ResourceCursorConfig\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12)\n" +
@@ -2059,43 +2071,44 @@ var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
 	3,  // 3: ingestion.v1.PipelineEdge.cursors:type_name -> ingestion.v1.ResourceCursorConfig
 	32, // 4: ingestion.v1.PipelineEdge.read_mode:type_name -> ingestion.v1.ReadMode
 	33, // 5: ingestion.v1.PipelineEdge.write_mode:type_name -> ingestion.v1.WriteMode
-	1,  // 6: ingestion.v1.PipelineGraph.nodes:type_name -> ingestion.v1.PipelineNode
-	2,  // 7: ingestion.v1.PipelineGraph.edges:type_name -> ingestion.v1.PipelineEdge
-	4,  // 8: ingestion.v1.PipelineVersion.graph:type_name -> ingestion.v1.PipelineGraph
-	5,  // 9: ingestion.v1.Pipeline.current_version:type_name -> ingestion.v1.PipelineVersion
-	5,  // 10: ingestion.v1.Pipeline.versions:type_name -> ingestion.v1.PipelineVersion
-	34, // 11: ingestion.v1.Pipeline.last_run:type_name -> ingestion.v1.RunInfo
-	8,  // 12: ingestion.v1.Pipeline.schedule:type_name -> ingestion.v1.PipelineSchedule
-	35, // 13: ingestion.v1.Pipeline.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	0,  // 14: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
-	7,  // 15: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
-	7,  // 16: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	35, // 17: ingestion.v1.CreatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	6,  // 18: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	8,  // 19: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	7,  // 20: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	8,  // 21: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	7,  // 22: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	8,  // 23: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	4,  // 24: ingestion.v1.CreatePipelineVersionRequest.graph:type_name -> ingestion.v1.PipelineGraph
-	5,  // 25: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	35, // 26: ingestion.v1.UpdatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	6,  // 27: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	6,  // 28: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	5,  // 29: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	36, // 30: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	37, // 31: ingestion.v1.ListPipelineVersionsRequest.sorting:type_name -> ingestion.v1.SortingRequest
-	5,  // 32: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	38, // 33: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	36, // 34: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	37, // 35: ingestion.v1.ListPipelinesRequest.sorting:type_name -> ingestion.v1.SortingRequest
-	6,  // 36: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	38, // 37: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	38, // [38:38] is the sub-list for method output_type
-	38, // [38:38] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	31, // 6: ingestion.v1.PipelineEdge.transform:type_name -> google.protobuf.Struct
+	1,  // 7: ingestion.v1.PipelineGraph.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 8: ingestion.v1.PipelineGraph.edges:type_name -> ingestion.v1.PipelineEdge
+	4,  // 9: ingestion.v1.PipelineVersion.graph:type_name -> ingestion.v1.PipelineGraph
+	5,  // 10: ingestion.v1.Pipeline.current_version:type_name -> ingestion.v1.PipelineVersion
+	5,  // 11: ingestion.v1.Pipeline.versions:type_name -> ingestion.v1.PipelineVersion
+	34, // 12: ingestion.v1.Pipeline.last_run:type_name -> ingestion.v1.RunInfo
+	8,  // 13: ingestion.v1.Pipeline.schedule:type_name -> ingestion.v1.PipelineSchedule
+	35, // 14: ingestion.v1.Pipeline.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	0,  // 15: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
+	7,  // 16: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
+	7,  // 17: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	35, // 18: ingestion.v1.CreatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	6,  // 19: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	8,  // 20: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	7,  // 21: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	8,  // 22: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	7,  // 23: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	8,  // 24: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	4,  // 25: ingestion.v1.CreatePipelineVersionRequest.graph:type_name -> ingestion.v1.PipelineGraph
+	5,  // 26: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	35, // 27: ingestion.v1.UpdatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	6,  // 28: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	6,  // 29: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	5,  // 30: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	36, // 31: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	37, // 32: ingestion.v1.ListPipelineVersionsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	5,  // 33: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	38, // 34: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	36, // 35: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	37, // 36: ingestion.v1.ListPipelinesRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	6,  // 37: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	38, // 38: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	39, // [39:39] is the sub-list for method output_type
+	39, // [39:39] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }
