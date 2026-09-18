@@ -1,17 +1,26 @@
 import FlexWrapper, {
   AlignItems,
   FlexDirection,
-  FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import GalaxyLogomarkAnimation from "@galaxy-io/dls/icons/GalaxyLogomarkAnimation";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
+
+import {
+  LAYOUT_SIZE_TO_GAP_MAP,
+  LAYOUT_SIZE_TO_GLYPH_SIZE_MAP,
+  LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP,
+} from "@/layouts/constants";
+import { LayoutSize } from "@/layouts/types";
+
+const PENDING_LAYOUT_ANIMATION_SPEED = 3;
 
 interface PendingLayoutProps {
+  size?: LayoutSize;
   message?: string;
 }
 
-const PendingLayout = ({ message }: PendingLayoutProps) => {
+const PendingLayout = ({ size = LayoutSize.MEDIUM, message }: PendingLayoutProps) => {
   return (
     <FlexWrapper
       fillWidth
@@ -19,11 +28,14 @@ const PendingLayout = ({ message }: PendingLayoutProps) => {
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={FlexGap.MEDIUM}
+      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
-      <GalaxyLogomarkAnimation height={24} speed={3} />
+      <GalaxyLogomarkAnimation
+        height={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
+        speed={PENDING_LAYOUT_ANIMATION_SPEED}
+      />
       {message && (
-        <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
+        <Text size={LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
           {message}
         </Text>
       )}

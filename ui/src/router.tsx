@@ -2,7 +2,6 @@ import { ArrowLeftIcon, BugIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { createRouter, useNavigate } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
@@ -15,7 +14,7 @@ const DEFAULT_PRELOAD_STALE_TIME = 0;
 export const DefaultErrorComponent = ({ error }: { error: Error }) => {
   return (
     <ErrorLayout
-      icon={<Icon component={BugIcon} size={24} variant={IconVariant.ERROR} />}
+      icon={BugIcon}
       header="Looks like there was a glitch in the matrix"
       message="Please try again later"
       error={error}
@@ -32,7 +31,7 @@ const DefaultNotFoundComponent = () => {
 
   return (
     <ErrorLayout
-      icon={<Icon component={ImageBrokenIcon} size={24} variant={IconVariant.SECONDARY} />}
+      icon={ImageBrokenIcon}
       header="Page not found"
       message="The page you are looking for does not exist"
       actions={<Button label="Go back to app" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />}

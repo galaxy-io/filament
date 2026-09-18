@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
@@ -14,7 +14,6 @@ import FlexWrapper, {
 } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import VerticalDivider from "@galaxy-io/dls/dividers/VerticalDivider";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -29,7 +28,9 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import { Flow } from "@/layouts/app/types";
-import EmptyLayout, { EmptyLayoutSize } from "@/layouts/EmptyLayout";
+import EmptyLayout from "@/layouts/EmptyLayout";
+import ErrorLayout from "@/layouts/ErrorLayout";
+import { LayoutSize } from "@/layouts/types";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
@@ -68,13 +69,13 @@ const RowControlWrapper = styled.div`
   pointer-events: none;
 `;
 
-const CreatePipelineModalConnectionsEmpty = ({
+const CreatePipelineModalConnectionsState = ({
   message,
-  icon,
+  error,
   connectorKind,
 }: {
   message: string;
-  icon?: React.ReactNode;
+  error?: Error | null;
   connectorKind: ConnectorKind;
 }) => {
   const navigate = useNavigate();
@@ -91,6 +92,15 @@ const CreatePipelineModalConnectionsEmpty = ({
     });
   };
 
+  const actions = (
+    <Button
+      label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
+      icon={PlusIcon}
+      size={ButtonSize.SMALL}
+      onClick={handleCreateConnection}
+    />
+  );
+
   return (
     <FlexWrapper
       fillWidth
@@ -100,20 +110,11 @@ const CreatePipelineModalConnectionsEmpty = ({
       justifyContent={JustifyContent.CENTER}
       padding={24}
     >
-      <EmptyLayout
-        size={EmptyLayoutSize.SMALL}
-        message={message}
-        icon={icon}
-        actions={[
-          <Button
-            key="create-connection"
-            label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
-            icon={PlusIcon}
-            size={ButtonSize.SMALL}
-            onClick={handleCreateConnection}
-          />,
-        ]}
-      />
+      {error ? (
+        <ErrorLayout size={LayoutSize.SMALL} message={message} error={error} actions={actions} />
+      ) : (
+        <EmptyLayout size={LayoutSize.SMALL} message={message} actions={actions} />
+      )}
     </FlexWrapper>
   );
 };
@@ -178,7 +179,7 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
     setState((prev) => ({ ...prev, search }));
   };
 
-  const { data, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } =
+  const { data, isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useListConnectionsInfiniteQuery({ input: { kind } });
 
   const kindConnections = data?.pages.flatMap((page) => page.connections) ?? [];
@@ -210,11 +211,11 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
       );
     }
 
-    if (isError) {
+    if (error) {
       return (
-        <CreatePipelineModalConnectionsEmpty
-          icon={<Icon component={WarningCircleIcon} size={20} variant={IconVariant.ERROR} />}
+        <CreatePipelineModalConnectionsState
           message="Failed to load connections"
+          error={error}
           connectorKind={kind}
         />
       );
@@ -222,7 +223,7 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
 
     if (!kindConnections.length) {
       return (
-        <CreatePipelineModalConnectionsEmpty
+        <CreatePipelineModalConnectionsState
           message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase())} found`}
           connectorKind={kind}
         />
@@ -231,7 +232,7 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
 
     if (!filteredConnections.length) {
       return (
-        <CreatePipelineModalConnectionsEmpty
+        <CreatePipelineModalConnectionsState
           message="No connections match your search"
           connectorKind={kind}
         />
