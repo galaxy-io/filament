@@ -8,6 +8,7 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
+  OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH,
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_SERIES,
 } from "@/pages/observability/components/runs/constants";
@@ -84,6 +85,7 @@ const ObservabilityRunsChart = () => {
         selection={selection}
         onSelect={handleSelect}
         isLoading={isLoading}
+        minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
         fillWidth
         fillHeight
       />

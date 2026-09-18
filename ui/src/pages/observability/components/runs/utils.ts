@@ -98,15 +98,17 @@ export const mapTimeseriesToChartGroups = (
     bars: [
       {
         metric: "runs",
-        components: series.map((statusSeries) => {
-          const status = Number(statusSeries.key) as RunStatus;
-          return {
-            key: statusSeries.key,
-            label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-            value: statusSeries.points[bucketIndex].values[0],
-            color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status],
-          };
-        }),
+        components: series
+          .map((statusSeries) => {
+            const status = Number(statusSeries.key) as RunStatus;
+            return {
+              key: statusSeries.key,
+              label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+              value: statusSeries.points[bucketIndex].values[0],
+              color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status],
+            };
+          })
+          .sort((a, b) => b.value - a.value),
       },
     ],
   }));
