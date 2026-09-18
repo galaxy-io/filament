@@ -1,3 +1,6 @@
+// This file is the interpreter. The compiler emits ops over nodes, and Apply
+// walks them against a frame of Arrow columns. Nothing outside this file
+// turns a literal into a scalar, a column into a datum, or calls a kernel.
 package transform
 
 import (
@@ -12,10 +15,6 @@ import (
 
 	"github.com/galaxy-io/filament/transform/kernel"
 )
-
-// This file is the interpreter. The compiler emits ops over nodes, and Apply
-// walks them against a frame of Arrow columns. Nothing outside this file
-// turns a literal into a scalar, a column into a datum, or calls a kernel.
 
 // frame is the working column set for one batch. It owns a reference to every
 // array in cols and releases them all when the plan is done.
