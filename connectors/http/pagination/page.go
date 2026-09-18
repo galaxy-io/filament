@@ -12,13 +12,16 @@ import (
 )
 
 // pagePaginator increments a 1-based page number. Stops on a short page or
-// when total_pages is reached (if total_pages_path is configured).
+// when total_pages is reached (if total_pages_path is configured). An explicit
+// has_more_path takes precedence over page length and total_pages.
 type pagePaginator struct {
 	pageParam      string
 	sizeParam      string
 	pageSize       int
 	totalPagesPath string
 	lastPage       int
+	injectInto     string
+	hasMorePath    string
 }
 
 func newPage(spec manifest.PaginationSpec) (*pagePaginator, error) {
@@ -30,6 +33,8 @@ func newPage(spec manifest.PaginationSpec) (*pagePaginator, error) {
 	}
 	return &pagePaginator{
 		pageParam:      spec.PageParam,
+		injectInto:     spec.InjectInto,
+		hasMorePath:    spec.HasMorePath,
 		sizeParam:      spec.SizeParam,
 		pageSize:       spec.PageSize,
 		totalPagesPath: spec.TotalPagesPath,
@@ -40,6 +45,13 @@ func (p *pagePaginator) Initial() State { return State{Page: 1} }
 
 func (p *pagePaginator) Apply(req *http.Request, s State) (map[string]any, error) {
 	p.lastPage = s.Page
+	if p.injectInto == "body" {
+		out := map[string]any{p.pageParam: s.Page}
+		if p.sizeParam != "" {
+			out[p.sizeParam] = p.pageSize
+		}
+		return out, nil
+	}
 	q := req.URL.Query()
 	q.Set(p.pageParam, strconv.Itoa(s.Page))
 	if p.sizeParam != "" {
@@ -50,6 +62,16 @@ func (p *pagePaginator) Apply(req *http.Request, s State) (map[string]any, error
 }
 
 func (p *pagePaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
+	if p.hasMorePath != "" {
+		more, err := hasMore(body, p.hasMorePath)
+		if err != nil {
+			return State{}, fmt.Errorf("page pagination: has_more_path %q: %w", p.hasMorePath, err)
+		}
+		if !more {
+			return State{Done: true}, nil
+		}
+		return State{Page: p.lastPage + 1}, nil
+	}
 	if recordCount == 0 || recordCount < p.pageSize {
 		return State{Done: true}, nil
 	}

@@ -74,12 +74,8 @@ func (p *cursorPaginator) Apply(req *http.Request, s State) (map[string]any, err
 
 func (p *cursorPaginator) Next(_ *http.Response, body map[string]any, _ int) (State, error) {
 	if p.hasMorePath != "" {
-		more, err := paths.Bool(body, p.hasMorePath)
-		switch {
-		case errors.Is(err, errs.ErrPathMissing), errors.Is(err, errs.ErrPathNull):
-			// Absent has_more is treated as false — pagination terminates.
-			return State{Done: true}, nil
-		case err != nil:
+		more, err := hasMore(body, p.hasMorePath)
+		if err != nil {
 			return State{}, fmt.Errorf("cursor pagination: has_more_path %q: %w", p.hasMorePath, err)
 		}
 		if !more {

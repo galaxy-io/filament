@@ -370,7 +370,8 @@
                 "number": { "type": "string" },
                 "size": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 },
-                "total_pages": { "type": "string" }
+                "total_pages": { "type": "string" },
+                "more": { "type": "string", "minLength": 1 }
               }
             }
           }

@@ -37,6 +37,14 @@ var stripeManifest []byte
 //go:embed manifests/pipedrive.yaml
 var pipedriveManifest []byte
 
+//go:embed manifests/monday.yaml
+var mondayManifest []byte
+
+// NewMonday returns a Source backed by the embedded monday.com manifest.
+func NewMonday() *Source {
+	return newCatalogSource(mondayManifest)
+}
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return newCatalogSource(notionManifest)
