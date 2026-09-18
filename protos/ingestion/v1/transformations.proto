@@ -25,7 +25,8 @@ message TransformArgument {
 }
 
 // TransformFunction is one catalog entry. name is what a definition calls;
-// display_name is what a builder shows for it.
+// display_name is what a builder shows for it. operator_symbol is optional
+// presentation metadata for a binary function that can use compact infix UI.
 message TransformFunction {
   string name = 1;
   string description = 2;
@@ -34,6 +35,7 @@ message TransformFunction {
   string display_name = 5;
   bool same_type = 6;
   bool returns_input = 7;
+  string operator_symbol = 8;
 }
 
 // ListTransformFunctionsResponse carries the catalog, the grammar version a

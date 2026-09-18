@@ -157,18 +157,20 @@ func (x *TransformArgument) GetIsVariadic() bool {
 }
 
 // TransformFunction is one catalog entry. name is what a definition calls;
-// display_name is what a builder shows for it.
+// display_name is what a builder shows for it. operator_symbol is optional
+// presentation metadata for a binary function that can use compact infix UI.
 type TransformFunction struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Args          []*TransformArgument   `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	Returns       string                 `protobuf:"bytes,4,opt,name=returns,proto3" json:"returns,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	SameType      bool                   `protobuf:"varint,6,opt,name=same_type,json=sameType,proto3" json:"same_type,omitempty"`
-	ReturnsInput  bool                   `protobuf:"varint,7,opt,name=returns_input,json=returnsInput,proto3" json:"returns_input,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description    string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Args           []*TransformArgument   `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
+	Returns        string                 `protobuf:"bytes,4,opt,name=returns,proto3" json:"returns,omitempty"`
+	DisplayName    string                 `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	SameType       bool                   `protobuf:"varint,6,opt,name=same_type,json=sameType,proto3" json:"same_type,omitempty"`
+	ReturnsInput   bool                   `protobuf:"varint,7,opt,name=returns_input,json=returnsInput,proto3" json:"returns_input,omitempty"`
+	OperatorSymbol string                 `protobuf:"bytes,8,opt,name=operator_symbol,json=operatorSymbol,proto3" json:"operator_symbol,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TransformFunction) Reset() {
@@ -248,6 +250,13 @@ func (x *TransformFunction) GetReturnsInput() bool {
 		return x.ReturnsInput
 	}
 	return false
+}
+
+func (x *TransformFunction) GetOperatorSymbol() string {
+	if x != nil {
+		return x.OperatorSymbol
+	}
+	return ""
 }
 
 // ListTransformFunctionsResponse carries the catalog, the grammar version a
@@ -455,7 +464,7 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\vis_optional\x18\x05 \x01(\bR\n" +
 	"isOptional\x12\x1f\n" +
 	"\vis_variadic\x18\x06 \x01(\bR\n" +
-	"isVariadic\"\xfd\x01\n" +
+	"isVariadic\"\xa6\x02\n" +
 	"\x11TransformFunction\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x123\n" +
@@ -463,7 +472,8 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\areturns\x18\x04 \x01(\tR\areturns\x12!\n" +
 	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\x12\x1b\n" +
 	"\tsame_type\x18\x06 \x01(\bR\bsameType\x12#\n" +
-	"\rreturns_input\x18\a \x01(\bR\freturnsInput\"\xaf\x01\n" +
+	"\rreturns_input\x18\a \x01(\bR\freturnsInput\x12'\n" +
+	"\x0foperator_symbol\x18\b \x01(\tR\x0eoperatorSymbol\"\xaf\x01\n" +
 	"\x1eListTransformFunctionsResponse\x12=\n" +
 	"\tfunctions\x18\x01 \x03(\v2\x1f.ingestion.v1.TransformFunctionR\tfunctions\x12'\n" +
 	"\x0fgrammar_version\x18\x02 \x01(\x05R\x0egrammarVersion\x12%\n" +

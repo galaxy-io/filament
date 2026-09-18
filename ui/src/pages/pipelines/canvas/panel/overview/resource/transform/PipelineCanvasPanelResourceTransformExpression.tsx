@@ -19,10 +19,8 @@ import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import {
   createEmptyTransformExpression,
-  TRANSFORM_COMPARISON_SYMBOLS,
   TRANSFORM_FLOW_SOURCE_WIDTH,
   TRANSFORM_INLINE_BINARY_FUNCTION_WIDTH,
-  TRANSFORM_INLINE_BINARY_SYMBOLS,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import type {
   TransformColumn,
@@ -548,7 +546,7 @@ const TransformFunctionCallBlock = ({
   const fn = selectedFunction;
   const slots = fn ? Math.max(minimumSlotCount(fn), call.args.length) : call.args.length;
   const variadic = fn ? fn.args[fn.args.length - 1]?.isVariadic === true : false;
-  const binarySymbol = fn ? TRANSFORM_INLINE_BINARY_SYMBOLS.get(fn.name) : undefined;
+  const binarySymbol = fn?.operatorSymbol || undefined;
   const isInlineBinary = isColumnFlow && binarySymbol !== undefined && slots === 1;
   const selected = options.find((option) => option.id === call.name) ?? null;
   const displayedSelection =
@@ -557,8 +555,9 @@ const TransformFunctionCallBlock = ({
   const handleSelect = (name: string) => {
     const next = functionsByName.get(name);
     if (!next) return;
-    const keepBinaryOperand =
-      TRANSFORM_INLINE_BINARY_SYMBOLS.has(call.name) && TRANSFORM_INLINE_BINARY_SYMBOLS.has(name);
+    const keepBinaryOperand = Boolean(
+      functionsByName.get(call.name)?.operatorSymbol && next.operatorSymbol,
+    );
     onChange({
       name,
       args: keepBinaryOperand ? call.args : initialArguments(next),
@@ -701,7 +700,7 @@ const TransformFunctionCallBlock = ({
     const inputLabel = describeSource(inputExpression.source);
     const inputOption: SelectInputOption = { id: inputLabel, label: inputLabel, value: inputLabel };
     const functionName = fn.displayName || fn.name;
-    const isComparison = TRANSFORM_COMPARISON_SYMBOLS.has(fn.name);
+    const isComparison = fn.returns === "bool";
     const operandLabel = isComparison
       ? `${functionName} comparison value`
       : `${functionName} right operand`;

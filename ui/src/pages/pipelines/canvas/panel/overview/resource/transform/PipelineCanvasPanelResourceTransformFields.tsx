@@ -22,7 +22,6 @@ import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 import {
   createEmptyTransformExpression,
   createTransformStepDefaultState,
-  TRANSFORM_COMPARISON_SYMBOLS,
   TRANSFORM_FLOW_SOURCE_WIDTH,
   TRANSFORM_STEP_KIND_OPTIONS,
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
@@ -227,18 +226,20 @@ const CompactCondition = ({
     }
     const fn = functionsByName.get(name);
     if (!fn) return;
-    const keepComparisonOperand =
+    const keepComparisonOperand = Boolean(
       selectedCall !== undefined &&
-      TRANSFORM_COMPARISON_SYMBOLS.has(selectedCall.name) &&
-      TRANSFORM_COMPARISON_SYMBOLS.has(name);
+        functionsByName.get(selectedCall.name)?.operatorSymbol &&
+        fn.operatorSymbol,
+    );
     onChange({
       ...expression,
       calls: [
         {
           name,
-          args: keepComparisonOperand
-            ? selectedCall.args
-            : fn.args.slice(1).map(() => createEmptyTransformExpression()),
+          args:
+            keepComparisonOperand && selectedCall
+              ? selectedCall.args
+              : fn.args.slice(1).map(() => createEmptyTransformExpression()),
         },
       ],
     });

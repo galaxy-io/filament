@@ -34,6 +34,7 @@ func (a *Server) ListTransformFunctions(ctx context.Context, req *connect.Reques
 		fn := &ingestionv1.TransformFunction{
 			Name: spec.Name, DisplayName: spec.DisplayName, Description: spec.Description,
 			Returns: string(spec.Returns), SameType: spec.SameType, ReturnsInput: spec.ReturnsInput,
+			OperatorSymbol: spec.OperatorSymbol,
 		}
 		for _, arg := range spec.Args {
 			types := make([]string, len(arg.Types))

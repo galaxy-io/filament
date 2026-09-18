@@ -28,18 +28,20 @@ type ArgSpec struct {
 }
 
 // FunctionSpec is a catalog function's signature: its arguments, the logical
-// type it returns, and a display name and one-line description for a builder
-// to show. A SameType function needs every argument to share one type, and at
-// least one column among them; a literal is widened to the column's type when
-// it fits. ReturnsInput means the result takes that shared type.
+// type it returns, and presentation metadata for a builder to show. An
+// OperatorSymbol marks a binary function that can use compact infix UI. A
+// SameType function needs every argument to share one type, and at least one
+// column among them; a literal is widened to the column's type when it fits.
+// ReturnsInput means the result takes that shared type.
 type FunctionSpec struct {
-	Name         string
-	DisplayName  string
-	Description  string
-	Args         []ArgSpec
-	Returns      rowmodel.LogicalType
-	SameType     bool
-	ReturnsInput bool
+	Name           string
+	DisplayName    string
+	Description    string
+	OperatorSymbol string
+	Args           []ArgSpec
+	Returns        rowmodel.LogicalType
+	SameType       bool
+	ReturnsInput   bool
 }
 
 // argType is what the compiler knows about a compiled expression: its logical
@@ -149,10 +151,10 @@ var catalog = map[string]function{
 	},
 
 	// numbers
-	"add": arithmetic("add", "Add", "Adds two numbers.", kernel.Add),
-	"sub": arithmetic("sub", "Subtract", "Subtracts the second number from the first.", kernel.Sub),
-	"mul": arithmetic("mul", "Multiply", "Multiplies two numbers.", kernel.Mul),
-	"div": arithmetic("div", "Divide", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
+	"add": arithmetic("add", "Add", "+", "Adds two numbers.", kernel.Add),
+	"sub": arithmetic("sub", "Subtract", "−", "Subtracts the second number from the first.", kernel.Sub),
+	"mul": arithmetic("mul", "Multiply", "×", "Multiplies two numbers.", kernel.Mul),
+	"div": arithmetic("div", "Divide", "÷", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
 	"abs": {
 		spec: FunctionSpec{
 			Name: "abs", DisplayName: "Absolute value", Description: "The absolute value of a number column.",
@@ -174,12 +176,12 @@ var catalog = map[string]function{
 	},
 
 	// comparisons
-	"eq":  comparison("eq", "Equals", "True where two values are equal.", nil, kernel.Eq),
-	"neq": comparison("neq", "Not equals", "True where two values differ.", nil, kernel.Neq),
-	"gt":  comparison("gt", "Greater than", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
-	"gte": comparison("gte", "Greater than or equal", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
-	"lt":  comparison("lt", "Less than", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
-	"lte": comparison("lte", "Less than or equal", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
+	"eq":  comparison("eq", "Equals", "=", "True where two values are equal.", nil, kernel.Eq),
+	"neq": comparison("neq", "Not equals", "≠", "True where two values differ.", nil, kernel.Neq),
+	"gt":  comparison("gt", "Greater than", ">", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
+	"gte": comparison("gte", "Greater than or equal", "≥", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
+	"lt":  comparison("lt", "Less than", "<", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
+	"lte": comparison("lte", "Less than or equal", "≤", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
 
 	// logic
 	"and": {
@@ -244,10 +246,10 @@ func unary(name, display, desc string, types []rowmodel.LogicalType, returns row
 }
 
 // arithmetic builds a two-number function whose result takes the numbers' type.
-func arithmetic(name, display, desc string, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+func arithmetic(name, display, symbol, desc string, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, DisplayName: display, Description: desc,
+			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol,
 			Args:         []ArgSpec{{Name: "left", Types: numericTypes}, {Name: "right", Types: numericTypes}},
 			ReturnsInput: true, SameType: true,
 		},
@@ -257,10 +259,10 @@ func arithmetic(name, display, desc string, exec func(context.Context, []compute
 
 // comparison builds a two-value predicate over a shared type. A nil types
 // admits every type; ordering comparisons pass the types that order.
-func comparison(name, display, desc string, types []rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+func comparison(name, display, symbol, desc string, types []rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
-			Name: name, DisplayName: display, Description: desc,
+			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol,
 			Args: []ArgSpec{{Name: "left", Types: types}, {Name: "right", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
 		exec: exec,

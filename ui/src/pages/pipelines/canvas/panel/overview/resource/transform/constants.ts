@@ -25,29 +25,6 @@ export const TRANSFORM_STEP_KIND_OPTIONS: SelectInputOption[] = Object.values(
   value: kind,
 }));
 
-/** Display-only symbols for the comparison family; wire names remain unchanged. */
-export const TRANSFORM_COMPARISON_SYMBOLS: ReadonlyMap<string, string> = new Map([
-  ["eq", "="],
-  ["neq", "≠"],
-  ["gt", ">"],
-  ["gte", "≥"],
-  ["lt", "<"],
-  ["lte", "≤"],
-]);
-
-/** Display-only symbols for arithmetic functions using the shared binary row. */
-export const TRANSFORM_ARITHMETIC_SYMBOLS: ReadonlyMap<string, string> = new Map([
-  ["add", "+"],
-  ["sub", "−"],
-  ["mul", "×"],
-  ["div", "÷"],
-]);
-
-export const TRANSFORM_INLINE_BINARY_SYMBOLS: ReadonlyMap<string, string> = new Map([
-  ...TRANSFORM_COMPARISON_SYMBOLS,
-  ...TRANSFORM_ARITHMETIC_SYMBOLS,
-]);
-
 export const createEmptyTransformExpression = (): TransformExpression => ({
   source: { kind: "empty" },
   calls: [],

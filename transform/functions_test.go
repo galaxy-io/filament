@@ -127,9 +127,20 @@ func TestCompileRejectsStringOrdering(t *testing.T) {
 }
 
 func TestFunctionCatalogCarriesBuilderMetadata(t *testing.T) {
+	operators := map[string]string{
+		"eq": "=", "neq": "≠", "gt": ">", "gte": "≥", "lt": "<", "lte": "≤",
+		"add": "+", "sub": "−", "mul": "×", "div": "÷",
+	}
 	for _, spec := range Functions() {
 		if spec.DisplayName == "" {
 			t.Errorf("function %q has no display name", spec.Name)
+		}
+		if want, ok := operators[spec.Name]; ok {
+			if spec.OperatorSymbol != want {
+				t.Errorf("function %q operator symbol = %q, want %q", spec.Name, spec.OperatorSymbol, want)
+			}
+		} else if spec.OperatorSymbol != "" {
+			t.Errorf("non-operator function %q has operator symbol %q", spec.Name, spec.OperatorSymbol)
 		}
 	}
 }
