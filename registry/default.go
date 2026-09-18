@@ -1,6 +1,9 @@
 package registry
 
-import "github.com/galaxy-io/filament"
+import (
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/streamkit"
+)
 
 // DefaultSources and DefaultSinks are the process-wide registries that
 // connectors populate from init(). A connector module does:
@@ -14,6 +17,8 @@ import "github.com/galaxy-io/filament"
 // defaults instead of hand-building a registry. Tests that want isolation
 // construct their own via NewSources/NewSinks.
 var (
+	// DefaultCodecs contains pure position codecs registered by shipped connectors.
+	DefaultCodecs  = &streamkit.Registry{}
 	DefaultSources = NewSources()
 	DefaultSinks   = NewSinks()
 )
@@ -30,4 +35,12 @@ func RegisterSource(name string, maturity filament.ConnectorMaturity, f filament
 // name (see Sinks.RegisterWithMaturity).
 func RegisterSink(name string, maturity filament.ConnectorMaturity, f filament.SinkFactory) {
 	DefaultSinks.RegisterWithMaturity(name, maturity, f)
+}
+
+// RegisterPositionCodec registers a connector-owned codec for durable progress.
+// Like provider registration, duplicate or invalid registrations panic at startup.
+func RegisterPositionCodec(name string, version int, codec filament.PositionCodec) {
+	if err := DefaultCodecs.Register(name, version, codec); err != nil {
+		panic(err)
+	}
 }

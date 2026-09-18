@@ -14,8 +14,14 @@ import (
 	"github.com/galaxy-io/filament/streamkit"
 )
 
+// DefaultLeaseTTL bounds worker ownership between renewals.
+const DefaultLeaseTTL = 2 * time.Minute
+
+// DefaultDrainTimeout bounds graceful worker shutdown.
+const DefaultDrainTimeout = 30 * time.Second
+
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
-// bounded runs. Schemas and append policies are pre-resolved.
+// bounded runs. Append policies are pre-resolved. Schemas default to the configured source.
 type ContinuousConfig struct {
 	Enabled                bool
 	Spec                   filament.RunSpec
@@ -96,7 +102,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		return err
 	}
 	opened = true
-	if err := ensureContinuousSchemas(runCtx, cfg); err != nil {
+	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
 	}
 	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
@@ -167,13 +173,8 @@ func validateContinuous(cfg ContinuousConfig) error {
 	if err := spec.ValidateStreamAttempt(); err != nil {
 		return err
 	}
-	_, ok := cfg.Source.(filament.StreamSource)
-	if !ok {
-		return errors.New("continuous runner requires StreamSource")
-	}
-	_, ok = cfg.Sink.(filament.StreamingSink)
-	if !ok {
-		return errors.New("continuous runner requires StreamingSink")
+	if err := filament.ValidateContinuousConnectors(cfg.Source, cfg.Sink); err != nil {
+		return err
 	}
 	if len(spec.Resources) == 0 || cfg.MaxEpochs < 0 || cfg.Store == nil || cfg.Codecs == nil || cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour || cfg.DrainTimeout <= 0 || cfg.Boundary.MaxWait <= 0 || cfg.Boundary.MaxRecords <= 0 {
 		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
@@ -183,10 +184,10 @@ func validateContinuous(cfg ContinuousConfig) error {
 		if !ok {
 			policy = spec.WritePolicies[""]
 		}
-		if policy.Capability.Mode != filament.WriteAppend {
-			return errors.New("continuous runner: only append is supported")
+		if policy.Capability.Mode != filament.WriteAppend || policy.Capability.RequiresOrder || policy.Capability.RequiresPK || !policy.Capability.Accepts(filament.OpInsert) || policy.Capability.Accepts(filament.OpUpdate) || policy.Capability.Accepts(filament.OpDelete) {
+			return errors.New("continuous runner: only insert-only unordered append without primary keys is supported")
 		}
-		if _, ok := cfg.Schemas[r]; !ok {
+		if _, ok := cfg.Schemas[r]; cfg.Schemas != nil && !ok {
 			return fmt.Errorf("continuous runner: missing schema for %s", r)
 		}
 	}
@@ -274,7 +275,21 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 	return nil
 }
 
-func ensureContinuousSchemas(runCtx context.Context, cfg ContinuousConfig) error {
+func ensureContinuousSchemas(runCtx context.Context, cfg *ContinuousConfig) error {
+	if cfg.Schemas == nil {
+		provider, ok := cfg.Source.(filament.SchemaProvider)
+		if !ok {
+			return errors.New("continuous source must provide resource schemas")
+		}
+		cfg.Schemas = make(map[string]rowmodel.Schema, len(cfg.Spec.Resources))
+		for _, resource := range cfg.Spec.Resources {
+			schema, err := provider.Schema(runCtx, resource)
+			if err != nil {
+				return fmt.Errorf("schema for %s: %w", resource, err)
+			}
+			cfg.Schemas[resource] = schema
+		}
+	}
 	spec := cfg.Spec
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
 		for _, r := range spec.Resources {

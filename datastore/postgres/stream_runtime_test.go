@@ -260,3 +260,43 @@ func TestRuntimeExecutionSnapshotSurvivesStoreRecreation(t *testing.T) {
 		t.Fatalf("persisted execution inputs: %+v %v", attempt, err)
 	}
 }
+
+func TestContinuousAdmissionPreservesConnectorIndependentSpec(t *testing.T) {
+	store, desired, versions := admissionFixture(t)
+	ctx := context.Background()
+	run := admissionRun(versions[0], desired.Route, filament.RunRequested)
+	run.Request.Options.Execution = filament.ExecutionContinuous
+	run.Request.Source = filament.Ref{Connector: "other-source"}
+	run.Request.Sink = filament.Ref{Connector: "other-sink"}
+	run.Request.Resources = []string{"events", "audit"}
+	run.Request.WritePolicies = map[string]filament.WritePolicy{
+		"events": filament.IngestionFullAppend.WritePolicy(),
+		"audit":  filament.IngestionFullAppend.WritePolicy(),
+	}
+	if err := store.CreateRunWithReplicationStream(ctx, run, desired); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.LoadRun(ctx, run.Tenant, run.Run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := postgres.NewStreamRuntime(store, &streamkit.Registry{})
+	request, err := loaded.StreamStateRequest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := runtime.LoadStreamState(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Membership) != 2 {
+		t.Fatalf("membership = %v", state.Membership)
+	}
+	attempt, err := runtime.StartAttempt(ctx, filament.StartAttemptRequest{Tenant: run.Tenant, Stream: request.Stream, Run: run.Run, ExecutionID: uuid.NewString(), PipelineVersionID: versions[0], Route: desired.Route, ExpectedRevision: state.Revision, TTL: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempt.Spec.Source.Connector != "other-source" || attempt.Spec.Sink.Connector != "other-sink" || len(attempt.Spec.WritePolicies) != 2 {
+		t.Fatalf("lost submitted execution: %+v", attempt.Spec)
+	}
+}

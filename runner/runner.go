@@ -40,18 +40,7 @@ type Deps struct {
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.
 func SpecFromState(s filament.RunState) filament.RunSpec {
-	r := s.Request
-	return filament.RunSpec{
-		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
-		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
-		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
-		CheckpointRoute:   r.CheckpointRoute,
-		ReplicationStream: r.ReplicationStream,
-		CursorConfigs:     r.CursorConfigs,
-		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
-		IngestionTypes: r.IngestionTypes, Options: r.Options,
-		WorkerConfiguration: r.WorkerConfiguration,
-	}
+	return s.ExecutionSpec()
 }
 
 // ShouldRun reports whether a persisted run is this attempt's to execute. Only a

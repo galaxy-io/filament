@@ -48,6 +48,8 @@ type RunSpec struct {
 // RunRequest is the caller-facing ask for a run, deduplicated by
 // IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
+	// WritePolicies preserves policies resolved at admission for continuous attempts.
+	WritePolicies      map[string]WritePolicy `json:",omitempty"`
 	Tenant             TenantID
 	PipelineID         string
 	PipelineVersionID  string
@@ -809,5 +811,22 @@ func CheckpointCoverageFor(resources []string, types map[string]IngestionType) C
 		return CheckpointCoverageAll
 	default:
 		return CheckpointCoverageSome
+	}
+}
+
+// ExecutionSpec snapshots persisted execution settings without resolving secrets.
+func (s RunState) ExecutionSpec() RunSpec {
+	r := s.Request
+	return RunSpec{
+		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
+		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
+		CheckpointRoute:   r.CheckpointRoute,
+		ReplicationStream: r.ReplicationStream,
+		CursorConfigs:     r.CursorConfigs,
+		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
+		IngestionTypes: r.IngestionTypes, Options: r.Options,
+		WorkerConfiguration: r.WorkerConfiguration,
+		WritePolicies:       r.WritePolicies,
 	}
 }

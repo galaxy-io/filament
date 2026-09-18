@@ -64,6 +64,17 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		runtime, ok := deps.Store.(filament.ContinuousRunStore)
+		if !ok {
+			return filament.ErrContinuousDisabled
+		}
+		spec, err := runner.LoadContinuousAttempt(ctx, runtime, state, os.Getenv("EXECUTION_ID"))
+		if err != nil {
+			return err
+		}
+		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{DataStore: deps.Store, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, spec)
+	}
 	if !runner.ShouldRun(state) {
 		workerLog.Info("worker run skipped",
 			filament.Field{Key: "event.name", Value: "worker.run.skipped"},

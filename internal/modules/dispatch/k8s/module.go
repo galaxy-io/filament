@@ -81,6 +81,9 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)
 	}
+	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		return nil
+	}
 	if !runner.ShouldRun(state) {
 		if m.log != nil {
 			m.log.Debug("run dispatch skipped",
