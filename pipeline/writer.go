@@ -16,7 +16,11 @@ import (
 func (p *Pipeline) writer(ctx context.Context) {
 	defer p.wg.Done()
 
-	for b := range p.batchCh {
+	for item := range p.batchCh {
+		b := item.batch
+		if p.stream != nil && ctx.Err() != nil {
+			p.setErr(ctx.Err())
+		}
 		// Once any writer fails, the source is stopped but already queued batches
 		// still belong to the pipeline. Drain and release them without calling the
 		// sink so every successful ownership transfer has a terminal Release.
@@ -24,11 +28,16 @@ func (p *Pipeline) writer(ctx context.Context) {
 			b.Release()
 			continue
 		}
-		p.processBatch(ctx, b)
+		if b.Control != nil {
+			item.complete <- BarrierReceipt{Sequence: b.Seq, Boundary: b.Control.Clone()}
+			b.Release()
+			continue
+		}
+		p.processBatch(ctx, b, item.epoch)
 	}
 }
 
-func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bool) {
+func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch *filament.EpochRef) (ok bool) {
 	defer b.Release()
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
@@ -44,7 +53,7 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	}
 
 	readCRC := b.IntegrityCRC()
-	receipt, err := p.writeBatch(ctx, b, policy)
+	receipt, err := p.writeBatch(ctx, b, policy, epoch)
 	if err != nil {
 		p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
 		return false
@@ -55,11 +64,19 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	}
 
 	if receipt.WriteCRC == readCRC {
+		if epoch != nil {
+			p.stream.epochRows += int64(b.NumRows())
+			p.stream.epochBytes += receipt.Bytes
+			total := p.stream.epochResources[b.Resource]
+			total.Rows += int64(b.NumRows())
+			total.Bytes += receipt.Bytes
+			p.stream.epochResources[b.Resource] = total
+		}
 		p.publish(events.NewFact(events.BatchWritten, events.Envelope{Resource: b.Resource},
 			events.BatchWrittenEvent{
 				Records: int64(b.NumRows()), Bytes: receipt.Bytes,
 				URI: receipt.URI, CRC: receipt.WriteCRC,
-				Checkpoint:       receiptCheckpoint(receipt, b),
+				Checkpoint:       p.receiptCheckpoint(receipt, b),
 				CheckpointPolicy: policy.Checkpoint,
 			}))
 		p.publish(events.NewFact(events.IntegrityVerified, events.Envelope{Resource: b.Resource},
@@ -86,8 +103,8 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bo
 	return false
 }
 
-func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy) (filament.WriteReceipt, error) {
-	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy})
+func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy, epoch *filament.EpochRef) (filament.WriteReceipt, error) {
+	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy, Epoch: epoch})
 }
 
 func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {
@@ -103,7 +120,10 @@ func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {
 	return filament.WritePolicy{}, fmt.Errorf("missing write policy for resource %q", resource)
 }
 
-func receiptCheckpoint(receipt filament.WriteReceipt, b *arrowbatch.Batch) *filament.CheckpointData {
+func (p *Pipeline) receiptCheckpoint(receipt filament.WriteReceipt, b *arrowbatch.Batch) *filament.CheckpointData {
+	if p.stream != nil {
+		return nil
+	}
 	if receipt.Checkpoint != nil {
 		return receipt.Checkpoint
 	}
