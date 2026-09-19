@@ -1,0 +1,121 @@
+---
+title: "Recharge"
+description: "Read subscriptions, customers, charges, orders, and catalog data from Recharge"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-recharge-dark.svg"
+---
+
+The Recharge source reads subscription commerce records and the store data
+needed to interpret them, using the 2021-11 API. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It has been checked against Recharge's API reference and tested with
+mock responses, but not yet against a live store.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required. Secret. Recharge API token. |
+
+A store owner creates tokens in the merchant portal under **Tools & apps →
+API tokens**. Give the token read access to each resource you select. See
+[Recharge's token guide](https://docs.getrecharge.com/docs/recharge-api-key).
+
+| Resources | Required scope |
+|---|---|
+| `store`, `store_metafields` | `read_store` |
+| `customers`, `addresses`, `customer_metafields`, `address_metafields` | `read_customers` |
+| `subscriptions`, `onetimes`, `subscription_metafields` | `read_subscriptions` |
+| `charges`, `orders`, `charge_metafields`, `order_metafields` | `read_orders` |
+| `discounts` | `read_discounts` |
+| `plans`, `products`, `collections` | `read_products` and `read_plans` |
+| `payment_methods` | `read_payment_methods` |
+| `events` | `read_events` |
+
+Connection testing makes one request to the store endpoint, so `read_store`
+is always required.
+
+## Resources
+
+| Resource | Endpoint | Modes |
+|---|---|---|
+| `store` | `GET /store` | Full |
+| `customers` | `GET /customers` | Full, incremental |
+| `addresses` | `GET /addresses` | Full, incremental |
+| `subscriptions` | `GET /subscriptions` | Full, incremental |
+| `charges` | `GET /charges` | Full, incremental |
+| `orders` | `GET /orders` | Full, incremental |
+| `onetimes` | `GET /onetimes` | Full, incremental |
+| `discounts` | `GET /discounts` | Full, incremental |
+| `plans` | `GET /plans` | Full, incremental |
+| `products` | `GET /products` | Full |
+| `collections` | `GET /collections` | Full |
+| `payment_methods` | `GET /payment_methods` | Full |
+| `customer_metafields` | `GET /metafields?owner_resource=customer` | Full |
+| `subscription_metafields` | `GET /metafields?owner_resource=subscription` | Full |
+| `address_metafields` | `GET /metafields?owner_resource=address` | Full |
+| `order_metafields` | `GET /metafields?owner_resource=order` | Full |
+| `charge_metafields` | `GET /metafields?owner_resource=charge` | Full |
+| `store_metafields` | `GET /metafields?owner_resource=store` | Full |
+| `events` | `GET /events` | Full, incremental |
+
+Selected by default: store, customers, addresses, subscriptions, charges,
+orders, onetimes, discounts, and plans. The rest are optional. No resource
+depends on another.
+
+Each row is one Recharge record. IDs are `int64` columns, money amounts are
+`decimal` columns from Recharge's string prices, and nested data such as line
+items, addresses, discounts, and external platform IDs stays in JSON columns.
+The `raw` column keeps fields without their own column. `charges` and `orders`
+also lift `customer.id` and the order's `charge.id` into their own columns.
+
+**Charges** are a rolling window. Since March 2025, Recharge omits processed
+charges (status `success`, `refunded`, or `partially_refunded`) whose
+`processed_at` is more than 90 days old. Queued and errored charges stay
+visible. Use `orders` for durable purchase history. **Onetimes** are read with
+`include_cancelled=true`. **Products** and **collections** are catalog
+endpoints for custom checkout stores and have no documented pagination
+parameters. **Payment methods** require a store migrated to Recharge payment
+methods. **Metafields** need one read per owner resource because Recharge
+requires `owner_resource` on every request. **Events** require a Plus plan and
+only cover the last 7 days.
+
+Not included: bundle selections and credit accounts, whose reference sections
+could not be verified, plus checkouts, entitlements, webhooks, async batches,
+accounts, and token information.
+
+## Modes
+
+Customers, addresses, subscriptions, charges, orders, onetimes, discounts, and
+plans support incremental reads on `updated_at`, sent as `updated_at_min`.
+Events use `created_at` and `created_at_min`, which is append-only. Checkpoint
+keys are `<resource>_updated_at` or `events_created_at`.
+
+The cursor is compared as a string. Recharge returns ISO 8601 timestamps in
+UTC, which order correctly as text, but its examples mix `+00:00` suffixes with
+bare timestamps. String comparison handles both. Because of that choice, the
+lookback window is not available. A returned record without the cursor field
+fails the run rather than being skipped.
+
+Recharge documents `updated_at_min` as "updated after the given date" without
+saying whether the boundary is inclusive. Rows updated in the same second as
+the saved watermark may be re-read or, in rare cases, missed. Incremental reads
+cannot detect deletions. Cancelled subscriptions and onetimes are still listed
+with their status. Use **full replace** to drop rows Recharge no longer returns,
+keeping the 90-day charge window in mind.
+
+## Behavior
+
+- **Auth**: every request sends the token in `X-Recharge-Access-Token` and
+  pins `X-Recharge-Version: 2021-11`. Without the version header Recharge
+  would use the store's default version, which may still be 2021-01.
+- **Pagination**: list endpoints follow `next_cursor` until it is null, 250
+  records per page. Recharge's cursor encodes the first page's filters, so
+  later pages send only the cursor and `limit`. The store endpoint is a
+  single object.
+- **Recovery**: interrupted top-level reads resume from a saved cursor. If that
+  request fails, the read restarts from the beginning.
+- **Rate limiting**: two requests per second, matching Recharge's standard
+  leak rate for a 40-request bucket per token. Filament retries `429`
+  responses. Recharge publishes no rate-limit headers. See
+  [Recharge's rate limits](https://docs.getrecharge.com/docs/api-rate-limits).
+- **Timestamps**: ISO 8601 in UTC. Values without an offset are read as UTC.

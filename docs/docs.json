@@ -146,6 +146,7 @@
               "pages/connectors/sources/notion",
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
+              "pages/connectors/sources/recharge",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",

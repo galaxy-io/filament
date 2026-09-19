@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -297,5 +299,86 @@ func TestHTTPBudgetResetUsesConfiguredLimiter(t *testing.T) {
 	err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}})
 	if !errors.Is(err, context.DeadlineExceeded) || calls.Load() != 1 {
 		t.Fatalf("calls=%d error=%v", calls.Load(), err)
+	}
+}
+
+const continuationTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Cursor pages that only repeat the page size.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    query: { limit: "2", sort_by: updated_at-asc }
+    records: $.items
+    primary_key: [id]
+    fields:
+      id: int64
+      updated_at: string
+    pagination:
+      cursor:
+        response: next_cursor
+        request: query.cursor
+        null_terminates: true
+        continuation_query: [limit]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at_min
+      inject_into: query
+      comparator: lex
+`
+
+// Some APIs encode the first page's filters inside the cursor and reject or
+// ignore filters repeated alongside it. continuation_query must strip every
+// other manifest parameter and the incremental lower bound after page one,
+// while the watermark still advances from every page's records.
+func TestCursorContinuationQueryDropsFiltersAfterFirstPage(t *testing.T) {
+	var queries []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("cursor") == "" {
+			fmt.Fprint(w, `{"next_cursor":"c2","previous_cursor":null,"items":[{"id":1,"updated_at":"2026-01-01T00:00:00+00:00"},{"id":2,"updated_at":"2026-01-02T00:00:00+00:00"}]}`)
+			return
+		}
+		fmt.Fprint(w, `{"next_cursor":null,"previous_cursor":"c1","items":[{"id":3,"updated_at":"2026-01-03T00:00:00+00:00"}]}`)
+	}))
+	t.Cleanup(api.Close)
+	src := NewManifest([]byte(strings.Replace(continuationTestManifest, "base_url: https://example.com", "base_url: "+api.URL, 1)))
+	if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+	prev := map[string]filament.Checkpoint{
+		"items": checkpoint.KeysetCheckpoint{
+			Mode: checkpoint.ModeIncremental, Cols: []string{"updated_at"}, Types: []string{"string"},
+			Shards: []checkpoint.KeysetShard{{Key: []string{"2025-12-31T00:00:00+00:00"}}},
+		}.ToCheckpoint("items"),
+	}
+	plan, err := src.PlanIncremental(t.Context(), []string{"items"}, prev, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sink collectSink
+	if err := src.ExtractFrom(t.Context(), &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}, plan); err != nil {
+		t.Fatal(err)
+	}
+	if len(queries) != 2 {
+		t.Fatalf("requests = %v, want two pages", queries)
+	}
+	first, second := queries[0], queries[1]
+	if !strings.Contains(first, "sort_by=updated_at-asc") || !strings.Contains(first, "updated_at_min=2025-12-31T00%3A00%3A00%2B00%3A00") || strings.Contains(first, "cursor=") {
+		t.Fatalf("first page query = %q", first)
+	}
+	if second != "cursor=c2&limit=2" {
+		t.Fatalf("continuation query = %q, want only the cursor and page size", second)
+	}
+	if len(sink.records) != 3 || !slices.Equal(sink.records[2].Key, []string{"2026-01-03T00:00:00+00:00"}) {
+		t.Fatalf("rows = %d, last key = %v", len(sink.records), sink.records[len(sink.records)-1].Key)
 	}
 }
