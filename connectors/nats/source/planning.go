@@ -19,7 +19,7 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 	if err := s.Validate(req.Config); err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}
-	identity, err := sourceIdentity(req.Config.String("source_identity"), req.SourceConnectionID)
+	identity, err := sourceIdentity(req.SourceConnectionID)
 	if err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}

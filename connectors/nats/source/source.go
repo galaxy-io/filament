@@ -68,7 +68,6 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	s.conn = conn
 	s.js = js
-	s.identity = cfg.String("source_identity")
 	// An empty binding set selects managed subject resources at OpenStream.
 	s.bindings = bindings
 	return nil

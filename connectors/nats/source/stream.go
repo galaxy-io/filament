@@ -23,7 +23,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if s.js == nil || opts.CheckAuthority == nil || len(opts.Resources) == 0 {
 		return nil, errors.New("nats: configured source, authority check and selected resources required")
 	}
-	identity, err := sourceIdentity(s.identity, opts.SourceConnectionID)
+	identity, err := sourceIdentity(opts.SourceConnectionID)
 	if err != nil {
 		return nil, err
 	}

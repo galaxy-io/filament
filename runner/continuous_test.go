@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -336,12 +337,15 @@ func TestContinuousNegotiatedUpsert(t *testing.T) {
 		cfg, _, src, _ := continuousFixture(t)
 		sink := &keyedContinuousSink{}
 		cfg.Sink = sink
-		cfg.Spec.WritePolicies = nil
-		cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": filament.IngestionFullUpsert}
+		plan, err := filament.PlanContinuousWrite(src.Spec(), sink.Spec(), filament.WriteUpsert)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.Spec.WritePolicies = map[string]filament.WritePolicy{"events": plan.Policy}
 		if !missing {
 			src.keys = []string{"value"}
 		}
-		err := RunContinuous(context.Background(), cfg)
+		err = RunContinuous(context.Background(), cfg)
 		if missing {
 			if err == nil || sink.opened || src.ack != 0 {
 				t.Fatalf("missing keys: err=%v opened=%v ack=%d", err, sink.opened, src.ack)
@@ -364,6 +368,28 @@ func TestContinuousRejectsWeakenedAndUnknownPolicies(t *testing.T) {
 	cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": "unknown"}
 	if err := validateContinuous(cfg); err == nil {
 		t.Fatal("unknown intent defaulted")
+	}
+}
+
+func TestContinuousRequiresExplicitWritePolicies(t *testing.T) {
+	for _, intent := range []filament.IngestionType{
+		"", filament.IngestionFullAppend, filament.IngestionFullUpsert,
+		filament.IngestionCDCAppend, filament.IngestionCDCMerge,
+	} {
+		for _, key := range []string{"events", ""} {
+			t.Run(string(intent)+"/"+key, func(t *testing.T) {
+				cfg, _, src, sink := continuousFixture(t)
+				cfg.Spec.WritePolicies = nil
+				cfg.Spec.IngestionTypes = map[string]filament.IngestionType{key: intent}
+				err := RunContinuous(context.Background(), cfg)
+				if err == nil || !strings.Contains(err.Error(), `explicit write policy required for "events"`) {
+					t.Fatalf("missing policy: %v", err)
+				}
+				if src.ack != 0 || sink.rows != 0 || sink.commits != 0 {
+					t.Fatal("missing policy reached stream execution")
+				}
+			})
+		}
 	}
 }
 
@@ -445,8 +471,11 @@ func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {
 	cfg.Sink = sink
 	cfg.MaxEpochs = 1
 	cfg.Spec.Resources = []string{"events", "other"}
-	cfg.Spec.WritePolicies = nil
-	cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"": filament.IngestionCDCMerge}
+	plan, err := filament.PlanContinuousWrite(cfg.Source.Spec(), sink.Spec(), filament.WriteMerge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Spec.WritePolicies = map[string]filament.WritePolicy{"": plan.Policy}
 	cfg.Schemas["other"] = rowmodel.Schema{}
 	if err := RunContinuous(context.Background(), cfg); err != nil {
 		t.Fatal(err)

@@ -88,8 +88,10 @@ func PlanContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode) (C
 	return fail(fmt.Sprintf("sink %q has no compatible streaming policy for %q (operations, ordering, or durability)", sink.Name, mode))
 }
 
-// PlanContinuousRun resolves every resource from submitted write intent. The
-// sink declaration is authoritative; stale or weakened submitted capabilities
+// PlanContinuousRun requires an explicit write policy for every resource, either
+// resource-specific or supplied as the default policy. IngestionTypes are not
+// used to infer continuous policies. The sink declaration is authoritative;
+// stale or weakened submitted capabilities
 // are rejected. It is safe to repeat this before opening I/O.
 func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]WritePolicy, Ordering, error) {
 	if err := ValidateContinuousConnectors(source, sink); err != nil {
@@ -108,34 +110,17 @@ func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]Write
 		if !ok {
 			submitted, ok = spec.WritePolicies[""]
 		}
-		mode := submitted.Capability.Mode
 		if !ok {
-			intent, found := spec.IngestionTypes[resource]
-			if !found {
-				intent = spec.IngestionTypes[""]
-			}
-			// Compatibility for persisted requests predating explicit stream policies.
-			switch intent {
-			case IngestionFullAppend:
-				mode = WriteAppend
-			case IngestionFullUpsert:
-				mode = WriteUpsert
-			case IngestionCDCAppend:
-				mode = WriteAppend
-			case IngestionCDCMerge:
-				mode = WriteMerge
-			default:
-				return nil, "", fmt.Errorf("continuous planning: explicit write intent required for %q", resource)
-			}
+			return nil, "", fmt.Errorf("continuous planning: explicit write policy required for %q", resource)
 		}
-		plan, err := PlanContinuousWrite(source.Spec(), sink.Spec(), mode)
+		plan, err := PlanContinuousWrite(source.Spec(), sink.Spec(), submitted.Capability.Mode)
 		if err != nil {
 			return nil, "", fmt.Errorf("resource %q: %w", resource, err)
 		}
-		if ok && !sameStreamCapability(submitted.Capability, plan.Policy.Capability) {
+		if !sameStreamCapability(submitted.Capability, plan.Policy.Capability) {
 			return nil, "", fmt.Errorf("continuous planning: submitted policy for %q differs from the sink declaration", resource)
 		}
-		if ok && submitted.Version != (VersionPolicy{}) && submitted.Version != plan.Policy.Version {
+		if submitted.Version != (VersionPolicy{}) && submitted.Version != plan.Policy.Version {
 			return nil, "", fmt.Errorf("continuous planning: unsupported version policy for %q", resource)
 		}
 		policy := plan.Policy
