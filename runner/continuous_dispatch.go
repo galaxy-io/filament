@@ -11,8 +11,8 @@ import (
 // ExecuteContinuousAttempt executes a supervisor-admitted identity exactly once.
 // It never allocates an attempt or falls back to a bounded lifecycle.
 func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunSpec) (err error) {
-	store, ok := deps.DataStore.(filament.ContinuousRunStore)
-	if !ok {
+	store := deps.StreamStore
+	if store == nil {
 		return filament.ErrContinuousDisabled
 	}
 	if spec.Options.Execution.Normalize() != filament.ExecutionContinuous {

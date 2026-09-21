@@ -13,7 +13,6 @@ import (
 	"github.com/galaxy-io/filament"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/datastore/sqlite"
-	"github.com/galaxy-io/filament/registry"
 )
 
 // FromEnv selects the datastore per PERSISTENCE_PROVIDER; postgres is the
@@ -30,7 +29,7 @@ func FromEnv(ctx context.Context) (filament.DataStore, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ctlpg.NewStreamRuntime(ctlpg.New(pool), registry.DefaultCodecs), nil
+		return ctlpg.New(pool), nil
 	case "sqlite":
 		path, err := storePathFromEnv()
 		if err != nil {

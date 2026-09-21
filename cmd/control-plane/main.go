@@ -117,7 +117,7 @@ func run(ctx context.Context) error {
 		}
 	}()
 	remote, _ := dispatcher.(filament.Dispatcher)
-	streams := streamsupervisor.New(runner.Deps{DataStore: deps.Store, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, remote)
+	streams := streamsupervisor.New(runner.Deps{DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, remote)
 	streams.Start(ctx)
 	defer streams.Close()
 	sched.Start(ctx)

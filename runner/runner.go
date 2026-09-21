@@ -31,11 +31,12 @@ const abortWait = 30 * time.Second
 type Deps struct {
 	Bus       eventbus.Bus
 	DataStore filament.DataStore
-	Secrets   filament.Secrets
-	Sources   filament.SourceRegistry
-	Sinks     filament.SinkRegistry
-	Log       filament.Logger
-	Tracer    filament.Tracer
+	StreamStore filament.ContinuousRunStore
+	Secrets     filament.Secrets
+	Sources     filament.SourceRegistry
+	Sinks       filament.SinkRegistry
+	Log         filament.Logger
+	Tracer      filament.Tracer
 }
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.

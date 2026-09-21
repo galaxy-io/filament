@@ -23,8 +23,6 @@ func FromEnv(_ context.Context, store filament.DataStore) (filament.MetricsStore
 	switch provider := os.Getenv("METRICSSTORE_PROVIDER"); provider {
 	case "":
 		switch s := store.(type) {
-		case *postgres.RuntimeStore:
-			return pgmetrics.New(s.Pool()), nil
 		case *postgres.Store:
 			return pgmetrics.New(s.Pool()), nil
 		case *sqlite.Store:

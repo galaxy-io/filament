@@ -27,8 +27,7 @@ type Supervisor struct {
 
 // New creates a supervisor; a nil dispatcher executes workers in process.
 func New(deps runner.Deps, dispatch filament.Dispatcher) *Supervisor {
-	store, _ := deps.DataStore.(filament.ContinuousRunStore)
-	return &Supervisor{deps: deps, store: store, dispatch: dispatch, running: map[string]bool{}}
+	return &Supervisor{deps: deps, store: deps.StreamStore, dispatch: dispatch, running: map[string]bool{}}
 }
 
 // Start begins reconciliation until cancellation or Close. Call it once.

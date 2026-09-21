@@ -14,6 +14,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
+	"github.com/galaxy-io/filament/datastore/postgres"
 	bus "github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
@@ -22,11 +23,12 @@ import (
 
 // Deps are the providers every deployed binary resolves from the environment.
 type Deps struct {
-	Log     filament.Logger
-	Store   filament.DataStore
-	Secrets filament.Secrets
-	Metrics filament.Metrics
-	Tracer  filament.Tracer
+	Log   filament.Logger
+	Store filament.DataStore
+	StreamStore filament.ContinuousRunStore
+	Secrets     filament.Secrets
+	Metrics     filament.Metrics
+	Tracer      filament.Tracer
 }
 
 // FromEnv builds the logger, datastore, secrets, and otel providers. The
@@ -42,6 +44,10 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
 		return Deps{}, nil, err
+	}
+	var streamStore filament.ContinuousRunStore
+	if pg, ok := store.(*postgres.Store); ok {
+		streamStore = postgres.NewStreamRuntime(pg, registry.DefaultCodecs)
 	}
 	closeStore := func() {
 		if c, ok := store.(io.Closer); ok {
@@ -71,7 +77,7 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 		closeSecrets()
 		closeStore()
 	}
-	return Deps{Log: lg, Store: store, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
+	return Deps{Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
 }
 
 // Bus connects the event bus. The returned close closes it when closable.
