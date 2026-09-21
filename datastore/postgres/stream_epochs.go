@@ -14,13 +14,13 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
-var _ filament.StreamRuntimeStore = (*RuntimeStore)(nil)
+var _ filament.StreamRuntimeStore = (*Store)(nil)
 
 // CommitEpoch atomically stores immutable certificate bytes and domain progress.
 // Identical retries return historical success before checking current authority;
 // they never renew a lease. New commits require a bound pipeline completion and
 // a live owner, current membership, sequential epoch, and comparable progress.
-func (s *RuntimeStore) CommitEpoch(ctx context.Context, request filament.EpochCommit) (filament.CommittedEpoch, error) {
+func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (filament.CommittedEpoch, error) {
 	data, err := request.Certificate.CanonicalBytes(s.codecs)
 	if err != nil {
 		return filament.CommittedEpoch{}, err
@@ -129,7 +129,7 @@ func validateEpochResources(ctx context.Context, q *sqlcgen.Queries, stream *sql
 // validateProgress checks the new coverage against the last snapshot and returns
 // the merged snapshot to store with the new epoch. Domains not covered by this
 // epoch keep their previous position.
-func (s *RuntimeStore) validateProgress(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, positions filament.DomainPositions) (filament.DomainPositions, error) {
+func (s *Store) validateProgress(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, positions filament.DomainPositions) (filament.DomainPositions, error) {
 	snapshot := make(filament.DomainPositions)
 	if activation.LastEpoch > 0 {
 		previous, err := latestPositions(ctx, q, stream)
@@ -170,7 +170,7 @@ func (s *RuntimeStore) validateProgress(ctx context.Context, q *sqlcgen.Queries,
 
 // GetEpoch resolves a historical commit by tenant and generation without checking
 // live lease authority. A recovered certificate is not permission to acknowledge.
-func (s *RuntimeStore) GetEpoch(ctx context.Context, req filament.EpochLookup) (filament.CommittedEpoch, error) {
+func (s *Store) GetEpoch(ctx context.Context, req filament.EpochLookup) (filament.CommittedEpoch, error) {
 	if req.Tenant == "" || req.Key.Epoch <= 0 {
 		return filament.CommittedEpoch{}, filament.ErrNotFound
 	}

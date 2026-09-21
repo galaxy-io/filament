@@ -23,8 +23,9 @@ import (
 
 // Deps are the providers every deployed binary resolves from the environment.
 type Deps struct {
-	Log         filament.Logger
-	Store       filament.DataStore
+	Log   filament.Logger
+	Store filament.DataStore
+	// StreamStore is the same underlying store exposed through its stream interface.
 	StreamStore filament.ContinuousRunStore
 	Secrets     filament.Secrets
 	Metrics     filament.Metrics
@@ -47,7 +48,8 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 	}
 	var streamStore filament.ContinuousRunStore
 	if pg, ok := store.(*postgres.Store); ok {
-		streamStore = postgres.NewStreamRuntime(pg, registry.DefaultCodecs)
+		pg.ConfigureStreamCodecs(registry.DefaultCodecs)
+		streamStore = pg
 	}
 	closeStore := func() {
 		if c, ok := store.(io.Closer); ok {

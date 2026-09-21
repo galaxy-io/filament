@@ -15,7 +15,7 @@ import (
 // StartAttempt reserves immutable execution without dispatching a Job. A retry
 // of an admitted execution ID returns the original attempt without lease renewal.
 // Until destination fencing exists, every predecessor must have ended cleanly.
-func (s *RuntimeStore) StartAttempt(ctx context.Context, req filament.StartAttemptRequest) (filament.Attempt, error) {
+func (s *Store) StartAttempt(ctx context.Context, req filament.StartAttemptRequest) (filament.Attempt, error) {
 	if !validTTL(req.TTL) || req.TTL%time.Microsecond != 0 || req.ExecutionID == "" {
 		return filament.Attempt{}, errors.New("stream: execution ID and whole-microsecond TTL in [1us,24h] required")
 	}
@@ -105,7 +105,7 @@ func currentAttempt(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.Rep
 }
 
 // RenewLease extends a currently live lease without resurrecting expired owners.
-func (s *RuntimeStore) RenewLease(ctx context.Context, lease filament.LeaseToken, ttl time.Duration) error {
+func (s *Store) RenewLease(ctx context.Context, lease filament.LeaseToken, ttl time.Duration) error {
 	if !validTTL(ttl) || ttl%time.Microsecond != 0 {
 		return errors.New("stream: invalid lease TTL")
 	}
@@ -140,7 +140,7 @@ func (s *RuntimeStore) RenewLease(ctx context.Context, lease filament.LeaseToken
 // reaped/unproven declarations never authorize takeover. A retired generation's
 // still-current owner may record closure before its lease expires. Reaped and
 // unproven observations may also be recorded after expiry; neither grants takeover.
-func (s *RuntimeStore) EndAttempt(ctx context.Context, req filament.EndAttemptRequest) error {
+func (s *Store) EndAttempt(ctx context.Context, req filament.EndAttemptRequest) error {
 	switch req.Termination {
 	case filament.AttemptClean, filament.AttemptReaped, filament.AttemptUnproven:
 	default:

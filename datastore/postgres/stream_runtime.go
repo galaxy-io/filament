@@ -15,19 +15,6 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
-// RuntimeStore adds opt-in continuous persistence to Store. Codecs must be pure,
-// deterministic, concurrency-safe, and fixed for the lifetime of this store.
-// Constructing it does not enable continuous execution or dispatch workers.
-type RuntimeStore struct {
-	*Store
-	codecs filament.CodecResolver
-}
-
-// NewStreamRuntime configures the codecs used to certify and compare progress.
-func NewStreamRuntime(store *Store, codecs filament.CodecResolver) *RuntimeStore {
-	return &RuntimeStore{Store: store, codecs: codecs}
-}
-
 // lockRuntime uses the same pipeline-first order as replication generation
 // resolution. The pipeline lock serializes all generations of a route, including
 // their admission, renewal, termination, desired-state changes and certification.
@@ -59,7 +46,7 @@ func requestOf(lease filament.LeaseToken) filament.StreamStateRequest {
 
 // ActivateStream snapshots one run's execution inputs and initializes enabled
 // intent. It neither admits a worker nor changes an existing activation's spec.
-func (s *RuntimeStore) ActivateStream(ctx context.Context, req filament.StreamActivation) (filament.StreamState, error) {
+func (s *Store) ActivateStream(ctx context.Context, req filament.StreamActivation) (filament.StreamState, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return filament.StreamState{}, err
@@ -135,7 +122,7 @@ func validateActivation(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen
 }
 
 // LoadStreamState reads a coherent snapshot under the route and membership locks.
-func (s *RuntimeStore) LoadStreamState(ctx context.Context, req filament.StreamStateRequest) (filament.StreamState, error) {
+func (s *Store) LoadStreamState(ctx context.Context, req filament.StreamStateRequest) (filament.StreamState, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return filament.StreamState{}, err
@@ -193,7 +180,7 @@ func loadRuntimeState(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.R
 
 // SetDesiredState persists intent under optimistic revision control. Existing
 // owners may drain after pause/stop, but no new attempt may start until enabled.
-func (s *RuntimeStore) SetDesiredState(ctx context.Context, change filament.DesiredStateChange) error {
+func (s *Store) SetDesiredState(ctx context.Context, change filament.DesiredStateChange) error {
 	switch change.Desired {
 	case filament.StreamEnabled, filament.StreamPaused, filament.StreamStopped:
 	default:
@@ -241,7 +228,7 @@ func (s *RuntimeStore) SetDesiredState(ctx context.Context, change filament.Desi
 // ListReconcileCandidates returns a bounded tenant-scoped keyset page. Each state
 // is coherent; the page is not a transaction spanning all routes. Include paused
 // and stopped streams so a supervisor can reconcile draining owners.
-func (s *RuntimeStore) ListReconcileCandidates(ctx context.Context, req filament.ReconcileQuery) (filament.ReconcilePage, error) {
+func (s *Store) ListReconcileCandidates(ctx context.Context, req filament.ReconcileQuery) (filament.ReconcilePage, error) {
 	if req.Tenant == "" || req.Limit < 1 || req.Limit > 1000 {
 		return filament.ReconcilePage{}, errors.New("stream: tenant and page limit 1..1000 required")
 	}
