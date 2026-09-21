@@ -681,6 +681,7 @@ type SourcePolicy struct {
 // IngestionPlan is the resolved policy set for a run: per-resource write
 // policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
+	Ordering      Ordering
 	WritePolicies map[string]WritePolicy
 	RequiresCDC   bool
 }

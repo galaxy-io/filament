@@ -10,6 +10,9 @@ import (
 // binds one write policy per resource from that resource's own type,
 // discovering primary keys where the policy requires them.
 func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpec) (IngestionPlan, error) {
+	if spec.Options.Execution.Normalize() == ExecutionContinuous {
+		return resolveContinuousIngestionPlan(ctx, src, snk, spec)
+	}
 	replication := ReplicationOf(src, NewConfig(spec.Source.Config))
 	validated := map[IngestionType]bool{}
 	validate := func(t IngestionType) error {

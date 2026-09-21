@@ -21,7 +21,7 @@ const DefaultLeaseTTL = 2 * time.Minute
 const DefaultDrainTimeout = 30 * time.Second
 
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
-// bounded runs. Append policies are pre-resolved. Schemas default to the configured source.
+// bounded runs. Write intent is resolved by the shared stream planner. Schemas default to the configured source.
 type ContinuousConfig struct {
 	Enabled                bool
 	Spec                   filament.RunSpec
@@ -98,6 +98,12 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := cfg.Source.Configure(runCtx, filament.NewConfig(spec.Source.Config)); err != nil {
 		return err
 	}
+	plan, err := filament.ResolveIngestionPlan(runCtx, cfg.Source, cfg.Sink, spec)
+	if err != nil {
+		return err
+	}
+	cfg.Spec.WritePolicies = plan.WritePolicies
+	spec = cfg.Spec
 	if err := cfg.Sink.Open(runCtx, spec); err != nil {
 		return err
 	}
@@ -109,7 +115,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err != nil {
 		return err
 	}
-	p, err = pipeline.NewStream(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options}, filament.OrderingNone)
+	p, err = pipeline.NewStream(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options}, plan.Ordering)
 	if err != nil {
 		return err
 	}
@@ -173,20 +179,13 @@ func validateContinuous(cfg ContinuousConfig) error {
 	if err := spec.ValidateStreamAttempt(); err != nil {
 		return err
 	}
-	if err := filament.ValidateContinuousConnectors(cfg.Source, cfg.Sink); err != nil {
+	if _, _, err := filament.PlanContinuousRun(cfg.Source, cfg.Sink, spec); err != nil {
 		return err
 	}
 	if len(spec.Resources) == 0 || cfg.MaxEpochs < 0 || cfg.Store == nil || cfg.Codecs == nil || cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour || cfg.DrainTimeout <= 0 || cfg.Boundary.MaxWait <= 0 || cfg.Boundary.MaxRecords <= 0 {
 		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
 	}
 	for _, r := range spec.Resources {
-		policy, ok := spec.WritePolicies[r]
-		if !ok {
-			policy = spec.WritePolicies[""]
-		}
-		if policy.Capability.Mode != filament.WriteAppend || policy.Capability.RequiresOrder || policy.Capability.RequiresPK || !policy.Capability.Accepts(filament.OpInsert) || policy.Capability.Accepts(filament.OpUpdate) || policy.Capability.Accepts(filament.OpDelete) {
-			return errors.New("continuous runner: only insert-only unordered append without primary keys is supported")
-		}
 		if _, ok := cfg.Schemas[r]; cfg.Schemas != nil && !ok {
 			return fmt.Errorf("continuous runner: missing schema for %s", r)
 		}

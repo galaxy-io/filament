@@ -77,19 +77,31 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, err
 		}
 		resources = plan.Resources
-		// Conservative v2 fingerprint: no guessing that an edited endpoint/config is
+		writePlan, err := filament.PlanContinuousWrite(source.Spec(), sink.Spec(), group.writeMode)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
+		}
+		policies := make(map[string]filament.WritePolicy, len(resources))
+		for _, resource := range resources {
+			policy := writePlan.Policy
+			policy.Resource = resource
+			policies[resource] = policy
+		}
+		// Conservative v3 fingerprint: no guessing that an edited endpoint/config is
 		// compatible. A changed fingerprint requires a new generation after stop.
 		raw, err := json.Marshal(struct {
 			Source, Sink filament.Ref
 			Resources    []string
 			Mode         string
-		}{sourceRef, sinkRef, resources, "continuous-append-v2"})
+			Write        filament.ContinuousWritePlan
+			Continuity   map[string]any
+		}{sourceRef, sinkRef, resources, "continuous-v3", writePlan, plan.ContinuityConfig})
 		if err != nil {
 			return nil, fmt.Errorf("%w: fingerprint stream: %v", ErrInvalid, err)
 		}
 		hash := sha256.Sum256(raw)
 		desired := &filament.ReplicationStream{ID: streamID, Tenant: tenant, PipelineID: p.Id, Route: group.key, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig, ContinuityFingerprint: hex.EncodeToString(hash[:]), CreatedFromPipelineVersionID: v.Id}
-		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), IngestionTypes: continuousIngestionTypes(resources)}}})
+		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies}}})
 	}
 	return out, nil
 }
@@ -129,14 +141,6 @@ func planContinuousSource(source filament.Source, ref filament.Ref, resources []
 	return plan, nil
 }
 
-func continuousIngestionTypes(resources []string) map[string]filament.IngestionType {
-	out := make(map[string]filament.IngestionType, len(resources))
-	for _, r := range resources {
-		out[r] = filament.IngestionFullAppend
-	}
-	return out
-}
-
 func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
 	for _, e := range edges {
 		if e == nil {
@@ -150,9 +154,6 @@ func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
 		}
 		if e.WriteMode == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
 			e.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-		}
-		if e.WriteMode != ingestionv1.WriteMode_WRITE_MODE_APPEND {
-			return fmt.Errorf("%w: continuous execution requires append", ErrInvalid)
 		}
 	}
 	return nil

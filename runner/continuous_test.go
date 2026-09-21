@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -70,6 +71,8 @@ func (s *continuousTestStore) GetEpoch(context.Context, filament.EpochLookup) (f
 }
 
 type continuousTestSource struct {
+	op      rowmodel.Operation
+	keys    []string
 	idle    bool
 	started sync.Once
 	filament.Source
@@ -117,7 +120,7 @@ func (s *continuousTestSource) Read(ctx context.Context, out filament.StreamReco
 		}
 	}
 	s.writer.String("value")
-	if err := s.writer.EndRow(rowmodel.Meta{}); err != nil {
+	if err := s.writer.EndRow(rowmodel.Meta{Op: s.op}); err != nil {
 		return filament.Coverage{}, err
 	}
 	d := filament.DomainKey{Domain: "log", Incarnation: "source"}
@@ -147,7 +150,7 @@ type continuousTestSink struct {
 }
 
 func (*continuousTestSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
 }
 func (*continuousTestSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (s *continuousTestSink) BeginEpoch(_ context.Context, r filament.EpochRef) error {
@@ -302,5 +305,151 @@ func TestContinuousPauseBeforeStartupEndsAttempt(t *testing.T) {
 	}
 	if sink.commits != 0 {
 		t.Fatal("paused startup wrote to the sink")
+	}
+}
+
+// A new sink can opt into key writes without changing the runner.
+type keyedContinuousSink struct {
+	continuousTestSink
+	opened bool
+	seen   filament.WritePolicy
+}
+
+func (*keyedContinuousSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}}
+}
+func (s *keyedContinuousSink) Open(_ context.Context, spec filament.RunSpec) error {
+	s.opened = true
+	s.seen = spec.WritePolicies["events"]
+	return nil
+}
+func (s *keyedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if len(opts.Policy.Keys) != 1 || opts.Policy.Keys[0] != "value" || opts.Policy.Checkpoint != filament.CheckpointAfterCommit {
+		return filament.WriteReceipt{}, errors.New("unbound key policy")
+	}
+	return s.continuousTestSink.Apply(ctx, b, opts)
+}
+func TestContinuousNegotiatedUpsert(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		cfg, _, src, _ := continuousFixture(t)
+		sink := &keyedContinuousSink{}
+		cfg.Sink = sink
+		cfg.Spec.WritePolicies = nil
+		cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": filament.IngestionFullUpsert}
+		if !missing {
+			src.keys = []string{"value"}
+		}
+		err := RunContinuous(context.Background(), cfg)
+		if missing {
+			if err == nil || sink.opened || src.ack != 0 {
+				t.Fatalf("missing keys: err=%v opened=%v ack=%d", err, sink.opened, src.ack)
+			}
+		} else if err != nil || src.ack != 2 || sink.seen.Capability.Mode != filament.WriteUpsert {
+			t.Fatalf("upsert: err=%v policy=%+v ack=%d", err, sink.seen, src.ack)
+		}
+	}
+}
+func TestContinuousRejectsWeakenedAndUnknownPolicies(t *testing.T) {
+	cfg, _, _, _ := continuousFixture(t)
+	cfg.Sink = &keyedContinuousSink{}
+	policy := filament.IngestionFullUpsert.WritePolicy()
+	policy.Capability.RequiresPK = false
+	cfg.Spec.WritePolicies["events"] = policy
+	if err := validateContinuous(cfg); err == nil {
+		t.Fatal("weakened capability accepted")
+	}
+	cfg.Spec.WritePolicies = nil
+	cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": "unknown"}
+	if err := validateContinuous(cfg); err == nil {
+		t.Fatal("unknown intent defaulted")
+	}
+}
+
+func (s *continuousTestSource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+	return filament.RecordSchema{Resource: resource, PrimaryKey: s.keys, Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}}}, nil
+}
+
+func TestContinuousRejectsUnexpectedOperationBeforeSink(t *testing.T) {
+	cfg, _, src, sink := continuousFixture(t)
+	src.op = rowmodel.OpDelete
+	err := RunContinuous(context.Background(), cfg)
+	if err == nil || sink.rows != 0 || sink.commits != 0 || src.ack != 0 {
+		t.Fatalf("err=%v rows=%d commits=%d ack=%d", err, sink.rows, sink.commits, src.ack)
+	}
+}
+
+type orderedContinuousSource struct{ *continuousTestSource }
+
+func (*orderedContinuousSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputChanges, EmitsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Ordering: []filament.Ordering{filament.OrderingGlobalStrict}, Delivery: filament.DeliveryReplayableAtLeastOnce}}
+}
+func (s *orderedContinuousSource) OpenStream(context.Context, filament.StreamOpenOpts) (filament.StreamSession, error) {
+	return s, nil
+}
+func (s *orderedContinuousSource) Read(ctx context.Context, out filament.StreamRecordSink, _ filament.Boundary) (filament.Coverage, error) {
+	writers := map[string]arrowbatch.RowWriter{}
+	for i, resource := range []string{"events", "other", "events"} {
+		w := writers[resource]
+		if w == nil {
+			schema, _ := s.Schema(ctx, resource)
+			var err error
+			w, err = out.Builder(resource, 0, schema)
+			if err != nil {
+				return filament.Coverage{}, err
+			}
+			writers[resource] = w
+		}
+		w.String("value")
+		op := []rowmodel.Operation{rowmodel.OpInsert, rowmodel.OpUpdate, rowmodel.OpDelete}[i]
+		if err := w.EndRow(rowmodel.Meta{Op: op}); err != nil {
+			return filament.Coverage{}, err
+		}
+	}
+	domain := filament.DomainKey{Domain: "log", Incarnation: "source"}
+	position := filament.Position{Codec: "opaque", Value: []byte("position")}
+	if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: domain, Position: position}); err != nil {
+		return filament.Coverage{}, err
+	}
+	return filament.Coverage{Positions: filament.DomainPositions{domain: position}}, nil
+}
+
+type orderedContinuousSink struct {
+	continuousTestSink
+	resources []string
+	ops       []filament.Operation
+}
+
+func (*orderedContinuousSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}}
+}
+func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if len(opts.Policy.Keys) != 1 || opts.Policy.Keys[0] != "value" {
+		return filament.WriteReceipt{}, errors.New("missing key binding")
+	}
+	for i := range b.NumRows() {
+		s.resources = append(s.resources, b.Resource)
+		s.ops = append(s.ops, b.Op(i))
+	}
+	return s.continuousTestSink.Apply(ctx, b, opts)
+}
+func (*orderedContinuousSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
+	return []filament.EpochReceipt{{Resource: "events", Rows: 2}, {Resource: "other", Rows: 1}}, nil
+}
+func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {
+	cfg, _, src, _ := continuousFixture(t)
+	src.keys = []string{"value"}
+	cfg.Source = &orderedContinuousSource{src}
+	sink := &orderedContinuousSink{}
+	cfg.Sink = sink
+	cfg.MaxEpochs = 1
+	cfg.Spec.Resources = []string{"events", "other"}
+	cfg.Spec.WritePolicies = nil
+	cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"": filament.IngestionCDCMerge}
+	cfg.Schemas["other"] = rowmodel.Schema{}
+	if err := RunContinuous(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(sink.resources, []string{"events", "other", "events"}) || !slices.Equal(sink.ops, []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}) || src.ack != 1 {
+		t.Fatalf("resources=%v ops=%v ack=%d", sink.resources, sink.ops, src.ack)
 	}
 }
