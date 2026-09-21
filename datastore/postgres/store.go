@@ -21,15 +21,24 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
-// Store is a Postgres-backed filament.DataStore and filament.ScheduleStore.
+// Store provides ordinary and continuous-stream persistence on PostgreSQL.
 type Store struct {
-	pool *pgxpool.Pool
-	q    *sqlcgen.Queries
+	pool   *pgxpool.Pool
+	q      *sqlcgen.Queries
+	codecs filament.CodecResolver
 }
 
 // New wraps an already-connected pool. Run Migrate before first use.
 func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool, q: sqlcgen.New(pool)}
+}
+
+// ConfigureStreamCodecs supplies the codecs used to certify and compare stream
+// progress. Call during boot, before using the store. The resolver and its codecs
+// must remain fixed, pure, deterministic, and concurrency-safe for the store's
+// lifetime. Configuration does not start workers or enable continuous execution.
+func (s *Store) ConfigureStreamCodecs(codecs filament.CodecResolver) {
+	s.codecs = codecs
 }
 
 // Pool exposes the underlying connection pool for components backed by the
@@ -230,7 +239,7 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 	}
 
 	if desired != nil && r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		if err := initializeMessageActivation(ctx, q, r); err != nil {
+		if err := initializeContinuousActivation(ctx, q, r); err != nil {
 			return err
 		}
 	}

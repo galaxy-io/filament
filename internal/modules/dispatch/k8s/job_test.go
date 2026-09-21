@@ -202,3 +202,32 @@ func TestJobForSpecPlacement(t *testing.T) {
 		t.Fatalf("Tolerations = %+v, want %+v", pod.Tolerations, want)
 	}
 }
+
+func TestContinuousJobHasOneAttemptAndNoDeadline(t *testing.T) {
+	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerRestartPolicy: "OnFailure", JobNamePrefix: "filament"}}
+	a := filament.AttemptRef{RunID: "run", ExecutionID: "attempt", StreamID: "stream", Generation: 1, Token: 1}
+	spec := filament.RunSpec{Tenant: "tenant", Run: "run", ExecutionID: "attempt", StreamAttempt: &a, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}}
+	job, err := m.jobForSpec(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Spec.ActiveDeadlineSeconds != nil || job.Spec.Template.Spec.ActiveDeadlineSeconds != nil {
+		t.Fatal("continuous job has bounded deadline")
+	}
+	if job.Spec.BackoffLimit == nil || *job.Spec.BackoffLimit != 0 || job.Spec.Template.Spec.RestartPolicy != corev1.RestartPolicyNever {
+		t.Fatal("job can restart an already claimed execution")
+	}
+	found := false
+	for _, e := range job.Spec.Template.Spec.Containers[0].Env {
+		if e.Name == "EXECUTION_ID" && e.Value == "attempt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("missing execution identity")
+	}
+	spec.StreamAttempt = nil
+	if _, err := m.jobForSpec(spec); err == nil {
+		t.Fatal("dispatched continuous job without admitted attempt")
+	}
+}

@@ -128,6 +128,10 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	if _, ok := f.Data.(events.NotifierAttemptedEvent); ok {
 		return nil
 	}
+	// Continuous lifecycle and progress are owned by runtime persistence.
+	if state, err := m.ds.LoadRun(ctx, f.Tenant, f.Run); err == nil && state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		return nil
+	}
 	// Terminal folds promote checkpoints and are idempotent. Apply them before
 	// advancing the dedup high-water mark so a failed promotion can be retried.
 	if status, terminal := terminalFactStatus(f.Data); terminal {

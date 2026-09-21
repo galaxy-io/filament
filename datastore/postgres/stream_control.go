@@ -12,21 +12,15 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
-	"github.com/galaxy-io/filament/internal/streamcontrol"
 )
 
-var _ streamcontrol.Store = (*RuntimeStore)(nil)
+var _ filament.ContinuousRunStore = (*Store)(nil)
 
-// initializeMessageActivation runs inside the same transaction as run admission.
-func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r filament.RunState) error {
+// initializeContinuousActivation runs inside the same transaction as run admission.
+func initializeContinuousActivation(ctx context.Context, q *sqlcgen.Queries, r filament.RunState) error {
 	ref := r.Request.ReplicationStream
-	if ref == nil || r.Request.Source.Connector != "nats" || r.Request.Sink.Connector != "postgres" || len(r.Request.Resources) != 1 {
-		return errors.New("stream: unsupported activation profile")
-	}
-	for _, mode := range r.Request.IngestionTypes {
-		if mode != filament.IngestionFullAppend {
-			return errors.New("stream: append required")
-		}
+	if ref == nil || len(r.Request.Resources) == 0 {
+		return errors.New("stream: identity and selected resources required")
 	}
 	stream, err := q.LockReplicationStreamGeneration(ctx, sqlcgen.LockReplicationStreamGenerationParams{StreamID: ref.ID, TenantID: string(r.Tenant), Generation: ref.Generation})
 	if err != nil {
@@ -39,7 +33,7 @@ func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r fila
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
-	spec := streamcontrol.Spec(r)
+	spec := r.ExecutionSpec()
 	data, err := json.Marshal(spec)
 	if err != nil {
 		return err
@@ -60,12 +54,17 @@ func initializeMessageActivation(ctx context.Context, q *sqlcgen.Queries, r fila
 			return err
 		}
 	}
-	return q.ActivateMessageResource(ctx, sqlcgen.ActivateMessageResourceParams{StreamID: ref.ID, TenantID: string(r.Tenant), ResourceName: r.Request.Resources[0]})
+	for _, resource := range r.Request.Resources {
+		if err := q.ActivateStreamResource(ctx, sqlcgen.ActivateStreamResourceParams{StreamID: ref.ID, TenantID: string(r.Tenant), ResourceName: resource}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ClaimStreamAttempt is a durable, one-time claim. Duplicate dispatches cannot
 // run an admitted attempt twice, even after the first worker exits.
-func (s *RuntimeStore) ClaimStreamAttempt(ctx context.Context, lease filament.LeaseToken) error {
+func (s *Store) ClaimStreamAttempt(ctx context.Context, lease filament.LeaseToken) error {
 	if err := lease.Attempt.Validate(); err != nil {
 		return err
 	}
@@ -97,7 +96,7 @@ func (s *RuntimeStore) ClaimStreamAttempt(ctx context.Context, lease filament.Le
 
 // RetireUnclaimedAttempt ends an unclaimed dispatch after expiry or disabled
 // intent, then synchronizes the logical run without retiring a claimed worker.
-func (s *RuntimeStore) RetireUnclaimedAttempt(ctx context.Context, lease filament.LeaseToken) error {
+func (s *Store) RetireUnclaimedAttempt(ctx context.Context, lease filament.LeaseToken) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -120,7 +119,7 @@ func (s *RuntimeStore) RetireUnclaimedAttempt(ctx context.Context, lease filamen
 }
 
 // PendingStreamRuns is a bounded cross-tenant scan used only by the supervisor.
-func (s *RuntimeStore) PendingStreamRuns(ctx context.Context, after string, limit int) ([]filament.RunState, error) {
+func (s *Store) PendingStreamRuns(ctx context.Context, after string, limit int) ([]filament.RunState, error) {
 	if limit < 1 || limit > 1000 {
 		return nil, errors.New("stream: invalid reconciliation page size")
 	}
@@ -140,7 +139,7 @@ func (s *RuntimeStore) PendingStreamRuns(ctx context.Context, after string, limi
 }
 
 // StreamProgress is derived from immutable certificates, never tracker facts.
-func (s *RuntimeStore) StreamProgress(ctx context.Context, tenant filament.TenantID, run filament.RunID) (int64, int64, time.Time, error) {
+func (s *Store) StreamProgress(ctx context.Context, tenant filament.TenantID, run filament.RunID) (int64, int64, time.Time, error) {
 	rows, err := s.pool.Query(ctx, `SELECT e.certificate,e.committed_at FROM stream_epochs e JOIN stream_attempts a ON a.token=e.attempt_token WHERE e.tenant_id=$1 AND a.run_spec->>'Run'=$2 ORDER BY e.epoch`, string(tenant), string(run))
 	if err != nil {
 		return 0, 0, time.Time{}, err
