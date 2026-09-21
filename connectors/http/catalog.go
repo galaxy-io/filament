@@ -37,6 +37,9 @@ var stripeManifest []byte
 //go:embed manifests/pipedrive.yaml
 var pipedriveManifest []byte
 
+//go:embed manifests/recharge.yaml
+var rechargeManifest []byte
+
 // NewNotion returns a Source backed by the embedded Notion manifest.
 func NewNotion() *Source {
 	return newCatalogSource(notionManifest)
@@ -90,6 +93,11 @@ func NewPostHog() *Source {
 // NewPipedrive returns a Source backed by the embedded Pipedrive REST API manifest.
 func NewPipedrive() *Source {
 	return newCatalogSource(pipedriveManifest)
+}
+
+// NewRecharge returns a Source backed by the embedded Recharge REST API manifest.
+func NewRecharge() *Source {
+	return newCatalogSource(rechargeManifest)
 }
 
 func newCatalogSource(data []byte) *Source {
