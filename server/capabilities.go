@@ -157,7 +157,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 	runtimeSupported := a.edgeExecutionModes(source, sink, mode, ev)
 	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		validateContinuousEdge(edge, from, srcConn, source, sink, runtimeSupported, ev)
+		validateContinuousEdge(ctx, edge, from, srcConn, source, sink, runtimeSupported, probes, ev)
 		return nil
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
@@ -502,17 +502,34 @@ func (p *sourceProbes) teardown(ctx context.Context) {
 	}
 }
 
-func validateContinuousEdge(edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn *filament.Connection, source filament.Source, sink filament.Sink, runtimeSupported bool, ev *ingestionv1.EdgeValidation) {
-	ev.EffectiveWriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-	ev.SupportedWriteModes = []ingestionv1.WriteMode{ingestionv1.WriteMode_WRITE_MODE_APPEND}
+func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn *filament.Connection, source filament.Source, sink filament.Sink, runtimeSupported bool, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+	selected := edge.GetWriteMode()
+	if selected == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
+	}
+	ev.EffectiveWriteMode = selected
+	if caps := sink.Spec().Capabilities.Stream; caps != nil {
+		seen := map[filament.WriteMode]bool{}
+		for _, candidate := range caps.WritePolicies {
+			if _, err := filament.PlanContinuousWrite(source.Spec(), sink.Spec(), candidate.Mode); err == nil && !seen[candidate.Mode] && writeModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				ev.SupportedWriteModes = append(ev.SupportedWriteModes, writeModeToProto(candidate.Mode))
+				seen[candidate.Mode] = true
+			}
+		}
+	}
 	if !runtimeSupported {
 		edgeError(ev, "execution_mode", filament.ErrContinuousDisabled.Error())
 	}
 	if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
 		edgeError(ev, "execution_mode", err.Error())
 	}
-	if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED && edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
-		edgeError(ev, "write_mode", "continuous execution requires append")
+	writeMode, err := writeModeFromProto(selected)
+	var writePlan filament.ContinuousWritePlan
+	if err == nil {
+		writePlan, err = filament.PlanContinuousWrite(source.Spec(), sink.Spec(), writeMode)
+	}
+	if err != nil {
+		edgeError(ev, "write_mode", err.Error())
 	}
 	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(edge.GetCursors()) > 0 {
 		edgeError(ev, "read_mode", "continuous execution does not accept bounded read modes or cursors")
@@ -525,8 +542,24 @@ func validateContinuousEdge(edge *ingestionv1.PipelineEdge, from *ingestionv1.Pi
 		resources = []string{edge.Resource}
 	}
 	ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
-	if _, err := compile.PlanContinuousSource(source, ref, resources); err != nil {
-		edgeError(ev, "from_node", err.Error())
+	sourcePlan, planErr := compile.PlanContinuousSource(source, ref, resources, srcConn.ID)
+	if planErr != nil {
+		edgeError(ev, "from_node", planErr.Error())
+	}
+	if err == nil && planErr == nil && writePlan.Policy.Capability.RequiresPK {
+		src, probeErr := probes.get(ctx, from, *srcConn)
+		if probeErr != nil {
+			edgeError(ev, "from_node", probeErr.Error())
+		} else {
+			for _, resource := range sourcePlan.Resources {
+				keys, keyErr := filament.PrimaryKeyForResource(ctx, src, resource)
+				if keyErr != nil {
+					edgeError(ev, "from_node", keyErr.Error())
+					continue
+				}
+				ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{Kind: ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY, Resource: resource, Satisfied: len(keys) > 0, Blocking: len(keys) == 0, Message: "streaming write policy requires a primary key"})
+			}
+		}
 	}
 }
 

@@ -200,7 +200,7 @@ func (c *Compiler) planReplicationStream(
 ) (filament.ReplicationStream, error) {
 	id := uuid.NewString()
 	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
-		ReplicationStreamID: id, Config: filament.NewConfig(sourceRef.Config),
+		ReplicationStreamID: id, SourceConnectionID: group.source.ConnectionId, Config: filament.NewConfig(sourceRef.Config),
 	})
 	if err != nil {
 		return filament.ReplicationStream{}, fmt.Errorf("plan replication stream %q: %w", route, err)

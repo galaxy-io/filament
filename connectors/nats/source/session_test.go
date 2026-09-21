@@ -59,12 +59,12 @@ func testSession(t *testing.T, failControl bool) {
 		t.Fatal(err)
 	}
 	src := New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "stream": name, "consumer": "consumer", "source_identity": "account"})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "stream": name, "consumer": "consumer"})); err != nil {
 		t.Fatal(err)
 	}
 	defer src.Teardown(ctx)
 	var authorityErr error
-	opened, err := src.OpenStream(ctx, filament.StreamOpenOpts{CheckAuthority: func(context.Context) error { return authorityErr }, Resources: []string{name}, Attempt: filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}})
+	opened, err := src.OpenStream(ctx, filament.StreamOpenOpts{SourceConnectionID: "source-connection", CheckAuthority: func(context.Context) error { return authorityErr }, Resources: []string{name}, Attempt: filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}})
 	if err != nil {
 		t.Fatal(err)
 	}

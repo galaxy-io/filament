@@ -170,8 +170,10 @@ func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
 	case filament.WriteMerge:
 		return ingestionv1.WriteMode_WRITE_MODE_MERGE
-	default:
+	case filament.WriteReplace:
 		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
+	default:
+		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
 	}
 }
 

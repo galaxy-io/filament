@@ -20,8 +20,15 @@ func (t *Sink) Spec() filament.SinkSpec {
 		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized:         true,
-			Stream:              &filament.StreamingSinkCapabilities{},
+			Schematized: true,
+			Stream: &filament.StreamingSinkCapabilities{
+				WritePolicies: []filament.WritePolicyCapability{{
+					Mode:       filament.WriteAppend,
+					AcceptsOps: []filament.Operation{filament.OpInsert},
+					Atomicity:  filament.AtomicityBatch,
+					Durability: filament.DurabilityAfterCommit,
+				}},
+			},
 			Upsertable:          true,
 			EncodedIntegrity:    true,
 			PreferredBatchBytes: 16 << 20,

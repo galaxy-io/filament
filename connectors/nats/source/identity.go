@@ -19,3 +19,12 @@ func consumerDomain(identity, physical string, info *nats.StreamInfo) filament.D
 	incarnation := fmt.Sprintf("%d:%s%d:%s%s", len(identity), identity, len(physical), physical, info.Created.UTC().Format(time.RFC3339Nano))
 	return filament.DomainKey{Domain: physical, Incarnation: incarnation}
 }
+
+// sourceIdentity uses the stable Filament connection ID; neither endpoints nor
+// worker attempts are identity.
+func sourceIdentity(connectionID string) (string, error) {
+	if connectionID == "" {
+		return "", fmt.Errorf("nats: source connection ID is required for stream identity")
+	}
+	return connectionID, nil
+}

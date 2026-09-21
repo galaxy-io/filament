@@ -25,10 +25,8 @@ func New() *Source { return &Source{} }
 
 // Validate checks connection settings. Stream and consumer are pipeline settings.
 func (*Source) Validate(cfg filament.Config) error {
-	for _, name := range []string{"url", "source_identity"} {
-		if cfg.String(name) == "" {
-			return fmt.Errorf("nats: %s is required", name)
-		}
+	if cfg.String("url") == "" {
+		return fmt.Errorf("nats: url is required")
 	}
 	return nil
 }
@@ -70,7 +68,6 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	s.conn = conn
 	s.js = js
-	s.identity = cfg.String("source_identity")
 	// An empty binding set selects managed subject resources at OpenStream.
 	s.bindings = bindings
 	return nil

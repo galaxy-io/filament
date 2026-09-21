@@ -52,9 +52,6 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if !ok {
 		return errors.New("continuous source must resolve position codecs")
 	}
-	if err := resolveContinuousPolicies(&spec); err != nil {
-		return err
-	}
 	cfg := ContinuousConfig{Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: filament.Boundary{MaxRecords: 1, MaxWait: time.Second}, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
@@ -78,30 +75,4 @@ func LoadContinuousAttempt(ctx context.Context, store filament.StreamRuntimeStor
 		return filament.RunSpec{}, filament.ErrFenced
 	}
 	return current.Attempt.Spec, nil
-}
-
-// resolveContinuousPolicies binds explicit submitted policies or derives them
-// from the requested ingestion type. Missing intent must not silently become append.
-func resolveContinuousPolicies(spec *filament.RunSpec) error {
-	policies := make(map[string]filament.WritePolicy, len(spec.Resources))
-	for _, resource := range spec.Resources {
-		policy, ok := spec.WritePolicies[resource]
-		if !ok {
-			policy, ok = spec.WritePolicies[""]
-		}
-		if !ok {
-			mode, found := spec.IngestionTypes[resource]
-			if !found {
-				mode = spec.IngestionTypes[""]
-			}
-			if mode != filament.IngestionFullAppend {
-				return errors.New("continuous execution requires an explicit append policy")
-			}
-			policy = mode.WritePolicy()
-		}
-		policy.Resource = resource
-		policies[resource] = policy
-	}
-	spec.WritePolicies = policies
-	return nil
 }
