@@ -14,7 +14,7 @@ import (
 )
 
 type runtimeFixture struct {
-	store      *postgres.RuntimeStore
+	store      *postgres.Store
 	activation filament.StreamActivation
 	request    filament.StartAttemptRequest
 	state      filament.StreamState
@@ -47,7 +47,8 @@ func newRuntimeFixture(t *testing.T) runtimeFixture {
 	if err := codecs.Register("opaque", 0, streamkit.OpaqueCodec{}); err != nil {
 		t.Fatal(err)
 	}
-	runtime := postgres.NewStreamRuntime(store, codecs)
+	store.ConfigureStreamCodecs(codecs)
+	runtime := store
 	a := filament.StreamActivation{StreamStateRequest: filament.StreamStateRequest{Tenant: tenantA, Stream: *run.Request.ReplicationStream}, Spec: filament.RunSpec{Tenant: tenantA, Run: run.Run, PipelineID: pipelineOne, PipelineVersionID: versions[0], CheckpointRoute: desired.Route, ReplicationStream: run.Request.ReplicationStream, SourceConnectionID: connectionOne, SinkConnectionID: connectionTwo, Resources: []string{"events"}, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}}}
 	state, err := runtime.ActivateStream(ctx, a)
 	if err != nil {
@@ -228,7 +229,8 @@ func TestRuntimeIgnoresUninitializedReplicationStreams(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := postgres.NewStreamRuntime(store, &streamkit.Registry{})
+	store.ConfigureStreamCodecs(&streamkit.Registry{})
+	runtime := store
 	req := filament.StreamStateRequest{Tenant: tenantA, Stream: filament.StreamRef{ID: stream.ID, Generation: stream.Generation}}
 	if _, err := runtime.LoadStreamState(ctx, req); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("uninitialized state: %v", err)
@@ -245,7 +247,8 @@ func TestRuntimeIgnoresUninitializedReplicationStreams(t *testing.T) {
 func TestRuntimeExecutionSnapshotSurvivesStoreRecreation(t *testing.T) {
 	f := newRuntimeFixture(t)
 	ctx := context.Background()
-	reopened := postgres.NewStreamRuntime(f.store.Store, &streamkit.Registry{})
+	reopened := postgres.New(f.store.Pool())
+	reopened.ConfigureStreamCodecs(&streamkit.Registry{})
 	state, err := reopened.ActivateStream(ctx, f.activation)
 	if err != nil || state.Run != f.activation.Spec.Run || state.Revision != f.state.Revision {
 		t.Fatalf("activation retry: %+v %v", state, err)
@@ -280,7 +283,8 @@ func TestContinuousAdmissionPreservesConnectorIndependentSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := postgres.NewStreamRuntime(store, &streamkit.Registry{})
+	store.ConfigureStreamCodecs(&streamkit.Registry{})
+	runtime := store
 	request, err := loaded.StreamStateRequest()
 	if err != nil {
 		t.Fatal(err)

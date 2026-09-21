@@ -7,7 +7,7 @@ import (
 )
 
 // StreamRuntimeStore is an optional engine extension, not part of DataStore or
-// connector lifecycles. PostgreSQL provides an explicitly configured runtime store.
+// connector lifecycles. PostgreSQL implements it on Store with explicitly configured codecs.
 // All operations are tenant-scoped. StartAttempt, renewal and certification must
 // serialize authority. Tokens increase across generations. Identical certificate
 // retries return historical success without granting current ack authority.
