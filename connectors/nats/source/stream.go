@@ -10,6 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/internal/stream"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/streamkit"
 )
@@ -22,9 +23,17 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if s.js == nil || len(opts.Resources) != 1 || opts.Resources[0] != s.stream {
 		return nil, errors.New("nats: select exactly the configured stream")
 	}
-	if err := opts.Attempt.Validate(); err != nil {
+	session := &session{source: s}
+	lifecycle, err := stream.NewSourceLifecycle(opts.Attempt, func(ctx context.Context) error {
+		if err := session.authority(ctx); err != nil {
+			return err
+		}
+		return opts.CheckAuthority(ctx)
+	})
+	if err != nil {
 		return nil, err
 	}
+	session.lifecycle = lifecycle
 	info, err := s.js.StreamInfo(s.stream, nats.Context(ctx))
 	if err != nil {
 		return nil, err
@@ -68,7 +77,9 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err != nil {
 		return nil, err
 	}
-	session := &session{source: s, checkAuthority: opts.CheckAuthority, sub: sub, domain: domain, created: info.Created, consumerCreated: ci.Created, committed: committed, codecs: r}
+	session.sub, session.domain = sub, domain
+	session.created, session.consumerCreated = info.Created, ci.Created
+	session.committed, session.codecs = committed, r
 	hb, err := streamkit.StartHeartbeat(ctx, c.AckWait/3, func(ctx context.Context) error {
 		session.mu.Lock()
 		defer session.mu.Unlock()

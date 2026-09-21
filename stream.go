@@ -124,6 +124,32 @@ type StreamSource interface {
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
+// ValidateContinuousConnectors checks the contracts supported by the serial
+// append coordinator. Provider identity does not determine runtime support.
+// CDC bootstrap, ordered writes, and mutable membership need separate support.
+func ValidateContinuousConnectors(source Source, sink Sink) error {
+	if _, ok := source.(StreamSource); !ok {
+		return errors.New("continuous execution requires a native stream source with position codecs")
+	}
+	input := source.Spec().Stream
+	if input == nil || (input.Input != InputMessages && input.Input != InputRows) || input.Delivery != DeliveryReplayableAtLeastOnce {
+		return errors.New("continuous execution requires replayable rows or messages")
+	}
+	if _, ok := sink.(StreamingSink); !ok {
+		return errors.New("continuous execution requires a native epoch sink")
+	}
+	caps := sink.Spec().Capabilities
+	if caps.Stream == nil {
+		return errors.New("sink does not advertise streaming support")
+	}
+	for _, policy := range caps.WritePolicies {
+		if policy.Mode == WriteAppend && !policy.RequiresPK && !policy.RequiresOrder && policy.Accepts(OpInsert) {
+			return nil
+		}
+	}
+	return errors.New("continuous execution requires unordered append support")
+}
+
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
 	// CheckAuthority verifies current admitted ownership before provider acknowledgements,

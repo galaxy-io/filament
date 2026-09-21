@@ -11,14 +11,20 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/internal/stream"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/streamkit"
 )
 
+type pullSubscription interface {
+	Fetch(int, ...nats.PullOpt) ([]*nats.Msg, error)
+	Unsubscribe() error
+}
+
 type session struct {
-	checkAuthority           func(context.Context) error
+	lifecycle                stream.SourceLifecycle
 	source                   *Source
-	sub                      *nats.Subscription
+	sub                      pullSubscription
 	domain                   filament.DomainKey
 	created, consumerCreated time.Time
 	committed                uint64
@@ -49,18 +55,12 @@ func (s *session) authority(ctx context.Context) error {
 	if !si.Created.Equal(s.created) || !ci.Created.Equal(s.consumerCreated) {
 		return filament.ErrPositionIncomparable
 	}
-	return s.checkAuthority(ctx)
+	return nil
 }
 
 func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b filament.Boundary) (filament.Coverage, error) {
-	if err := s.authority(ctx); err != nil {
+	if err := s.lifecycle.CheckRead(ctx); err != nil {
 		return filament.Coverage{}, err
-	}
-	s.mu.Lock()
-	pending := s.pending != nil
-	s.mu.Unlock()
-	if pending {
-		return filament.Coverage{}, errors.New("nats: acknowledge certified epoch before reading again")
 	}
 	if s.writer == nil {
 		schema, err := Schema(s.source.stream)
@@ -101,14 +101,16 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 	}
 	seq := meta.Sequence.Stream
 	if seq <= s.committed {
-		if err := s.authority(ctx); err != nil {
+		if err := s.lifecycle.CheckAuthority(ctx); err != nil {
 			return filament.Coverage{}, err
 		}
 		return filament.Coverage{}, msg.AckSync(nats.Context(ctx))
 	}
 	// Whole-stream, single-credit delivery cannot safely skip missing input.
 	if seq != s.committed+1 {
-		return filament.Coverage{}, errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
+		err := errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
+		s.lifecycle.Fail(err)
+		return filament.Coverage{}, err
 	}
 	s.mu.Lock()
 	s.pending = msg
@@ -118,25 +120,28 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 	position := filament.Position{Codec: PositionCodec, Version: 0, Value: []byte(strconv.FormatUint(seq, 10))}
 	s.writer.String(msg.Subject)
 	if err := s.projector.EndEvent(streamkit.Envelope{Identity: filament.EventIdentity{Domain: s.domain, Position: position}, Timestamp: &meta.Timestamp, Headers: headers, KeyNull: true, Payload: msg.Data}, rowmodel.Meta{}); err != nil {
+		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
 	}
 	if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: s.domain, Position: position}); err != nil {
+		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
 	}
-	return filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}, nil
+	coverage := filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}
+	if err := s.lifecycle.MarkRead(coverage); err != nil {
+		s.lifecycle.Fail(err)
+		return filament.Coverage{}, err
+	}
+	return coverage, nil
 }
 
 func (s *session) Acknowledge(ctx context.Context, coverage filament.Coverage) error {
-	if err := s.authority(ctx); err != nil {
+	if err := s.lifecycle.CheckAcknowledge(ctx, coverage); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(coverage.Claims) > 0 || len(coverage.Positions) != 1 || s.pending == nil {
-		return filament.ErrIncompleteCoverage
-	}
-	p, ok := coverage.Positions[s.domain]
-	if !ok || p.Codec != PositionCodec || p.Version != 0 || string(p.Value) != strconv.FormatUint(s.pendingSeq, 10) {
+	if s.pending == nil {
 		return filament.ErrIncompleteCoverage
 	}
 	if err := s.pending.AckSync(nats.Context(ctx)); err != nil {
@@ -144,13 +149,27 @@ func (s *session) Acknowledge(ctx context.Context, coverage filament.Coverage) e
 	}
 	s.committed = s.pendingSeq
 	s.pending = nil
-	return nil
+	return s.lifecycle.MarkAcknowledged(coverage)
 }
 
 func (s *session) Close(ctx context.Context) error {
-	err := s.hb.Stop(ctx)
-	if err != nil {
+	if closed, err := s.lifecycle.Closed(); closed {
 		return err
 	}
-	return s.sub.Unsubscribe()
+	err := s.hb.Stop(ctx)
+	select {
+	case <-s.hb.Done():
+		// A terminal heartbeat error does not prevent releasing its subscription
+		// once the callback has joined.
+	default:
+		s.lifecycle.Fail(err)
+		return err
+	}
+	if unsubscribeErr := s.sub.Unsubscribe(); unsubscribeErr != nil {
+		err = errors.Join(err, unsubscribeErr)
+		s.lifecycle.Fail(err)
+		return err // Leave cleanup retryable.
+	}
+	s.lifecycle.MarkClosed(err)
+	return err
 }
