@@ -62,19 +62,19 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 		// A pattern may span multiple physical streams. All its children must
 		// share the one builder allowed for that logical resource.
 		if s.writers != nil && child.writer == nil {
-			writer := s.writers[child.source.resource]
+			writer := s.writers[child.binding.resource]
 			if writer == nil {
-				schema, err := Schema(child.source.resource)
+				schema, err := Schema(child.binding.resource)
 				if err != nil {
 					s.failed = err
 					return filament.Coverage{}, err
 				}
-				writer, err = out.Builder(child.source.resource, 0, schema)
+				writer, err = out.Builder(child.binding.resource, 0, schema)
 				if err != nil {
 					s.failed = err
 					return filament.Coverage{}, err
 				}
-				s.writers[child.source.resource] = writer
+				s.writers[child.binding.resource] = writer
 			}
 			child.writer = writer
 			child.projector = streamkit.NewProjector(writer, child.codecs)

@@ -23,7 +23,8 @@ type pullSubscription interface {
 
 type session struct {
 	lifecycle                stream.SourceLifecycle
-	source                   *Source
+	js                       nats.JetStreamContext
+	binding                  consumerBinding
 	sub                      pullSubscription
 	domain                   filament.DomainKey
 	created, consumerCreated time.Time
@@ -51,15 +52,15 @@ func (s *session) authority(ctx context.Context) error {
 	if err := context.Cause(s.hb.Context()); err != nil {
 		return err
 	}
-	si, err := s.source.js.StreamInfo(s.source.stream, nats.Context(ctx))
+	si, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx))
 	if err != nil {
 		return err
 	}
-	ci, err := s.source.js.ConsumerInfo(s.source.stream, s.source.consumer, nats.Context(ctx))
+	ci, err := s.js.ConsumerInfo(s.binding.stream, s.binding.consumer, nats.Context(ctx))
 	if err != nil {
 		return err
 	}
-	if err := s.source.validateConsumer(ci.Config); err != nil {
+	if err := s.binding.validateConsumer(ci.Config); err != nil {
 		return err
 	}
 	if ci.AckFloor.Stream > s.committed {
@@ -116,11 +117,11 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 		return filament.Coverage{}, err
 	}
 	if s.writer == nil {
-		schema, err := Schema(s.source.resource)
+		schema, err := Schema(s.binding.resource)
 		if err != nil {
 			return filament.Coverage{}, err
 		}
-		s.writer, err = out.Builder(s.source.resource, 0, schema)
+		s.writer, err = out.Builder(s.binding.resource, 0, schema)
 		if err != nil {
 			return filament.Coverage{}, err
 		}
@@ -138,11 +139,11 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 		return filament.Coverage{}, msg.AckSync(nats.Context(ctx))
 	}
 	// Whole-stream, single-credit delivery cannot safely skip missing input.
-	if !s.source.managed && seq != s.committed+1 {
+	if !s.binding.managed && seq != s.committed+1 {
 		return filament.Coverage{}, errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
 	}
-	if s.source.managed && seq > s.scanFloor && seq-s.scanFloor > 1 {
-		info, err := s.source.js.StreamInfo(s.source.stream, nats.Context(ctx), &nats.StreamInfoRequest{DeletedDetails: true})
+	if s.binding.managed && seq > s.scanFloor && seq-s.scanFloor > 1 {
+		info, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx), &nats.StreamInfoRequest{DeletedDetails: true})
 		if err != nil {
 			return filament.Coverage{}, err
 		}
@@ -170,7 +171,7 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
 	}
-	coverage := filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}
+	coverage = filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}
 	if err := s.lifecycle.MarkRead(coverage); err != nil {
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err

@@ -1,8 +1,8 @@
-// Package source implements consumption of dedicated JetStream consumers.
 package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,13 +14,10 @@ import (
 // Source reads subject resources using managed consumers, or binds explicit
 // user-owned consumers for compatibility. One connection serves all resources.
 type Source struct {
-	conn                       *nats.Conn
-	js                         nats.JetStreamContext
-	stream, consumer, identity string
-	bindings                   []streamBinding
-	resource                   string
-	filters                    []string
-	managed                    bool
+	conn     *nats.Conn
+	js       nats.JetStreamContext
+	identity string
+	bindings []streamBinding
 }
 
 // New returns an unconfigured source.
@@ -73,8 +70,6 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	s.conn = conn
 	s.js = js
-	s.stream = cfg.String("stream")
-	s.consumer = cfg.String("consumer")
 	s.identity = cfg.String("source_identity")
 	// An empty binding set selects managed subject resources at OpenStream.
 	s.bindings = bindings
@@ -93,3 +88,22 @@ func (s *Source) Teardown(context.Context) error {
 	}
 	return nil
 }
+
+// TestConnection verifies JetStream access using a temporary connection.
+func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) (err error) {
+	temp := New()
+	if err := temp.Configure(ctx, cfg); err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, temp.Teardown(ctx)) }()
+	_, err = temp.js.AccountInfo(nats.Context(ctx))
+	return err
+}
+
+var (
+	_ filament.Source          = (*Source)(nil)
+	_ filament.StreamSource    = (*Source)(nil)
+	_ filament.SchemaProvider  = (*Source)(nil)
+	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.LiveValidatable = (*Source)(nil)
+)
