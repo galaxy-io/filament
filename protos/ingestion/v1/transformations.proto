@@ -20,6 +20,8 @@ message TransformArgument {
   bool is_column = 3;
   bool is_literal = 4;
   bool is_optional = 5;
+  // is_variadic on the last argument lets a call repeat it any number of times.
+  bool is_variadic = 6;
 }
 
 message TransformFunction {

@@ -72,12 +72,14 @@ func (x *ListTransformFunctionsRequest) GetLogicalType() string {
 // TransformArgument is one positional argument of a catalog function. An empty
 // logical_types accepts any type.
 type TransformArgument struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	LogicalTypes  []string               `protobuf:"bytes,2,rep,name=logical_types,json=logicalTypes,proto3" json:"logical_types,omitempty"`
-	IsColumn      bool                   `protobuf:"varint,3,opt,name=is_column,json=isColumn,proto3" json:"is_column,omitempty"`
-	IsLiteral     bool                   `protobuf:"varint,4,opt,name=is_literal,json=isLiteral,proto3" json:"is_literal,omitempty"`
-	IsOptional    bool                   `protobuf:"varint,5,opt,name=is_optional,json=isOptional,proto3" json:"is_optional,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	LogicalTypes []string               `protobuf:"bytes,2,rep,name=logical_types,json=logicalTypes,proto3" json:"logical_types,omitempty"`
+	IsColumn     bool                   `protobuf:"varint,3,opt,name=is_column,json=isColumn,proto3" json:"is_column,omitempty"`
+	IsLiteral    bool                   `protobuf:"varint,4,opt,name=is_literal,json=isLiteral,proto3" json:"is_literal,omitempty"`
+	IsOptional   bool                   `protobuf:"varint,5,opt,name=is_optional,json=isOptional,proto3" json:"is_optional,omitempty"`
+	// is_variadic on the last argument lets a call repeat it any number of times.
+	IsVariadic    bool `protobuf:"varint,6,opt,name=is_variadic,json=isVariadic,proto3" json:"is_variadic,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -143,6 +145,13 @@ func (x *TransformArgument) GetIsLiteral() bool {
 func (x *TransformArgument) GetIsOptional() bool {
 	if x != nil {
 		return x.IsOptional
+	}
+	return false
+}
+
+func (x *TransformArgument) GetIsVariadic() bool {
+	if x != nil {
+		return x.IsVariadic
 	}
 	return false
 }
@@ -410,7 +419,7 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\n" +
 	"\"ingestion/v1/transformations.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1dingestion/v1/connectors.proto\"B\n" +
 	"\x1dListTransformFunctionsRequest\x12!\n" +
-	"\flogical_type\x18\x01 \x01(\tR\vlogicalType\"\xa9\x01\n" +
+	"\flogical_type\x18\x01 \x01(\tR\vlogicalType\"\xca\x01\n" +
 	"\x11TransformArgument\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rlogical_types\x18\x02 \x03(\tR\flogicalTypes\x12\x1b\n" +
@@ -418,7 +427,9 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\n" +
 	"is_literal\x18\x04 \x01(\bR\tisLiteral\x12\x1f\n" +
 	"\vis_optional\x18\x05 \x01(\bR\n" +
-	"isOptional\"\x98\x01\n" +
+	"isOptional\x12\x1f\n" +
+	"\vis_variadic\x18\x06 \x01(\bR\n" +
+	"isVariadic\"\x98\x01\n" +
 	"\x11TransformFunction\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x123\n" +
