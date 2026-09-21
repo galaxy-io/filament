@@ -321,17 +321,20 @@ type keyedContinuousSink struct {
 func (*keyedContinuousSink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}}
 }
+
 func (s *keyedContinuousSink) Open(_ context.Context, spec filament.RunSpec) error {
 	s.opened = true
 	s.seen = spec.WritePolicies["events"]
 	return nil
 }
+
 func (s *keyedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if len(opts.Policy.Keys) != 1 || opts.Policy.Keys[0] != "value" || opts.Policy.Checkpoint != filament.CheckpointAfterCommit {
 		return filament.WriteReceipt{}, errors.New("unbound key policy")
 	}
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
+
 func TestContinuousNegotiatedUpsert(t *testing.T) {
 	for _, missing := range []bool{false, true} {
 		cfg, _, src, _ := continuousFixture(t)
@@ -355,6 +358,7 @@ func TestContinuousNegotiatedUpsert(t *testing.T) {
 		}
 	}
 }
+
 func TestContinuousRejectsWeakenedAndUnknownPolicies(t *testing.T) {
 	cfg, _, _, _ := continuousFixture(t)
 	cfg.Sink = &keyedContinuousSink{}
@@ -411,9 +415,11 @@ type orderedContinuousSource struct{ *continuousTestSource }
 func (*orderedContinuousSource) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputChanges, EmitsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Ordering: []filament.Ordering{filament.OrderingGlobalStrict}, Delivery: filament.DeliveryReplayableAtLeastOnce}}
 }
+
 func (s *orderedContinuousSource) OpenStream(context.Context, filament.StreamOpenOpts) (filament.StreamSession, error) {
 	return s, nil
 }
+
 func (s *orderedContinuousSource) Read(ctx context.Context, out filament.StreamRecordSink, _ filament.Boundary) (filament.Coverage, error) {
 	writers := map[string]arrowbatch.RowWriter{}
 	for i, resource := range []string{"events", "other", "events"} {
@@ -450,6 +456,7 @@ type orderedContinuousSink struct {
 func (*orderedContinuousSink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}}
 }
+
 func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if len(opts.Policy.Keys) != 1 || opts.Policy.Keys[0] != "value" {
 		return filament.WriteReceipt{}, errors.New("missing key binding")
@@ -460,9 +467,11 @@ func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, 
 	}
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
+
 func (*orderedContinuousSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
 	return []filament.EpochReceipt{{Resource: "events", Rows: 2}, {Resource: "other", Rows: 1}}, nil
 }
+
 func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {
 	cfg, _, src, _ := continuousFixture(t)
 	src.keys = []string{"value"}
