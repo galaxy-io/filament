@@ -82,7 +82,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
 		policies := continuousWritePolicies(resources, writePlan.Policy)
-		// Conservative v3 fingerprint: no guessing that an edited endpoint/config is
+		// Conservative fingerprint: no guessing that an edited endpoint/config is
 		// compatible. A changed fingerprint requires a new generation after stop.
 		raw, err := json.Marshal(struct {
 			Source, Sink filament.Ref
@@ -90,7 +90,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			Mode         string
 			Write        filament.ContinuousWritePlan
 			Continuity   map[string]any
-		}{sourceRef, sinkRef, resources, "continuous-v3", writePlan, plan.ContinuityConfig})
+		}{sourceRef, sinkRef, resources, "continuous", writePlan, plan.ContinuityConfig})
 		if err != nil {
 			return nil, fmt.Errorf("%w: fingerprint stream: %v", ErrInvalid, err)
 		}
