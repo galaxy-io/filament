@@ -166,5 +166,11 @@ func (s *RuntimeStore) EndAttempt(ctx context.Context, req filament.EndAttemptRe
 	if rows != 1 {
 		return filament.ErrLeaseExpired
 	}
+	if err := q.SyncContinuousRunPhase(ctx, sqlcgen.SyncContinuousRunPhaseParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
+		return err
+	}
+	if err := q.FinishStoppedContinuousRun(ctx, sqlcgen.FinishStoppedContinuousRunParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }

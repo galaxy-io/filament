@@ -60,6 +60,7 @@ type Pipeline struct {
 	DeletedByUserID     sql.NullString
 	CreatedAt           int64
 	UpdatedAt           int64
+	ExecutionMode       int64
 }
 
 type PipelineResourceCheckpoint struct {
@@ -228,6 +229,8 @@ type StreamAttempt struct {
 	DesiredRevision int64
 	RequestTtlUs    int64
 	StartedAt       int64
+	ClaimedAt       sql.NullInt64
+	RunSpec         string
 	ExpiresAt       int64
 	EndedAt         sql.NullInt64
 	Termination     sql.NullString

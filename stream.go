@@ -123,6 +123,12 @@ type StreamSource interface {
 
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
+	// CheckAuthority verifies current admitted ownership before provider acknowledgements,
+	// including already-certified redeliveries suppressed during Read. It must honor
+	// cancellation and be safe alongside lease renewal. Resume positions alone do
+	// not grant acknowledgement authority.
+	CheckAuthority func(context.Context) error
+
 	Resources          []string
 	CommittedPositions DomainPositions
 	Membership         map[string]ReplicationStreamResourceStatus

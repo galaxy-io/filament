@@ -229,6 +229,11 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 		return fmt.Errorf("create run %q: %w", r.Run, filament.ErrVersionConflict)
 	}
 
+	if desired != nil && r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		if err := initializeMessageActivation(ctx, q, r); err != nil {
+			return err
+		}
+	}
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
 		rs.Tenant = r.Tenant

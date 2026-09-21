@@ -22,11 +22,14 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
-	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
+	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
 	out := cloneProto(p)
+	if out.ExecutionMode == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		out.ExecutionMode = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	}
 	out.CreatedAt = timestampMillis(createdAt)
 	out.UpdatedAt = out.CreatedAt
 	return out, nil
@@ -49,6 +52,7 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 		TenantID:            p.GetTenantId(),
 		Name:                p.GetName(),
 		Description:         p.GetDescription(),
+		ExecutionMode:       int32(p.GetExecutionMode()),
 		WorkerConfiguration: workerCfg,
 	})
 	if err != nil {
@@ -63,6 +67,9 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 		return nil, fmt.Errorf("datastore/postgres: commit pipeline creation: %w", err)
 	}
 	out := cloneProto(p)
+	if out.ExecutionMode == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		out.ExecutionMode = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	}
 	out.CreatedAt = timestampMillis(createdAt)
 	out.UpdatedAt = out.CreatedAt
 	return out, nil
@@ -92,7 +99,7 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
-	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), WorkerConfiguration: workerCfg})
+	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
@@ -113,6 +120,7 @@ func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id s
 		return nil, fmt.Errorf("datastore/postgres: get pipeline: %w", err)
 	}
 	out := pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
+	out.ExecutionMode = ingestionv1.ExecutionMode(row.ExecutionMode)
 	if row.CurrentVersionID.Valid {
 		out.CurrentVersion, err = s.LoadPipelineVersion(ctx, tenant, row.ID, 0)
 		if err != nil {
@@ -194,6 +202,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	out := make([]*ingestionv1.Pipeline, len(rows))
 	for i, row := range rows {
 		out[i] = pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
+		out[i].ExecutionMode = ingestionv1.ExecutionMode(row.ExecutionMode)
 		if row.CurrentVersionID.Valid {
 			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, filament.TenantID(row.TenantID), row.ID, 0)
 			if err != nil {
