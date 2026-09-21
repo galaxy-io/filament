@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/transformations.proto.
  */
 export const file_ingestion_v1_transformations: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJInQKEVRyYW5zZm9ybUFyZ3VtZW50EgwKBG5hbWUYASABKAkSFQoNbG9naWNhbF90eXBlcxgCIAMoCRIRCglpc19jb2x1bW4YAyABKAgSEgoKaXNfbGl0ZXJhbBgEIAEoCBITCgtpc19vcHRpb25hbBgFIAEoCCJ2ChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCSKFAQoeTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1Jlc3BvbnNlEjIKCWZ1bmN0aW9ucxgBIAMoCzIfLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1GdW5jdGlvbhIXCg9ncmFtbWFyX3ZlcnNpb24YAiABKAUSFgoOZ3JhbW1hcl9zY2hlbWEYAyABKAkidgoYVmFsaWRhdGVUcmFuc2Zvcm1SZXF1ZXN0EhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAEgASgJEhAKCHJlc291cmNlGAIgASgJEioKCXRyYW5zZm9ybRgDIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QijwEKGVZhbGlkYXRlVHJhbnNmb3JtUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGaXNzdWVzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchI0Cg5vdXRwdXRfY29sdW1ucxgDIAMoCzIcLmluZ2VzdGlvbi52MS5SZXNvdXJjZUNvbHVtbmIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
+  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIp8BChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgSFAoMZGlzcGxheV9uYW1lGAcgASgJIp8CChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCRIUCgxkaXNwbGF5X25hbWUYBSABKAkSEQoJc2FtZV90eXBlGAYgASgIEhUKDXJldHVybnNfaW5wdXQYByABKAgSFwoPb3BlcmF0b3Jfc3ltYm9sGAggASgJEhoKEmNvbmRpdGlvbl9vcGVyYXRvchgJIAEoCBIaChJ2YXJpYWRpY19hZGRfbGFiZWwYCiABKAkSFgoOY29uZGl0aW9uX2pvaW4YCyABKAkihQEKHkxpc3RUcmFuc2Zvcm1GdW5jdGlvbnNSZXNwb25zZRIyCglmdW5jdGlvbnMYASADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtRnVuY3Rpb24SFwoPZ3JhbW1hcl92ZXJzaW9uGAIgASgFEhYKDmdyYW1tYXJfc2NoZW1hGAMgASgJInYKGFZhbGlkYXRlVHJhbnNmb3JtUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCRIQCghyZXNvdXJjZRgCIAEoCRIqCgl0cmFuc2Zvcm0YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Io8BChlWYWxpZGF0ZVRyYW5zZm9ybVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmlzc3VlcxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISNAoOb3V0cHV0X2NvbHVtbnMYAyADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5iBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
 
 /**
  * ListTransformFunctionsRequest asks for the transform catalog. With a
@@ -67,6 +67,20 @@ export type TransformArgument = Message<"ingestion.v1.TransformArgument"> & {
    * @generated from field: bool is_optional = 5;
    */
   isOptional: boolean;
+
+  /**
+   * is_variadic on the last argument lets a call repeat it any number of times.
+   *
+   * @generated from field: bool is_variadic = 6;
+   */
+  isVariadic: boolean;
+
+  /**
+   * display_name is the field label a builder shows for this argument.
+   *
+   * @generated from field: string display_name = 7;
+   */
+  displayName: string;
 };
 
 /**
@@ -77,6 +91,10 @@ export const TransformArgumentSchema: GenMessage<TransformArgument> = /*@__PURE_
   messageDesc(file_ingestion_v1_transformations, 1);
 
 /**
+ * TransformFunction is one catalog entry. name is what a definition calls;
+ * display_name is what a builder shows for it. operator_symbol is optional
+ * presentation metadata for a binary function that can use compact infix UI.
+ *
  * @generated from message ingestion.v1.TransformFunction
  */
 export type TransformFunction = Message<"ingestion.v1.TransformFunction"> & {
@@ -99,6 +117,47 @@ export type TransformFunction = Message<"ingestion.v1.TransformFunction"> & {
    * @generated from field: string returns = 4;
    */
   returns: string;
+
+  /**
+   * @generated from field: string display_name = 5;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: bool same_type = 6;
+   */
+  sameType: boolean;
+
+  /**
+   * @generated from field: bool returns_input = 7;
+   */
+  returnsInput: boolean;
+
+  /**
+   * @generated from field: string operator_symbol = 8;
+   */
+  operatorSymbol: string;
+
+  /**
+   * condition_operator marks functions suitable for the compact row-condition picker.
+   *
+   * @generated from field: bool condition_operator = 9;
+   */
+  conditionOperator: boolean;
+
+  /**
+   * variadic_add_label names the action that appends another variadic argument.
+   *
+   * @generated from field: string variadic_add_label = 10;
+   */
+  variadicAddLabel: string;
+
+  /**
+   * condition_join is "and" or "or" for functions that join compact conditions.
+   *
+   * @generated from field: string condition_join = 11;
+   */
+  conditionJoin: string;
 };
 
 /**

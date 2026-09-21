@@ -31,14 +31,19 @@ func (a *Server) ListTransformFunctions(ctx context.Context, req *connect.Reques
 		GrammarSchema:  string(transform.Grammar()),
 	}
 	for _, spec := range specs {
-		fn := &ingestionv1.TransformFunction{Name: spec.Name, Description: spec.Description, Returns: string(spec.Returns)}
+		fn := &ingestionv1.TransformFunction{
+			Name: spec.Name, DisplayName: spec.DisplayName, Description: spec.Description,
+			Returns: string(spec.Returns), SameType: spec.SameType, ReturnsInput: spec.ReturnsInput,
+			OperatorSymbol: spec.OperatorSymbol, ConditionOperator: spec.ConditionOperator,
+			VariadicAddLabel: spec.VariadicAddLabel, ConditionJoin: spec.ConditionJoin,
+		}
 		for _, arg := range spec.Args {
 			types := make([]string, len(arg.Types))
 			for i, t := range arg.Types {
 				types[i] = string(t)
 			}
 			fn.Args = append(fn.Args, &ingestionv1.TransformArgument{
-				Name: arg.Name, LogicalTypes: types,
+				Name: arg.Name, DisplayName: arg.DisplayName, LogicalTypes: types,
 				IsColumn: arg.Column, IsLiteral: arg.Literal, IsOptional: arg.Optional, IsVariadic: arg.Variadic,
 			})
 		}
