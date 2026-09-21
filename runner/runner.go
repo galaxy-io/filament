@@ -29,8 +29,8 @@ const abortWait = 30 * time.Second
 // Deps are the process-local dependencies needed to execute one run. Tracer is
 // optional; a nil one skips span reporting.
 type Deps struct {
-	Bus       eventbus.Bus
-	DataStore filament.DataStore
+	Bus         eventbus.Bus
+	DataStore   filament.DataStore
 	StreamStore filament.ContinuousRunStore
 	Secrets     filament.Secrets
 	Sources     filament.SourceRegistry

@@ -11,8 +11,11 @@ import (
 )
 
 var (
-	ErrSourceClosed           = errors.New("stream: source session closed")
-	ErrSourceUninitialized    = errors.New("stream: source lifecycle not initialized")
+	// ErrSourceClosed indicates that the source session has been closed.
+	ErrSourceClosed = errors.New("stream: source session closed")
+	// ErrSourceUninitialized indicates that the source lifecycle was not initialized.
+	ErrSourceUninitialized = errors.New("stream: source lifecycle not initialized")
+	// ErrAcknowledgementPending indicates that outstanding coverage must be acknowledged before another read.
 	ErrAcknowledgementPending = errors.New("stream: acknowledge pending coverage before reading again")
 )
 

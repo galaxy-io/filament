@@ -23,8 +23,8 @@ import (
 
 // Deps are the providers every deployed binary resolves from the environment.
 type Deps struct {
-	Log   filament.Logger
-	Store filament.DataStore
+	Log         filament.Logger
+	Store       filament.DataStore
 	StreamStore filament.ContinuousRunStore
 	Secrets     filament.Secrets
 	Metrics     filament.Metrics
