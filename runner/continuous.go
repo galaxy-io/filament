@@ -95,18 +95,11 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		result = errors.Join(result, closeErr, hbErr, endErr)
 	}()
 	cleanupInstalled = true
-	if err := cfg.Source.Configure(runCtx, filament.NewConfig(spec.Source.Config)); err != nil {
-		return err
-	}
-	plan, err := filament.ResolveIngestionPlan(runCtx, cfg.Source, cfg.Sink, spec)
+	plan, err := prepareContinuousConnectors(runCtx, &cfg)
 	if err != nil {
 		return err
 	}
-	cfg.Spec.WritePolicies = plan.WritePolicies
 	spec = cfg.Spec
-	if err := cfg.Sink.Open(runCtx, spec); err != nil {
-		return err
-	}
 	opened = true
 	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
@@ -305,4 +298,19 @@ func continuousReason(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (filament.IngestionPlan, error) {
+	if err := cfg.Source.Configure(ctx, filament.NewConfig(cfg.Spec.Source.Config)); err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	plan, err := filament.ResolveIngestionPlan(ctx, cfg.Source, cfg.Sink, cfg.Spec)
+	if err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	cfg.Spec.WritePolicies = plan.WritePolicies
+	if err := cfg.Sink.Open(ctx, cfg.Spec); err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	return plan, nil
 }

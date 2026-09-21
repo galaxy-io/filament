@@ -81,12 +81,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
-		policies := make(map[string]filament.WritePolicy, len(resources))
-		for _, resource := range resources {
-			policy := writePlan.Policy
-			policy.Resource = resource
-			policies[resource] = policy
-		}
+		policies := continuousWritePolicies(resources, writePlan.Policy)
 		// Conservative v3 fingerprint: no guessing that an edited endpoint/config is
 		// compatible. A changed fingerprint requires a new generation after stop.
 		raw, err := json.Marshal(struct {
@@ -157,4 +152,13 @@ func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
 		}
 	}
 	return nil
+}
+
+func continuousWritePolicies(resources []string, policy filament.WritePolicy) map[string]filament.WritePolicy {
+	policies := make(map[string]filament.WritePolicy, len(resources))
+	for _, resource := range resources {
+		policy.Resource = resource
+		policies[resource] = policy
+	}
+	return policies
 }
