@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/galaxy-io/filament"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+
+	"github.com/galaxy-io/filament"
 )
 
 type resourceTarget struct {

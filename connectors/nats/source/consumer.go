@@ -9,8 +9,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/galaxy-io/filament"
 	"github.com/nats-io/nats.go"
+
+	"github.com/galaxy-io/filament"
 )
 
 // consumerBinding describes one physical consumer serving a logical resource.

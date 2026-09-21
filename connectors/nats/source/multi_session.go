@@ -5,10 +5,11 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/nats-io/nats.go"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/streamkit"
-	"github.com/nats-io/nats.go"
 )
 
 // multiSession multiplexes independent consumers into serial epoch work. At most

@@ -53,8 +53,9 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		child, err := s.openSingleStream(ctx, consumer, childOpts)
 		if err != nil {
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			defer cancel()
-			return nil, errors.Join(err, multi.Close(cleanup))
+			closeErr := multi.Close(cleanup)
+			cancel()
+			return nil, errors.Join(err, closeErr)
 		}
 		multi.children = append(multi.children, child)
 	}
@@ -96,19 +97,9 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if err := RegisterCodec(r); err != nil {
 		return nil, err
 	}
-	var committed uint64
-	for d, p := range opts.CommittedPositions {
-		if d != domain {
-			return nil, filament.ErrPositionIncomparable
-		}
-		canonical, err := rowmodel.CanonicalPosition(r, p)
-		if err != nil || canonical.Codec != PositionCodec || canonical.Version != 0 {
-			return nil, errors.Join(filament.ErrPositionIncomparable, err)
-		}
-		committed, err = strconv.ParseUint(string(canonical.Value), 10, 64)
-		if err != nil {
-			return nil, err
-		}
+	committed, err := committedSequence(opts.CommittedPositions, domain, r)
+	if err != nil {
+		return nil, err
 	}
 	if err := opts.CheckAuthority(ctx); err != nil {
 		return nil, err
@@ -177,11 +168,30 @@ func (s *Source) openSubjects(ctx context.Context, opts filament.StreamOpenOpts)
 		child, err := s.openSingleStream(ctx, target.binding, childOpts)
 		if err != nil {
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			defer cancel()
-			return nil, errors.Join(err, multi.Close(cleanup))
+			closeErr := multi.Close(cleanup)
+			cancel()
+			return nil, errors.Join(err, closeErr)
 		}
 		multi.children = append(multi.children, child)
 	}
 	multi.queued = make([]*nats.Msg, len(multi.children))
 	return multi, nil
+}
+
+func committedSequence(positions filament.DomainPositions, domain filament.DomainKey, r filament.CodecResolver) (uint64, error) {
+	var committed uint64
+	for d, p := range positions {
+		if d != domain {
+			return 0, filament.ErrPositionIncomparable
+		}
+		canonical, err := rowmodel.CanonicalPosition(r, p)
+		if err != nil || canonical.Codec != PositionCodec || canonical.Version != 0 {
+			return 0, errors.Join(filament.ErrPositionIncomparable, err)
+		}
+		committed, err = strconv.ParseUint(string(canonical.Value), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return committed, nil
 }

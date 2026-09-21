@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
+
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/proto"
-	"slices"
 )
 
 func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.TenantID, p *ingestionv1.Pipeline, v *ingestionv1.PipelineVersion, token string, options filament.RunOptions, worker filament.WorkerConfiguration) ([]CompiledRun, error) {
@@ -35,22 +36,8 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		}
 		connections[n.ConnectionId] = conn
 	}
-	for _, e := range graph.Edges {
-		if e == nil {
-			return nil, fmt.Errorf("%w: nil graph edge", ErrInvalid)
-		}
-		if e.Selector != "" && e.Selector != e.Resource {
-			return nil, fmt.Errorf("%w: continuous execution requires fixed resources, not selectors", ErrInvalid)
-		}
-		if e.ReadMode != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(e.Cursors) > 0 {
-			return nil, fmt.Errorf("%w: continuous execution does not accept bounded read modes or cursors", ErrInvalid)
-		}
-		if e.WriteMode == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-			e.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-		}
-		if e.WriteMode != ingestionv1.WriteMode_WRITE_MODE_APPEND {
-			return nil, fmt.Errorf("%w: continuous execution requires append", ErrInvalid)
-		}
+	if err := normalizeContinuousEdges(graph.Edges); err != nil {
+		return nil, err
 	}
 	groups, err := groupEdges(graph.Edges, nodes)
 	if err != nil {
@@ -141,10 +128,32 @@ func planContinuousSource(source filament.Source, ref filament.Ref, resources []
 	}
 	return plan, nil
 }
+
 func continuousIngestionTypes(resources []string) map[string]filament.IngestionType {
 	out := make(map[string]filament.IngestionType, len(resources))
 	for _, r := range resources {
 		out[r] = filament.IngestionFullAppend
 	}
 	return out
+}
+
+func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
+	for _, e := range edges {
+		if e == nil {
+			return fmt.Errorf("%w: nil graph edge", ErrInvalid)
+		}
+		if e.Selector != "" && e.Selector != e.Resource {
+			return fmt.Errorf("%w: continuous execution requires fixed resources, not selectors", ErrInvalid)
+		}
+		if e.ReadMode != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(e.Cursors) > 0 {
+			return fmt.Errorf("%w: continuous execution does not accept bounded read modes or cursors", ErrInvalid)
+		}
+		if e.WriteMode == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			e.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+		}
+		if e.WriteMode != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+			return fmt.Errorf("%w: continuous execution requires append", ErrInvalid)
+		}
+	}
+	return nil
 }

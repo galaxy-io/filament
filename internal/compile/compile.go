@@ -85,20 +85,9 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		}
 		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg)
 	}
-	nodes := map[string]*ingestionv1.PipelineNode{}
-	connections := map[string]filament.Connection{}
-	for _, node := range version.GetGraph().GetNodes() {
-		nodes[node.GetId()] = node
-		if _, ok := connections[node.GetConnectionId()]; !ok {
-			conn, err := c.Store.LoadConnection(ctx, tenant, node.GetConnectionId())
-			if err != nil {
-				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
-			}
-			if conn.DeletedAt != 0 {
-				return nil, fmt.Errorf("%w: connection %q is deleted", ErrPrecondition, node.GetConnectionId())
-			}
-			connections[node.GetConnectionId()] = conn
-		}
+	nodes, connections, err := c.loadGraphConnections(ctx, tenant, version.GetGraph())
+	if err != nil {
+		return nil, err
 	}
 
 	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
@@ -349,4 +338,24 @@ func structMap(s *structpb.Struct) map[string]any {
 		return map[string]any{}
 	}
 	return s.AsMap()
+}
+
+func (c *Compiler) loadGraphConnections(ctx context.Context, tenant filament.TenantID, graph *ingestionv1.PipelineGraph) (map[string]*ingestionv1.PipelineNode, map[string]filament.Connection, error) {
+	nodes := map[string]*ingestionv1.PipelineNode{}
+	connections := map[string]filament.Connection{}
+	for _, node := range graph.GetNodes() {
+		nodes[node.GetId()] = node
+		if _, ok := connections[node.GetConnectionId()]; !ok {
+			conn, err := c.Store.LoadConnection(ctx, tenant, node.GetConnectionId())
+			if err != nil {
+				return nil, nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			if conn.DeletedAt != 0 {
+				return nil, nil, fmt.Errorf("%w: connection %q is deleted", ErrPrecondition, node.GetConnectionId())
+			}
+			connections[node.GetConnectionId()] = conn
+		}
+	}
+
+	return nodes, connections, nil
 }

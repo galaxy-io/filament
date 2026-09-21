@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/galaxy-io/filament"
 	"github.com/nats-io/nats.go"
+
+	"github.com/galaxy-io/filament"
 )
 
 func managedDomain(identity, resource string, info *nats.StreamInfo) filament.DomainKey {

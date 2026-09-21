@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )

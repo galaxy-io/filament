@@ -128,14 +128,8 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	ev := &ingestionv1.EdgeValidation{FromNode: edge.GetFromNode(), ToNode: edge.GetToNode(), Resource: edge.GetResource()}
 	resp.Edges = append(resp.Edges, ev)
 
-	from, ok := nodes[edge.GetFromNode()]
-	if !ok {
-		resp.Errors = append(resp.Errors, graphError(fmt.Sprintf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetFromNode())))
-		return nil
-	}
-	to, ok := nodes[edge.GetToNode()]
-	if !ok {
-		resp.Errors = append(resp.Errors, graphError(fmt.Sprintf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetToNode())))
+	from, to := edgeNodes(edge, nodes, resp)
+	if from == nil || to == nil {
 		return nil
 	}
 
@@ -161,42 +155,9 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		edgeError(ev, "to_node", err.Error())
 		return nil
 	}
-	ev.EffectiveExecutionMode = mode
-	ev.SupportedExecutionModes = []ingestionv1.ExecutionMode{ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED}
-	if len(source.Spec().SourcePolicies) == 0 && source.Spec().Stream != nil {
-		ev.SupportedExecutionModes = nil
-	}
-	_, runtimeSupported := a.store.(filament.ContinuousRunStore)
-	_, planningSupported := source.(filament.ReplicationStreamPlanner)
-	if runtimeSupported && planningSupported && filament.ValidateContinuousConnectors(source, sink) == nil {
-		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
-	}
+	runtimeSupported := a.edgeExecutionModes(source, sink, mode, ev)
 	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		ev.EffectiveWriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-		ev.SupportedWriteModes = []ingestionv1.WriteMode{ingestionv1.WriteMode_WRITE_MODE_APPEND}
-		if !runtimeSupported {
-			edgeError(ev, "execution_mode", filament.ErrContinuousDisabled.Error())
-		}
-		if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
-			edgeError(ev, "execution_mode", err.Error())
-		}
-		if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED && edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
-			edgeError(ev, "write_mode", "continuous execution requires append")
-		}
-		if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(edge.GetCursors()) > 0 {
-			edgeError(ev, "read_mode", "continuous execution does not accept bounded read modes or cursors")
-		}
-		if edge.GetSelector() != "" && edge.GetSelector() != edge.GetResource() {
-			edgeError(ev, "resource", "continuous execution requires fixed resources, not selectors")
-		}
-		var resources []string
-		if edge.Resource != "" {
-			resources = []string{edge.Resource}
-		}
-		ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
-		if _, err := compile.PlanContinuousSource(source, ref, resources); err != nil {
-			edgeError(ev, "from_node", err.Error())
-		}
+		validateContinuousEdge(edge, from, srcConn, source, sink, runtimeSupported, ev)
 		return nil
 	}
 	srcSpec, snkSpec := source.Spec(), sink.Spec()
@@ -539,4 +500,61 @@ func (p *sourceProbes) teardown(ctx context.Context) {
 	for _, src := range p.sources {
 		_ = src.Teardown(ctx)
 	}
+}
+
+func validateContinuousEdge(edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn *filament.Connection, source filament.Source, sink filament.Sink, runtimeSupported bool, ev *ingestionv1.EdgeValidation) {
+	ev.EffectiveWriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+	ev.SupportedWriteModes = []ingestionv1.WriteMode{ingestionv1.WriteMode_WRITE_MODE_APPEND}
+	if !runtimeSupported {
+		edgeError(ev, "execution_mode", filament.ErrContinuousDisabled.Error())
+	}
+	if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
+		edgeError(ev, "execution_mode", err.Error())
+	}
+	if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED && edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+		edgeError(ev, "write_mode", "continuous execution requires append")
+	}
+	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED || len(edge.GetCursors()) > 0 {
+		edgeError(ev, "read_mode", "continuous execution does not accept bounded read modes or cursors")
+	}
+	if edge.GetSelector() != "" && edge.GetSelector() != edge.GetResource() {
+		edgeError(ev, "resource", "continuous execution requires fixed resources, not selectors")
+	}
+	var resources []string
+	if edge.Resource != "" {
+		resources = []string{edge.Resource}
+	}
+	ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
+	if _, err := compile.PlanContinuousSource(source, ref, resources); err != nil {
+		edgeError(ev, "from_node", err.Error())
+	}
+}
+
+func (a *Server) edgeExecutionModes(source filament.Source, sink filament.Sink, mode ingestionv1.ExecutionMode, ev *ingestionv1.EdgeValidation) bool {
+	ev.EffectiveExecutionMode = mode
+	ev.SupportedExecutionModes = []ingestionv1.ExecutionMode{ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED}
+	if len(source.Spec().SourcePolicies) == 0 && source.Spec().Stream != nil {
+		ev.SupportedExecutionModes = nil
+	}
+	_, runtimeSupported := a.store.(filament.ContinuousRunStore)
+	_, planningSupported := source.(filament.ReplicationStreamPlanner)
+	if runtimeSupported && planningSupported && filament.ValidateContinuousConnectors(source, sink) == nil {
+		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
+	}
+	return runtimeSupported
+}
+
+func edgeNodes(edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, resp *ingestionv1.ValidatePipelineResponse) (*ingestionv1.PipelineNode, *ingestionv1.PipelineNode) {
+	from, ok := nodes[edge.GetFromNode()]
+	if !ok {
+		resp.Errors = append(resp.Errors, graphError(fmt.Sprintf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetFromNode())))
+		return nil, nil
+	}
+	to, ok := nodes[edge.GetToNode()]
+	if !ok {
+		resp.Errors = append(resp.Errors, graphError(fmt.Sprintf("edge %s -> %s references unknown node %q", edge.GetFromNode(), edge.GetToNode(), edge.GetToNode())))
+		return nil, nil
+	}
+
+	return from, to
 }

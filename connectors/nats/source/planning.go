@@ -74,6 +74,7 @@ func consumerPlan(bindings []streamBinding) (string, map[string]any) {
 	return "nats-" + hex.EncodeToString(sum[:]), map[string]any{"streams": bindings}
 }
 
+// BindReplicationStream validates and binds source configuration to the admitted consumer identity.
 func (*Source) BindReplicationStream(config map[string]any, admitted filament.ReplicationStream) (map[string]any, error) {
 	if subjects, ok := admitted.ConsumerConfig["subjects"]; ok {
 		if admitted.ConsumerName != "filament-managed" {
