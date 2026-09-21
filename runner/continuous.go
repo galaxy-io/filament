@@ -111,7 +111,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
 	}
-	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}

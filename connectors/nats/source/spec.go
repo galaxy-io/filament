@@ -6,7 +6,6 @@ import "github.com/galaxy-io/filament"
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{Name: "nats", DisplayName: "NATS JetStream", Description: "Consume subject patterns such as orders.> with automatically managed durable consumers.", Version: "1", Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 		{Name: "url", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "NATS server URL"},
-		{Name: "source_identity", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Stable identity for this NATS account"},
 		{Name: "credentials_file", Type: filament.FieldString, Scope: filament.ScopeConnection, Help: "Credentials file available on every worker"},
 		{Name: "token", Type: filament.FieldSecret, Scope: filament.ScopeConnection},
 		{Name: "subjects", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "Optional default subject resources, e.g. orders.> and products.>. Consumers are managed automatically."},

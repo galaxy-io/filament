@@ -25,10 +25,8 @@ func New() *Source { return &Source{} }
 
 // Validate checks connection settings. Stream and consumer are pipeline settings.
 func (*Source) Validate(cfg filament.Config) error {
-	for _, name := range []string{"url", "source_identity"} {
-		if cfg.String(name) == "" {
-			return fmt.Errorf("nats: %s is required", name)
-		}
+	if cfg.String("url") == "" {
+		return fmt.Errorf("nats: url is required")
 	}
 	return nil
 }

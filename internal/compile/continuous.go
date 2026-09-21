@@ -72,7 +72,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		}
 		resources, _ := routeResources(group)
 		streamID := uuid.NewString()
-		plan, err := planContinuousSource(source, sourceRef, resources, streamID)
+		plan, err := planContinuousSource(source, sourceRef, resources, streamID, group.source.ConnectionId)
 		if err != nil {
 			return nil, err
 		}
@@ -108,16 +108,16 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 
 // PlanContinuousSource delegates provider config and fixed membership to the
 // source planner. API validation and run compilation use this same pure path.
-func PlanContinuousSource(source filament.Source, ref filament.Ref, resources []string) (filament.ReplicationStreamPlan, error) {
-	return planContinuousSource(source, ref, resources, uuid.NewString())
+func PlanContinuousSource(source filament.Source, ref filament.Ref, resources []string, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
+	return planContinuousSource(source, ref, resources, uuid.NewString(), sourceConnectionID)
 }
 
-func planContinuousSource(source filament.Source, ref filament.Ref, resources []string, streamID string) (filament.ReplicationStreamPlan, error) {
+func planContinuousSource(source filament.Source, ref filament.Ref, resources []string, streamID, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
 	planner, ok := source.(filament.ReplicationStreamPlanner)
 	if !ok {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("%w: source cannot plan durable stream admission", ErrPrecondition)
 	}
-	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{ReplicationStreamID: streamID, Config: filament.NewConfig(ref.Config), Resources: resources})
+	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{ReplicationStreamID: streamID, SourceConnectionID: sourceConnectionID, Config: filament.NewConfig(ref.Config), Resources: resources})
 	if err != nil {
 		return plan, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}

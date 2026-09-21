@@ -542,7 +542,7 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 		resources = []string{edge.Resource}
 	}
 	ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
-	sourcePlan, planErr := compile.PlanContinuousSource(source, ref, resources)
+	sourcePlan, planErr := compile.PlanContinuousSource(source, ref, resources, srcConn.ID)
 	if planErr != nil {
 		edgeError(ev, "from_node", planErr.Error())
 	}

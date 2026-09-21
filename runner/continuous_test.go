@@ -71,10 +71,11 @@ func (s *continuousTestStore) GetEpoch(context.Context, filament.EpochLookup) (f
 }
 
 type continuousTestSource struct {
-	op      rowmodel.Operation
-	keys    []string
-	idle    bool
-	started sync.Once
+	sourceConnectionID string
+	op                 rowmodel.Operation
+	keys               []string
+	idle               bool
+	started            sync.Once
 	filament.Source
 	store  *continuousTestStore
 	writer arrowbatch.RowWriter
@@ -93,7 +94,8 @@ func (*continuousTestSource) Spec() filament.ConnectorSpec {
 
 func (*continuousTestSource) Configure(context.Context, filament.Config) error { return nil }
 func (*continuousTestSource) Teardown(context.Context) error                   { return nil }
-func (s *continuousTestSource) OpenStream(context.Context, filament.StreamOpenOpts) (filament.StreamSession, error) {
+func (s *continuousTestSource) OpenStream(_ context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
+	s.sourceConnectionID = opts.SourceConnectionID
 	return s, nil
 }
 func (s *continuousTestSource) Close(context.Context) error { return nil }
@@ -451,5 +453,16 @@ func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {
 	}
 	if !slices.Equal(sink.resources, []string{"events", "other", "events"}) || !slices.Equal(sink.ops, []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}) || src.ack != 1 {
 		t.Fatalf("resources=%v ops=%v ack=%d", sink.resources, sink.ops, src.ack)
+	}
+}
+
+func TestContinuousPassesSourceConnectionIdentity(t *testing.T) {
+	cfg, _, src, _ := continuousFixture(t)
+	cfg.Spec.SourceConnectionID = "source-connection"
+	if err := RunContinuous(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	if src.sourceConnectionID != cfg.Spec.SourceConnectionID {
+		t.Fatalf("stream connection ID = %q", src.sourceConnectionID)
 	}
 }

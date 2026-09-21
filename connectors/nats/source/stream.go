@@ -23,6 +23,15 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if s.js == nil || opts.CheckAuthority == nil || len(opts.Resources) == 0 {
 		return nil, errors.New("nats: configured source, authority check and selected resources required")
 	}
+	identity, err := sourceIdentity(s.identity, opts.SourceConnectionID)
+	if err != nil {
+		return nil, err
+	}
+	// Each session gets its own binding; reusing a configured source must not
+	// retain an identity derived for a previous connection.
+	bound := *s
+	bound.identity = identity
+	s = &bound
 	if len(s.bindings) == 0 {
 		return s.openSubjects(ctx, opts)
 	}

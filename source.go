@@ -194,6 +194,8 @@ type ReplicationAware interface {
 // ReplicationStreamPlanningRequest is the connector-owned input for planning
 // an independently advancing source consumer.
 type ReplicationStreamPlanningRequest struct {
+	// SourceConnectionID is the stable Filament connection identity, independent of runs.
+	SourceConnectionID  string
 	ReplicationStreamID string
 	Config              Config
 	// Resources fixes continuous membership. Empty asks the connector for its default.

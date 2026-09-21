@@ -19,3 +19,15 @@ func consumerDomain(identity, physical string, info *nats.StreamInfo) filament.D
 	incarnation := fmt.Sprintf("%d:%s%d:%s%s", len(identity), identity, len(physical), physical, info.Created.UTC().Format(time.RFC3339Nano))
 	return filament.DomainKey{Domain: physical, Incarnation: incarnation}
 }
+
+// sourceIdentity preserves legacy checkpoint namespaces exactly. New connections
+// use their stable Filament ID; neither endpoints nor worker attempts are identity.
+func sourceIdentity(legacy, connectionID string) (string, error) {
+	if legacy != "" {
+		return legacy, nil
+	}
+	if connectionID == "" {
+		return "", fmt.Errorf("nats: source connection ID is required for stream identity")
+	}
+	return connectionID, nil
+}

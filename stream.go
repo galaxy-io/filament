@@ -149,6 +149,8 @@ func ValidateContinuousConnectors(source Source, sink Sink) error {
 
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
+	// SourceConnectionID identifies the connection used during stream planning.
+	SourceConnectionID string
 	// CheckAuthority verifies current admitted ownership before provider acknowledgements,
 	// including already-certified redeliveries suppressed during Read. It must honor
 	// cancellation and be safe alongside lease renewal. Resume positions alone do

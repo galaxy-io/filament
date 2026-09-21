@@ -14,9 +14,13 @@ import (
 var _ filament.ReplicationStreamPlanner = (*Source)(nil)
 
 // PlanReplicationStream resolves fixed resource membership without network access.
-// Every selected stream has its own existing, user-owned durable consumer.
+// The connection identity namespaces progress independently of consumer attempts.
 func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
 	if err := s.Validate(req.Config); err != nil {
+		return filament.ReplicationStreamPlan{}, err
+	}
+	identity, err := sourceIdentity(req.Config.String("source_identity"), req.SourceConnectionID)
+	if err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}
 	if !req.Config.Has("streams") && !req.Config.Has("stream") && !req.Config.Has("consumer") {
@@ -42,7 +46,7 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 				return filament.ReplicationStreamPlan{}, fmt.Errorf("nats: duplicate subject resource %q", subject)
 			}
 		}
-		return filament.ReplicationStreamPlan{Resources: subjects, ConsumerName: "filament-managed", ConsumerConfig: map[string]any{"subjects": subjects}, ContinuityConfig: map[string]any{"source_identity": req.Config.String("source_identity"), "subjects": subjects}}, nil
+		return filament.ReplicationStreamPlan{Resources: subjects, ConsumerName: "filament-managed", ConsumerConfig: map[string]any{"subjects": subjects}, ContinuityConfig: map[string]any{"source_identity": identity, "subjects": subjects}}, nil
 	}
 	if req.Config.Has("subjects") {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("nats: subject resources cannot be combined with explicit stream consumers")
@@ -60,7 +64,7 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 		resources[i] = b.Stream
 	}
 	name, config := consumerPlan(selected)
-	return filament.ReplicationStreamPlan{Resources: resources, ConsumerName: name, ConsumerConfig: config, ContinuityConfig: map[string]any{"url": req.Config.String("url"), "source_identity": req.Config.String("source_identity"), "streams": selected}}, nil
+	return filament.ReplicationStreamPlan{Resources: resources, ConsumerName: name, ConsumerConfig: config, ContinuityConfig: map[string]any{"url": req.Config.String("url"), "source_identity": identity, "streams": selected}}, nil
 }
 
 // The admitted consumer name identifies the logical set, not an extra provider
