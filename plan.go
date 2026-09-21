@@ -8,7 +8,8 @@ import (
 // ResolveIngestionPlan validates each of the run's ingestion types against
 // both connector specs — the source's narrowed by its connection config — and
 // binds one write policy per resource from that resource's own type,
-// discovering primary keys where the policy requires them.
+// discovering primary keys where the policy requires them. Continuous execution
+// negotiates native stream guarantees and epoch policies through the same entry point.
 func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpec) (IngestionPlan, error) {
 	if spec.Options.Execution.Normalize() == ExecutionContinuous {
 		return resolveContinuousIngestionPlan(ctx, src, snk, spec)

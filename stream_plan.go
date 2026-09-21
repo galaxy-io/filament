@@ -135,6 +135,9 @@ func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]Write
 		if ok && !sameStreamCapability(submitted.Capability, plan.Policy.Capability) {
 			return nil, "", fmt.Errorf("continuous planning: submitted policy for %q differs from the sink declaration", resource)
 		}
+		if ok && submitted.Version != (VersionPolicy{}) && submitted.Version != plan.Policy.Version {
+			return nil, "", fmt.Errorf("continuous planning: unsupported version policy for %q", resource)
+		}
 		policy := plan.Policy
 		policy.Resource = resource
 		policies[resource] = policy
@@ -170,6 +173,13 @@ func resolveContinuousIngestionPlan(ctx context.Context, source Source, sink Sin
 			}
 			if len(keys) == 0 {
 				return IngestionPlan{}, fmt.Errorf("continuous planning: resource %q requires a primary key", resource)
+			}
+			submitted, ok := spec.WritePolicies[resource]
+			if !ok {
+				submitted = spec.WritePolicies[""]
+			}
+			if len(submitted.Keys) > 0 && !slices.Equal(submitted.Keys, keys) {
+				return IngestionPlan{}, fmt.Errorf("continuous planning: primary key changed for %q", resource)
 			}
 			policy.Keys = slices.Clone(keys)
 		}
