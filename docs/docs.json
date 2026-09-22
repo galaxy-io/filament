@@ -162,6 +162,7 @@
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
               "pages/connectors/sinks/redshift",
+              "pages/connectors/sinks/meilisearch",
               "pages/connectors/sinks/iceberg",
               "pages/connectors/sinks/gcs",
               "pages/connectors/sinks/aws-s3",
