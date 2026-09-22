@@ -1,0 +1,175 @@
+import { useMemo } from "react";
+
+import { create } from "@bufbuild/protobuf";
+import { keepPreviousData } from "@tanstack/react-query";
+
+import { useDebouncedValue } from "@galaxy-io/dls/inputs/hooks";
+
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import { ValidateTransformRequestSchema } from "@/gen/ingestion/v1/transformations_pb";
+
+import { TRANSFORM_VALIDATION_DEBOUNCE_MS } from "@/components/transform/constants";
+import {
+  getTransformOutputPath,
+  getTransformStepIssues,
+  getTransformStepPath,
+  groupTransformIssuesByStep,
+  mapTransformExpressionTypes,
+} from "@/components/transform/grammar/paths";
+import {
+  getTransformOutputName,
+  isTransformOutputInPlace,
+  serializeTransformDefinition,
+} from "@/components/transform/grammar/serialize";
+import { usePipelineTransformFieldsIssues } from "@/components/transform/hooks/usePipelineTransformFieldsIssues";
+import {
+  usePipelineTransformFieldsEnvironment,
+  usePipelineTransformFieldsState,
+} from "@/components/transform/PipelineTransformFieldsProvider";
+import {
+  type PipelineTransformFieldsDraft,
+  type PipelineTransformFieldsEditor,
+  TransformStepKind,
+} from "@/components/transform/types";
+import {
+  getTransformColumnType,
+  getTransformExprType,
+  getTransformStepColumn,
+  isTransformExprComplete,
+  placeTransformDraft,
+} from "@/components/transform/utils";
+import {
+  getTransformDraftError,
+  isTransformDraftComplete,
+} from "@/components/transform/validation";
+
+import { useValidateTransformQuery } from "@/api/queries/transforms";
+
+const NO_COLUMNS: ResourceColumn[] = [];
+const NO_ERRORS = new Map<string, string[]>();
+const NO_TYPES = new Map<string, string>();
+
+export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFieldsDraft) => {
+  const { stepsByResource } = usePipelineTransformFieldsState();
+  const { columnsByResource, sourceConnectionId, functionsByName, grammarVersion, isReadOnly } =
+    usePipelineTransformFieldsEnvironment();
+  const savedIssues = usePipelineTransformFieldsIssues(draft.resource);
+  const requiresValidation = sourceConnectionId !== "" && draft.resource !== "";
+
+  const prefixDefinition = useMemo(() => {
+    if (draft.resource === "") return undefined;
+    const placed = placeTransformDraft(stepsByResource, draft);
+    const steps = (placed.stepsByResource.get(draft.resource) ?? []).slice(0, placed.index);
+    return serializeTransformDefinition(new Map([[draft.resource, steps]]), grammarVersion);
+  }, [draft, grammarVersion, stepsByResource]);
+  const hasPrefix = requiresValidation && prefixDefinition !== undefined;
+  const prefix = useValidateTransformQuery({
+    input: create(ValidateTransformRequestSchema, {
+      sourceConnectionId,
+      resource: draft.resource,
+      transform: prefixDefinition,
+    }),
+    options: { enabled: hasPrefix },
+  });
+  const columns = hasPrefix
+    ? (prefix.data?.outputColumns ?? NO_COLUMNS)
+    : (columnsByResource.get(draft.resource) ?? NO_COLUMNS);
+  const prefixError =
+    prefix.error !== null ? "Unable to load the columns available before this step." : null;
+  const isPrefixPending = hasPrefix && prefix.data === undefined && prefixError === null;
+
+  const isComplete = isTransformDraftComplete(draft, columns, functionsByName);
+  const clientError = getTransformDraftError(draft, functionsByName);
+
+  const debounced = useDebouncedValue(draft, TRANSFORM_VALIDATION_DEBOUNCE_MS);
+  const isSettled = debounced === draft;
+  const placed = useMemo(
+    () => placeTransformDraft(stepsByResource, debounced),
+    [debounced, stepsByResource],
+  );
+  const definition = useMemo(
+    () => serializeTransformDefinition(placed.stepsByResource, grammarVersion),
+    [placed, grammarVersion],
+  );
+  const validation = useValidateTransformQuery({
+    input: create(ValidateTransformRequestSchema, {
+      sourceConnectionId,
+      resource: debounced.resource,
+      transform: definition,
+    }),
+    options: {
+      enabled: requiresValidation && isSettled && !isPrefixPending && prefixError === null,
+      placeholderData: keepPreviousData,
+    },
+  });
+  const stepPath = getTransformStepPath(debounced.resource, placed.index);
+  const isFresh = isSettled && validation.data !== undefined && !validation.isPlaceholderData;
+  const showsIssues = isFresh && isComplete && clientError === null;
+  const validationError =
+    isSettled && validation.error !== null ? "Unable to validate this transformation." : null;
+
+  const { errors, downstream } = useMemo(() => {
+    if (!showsIssues || !validation.data) return { errors: NO_ERRORS, downstream: [] };
+    const steps = placed.stepsByResource.get(debounced.resource) ?? [];
+    const downstream = [...groupTransformIssuesByStep(validation.data.issues)].flatMap(
+      ([index, messages]) =>
+        index > placed.index
+          ? messages
+              .filter((message) => !savedIssues.get(steps[index]?.id ?? "")?.includes(message))
+              .map((message) => `Step ${index + 1}: ${message}`)
+          : [],
+    );
+    return { errors: getTransformStepIssues(validation.data.issues, stepPath), downstream };
+  }, [debounced.resource, placed, savedIssues, showsIssues, stepPath, validation.data]);
+  const types = useMemo(
+    () =>
+      validation.data
+        ? mapTransformExpressionTypes(validation.data.expressionTypes, stepPath)
+        : NO_TYPES,
+    [stepPath, validation.data],
+  );
+
+  const editor: PipelineTransformFieldsEditor = {
+    columns,
+    types,
+    errors,
+    isDisabled: isReadOnly || isPrefixPending || prefixError !== null,
+  };
+
+  const columnType = getTransformColumnType(columns, getTransformStepColumn(draft.step)) ?? "";
+  const output = draft.step.kind === TransformStepKind.COMPUTE ? draft.step.outputs[0] : undefined;
+  const isMatchingRows = draft.step.kind === TransformStepKind.COMPUTE && draft.step.where !== null;
+  const outputType =
+    output && isTransformExprComplete(output.expr, functionsByName)
+      ? getTransformExprType(output.expr, getTransformOutputPath(output, isMatchingRows), editor)
+      : undefined;
+  const typeSummary =
+    outputType === undefined
+      ? columnType
+      : columnType !== "" && columnType !== outputType
+        ? `${columnType} → ${outputType}`
+        : outputType;
+  const inPlaceWarning =
+    output &&
+    !isMatchingRows &&
+    isTransformOutputInPlace(output, false) &&
+    outputType !== undefined &&
+    columnType !== "" &&
+    columnType !== outputType
+      ? `${getTransformOutputName(output, false)} is ${columnType}; this expression returns ${outputType}.`
+      : null;
+
+  const ownMessages = [...errors.values()].flat();
+  const issues = [prefixError, clientError, validationError, ...ownMessages].filter(
+    (message) => message !== null,
+  );
+  const warnings = [inPlaceWarning, ...downstream].filter((message) => message !== null);
+  const isSaveDisabled =
+    isReadOnly ||
+    !isComplete ||
+    issues.length > 0 ||
+    isPrefixPending ||
+    (requiresValidation && !isFresh);
+
+  return { editor, issues, warnings, typeSummary, isSaveDisabled };
+};

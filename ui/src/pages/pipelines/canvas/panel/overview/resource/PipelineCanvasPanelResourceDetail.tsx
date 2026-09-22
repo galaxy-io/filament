@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
@@ -9,6 +11,12 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
+
+import PipelineTransformFieldsProvider from "@/components/transform/PipelineTransformFieldsProvider";
+import type { TransformDefinition } from "@/components/transform/types";
+
+import PendingLayout from "@/layouts/PendingLayout";
+import { LayoutSize } from "@/layouts/types";
 
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
@@ -125,6 +133,14 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
       ],
     });
 
+  const handleTransformChange = (transform: TransformDefinition | undefined) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      transform,
+    });
+
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
   const readModeSelectOptions: SelectInputOption[] = readModeOptions.map((mode) => ({
@@ -224,12 +240,18 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               ))}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
-        <PipelineCanvasPanelResourceTransformSection
-          edge={edge}
-          sourceConnectionId={sourceConnectionId}
-          resources={coveredResources}
-          columnsByResource={columnsByResource}
-        />
+        <Suspense fallback={<PendingLayout size={LayoutSize.SMALL} />}>
+          <PipelineTransformFieldsProvider
+            definition={edge.data?.transform}
+            onChange={handleTransformChange}
+            resources={coveredResources}
+            columnsByResource={columnsByResource}
+            sourceConnectionId={sourceConnectionId}
+            isReadOnly={isReadOnly}
+          >
+            <PipelineCanvasPanelResourceTransformSection />
+          </PipelineTransformFieldsProvider>
+        </Suspense>
       </PipelineCanvasPanelBody>
     </>
   );
