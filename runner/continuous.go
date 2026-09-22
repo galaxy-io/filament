@@ -50,13 +50,8 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		return err
 	}
 	spec := cfg.Spec
-	if cfg.Bus != nil {
-		cfg.events = newEmitter(ctx, cfg.Bus, cfg.Log, spec.Tenant, spec.Run)
-		defer func() {
-			defer cfg.events.finish()()
-			emit(cfg.events, events.StreamAttemptEnded, "", events.StreamAttemptEndedEvent{Error: continuousReason(result)})
-		}()
-	}
+	finishEvents := startContinuousEvents(ctx, &cfg)
+	defer func() { finishEvents(result) }()
 	dst := cfg.Sink.(filament.StreamingSink)
 	lease := filament.LeaseToken{Tenant: spec.Tenant, Attempt: *spec.StreamAttempt}
 	cleanupInstalled := false
@@ -100,21 +95,10 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 			closeErr = errors.Join(closeErr, dst.CloseSession(c))
 		}
 		closeErr = errors.Join(closeErr, cfg.Source.Teardown(c))
-		hbErr := hb.Stop(c)
-		termination := filament.AttemptClean
-		if closeErr != nil || hbErr != nil {
-			termination = filament.AttemptUnproven
-		}
-		endErr := cfg.Store.EndAttempt(c, filament.EndAttemptRequest{Lease: lease, Termination: termination, Reason: continuousReason(result)})
-		result = errors.Join(result, closeErr, hbErr, endErr)
+		result = finishContinuousAttempt(c, cfg, lease, result, errors.Join(closeErr, hb.Stop(c)))
 	}()
 	cleanupInstalled = true
-	if cfg.events != nil {
-		emit(cfg.events, events.RunStarted, "", events.RunStartedEvent{})
-		for _, resource := range spec.Resources {
-			emit(cfg.events, events.ResourceStarted, resource, events.ResourceStartedEvent{})
-		}
-	}
+	emitContinuousStarted(cfg)
 	plan, err := prepareContinuousConnectors(runCtx, &cfg)
 	if err != nil {
 		return err
@@ -124,32 +108,11 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
 	}
-	var reportResourceError func(context.Context, string, error) error
-	if reporter, ok := cfg.Store.(filament.StreamResourceErrorStore); ok {
-		reportResourceError = func(ctx context.Context, resource string, issue error) error {
-			message := ""
-			if issue != nil {
-				message = issue.Error()
-			}
-			if err := reporter.SetStreamResourceError(ctx, lease, resource, message); err != nil {
-				return err
-			}
-			if issue != nil && cfg.events != nil {
-				emit(cfg.events, events.ResourceFailed, resource, events.ResourceFailedEvent{Error: message})
-			}
-			return nil
-		}
-	}
-	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{ReportResourceError: reportResourceError, SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
-	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
-	if cfg.events != nil {
-		cfg.pipelineEvents = &continuousPipelineEvents{emitter: cfg.events}
-		pipelineConfig.Emit = cfg.pipelineEvents.observe
-	}
-	p, err = pipeline.NewStream(pipelineConfig, plan.Ordering)
+	p, err = newContinuousPipeline(&cfg, plan.Ordering)
 	if err != nil {
 		return err
 	}
@@ -353,4 +316,64 @@ func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (fi
 		return filament.IngestionPlan{}, err
 	}
 	return plan, nil
+}
+
+func continuousResourceErrorReporter(cfg ContinuousConfig, lease filament.LeaseToken) func(context.Context, string, error) error {
+	var reportResourceError func(context.Context, string, error) error
+	if reporter, ok := cfg.Store.(filament.StreamResourceErrorStore); ok {
+		reportResourceError = func(ctx context.Context, resource string, issue error) error {
+			message := ""
+			if issue != nil {
+				message = issue.Error()
+			}
+			if err := reporter.SetStreamResourceError(ctx, lease, resource, message); err != nil {
+				return err
+			}
+			if issue != nil && cfg.events != nil {
+				emit(cfg.events, events.ResourceFailed, resource, events.ResourceFailedEvent{Error: message})
+			}
+			return nil
+		}
+	}
+	return reportResourceError
+}
+
+func newContinuousPipeline(cfg *ContinuousConfig, ordering filament.Ordering) (*pipeline.Pipeline, error) {
+	spec := cfg.Spec
+	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	if cfg.events != nil {
+		cfg.pipelineEvents = &continuousPipelineEvents{emitter: cfg.events}
+		pipelineConfig.Emit = cfg.pipelineEvents.observe
+	}
+	return pipeline.NewStream(pipelineConfig, ordering)
+}
+
+func emitContinuousStarted(cfg ContinuousConfig) {
+	spec := cfg.Spec
+	if cfg.events != nil {
+		emit(cfg.events, events.RunStarted, "", events.RunStartedEvent{})
+		for _, resource := range spec.Resources {
+			emit(cfg.events, events.ResourceStarted, resource, events.ResourceStartedEvent{})
+		}
+	}
+}
+
+func startContinuousEvents(ctx context.Context, cfg *ContinuousConfig) func(error) {
+	if cfg.Bus == nil {
+		return func(error) {}
+	}
+	cfg.events = newEmitter(ctx, cfg.Bus, cfg.Log, cfg.Spec.Tenant, cfg.Spec.Run)
+	return func(result error) {
+		defer cfg.events.finish()()
+		emit(cfg.events, events.StreamAttemptEnded, "", events.StreamAttemptEndedEvent{Error: continuousReason(result)})
+	}
+}
+
+func finishContinuousAttempt(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, result, cleanupErr error) error {
+	termination := filament.AttemptClean
+	if cleanupErr != nil {
+		termination = filament.AttemptUnproven
+	}
+	endErr := cfg.Store.EndAttempt(ctx, filament.EndAttemptRequest{Lease: lease, Termination: termination, Reason: continuousReason(result)})
+	return errors.Join(result, cleanupErr, endErr)
 }

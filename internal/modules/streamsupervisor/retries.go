@@ -1,8 +1,9 @@
 package streamsupervisor
 
 import (
-	"github.com/galaxy-io/filament"
 	"time"
+
+	"github.com/galaxy-io/filament"
 )
 
 const maxRetries = 5

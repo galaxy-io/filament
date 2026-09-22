@@ -85,14 +85,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
 		policies := continuousWritePolicies(resources, writePlan.Policy)
-		for resource, policy := range policies {
-			for _, edge := range graph.Edges {
-				if edge.FromNode == group.from && edge.ToNode == group.to && edge.Resource == resource && edge.DestinationResource != "" {
-					policy.DestinationResource = edge.DestinationResource
-				}
-			}
-			policies[resource] = policy
-		}
+		applyContinuousDestinations(policies, graph.Edges, group)
 		// Conservative fingerprint: no guessing that an edited endpoint/config is
 		// compatible. A changed fingerprint requires a new generation after stop.
 		raw, err := json.Marshal(struct {
@@ -173,4 +166,15 @@ func continuousWritePolicies(resources []string, policy filament.WritePolicy) ma
 		policies[resource] = policy
 	}
 	return policies
+}
+
+func applyContinuousDestinations(policies map[string]filament.WritePolicy, edges []*ingestionv1.PipelineEdge, group *routeGroup) {
+	for resource, policy := range policies {
+		for _, edge := range edges {
+			if edge.FromNode == group.from && edge.ToNode == group.to && edge.Resource == resource && edge.DestinationResource != "" {
+				policy.DestinationResource = edge.DestinationResource
+			}
+		}
+		policies[resource] = policy
+	}
 }
