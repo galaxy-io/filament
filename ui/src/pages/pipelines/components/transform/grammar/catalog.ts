@@ -37,11 +37,11 @@ export const getTransformArgumentTypes = (
   return spec?.logicalTypes ?? [];
 };
 
-export const getTransformCallSlotCount = (fn: TransformFunction): number =>
-  Math.max(0, fn.args.length - 1);
-
 export const isTransformVariadic = (fn: TransformFunction): boolean =>
   fn.args[fn.args.length - 1]?.isVariadic === true;
+
+export const getTransformCallSlotCount = (fn: TransformFunction): number =>
+  Math.max(fn.args.length - 1, isTransformVariadic(fn) ? 1 : 0);
 
 export const getTransformLiteralKind = (
   logicalTypes: string[],
