@@ -1,0 +1,2185 @@
+# Read contract: https://developer.monday.com/api-reference/llms.txt
+# Queries validated against https://api.monday.com/v2/get_schema?version=2026-07
+# Coverage, read-mode decisions, and live-validation limits: docs/pages/connectors/sources/monday.mdx
+version: 1
+name: monday
+display_name: monday.com
+description: Read monday.com boards, items, collaboration, documents, and account data.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-monday-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-monday-light.svg
+config:
+  api_token:
+    type: secret
+    required: true
+    help: Personal monday.com API token from Developers > API token
+connection:
+  base_url: https://api.monday.com
+  auth:
+    header:
+      name: Authorization
+      value: config.api_token
+  headers:
+    API-Version: 2026-07
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 2
+defaults:
+  method: POST
+  response:
+    error:
+      path: errors
+      when_present: true
+      message_path: errors.0.message
+resources:
+  - name: account
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      slug: string?
+      tier: string?
+      country_code: string?
+      created_at: timestamptz?
+      plan: json?
+      products: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Account {
+            account {
+              id
+              name
+              slug
+              tier
+              country_code
+              created_at
+              first_day_of_the_week
+              show_timeline_weekends
+              active_members_count
+              is_during_trial
+              is_trial_expired
+              sign_up_product_kind
+              plan {
+                max_users
+                period
+                tier
+                version
+              }
+              products {
+                id
+                kind
+                tier
+                default_workspace_id
+              }
+            }
+          }
+    response:
+      records: $.data.account
+      pagination: none
+      cardinality: one
+  - name: users
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      email: string?
+      kind: string?
+      status: string?
+      account_id: string?
+      created_at: timestamptz?
+      teams: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Users($limit: Int!, $page: Int!) {
+            users(limit: $limit, page: $page, status: [ACTIVE, INACTIVE, PENDING]) {
+              id
+              name
+              email
+              kind
+              status
+              account_id
+              title
+              phone
+              mobile_phone
+              location
+              country_code
+              time_zone_identifier
+              created_at
+              is_deleted
+              is_email_confirmed
+              teams {
+                id
+                name
+              }
+            }
+          }
+    response:
+      records: $.data.users
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: teams
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      picture_url: string?
+      owners: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Teams {
+            teams {
+              id
+              name
+              picture_url
+              owners {
+                id
+              }
+            }
+          }
+    response:
+      records: $.data.teams
+      pagination: none
+  - name: workspaces
+    path: /v2
+    primary_key: [ id ]
+    capture:
+      workspace_id: id
+    fields:
+      id: string
+      name: string?
+      kind: string?
+      description: string?
+      state: string?
+      created_at: timestamptz?
+      account_product: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Workspaces($limit: Int!, $page: Int!) {
+            workspaces(limit: $limit, page: $page, membership_kind: all) {
+              id
+              name
+              kind
+              description
+              state
+              created_at
+              is_default_workspace
+              account_product {
+                id
+                kind
+                tier
+                default_workspace_id
+              }
+            }
+          }
+    response:
+      records: $.data.workspaces
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: folders
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      color: string?
+      created_at: timestamptz?
+      owner_id: string?
+      parent_id: { path: parent.id, type: string, nullable: true }
+      workspace_id: { path: workspace.id, type: string, nullable: true }
+      children: json?
+      sub_folders: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Folders($limit: Int!, $page: Int!) {
+            folders(limit: $limit, page: $page) {
+              id
+              name
+              color
+              created_at
+              owner_id
+              parent {
+                id
+              }
+              workspace {
+                id
+              }
+              children {
+                id
+              }
+              sub_folders {
+                id
+              }
+            }
+          }
+    response:
+      records: $.data.folders
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: boards
+    path: /v2
+    primary_key: [ id ]
+    capture:
+      board_id: id
+    fields:
+      id: string
+      name: string?
+      description: string?
+      state: string?
+      board_kind: string?
+      hierarchy_type: string?
+      workspace_id: string?
+      board_folder_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      url: string?
+      owners: json?
+      subscribers: json?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Boards($limit: Int!, $page: Int!) {
+            boards(
+              limit: $limit
+              page: $page
+              state: active
+              hierarchy_types: [classic, multi_level]
+            ) {
+              id
+              name
+              description
+              state
+              board_kind
+              hierarchy_type
+              workspace_id
+              board_folder_id
+              created_at
+              updated_at
+              url
+              permissions
+              items_count
+              item_terminology
+              creator {
+                id
+              }
+              owners {
+                id
+              }
+              subscribers {
+                id
+              }
+              tags {
+                id
+                name
+                color
+              }
+            }
+          }
+    response:
+      records: $.data.boards
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: archived_boards
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      state: string?
+      board_kind: string?
+      hierarchy_type: string?
+      workspace_id: string?
+      board_folder_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      url: string?
+      owners: json?
+      subscribers: json?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ArchivedBoards($limit: Int!, $page: Int!) {
+            boards(
+              limit: $limit
+              page: $page
+              state: archived
+              hierarchy_types: [classic, multi_level]
+            ) {
+              id
+              name
+              description
+              state
+              board_kind
+              hierarchy_type
+              workspace_id
+              board_folder_id
+              created_at
+              updated_at
+              url
+              permissions
+              items_count
+              item_terminology
+              creator {
+                id
+              }
+              owners {
+                id
+              }
+              subscribers {
+                id
+              }
+              tags {
+                id
+                name
+                color
+              }
+            }
+          }
+    response:
+      records: $.data.boards
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: deleted_boards
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      state: string?
+      board_kind: string?
+      hierarchy_type: string?
+      workspace_id: string?
+      board_folder_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      url: string?
+      owners: json?
+      subscribers: json?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query DeletedBoards($limit: Int!, $page: Int!) {
+            boards(
+              limit: $limit
+              page: $page
+              state: deleted
+              hierarchy_types: [classic, multi_level]
+            ) {
+              id
+              name
+              description
+              state
+              board_kind
+              hierarchy_type
+              workspace_id
+              board_folder_id
+              created_at
+              updated_at
+              url
+              permissions
+              items_count
+              item_terminology
+              creator {
+                id
+              }
+              owners {
+                id
+              }
+              subscribers {
+                id
+              }
+              tags {
+                id
+                name
+                color
+              }
+            }
+          }
+    response:
+      records: $.data.boards
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: columns
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      title: string?
+      type: string?
+      description: string?
+      archived: bool?
+      settings: json?
+      capabilities: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Columns($board: ID!) {
+            boards(ids: [$board]) {
+              columns {
+                id
+                title
+                type
+                description
+                archived
+                width
+                settings
+                revision
+                capabilities {
+                  calculated {
+                    function
+                    calculated_type
+                  }
+                  visibility
+                }
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.columns
+      pagination: none
+  - name: groups
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      title: string?
+      color: string?
+      position: string?
+      archived: bool?
+      deleted: bool?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Groups($board: ID!) {
+            boards(ids: [$board]) {
+              groups {
+                id
+                title
+                color
+                position
+                archived
+                deleted
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.groups
+      pagination: none
+  - name: views
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      name: string?
+      type: string?
+      settings: json?
+      sort: json?
+      filter: json?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Views($board: ID!) {
+            boards(ids: [$board]) {
+              views {
+                id
+                name
+                type
+                settings
+                sort
+                filter
+                tags
+                access_level
+                view_specific_data_str
+                source_view_id
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.views
+      pagination: none
+  - name: items
+    path: /v2
+    primary_key: [ id ]
+    for_each: boards
+    capture:
+      item_id: id
+    fields:
+      id: string
+      name: string?
+      state: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      creator_id: string?
+      url: string?
+      board_id: { path: board.id, type: string, nullable: true }
+      group_id: { path: group.id, type: string, nullable: true }
+      parent_item_id: { path: parent_item.id, type: string, nullable: true }
+      description: json?
+      column_values: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Items($board: ID!, $cursor: String) {
+            boards(ids: [$board]) {
+              items_page(limit: 100, cursor: $cursor) {
+                cursor
+                items {
+                  id
+                  name
+                  state
+                  created_at
+                  updated_at
+                  creator_id
+                  url
+                  board {
+                    id
+                  }
+                  group {
+                    id
+                  }
+                  parent_item {
+                    id
+                  }
+                  description {
+                    id
+                  }
+                  column_values(capabilities: [CALCULATED]) {
+                    id
+                    type
+                    text
+                    value
+                    is_leaf
+                    column {
+                      id
+                      title
+                      type
+                      settings
+                    }
+                    ... on BoardRelationValue {
+                      linked_item_ids
+                      display_value
+                    }
+                    ... on DependencyValue {
+                      linked_item_ids
+                      display_value
+                    }
+                    ... on MirrorValue {
+                      display_value
+                    }
+                    ... on BatteryValue {
+                      battery_value {
+                        key
+                        count
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.items_page.items
+      pagination:
+        cursor:
+          response: data.boards.0.items_page.cursor
+          request: body.variables.cursor
+          null_terminates: true
+  - name: subitems
+    path: /v2
+    primary_key: [ id ]
+    for_each: items
+    capture:
+      item_id: id
+    fields:
+      id: string
+      name: string?
+      state: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      creator_id: string?
+      url: string?
+      board_id: { path: board.id, type: string, nullable: true }
+      group_id: { path: group.id, type: string, nullable: true }
+      parent_item_id: { path: parent_item.id, type: string, nullable: true }
+      description: json?
+      column_values: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Subitems($item: ID!) {
+            items(ids: [$item]) {
+              subitems {
+                id
+                name
+                state
+                created_at
+                updated_at
+                creator_id
+                url
+                board {
+                  id
+                }
+                group {
+                  id
+                }
+                parent_item {
+                  id
+                }
+                description {
+                  id
+                }
+                column_values(capabilities: [CALCULATED]) {
+                  id
+                  type
+                  text
+                  value
+                  is_leaf
+                  column {
+                    id
+                    title
+                    type
+                    settings
+                  }
+                  ... on BoardRelationValue {
+                    linked_item_ids
+                    display_value
+                  }
+                  ... on DependencyValue {
+                    linked_item_ids
+                    display_value
+                  }
+                  ... on MirrorValue {
+                    display_value
+                  }
+                  ... on BatteryValue {
+                    battery_value {
+                      key
+                      count
+                    }
+                  }
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.items.0.subitems
+      pagination: none
+  - name: item_assets
+    path: /v2
+    primary_key: [ item_id, id ]
+    for_each: items
+    fields:
+      item_id: { path: parent.item_id, type: string }
+      id: string
+      name: string?
+      file_extension: string?
+      file_size: int64?
+      created_at: timestamptz?
+      url: string?
+      uploaded_by_id: { path: uploaded_by.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ItemAssets($item: ID!) {
+            items(ids: [$item]) {
+              assets(assets_source: all) {
+                id
+                name
+                file_extension
+                file_size
+                created_at
+                url
+                url_thumbnail
+                original_geometry
+                uploaded_by {
+                  id
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.items.0.assets
+      pagination: none
+  - name: subitem_assets
+    path: /v2
+    primary_key: [ item_id, id ]
+    for_each: subitems
+    fields:
+      item_id: { path: parent.item_id, type: string }
+      id: string
+      name: string?
+      file_extension: string?
+      file_size: int64?
+      created_at: timestamptz?
+      url: string?
+      uploaded_by_id: { path: uploaded_by.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query SubitemAssets($item: ID!) {
+            items(ids: [$item]) {
+              assets(assets_source: all) {
+                id
+                name
+                file_extension
+                file_size
+                created_at
+                url
+                url_thumbnail
+                original_geometry
+                uploaded_by {
+                  id
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.items.0.assets
+      pagination: none
+  - name: item_description_blocks
+    path: /v2
+    primary_key: [ item_id, id ]
+    for_each: items
+    fields:
+      item_id: { path: parent.item_id, type: string }
+      id: string
+      doc_id: string?
+      parent_block_id: string?
+      type: string?
+      position: float64?
+      content: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ItemDescriptionBlocks($item: ID!, $limit: Int!, $page: Int!) {
+            items(ids: [$item]) {
+              description {
+                blocks(limit: $limit, page: $page) {
+                  id
+                  doc_id
+                  parent_block_id
+                  type
+                  position
+                  content
+                  created_at
+                  updated_at
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.items.0.description.blocks
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: subitem_description_blocks
+    path: /v2
+    primary_key: [ item_id, id ]
+    for_each: subitems
+    fields:
+      item_id: { path: parent.item_id, type: string }
+      id: string
+      doc_id: string?
+      parent_block_id: string?
+      type: string?
+      position: float64?
+      content: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query SubitemDescriptionBlocks($item: ID!, $limit: Int!, $page: Int!) {
+            items(ids: [$item]) {
+              description {
+                blocks(limit: $limit, page: $page) {
+                  id
+                  doc_id
+                  parent_block_id
+                  type
+                  position
+                  content
+                  created_at
+                  updated_at
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.items.0.description.blocks
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: updates
+    path: /v2
+    primary_key: [ id ]
+    capture:
+      update_id: id
+    fields:
+      id: string
+      body: string?
+      text_body: string?
+      creator_id: string?
+      item_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      edited_at: timestamptz?
+      likes: json?
+      pinned_to_top: json?
+      replies: json?
+      assets: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Updates($limit: Int!, $page: Int!) {
+            updates(limit: $limit, page: $page) {
+              id
+              body
+              text_body
+              creator_id
+              item_id
+              created_at
+              updated_at
+              edited_at
+              likes {
+                id
+                creator_id
+                reaction_type
+                created_at
+                updated_at
+              }
+              pinned_to_top {
+                item_id
+              }
+              replies {
+                id
+                body
+                text_body
+                kind
+                creator_id
+                created_at
+                updated_at
+                edited_at
+                likes {
+                  id
+                  creator_id
+                  reaction_type
+                  created_at
+                  updated_at
+                }
+                pinned_to_top {
+                  item_id
+                }
+                assets {
+                  id
+                  name
+                  file_extension
+                  file_size
+                  created_at
+                  url
+                  url_thumbnail
+                  original_geometry
+                  uploaded_by {
+                    id
+                  }
+                }
+              }
+              assets {
+                id
+                name
+                file_extension
+                file_size
+                created_at
+                url
+                url_thumbnail
+                original_geometry
+                uploaded_by {
+                  id
+                }
+              }
+            }
+          }
+    response:
+      records: $.data.updates
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: board_updates
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      body: string?
+      text_body: string?
+      creator_id: string?
+      item_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      edited_at: timestamptz?
+      likes: json?
+      pinned_to_top: json?
+      replies: json?
+      assets: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query BoardUpdates($board: ID!, $limit: Int!, $page: Int!) {
+            boards(ids: [$board]) {
+              updates(limit: $limit, page: $page, board_updates_only: true) {
+                id
+                body
+                text_body
+                creator_id
+                item_id
+                created_at
+                updated_at
+                edited_at
+                likes {
+                  id
+                  creator_id
+                  reaction_type
+                  created_at
+                  updated_at
+                }
+                pinned_to_top {
+                  item_id
+                }
+                replies {
+                  id
+                  body
+                  text_body
+                  kind
+                  creator_id
+                  created_at
+                  updated_at
+                  edited_at
+                  likes {
+                    id
+                    creator_id
+                    reaction_type
+                    created_at
+                    updated_at
+                  }
+                  pinned_to_top {
+                    item_id
+                  }
+                  assets {
+                    id
+                    name
+                    file_extension
+                    file_size
+                    created_at
+                    url
+                    url_thumbnail
+                    original_geometry
+                    uploaded_by {
+                      id
+                    }
+                  }
+                }
+                assets {
+                  id
+                  name
+                  file_extension
+                  file_size
+                  created_at
+                  url
+                  url_thumbnail
+                  original_geometry
+                  uploaded_by {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.updates
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+    for_each: boards
+  - name: update_viewers
+    path: /v2
+    primary_key: []
+    for_each: updates
+    fields:
+      update_id: { path: parent.update_id, type: string }
+      user_id: string
+      medium: string
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query UpdateViewers($update: ID!, $limit: Int!, $page: Int!) {
+            updates(ids: [$update]) {
+              viewers(limit: $limit, page: $page) {
+                user_id
+                medium
+              }
+            }
+          }
+        variables:
+          update: "{{ parent.update_id }}"
+    response:
+      records: $.data.updates.0.viewers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: docs
+    path: /v2
+    primary_key: [ id ]
+    capture:
+      doc_id: id
+    fields:
+      id: string
+      object_id: string?
+      name: string?
+      doc_kind: string?
+      doc_folder_id: string?
+      workspace_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      url: string?
+      settings: json?
+      created_by_id: { path: created_by.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Docs($limit: Int!, $page: Int!) {
+            docs(limit: $limit, page: $page) {
+              id
+              object_id
+              name
+              doc_kind
+              doc_folder_id
+              workspace_id
+              created_at
+              updated_at
+              url
+              settings
+              created_by {
+                id
+              }
+            }
+          }
+    response:
+      records: $.data.docs
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: doc_blocks
+    path: /v2
+    primary_key: [ doc_id, id ]
+    for_each: docs
+    fields:
+      id: string
+      doc_id: { path: parent.doc_id, type: string }
+      parent_block_id: string?
+      type: string?
+      position: float64?
+      content: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      created_by_id: { path: created_by.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query DocBlocks($doc: ID!, $limit: Int!, $page: Int!) {
+            docs(ids: [$doc]) {
+              blocks(limit: $limit, page: $page) {
+                id
+                doc_id
+                parent_block_id
+                type
+                position
+                content
+                created_at
+                updated_at
+                created_by {
+                  id
+                }
+              }
+            }
+          }
+        variables:
+          doc: "{{ parent.doc_id }}"
+    response:
+      records: $.data.docs.0.blocks
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: tags
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      color: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Tags {
+            tags {
+              id
+              name
+              color
+            }
+          }
+    response:
+      records: $.data.tags
+      pagination: none
+  - name: workspace_users
+    path: /v2
+    primary_key: [ workspace_id, id ]
+    for_each: workspaces
+    fields:
+      workspace_id: { path: parent.workspace_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query WorkspaceUsers($workspace: ID!, $limit: Int!, $page: Int!) {
+            workspaces(ids: [$workspace]) {
+              users_subscribers(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          workspace: "{{ parent.workspace_id }}"
+    response:
+      records: $.data.workspaces.0.users_subscribers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: workspace_owners
+    path: /v2
+    primary_key: [ workspace_id, id ]
+    for_each: workspaces
+    fields:
+      workspace_id: { path: parent.workspace_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query WorkspaceOwners($workspace: ID!, $limit: Int!, $page: Int!) {
+            workspaces(ids: [$workspace]) {
+              owners_subscribers(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          workspace: "{{ parent.workspace_id }}"
+    response:
+      records: $.data.workspaces.0.owners_subscribers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: workspace_teams
+    path: /v2
+    primary_key: [ workspace_id, id ]
+    for_each: workspaces
+    fields:
+      workspace_id: { path: parent.workspace_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query WorkspaceTeams($workspace: ID!, $limit: Int!, $page: Int!) {
+            workspaces(ids: [$workspace]) {
+              teams_subscribers(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          workspace: "{{ parent.workspace_id }}"
+    response:
+      records: $.data.workspaces.0.teams_subscribers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: workspace_team_owners
+    path: /v2
+    primary_key: [ workspace_id, id ]
+    for_each: workspaces
+    fields:
+      workspace_id: { path: parent.workspace_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query WorkspaceTeamOwners($workspace: ID!, $limit: Int!, $page: Int!) {
+            workspaces(ids: [$workspace]) {
+              team_owners_subscribers(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          workspace: "{{ parent.workspace_id }}"
+    response:
+      records: $.data.workspaces.0.team_owners_subscribers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: board_team_owners
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query BoardTeamOwners($board: ID!, $limit: Int!, $page: Int!) {
+            boards(ids: [$board]) {
+              team_owners(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.team_owners
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: board_team_subscribers
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      name: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query BoardTeamSubscribers($board: ID!, $limit: Int!, $page: Int!) {
+            boards(ids: [$board]) {
+              team_subscribers(limit: $limit, page: $page) {
+                id
+                name
+              }
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.boards.0.team_subscribers
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: account_roles
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      role_type: { path: roleType, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query AccountRoles {
+            account_roles {
+              id
+              name
+              roleType
+            }
+          }
+    response:
+      records: $.data.account_roles
+      pagination: none
+  - name: departments
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      assigned_seats: int64?
+      reserved_seats: int64?
+      members: json?
+      owners: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Departments {
+            departments {
+              id
+              name
+              assigned_seats
+              reserved_seats
+              members {
+                id
+              }
+              owners {
+                id
+              }
+            }
+          }
+    response:
+      records: $.data.departments
+      pagination: none
+  - name: managed_columns
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      title: string?
+      description: string?
+      state: string?
+      revision: int64?
+      settings_json: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      created_by: string?
+      updated_by: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ManagedColumns {
+            managed_column(state: [active, inactive]) {
+              id
+              title
+              description
+              state
+              revision
+              settings_json
+              created_at
+              updated_at
+              created_by
+              updated_by
+            }
+          }
+    response:
+      records: $.data.managed_column
+      pagination: none
+  - name: object_schemas
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      account_id: string?
+      parent_id: string?
+      revision: int64?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      columns: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ObjectSchemas($limit: Int!, $page: Int!) {
+            get_object_schemas(limit: $limit, page: $page) {
+              id
+              name
+              description
+              account_id
+              parent_id
+              revision
+              created_at
+              updated_at
+              created_by
+              connected_boards_count
+              columns {
+                id
+                title
+                type
+                description
+                settings
+                policy {
+                  can_override
+                  cannot_delete
+                  read_only
+                  messages
+                }
+                tags {
+                  deprecated
+                  opt_in_by_default
+                  inherited
+                }
+              }
+            }
+          }
+    response:
+      records: $.data.get_object_schemas
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+  - name: directory_resources
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      email: string?
+      job_role: string?
+      skills: json?
+      location: string?
+      resource_type: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query DirectoryResources($cursor: String) {
+            get_directory_resources(limit: 100, cursor: $cursor) {
+              cursor
+              resources {
+                id
+                name
+                email
+                job_role
+                skills
+                location
+                resource_type
+              }
+            }
+          }
+    response:
+      records: $.data.get_directory_resources.resources
+      pagination:
+        cursor:
+          response: data.get_directory_resources.cursor
+          request: body.variables.cursor
+          null_terminates: true
+  - name: notetaker_meetings
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      title: string?
+      start_time: timestamptz?
+      end_time: timestamptz?
+      recording_duration: int64?
+      access_type: string?
+      meeting_link: string?
+      gist: string?
+      summary: string?
+      participants: json?
+      topics: json?
+      action_items: json?
+      transcript: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query NotetakerMeetings($cursor: String) {
+            notetaker {
+              meetings(limit: 25, cursor: $cursor, filters: { access: ALL }) {
+                meetings {
+                  id
+                  title
+                  start_time
+                  end_time
+                  recording_duration
+                  access_type
+                  meeting_link
+                  gist
+                  summary
+                  participants {
+                    email
+                  }
+                  topics {
+                    title
+                    talking_points {
+                      content
+                    }
+                  }
+                  action_items {
+                    id
+                    content
+                    is_completed
+                    owner
+                    due_date
+                  }
+                  transcript {
+                    text
+                    start_time
+                    end_time
+                    speaker
+                    language
+                  }
+                }
+                page_info {
+                  cursor
+                  has_next_page
+                }
+              }
+            }
+          }
+    response:
+      records: $.data.notetaker.meetings.meetings
+      pagination:
+        cursor:
+          response: data.notetaker.meetings.page_info.cursor
+          request: body.variables.cursor
+          null_terminates: true
+          more: data.notetaker.meetings.page_info.has_next_page
+  - name: custom_activities
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      name: string?
+      type: string?
+      icon_id: string?
+      color: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query CustomActivities {
+            custom_activity {
+              id
+              name
+              type
+              icon_id
+              color
+            }
+          }
+    response:
+      records: $.data.custom_activity
+      pagination: none
+  - name: timeline_items
+    path: /v2
+    primary_key: [ source_item_id, id ]
+    for_each: items
+    fields:
+      source_item_id: { path: parent.item_id, type: string }
+      id: string
+      title: string?
+      type: string?
+      content: string?
+      created_at: timestamptz?
+      custom_activity_id: string?
+      user_id: { path: user.id, type: string, nullable: true }
+      item_id: { path: item.id, type: string, nullable: true }
+      board_id: { path: board.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query TimelineItems($item: ID!, $cursor: String) {
+            timeline(id: $item, skipConnectedItems: true) {
+              timeline_items_page(limit: 50, cursor: $cursor) {
+                cursor
+                timeline_items {
+                  id
+                  title
+                  type
+                  content
+                  created_at
+                  custom_activity_id
+                  user {
+                    id
+                  }
+                  item {
+                    id
+                  }
+                  board {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.timeline.timeline_items_page.timeline_items
+      pagination:
+        cursor:
+          response: data.timeline.timeline_items_page.cursor
+          request: body.variables.cursor
+          null_terminates: true
+  - name: subitem_timeline_items
+    path: /v2
+    primary_key: [ source_item_id, id ]
+    for_each: subitems
+    fields:
+      source_item_id: { path: parent.item_id, type: string }
+      id: string
+      title: string?
+      type: string?
+      content: string?
+      created_at: timestamptz?
+      custom_activity_id: string?
+      user_id: { path: user.id, type: string, nullable: true }
+      item_id: { path: item.id, type: string, nullable: true }
+      board_id: { path: board.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query SubitemTimelineItems($item: ID!, $cursor: String) {
+            timeline(id: $item, skipConnectedItems: true) {
+              timeline_items_page(limit: 50, cursor: $cursor) {
+                cursor
+                timeline_items {
+                  id
+                  title
+                  type
+                  content
+                  created_at
+                  custom_activity_id
+                  user {
+                    id
+                  }
+                  item {
+                    id
+                  }
+                  board {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        variables:
+          item: "{{ parent.item_id }}"
+    response:
+      records: $.data.timeline.timeline_items_page.timeline_items
+      pagination:
+        cursor:
+          response: data.timeline.timeline_items_page.cursor
+          request: body.variables.cursor
+          null_terminates: true
+  - name: sequences
+    path: /v2
+    primary_key: [ board_id, id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      id: string
+      title: string?
+      status: string?
+      context_type: string?
+      context_id: string?
+      user_id: string?
+      step_count: int64?
+      duration: int64?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Sequences($board: ID!) {
+            allowed_sequences_to_enroll(board_id: $board) {
+              id
+              title
+              status
+              context_type
+              context_id
+              user_id
+              step_count
+              duration
+              created_at
+              updated_at
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.allowed_sequences_to_enroll
+      pagination: none
+  - name: webhooks
+    path: /v2
+    primary_key: [ id ]
+    for_each: boards
+    fields:
+      id: string
+      board_id: string?
+      event: string?
+      config: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Webhooks($board: ID!) {
+            webhooks(board_id: $board) {
+              id
+              event
+              config
+              board_id
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.webhooks
+      pagination: none
+  - name: board_validations
+    path: /v2
+    primary_key: [ board_id ]
+    for_each: boards
+    fields:
+      board_id: { path: parent.board_id, type: string }
+      required_column_ids: json?
+      rules: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query BoardValidations($board: ID!) {
+            validations(id: $board) {
+              required_column_ids
+              rules
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.validations
+      pagination: none
+      cardinality: one
+  - name: favorites
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      account_id: { path: accountId, type: string, nullable: true }
+      folder_id: { path: folderId, type: string, nullable: true }
+      position: float64?
+      created_at: { path: createdAt, type: timestamptz, nullable: true }
+      updated_at: { path: updatedAt, type: timestamptz, nullable: true }
+      object: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Favorites {
+            favorites {
+              id
+              accountId
+              folderId
+              position
+              createdAt
+              updatedAt
+              object {
+                id
+                type
+              }
+            }
+          }
+    response:
+      records: $.data.favorites
+      pagination: none
+  - name: notifications
+    path: /v2
+    primary_key: [ id ]
+    fields:
+      id: string
+      title: string?
+      text: string?
+      read: bool?
+      created_at: timestamptz?
+      creators: json?
+      board_id: { path: board.id, type: string, nullable: true }
+      item_id: { path: item.id, type: string, nullable: true }
+      update_id: { path: update.id, type: string, nullable: true }
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query Notifications($cursor: ID) {
+            notifications(limit: 100, cursor: $cursor, filter_read: false) {
+              id
+              title
+              text
+              read
+              created_at
+              creators {
+                id
+              }
+              board {
+                id
+              }
+              item {
+                id
+              }
+              update {
+                id
+              }
+            }
+          }
+    response:
+      records: $.data.notifications
+      pagination:
+        cursor:
+          response: data.notifications.-1.id
+          request: body.variables.cursor
+          null_terminates: true
+  - name: notification_settings
+    path: /v2
+    primary_key: []
+    fields:
+      kind: string?
+      description: string?
+      is_for_admins_only: bool?
+      is_for_non_guests_only: bool?
+      channels: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query NotificationSettings {
+            notifications_settings(scope_type: User) {
+              kind
+              description
+              is_for_admins_only
+              is_for_non_guests_only
+              channels {
+                name
+                enabled
+                editable_status
+              }
+            }
+          }
+    response:
+      records: $.data.notifications_settings
+      pagination: none
+  - name: board_notification_settings
+    path: /v2
+    primary_key: [ board_id ]
+    for_each: boards
+    fields:
+      board_id: string
+      mute_state: string?
+      enabled: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query BoardNotificationSettings($board: ID!) {
+            mute_board_settings(board_ids: [$board]) {
+              board_id
+              mute_state
+              enabled
+            }
+          }
+        variables:
+          board: "{{ parent.board_id }}"
+    response:
+      records: $.data.mute_board_settings
+      pagination: none
+  - name: audit_logs
+    path: /v2
+    primary_key: []
+    fields:
+      timestamp: timestamptz
+      account_id: string?
+      event: string?
+      slug: string?
+      ip_address: string?
+      user_agent: string?
+      activity_metadata: json?
+      user: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query AuditLogs($limit: Int!, $page: Int!, $since: ISO8601DateTime) {
+            audit_logs(limit: $limit, page: $page, start_time: $since) {
+              logs {
+                timestamp
+                account_id
+                event
+                slug
+                ip_address
+                user_agent
+                client_name
+                client_version
+                os_name
+                os_version
+                device_name
+                device_type
+                activity_metadata
+                user {
+                  id
+                  name
+                  email
+                }
+              }
+              pagination {
+                has_more_pages
+                next_page_number
+              }
+            }
+          }
+    response:
+      records: $.data.audit_logs.logs
+      pagination:
+        page:
+          number: body.variables.page
+          size: body.variables.limit
+          page_size: 50
+          more: data.audit_logs.pagination.has_more_pages
+    incremental:
+      cursor_field: timestamp
+      start_param: variables.since
+      inject_into: body
+      comparator: time
+      checkpoint_key: audit_logs_timestamp
+  - name: audit_event_catalogue
+    path: /v2
+    primary_key: []
+    fields:
+      name: string?
+      description: string?
+      metadata_details: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query AuditEventCatalogue {
+            audit_event_catalogue {
+              name
+              description
+              metadata_details
+            }
+          }
+    response:
+      records: $.data.audit_event_catalogue
+      pagination: none
+  - name: api_usage
+    path: /v2
+    primary_key: []
+    fields:
+      daily_limit: json?
+      daily_analytics: json?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: json
+      template:
+        query: |
+          query ApiUsage {
+            platform_api {
+              daily_limit {
+                base
+                total
+              }
+              daily_analytics {
+                last_updated
+                by_day {
+                  day
+                  usage
+                }
+                by_app {
+                  api_app_id
+                  usage
+                }
+                by_user {
+                  user {
+                    id
+                  }
+                  usage
+                }
+              }
+            }
+          }
+    response:
+      records: $.data.platform_api
+      pagination: none
+      cardinality: one
+discovery:
+  mode: static
+  default_resources:
+    - account
+    - users
+    - teams
+    - workspaces
+    - folders
+    - boards
+    - columns
+    - groups
+    - views
+    - items
+    - subitems
+    - updates
+    - docs
+    - doc_blocks
+    - tags

@@ -380,11 +380,13 @@ type ErrorSpec struct {
 type PaginationSpec struct {
 	Type string `yaml:"type"` // cursor | offset | page | link_header | next_url | none
 
+	// Shared by cursor and page pagination.
+	InjectInto  string `yaml:"inject_into,omitempty"` // body | query | header (cursor only)
+	HasMorePath string `yaml:"has_more_path,omitempty"`
+
 	// cursor
 	CursorPath  string `yaml:"cursor_path,omitempty"`
 	CursorParam string `yaml:"cursor_param,omitempty"`
-	InjectInto  string `yaml:"inject_into,omitempty"` // body | query | header
-	HasMorePath string `yaml:"has_more_path,omitempty"`
 	// AllowNullTerminates, when true, treats an explicit JSON null at
 	// cursor_path as "no more pages" rather than an error. Default false:
 	// null is rejected so that an API silently changing its termination
@@ -471,14 +473,8 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
-		offsetTarget, offsetParam, ok := strings.Cut(spec.Offset, ".")
-		if !ok {
-			offsetTarget, offsetParam = "query", spec.Offset
-		}
-		limitTarget, limitParam, ok := strings.Cut(spec.Limit, ".")
-		if !ok {
-			limitTarget, limitParam = "query", spec.Limit
-		}
+		offsetTarget, offsetParam := paginationTarget(spec.Offset)
+		limitTarget, limitParam := paginationTarget(spec.Limit)
 		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body") {
 			return fmt.Errorf("offset pagination fields must share a query or body target")
 		}
@@ -489,15 +485,34 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 			Size       string `yaml:"size"`
 			PageSize   int    `yaml:"page_size"`
 			TotalPages string `yaml:"total_pages"`
+			More       string `yaml:"more"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
-		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", spec.Number, spec.Size, spec.PageSize, spec.TotalPages
+		numberTarget, numberParam := paginationTarget(spec.Number)
+		sizeTarget, sizeParam := paginationTarget(spec.Size)
+		if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
+			return fmt.Errorf("page pagination fields must share a query or body target")
+		}
+		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
+		p.InjectInto, p.HasMorePath = numberTarget, spec.More
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
 	}
 	return nil
+}
+
+// paginationTarget defaults bare page and offset parameter names to query
+// targets. Only known injection targets act as prefixes, so a dotted query
+// parameter name like pagination.page passes through verbatim.
+func paginationTarget(field string) (string, string) {
+	for _, target := range []string{"query", "body", "header"} {
+		if param, ok := strings.CutPrefix(field, target+"."); ok {
+			return target, param
+		}
+	}
+	return "query", field
 }
 
 // IncrementalSpec configures watermark-based incremental extraction.

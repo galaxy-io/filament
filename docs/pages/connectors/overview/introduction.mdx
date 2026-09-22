@@ -1,4 +1,3 @@
-| [Pipedrive](/pages/connectors/sources/pipedrive) | alpha | Full, incremental |
 ---
 title: "Overview"
 description: "The sources and sinks that plug into Filament, and how mature each one is"
@@ -40,7 +39,9 @@ Every connector is registered with one of three maturity levels.
 | [Granola](/pages/connectors/sources/granola) | alpha | Full, incremental |
 | [HubSpot](/pages/connectors/sources/hubspot) | alpha | Full, incremental |
 | [Linear](/pages/connectors/sources/linear) | beta | Full, incremental |
+| [monday.com](/pages/connectors/sources/monday) | alpha | Full, incremental (audit logs) |
 | [Notion](/pages/connectors/sources/notion) | beta | Full, incremental |
+| [Pipedrive](/pages/connectors/sources/pipedrive) | alpha | Full, incremental |
 | [PostHog](/pages/connectors/sources/posthog) | beta | Full, incremental |
 | [Resend](/pages/connectors/sources/resend) | beta | Full |
 | [Slack](/pages/connectors/sources/slack) | alpha | Full, incremental |
@@ -63,6 +64,7 @@ documented in
 | [ClickHouse](/pages/connectors/sinks/clickhouse) | alpha | MergeTree tables. Atomic replace via staging, no CDC |
 | [Snowflake](/pages/connectors/sinks/snowflake) | alpha | Typed tables loaded from staged Parquet batches |
 | [Amazon Redshift](/pages/connectors/sinks/redshift) | alpha | Typed tables loaded from S3-staged Parquet manifests |
+| [Meilisearch](/pages/connectors/sinks/meilisearch) | alpha | Search documents, one index per resource. Add or replace by primary key |
 | [Iceberg](/pages/connectors/sinks/iceberg) | alpha | Parquet tables; data commits per resource at run end |
 | [Amazon S3](/pages/connectors/sinks/aws-s3) | alpha | NDJSON objects, one per resource per run |
 | [stdout](/pages/connectors/sinks/standard-output) | stable | NDJSON to standard output, the reference sink |

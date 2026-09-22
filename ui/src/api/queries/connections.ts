@@ -22,7 +22,11 @@ import type {
 } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { createDiscoverResourcesQueryKey } from "@/api/queries/connectors";
+import { createValidatePipelineQueryKey } from "@/api/queries/capabilities";
+import {
+  createDiscoverResourcesQueryKey,
+  createGetResourceColumnsQueryKey,
+} from "@/api/queries/connectors";
 import {
   createListSearchInput,
   getNextPageParam,
@@ -210,6 +214,12 @@ export const useUpdateConnectionMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createDiscoverResourcesQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetResourceColumnsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createValidatePipelineQueryKey(),
       });
       return options.onSettled?.(...args);
     },

@@ -1,0 +1,103 @@
+---
+title: "monday.com"
+description: "Read boards, items, updates, documents, and account data from monday.com"
+icon: "https://files.readme.io/bc3ecc5-favicon-monday5-192.png"
+---
+
+The monday.com source reads work records and account data through monday.com's
+GraphQL API. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. Queries have been checked against the published API schema. The
+default resources and item and document pagination have been tested with a
+small live account; non-empty audit incremental reads remain unverified.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required. Secret. Personal monday.com API token. |
+
+Find your token under **Developers → API token → Show** in your profile menu.
+The token reads whatever that user can access. See
+[monday.com's authentication guide](https://developer.monday.com/api-reference/docs/authentication).
+Connection testing makes one account query; it does not verify access to every
+optional resource.
+
+## Resources
+
+| Group | Resources |
+|---|---|
+| Account | `account`, `users`, `teams`, `account_roles`, `departments` |
+| Workspaces | `workspaces`, `folders`, `workspace_users`, `workspace_owners`, `workspace_teams`, `workspace_team_owners` |
+| Boards | `boards`, `archived_boards`, `deleted_boards`, `columns`, `groups`, `views`, `board_team_owners`, `board_team_subscribers`, `board_validations` |
+| Items | `items`, `subitems`, `item_assets`, `subitem_assets`, `item_description_blocks`, `subitem_description_blocks` |
+| Updates | `updates`, `board_updates`, `update_viewers` |
+| Documents | `docs`, `doc_blocks` |
+| Reference data | `tags`, `managed_columns`, `object_schemas`, `directory_resources` |
+| Product features | `notetaker_meetings`, `custom_activities`, `timeline_items`, `subitem_timeline_items`, `sequences` |
+| User settings | `favorites`, `notifications`, `notification_settings`, `board_notification_settings` |
+| Administration | `webhooks`, `audit_logs`, `audit_event_catalogue`, `api_usage` |
+
+Selected by default: `account`, `users`, `teams`, `workspaces`, `folders`,
+`boards`, `columns`, `groups`, `views`, `items`, `subitems`, `updates`, `docs`,
+`doc_blocks`, and `tags`. The rest are optional and may require additional
+permissions, a paid plan, or access to the corresponding product. Audit logs
+require Enterprise admin access and the `manage_account_security` permission.
+
+Selecting a child resource fetches its parents automatically. Parent rows are
+only written when also selected. IDs are strings; child records use parent IDs
+in their keys where needed. Nested structures remain JSON.
+
+`items` reads active top-level items on classic and multi-level boards.
+`subitems` reads their descendants with parent and board IDs. Item rows include
+column definitions and values, but evaluated formula values are not requested.
+Archived and deleted boards contain metadata only; their items are not read.
+
+Updates include replies, reactions, and file metadata. Optional `board_updates`
+adds board IDs to board-level posts, which can also appear in `updates`.
+Document and item-description blocks are read separately. Assets contain
+metadata, not file contents.
+
+Not included: board and user activity histories, dashboards and workflows,
+knowledge-base articles, WorkForms definitions, app-developer APIs, document
+version history, and reply viewers. Webhook configuration is read without
+creating subscriptions or receiving events.
+
+## Modes
+
+All resources support full reads. Only `audit_logs` supports incremental reads.
+
+| Resource | Cursor field | Request parameter | Checkpoint key |
+|---|---|---|---|
+| `audit_logs` | `timestamp` | `variables.since` (body) | `audit_logs_timestamp` |
+
+The first incremental run reads available audit history. Later runs send the
+saved timestamp through monday.com's `start_time` filter. Audit logs have no
+unique event ID: use **incremental append**, accepting possible duplicates at
+the checkpoint boundary or from a configured lookback. The default lookback is
+zero. Verify timestamp and boundary behavior against your account before
+scheduling incremental runs. See the
+[audit log reference](https://developer.monday.com/api-reference/reference/audit-logs).
+
+Items and updates remain full reads because their documented filters do not
+provide a reliable saved-timestamp cursor for all edits. Use **full replace**
+to remove records that the API no longer returns. `audit_logs`,
+`audit_event_catalogue`, `notification_settings`, `api_usage`, and
+`update_viewers` have no primary key; use full replace for their snapshot reads.
+
+## Behavior
+
+- **Auth**: the token is sent as a raw `Authorization` header value. Requests
+  use `POST /v2` with API version `2026-07`.
+- **Pagination**: numbered lists generally request 50 rows per page. Items,
+  directory resources, timelines, Notetaker, and notifications use cursors.
+  Audit logs use `has_more_pages` to continue through short pages. Item cursors
+  expire after 60 minutes; an expired cursor fails the run.
+- **Errors**: GraphQL errors fail extraction, including HTTP 200 responses
+  containing partial data. Permission errors are not treated as empty resources.
+- **Rate limiting**: two requests per second per connection. The engine retries
+  throttled requests using `Retry-After`; monday.com also applies shared usage
+  and query-complexity limits. See
+  [rate limits](https://developer.monday.com/api-reference/docs/rate-limits).
+- Every resource carries a `raw` remainder column preserving requested fields
+  that the manifest does not project.

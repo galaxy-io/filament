@@ -79,6 +79,18 @@ export const useDiscoverResourcesQuery = ({
   >(IngestionService.method.discoverResources, input, options);
 };
 
+export const createGetResourceColumnsQueryKey = (
+  input?: GetResourceColumnsRequest,
+  transport?: Transport,
+) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.getResourceColumns,
+    input,
+    transport,
+    cardinality: "finite",
+  });
+};
+
 export const useGetResourceColumnsQuery = ({
   input,
   options = {},

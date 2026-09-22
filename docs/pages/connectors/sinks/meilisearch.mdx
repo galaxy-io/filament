@@ -1,0 +1,142 @@
+---
+title: "Meilisearch"
+description: "Write searchable documents to Meilisearch indexes"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-meilisearch-dark.svg"
+---
+
+The Meilisearch sink (**alpha**) writes each resource to a Meilisearch index,
+one document per row. Documents are sent as NDJSON and indexed by
+Meilisearch's asynchronous task queue. By default the run waits for those
+tasks at commit, so a successful run means the documents are searchable.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `url` | Connection | — | Required. Server URL such as `http://localhost:7700`. A value without a scheme is treated as `http://`. |
+| `api_key` | Connection | — | Master key or an API key with index and document permissions. Secret. |
+| `index_prefix` | Pipeline | — | Prefix joined to each resource name to form the index UID |
+| `index` | Pipeline | — | Explicit index UID. Overrides the prefix and resource name. |
+| `primary_key` | Pipeline | derived | Document primary key attribute; see [primary key](#primary-key) |
+| `batch_size` | Pipeline | `10000` | Preferred maximum documents per request |
+| `gzip` | Pipeline | `true` | Compress request bodies with gzip |
+| `wait_for_tasks` | Pipeline | `true` | Wait for indexing tasks to finish at commit |
+| `task_timeout` | Pipeline | `60s` | Maximum time to wait for indexing tasks at commit |
+
+An `index_prefix` left empty is defaulted by the server to the normalized
+source connection name. `api_key` can be omitted for a development instance
+that runs without a master key.
+
+`TestConnection` calls `/health`. That endpoint does not require
+authentication, so a passing test proves the server is reachable but not that
+the key can create indexes or write documents.
+
+## Supported write modes
+
+| Write mode | Behavior |
+|---|---|
+| `full_replace` | Clears the index, then adds the run's documents |
+| `full_append` | Adds or replaces documents by primary key |
+| `full_upsert` | Adds or replaces documents by primary key |
+| `incremental_upsert` | Adds or replaces documents by primary key |
+| `cdc_merge` | Applies deletes and add or replace writes in source order |
+| `cdc_append` | Adds or replaces documents by primary key |
+
+Every mode writes through Meilisearch's add or replace documents operation. A
+document whose primary key already exists is replaced in full, and a new key
+is added. See [replication modes](/pages/guides/concepts/replication-modes).
+
+<Note>
+`full_append` cannot keep duplicates, because Meilisearch holds one document
+per primary key. A row whose key is already in the index replaces that
+document.
+</Note>
+
+## Index management
+
+`EnsureSchema` resolves one index per resource and creates it when missing.
+Existing indexes keep their settings. For `full_replace`, an existing index
+has all of its documents deleted once per run, before the run's first write.
+
+The index UID is `index` when set. Otherwise it is `index_prefix` and the
+resource name joined with `_`. Characters outside letters, digits, `-`, and
+`_` become `_`, and leading or trailing separators are trimmed. With prefix
+`local_pg`, the resource `public.accounts` writes to `local_pg_public_accounts`.
+
+<Warning>
+`index` applies to the whole pipeline. With more than one resource selected,
+every resource writes to that same index. Use `index_prefix` unless the
+pipeline has a single resource.
+</Warning>
+
+Meilisearch is schemaless, so there is no column evolution. New source fields
+appear as new document attributes. The sink does not manage searchable,
+filterable, or sortable attributes, ranking rules, or any other index setting.
+Configure those in Meilisearch.
+
+### Primary key
+
+Meilisearch requires one primary key attribute per index. The sink resolves it
+in this order:
+
+1. The primary key of an index that already exists
+2. `primary_key` from the pipeline configuration
+3. The source primary key, when it is a single field
+4. The first field named `id`, ignoring case
+5. The first field ending in `_id` or `Id`
+6. The first field in the schema
+
+Composite source keys are not combined. A resource with a composite key falls
+through to the later rules, so set `primary_key` for it explicitly. Primary
+key values must satisfy Meilisearch's document id format of letters, digits,
+`-`, and `_`.
+
+### Value encoding
+
+Documents carry source field names and JSON values.
+
+| Logical type | JSON value |
+| --- | --- |
+| `bool` | Boolean |
+| `int16` / `int32` / `int64` / `float32` / `float64` | Number |
+| `string` / `uuid` / `decimal` | String |
+| `bytes` | Base64 string |
+| `date` / `time` / `timestamp` / `timestamptz` | ISO 8601 string |
+| `json` / `array` | Embedded as JSON |
+
+## Write mechanics and atomicity
+
+Each batch is encoded as NDJSON and sent in one request, gzip-compressed by
+default. Meilisearch accepts the request, returns a task, and indexes the
+documents in the background in queue order. For `cdc_merge`, a batch is sent
+as alternating delete and document requests that follow the order of its
+operations, so a key that is deleted and inserted again in one batch ends up
+present. A merge on a resource whose primary key is not in the schema is an
+error.
+
+At `Commit` the sink waits for every task from the run to succeed, up to
+`task_timeout`. A failed or canceled task fails the run with Meilisearch's
+error code and message. Malformed documents and invalid primary key values are
+reported here, not when the batch is sent, because Meilisearch validates them
+during indexing.
+
+With `wait_for_tasks` set to `false`, the run succeeds as soon as every
+request is accepted. Indexing continues after the run ends, and indexing
+errors are visible only in the Meilisearch task list.
+
+Documents become searchable as their tasks finish, so partial data is
+**visible mid-run**. There is no staging index and no swap. During a
+`full_replace` run the index is empty, then partial, until the run's tasks
+finish.
+
+## Failure behavior
+
+`Abort` stops waiting on tasks and nothing else. Tasks already accepted by
+Meilisearch keep running, and documents already indexed stay in the index. A
+rerun converges through the primary key, because every write replaces the
+document with the same key. A failed `full_replace` run leaves the index
+cleared or partly loaded until the next successful run.
+
+A `task_timeout` expiry fails the run but does not cancel the tasks.
+Meilisearch may still finish them. Raise the timeout for large first loads,
+where indexing takes much longer than sending.

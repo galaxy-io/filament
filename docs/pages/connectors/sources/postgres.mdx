@@ -22,7 +22,7 @@ read starts that table again. The connector is beta.
 | `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
 | `ssl_mode` | Connection | `prefer` | One of `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`. |
 | `replication` | Connection | `standard` | `standard` for snapshot/incremental reads, `cdc` for logical replication. |
-| `schema` | Pipeline | `public` | Schema to read tables from. |
+| `schema` | Connection | `public` | Schema to read tables from. |
 | `page_size` | Pipeline | `1000` | Rows to target per read page. |
 | `shard_pages` | Pipeline | `16384` | Heap blocks per parallel shard (≈128 MiB at 8 KiB blocks). `0` disables sharding. |
 | `max_conns` | Pipeline | pgx default | Maximum source connections. Set to at least the run's parallelism + 1. |

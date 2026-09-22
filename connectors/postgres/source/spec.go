@@ -29,7 +29,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: replicationStandard, Label: "Standard"},
 				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},
 			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the write-ahead log"},
-			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Schema to read tables from"},
+			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopeConnection, Help: "Schema to read tables from"},
 			{Name: "page_size", Type: filament.FieldInt, Default: defaultPageSize, Scope: filament.ScopePipeline, Help: "Rows to target per read page"},
 			{Name: "shard_pages", Type: filament.FieldInt, Default: defaultShardPages, Scope: filament.ScopePipeline, Help: "Heap blocks per shard; 0 disables sharding"},
 			{Name: "max_conns", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Maximum source database connections"},
