@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
@@ -29,16 +31,18 @@ export const isTransformDraftComplete = (
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
 ): boolean => {
   if (draft.resource === "") return false;
-  const step = draft.step;
-  switch (step.kind) {
-    case TransformStepKind.RENAME:
-      return (
+  return match(draft.step)
+    .with(
+      { kind: TransformStepKind.RENAME },
+      (step) =>
         step.pairs.length > 0 &&
-        step.pairs.every((pair) => pair.from !== "" && pair.to.trim() !== "")
-      );
-    case TransformStepKind.DROP:
-      return step.names.length > 0 && step.names.every((name) => name !== "");
-    case TransformStepKind.COMPUTE: {
+        step.pairs.every((pair) => pair.from !== "" && pair.to.trim() !== ""),
+    )
+    .with(
+      { kind: TransformStepKind.DROP },
+      (step) => step.names.length > 0 && step.names.every((name) => name !== ""),
+    )
+    .with({ kind: TransformStepKind.COMPUTE }, (step) => {
       if (step.outputs.length === 0) return false;
       if (!step.outputs.every((output) => isTransformExprComplete(output.expr, functionsByName))) {
         return false;
@@ -51,8 +55,8 @@ export const isTransformDraftComplete = (
         root.kind !== TransformExprKind.COLUMN ||
         getTransformColumnType(columns, root.name) === "bool"
       );
-    }
-  }
+    })
+    .exhaustive();
 };
 
 const getTransformExprError = (
@@ -86,21 +90,20 @@ export const getTransformDraftError = (
   draft: PipelineTransformFieldsDraft,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
 ): string | null => {
-  const step = draft.step;
-  switch (step.kind) {
-    case TransformStepKind.RENAME: {
+  return match(draft.step)
+    .with({ kind: TransformStepKind.RENAME }, (step) => {
       const same = step.pairs.find((pair) => pair.from !== "" && pair.to.trim() === pair.from);
       if (same) return "The new column name must be different.";
       const source = findDuplicate(step.pairs.map((pair) => pair.from).filter(Boolean));
       if (source !== undefined) return `Column ${source} is renamed more than once.`;
       const target = findDuplicate(step.pairs.map((pair) => pair.to.trim()).filter(Boolean));
       return target === undefined ? null : `Column ${target} is used more than once.`;
-    }
-    case TransformStepKind.DROP: {
+    })
+    .with({ kind: TransformStepKind.DROP }, (step) => {
       const name = findDuplicate(step.names.filter(Boolean));
       return name === undefined ? null : `Column ${name} is selected more than once.`;
-    }
-    case TransformStepKind.COMPUTE: {
+    })
+    .with({ kind: TransformStepKind.COMPUTE }, (step) => {
       const isMatchingRows = step.where !== null;
       const names = step.outputs.map((output) => getTransformOutputName(output, isMatchingRows));
       const name = findDuplicate(names.filter(Boolean));
@@ -118,6 +121,6 @@ export const getTransformDraftError = (
         if (error !== null) return error;
       }
       return null;
-    }
-  }
+    })
+    .exhaustive();
 };

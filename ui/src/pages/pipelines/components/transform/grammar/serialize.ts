@@ -1,4 +1,5 @@
 import type { JsonValue } from "@bufbuild/protobuf";
+import { match } from "ts-pattern";
 
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -36,53 +37,44 @@ export const isTransformOutputInPlace = (
 ): boolean =>
   getTransformOutputName(output, isMatchingRows) === getTransformRootColumn(output.expr);
 
-const serializeTransformLiteral = ({ literalKind, value }: TransformLiteralExpr): JsonValue => {
-  if (value === null) return null;
-  switch (literalKind) {
-    case TransformLiteralKind.STRING:
-      return value;
-    case TransformLiteralKind.NUMBER:
-      return Number(value);
-    case TransformLiteralKind.BOOLEAN:
-      return value === "true";
-  }
-};
+const serializeTransformLiteral = ({ literalKind, value }: TransformLiteralExpr): JsonValue =>
+  value === null
+    ? null
+    : match<TransformLiteralKind, JsonValue>(literalKind)
+        .with(TransformLiteralKind.STRING, () => value)
+        .with(TransformLiteralKind.NUMBER, () => Number(value))
+        .with(TransformLiteralKind.BOOLEAN, () => value === "true")
+        .exhaustive();
 
-export const serializeTransformExpr = (expr: TransformExpr): JsonValue => {
-  switch (expr.kind) {
-    case TransformExprKind.EMPTY:
-      return null;
-    case TransformExprKind.COLUMN:
-      return { col: expr.name };
-    case TransformExprKind.LITERAL:
-      return serializeTransformLiteral(expr);
-    case TransformExprKind.CALL: {
-      if (expr.fn === "") return serializeTransformExpr(expr.args[0] ?? TRANSFORM_EMPTY_EXPR);
-      const args = trimTrailingEmptyExprs(expr.args).map(serializeTransformExpr);
-      return { [expr.fn]: args.length === 1 ? args[0] : args };
-    }
-  }
-};
+export const serializeTransformExpr = (expr: TransformExpr): JsonValue =>
+  match<TransformExpr, JsonValue>(expr)
+    .with({ kind: TransformExprKind.EMPTY }, () => null)
+    .with({ kind: TransformExprKind.COLUMN }, ({ name }) => ({ col: name }))
+    .with({ kind: TransformExprKind.LITERAL }, serializeTransformLiteral)
+    .with({ kind: TransformExprKind.CALL }, (call) => {
+      if (call.fn === "") return serializeTransformExpr(call.args[0] ?? TRANSFORM_EMPTY_EXPR);
+      const args = trimTrailingEmptyExprs(call.args).map(serializeTransformExpr);
+      return { [call.fn]: args.length === 1 ? args[0] : args };
+    })
+    .exhaustive();
 
-export const serializeTransformStep = (step: TransformStep): JsonValue => {
-  switch (step.kind) {
-    case TransformStepKind.RAW:
-      return step.json;
-    case TransformStepKind.RENAME:
-      return { rename: Object.fromEntries(step.pairs.map((pair) => [pair.from, pair.to.trim()])) };
-    case TransformStepKind.DROP:
-      return { drop: [...step.names] };
-    case TransformStepKind.COMPUTE: {
+export const serializeTransformStep = (step: TransformStep): JsonValue =>
+  match<TransformStep, JsonValue>(step)
+    .with({ kind: TransformStepKind.RAW }, ({ json }) => json)
+    .with({ kind: TransformStepKind.RENAME }, ({ pairs }) => ({
+      rename: Object.fromEntries(pairs.map((pair) => [pair.from, pair.to.trim()])),
+    }))
+    .with({ kind: TransformStepKind.DROP }, ({ names }) => ({ drop: [...names] }))
+    .with({ kind: TransformStepKind.COMPUTE }, ({ outputs, where }): JsonValue => {
       const compute = Object.fromEntries(
-        step.outputs.map((output) => [
-          getTransformOutputName(output, step.where !== null),
+        outputs.map((output) => [
+          getTransformOutputName(output, where !== null),
           serializeTransformExpr(output.expr),
         ]),
       );
-      return step.where ? { compute, where: serializeTransformExpr(step.where) } : { compute };
-    }
-  }
-};
+      return where ? { compute, where: serializeTransformExpr(where) } : { compute };
+    })
+    .exhaustive();
 
 export const serializeTransformDefinition = (
   stepsByResource: Map<Resource["name"], TransformStep[]>,

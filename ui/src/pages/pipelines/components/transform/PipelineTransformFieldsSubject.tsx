@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 
@@ -73,27 +75,26 @@ const PipelineTransformFieldsSubject = ({
 
   const setRoot = (root: TransformLeafExpr) => {
     const name = root.kind === TransformExprKind.COLUMN ? root.name : "";
-    switch (step.kind) {
-      case TransformStepKind.RENAME:
-        return onChange({
-          ...step,
-          pairs: step.pairs.map((pair, index) => (index === 0 ? { ...pair, from: name } : pair)),
-        });
-      case TransformStepKind.DROP:
-        return onChange({
-          ...step,
-          names: step.names.map((candidate, index) => (index === 0 ? name : candidate)),
-        });
-      case TransformStepKind.COMPUTE:
-        return onChange({
-          ...step,
-          outputs: step.outputs.map((candidate, index) =>
+    onChange(
+      match(step)
+        .with({ kind: TransformStepKind.RENAME }, (rename) => ({
+          ...rename,
+          pairs: rename.pairs.map((pair, index) => (index === 0 ? { ...pair, from: name } : pair)),
+        }))
+        .with({ kind: TransformStepKind.DROP }, (drop) => ({
+          ...drop,
+          names: drop.names.map((candidate, index) => (index === 0 ? name : candidate)),
+        }))
+        .with({ kind: TransformStepKind.COMPUTE }, (compute) => ({
+          ...compute,
+          outputs: compute.outputs.map((candidate, index) =>
             index === outputIndex
               ? { ...candidate, expr: createTransformChainExpr(root, chain.calls) }
               : candidate,
           ),
-        });
-    }
+        }))
+        .exhaustive(),
+    );
   };
 
   return (

@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformArgument, TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
@@ -67,17 +69,14 @@ export const getTransformAcceptedColumns = (
 export const isTransformExprComplete = (
   expr: TransformExpr,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
-): boolean => {
-  switch (expr.kind) {
-    case TransformExprKind.EMPTY:
-      return false;
-    case TransformExprKind.COLUMN:
-      return true;
-    case TransformExprKind.LITERAL:
-      return expr.value !== null;
-    case TransformExprKind.CALL: {
-      const fn = functionsByName.get(expr.fn);
-      const [input = TRANSFORM_EMPTY_EXPR, ...rest] = expr.args;
+): boolean =>
+  match(expr)
+    .with({ kind: TransformExprKind.EMPTY }, () => false)
+    .with({ kind: TransformExprKind.COLUMN }, () => true)
+    .with({ kind: TransformExprKind.LITERAL }, ({ value }) => value !== null)
+    .with({ kind: TransformExprKind.CALL }, (call) => {
+      const fn = functionsByName.get(call.fn);
+      const [input = TRANSFORM_EMPTY_EXPR, ...rest] = call.args;
       if (!fn || !isTransformExprComplete(input, functionsByName)) return false;
       const supplied = trimTrailingEmptyExprs(rest);
       const variadic = isTransformVariadic(fn);
@@ -90,9 +89,8 @@ export const isTransformExprComplete = (
           getTransformArgumentSpec(fn, position + 1) !== undefined &&
           isTransformExprComplete(arg, functionsByName),
       );
-    }
-  }
-};
+    })
+    .exhaustive();
 
 export const getCompatibleTransformFunctions = (
   inputType: string | undefined,

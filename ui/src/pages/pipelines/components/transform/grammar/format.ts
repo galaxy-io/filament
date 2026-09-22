@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import { TRANSFORM_RAW_STEP_LABEL } from "@/pages/pipelines/components/transform/constants";
@@ -87,76 +89,75 @@ const needsParentheses = (
 export const formatTransformExpr = (
   expr: TransformExpr,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
-): TransformSummaryPart[] => {
-  switch (expr.kind) {
-    case TransformExprKind.EMPTY:
-      return [ELLIPSIS];
-    case TransformExprKind.COLUMN:
-      return [column(expr.name)];
-    case TransformExprKind.LITERAL:
-      return [expr.value === null ? ELLIPSIS : text(formatLiteral(expr.literalKind, expr.value))];
-    case TransformExprKind.CALL: {
-      const fn = functionsByName.get(expr.fn);
+): TransformSummaryPart[] =>
+  match(expr)
+    .with({ kind: TransformExprKind.EMPTY }, () => [ELLIPSIS])
+    .with({ kind: TransformExprKind.COLUMN }, ({ name }) => [column(name)])
+    .with({ kind: TransformExprKind.LITERAL }, ({ literalKind, value }) => [
+      value === null ? ELLIPSIS : text(formatLiteral(literalKind, value)),
+    ])
+    .with({ kind: TransformExprKind.CALL }, (call) => {
+      const fn = functionsByName.get(call.fn);
       const operand = (arg: TransformExpr): TransformSummaryPart[] =>
         needsParentheses(arg, functionsByName)
           ? [text("("), ...formatTransformExpr(arg, functionsByName), text(")")]
           : formatTransformExpr(arg, functionsByName);
       if (fn?.conditionJoin) {
-        const joined = expr.args.map((arg) =>
+        const joined = call.args.map((arg) =>
           arg.kind === TransformExprKind.CALL && functionsByName.get(arg.fn)?.conditionJoin
             ? [text("("), ...formatTransformExpr(arg, functionsByName), text(")")]
             : formatTransformExpr(arg, functionsByName),
         );
         return withSeparator(joined, ` ${fn.conditionJoin} `);
       }
-      const [input, ...rest] = expr.args;
+      const [input, ...rest] = call.args;
       const args = trimTrailingEmptyExprs(rest).map(operand);
       const head = input ? operand(input) : [ELLIPSIS];
       if (fn?.operatorSymbol) {
         return [...head, text(` ${fn.operatorSymbol} `), ...(args[0] ?? [ELLIPSIS])];
       }
-      const name = verb(fn ? fn.displayName || fn.name : expr.fn || "…");
+      const name = verb(fn ? fn.displayName || fn.name : call.fn || "…");
       const callArgs = args.length > 0 ? [text(" ("), ...withSeparator(args, ", "), text(")")] : [];
       if (input?.kind === TransformExprKind.CALL) {
         return [...formatTransformExpr(input, functionsByName), text(", then "), name, ...callArgs];
       }
       return [name, text(" "), ...head, ...callArgs];
-    }
-  }
-};
+    })
+    .exhaustive();
 
 export const formatTransformStep = (
   step: TransformStep,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
-): TransformSummaryPart[] => {
-  switch (step.kind) {
-    case TransformStepKind.RAW:
-      return [text(TRANSFORM_RAW_STEP_LABEL)];
-    case TransformStepKind.RENAME:
-      return joinParts([
+): TransformSummaryPart[] =>
+  match(step)
+    .with({ kind: TransformStepKind.RAW }, () => [text(TRANSFORM_RAW_STEP_LABEL)])
+    .with({ kind: TransformStepKind.RENAME }, ({ pairs }) =>
+      joinParts([
         verb("Rename"),
         text(" "),
         ...withSeparator(
-          step.pairs.map((pair) => [
+          pairs.map((pair) => [
             column(pair.from || "…"),
             text(" to "),
             pair.to ? output(pair.to) : ELLIPSIS,
           ]),
           " and ",
         ),
-      ]);
-    case TransformStepKind.DROP:
-      return joinParts([
+      ]),
+    )
+    .with({ kind: TransformStepKind.DROP }, ({ names }) =>
+      joinParts([
         verb("Drop"),
         text(" "),
         ...withSeparator(
-          step.names.map((name) => [column(name || "…")]),
+          names.map((name) => [column(name || "…")]),
           " and ",
         ),
-      ]);
-    case TransformStepKind.COMPUTE: {
-      const isMatchingRows = step.where !== null;
-      const outputs = step.outputs.map((entry) => {
+      ]),
+    )
+    .with({ kind: TransformStepKind.COMPUTE }, (compute) => {
+      const isMatchingRows = compute.where !== null;
+      const outputs = compute.outputs.map((entry) => {
         const rootVerb = TRANSFORM_EXPR_KIND_TO_VERB_MAP[entry.expr.kind];
         const head = rootVerb === undefined ? [] : [verb(rootVerb), text(" ")];
         const named = isTransformOutputInPlace(entry, isMatchingRows)
@@ -164,10 +165,9 @@ export const formatTransformStep = (
           : [text(" as "), output(getTransformOutputName(entry, isMatchingRows))];
         return [...head, ...formatTransformExpr(entry.expr, functionsByName), ...named];
       });
-      const where = step.where
-        ? [text(" on rows where "), ...formatTransformExpr(step.where, functionsByName)]
+      const where = compute.where
+        ? [text(" on rows where "), ...formatTransformExpr(compute.where, functionsByName)]
         : [];
       return joinParts([...withSeparator(outputs, ", and "), ...where]);
-    }
-  }
-};
+    })
+    .exhaustive();

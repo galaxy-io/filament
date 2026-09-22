@@ -1,4 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
+import { match } from "ts-pattern";
 
 import {
   type LoadAction,
@@ -123,27 +124,27 @@ function moveStep(
 const pipelineTransformFieldsReducer = (
   state: PipelineTransformFieldsState,
   action: PipelineTransformFieldsAction,
-): PipelineTransformFieldsState => {
-  switch (action.type) {
-    case PipelineTransformFieldsActionType.LOAD:
-      return load(state, action);
-    case PipelineTransformFieldsActionType.OPEN_NEW:
-      return openNew(state);
-    case PipelineTransformFieldsActionType.OPEN_STEP:
-      return openStep(state, action);
-    case PipelineTransformFieldsActionType.CANCEL:
-      return cancel(state);
-    case PipelineTransformFieldsActionType.SET_DRAFT:
-      return setDraft(state, action);
-    case PipelineTransformFieldsActionType.SET_RESOURCE:
-      return setResource(state, action);
-    case PipelineTransformFieldsActionType.SAVE:
-      return save(state);
-    case PipelineTransformFieldsActionType.REMOVE_STEP:
-      return removeStep(state, action);
-    case PipelineTransformFieldsActionType.MOVE_STEP:
-      return moveStep(state, action);
-  }
-};
+): PipelineTransformFieldsState =>
+  match(action)
+    .with({ type: PipelineTransformFieldsActionType.LOAD }, (action) => load(state, action))
+    .with({ type: PipelineTransformFieldsActionType.OPEN_NEW }, () => openNew(state))
+    .with({ type: PipelineTransformFieldsActionType.OPEN_STEP }, (action) =>
+      openStep(state, action),
+    )
+    .with({ type: PipelineTransformFieldsActionType.CANCEL }, () => cancel(state))
+    .with({ type: PipelineTransformFieldsActionType.SET_DRAFT }, (action) =>
+      setDraft(state, action),
+    )
+    .with({ type: PipelineTransformFieldsActionType.SET_RESOURCE }, (action) =>
+      setResource(state, action),
+    )
+    .with({ type: PipelineTransformFieldsActionType.SAVE }, () => save(state))
+    .with({ type: PipelineTransformFieldsActionType.REMOVE_STEP }, (action) =>
+      removeStep(state, action),
+    )
+    .with({ type: PipelineTransformFieldsActionType.MOVE_STEP }, (action) =>
+      moveStep(state, action),
+    )
+    .exhaustive();
 
 export default pipelineTransformFieldsReducer;

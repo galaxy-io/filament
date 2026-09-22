@@ -1,5 +1,7 @@
 import { createElement } from "react";
 
+import { match } from "ts-pattern";
+
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -62,26 +64,26 @@ export const createTransformStep = (
   kind: TransformEditableStep["kind"],
   column = "",
 ): TransformEditableStep => {
-  switch (kind) {
-    case TransformStepKind.RENAME:
-      return { id: crypto.randomUUID(), kind, pairs: [{ from: column, to: "" }] };
-    case TransformStepKind.DROP:
-      return { id: crypto.randomUUID(), kind, names: [column] };
-    case TransformStepKind.COMPUTE:
-      return createTransformComputeStep(column);
-  }
+  return match<TransformEditableStep["kind"], TransformEditableStep>(kind)
+    .with(TransformStepKind.RENAME, (kind) => ({
+      id: crypto.randomUUID(),
+      kind,
+      pairs: [{ from: column, to: "" }],
+    }))
+    .with(TransformStepKind.DROP, (kind) => ({ id: crypto.randomUUID(), kind, names: [column] }))
+    .with(TransformStepKind.COMPUTE, () => createTransformComputeStep(column))
+    .exhaustive();
 };
 
-export const getTransformStepColumn = (step: TransformEditableStep): string => {
-  switch (step.kind) {
-    case TransformStepKind.RENAME:
-      return step.pairs[0]?.from ?? "";
-    case TransformStepKind.DROP:
-      return step.names[0] ?? "";
-    case TransformStepKind.COMPUTE:
-      return getTransformRootColumn(step.outputs[0]?.expr ?? TRANSFORM_EMPTY_EXPR) ?? "";
-  }
-};
+export const getTransformStepColumn = (step: TransformEditableStep): string =>
+  match(step)
+    .with({ kind: TransformStepKind.RENAME }, (rename) => rename.pairs[0]?.from ?? "")
+    .with({ kind: TransformStepKind.DROP }, (drop) => drop.names[0] ?? "")
+    .with(
+      { kind: TransformStepKind.COMPUTE },
+      (compute) => getTransformRootColumn(compute.outputs[0]?.expr ?? TRANSFORM_EMPTY_EXPR) ?? "",
+    )
+    .exhaustive();
 
 export const convertTransformStep = (
   step: TransformEditableStep,
@@ -187,18 +189,14 @@ export const getTransformChainAction = (chain: TransformChain): TransformAction 
   return { kind: TransformActionKind.COPY };
 };
 
-export const getTransformActionId = (action: TransformAction): string => {
-  switch (action.kind) {
-    case TransformActionKind.RENAME:
-    case TransformActionKind.DROP:
-    case TransformActionKind.COPY:
-      return action.kind;
-    case TransformActionKind.LITERAL:
-      return `${action.kind}:${action.literalKind}`;
-    case TransformActionKind.FUNCTION:
-      return `${action.kind}:${action.fn}`;
-  }
-};
+export const getTransformActionId = (action: TransformAction): string =>
+  match(action)
+    .with(
+      { kind: TransformActionKind.LITERAL },
+      ({ kind, literalKind }) => `${kind}:${literalKind}`,
+    )
+    .with({ kind: TransformActionKind.FUNCTION }, ({ kind, fn }) => `${kind}:${fn}`)
+    .otherwise(({ kind }) => kind);
 
 interface TransformActionContext {
   functionsByName: Map<TransformFunction["name"], TransformFunction>;
@@ -233,30 +231,31 @@ export const applyTransformAction = (
   const root: TransformLeafExpr =
     filled === undefined ? chain.root : createTransformColumnExpr(filled);
   const rootColumn = root.kind === TransformExprKind.COLUMN ? root.name : undefined;
-  const expr = (() => {
-    switch (action.kind) {
-      case TransformActionKind.COPY:
-        return createTransformChainExpr(
-          root.kind === TransformExprKind.COLUMN ? root : TRANSFORM_EMPTY_EXPR,
-          [],
-        );
-      case TransformActionKind.LITERAL:
-        return createTransformLiteral(action.literalKind);
-      case TransformActionKind.FUNCTION:
-        return createTransformChainExpr(
-          root,
-          replaceTransformChainCall(
-            chain.calls,
-            0,
-            action.fn,
-            filled === undefined ? rootType : getTransformColumnType(columns, filled),
-            functionsByName,
-            columns,
-            rootColumn,
-          ),
-        );
-    }
-  })();
+  const expr = match(action)
+    .with({ kind: TransformActionKind.COPY }, () =>
+      createTransformChainExpr(
+        root.kind === TransformExprKind.COLUMN ? root : TRANSFORM_EMPTY_EXPR,
+        [],
+      ),
+    )
+    .with({ kind: TransformActionKind.LITERAL }, ({ literalKind }) =>
+      createTransformLiteral(literalKind),
+    )
+    .with({ kind: TransformActionKind.FUNCTION }, ({ fn }) =>
+      createTransformChainExpr(
+        root,
+        replaceTransformChainCall(
+          chain.calls,
+          0,
+          fn,
+          filled === undefined ? rootType : getTransformColumnType(columns, filled),
+          functionsByName,
+          columns,
+          rootColumn,
+        ),
+      ),
+    )
+    .exhaustive();
   return {
     ...compute,
     outputs: compute.outputs.map((candidate, index) =>
