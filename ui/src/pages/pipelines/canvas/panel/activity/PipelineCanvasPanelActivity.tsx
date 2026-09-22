@@ -10,6 +10,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Flash from "@galaxy-io/dls/transform/Flash";
 
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -17,6 +18,7 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 import { PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelActivityLine from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivityLine";
 import { getRunEventKey } from "@/pages/pipelines/canvas/panel/activity/utils";
+import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
@@ -50,13 +52,16 @@ const ActivityListLine = styled.div`
 `;
 
 const PipelineCanvasPanelActivity = () => {
+  const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data: activeRunsData } = useListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
+      pagination: { pageSize: PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS },
     }),
+    options: isContinuous ? { refetchInterval: 2000 } : undefined,
   });
 
   const [runIds, setRunIds] = useState<RunInfo["id"][]>([]);

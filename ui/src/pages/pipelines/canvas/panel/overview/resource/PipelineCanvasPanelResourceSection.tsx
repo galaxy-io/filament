@@ -11,7 +11,7 @@ import FlexWrapper, {
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
@@ -27,6 +27,7 @@ import {
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
 import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
+import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
@@ -52,6 +53,7 @@ const PipelineCanvasPanelResourceSection = ({
   isOpenInitial,
 }: PipelineCanvasPanelResourceSectionProps) => {
   const state = usePipelineCanvasState();
+  const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
   const { selectResource } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();
 
@@ -64,7 +66,7 @@ const PipelineCanvasPanelResourceSection = ({
     input: create(DiscoverResourcesRequestSchema, {
       connectionId: sourceConnectionId,
     }),
-    options: { ...PROBE_QUERY_OPTIONS, enabled: sourceConnectionId !== "" },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: !isContinuous && sourceConnectionId !== "" },
   });
   const discoveredCount = (discovered?.resources ?? []).filter(
     (resource) => resource.isSelectable,

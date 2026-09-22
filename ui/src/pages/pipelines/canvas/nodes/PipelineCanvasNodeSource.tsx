@@ -3,7 +3,7 @@ import { memo, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -15,13 +15,15 @@ import type { PipelineCanvasNodeSourceProps } from "@/pages/pipelines/canvas/nod
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
+  usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
+import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 
-const useSourceResources = (connectionId: Connection["id"]) => {
+const useSourceResources = (connectionId: Connection["id"], isContinuous: boolean) => {
   const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId }),
     options: { enabled: connectionId !== "", retry: false, networkMode: "always" },
@@ -36,11 +38,18 @@ const useSourceResources = (connectionId: Connection["id"]) => {
     [data?.resources],
   );
 
-  return { tables, error, isLoading: isFetching, refresh: () => void refetch() };
+  return {
+    tables,
+    error: isContinuous ? null : error,
+    isLoading: !isContinuous && isFetching,
+    refresh: () => void refetch(),
+  };
 };
 
 const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNodeSourceProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
+  const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
+  const { edges } = usePipelineCanvasState();
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode } = usePipelineCanvasActions();
   const { selectNode } = usePipelineCanvasSelection();
@@ -51,7 +60,7 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
     error,
     isLoading,
     refresh,
-  } = useSourceResources(data.connectionId);
+  } = useSourceResources(data.connectionId, isContinuous);
 
   const connectedHandleIds = useMemo(
     () => new Set(connections.map((connection) => connection.sourceHandle)),
@@ -60,11 +69,19 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
 
   const tables = useMemo(
     () =>
-      discoveredTables.map((table) => ({
-        ...table,
-        isConnected: connectedHandleIds.has(table.name),
-      })),
-    [discoveredTables, connectedHandleIds],
+      [
+        ...new Set([
+          ...discoveredTables.map((table) => table.name),
+          ...edges
+            .filter((edge) => edge.source === id)
+            .map((edge) => edge.sourceHandle)
+            .filter(
+              (name): name is string =>
+                !!name && name !== CONNECTOR_KIND_TO_HANDLE_ID_MAP[ConnectorKind.SOURCE],
+            ),
+        ]),
+      ].map((name) => ({ name, isConnected: connectedHandleIds.has(name) })),
+    [discoveredTables, connectedHandleIds, edges, id],
   );
 
   return (

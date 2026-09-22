@@ -1,4 +1,4 @@
-import type { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -12,6 +12,9 @@ import type {
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalActionType {
+  SET_STREAM_RESOURCE = "SET_STREAM_RESOURCE",
+  SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
+  ADD_STREAM_RESOURCE = "ADD_STREAM_RESOURCE",
   SELECT_SOURCE = "SELECT_SOURCE",
   TOGGLE_SINK = "TOGGLE_SINK",
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
@@ -141,6 +144,15 @@ export interface SetSubmittingAction {
 }
 
 export type CreatePipelineModalAction =
+  | {
+      type: CreatePipelineModalActionType.SET_STREAM_RESOURCE;
+      payload: { id: string; label: string; subject: string };
+    }
+  | { type: CreatePipelineModalActionType.SET_EXECUTION_MODE; payload: ExecutionMode }
+  | {
+      type: CreatePipelineModalActionType.ADD_STREAM_RESOURCE;
+      payload: { id: string; sinkId: string };
+    }
   | SelectSourceAction
   | ToggleSinkAction
   | SetActiveSinkAction

@@ -1,3 +1,5 @@
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+
 import {
   type AddNotifierAction,
   type CreatePipelineModalAction,
@@ -32,6 +34,8 @@ function selectSource(
 ): CreatePipelineModalState {
   return {
     ...state,
+    manualStreamResources: [],
+    streamResourceEdits: {},
     sourceConnection: state.sourceConnection?.id === action.payload.id ? null : action.payload,
     resourceSelection: {},
     resourceReadModes: {},
@@ -213,6 +217,42 @@ const createPipelineModalReducer = (
   action: CreatePipelineModalAction,
 ): CreatePipelineModalState => {
   switch (action.type) {
+    case CreatePipelineModalActionType.SET_STREAM_RESOURCE:
+      return {
+        ...state,
+        streamResourceEdits: {
+          ...state.streamResourceEdits,
+          [action.payload.id]: { label: action.payload.label, subject: action.payload.subject },
+        },
+      };
+    case CreatePipelineModalActionType.SET_EXECUTION_MODE:
+      return {
+        ...state,
+        executionMode: action.payload,
+        resourceReadModes: {},
+        resourceCursors: {},
+        sinkWriteModes: {},
+        schedule: {
+          ...state.schedule,
+          isEnabled: action.payload === ExecutionMode.CONTINUOUS ? false : state.schedule.isEnabled,
+        },
+      };
+    case CreatePipelineModalActionType.ADD_STREAM_RESOURCE:
+      return {
+        ...state,
+        manualStreamResources: [...state.manualStreamResources, action.payload.id],
+        streamResourceEdits: {
+          ...state.streamResourceEdits,
+          [action.payload.id]: { label: "", subject: "" },
+        },
+        resourceSelection: {
+          ...state.resourceSelection,
+          [action.payload.sinkId]: {
+            ...state.resourceSelection[action.payload.sinkId],
+            [action.payload.id]: true,
+          },
+        },
+      };
     case CreatePipelineModalActionType.SELECT_SOURCE:
       return selectSource(state, action);
     case CreatePipelineModalActionType.TOGGLE_SINK:

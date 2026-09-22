@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import {
   type CreatePipelineVersionRequest,
   CreatePipelineVersionRequestSchema,
@@ -36,6 +36,7 @@ export const getCanvasEdgeConfig = (
   edge: Pick<CanvasEdge, "data">,
   baseEdge: PipelineEdgeProto | undefined,
 ): PipelineCanvasEdgeData => ({
+  destinationResource: edge.data?.destinationResource ?? baseEdge?.destinationResource ?? "",
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
@@ -91,6 +92,7 @@ export const mapCanvasStateToVersionRequest = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
   pipelineId: Pipeline["id"],
   baseVersion: PipelineVersion | undefined,
+  executionMode: ExecutionMode = ExecutionMode.BOUNDED,
 ): CreatePipelineVersionRequest => {
   const baseNodesById = new Map((baseVersion?.graph?.nodes ?? []).map((node) => [node.id, node]));
   const baseEdgesByKey = new Map(
@@ -116,6 +118,9 @@ export const mapCanvasStateToVersionRequest = (
       toNode: edge.target,
       selector: baseEdge?.selector ?? "",
       ...getCanvasEdgeConfig(edge, baseEdge),
+      ...(executionMode === ExecutionMode.CONTINUOUS
+        ? { readMode: ReadMode.UNSPECIFIED, cursors: [] }
+        : {}),
     };
   });
 

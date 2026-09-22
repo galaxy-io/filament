@@ -1,4 +1,4 @@
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type {
   GetResourceColumnsResponse,
@@ -17,6 +17,7 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
+import { streamResourceLabel } from "@/pages/pipelines/streaming";
 
 export const getDefaultPipelineName = (
   source: Connection | null,
@@ -138,6 +139,9 @@ const buildResourceRows = ({
 
     return {
       name: resource.name,
+      subject: state.streamResourceEdits?.[resource.name]?.subject ?? resource.name,
+      destinationResource:
+        state.streamResourceEdits?.[resource.name]?.label ?? streamResourceLabel(resource.name),
       displayName: resource.displayName || resource.name,
       isSelectable: resource.isSelectable,
       isSelected: resource.isSelectable && isSelected,
@@ -146,7 +150,7 @@ const buildResourceRows = ({
       cursorField,
       cursorOptions,
       status:
-        isCdc || !isSelected
+        isCdc || state.executionMode === ExecutionMode.CONTINUOUS || !isSelected
           ? undefined
           : getResourceStatus({
               readMode,
@@ -209,12 +213,15 @@ export const buildSinkRows = ({
       ),
     ];
     const supported = supportedWriteModesBySink[connection.id] ?? [];
-    const writeModeOptions = isCdc
-      ? supported
-      : supported.filter((mode) => getCompatibleWriteModes(readModes).includes(mode));
+    const writeModeOptions =
+      isCdc || state.executionMode === ExecutionMode.CONTINUOUS
+        ? supported
+        : supported.filter((mode) => getCompatibleWriteModes(readModes).includes(mode));
     const stored =
       state.sinkWriteModes[connection.id] ??
-      (isCdc ? WriteMode.APPEND : CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE);
+      (isCdc || state.executionMode === ExecutionMode.CONTINUOUS
+        ? WriteMode.APPEND
+        : CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE);
     const writeMode = writeModeOptions.includes(stored)
       ? stored
       : (writeModeOptions[0] ?? WriteMode.UNSPECIFIED);
@@ -239,7 +246,7 @@ export const getIssuesBySink = (
         .map((row) => row.status?.message ?? "")
         .filter(Boolean);
       if (!sink.writeModeOptions.length)
-        issues.push("No write mode supports the selected read modes");
+        issues.push("No compatible write mode is available for this route");
       return [sink.connection.id, [...new Set(issues)]];
     }),
   );

@@ -40,6 +40,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
+import PipelineExecutionModeField from "@/pages/pipelines/components/PipelineExecutionModeField";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
@@ -290,11 +291,30 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
 };
 
 const CreatePipelineModalConnections = () => {
+  const { executionMode, supportedExecutionModes } = useCreatePipelineModalState();
+  const dispatch = useCreatePipelineModalDispatch();
   return (
-    <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
-      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SOURCE} />
-      <VerticalDivider />
-      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SINK} />
+    <FlexWrapper
+      direction={FlexDirection.COLUMN}
+      alignItems={AlignItems.STRETCH}
+      grow={1}
+      minHeight={0}
+    >
+      <FlexWrapper padding="12px 16px" shrink={0} fillWidth>
+        <PipelineExecutionModeField
+          value={executionMode}
+          supportedModes={supportedExecutionModes}
+          onChange={(payload) =>
+            dispatch({ type: CreatePipelineModalActionType.SET_EXECUTION_MODE, payload })
+          }
+        />
+      </FlexWrapper>
+      <HorizontalDivider />
+      <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
+        <CreatePipelineModalConnectionsPane kind={ConnectorKind.SOURCE} />
+        <VerticalDivider />
+        <CreatePipelineModalConnectionsPane kind={ConnectorKind.SINK} />
+      </FlexWrapper>
     </FlexWrapper>
   );
 };

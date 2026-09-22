@@ -13,27 +13,43 @@ import {
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
   PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP,
 } from "@/pages/pipelines/history/constants";
+import { executionStateLabels, executionStateStatus } from "@/pages/pipelines/streaming";
 
 interface PipelineHistoryRunStatusProps {
   status: RunStatus;
   error?: RunInfo["error"];
+  executionStatus?: RunInfo["executionStatus"];
 }
 
-const PipelineHistoryRunStatus = ({ status, error }: PipelineHistoryRunStatusProps) => {
+const PipelineHistoryRunStatus = ({
+  status,
+  error,
+  executionStatus,
+}: PipelineHistoryRunStatusProps) => {
+  const displayStatus = executionStatus
+    ? (executionStateStatus[executionStatus.observedState] ?? RunStatus.UNSPECIFIED)
+    : status;
+  const label = executionStatus
+    ? (executionStateLabels[executionStatus.observedState] ?? "Unknown")
+    : PIPELINE_RUN_STATUS_TO_LABEL_MAP[status];
+  const reason = executionStatus?.reason || error;
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
       <Beacon
-        variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]}
-        isPulse={status === RunStatus.RUNNING}
+        variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[displayStatus]}
+        isPulse={displayStatus === RunStatus.RUNNING || displayStatus === RunStatus.REQUESTED}
       />
-      <Text size={TextSize.BODY_SM} variant={PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP[status]}>
-        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
+      <Text
+        size={TextSize.BODY_SM}
+        variant={PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP[displayStatus]}
+      >
+        {label}
       </Text>
-      {error && (
+      {reason && (
         <Tooltip
           body={
             <Text size={TextSize.CAPTION} isMonospace isSelectable>
-              {error}
+              {reason}
             </Text>
           }
           position={TooltipPosition.RIGHT}

@@ -28,6 +28,8 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
+import { isContinuousRunActive } from "@/pages/pipelines/streaming";
+
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import {
@@ -67,7 +69,8 @@ const getScheduledRefetchInterval = (runs: RunInfo[], floor: number) => {
 
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
   if (!runs) return false;
-  if (runs.some((run) => ACTIVE_RUN_STATUSES.has(run.status))) return LIST_RUNS_REFETCH_INTERVAL;
+  if (runs.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
+    return LIST_RUNS_REFETCH_INTERVAL;
   return getScheduledRefetchInterval(runs, LIST_RUNS_REFETCH_INTERVAL);
 };
 
@@ -75,7 +78,8 @@ export const getActiveRunsRefetchInterval = (
   runs: RunInfo[] | undefined,
   nextFireAt: bigint | undefined,
 ) => {
-  if (runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status))) return LIST_RUNS_REFETCH_INTERVAL;
+  if (runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
+    return LIST_RUNS_REFETCH_INTERVAL;
   if (!nextFireAt) return IDLE_RUNS_REFETCH_INTERVAL;
   const wait = Number(nextFireAt) - Date.now();
   return Math.min(Math.max(wait, LIST_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
@@ -187,7 +191,8 @@ export const useSuspenseListRunsInfiniteQuery = ({
 
 const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   if (!run) return false;
-  if (ACTIVE_RUN_STATUSES.has(run.status)) return GET_RUN_REFETCH_INTERVAL;
+  if (ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run))
+    return GET_RUN_REFETCH_INTERVAL;
   return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
 };
 
@@ -285,6 +290,14 @@ export const useSignalRunMutation = (
   >(IngestionService.method.signalRun, {
     ...options,
     onSettled: (...args) => {
+      void queryClient.invalidateQueries({
+        queryKey: createConnectQueryKey({
+          schema: IngestionService.method.getRun,
+          cardinality: undefined,
+        }),
+      });
+      void queryClient.invalidateQueries({ queryKey: createGetPipelineQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: createListPipelinesQueryKey() });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),
       });
