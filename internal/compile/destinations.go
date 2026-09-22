@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/galaxy-io/filament"
+
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-// ValidateContinuousDestinations keeps source membership separate from destination
+// ValidateDestinations keeps source membership separate from destination
 // naming and rejects ambiguous routes before any connector I/O.
-func ValidateContinuousDestinations(edges []*ingestionv1.PipelineEdge) error {
+func ValidateDestinations(edges []*ingestionv1.PipelineEdge) error {
 	seen := map[string]bool{}
 	resources := map[string]bool{}
 	for _, edge := range edges {
@@ -35,4 +37,14 @@ func ValidateContinuousDestinations(edges []*ingestionv1.PipelineEdge) error {
 		resources[source] = true
 	}
 	return nil
+}
+
+// destinationWritePolicies carries user naming overrides until runtime binds
+// authoritative write capabilities for bounded execution.
+func destinationWritePolicies(group *routeGroup) map[string]filament.WritePolicy {
+	policies := make(map[string]filament.WritePolicy, len(group.destinations))
+	for resource, destination := range group.destinations {
+		policies[resource] = filament.WritePolicy{Resource: resource, DestinationResource: destination}
+	}
+	return policies
 }

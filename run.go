@@ -48,7 +48,8 @@ type RunSpec struct {
 // RunRequest is the caller-facing ask for a run, deduplicated by
 // IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
-	// WritePolicies preserves policies resolved at admission for continuous attempts.
+	// WritePolicies preserves continuous admission policies and destination-name
+	// overrides for bounded runs. Runtime negotiation binds bounded capabilities.
 	WritePolicies      map[string]WritePolicy `json:",omitempty"`
 	Tenant             TenantID
 	PipelineID         string

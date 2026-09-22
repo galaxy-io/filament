@@ -172,7 +172,7 @@ type PipelineEdge struct {
 	Cursors   []*ResourceCursorConfig `protobuf:"bytes,5,rep,name=cursors,proto3" json:"cursors,omitempty"`
 	ReadMode  ReadMode                `protobuf:"varint,6,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
 	WriteMode WriteMode               `protobuf:"varint,7,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
-	// Optional destination name for a continuous resource; source identity is unchanged.
+	// Optional destination name for this resource in any execution mode; source identity is unchanged.
 	DestinationResource string `protobuf:"bytes,8,opt,name=destination_resource,json=destinationResource,proto3" json:"destination_resource,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache

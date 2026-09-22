@@ -55,10 +55,8 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 	defer probes.teardown(ctx)
 
-	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		if err := compile.ValidateContinuousDestinations(edges); err != nil {
-			resp.Errors = append(resp.Errors, graphError(err.Error()))
-		}
+	if err := compile.ValidateDestinations(edges); err != nil {
+		resp.Errors = append(resp.Errors, graphError(err.Error()))
 	}
 	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {

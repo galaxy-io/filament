@@ -39,9 +39,6 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 	if err := normalizeContinuousEdges(graph.Edges); err != nil {
 		return nil, err
 	}
-	if err := ValidateContinuousDestinations(graph.Edges); err != nil {
-		return nil, err
-	}
 	groups, err := groupEdges(graph.Edges, nodes)
 	if err != nil {
 		return nil, err
