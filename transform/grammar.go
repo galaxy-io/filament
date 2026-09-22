@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"sync"
 
@@ -59,16 +60,54 @@ func validateGrammar(yamlData []byte) error {
 	return err
 }
 
-// collectLeaves records the innermost causes of a schema violation, which are
-// the ones that name a concrete problem rather than a failed alternative.
+// collectLeaves records the innermost causes of a schema violation. A failed
+// oneOf or anyOf reports through the alternatives that got past the branch
+// point into the document; when none did, every alternative's complaint
+// would describe the same value, so one issue at the branch stands for them.
 func collectLeaves(ve *jsonschema.ValidationError, errs *Errors) {
 	if len(ve.Causes) == 0 {
 		errs.addf(grammarPath(ve.InstanceLocation), "%s", ve.Message)
 		return
 	}
+	if !isBranch(ve) {
+		for _, c := range ve.Causes {
+			collectLeaves(c, errs)
+		}
+		return
+	}
+	var deeper []*jsonschema.ValidationError
 	for _, c := range ve.Causes {
+		if reachesBelow(c, ve.InstanceLocation) {
+			deeper = append(deeper, c)
+		}
+	}
+	if len(deeper) == 0 {
+		errs.addf(grammarPath(ve.InstanceLocation), "does not match any allowed form")
+		return
+	}
+	for _, c := range deeper {
 		collectLeaves(c, errs)
 	}
+}
+
+// isBranch reports whether ve is a oneOf or anyOf keyword failing as a whole.
+func isBranch(ve *jsonschema.ValidationError) bool {
+	kw := path.Base(ve.KeywordLocation)
+	return kw == "oneOf" || kw == "anyOf"
+}
+
+// reachesBelow reports whether any leaf under ve sits strictly inside the
+// document location loc.
+func reachesBelow(ve *jsonschema.ValidationError, loc string) bool {
+	if len(ve.Causes) == 0 {
+		return strings.HasPrefix(ve.InstanceLocation, loc+"/")
+	}
+	for _, c := range ve.Causes {
+		if reachesBelow(c, loc) {
+			return true
+		}
+	}
+	return false
 }
 
 // grammarPath renders a JSON pointer in the same style the compiler uses for

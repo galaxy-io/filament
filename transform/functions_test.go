@@ -141,6 +141,10 @@ func TestFunctionCatalogCarriesBuilderMetadata(t *testing.T) {
 		if spec.DisplayName == "" {
 			t.Errorf("function %q has no display name", spec.Name)
 		}
+		// A picker row holds about 16 characters; an operator shows its symbol beside the name.
+		if len([]rune(spec.DisplayName)) > 16 && spec.OperatorSymbol == "" {
+			t.Errorf("function %q display name %q is longer than 16 characters", spec.Name, spec.DisplayName)
+		}
 		if want, ok := operators[spec.Name]; ok {
 			if spec.OperatorSymbol != want {
 				t.Errorf("function %q operator symbol = %q, want %q", spec.Name, spec.OperatorSymbol, want)

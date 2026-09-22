@@ -8,23 +8,17 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/compute"
-	"github.com/apache/arrow-go/v18/arrow/scalar"
 )
 
-// defaultDateLayout is the layout ToDate assumes when given none.
-const defaultDateLayout = "2006-01-02"
+// dateLayout is the layout ToDate parses: ISO dates.
+const dateLayout = "2006-01-02"
 
-// ToDate parses every value of a utf8 column as a date using a Go time
-// layout, given as an optional second argument. A value that does not parse
-// fails the whole batch rather than becoming null.
+// ToDate parses every value of a utf8 column as an ISO date. A value that
+// does not parse fails the whole batch rather than becoming null.
 func ToDate(ctx context.Context, args []compute.Datum) (compute.Datum, error) {
 	ad, ok := args[0].(*compute.ArrayDatum)
 	if !ok || ad.Value.DataType().ID() != arrow.STRING {
 		return nil, fmt.Errorf("to_date: expected utf8 array, got %s", args[0])
-	}
-	layout := defaultDateLayout
-	if len(args) > 1 {
-		layout = args[1].(*compute.ScalarDatum).Value.(*scalar.String).String()
 	}
 	src := array.NewStringData(ad.Value)
 	defer src.Release()
@@ -38,7 +32,7 @@ func ToDate(ctx context.Context, args []compute.Datum) (compute.Datum, error) {
 			b.AppendNull()
 			continue
 		}
-		t, err := time.Parse(layout, src.Value(i))
+		t, err := time.Parse(dateLayout, src.Value(i))
 		if err != nil {
 			return nil, fmt.Errorf("to_date: row %d: %w", i, err)
 		}

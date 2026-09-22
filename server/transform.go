@@ -54,8 +54,9 @@ func (a *Server) ListTransformFunctions(ctx context.Context, req *connect.Reques
 
 // ValidateTransform parses and compiles a transform against one resource's
 // schema, read from the source connection, exactly as a run would. Grammar
-// and compile problems come back as issues addressed by path; on success the
-// resource's post-transform columns come back instead.
+// and compile problems come back as issues addressed by path. The response
+// also carries the columns the steps that compiled produce and the type of
+// every sub-expression that compiled, on success and on failure alike.
 func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ingestionv1.ValidateTransformRequest]) (*connect.Response[ingestionv1.ValidateTransformResponse], error) {
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
@@ -96,32 +97,56 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	}
 	def, err := transform.Parse(raw)
 	if err != nil {
-		return transformIssues(err)
+		return transformIssues(err, nil, nil)
 	}
-	plan, err := transform.Compile(def, schema)
+	_, analysis, err := transform.Analyze(def, schema)
 	if err != nil {
-		return transformIssues(err)
+		// The steps that did compile still leave a schema; a builder needs it
+		// for the steps after the broken one.
+		return transformIssues(err, analysis.Types, outputColumns(analysis.Layout))
 	}
-	out := plan.Schema()
-	resp := &ingestionv1.ValidateTransformResponse{Valid: true, OutputColumns: make([]*ingestionv1.ResourceColumn, 0, len(out.Fields))}
-	for _, f := range out.Fields {
-		resp.OutputColumns = append(resp.OutputColumns, &ingestionv1.ResourceColumn{
-			Name: f.Name, LogicalType: string(f.Logical), IsNullable: f.Nullable, IsPrimaryKey: slices.Contains(out.PrimaryKey, f.Name),
-		})
+	resp := &ingestionv1.ValidateTransformResponse{
+		Valid:           true,
+		OutputColumns:   outputColumns(analysis.Layout),
+		ExpressionTypes: expressionTypes(analysis.Types),
 	}
 	return connect.NewResponse(resp), nil
 }
 
-// transformIssues renders a parse or compile failure as a response. Anything
-// that is not a path-addressed transform problem is an argument error.
-func transformIssues(err error) (*connect.Response[ingestionv1.ValidateTransformResponse], error) {
+func outputColumns(out rowmodel.Schema) []*ingestionv1.ResourceColumn {
+	cols := make([]*ingestionv1.ResourceColumn, 0, len(out.Fields))
+	for _, f := range out.Fields {
+		cols = append(cols, &ingestionv1.ResourceColumn{
+			Name: f.Name, LogicalType: string(f.Logical), IsNullable: f.Nullable, IsPrimaryKey: slices.Contains(out.PrimaryKey, f.Name),
+		})
+	}
+	return cols
+}
+
+// transformIssues renders a parse or compile failure as a response, with the
+// types of whatever did compile and the columns the steps still produce.
+// Anything that is not a path-addressed transform problem is an argument error.
+func transformIssues(err error, types []transform.ExpressionType, columns []*ingestionv1.ResourceColumn) (*connect.Response[ingestionv1.ValidateTransformResponse], error) {
 	var errs *transform.Errors
 	if !errors.As(err, &errs) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	resp := &ingestionv1.ValidateTransformResponse{Issues: make([]*ingestionv1.ValidationError, 0, len(errs.Issues))}
+	resp := &ingestionv1.ValidateTransformResponse{
+		Issues:          make([]*ingestionv1.ValidationError, 0, len(errs.Issues)),
+		OutputColumns:   columns,
+		ExpressionTypes: expressionTypes(types),
+	}
 	for _, iss := range errs.Issues {
 		resp.Issues = append(resp.Issues, &ingestionv1.ValidationError{Field: iss.Path, Message: iss.Message})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// expressionTypes maps the compiler's per-path types onto the wire.
+func expressionTypes(types []transform.ExpressionType) []*ingestionv1.TransformExpressionType {
+	out := make([]*ingestionv1.TransformExpressionType, 0, len(types))
+	for _, t := range types {
+		out = append(out, &ingestionv1.TransformExpressionType{Path: t.Path, LogicalType: string(t.Logical)})
+	}
+	return out
 }

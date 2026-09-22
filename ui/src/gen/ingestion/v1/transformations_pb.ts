@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/transformations.proto.
  */
 export const file_ingestion_v1_transformations: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIp8BChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgSFAoMZGlzcGxheV9uYW1lGAcgASgJIp8CChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCRIUCgxkaXNwbGF5X25hbWUYBSABKAkSEQoJc2FtZV90eXBlGAYgASgIEhUKDXJldHVybnNfaW5wdXQYByABKAgSFwoPb3BlcmF0b3Jfc3ltYm9sGAggASgJEhoKEmNvbmRpdGlvbl9vcGVyYXRvchgJIAEoCBIaChJ2YXJpYWRpY19hZGRfbGFiZWwYCiABKAkSFgoOY29uZGl0aW9uX2pvaW4YCyABKAkihQEKHkxpc3RUcmFuc2Zvcm1GdW5jdGlvbnNSZXNwb25zZRIyCglmdW5jdGlvbnMYASADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtRnVuY3Rpb24SFwoPZ3JhbW1hcl92ZXJzaW9uGAIgASgFEhYKDmdyYW1tYXJfc2NoZW1hGAMgASgJInYKGFZhbGlkYXRlVHJhbnNmb3JtUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCRIQCghyZXNvdXJjZRgCIAEoCRIqCgl0cmFuc2Zvcm0YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Io8BChlWYWxpZGF0ZVRyYW5zZm9ybVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmlzc3VlcxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISNAoOb3V0cHV0X2NvbHVtbnMYAyADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5iBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
+  fileDesc("CiJpbmdlc3Rpb24vdjEvdHJhbnNmb3JtYXRpb25zLnByb3RvEgxpbmdlc3Rpb24udjEiNQodTGlzdFRyYW5zZm9ybUZ1bmN0aW9uc1JlcXVlc3QSFAoMbG9naWNhbF90eXBlGAEgASgJIp8BChFUcmFuc2Zvcm1Bcmd1bWVudBIMCgRuYW1lGAEgASgJEhUKDWxvZ2ljYWxfdHlwZXMYAiADKAkSEQoJaXNfY29sdW1uGAMgASgIEhIKCmlzX2xpdGVyYWwYBCABKAgSEwoLaXNfb3B0aW9uYWwYBSABKAgSEwoLaXNfdmFyaWFkaWMYBiABKAgSFAoMZGlzcGxheV9uYW1lGAcgASgJIp8CChFUcmFuc2Zvcm1GdW5jdGlvbhIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEi0KBGFyZ3MYAyADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtQXJndW1lbnQSDwoHcmV0dXJucxgEIAEoCRIUCgxkaXNwbGF5X25hbWUYBSABKAkSEQoJc2FtZV90eXBlGAYgASgIEhUKDXJldHVybnNfaW5wdXQYByABKAgSFwoPb3BlcmF0b3Jfc3ltYm9sGAggASgJEhoKEmNvbmRpdGlvbl9vcGVyYXRvchgJIAEoCBIaChJ2YXJpYWRpY19hZGRfbGFiZWwYCiABKAkSFgoOY29uZGl0aW9uX2pvaW4YCyABKAkihQEKHkxpc3RUcmFuc2Zvcm1GdW5jdGlvbnNSZXNwb25zZRIyCglmdW5jdGlvbnMYASADKAsyHy5pbmdlc3Rpb24udjEuVHJhbnNmb3JtRnVuY3Rpb24SFwoPZ3JhbW1hcl92ZXJzaW9uGAIgASgFEhYKDmdyYW1tYXJfc2NoZW1hGAMgASgJInYKGFZhbGlkYXRlVHJhbnNmb3JtUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCRIQCghyZXNvdXJjZRgCIAEoCRIqCgl0cmFuc2Zvcm0YAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ij0KF1RyYW5zZm9ybUV4cHJlc3Npb25UeXBlEgwKBHBhdGgYASABKAkSFAoMbG9naWNhbF90eXBlGAIgASgJItABChlWYWxpZGF0ZVRyYW5zZm9ybVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEi0KBmlzc3VlcxgCIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISNAoOb3V0cHV0X2NvbHVtbnMYAyADKAsyHC5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW4SPwoQZXhwcmVzc2lvbl90eXBlcxgEIAMoCzIlLmluZ2VzdGlvbi52MS5UcmFuc2Zvcm1FeHByZXNzaW9uVHlwZWIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_connectors]);
 
 /**
  * ListTransformFunctionsRequest asks for the transform catalog. With a
@@ -230,9 +230,39 @@ export const ValidateTransformRequestSchema: GenMessage<ValidateTransformRequest
   messageDesc(file_ingestion_v1_transformations, 4);
 
 /**
+ * TransformExpressionType is the logical type of one compiled sub-expression.
+ * path uses the grammar ValidationError.field uses, extended into
+ * expressions: resources["r"].steps[2].compute["x"] is a whole expression,
+ * resources["r"].steps[2].compute["x"].concat[1] its second argument, and
+ * resources["r"].steps[2].where.and[0].gt[1] a value inside a condition.
+ *
+ * @generated from message ingestion.v1.TransformExpressionType
+ */
+export type TransformExpressionType = Message<"ingestion.v1.TransformExpressionType"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string logical_type = 2;
+   */
+  logicalType: string;
+};
+
+/**
+ * Describes the message ingestion.v1.TransformExpressionType.
+ * Use `create(TransformExpressionTypeSchema)` to create a new message.
+ */
+export const TransformExpressionTypeSchema: GenMessage<TransformExpressionType> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_transformations, 5);
+
+/**
  * ValidateTransformResponse lists every issue with the path in the definition
- * it sits at, or on success the columns the resource will have after the
- * transform.
+ * it sits at, the columns the resource will have after the steps that
+ * compiled, and the type of every sub-expression that compiled. Columns and
+ * types come back on failure too, so a builder can show them while a
+ * definition is still being edited.
  *
  * @generated from message ingestion.v1.ValidateTransformResponse
  */
@@ -251,6 +281,11 @@ export type ValidateTransformResponse = Message<"ingestion.v1.ValidateTransformR
    * @generated from field: repeated ingestion.v1.ResourceColumn output_columns = 3;
    */
   outputColumns: ResourceColumn[];
+
+  /**
+   * @generated from field: repeated ingestion.v1.TransformExpressionType expression_types = 4;
+   */
+  expressionTypes: TransformExpressionType[];
 };
 
 /**
@@ -258,5 +293,5 @@ export type ValidateTransformResponse = Message<"ingestion.v1.ValidateTransformR
  * Use `create(ValidateTransformResponseSchema)` to create a new message.
  */
 export const ValidateTransformResponseSchema: GenMessage<ValidateTransformResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_transformations, 5);
+  messageDesc(file_ingestion_v1_transformations, 6);
 

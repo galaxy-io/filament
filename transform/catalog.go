@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow/compute"
 
@@ -223,14 +222,12 @@ var catalog = map[string]function{
 	// dates
 	"to_date": {
 		spec: FunctionSpec{
-			Name: "to_date", DisplayName: "To date", Description: "Parses a string column into a date, by an optional Go time layout.",
+			Name: "to_date", DisplayName: "To date", Description: "Parses a string column of ISO dates (2006-01-02) into a date.",
 			Args: []ArgSpec{
 				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
-				{Name: "layout", DisplayName: "Format", Types: stringTypes, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalDate,
 		},
-		validate: validLayout("to_date", 1),
-		exec:     kernel.ToDate,
+		exec: kernel.ToDate,
 	},
 	"year":  unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
 	"month": unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
@@ -283,7 +280,8 @@ func (s FunctionSpec) argSpec(i int) ArgSpec {
 
 // check verifies a call's arity, argument kinds, and argument types against
 // the signature, then runs the function's own validate hook. It returns the
-// call's result type.
+// call's result type. A failure one argument is responsible for comes back
+// as an argError naming it.
 func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
 	spec := fn.spec
 	required := 0
@@ -309,13 +307,13 @@ func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
 	for i, arg := range args {
 		a := spec.argSpec(i)
 		if a.Column && arg.literal {
-			return "", fmt.Errorf("%s expects a column for %s, got a literal", spec.Name, a.Name)
+			return "", argErrorf(i, "%s expects a column for %s, got a literal", spec.Name, a.Name)
 		}
 		if a.Literal && !arg.literal {
-			return "", fmt.Errorf("%s expects a literal for %s, got a column", spec.Name, a.Name)
+			return "", argErrorf(i, "%s expects a literal for %s, got a column", spec.Name, a.Name)
 		}
 		if len(a.Types) > 0 && !slices.Contains(a.Types, arg.logical) {
-			return "", fmt.Errorf("%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
+			return "", argErrorf(i, "%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
 		}
 	}
 	shared := rowmodel.LogicalUnknown
@@ -356,7 +354,7 @@ func sharedType(spec FunctionSpec, args []argType) (rowmodel.LogicalType, error)
 			continue
 		}
 		if a.logical != shared {
-			return "", fmt.Errorf("%s expects matching types, got %s and %s", spec.Name, shared, a.logical)
+			return "", argErrorf(i, "%s expects matching types, got %s and %s", spec.Name, shared, a.logical)
 		}
 	}
 	return shared, nil
@@ -371,32 +369,13 @@ func joinTypes(types []rowmodel.LogicalType) string {
 	return strings.Join(names, " or ")
 }
 
-// validLayout checks the Go time layout at index, when present, by formatting
-// and re-parsing the current time. A layout that cannot round-trip fails at
-// compile time instead of on the first batch.
-func validLayout(name string, index int) func([]argType) error {
-	return func(args []argType) error {
-		if len(args) <= index {
-			return nil
-		}
-		layout, ok := args[index].value.(string)
-		if !ok || layout == "" {
-			return fmt.Errorf("%s layout must be a non-empty string", name)
-		}
-		if _, err := time.Parse(layout, time.Now().Format(layout)); err != nil {
-			return fmt.Errorf("%s layout %q does not round-trip: %w", name, layout, err)
-		}
-		return nil
-	}
-}
-
 // validPattern compiles the regular expression at index so a bad pattern
 // fails at compile time. The kernel compiles it again per batch from a cache.
 func validPattern(name string, index int) func([]argType) error {
 	return func(args []argType) error {
 		pattern, _ := args[index].value.(string)
 		if _, err := regexp.Compile(pattern); err != nil {
-			return fmt.Errorf("%s pattern: %w", name, err)
+			return argErrorf(index, "%s pattern: %w", name, err)
 		}
 		return nil
 	}
@@ -409,7 +388,7 @@ func positive(name string, index int) func([]argType) error {
 			return nil
 		}
 		if v, _ := args[index].value.(int64); v < 1 {
-			return fmt.Errorf("%s %s must be 1 or more, got %d", name, "start", v)
+			return argErrorf(index, "%s %s must be 1 or more, got %d", name, "start", v)
 		}
 		return nil
 	}
@@ -422,7 +401,7 @@ func nonnegative(name, argument string, index int) func([]argType) error {
 			return nil
 		}
 		if v, _ := args[index].value.(int64); v < 0 {
-			return fmt.Errorf("%s %s must be zero or more, got %d", name, argument, v)
+			return argErrorf(index, "%s %s must be zero or more, got %d", name, argument, v)
 		}
 		return nil
 	}

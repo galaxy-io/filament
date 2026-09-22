@@ -42,6 +42,21 @@ func (e *Errors) addf(path, format string, args ...any) {
 	e.Issues = append(e.Issues, Issue{Path: path, Message: fmt.Sprintf(format, args...)})
 }
 
+// argError is a check failure that one argument of a call is responsible
+// for, so the issue can be addressed to that argument rather than the call.
+type argError struct {
+	index int
+	err   error
+}
+
+func (e *argError) Error() string { return e.err.Error() }
+func (e *argError) Unwrap() error { return e.err }
+
+// argErrorf records a failure against argument index of a call.
+func argErrorf(index int, format string, args ...any) error {
+	return &argError{index: index, err: fmt.Errorf(format, args...)}
+}
+
 // asError returns e as an error, or nil when nothing was recorded.
 func (e *Errors) asError() error {
 	if len(e.Issues) == 0 {
