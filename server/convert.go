@@ -370,6 +370,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.RateLimitedEvent:
 		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
+	case events.StreamAttemptEndedEvent:
+		fields.Error = d.Error
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}
@@ -394,9 +396,24 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 	return &ingestionv1.TailRunResponse{Event: ev}
 }
 
+// snapshotTime uses a known lifecycle stamp. Resource snapshots have no separate
+// timestamp, so their time reflects the containing run snapshot.
+func snapshotTime(state filament.RunState) int64 {
+	if state.EndedAt != nil && !state.EndedAt.IsZero() {
+		return state.EndedAt.UnixMilli()
+	}
+	for _, at := range []time.Time{state.UpdatedAt, state.StartedAt, state.RequestedAt, state.CreatedAt} {
+		if !at.IsZero() {
+			return at.UnixMilli()
+		}
+	}
+	return time.Now().UnixMilli()
+}
+
 func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
 		EventType: runEventType(state.Status),
+		CreatedAt: snapshotTime(state),
 		TenantId:  string(state.Tenant),
 		RunId:     string(state.Run),
 		Fields: &ingestionv1.RunEventFields{

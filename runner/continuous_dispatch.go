@@ -52,7 +52,7 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if !ok {
 		return errors.New("continuous source must resolve position codecs")
 	}
-	cfg := ContinuousConfig{Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: filament.Boundary{MaxRecords: 1, MaxWait: time.Second}, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
+	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: filament.Boundary{MaxRecords: 1, MaxWait: time.Second}, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}

@@ -2,7 +2,9 @@ package source
 
 import (
 	"context"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/nats-io/nats.go"
 
@@ -12,7 +14,7 @@ import (
 
 // Schema returns the subject and public row-aligned event envelope.
 func Schema(resource string) (rowmodel.Schema, error) {
-	return streamkit.WithEnvelopeFields(rowmodel.Schema{Resource: resource, Fields: []rowmodel.Field{{Name: "subject", Logical: rowmodel.LogicalString}}})
+	return streamkit.WithEnvelopeFields(rowmodel.Schema{Resource: resource, DestinationResource: destinationResource(resource), Fields: []rowmodel.Field{{Name: "subject", Logical: rowmodel.LogicalString}}})
 }
 
 func messageHeaders(msg *nats.Msg) []streamkit.Header {
@@ -36,4 +38,16 @@ func messageHeaders(msg *nats.Msg) []streamkit.Header {
 // Schema returns the fixed message envelope and subject column for a stream.
 func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	return Schema(resource)
+}
+
+var resourceNameSeparators = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+
+// destinationResource formats an output name without changing the subscription subject.
+func destinationResource(resource string) string {
+	return strings.Trim(resourceNameSeparators.ReplaceAllString(resource, "_"), "_")
+}
+
+// DestinationResource resolves a subject's output name without fetching a schema.
+func (*Source) DestinationResource(resource string) string {
+	return destinationResource(resource)
 }

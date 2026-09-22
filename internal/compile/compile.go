@@ -136,6 +136,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				Resources:           resources,
 				Selectors:           selectors,
 				IngestionTypes:      ingestionTypes,
+				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
 				Options:             options,
@@ -226,22 +227,24 @@ func replicationStreamContinuityFingerprint(group *routeGroup, connections map[s
 	sourceConnection := connections[group.source.GetConnectionId()]
 	sinkConnection := connections[group.sink.GetConnectionId()]
 	identity := struct {
-		SourceConnector         string         `json:"source_connector"`
-		SourceConnectionID      string         `json:"source_connection_id"`
-		SourceConnectionVersion int64          `json:"source_connection_version"`
-		SourceContinuity        map[string]any `json:"source_continuity"`
-		SinkConnector           string         `json:"sink_connector"`
-		SinkConnectionID        string         `json:"sink_connection_id"`
-		SinkConnectionVersion   int64          `json:"sink_connection_version"`
-		SinkConfig              map[string]any `json:"sink_config"`
-		WriteMode               string         `json:"write_mode"`
+		SourceConnector         string            `json:"source_connector"`
+		SourceConnectionID      string            `json:"source_connection_id"`
+		SourceConnectionVersion int64             `json:"source_connection_version"`
+		SourceContinuity        map[string]any    `json:"source_continuity"`
+		SinkConnector           string            `json:"sink_connector"`
+		SinkConnectionID        string            `json:"sink_connection_id"`
+		SinkConnectionVersion   int64             `json:"sink_connection_version"`
+		SinkConfig              map[string]any    `json:"sink_config"`
+		WriteMode               string            `json:"write_mode"`
+		DestinationResources    map[string]string `json:"destination_resources,omitempty"`
 	}{
 		SourceConnector: sourceConnector, SourceConnectionID: sourceConnection.ID,
 		SourceConnectionVersion: sourceConnection.Version,
 		SourceContinuity:        sourceContinuity,
 		SinkConnector:           sinkRef.Connector, SinkConnectionID: sinkConnection.ID,
 		SinkConnectionVersion: sinkConnection.Version, SinkConfig: sinkRef.Config,
-		WriteMode: fmt.Sprint(group.writeMode),
+		WriteMode:            fmt.Sprint(group.writeMode),
+		DestinationResources: group.destinations,
 	}
 	raw, err := json.Marshal(identity)
 	if err != nil {

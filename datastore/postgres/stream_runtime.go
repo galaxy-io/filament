@@ -288,3 +288,53 @@ func latestPositions(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.Re
 	}
 	return positions, nil
 }
+
+var _ filament.StreamResourceErrorStore = (*Store)(nil)
+
+// SetStreamResourceError reports startup health without changing stream membership
+// or certified counters. Serialize with epoch commits and attempt replacement.
+func (s *Store) SetStreamResourceError(ctx context.Context, lease filament.LeaseToken, resource, message string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	stream, err := lockRuntime(ctx, q, requestOf(lease))
+	if err != nil {
+		return err
+	}
+	if err := currentAttempt(ctx, q, stream, lease, true); err != nil {
+		return err
+	}
+	membership, err := q.ListReplicationStreamResources(ctx, stream.ID)
+	if err != nil {
+		return err
+	}
+	active := false
+	for _, member := range membership {
+		if member.ResourceName == resource && member.Status == int16(filament.ReplicationStreamResourceActive) {
+			active = true
+		}
+	}
+	if !active {
+		return fmt.Errorf("stream: resource %q is not active", resource)
+	}
+	rows, err := q.ListResources(ctx, sqlcgen.ListResourcesParams{TenantID: string(lease.Tenant), RunID: string(lease.Attempt.RunID)})
+	if err != nil {
+		return err
+	}
+	state := filament.ResourceState{Tenant: lease.Tenant, Run: lease.Attempt.RunID, Resource: resource, Enabled: true, Status: filament.RunRunning, Error: message}
+	if message != "" {
+		state.Status = filament.RunFailed
+	}
+	for _, row := range rows {
+		if row.ResourceName == resource {
+			state.Records, state.Bytes = row.Records, row.Bytes
+		}
+	}
+	if err := upsertResource(ctx, q, state); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}

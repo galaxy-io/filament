@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -62,11 +63,6 @@ func (s *Source) resolveSubjects(ctx context.Context, opts filament.StreamOpenOp
 			found[pattern] = true
 		}
 	}
-	for _, pattern := range patterns {
-		if !found[pattern] {
-			return nil, fmt.Errorf("nats: no JetStream stream stores subjects matching %q", pattern)
-		}
-	}
 	// Check all saved incarnations before creating any consumer. Losing a backing
 	// stream must not silently discard previously certified progress.
 	for domain := range opts.CommittedPositions {
@@ -74,5 +70,33 @@ func (s *Source) resolveSubjects(ctx context.Context, opts filament.StreamOpenOp
 			return nil, filament.ErrPositionIncomparable
 		}
 	}
+	if err := reportSubjectResolution(ctx, patterns, found, opts.ReportResourceError); err != nil {
+		return nil, err
+	}
 	return targets, nil
+}
+
+// Only unmatched new resources are recoverable. Saved-domain checks above and
+// connection/consumer failures remain fatal; none may silently drop progress.
+func reportSubjectResolution(ctx context.Context, patterns []string, found map[string]bool, report func(context.Context, string, error) error) error {
+	var missing []error
+	matched := 0
+	for _, pattern := range patterns {
+		var issue error
+		if found[pattern] {
+			matched++
+		} else {
+			issue = fmt.Errorf("nats: no JetStream stream stores subjects matching %q", pattern)
+			missing = append(missing, issue)
+		}
+		if report != nil {
+			if err := report(ctx, pattern, issue); err != nil {
+				return fmt.Errorf("nats: report resource %q: %w", pattern, err)
+			}
+		}
+	}
+	if matched == 0 || report == nil {
+		return errors.Join(missing...)
+	}
+	return nil
 }

@@ -11,6 +11,12 @@ import (
 // configuration, and hook rules survive the cutover unchanged.
 
 type (
+	// StreamAttemptEndedEvent is an observational worker-lifetime event, not a
+	// terminal run event: the same continuous run may pause or retry.
+	StreamAttemptEndedEvent struct {
+		Error string `json:"error,omitempty"`
+	}
+
 	// RunRequestedEvent marks a run accepted and queued for dispatch.
 	RunRequestedEvent struct{}
 	// RunStartedEvent marks a worker beginning extraction.
@@ -144,6 +150,7 @@ type (
 // The event kinds, one per payload type above; each value is the capability
 // to emit or subscribe to that kind.
 var (
+	StreamAttemptEnded = define[StreamAttemptEndedEvent]("stream.attempt_ended")
 	RunRequested       = define[RunRequestedEvent]("run.requested")
 	RunStarted         = define[RunStartedEvent]("run.started")
 	RunCompleted       = define[RunCompletedEvent]("run.completed")

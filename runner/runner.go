@@ -168,14 +168,6 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	if incremental, checkpointed := partitionCheckpointing(spec); plan.RequiresCDC || len(incremental) > 0 || len(checkpointed) > 0 {
 		spec.Options.SnapshotParallelism = 1
 	}
-	if err := snk.Open(extractCtx, spec); err != nil {
-		if emitControlledIfStopped(extractCtx, err, control, em) {
-			return nil
-		}
-		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
-		return nil
-	}
-
 	// Resource preparation is part of the run's visible work. Announce resources
 	// before schema discovery and destination DDL so observers do not show an
 	// active run with every resource still waiting during a slow sink startup.
@@ -183,10 +175,26 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
 	}
 
+	sinkSpec, schemas, err := prepareSinkResources(extractCtx, src, snk, &spec, nil)
+	if err != nil {
+		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		em.failed(fmt.Errorf("prepare sink resources: %w", err), nil, false)
+		return nil
+	}
+	if err := snk.Open(extractCtx, sinkSpec); err != nil {
+		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
+		return nil
+	}
+
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
-	if err := ensureSchemas(extractCtx, src, snk, spec); err != nil {
+	if err := ensureSchemas(extractCtx, snk, spec, schemas); err != nil {
 		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
@@ -215,7 +223,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		Sink:          snk,
 		Emit:          func(f events.Fact) { _ = em.publish(f) },
 		NextSeq:       em.next,
-		WritePolicies: plan.WritePolicies,
+		WritePolicies: spec.WritePolicies,
 		Options:       spec.Options,
 		Log:           deps.Log,
 		Audit: &pipeline.AuditConfig{

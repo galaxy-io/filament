@@ -248,23 +248,21 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 	if run == "" {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
-	if req.Msg.GetShouldReplay() {
-		if err := a.replayRun(ctx, tenant, run, send); err != nil {
-			return connect.NewError(connect.CodeInternal, err)
-		}
-		if state, ok, err := a.loadRunSnapshot(ctx, tenant, run); err != nil {
-			return connect.NewError(connect.CodeInternal, err)
-		} else if ok && runStatusTerminal(state.Status) {
-			// Terminal since replay; emit the terminal event replay skipped.
-			return send(tailResponse(runSnapshotEvent(state, true)))
-		}
-	}
-
 	sub, err := a.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
 	defer func() { _ = sub.Close() }()
+
+	if req.Msg.GetShouldReplay() {
+		terminal, err := a.replayRun(ctx, tenant, run, send)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, err)
+		}
+		if terminal {
+			return nil
+		}
+	}
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
@@ -325,17 +323,18 @@ func (a *Server) awaitTerminalPersisted(ctx context.Context, tenant filament.Ten
 	}
 }
 
-func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run filament.RunID, send func(*ingestionv1.TailRunResponse) error) error {
+func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run filament.RunID, send func(*ingestionv1.TailRunResponse) error) (bool, error) {
 	state, ok, err := a.loadRunSnapshot(ctx, tenant, run)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !ok {
-		return nil
+		return false, nil
 	}
 	for _, resource := range state.Resources {
 		if err := send(tailResponse(&ingestionv1.RunEvent{
 			EventType: runStatusEventType(resource.Status),
+			CreatedAt: snapshotTime(state),
 			TenantId:  string(state.Tenant),
 			RunId:     string(state.Run),
 			Resource:  resource.Resource,
@@ -346,13 +345,13 @@ func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run fi
 			},
 			IsReplay: true,
 		})); err != nil {
-			return err
+			return false, err
 		}
 	}
 	if runStatusTerminal(state.Status) {
-		return send(tailResponse(runSnapshotEvent(state, true)))
+		return true, send(tailResponse(runSnapshotEvent(state, true)))
 	}
-	return nil
+	return false, nil
 }
 
 func (a *Server) loadRunSnapshot(ctx context.Context, tenant filament.TenantID, run filament.RunID) (filament.RunState, bool, error) {

@@ -56,6 +56,7 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 		}
 		bindSinkDurability(&policy, sinkCapability)
 		policy.Resource = resource
+		policy.DestinationResource = spec.WritePolicies[resource].DestinationResource
 		if policy.Capability.RequiresPK {
 			keys, err := PrimaryKeyForResource(ctx, src, resource)
 			if err != nil {

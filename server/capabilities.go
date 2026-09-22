@@ -55,6 +55,9 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 	defer probes.teardown(ctx)
 
+	if err := compile.ValidateDestinations(edges); err != nil {
+		resp.Errors = append(resp.Errors, graphError(err.Error()))
+	}
 	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp, mode); err != nil {

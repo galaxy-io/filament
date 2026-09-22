@@ -17,6 +17,13 @@ type Source interface {
 	Teardown(ctx context.Context) error
 }
 
+// DestinationResourceNamer optionally supplies a default output name without
+// schema discovery. Implementations must be deterministic and perform no I/O.
+// An empty result leaves the resource name unchanged. Pipeline labels override it.
+type DestinationResourceNamer interface {
+	DestinationResource(resource string) string
+}
+
 // Resumable is the optional source contract for checkpointed extraction. prev maps
 // each resource to the cursor to resume from (a plan produced by ResumePlanner,
 // carrying any progress from a prior run); a resource absent from prev — or mapped

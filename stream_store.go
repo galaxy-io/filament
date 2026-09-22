@@ -25,6 +25,12 @@ type StreamRuntimeStore interface {
 	GetEpoch(context.Context, EpochLookup) (CommittedEpoch, error)
 }
 
+// StreamResourceErrorStore persists resource health under current worker authority.
+// An empty message clears an earlier startup failure without resetting progress.
+type StreamResourceErrorStore interface {
+	SetStreamResourceError(context.Context, LeaseToken, string, string) error
+}
+
 // StreamDesiredState records intended execution independently of worker health.
 type StreamDesiredState string
 

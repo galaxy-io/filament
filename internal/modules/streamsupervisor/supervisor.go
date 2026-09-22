@@ -23,6 +23,7 @@ type Supervisor struct {
 	workers  sync.WaitGroup
 	mu       sync.Mutex
 	running  map[string]bool
+	retries  map[string]*retryState
 }
 
 // New creates a supervisor; a nil dispatcher executes workers in process.
@@ -100,6 +101,7 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 	if state.Run != r.Run {
 		return nil
 	}
+	delay, exhausted := s.retryPolicy(state)
 	a := state.Attempt
 	if a != nil && a.EndedAt == nil {
 		if !a.Claimed && state.Desired != filament.StreamEnabled {
@@ -122,7 +124,14 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 			if a.Termination != filament.AttemptClean {
 				return filament.ErrTakeoverBlocked
 			}
-			if time.Since(*a.EndedAt) < 5*time.Second {
+			if exhausted {
+				err := s.store.SetDesiredState(ctx, filament.DesiredStateChange{StreamStateRequest: req, ExpectedRevision: state.Revision, Desired: filament.StreamPaused})
+				if err == nil && s.deps.Log != nil {
+					s.deps.Log.Error("continuous pipeline paused after five retries", errors.New(a.Reason), filament.Field{Key: "run_id", Value: string(r.Run)})
+				}
+				return err
+			}
+			if time.Since(*a.EndedAt) < delay {
 				return nil
 			}
 		}
