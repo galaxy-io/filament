@@ -46,7 +46,12 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 				return filament.ReplicationStreamPlan{}, fmt.Errorf("nats: duplicate subject resource %q", subject)
 			}
 		}
-		return filament.ReplicationStreamPlan{Resources: subjects, ConsumerName: "filament-managed", ConsumerConfig: map[string]any{"subjects": subjects}, ContinuityConfig: map[string]any{"source_identity": identity, "subjects": subjects}}, nil
+		// Each admitted generation needs its own catalog identity. Keep this out
+		// of ContinuityConfig so compatible runs still reuse their admission.
+		if req.ReplicationStreamID == "" {
+			return filament.ReplicationStreamPlan{}, fmt.Errorf("nats: replication stream ID is required for managed consumers")
+		}
+		return filament.ReplicationStreamPlan{Resources: subjects, ConsumerName: "filament-" + req.ReplicationStreamID, ConsumerConfig: map[string]any{"subjects": subjects}, ContinuityConfig: map[string]any{"source_identity": identity, "subjects": subjects}}, nil
 	}
 	if req.Config.Has("subjects") {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("nats: subject resources cannot be combined with explicit stream consumers")
@@ -81,7 +86,7 @@ func consumerPlan(bindings []streamBinding) (string, map[string]any) {
 // BindReplicationStream validates and binds source configuration to the admitted consumer identity.
 func (*Source) BindReplicationStream(config map[string]any, admitted filament.ReplicationStream) (map[string]any, error) {
 	if subjects, ok := admitted.ConsumerConfig["subjects"]; ok {
-		if admitted.ConsumerName != "filament-managed" {
+		if admitted.ID == "" || admitted.ConsumerName != "filament-"+admitted.ID {
 			return nil, fmt.Errorf("nats: managed consumer identity mismatch")
 		}
 		var patterns []string
