@@ -1,10 +1,9 @@
+import type { JsonObject } from "@bufbuild/protobuf";
 import type { Edge, Node } from "@xyflow/react";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge, PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
-
-import type { TransformDefinition } from "@/components/transform/types";
 
 export enum PipelineCanvasNodeType {
   SOURCE = "SOURCE",
@@ -43,7 +42,7 @@ export type CanvasNode =
   | PipelineCanvasSinkNode
   | PipelineCanvasPlaceholderNode;
 
-export type PipelineCanvasEdgeTransform = TransformDefinition;
+export type PipelineCanvasEdgeTransform = JsonObject;
 
 export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors"> & {
   transform?: PipelineCanvasEdgeTransform;

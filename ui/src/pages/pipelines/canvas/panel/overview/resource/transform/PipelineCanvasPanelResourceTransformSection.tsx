@@ -4,19 +4,18 @@ import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 
-import PipelineTransformFields from "@/components/transform/PipelineTransformFields";
+import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
+import PipelineTransformFields from "@/pages/pipelines/components/transform/PipelineTransformFields";
 import {
   usePipelineTransformFieldsActions,
   usePipelineTransformFieldsEnvironment,
   usePipelineTransformFieldsState,
-} from "@/components/transform/PipelineTransformFieldsProvider";
-
-import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
+} from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 
 const PipelineCanvasPanelResourceTransformSection = () => {
   const { stepsByResource, draft } = usePipelineTransformFieldsState();
   const { openNew } = usePipelineTransformFieldsActions();
-  const { resources, isReadOnly } = usePipelineTransformFieldsEnvironment();
+  const { isReadOnly } = usePipelineTransformFieldsEnvironment();
   const [isOpen, setIsOpen] = useState(true);
   const hasContent =
     draft !== null || [...stepsByResource.values()].some((steps) => steps.length > 0);
@@ -40,7 +39,7 @@ const PipelineCanvasPanelResourceTransformSection = () => {
               setIsOpen(true);
               openNew();
             }}
-            isDisabled={draft?.id === null || resources.length === 0}
+            isDisabled={draft?.id === null}
           />
         )
       }

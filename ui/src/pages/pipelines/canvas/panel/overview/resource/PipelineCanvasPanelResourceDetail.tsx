@@ -12,9 +12,6 @@ import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import PipelineTransformFieldsProvider from "@/components/transform/PipelineTransformFieldsProvider";
-import type { TransformDefinition } from "@/components/transform/types";
-
 import PendingLayout from "@/layouts/PendingLayout";
 import { LayoutSize } from "@/layouts/types";
 
@@ -40,6 +37,8 @@ import {
   READ_MODE_TO_LABEL_MAP,
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
+import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
+import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -240,18 +239,22 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               ))}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
-        <Suspense fallback={<PendingLayout size={LayoutSize.SMALL} />}>
-          <PipelineTransformFieldsProvider
-            definition={edge.data?.transform}
-            onChange={handleTransformChange}
-            resources={coveredResources}
-            columnsByResource={columnsByResource}
-            sourceConnectionId={sourceConnectionId}
-            isReadOnly={isReadOnly}
-          >
-            <PipelineCanvasPanelResourceTransformSection />
-          </PipelineTransformFieldsProvider>
-        </Suspense>
+        {isLoading ? (
+          <PendingLayout size={LayoutSize.SMALL} />
+        ) : (
+          <Suspense fallback={<PendingLayout size={LayoutSize.SMALL} />}>
+            <PipelineTransformFieldsProvider
+              definition={edge.data?.transform}
+              onChange={handleTransformChange}
+              resources={coveredResources}
+              columnsByResource={columnsByResource}
+              sourceConnectionId={sourceConnectionId}
+              isReadOnly={isReadOnly}
+            >
+              <PipelineCanvasPanelResourceTransformSection />
+            </PipelineTransformFieldsProvider>
+          </Suspense>
+        )}
       </PipelineCanvasPanelBody>
     </>
   );

@@ -218,7 +218,7 @@ func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 		return colNode{idx: i}, argType{logical: t}, true
 	}
 
-	fn, ok := catalog[e.Fn]
+	fn, ok := catalogByName[e.Fn]
 	if !ok {
 		c.errs.addf(path, "unknown function %q", e.Fn)
 		return nil, argType{}, false

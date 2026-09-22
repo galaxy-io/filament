@@ -77,16 +77,16 @@ var (
 	}
 )
 
-// catalog is the closed set of functions a definition may call. The names
-// are mirrored by the function enum in grammar.v1.json, and a test fails when
-// the two drift.
-var catalog = map[string]function{
+// catalog is the closed set of functions a definition may call, in the order
+// a builder lists them: related functions side by side, sections in the order
+// of grammar.v1.json's function enum, which mirrors these names.
+var catalog = []function{
 	// strings
-	"lower":  unary("lower", "Lowercase", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
-	"upper":  unary("upper", "Uppercase", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
-	"trim":   unary("trim", "Trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
-	"length": unary("length", "Length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
-	"replace": {
+	unary("lower", "Lowercase", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
+	unary("upper", "Uppercase", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
+	unary("trim", "Trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
+	unary("length", "Length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
+	{
 		spec: FunctionSpec{
 			Name: "replace", DisplayName: "Replace", Description: "Replaces every occurrence of a substring in a string column.",
 			Args: []ArgSpec{
@@ -97,7 +97,7 @@ var catalog = map[string]function{
 		},
 		exec: kernel.Replace,
 	},
-	"substring": {
+	{
 		spec: FunctionSpec{
 			Name: "substring", DisplayName: "Substring", Description: "A slice of a string column, counting characters from 1.",
 			Args: []ArgSpec{
@@ -109,7 +109,7 @@ var catalog = map[string]function{
 		validate: positive("substring", 1),
 		exec:     kernel.Substring,
 	},
-	"concat": {
+	{
 		spec: FunctionSpec{
 			Name: "concat", DisplayName: "Concatenate", Description: "Joins strings end to end; null in any part gives null.",
 			Args: []ArgSpec{{Name: "part", DisplayName: "Append", Types: stringTypes, Variadic: true}}, Returns: rowmodel.LogicalString,
@@ -117,7 +117,7 @@ var catalog = map[string]function{
 		},
 		exec: kernel.Concat,
 	},
-	"regex_match": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_match", DisplayName: "Regex match", Description: "True where a string column matches a Go regular expression.",
 			Args: []ArgSpec{
@@ -128,7 +128,7 @@ var catalog = map[string]function{
 		validate: validPattern("regex_match", 1),
 		exec:     kernel.RegexMatch,
 	},
-	"regex_extract": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_extract", DisplayName: "Regex extract", Description: "The first match of a Go regular expression, or of one of its groups.",
 			Args: []ArgSpec{
@@ -140,7 +140,7 @@ var catalog = map[string]function{
 		validate: validators(validPattern("regex_extract", 1), nonnegative("regex_extract", "group", 2)),
 		exec:     kernel.RegexExtract,
 	},
-	"regex_replace": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_replace", DisplayName: "Regex replace", Description: "Replaces every match of a Go regular expression; $1 refers to a group.",
 			Args: []ArgSpec{
@@ -154,20 +154,20 @@ var catalog = map[string]function{
 	},
 
 	// numbers
-	"add": arithmetic("add", "Add", "+", "Adds two numbers.", kernel.Add),
-	"sub": arithmetic("sub", "Subtract", "−", "Subtracts the second number from the first.", kernel.Sub),
-	"mul": arithmetic("mul", "Multiply", "×", "Multiplies two numbers.", kernel.Mul),
-	"div": arithmetic("div", "Divide", "÷", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
-	"abs": {
+	arithmetic("add", "Add", "+", "Adds two numbers.", kernel.Add),
+	arithmetic("sub", "Subtract", "−", "Subtracts the second number from the first.", kernel.Sub),
+	arithmetic("mul", "Multiply", "×", "Multiplies two numbers.", kernel.Mul),
+	arithmetic("div", "Divide", "÷", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
+	{
 		spec: FunctionSpec{
 			Name: "abs", DisplayName: "Absolute value", Description: "The absolute value of a number column.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Types: numericTypes, Column: true}}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Abs,
 	},
-	"floor": unary("floor", "Floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
-	"ceil":  unary("ceil", "Ceiling", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
-	"round": {
+	unary("floor", "Floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
+	unary("ceil", "Ceiling", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
+	{
 		spec: FunctionSpec{
 			Name: "round", DisplayName: "Round", Description: "Rounds a decimal column to a number of places, halves to even.",
 			Args: []ArgSpec{
@@ -179,39 +179,39 @@ var catalog = map[string]function{
 	},
 
 	// comparisons
-	"eq":  comparison("eq", "Equals", "=", "True where two values are equal.", nil, kernel.Eq),
-	"neq": comparison("neq", "Not equals", "≠", "True where two values differ.", nil, kernel.Neq),
-	"gt":  comparison("gt", "Greater than", ">", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
-	"gte": comparison("gte", "Greater than or equal", "≥", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
-	"lt":  comparison("lt", "Less than", "<", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
-	"lte": comparison("lte", "Less than or equal", "≤", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
+	comparison("eq", "Equals", "=", "True where two values are equal.", nil, kernel.Eq),
+	comparison("neq", "Not equals", "≠", "True where two values differ.", nil, kernel.Neq),
+	comparison("gt", "Greater than", ">", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
+	comparison("gte", "Greater than or equal", "≥", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
+	comparison("lt", "Less than", "<", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
+	comparison("lte", "Less than or equal", "≤", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
 
 	// logic
-	"and": {
+	{
 		spec: FunctionSpec{
 			Name: "and", DisplayName: "And", Description: "True where both conditions are true.",
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "and",
 		},
 		exec: kernel.And,
 	},
-	"or": {
+	{
 		spec: FunctionSpec{
 			Name: "or", DisplayName: "Or", Description: "True where either condition is true.",
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "or",
 		},
 		exec: kernel.Or,
 	},
-	"not": unary("not", "Not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
+	unary("not", "Not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
 
 	// nulls
-	"is_null": {
+	{
 		spec: FunctionSpec{
 			Name: "is_null", DisplayName: "Is null", Description: "True where a column has no value.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Column: true}}, Returns: rowmodel.LogicalBool, ConditionOperator: true,
 		},
 		exec: kernel.IsNull,
 	},
-	"coalesce": {
+	{
 		spec: FunctionSpec{
 			Name: "coalesce", DisplayName: "Coalesce", Description: "The first value that is not null, left to right.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Variadic: true}}, ReturnsInput: true, SameType: true, VariadicAddLabel: "Add value",
@@ -220,7 +220,7 @@ var catalog = map[string]function{
 	},
 
 	// dates
-	"to_date": {
+	{
 		spec: FunctionSpec{
 			Name: "to_date", DisplayName: "To date", Description: "Parses a string column of ISO dates (2006-01-02) into a date.",
 			Args: []ArgSpec{
@@ -229,12 +229,21 @@ var catalog = map[string]function{
 		},
 		exec: kernel.ToDate,
 	},
-	"year":  unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
-	"month": unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
-	"day":   unary("day", "Day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
+	unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
+	unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
+	unary("day", "Day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
 }
 
 // unary builds a one-column function. An empty returns means the input type.
+// catalogByName indexes the catalog for the compiler's lookups.
+var catalogByName = func() map[string]function {
+	byName := make(map[string]function, len(catalog))
+	for _, fn := range catalog {
+		byName[fn.spec.Name] = fn
+	}
+	return byName
+}()
+
 func unary(name, display, desc string, types []rowmodel.LogicalType, returns rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{

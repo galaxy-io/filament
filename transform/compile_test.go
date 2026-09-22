@@ -339,3 +339,25 @@ func TestParseRejectsUnknownFunction(t *testing.T) {
 		t.Fatal("Parse accepted an unknown function")
 	}
 }
+
+func TestAnalyzeLayoutKeepsCompiledEntriesAfterFailure(t *testing.T) {
+	doc := `{"version":1,"resources":{"chat_message":{"steps":[{"compute":{"a":{"upper":{"col":"type"}},"b":{"trim":{"col":"input_tokens"}}}}]}}}`
+	def, err := Parse([]byte(doc))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	_, analysis, err := Analyze(def, chatMessageSchema())
+	if err == nil {
+		t.Fatal("Analyze accepted trim on an int32 column")
+	}
+	fields := make(map[string]rowmodel.LogicalType, len(analysis.Layout.Fields))
+	for _, f := range analysis.Layout.Fields {
+		fields[f.Name] = f.Logical
+	}
+	if fields["a"] != rowmodel.LogicalString {
+		t.Errorf("layout after a failing sibling lacks the compiled entry a: %v", fields)
+	}
+	if _, ok := fields["b"]; ok {
+		t.Errorf("layout carries the failed entry b: %v", fields)
+	}
+}
