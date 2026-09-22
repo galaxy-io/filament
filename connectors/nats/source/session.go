@@ -23,11 +23,13 @@ type pullSubscription interface {
 
 type session struct {
 	lifecycle                stream.SourceLifecycle
-	source                   *Source
+	js                       nats.JetStreamContext
+	binding                  consumerBinding
 	sub                      pullSubscription
 	domain                   filament.DomainKey
 	created, consumerCreated time.Time
 	committed                uint64
+	scanFloor                uint64
 	codecs                   *streamkit.Registry
 	writer                   arrowbatch.RowWriter
 	projector                *streamkit.Projector
@@ -35,22 +37,34 @@ type session struct {
 	mu                       sync.Mutex
 	pending                  *nats.Msg
 	pendingSeq               uint64
+	failed                   error
+	closed                   bool
+	closeErr                 error
 }
 
 func (s *session) authority(ctx context.Context) error {
+	if s.closed {
+		return errors.New("nats: session closed")
+	}
+	if s.failed != nil {
+		return s.failed
+	}
 	if err := context.Cause(s.hb.Context()); err != nil {
 		return err
 	}
-	si, err := s.source.js.StreamInfo(s.source.stream, nats.Context(ctx))
+	si, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx))
 	if err != nil {
 		return err
 	}
-	ci, err := s.source.js.ConsumerInfo(s.source.stream, s.source.consumer, nats.Context(ctx))
+	ci, err := s.js.ConsumerInfo(s.binding.stream, s.binding.consumer, nats.Context(ctx))
 	if err != nil {
 		return err
 	}
-	if err := validateConsumer(ci.Config, s.source.consumer); err != nil {
+	if err := s.binding.validateConsumer(ci.Config); err != nil {
 		return err
+	}
+	if ci.AckFloor.Stream > s.committed {
+		return errors.New("nats: consumer acknowledged beyond certified progress")
 	}
 	if !si.Created.Equal(s.created) || !ci.Created.Equal(s.consumerCreated) {
 		return filament.ErrPositionIncomparable
@@ -62,16 +76,11 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 	if err := s.lifecycle.CheckRead(ctx); err != nil {
 		return filament.Coverage{}, err
 	}
-	if s.writer == nil {
-		schema, err := Schema(s.source.stream)
-		if err != nil {
-			return filament.Coverage{}, err
-		}
-		s.writer, err = out.Builder(s.source.stream, 0, schema)
-		if err != nil {
-			return filament.Coverage{}, err
-		}
-		s.projector = streamkit.NewProjector(s.writer, s.codecs)
+	s.mu.Lock()
+	pending := s.pending != nil
+	s.mu.Unlock()
+	if pending {
+		return filament.Coverage{}, errors.New("nats: acknowledge certified epoch before reading again")
 	}
 	wait := b.MaxWait
 	if wait <= 0 {
@@ -94,7 +103,30 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		}
 		return filament.Coverage{}, err
 	}
-	msg := messages[0]
+	return s.readMessage(ctx, out, messages[0])
+}
+
+// readMessage is called only on the owner goroutine; fetchers never touch builders.
+func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink, msg *nats.Msg) (coverage filament.Coverage, result error) {
+	defer func() {
+		if result != nil {
+			s.failed = result
+		}
+	}()
+	if err := s.authority(ctx); err != nil {
+		return filament.Coverage{}, err
+	}
+	if s.writer == nil {
+		schema, err := Schema(s.binding.resource)
+		if err != nil {
+			return filament.Coverage{}, err
+		}
+		s.writer, err = out.Builder(s.binding.resource, 0, schema)
+		if err != nil {
+			return filament.Coverage{}, err
+		}
+		s.projector = streamkit.NewProjector(s.writer, s.codecs)
+	}
 	meta, err := msg.Metadata()
 	if err != nil {
 		return filament.Coverage{}, err
@@ -107,10 +139,22 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		return filament.Coverage{}, msg.AckSync(nats.Context(ctx))
 	}
 	// Whole-stream, single-credit delivery cannot safely skip missing input.
-	if seq != s.committed+1 {
-		err := errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
-		s.lifecycle.Fail(err)
-		return filament.Coverage{}, err
+	if !s.binding.managed && seq != s.committed+1 {
+		return filament.Coverage{}, errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
+	}
+	if s.binding.managed && seq > s.scanFloor && seq-s.scanFloor > 1 {
+		info, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx), &nats.StreamInfoRequest{DeletedDetails: true})
+		if err != nil {
+			return filament.Coverage{}, err
+		}
+		if info.State.FirstSeq > s.scanFloor+1 {
+			return filament.Coverage{}, errors.New("nats: retained input no longer covers subject progress")
+		}
+		for _, deleted := range info.State.Deleted {
+			if deleted > s.scanFloor && deleted < seq {
+				return filament.Coverage{}, errors.New("nats: deleted input makes subject progress unprovable")
+			}
+		}
 	}
 	s.mu.Lock()
 	s.pending = msg
@@ -127,7 +171,7 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
 	}
-	coverage := filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}
+	coverage = filament.Coverage{Positions: filament.DomainPositions{s.domain: position}}
 	if err := s.lifecycle.MarkRead(coverage); err != nil {
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
@@ -148,28 +192,26 @@ func (s *session) Acknowledge(ctx context.Context, coverage filament.Coverage) e
 		return err
 	}
 	s.committed = s.pendingSeq
+	s.scanFloor = s.pendingSeq
 	s.pending = nil
 	return s.lifecycle.MarkAcknowledged(coverage)
 }
 
 func (s *session) Close(ctx context.Context) error {
-	if closed, err := s.lifecycle.Closed(); closed {
-		return err
+	if s.closed {
+		return s.closeErr
 	}
 	err := s.hb.Stop(ctx)
 	select {
 	case <-s.hb.Done():
-		// A terminal heartbeat error does not prevent releasing its subscription
-		// once the callback has joined.
 	default:
-		s.lifecycle.Fail(err)
+		s.failed = err
 		return err
 	}
-	if unsubscribeErr := s.sub.Unsubscribe(); unsubscribeErr != nil {
-		err = errors.Join(err, unsubscribeErr)
-		s.lifecycle.Fail(err)
-		return err // Leave cleanup retryable.
+	if unsubErr := s.sub.Unsubscribe(); unsubErr != nil {
+		s.failed = errors.Join(err, unsubErr)
+		return s.failed
 	}
-	s.lifecycle.MarkClosed(err)
+	s.closed, s.closeErr = true, err
 	return err
 }

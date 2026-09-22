@@ -52,6 +52,13 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 		return true
 	}
 
+	// Validate the negotiated contract before invoking any destination effect.
+	if p.stream != nil {
+		if err := policy.ValidateBatch(b.Resource, b); err != nil {
+			p.setErr(err)
+			return false
+		}
+	}
 	readCRC := b.IntegrityCRC()
 	receipt, err := p.writeBatch(ctx, b, policy, epoch)
 	if err != nil {

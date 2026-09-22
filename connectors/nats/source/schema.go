@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"sort"
 
 	"github.com/nats-io/nats.go"
@@ -30,4 +31,9 @@ func messageHeaders(msg *nats.Msg) []streamkit.Header {
 		}
 	}
 	return headers
+}
+
+// Schema returns the fixed message envelope and subject column for a stream.
+func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
+	return Schema(resource)
 }

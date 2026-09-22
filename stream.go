@@ -63,6 +63,8 @@ const (
 
 // StreamCapabilities describes source input, ordering, and replay guarantees.
 type StreamCapabilities struct {
+	// EmitsOps defaults to inserts for rows/messages; changes must declare operations.
+	EmitsOps []Operation
 	Input    InputSemantics
 	Ordering []Ordering
 	Delivery DeliveryGuarantee
@@ -124,34 +126,31 @@ type StreamSource interface {
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
-// ValidateContinuousConnectors checks the contracts supported by the serial
-// append coordinator. Provider identity does not determine runtime support.
-// CDC bootstrap, ordered writes, and mutable membership need separate support.
+// ValidateContinuousConnectors checks native lifecycle support and whether at least
+// one declared streaming write policy is compatible with the source.
 func ValidateContinuousConnectors(source Source, sink Sink) error {
 	if _, ok := source.(StreamSource); !ok {
 		return errors.New("continuous execution requires a native stream source with position codecs")
 	}
-	input := source.Spec().Stream
-	if input == nil || (input.Input != InputMessages && input.Input != InputRows) || input.Delivery != DeliveryReplayableAtLeastOnce {
-		return errors.New("continuous execution requires replayable rows or messages")
-	}
 	if _, ok := sink.(StreamingSink); !ok {
 		return errors.New("continuous execution requires a native epoch sink")
 	}
-	caps := sink.Spec().Capabilities
-	if caps.Stream == nil {
+	caps := sink.Spec().Capabilities.Stream
+	if caps == nil {
 		return errors.New("sink does not advertise streaming support")
 	}
 	for _, policy := range caps.WritePolicies {
-		if policy.Mode == WriteAppend && !policy.RequiresPK && !policy.RequiresOrder && policy.Accepts(OpInsert) {
+		if _, err := PlanContinuousWrite(source.Spec(), sink.Spec(), policy.Mode); err == nil {
 			return nil
 		}
 	}
-	return errors.New("continuous execution requires unordered append support")
+	return errors.New("source and sink have no compatible streaming write policy")
 }
 
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
+	// SourceConnectionID identifies the connection used during stream planning.
+	SourceConnectionID string
 	// CheckAuthority verifies current admitted ownership before provider acknowledgements,
 	// including already-certified redeliveries suppressed during Read. It must honor
 	// cancellation and be safe alongside lease renewal. Resume positions alone do
@@ -191,6 +190,8 @@ type StreamRecordSink interface {
 // InFlightBound is nil when unknown; when set it must be positive and enforced
 // server-side over all residual effects after a proven end to submissions.
 type StreamingSinkCapabilities struct {
+	// WritePolicies explicitly describes epoch writes; bounded policies are never inferred.
+	WritePolicies                []WritePolicyCapability
 	OwnerFencing, IsolatedEpochs bool
 	InFlightBound                *time.Duration
 }

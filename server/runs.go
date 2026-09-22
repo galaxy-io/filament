@@ -53,7 +53,11 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	}
 	runs := make([]*ingestionv1.RunInfo, 0, len(states))
 	for _, state := range states {
-		runs = append(runs, runInfoToProto(state))
+		info, err := a.runInfo(ctx, state)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, info)
 	}
 	return connect.NewResponse(&ingestionv1.ListRunsResponse{
 		Runs:       runs,
@@ -84,25 +88,25 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 			Error:        resource.Error,
 		})
 	}
-	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
+	info, err := a.runInfo(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: info, Resources: resources}}), nil
 }
 
 // SignalRun validates transport concerns and delegates lifecycle policy to the
 // shared run command layer.
 func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
+	if a.store == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore is not configured"))
+	}
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if req.Msg.GetRunId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
-	}
-	if a.bus == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
-	}
-	transitions, ok := a.store.(filament.RunTransitionStore)
-	if !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
 	}
 	run := filament.RunID(req.Msg.GetRunId())
 	state, err := a.store.LoadRun(ctx, tenant, run)
@@ -111,6 +115,19 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		return a.signalContinuous(ctx, state, req.Msg)
+	}
+	if req.Msg.GetSignal() == ingestionv1.RunSignal_RUN_SIGNAL_STOP || req.Msg.ExpectedRevision != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, filament.ErrContinuousDisabled)
+	}
+	if a.bus == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
+	}
+	transitions, ok := a.store.(filament.RunTransitionStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
 	}
 	signal, err := runSignalFromProto(req.Msg.GetSignal())
 	if err != nil {

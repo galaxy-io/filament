@@ -170,8 +170,10 @@ func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
 	case filament.WriteMerge:
 		return ingestionv1.WriteMode_WRITE_MODE_MERGE
-	default:
+	case filament.WriteReplace:
 		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
+	default:
+		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
 	}
 }
 
@@ -584,6 +586,13 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 		BatchMaxBytes:       o.GetBatchMaxBytes(),
 		SnapshotParallelism: int(o.GetSnapshotParallelism()),
 		CheckpointEvery:     int(o.GetCheckpointEvery()),
+	}
+	// Callers validate the wire enum before conversion.
+	switch o.GetExecutionMode() {
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED:
+		opts.Execution = filament.ExecutionBounded
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS:
+		opts.Execution = filament.ExecutionContinuous
 	}
 	if rl := o.GetRateLimit(); rl != nil {
 		opts.RateLimit = &filament.RatePolicy{

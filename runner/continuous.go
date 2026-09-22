@@ -21,7 +21,7 @@ const DefaultLeaseTTL = 2 * time.Minute
 const DefaultDrainTimeout = 30 * time.Second
 
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
-// bounded runs. Append policies are pre-resolved. Schemas default to the configured source.
+// bounded runs. Write intent is resolved by the shared stream planner. Schemas default to the configured source.
 type ContinuousConfig struct {
 	Enabled                bool
 	Spec                   filament.RunSpec
@@ -95,21 +95,20 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		result = errors.Join(result, closeErr, hbErr, endErr)
 	}()
 	cleanupInstalled = true
-	if err := cfg.Source.Configure(runCtx, filament.NewConfig(spec.Source.Config)); err != nil {
+	plan, err := prepareContinuousConnectors(runCtx, &cfg)
+	if err != nil {
 		return err
 	}
-	if err := cfg.Sink.Open(runCtx, spec); err != nil {
-		return err
-	}
+	spec = cfg.Spec
 	opened = true
 	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
 	}
-	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
-	p, err = pipeline.NewStream(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options}, filament.OrderingNone)
+	p, err = pipeline.NewStream(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options}, plan.Ordering)
 	if err != nil {
 		return err
 	}
@@ -173,20 +172,13 @@ func validateContinuous(cfg ContinuousConfig) error {
 	if err := spec.ValidateStreamAttempt(); err != nil {
 		return err
 	}
-	if err := filament.ValidateContinuousConnectors(cfg.Source, cfg.Sink); err != nil {
+	if _, _, err := filament.PlanContinuousRun(cfg.Source, cfg.Sink, spec); err != nil {
 		return err
 	}
 	if len(spec.Resources) == 0 || cfg.MaxEpochs < 0 || cfg.Store == nil || cfg.Codecs == nil || cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour || cfg.DrainTimeout <= 0 || cfg.Boundary.MaxWait <= 0 || cfg.Boundary.MaxRecords <= 0 {
 		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
 	}
 	for _, r := range spec.Resources {
-		policy, ok := spec.WritePolicies[r]
-		if !ok {
-			policy = spec.WritePolicies[""]
-		}
-		if policy.Capability.Mode != filament.WriteAppend || policy.Capability.RequiresOrder || policy.Capability.RequiresPK || !policy.Capability.Accepts(filament.OpInsert) || policy.Capability.Accepts(filament.OpUpdate) || policy.Capability.Accepts(filament.OpDelete) {
-			return errors.New("continuous runner: only insert-only unordered append without primary keys is supported")
-		}
 		if _, ok := cfg.Schemas[r]; cfg.Schemas != nil && !ok {
 			return fmt.Errorf("continuous runner: missing schema for %s", r)
 		}
@@ -306,4 +298,19 @@ func continuousReason(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (filament.IngestionPlan, error) {
+	if err := cfg.Source.Configure(ctx, filament.NewConfig(cfg.Spec.Source.Config)); err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	plan, err := filament.ResolveIngestionPlan(ctx, cfg.Source, cfg.Sink, cfg.Spec)
+	if err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	cfg.Spec.WritePolicies = plan.WritePolicies
+	if err := cfg.Sink.Open(ctx, cfg.Spec); err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	return plan, nil
 }

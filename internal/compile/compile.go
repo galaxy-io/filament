@@ -63,6 +63,15 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
 	}
+	options.Execution, err = resolveExecution(pipeline.GetExecutionMode(), options.Execution)
+	if err != nil {
+		return nil, err
+	}
+	if options.Execution == filament.ExecutionContinuous {
+		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
+			return nil, fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
+		}
+	}
 	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
@@ -70,20 +79,15 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if err != nil {
 		return nil, fmt.Errorf("load pipeline version: %w", err)
 	}
-	nodes := map[string]*ingestionv1.PipelineNode{}
-	connections := map[string]filament.Connection{}
-	for _, node := range version.GetGraph().GetNodes() {
-		nodes[node.GetId()] = node
-		if _, ok := connections[node.GetConnectionId()]; !ok {
-			conn, err := c.Store.LoadConnection(ctx, tenant, node.GetConnectionId())
-			if err != nil {
-				return nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
-			}
-			if conn.DeletedAt != 0 {
-				return nil, fmt.Errorf("%w: connection %q is deleted", ErrPrecondition, node.GetConnectionId())
-			}
-			connections[node.GetConnectionId()] = conn
+	if options.Execution == filament.ExecutionContinuous {
+		if scheduleID != "" {
+			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
 		}
+		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg)
+	}
+	nodes, connections, err := c.loadGraphConnections(ctx, tenant, version.GetGraph())
+	if err != nil {
+		return nil, err
 	}
 
 	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
@@ -196,7 +200,7 @@ func (c *Compiler) planReplicationStream(
 ) (filament.ReplicationStream, error) {
 	id := uuid.NewString()
 	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
-		ReplicationStreamID: id, Config: filament.NewConfig(sourceRef.Config),
+		ReplicationStreamID: id, SourceConnectionID: group.source.ConnectionId, Config: filament.NewConfig(sourceRef.Config),
 	})
 	if err != nil {
 		return filament.ReplicationStream{}, fmt.Errorf("plan replication stream %q: %w", route, err)
@@ -334,4 +338,24 @@ func structMap(s *structpb.Struct) map[string]any {
 		return map[string]any{}
 	}
 	return s.AsMap()
+}
+
+func (c *Compiler) loadGraphConnections(ctx context.Context, tenant filament.TenantID, graph *ingestionv1.PipelineGraph) (map[string]*ingestionv1.PipelineNode, map[string]filament.Connection, error) {
+	nodes := map[string]*ingestionv1.PipelineNode{}
+	connections := map[string]filament.Connection{}
+	for _, node := range graph.GetNodes() {
+		nodes[node.GetId()] = node
+		if _, ok := connections[node.GetConnectionId()]; !ok {
+			conn, err := c.Store.LoadConnection(ctx, tenant, node.GetConnectionId())
+			if err != nil {
+				return nil, nil, fmt.Errorf("load connection %q: %w", node.GetConnectionId(), err)
+			}
+			if conn.DeletedAt != 0 {
+				return nil, nil, fmt.Errorf("%w: connection %q is deleted", ErrPrecondition, node.GetConnectionId())
+			}
+			connections[node.GetConnectionId()] = conn
+		}
+	}
+
+	return nodes, connections, nil
 }

@@ -1,8 +1,8 @@
-// Package source implements serial consumption of a dedicated JetStream consumer.
 package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,12 +11,13 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
-// Source binds an existing, exclusively assigned, user-owned durable consumer.
-// Consumer provisioning/deletion is deliberately outside this first-slice connector.
+// Source reads subject resources using managed consumers, or binds explicit
+// user-owned consumers for compatibility. One connection serves all resources.
 type Source struct {
-	conn                       *nats.Conn
-	js                         nats.JetStreamContext
-	stream, consumer, identity string
+	conn     *nats.Conn
+	js       nats.JetStreamContext
+	identity string
+	bindings []streamBinding
 }
 
 // New returns an unconfigured source.
@@ -24,10 +25,8 @@ func New() *Source { return &Source{} }
 
 // Validate checks connection settings. Stream and consumer are pipeline settings.
 func (*Source) Validate(cfg filament.Config) error {
-	for _, name := range []string{"url", "source_identity"} {
-		if cfg.String(name) == "" {
-			return fmt.Errorf("nats: %s is required", name)
-		}
+	if cfg.String("url") == "" {
+		return fmt.Errorf("nats: url is required")
 	}
 	return nil
 }
@@ -36,6 +35,17 @@ func (*Source) Validate(cfg filament.Config) error {
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
+	}
+	var bindings []streamBinding
+	if cfg.Has("streams") || cfg.Has("stream") || cfg.Has("consumer") {
+		if cfg.Has("subjects") {
+			return fmt.Errorf("nats: subject resources cannot be combined with explicit stream consumers")
+		}
+		var err error
+		bindings, err = configuredStreams(cfg)
+		if err != nil {
+			return err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -58,9 +68,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	s.conn = conn
 	s.js = js
-	s.stream = cfg.String("stream")
-	s.consumer = cfg.String("consumer")
-	s.identity = cfg.String("source_identity")
+	// An empty binding set selects managed subject resources at OpenStream.
+	s.bindings = bindings
 	return nil
 }
 
@@ -76,3 +85,22 @@ func (s *Source) Teardown(context.Context) error {
 	}
 	return nil
 }
+
+// TestConnection verifies JetStream access using a temporary connection.
+func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) (err error) {
+	temp := New()
+	if err := temp.Configure(ctx, cfg); err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, temp.Teardown(ctx)) }()
+	_, err = temp.js.AccountInfo(nats.Context(ctx))
+	return err
+}
+
+var (
+	_ filament.Source          = (*Source)(nil)
+	_ filament.StreamSource    = (*Source)(nil)
+	_ filament.SchemaProvider  = (*Source)(nil)
+	_ filament.Discoverable    = (*Source)(nil)
+	_ filament.LiveValidatable = (*Source)(nil)
+)
