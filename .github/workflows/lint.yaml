@@ -3,6 +3,9 @@ name: "CI: Lint"
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -21,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -50,16 +53,10 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/go.sum"
 
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          path: ~/.cache/golangci-lint
-          key: golangci-${{ hashFiles('**/go.sum', '.golangci.yaml') }}-${{ github.run_id }}
-          restore-keys: |
-            golangci-${{ hashFiles('**/go.sum', '.golangci.yaml') }}-
-            golangci-
-
-      - name: Setup
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/v2.12.2/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.12.2
+          version: v2.13.2
+          install-only: true
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
@@ -76,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
 
@@ -100,6 +97,9 @@ jobs:
       - name: Build
         run: just ui-dist
 
+      - name: Route tree
+        run: git diff --exit-code ui/src/routeTree.gen.ts
+
   chart:
     needs: changes
     if: needs.changes.outputs.chart == 'true'
@@ -116,7 +116,7 @@ jobs:
 
       - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
         with:
-          version: v0.22.0
+          version: v0.22.1
 
       - name: Dependencies
         run: |
@@ -193,7 +193,7 @@ jobs:
           fi
 
   lint-ok:
-    needs: [go, ui, chart, migrations]
+    needs: [changes, go, ui, chart, migrations]
     if: always()
     runs-on: ubuntu-latest
     steps:

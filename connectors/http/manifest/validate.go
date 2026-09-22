@@ -494,7 +494,10 @@ func paginationInjectionCollides(pagination PaginationSpec, incremental Incremen
 			target, param = pagination.OffsetInjectInto, pagination.LimitParam
 		}
 	case "page":
-		target = "query"
+		target = pagination.InjectInto
+		if target == "" {
+			target = "query"
+		}
 		if pagination.PageParam == incremental.StartParam {
 			param = pagination.PageParam
 		} else {

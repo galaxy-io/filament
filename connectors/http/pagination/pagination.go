@@ -29,10 +29,13 @@ package pagination
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 
+	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
@@ -158,3 +161,13 @@ func New(spec manifest.PaginationSpec) (Paginator, error) {
 
 // ResumeWith returns a State pre-seeded with a legacy cursor checkpoint.
 func ResumeWith(cursor string) State { return State{Cursor: cursor} }
+
+// hasMore treats missing and null continuation signals as false, matching
+// the existing cursor pagination contract. Non-boolean values are errors.
+func hasMore(body map[string]any, path string) (bool, error) {
+	more, err := paths.Bool(body, path)
+	if errors.Is(err, errs.ErrPathMissing) || errors.Is(err, errs.ErrPathNull) {
+		return false, nil
+	}
+	return more, err
+}
