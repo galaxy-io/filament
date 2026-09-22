@@ -610,11 +610,13 @@ type VersionPolicy struct {
 // WritePolicy binds a capability to one resource's keys and checkpoint timing
 // — the per-resource contract handed to a sink via ApplyOptions.
 type WritePolicy struct {
-	Capability WritePolicyCapability
-	Resource   string
-	Keys       []string
-	Version    VersionPolicy
-	Checkpoint CheckpointPolicy
+	// DestinationResource overrides the sink name without changing source progress identity.
+	DestinationResource string
+	Capability          WritePolicyCapability
+	Resource            string
+	Keys                []string
+	Version             VersionPolicy
+	Checkpoint          CheckpointPolicy
 }
 
 // Accepts reports whether the capability admits op; an empty AcceptsOps

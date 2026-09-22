@@ -39,6 +39,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 	if err := normalizeContinuousEdges(graph.Edges); err != nil {
 		return nil, err
 	}
+	if err := ValidateContinuousDestinations(graph.Edges); err != nil {
+		return nil, err
+	}
 	groups, err := groupEdges(graph.Edges, nodes)
 	if err != nil {
 		return nil, err
@@ -82,6 +85,14 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
 		policies := continuousWritePolicies(resources, writePlan.Policy)
+		for resource, policy := range policies {
+			for _, edge := range graph.Edges {
+				if edge.FromNode == group.from && edge.ToNode == group.to && edge.Resource == resource && edge.DestinationResource != "" {
+					policy.DestinationResource = edge.DestinationResource
+				}
+			}
+			policies[resource] = policy
+		}
 		// Conservative fingerprint: no guessing that an edited endpoint/config is
 		// compatible. A changed fingerprint requires a new generation after stop.
 		raw, err := json.Marshal(struct {
@@ -90,7 +101,8 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			Mode         string
 			Write        filament.ContinuousWritePlan
 			Continuity   map[string]any
-		}{sourceRef, sinkRef, resources, "continuous", writePlan, plan.ContinuityConfig})
+			Policies     map[string]filament.WritePolicy
+		}{sourceRef, sinkRef, resources, "continuous", writePlan, plan.ContinuityConfig, policies})
 		if err != nil {
 			return nil, fmt.Errorf("%w: fingerprint stream: %v", ErrInvalid, err)
 		}

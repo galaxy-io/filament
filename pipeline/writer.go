@@ -111,7 +111,29 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 }
 
 func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy, epoch *filament.EpochRef) (filament.WriteReceipt, error) {
-	return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy, Epoch: epoch})
+	destination := policy.DestinationResource
+	policy.DestinationResource = ""
+	if destination == "" || destination == b.Resource {
+		return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy, Epoch: epoch})
+	}
+	b.Rows().Retain()
+	output := arrowbatch.NewBatch(b.Rows(), b.Operations())
+	output.Resource, output.Part, output.Seq = destination, b.Part, b.Seq
+	output.Last = b.Last
+	if b.Cursor != nil {
+		cursor := *b.Cursor
+		cursor.ResourceName = destination
+		output.Cursor = &cursor
+	}
+	defer output.Release()
+	policy.Resource = destination
+	receipt, err := p.sink.Apply(ctx, output, filament.ApplyOptions{Policy: policy, Epoch: epoch})
+	if receipt.Checkpoint != nil {
+		checkpoint := *receipt.Checkpoint
+		checkpoint.ResourceName = b.Resource
+		receipt.Checkpoint = &checkpoint
+	}
+	return receipt, err
 }
 
 func (p *Pipeline) policyFor(resource string) (filament.WritePolicy, error) {

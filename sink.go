@@ -40,7 +40,8 @@ type Upsertable interface {
 }
 
 // Schematized is the optional sink contract for typed DDL: materialize a
-// resource's schema before its records arrive.
+// resource's schema before its records arrive. The runner supplies destination
+// resource names consistently to Open, EnsureSchema, and Apply.
 type Schematized interface {
 	EnsureSchema(ctx context.Context, resource string, schema RecordSchema) error
 }

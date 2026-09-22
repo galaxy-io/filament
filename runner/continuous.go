@@ -281,7 +281,7 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 			return err
 		}
 		*activeEpoch = nil
-		commit.Certificate.Receipts = receipts
+		commit.Certificate.Receipts = sourceEpochReceipts(spec, receipts)
 		if err := commit.ValidateCompletion(cfg.Codecs); err != nil {
 			return err
 		}
@@ -317,24 +317,10 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 }
 
 func ensureContinuousSchemas(runCtx context.Context, cfg *ContinuousConfig) error {
-	if cfg.Schemas == nil {
-		provider, ok := cfg.Source.(filament.SchemaProvider)
-		if !ok {
-			return errors.New("continuous source must provide resource schemas")
-		}
-		cfg.Schemas = make(map[string]rowmodel.Schema, len(cfg.Spec.Resources))
-		for _, resource := range cfg.Spec.Resources {
-			schema, err := provider.Schema(runCtx, resource)
-			if err != nil {
-				return fmt.Errorf("schema for %s: %w", resource, err)
-			}
-			cfg.Schemas[resource] = schema
-		}
-	}
-	spec := cfg.Spec
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
-		for _, r := range spec.Resources {
-			if err := schemaSink.EnsureSchema(runCtx, r, cfg.Schemas[r]); err != nil {
+		for _, resource := range cfg.Spec.Resources {
+			destination, schema := destinationSchema(resource, cfg.Schemas[resource], cfg.Spec.WritePolicies)
+			if err := schemaSink.EnsureSchema(runCtx, destination, schema); err != nil {
 				return err
 			}
 		}
@@ -358,7 +344,12 @@ func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (fi
 		return filament.IngestionPlan{}, err
 	}
 	cfg.Spec.WritePolicies = plan.WritePolicies
-	if err := cfg.Sink.Open(ctx, cfg.Spec); err != nil {
+	sinkSpec, schemas, err := prepareSinkResources(ctx, cfg.Source, cfg.Sink, &cfg.Spec, cfg.Schemas)
+	if err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	cfg.Schemas = schemas
+	if err := cfg.Sink.Open(ctx, sinkSpec); err != nil {
 		return filament.IngestionPlan{}, err
 	}
 	return plan, nil

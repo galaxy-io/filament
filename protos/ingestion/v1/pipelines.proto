@@ -38,6 +38,8 @@ message PipelineEdge {
   repeated ResourceCursorConfig cursors = 5;
   ReadMode read_mode = 6;
   WriteMode write_mode = 7;
+  // Optional destination name for a continuous resource; source identity is unchanged.
+  string destination_resource = 8;
 }
 
 message ResourceCursorConfig {

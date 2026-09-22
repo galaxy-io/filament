@@ -169,11 +169,13 @@ type PipelineEdge struct {
 	// cursors contains durable-incremental overrides. An all-resource edge may
 	// configure several resources; a resource-specific edge may configure only
 	// its own resource. Omitted resources use connector auto-detection.
-	Cursors       []*ResourceCursorConfig `protobuf:"bytes,5,rep,name=cursors,proto3" json:"cursors,omitempty"`
-	ReadMode      ReadMode                `protobuf:"varint,6,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
-	WriteMode     WriteMode               `protobuf:"varint,7,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Cursors   []*ResourceCursorConfig `protobuf:"bytes,5,rep,name=cursors,proto3" json:"cursors,omitempty"`
+	ReadMode  ReadMode                `protobuf:"varint,6,opt,name=read_mode,json=readMode,proto3,enum=ingestion.v1.ReadMode" json:"read_mode,omitempty"`
+	WriteMode WriteMode               `protobuf:"varint,7,opt,name=write_mode,json=writeMode,proto3,enum=ingestion.v1.WriteMode" json:"write_mode,omitempty"`
+	// Optional destination name for a continuous resource; source identity is unchanged.
+	DestinationResource string `protobuf:"bytes,8,opt,name=destination_resource,json=destinationResource,proto3" json:"destination_resource,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PipelineEdge) Reset() {
@@ -253,6 +255,13 @@ func (x *PipelineEdge) GetWriteMode() WriteMode {
 		return x.WriteMode
 	}
 	return WriteMode_WRITE_MODE_UNSPECIFIED
+}
+
+func (x *PipelineEdge) GetDestinationResource() string {
+	if x != nil {
+		return x.DestinationResource
+	}
+	return ""
 }
 
 type ResourceCursorConfig struct {
@@ -1879,7 +1888,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"secretRefs\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xda\x02\n" +
 	"\fPipelineEdge\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x17\n" +
@@ -1888,7 +1897,8 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\acursors\x18\x05 \x03(\v2\".ingestion.v1.ResourceCursorConfigR\acursors\x123\n" +
 	"\tread_mode\x18\x06 \x01(\x0e2\x16.ingestion.v1.ReadModeR\breadMode\x126\n" +
 	"\n" +
-	"write_mode\x18\a \x01(\x0e2\x17.ingestion.v1.WriteModeR\twriteMode\"s\n" +
+	"write_mode\x18\a \x01(\x0e2\x17.ingestion.v1.WriteModeR\twriteMode\x121\n" +
+	"\x14destination_resource\x18\b \x01(\tR\x13destinationResource\"s\n" +
 	"\x14ResourceCursorConfig\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12)\n" +

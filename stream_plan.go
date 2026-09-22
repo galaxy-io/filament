@@ -125,6 +125,7 @@ func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]Write
 		}
 		policy := plan.Policy
 		policy.Resource = resource
+		policy.DestinationResource = submitted.DestinationResource
 		policies[resource] = policy
 		if plan.Ordering == OrderingGlobalStrict {
 			ordering = plan.Ordering
