@@ -157,6 +157,11 @@ type StreamOpenOpts struct {
 	// not grant acknowledgement authority.
 	CheckAuthority func(context.Context) error
 
+	// ReportResourceError persists a resource-local startup failure; nil clears a
+	// previous failure after successful resolution. A reporting error is fatal.
+	// Sources must fail closed when no reporter is supplied.
+	ReportResourceError func(context.Context, string, error) error
+
 	Resources          []string
 	CommittedPositions DomainPositions
 	Membership         map[string]ReplicationStreamResourceStatus

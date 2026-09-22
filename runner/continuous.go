@@ -124,7 +124,23 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
 		return err
 	}
-	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	var reportResourceError func(context.Context, string, error) error
+	if reporter, ok := cfg.Store.(filament.StreamResourceErrorStore); ok {
+		reportResourceError = func(ctx context.Context, resource string, issue error) error {
+			message := ""
+			if issue != nil {
+				message = issue.Error()
+			}
+			if err := reporter.SetStreamResourceError(ctx, lease, resource, message); err != nil {
+				return err
+			}
+			if issue != nil && cfg.events != nil {
+				emit(cfg.events, events.ResourceFailed, resource, events.ResourceFailedEvent{Error: message})
+			}
+			return nil
+		}
+	}
+	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{ReportResourceError: reportResourceError, SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
