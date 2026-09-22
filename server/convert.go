@@ -370,6 +370,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.RateLimitedEvent:
 		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
+	case events.StreamAttemptEndedEvent:
+		fields.Error = d.Error
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}

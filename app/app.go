@@ -172,7 +172,7 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("mount: %w", err)
 	}
-	streams := streamsupervisor.New(runner.Deps{DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}, nil)
+	streams := streamsupervisor.New(runner.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}, nil)
 	h := host.New(cfg.Bus)
 	ctx, cancel := context.WithCancel(ctx)
 	cleanup = func() {

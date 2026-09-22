@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/eventbus"
+	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/streamkit"
@@ -23,6 +25,10 @@ const DefaultDrainTimeout = 30 * time.Second
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
 // bounded runs. Write intent is resolved by the shared stream planner. Schemas default to the configured source.
 type ContinuousConfig struct {
+	Bus                    eventbus.Bus
+	Log                    filament.Logger
+	events                 *emitter
+	pipelineEvents         *continuousPipelineEvents
 	Enabled                bool
 	Spec                   filament.RunSpec
 	Store                  filament.StreamRuntimeStore
@@ -36,13 +42,21 @@ type ContinuousConfig struct {
 	MaxEpochs int
 }
 
-// RunContinuous executes native epochs without publishing bounded lifecycle facts.
+// RunContinuous executes native epochs. The shared emitter publishes activity;
+// runtime persistence, rather than event folding, owns continuous state.
 // Providers must honor cancellation. Forced cancellation abandons tentative work.
 func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}
 	spec := cfg.Spec
+	if cfg.Bus != nil {
+		cfg.events = newEmitter(ctx, cfg.Bus, cfg.Log, spec.Tenant, spec.Run)
+		defer func() {
+			defer cfg.events.finish()()
+			emit(cfg.events, events.StreamAttemptEnded, "", events.StreamAttemptEndedEvent{Error: continuousReason(result)})
+		}()
+	}
 	dst := cfg.Sink.(filament.StreamingSink)
 	lease := filament.LeaseToken{Tenant: spec.Tenant, Attempt: *spec.StreamAttempt}
 	cleanupInstalled := false
@@ -95,6 +109,12 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		result = errors.Join(result, closeErr, hbErr, endErr)
 	}()
 	cleanupInstalled = true
+	if cfg.events != nil {
+		emit(cfg.events, events.RunStarted, "", events.RunStartedEvent{})
+		for _, resource := range spec.Resources {
+			emit(cfg.events, events.ResourceStarted, resource, events.ResourceStartedEvent{})
+		}
+	}
 	plan, err := prepareContinuousConnectors(runCtx, &cfg)
 	if err != nil {
 		return err
@@ -108,7 +128,12 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err != nil {
 		return err
 	}
-	p, err = pipeline.NewStream(pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options}, plan.Ordering)
+	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	if cfg.events != nil {
+		cfg.pipelineEvents = &continuousPipelineEvents{emitter: cfg.events}
+		pipelineConfig.Emit = cfg.pipelineEvents.observe
+	}
+	p, err = pipeline.NewStream(pipelineConfig, plan.Ordering)
 	if err != nil {
 		return err
 	}
@@ -253,6 +278,14 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 			actual, e2 := historical.Certificate.CanonicalBytes(cfg.Codecs)
 			if e1 != nil || e2 != nil || !bytes.Equal(expected, actual) {
 				return errors.Join(filament.ErrEpochConflict, e1, e2)
+			}
+		}
+		// Publish only certified progress, never tentative Apply results. A lost
+		// commit response verified above has the same durable outcome.
+		if cfg.events != nil {
+			cfg.pipelineEvents.certified()
+			for _, receipt := range commit.Certificate.Receipts {
+				emit(cfg.events, events.CheckpointSaved, receipt.Resource, events.CheckpointSavedEvent{})
 			}
 		}
 		// Historical lookup alone does not authorize acknowledgement.
