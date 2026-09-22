@@ -9,24 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppRouteRouteImport } from './routes/_app/route'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
-import { Route as AppMainRouteRouteImport } from './routes/_app/_main/route'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as AppMainRouteRouteImport } from './routes/_app/_main/route'
 import { Route as AppMainIndexRouteImport } from './routes/_app/_main/index'
-import { Route as AppMainObservabilityRouteImport } from './routes/_app/_main/observability'
-import { Route as AppMainPipelinesRouteImport } from './routes/_app/_main/pipelines'
-import { Route as AppMainSinksRouteImport } from './routes/_app/_main/sinks'
-import { Route as AppMainSourcesRouteImport } from './routes/_app/_main/sources'
 import { Route as AppPipelinesIdRouteImport } from './routes/_app/pipelines/$id'
+import { Route as AppMainSourcesRouteImport } from './routes/_app/_main/sources'
+import { Route as AppMainSinksRouteImport } from './routes/_app/_main/sinks'
+import { Route as AppMainPipelinesRouteImport } from './routes/_app/_main/pipelines'
+import { Route as AppMainObservabilityRouteImport } from './routes/_app/_main/observability'
 import { Route as AppPipelinesIdIndexRouteImport } from './routes/_app/pipelines/$id/index'
-import { Route as AppPipelinesIdCanvasRouteImport } from './routes/_app/pipelines/$id/canvas'
-import { Route as AppPipelinesIdHistoryRouteImport } from './routes/_app/pipelines/$id/history'
 import { Route as AppPipelinesIdSettingsRouteImport } from './routes/_app/pipelines/$id/settings'
+import { Route as AppPipelinesIdHistoryRouteImport } from './routes/_app/pipelines/$id/history'
+import { Route as AppPipelinesIdCanvasRouteImport } from './routes/_app/pipelines/$id/canvas'
 
-const AppRouteRoute = AppRouteRouteImport.update({
-  id: '/_app',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -34,43 +35,22 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppMainRouteRoute = AppMainRouteRouteImport.update({
-  id: '/_main',
-  getParentRoute: () => AppRouteRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
   path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppMainRouteRoute = AppMainRouteRouteImport.update({
+  id: '/_main',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppMainIndexRoute = AppMainIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppMainRouteRoute,
-} as any)
-const AppMainObservabilityRoute = AppMainObservabilityRouteImport.update({
-  id: '/observability',
-  path: '/observability',
-  getParentRoute: () => AppMainRouteRoute,
-} as any)
-const AppMainPipelinesRoute = AppMainPipelinesRouteImport.update({
-  id: '/pipelines',
-  path: '/pipelines',
-  getParentRoute: () => AppMainRouteRoute,
-} as any)
-const AppMainSinksRoute = AppMainSinksRouteImport.update({
-  id: '/sinks',
-  path: '/sinks',
-  getParentRoute: () => AppMainRouteRoute,
-} as any)
-const AppMainSourcesRoute = AppMainSourcesRouteImport.update({
-  id: '/sources',
-  path: '/sources',
   getParentRoute: () => AppMainRouteRoute,
 } as any)
 const AppPipelinesIdRoute = AppPipelinesIdRouteImport.update({
@@ -78,14 +58,34 @@ const AppPipelinesIdRoute = AppPipelinesIdRouteImport.update({
   path: '/pipelines/$id',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppMainSourcesRoute = AppMainSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => AppMainRouteRoute,
+} as any)
+const AppMainSinksRoute = AppMainSinksRouteImport.update({
+  id: '/sinks',
+  path: '/sinks',
+  getParentRoute: () => AppMainRouteRoute,
+} as any)
+const AppMainPipelinesRoute = AppMainPipelinesRouteImport.update({
+  id: '/pipelines',
+  path: '/pipelines',
+  getParentRoute: () => AppMainRouteRoute,
+} as any)
+const AppMainObservabilityRoute = AppMainObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => AppMainRouteRoute,
+} as any)
 const AppPipelinesIdIndexRoute = AppPipelinesIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppPipelinesIdRoute,
 } as any)
-const AppPipelinesIdCanvasRoute = AppPipelinesIdCanvasRouteImport.update({
-  id: '/canvas',
-  path: '/canvas',
+const AppPipelinesIdSettingsRoute = AppPipelinesIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppPipelinesIdRoute,
 } as any)
 const AppPipelinesIdHistoryRoute = AppPipelinesIdHistoryRouteImport.update({
@@ -93,9 +93,9 @@ const AppPipelinesIdHistoryRoute = AppPipelinesIdHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AppPipelinesIdRoute,
 } as any)
-const AppPipelinesIdSettingsRoute = AppPipelinesIdSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AppPipelinesIdCanvasRoute = AppPipelinesIdCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
   getParentRoute: () => AppPipelinesIdRoute,
 } as any)
 
@@ -204,11 +204,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -218,11 +218,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/_main': {
@@ -232,46 +239,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMainRouteRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/invite/$token': {
-      id: '/invite/$token'
-      path: '/invite/$token'
-      fullPath: '/invite/$token'
-      preLoaderRoute: typeof InviteTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app/_main/': {
       id: '/_app/_main/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppMainIndexRouteImport
-      parentRoute: typeof AppMainRouteRoute
-    }
-    '/_app/_main/observability': {
-      id: '/_app/_main/observability'
-      path: '/observability'
-      fullPath: '/observability'
-      preLoaderRoute: typeof AppMainObservabilityRouteImport
-      parentRoute: typeof AppMainRouteRoute
-    }
-    '/_app/_main/pipelines': {
-      id: '/_app/_main/pipelines'
-      path: '/pipelines'
-      fullPath: '/pipelines'
-      preLoaderRoute: typeof AppMainPipelinesRouteImport
-      parentRoute: typeof AppMainRouteRoute
-    }
-    '/_app/_main/sinks': {
-      id: '/_app/_main/sinks'
-      path: '/sinks'
-      fullPath: '/sinks'
-      preLoaderRoute: typeof AppMainSinksRouteImport
-      parentRoute: typeof AppMainRouteRoute
-    }
-    '/_app/_main/sources': {
-      id: '/_app/_main/sources'
-      path: '/sources'
-      fullPath: '/sources'
-      preLoaderRoute: typeof AppMainSourcesRouteImport
       parentRoute: typeof AppMainRouteRoute
     }
     '/_app/pipelines/$id': {
@@ -281,6 +253,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPipelinesIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/_main/sources': {
+      id: '/_app/_main/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof AppMainSourcesRouteImport
+      parentRoute: typeof AppMainRouteRoute
+    }
+    '/_app/_main/sinks': {
+      id: '/_app/_main/sinks'
+      path: '/sinks'
+      fullPath: '/sinks'
+      preLoaderRoute: typeof AppMainSinksRouteImport
+      parentRoute: typeof AppMainRouteRoute
+    }
+    '/_app/_main/pipelines': {
+      id: '/_app/_main/pipelines'
+      path: '/pipelines'
+      fullPath: '/pipelines'
+      preLoaderRoute: typeof AppMainPipelinesRouteImport
+      parentRoute: typeof AppMainRouteRoute
+    }
+    '/_app/_main/observability': {
+      id: '/_app/_main/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof AppMainObservabilityRouteImport
+      parentRoute: typeof AppMainRouteRoute
+    }
     '/_app/pipelines/$id/': {
       id: '/_app/pipelines/$id/'
       path: '/'
@@ -288,11 +288,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPipelinesIdIndexRouteImport
       parentRoute: typeof AppPipelinesIdRoute
     }
-    '/_app/pipelines/$id/canvas': {
-      id: '/_app/pipelines/$id/canvas'
-      path: '/canvas'
-      fullPath: '/pipelines/$id/canvas'
-      preLoaderRoute: typeof AppPipelinesIdCanvasRouteImport
+    '/_app/pipelines/$id/settings': {
+      id: '/_app/pipelines/$id/settings'
+      path: '/settings'
+      fullPath: '/pipelines/$id/settings'
+      preLoaderRoute: typeof AppPipelinesIdSettingsRouteImport
       parentRoute: typeof AppPipelinesIdRoute
     }
     '/_app/pipelines/$id/history': {
@@ -302,11 +302,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPipelinesIdHistoryRouteImport
       parentRoute: typeof AppPipelinesIdRoute
     }
-    '/_app/pipelines/$id/settings': {
-      id: '/_app/pipelines/$id/settings'
-      path: '/settings'
-      fullPath: '/pipelines/$id/settings'
-      preLoaderRoute: typeof AppPipelinesIdSettingsRouteImport
+    '/_app/pipelines/$id/canvas': {
+      id: '/_app/pipelines/$id/canvas'
+      path: '/canvas'
+      fullPath: '/pipelines/$id/canvas'
+      preLoaderRoute: typeof AppPipelinesIdCanvasRouteImport
       parentRoute: typeof AppPipelinesIdRoute
     }
   }
