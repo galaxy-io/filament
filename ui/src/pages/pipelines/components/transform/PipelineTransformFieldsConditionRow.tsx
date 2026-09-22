@@ -124,13 +124,14 @@ const PipelineTransformFieldsConditionRow = ({
             createTransformChainCall(id, call, columnType, functionsByName, editor.columns, column),
           ]),
     );
-  const setValue = (next: TransformLeafExpr) =>
-    call &&
+  const setValue = (next: TransformLeafExpr) => {
+    if (!call) return;
     onChange(
       createTransformChainExpr(root, [
         { ...call, args: call.args.map((arg, slot) => (slot === 0 ? next : arg)) },
       ]),
     );
+  };
 
   return (
     <PipelineTransformFieldsRow

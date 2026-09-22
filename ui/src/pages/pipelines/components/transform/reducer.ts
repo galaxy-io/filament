@@ -80,7 +80,7 @@ function setResource(
     draft: {
       ...state.draft,
       resource: action.payload,
-      step: { ...createTransformStep(state.draft.step.kind), id: state.draft.step.id },
+      step: createTransformStep(state.draft.step.kind, "", state.draft.step.id),
     },
   };
 }

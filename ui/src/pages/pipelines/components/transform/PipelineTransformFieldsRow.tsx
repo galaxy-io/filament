@@ -51,11 +51,11 @@ const Gutter = styled.div<{ $inset: number; $offset: number; $minHeight: number 
   overflow: hidden;
 `;
 
-const Control = styled.div<{ $span: number; $minHeight: number }>`
-  display: ${({ $minHeight }) => ($minHeight > 0 ? "flex" : "block")};
+const Control = styled.div<{ $span: number; $isAddRow: boolean }>`
+  display: ${({ $isAddRow }) => ($isAddRow ? "flex" : "block")};
   align-items: center;
   grid-column: span ${({ $span }) => $span};
-  min-height: ${({ $minHeight }) => $minHeight}px;
+  min-height: ${({ $isAddRow }) => ($isAddRow ? TRANSFORM_ADD_ROW : 0)}px;
 `;
 
 const Action = styled.div<{ $offset: number }>`
@@ -114,7 +114,7 @@ const PipelineTransformFieldsRow = ({
           )}
         </Gutter>
       )}
-      <Control $span={isArg && !hasAction ? 2 : 1} $minHeight={isAddRow ? minHeight : 0}>
+      <Control $span={isArg && !hasAction ? 2 : 1} $isAddRow={isAddRow}>
         {children}
       </Control>
       {hasAction && <Action $offset={offset}>{action}</Action>}

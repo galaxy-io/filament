@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { PlusIcon } from "@phosphor-icons/react";
+import { FunctionIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 
@@ -22,6 +22,7 @@ const PipelineCanvasPanelResourceTransformSection = () => {
 
   return (
     <PipelineCanvasPanelSection
+      icon={FunctionIcon}
       header="Transformations"
       isEmpty={!hasContent}
       emptyHeader="No steps"

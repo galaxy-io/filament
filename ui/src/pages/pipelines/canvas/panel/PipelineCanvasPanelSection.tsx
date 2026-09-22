@@ -1,5 +1,7 @@
 import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+
 import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
@@ -8,6 +10,7 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
 
 interface PipelineCanvasPanelSectionProps {
+  icon?: PhosphorIcon;
   header: string;
   isEmpty: boolean;
   emptyHeader: string;
@@ -26,6 +29,7 @@ interface PipelineCanvasPanelSectionProps {
 }
 
 const PipelineCanvasPanelSection = ({
+  icon,
   header,
   isEmpty,
   emptyHeader,
@@ -41,6 +45,7 @@ const PipelineCanvasPanelSection = ({
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
   const accordion = (
     <Accordion
+      icon={icon}
       header={header}
       variant={AccordionVariant.TERTIARY}
       padding={isEmpty ? "24px" : padding}

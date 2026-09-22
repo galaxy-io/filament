@@ -63,17 +63,13 @@ const createTransformComputeStep = (
 export const createTransformStep = (
   kind: TransformEditableStep["kind"],
   column = "",
-): TransformEditableStep => {
-  return match<TransformEditableStep["kind"], TransformEditableStep>(kind)
-    .with(TransformStepKind.RENAME, (kind) => ({
-      id: crypto.randomUUID(),
-      kind,
-      pairs: [{ from: column, to: "" }],
-    }))
-    .with(TransformStepKind.DROP, (kind) => ({ id: crypto.randomUUID(), kind, names: [column] }))
-    .with(TransformStepKind.COMPUTE, () => createTransformComputeStep(column))
+  id: string = crypto.randomUUID(),
+): TransformEditableStep =>
+  match<TransformEditableStep["kind"], TransformEditableStep>(kind)
+    .with(TransformStepKind.RENAME, (kind) => ({ id, kind, pairs: [{ from: column, to: "" }] }))
+    .with(TransformStepKind.DROP, (kind) => ({ id, kind, names: [column] }))
+    .with(TransformStepKind.COMPUTE, () => createTransformComputeStep(column, id))
     .exhaustive();
-};
 
 export const getTransformStepColumn = (step: TransformEditableStep): string =>
   match(step)
@@ -89,9 +85,7 @@ export const convertTransformStep = (
   step: TransformEditableStep,
   kind: TransformEditableStep["kind"],
 ): TransformEditableStep =>
-  step.kind === kind
-    ? step
-    : { ...createTransformStep(kind, getTransformStepColumn(step)), id: step.id };
+  step.kind === kind ? step : createTransformStep(kind, getTransformStepColumn(step), step.id);
 
 export const toTransformComputeStep = (step: TransformEditableStep): TransformComputeStep =>
   step.kind === TransformStepKind.COMPUTE
@@ -106,15 +100,6 @@ export const createTransformLiteral = (
   value: null,
 });
 
-export const getTransformOnlyColumn = (
-  columns: ResourceColumn[],
-  logicalTypes: string[],
-  exclude: string | undefined,
-): ResourceColumn["name"] | undefined => {
-  const accepted = getTransformAcceptedColumns(columns, logicalTypes);
-  return accepted.length === 1 && accepted[0].name !== exclude ? accepted[0].name : undefined;
-};
-
 export const createTransformCallArgs = (
   fn: TransformFunction,
   inputType: string | undefined,
@@ -126,14 +111,14 @@ export const createTransformCallArgs = (
     if (!spec || spec.isLiteral || spec.isOptional) return TRANSFORM_EMPTY_EXPR;
     const types = getTransformArgumentTypes(fn, position + 1, inputType);
     const literalKind = spec.isColumn ? undefined : getTransformLiteralKind(types);
-    if (literalKind !== undefined && literalKind !== TransformLiteralKind.BOOLEAN) {
-      return getTransformAcceptedColumns(columns, types).length === 0
-        ? createTransformLiteral(literalKind)
-        : TRANSFORM_EMPTY_EXPR;
-    }
-    const only =
-      literalKind === undefined ? getTransformOnlyColumn(columns, types, rootColumn) : undefined;
-    return only === undefined ? TRANSFORM_EMPTY_EXPR : createTransformColumnExpr(only);
+    const literalCount =
+      literalKind === undefined ? 0 : literalKind === TransformLiteralKind.BOOLEAN ? 2 : 1;
+    const accepted = getTransformAcceptedColumns(columns, types);
+    if (literalCount + accepted.length !== 1) return TRANSFORM_EMPTY_EXPR;
+    if (literalKind !== undefined) return createTransformLiteral(literalKind);
+    return accepted[0].name === rootColumn
+      ? TRANSFORM_EMPTY_EXPR
+      : createTransformColumnExpr(accepted[0].name);
   });
 
 export const createTransformChainCall = (
@@ -224,9 +209,10 @@ export const applyTransformAction = (
     action.kind === TransformActionKind.FUNCTION
       ? (functionsByName.get(action.fn)?.args[0]?.logicalTypes ?? [])
       : [];
+  const accepted = getTransformAcceptedColumns(columns, acceptedTypes);
   const filled =
-    chain.root.kind === TransformExprKind.EMPTY && action.kind !== TransformActionKind.LITERAL
-      ? getTransformOnlyColumn(columns, acceptedTypes, undefined)
+    chain.root.kind === TransformExprKind.EMPTY && accepted.length === 1
+      ? accepted[0].name
       : undefined;
   const root: TransformLeafExpr =
     filled === undefined ? chain.root : createTransformColumnExpr(filled);

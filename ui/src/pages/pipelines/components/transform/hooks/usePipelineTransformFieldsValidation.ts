@@ -103,12 +103,14 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
     if (!showsIssues || !validation.data) return { errors: NO_ERRORS, downstream: [] };
     const steps = placed.stepsByResource.get(debounced.resource) ?? [];
     const downstream = [...groupTransformIssuesByStep(validation.data.issues)].flatMap(
-      ([index, messages]) =>
-        index > placed.index
-          ? messages
-              .filter((message) => !savedIssues.get(steps[index]?.id ?? "")?.includes(message))
-              .map((message) => `Step ${index + 1}: ${message}`)
-          : [],
+      ([index, messages]) => {
+        const step = steps[index];
+        if (!step || index <= placed.index) return [];
+        const saved = savedIssues.get(step.id) ?? [];
+        return messages
+          .filter((message) => !saved.includes(message))
+          .map((message) => `Step ${index + 1}: ${message}`);
+      },
     );
     return { errors: getTransformStepIssues(validation.data.issues, stepPath), downstream };
   }, [debounced.resource, placed, savedIssues, showsIssues, stepPath, validation.data]);
