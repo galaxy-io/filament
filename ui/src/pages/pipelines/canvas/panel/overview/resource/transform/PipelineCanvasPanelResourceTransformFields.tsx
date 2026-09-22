@@ -445,13 +445,12 @@ const PipelineCanvasPanelResourceTransformFields = ({
   const outputName = getTransformOutputName(firstOutput);
   const outputTarget = columns.find((column) => column.name === outputName);
   const asError =
-    state.rowScope !== TransformRowScope.MATCHING || !outputInfo.complete
-      ? undefined
-      : outputTarget === undefined
-        ? "Matching rows can only update an existing column."
-        : outputTarget.logicalType !== outputInfo.type
-          ? `${outputName} is ${outputTarget.logicalType}; this expression returns ${outputInfo.type}.`
-          : undefined;
+    state.rowScope === TransformRowScope.MATCHING &&
+    outputInfo.complete &&
+    outputTarget !== undefined &&
+    outputTarget.logicalType !== outputInfo.type
+      ? `${outputName} is ${outputTarget.logicalType}; this expression returns ${outputInfo.type}.`
+      : undefined;
   const conditionGroup = splitConditionGroup(state.where, functionsByName);
   const useCompactConditions =
     conditionGroup?.conditions.every((condition) =>

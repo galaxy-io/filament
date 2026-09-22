@@ -100,8 +100,9 @@ func (c *compiler) drop(path string, names []string) {
 // compute compiles every entry against the layout as it stood before the step and
 // applies the resulting changes together, so entries in one step cannot refer
 // to each other. Entries are visited in name order, which fixes where new
-// columns land. Under where, an entry must target an existing column and
-// keep its type, because the unmatched rows keep their old values.
+// columns land. Under where, an entry on an existing column must keep its
+// type, because the unmatched rows keep their old values; a new column is
+// null on those rows.
 func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 	o := computeOp{}
 	if where != nil {
@@ -128,10 +129,6 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 			continue
 		}
 		idx, exists := c.index(name)
-		if !exists && where != nil {
-			c.errs.addf(epath, "where requires an existing column; %q is new", name)
-			continue
-		}
 		if exists && where != nil && c.layout.Fields[idx].Logical != t.logical {
 			c.errs.addf(epath, "where cannot change type: column is %s, expression is %s", c.layout.Fields[idx].Logical, t.logical)
 			continue

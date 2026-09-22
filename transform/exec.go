@@ -46,7 +46,8 @@ func (o dropOp) apply(_ context.Context, f *frame) error {
 
 // computeOp evaluates every entry against the frame as it stood before the step,
 // then assigns all of them. Under where, each new value is merged with the
-// existing column so unmatched rows keep what they had.
+// existing column so unmatched rows keep what they had; a new column has
+// nothing to keep, so those rows are null.
 type computeOp struct {
 	where   node
 	entries []computeEntry
@@ -81,8 +82,17 @@ func (o computeOp) apply(ctx context.Context, f *frame) error {
 			return err
 		}
 		if mask != nil {
-			sel, err := kernel.IfElse(ctx, mask, arr, f.cols[e.idx])
+			var els arrow.Array
+			if e.idx < 0 {
+				els = array.MakeArrayOfNull(compute.GetAllocator(ctx), arr.DataType(), f.rows)
+			} else {
+				els = f.cols[e.idx]
+			}
+			sel, err := kernel.IfElse(ctx, mask, arr, els)
 			arr.Release()
+			if e.idx < 0 {
+				els.Release()
+			}
 			if err != nil {
 				return err
 			}

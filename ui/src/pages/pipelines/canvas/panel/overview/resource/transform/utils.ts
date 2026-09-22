@@ -592,8 +592,7 @@ export const getTransformStepValidationError = (
         names.add(name);
         if (state.rowScope === TransformRowScope.MATCHING) {
           const targetType = typeOf(name);
-          if (targetType === "") return `Matching rows requires ${name} to already exist.`;
-          if (targetType !== info.type) {
+          if (targetType !== "" && targetType !== info.type) {
             return `Matching rows cannot change ${name} from ${targetType} to ${info.type}.`;
           }
         }
