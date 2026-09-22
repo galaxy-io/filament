@@ -14,22 +14,10 @@ import (
 // the sink-facing copy uses output identities throughout. No connector needs
 // to interpret destination labels.
 func prepareSinkResources(ctx context.Context, src filament.Source, snk filament.Sink, spec *filament.RunSpec, schemas map[string]rowmodel.Schema) (filament.RunSpec, map[string]rowmodel.Schema, error) {
-	if schemas == nil {
-		schemas = make(map[string]rowmodel.Schema)
-		provider, available := src.(filament.SchemaProvider)
-		_, required := snk.(filament.Schematized)
-		if !available && (required || spec.Options.Execution == filament.ExecutionContinuous) {
-			return filament.RunSpec{}, nil, fmt.Errorf("source %q must provide resource schemas", src.Spec().Name)
-		}
-		if available {
-			for _, resource := range spec.Resources {
-				schema, err := provider.Schema(ctx, resource)
-				if err != nil {
-					return filament.RunSpec{}, nil, fmt.Errorf("schema for %q: %w", resource, err)
-				}
-				schemas[resource] = schema
-			}
-		}
+	var err error
+	schemas, err = loadSinkSchemas(ctx, src, snk, spec.Resources, schemas)
+	if err != nil {
+		return filament.RunSpec{}, nil, err
 	}
 	policies := maps.Clone(spec.WritePolicies)
 	if policies == nil {
@@ -54,6 +42,11 @@ func prepareSinkResources(ctx context.Context, src filament.Source, snk filament
 			policy = policies[""]
 		}
 		destination := policy.DestinationResource
+		if destination == "" {
+			if namer, ok := src.(filament.DestinationResourceNamer); ok {
+				destination = namer.DestinationResource(resource)
+			}
+		}
 		if destination == "" {
 			destination = schemas[resource].DestinationResource
 		}

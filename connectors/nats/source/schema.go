@@ -46,3 +46,8 @@ var resourceNameSeparators = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 func destinationResource(resource string) string {
 	return strings.Trim(resourceNameSeparators.ReplaceAllString(resource, "_"), "_")
 }
+
+// DestinationResource resolves a subject's output name without fetching a schema.
+func (*Source) DestinationResource(resource string) string {
+	return destinationResource(resource)
+}
