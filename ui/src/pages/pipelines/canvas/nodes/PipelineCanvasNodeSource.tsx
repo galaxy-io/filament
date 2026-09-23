@@ -66,9 +66,14 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
   const { invalidEdgeIds } = usePipelineCanvasValidation();
   const tables = useMemo(() => {
     const own = edges.filter((edge) => edge.source === id && edge.data?.transform !== undefined);
-    const transformed = new Map(
-      own.map((edge) => [edge.sourceHandle, invalidEdgeIds.has(edge.id)]),
-    );
+    // A resource routed to several sinks is invalid if any of its edges is.
+    const transformed = new Map<string | null | undefined, boolean>();
+    for (const edge of own) {
+      transformed.set(
+        edge.sourceHandle,
+        (transformed.get(edge.sourceHandle) ?? false) || invalidEdgeIds.has(edge.id),
+      );
+    }
     return discoveredTables.map((table) => ({
       ...table,
       isConnected: connectedHandleIds.has(table.name),

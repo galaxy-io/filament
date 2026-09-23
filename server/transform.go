@@ -97,7 +97,8 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	}
 	def, err := transform.Parse(raw)
 	if err != nil {
-		return transformIssues(err, nil, nil)
+		// Nothing compiled, but the builder still needs the source columns.
+		return transformIssues(err, nil, outputColumns(schema))
 	}
 	_, analysis, err := transform.Analyze(def, schema)
 	if err != nil {

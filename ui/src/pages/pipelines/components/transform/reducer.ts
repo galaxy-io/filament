@@ -4,6 +4,7 @@ import { match } from "ts-pattern";
 import {
   type LoadAction,
   type MoveStepAction,
+  type OpenNewAction,
   type OpenStepAction,
   type PipelineTransformFieldsAction,
   PipelineTransformFieldsActionType,
@@ -34,8 +35,10 @@ function load(_: PipelineTransformFieldsState, action: LoadAction): PipelineTran
   return createInitialPipelineTransformFieldsState(action.payload);
 }
 
-function openNew(state: PipelineTransformFieldsState): PipelineTransformFieldsState {
-  const resources = [...state.stepsByResource.keys()];
+function openNew(
+  state: PipelineTransformFieldsState,
+  { payload: { resources } }: OpenNewAction,
+): PipelineTransformFieldsState {
   return {
     ...state,
     draft: {
@@ -127,7 +130,7 @@ const pipelineTransformFieldsReducer = (
 ): PipelineTransformFieldsState =>
   match(action)
     .with({ type: PipelineTransformFieldsActionType.LOAD }, (action) => load(state, action))
-    .with({ type: PipelineTransformFieldsActionType.OPEN_NEW }, () => openNew(state))
+    .with({ type: PipelineTransformFieldsActionType.OPEN_NEW }, (action) => openNew(state, action))
     .with({ type: PipelineTransformFieldsActionType.OPEN_STEP }, (action) =>
       openStep(state, action),
     )

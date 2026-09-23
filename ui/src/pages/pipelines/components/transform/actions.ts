@@ -30,6 +30,7 @@ export interface LoadAction {
 
 export interface OpenNewAction {
   type: PipelineTransformFieldsActionType.OPEN_NEW;
+  payload: { resources: Resource["name"][] };
 }
 
 export interface OpenStepAction {

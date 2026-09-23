@@ -62,7 +62,7 @@ const PipelineLayoutNavbarSaveIssues = ({
     >
       {issues.slice(0, MAX_ISSUES_IN_TOOLTIP).map(({ edgeId, ...issue }) => (
         <PipelineLayoutNavbarSaveIssueRow
-          key={`${issue.resource ?? ""}|${issue.message}`}
+          key={`${edgeId ?? ""}|${issue.resource ?? ""}|${issue.message}`}
           $isClickable={edgeId !== undefined}
           onClick={edgeId === undefined ? undefined : () => onSelectResource(edgeId)}
         >

@@ -133,11 +133,13 @@ const PipelineTransformFieldsProvider = ({
     createInitialPipelineTransformFieldsState,
   );
 
+  // Reload when the definition changes underneath us (not from our own emit)
+  // or when the edge covers a different set of resources.
   const emitted = useRef(definition);
-  const [loaded, setLoaded] = useState(definition);
-  if (loaded !== definition) {
-    setLoaded(definition);
-    if (definition !== emitted.current) {
+  const [loaded, setLoaded] = useState({ definition, resources });
+  if (loaded.definition !== definition || loaded.resources !== resources) {
+    setLoaded({ definition, resources });
+    if (definition !== emitted.current || loaded.resources !== resources) {
       dispatch({
         type: PipelineTransformFieldsActionType.LOAD,
         payload: { definition, resources, functionsByName },
@@ -157,7 +159,8 @@ const PipelineTransformFieldsProvider = ({
       onChange(nextDefinition);
     };
     return {
-      openNew: () => dispatch({ type: PipelineTransformFieldsActionType.OPEN_NEW }),
+      openNew: () =>
+        dispatch({ type: PipelineTransformFieldsActionType.OPEN_NEW, payload: { resources } }),
       openStep: (id) =>
         dispatch({ type: PipelineTransformFieldsActionType.OPEN_STEP, payload: id }),
       cancel: () => dispatch({ type: PipelineTransformFieldsActionType.CANCEL }),
@@ -174,7 +177,7 @@ const PipelineTransformFieldsProvider = ({
           payload: { resource, from, to },
         }),
     };
-  }, [state, catalog.grammarVersion, onChange]);
+  }, [state, catalog.grammarVersion, onChange, resources]);
 
   const environment = useMemo<PipelineTransformFieldsEnvironment>(
     () => ({
