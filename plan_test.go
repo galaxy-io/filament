@@ -169,3 +169,11 @@ func TestResolveIngestionPlanRejectsMissingSinkDurability(t *testing.T) {
 		t.Fatal("sink capability without durability was accepted")
 	}
 }
+
+func TestBindSinkRecordAtomicity(t *testing.T) {
+	policy := WritePolicyForIngestion(IngestionFullAppend)
+	bindSinkDurability(&policy, WritePolicyCapability{Atomicity: AtomicityRecord, Durability: DurabilityAfterApply})
+	if policy.Capability.Atomicity != AtomicityRecord {
+		t.Fatal("planner retained batch atomicity for record-at-a-time sink")
+	}
+}

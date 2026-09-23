@@ -84,6 +84,7 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 }
 
 func bindSinkDurability(policy *WritePolicy, capability WritePolicyCapability) {
+	policy.Capability.Atomicity = capability.Atomicity
 	policy.Capability.Durability = capability.Durability
 	if policy.Checkpoint != CheckpointNone && capability.Durability == DurabilityAfterCommit {
 		policy.Checkpoint = CheckpointAfterCommit

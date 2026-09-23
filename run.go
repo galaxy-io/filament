@@ -537,6 +537,7 @@ type WriteAtomicity string
 
 // Atomicity units, smallest to largest.
 const (
+	AtomicityRecord   WriteAtomicity = "record"
 	AtomicityBatch    WriteAtomicity = "batch"
 	AtomicityResource WriteAtomicity = "resource"
 	AtomicityRun      WriteAtomicity = "run"
