@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/nats/internal/connection"
 )
 
 // Source reads subject resources using managed consumers, or binds explicit
 // user-owned consumers for compatibility. One connection serves all resources.
 type Source struct {
 	conn     *nats.Conn
-	js       nats.JetStreamContext
+	js       jetstream.JetStream
 	identity string
 	bindings []streamBinding
 }
@@ -24,12 +25,7 @@ type Source struct {
 func New() *Source { return &Source{} }
 
 // Validate checks connection settings. Stream and consumer are pipeline settings.
-func (*Source) Validate(cfg filament.Config) error {
-	if cfg.String("url") == "" {
-		return fmt.Errorf("nats: url is required")
-	}
-	return nil
-}
+func (*Source) Validate(cfg filament.Config) error { return connection.Validate(cfg) }
 
 // Configure opens one connection. TLS is supported through tls:// server URLs.
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
@@ -47,21 +43,11 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 			return err
 		}
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	opts := []nats.Option{nats.Timeout(5 * time.Second), nats.NoReconnect()}
-	if file := cfg.String("credentials_file"); file != "" {
-		opts = append(opts, nats.UserCredentials(file))
-	}
-	if token := cfg.Secret("token"); token != "" {
-		opts = append(opts, nats.Token(token))
-	}
-	conn, err := nats.Connect(cfg.String("url"), opts...)
+	conn, err := connection.Connect(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		conn.Close()
 		return err
@@ -93,7 +79,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) (err e
 		return err
 	}
 	defer func() { err = errors.Join(err, temp.Teardown(ctx)) }()
-	_, err = temp.js.AccountInfo(nats.Context(ctx))
+	_, err = temp.js.AccountInfo(ctx)
 	return err
 }
 

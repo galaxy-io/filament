@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -18,7 +18,7 @@ import (
 type multiSession struct {
 	writers  map[string]arrowbatch.RowWriter
 	children []*session
-	queued   []*nats.Msg
+	queued   []jetstream.Msg
 	next     int
 	active   *session
 	failed   error
@@ -102,7 +102,7 @@ func (s *multiSession) fetch(ctx context.Context, b filament.Boundary) error {
 	defer cancel()
 	type result struct {
 		i   int
-		msg *nats.Msg
+		msg jetstream.Msg
 		err error
 	}
 	results := make(chan result, len(s.children))
@@ -119,10 +119,8 @@ func (s *multiSession) fetch(ctx context.Context, b filament.Boundary) error {
 			defer workers.Done()
 			stop := context.AfterFunc(child.hb.Context(), cancel)
 			defer stop()
-			messages, err := child.sub.Fetch(1, nats.Context(readCtx))
-			var msg *nats.Msg
-			if len(messages) > 0 {
-				msg = messages[0]
+			msg, err := child.consumer.Next(jetstream.FetchContext(readCtx))
+			if msg != nil {
 				child.mu.Lock()
 				child.pending = msg
 				child.mu.Unlock()
@@ -138,7 +136,7 @@ func (s *multiSession) fetch(ctx context.Context, b filament.Boundary) error {
 			// Give every consumer the same polling budget. Canceling the other
 			// pulls at the first result can starve a slower busy stream.
 		}
-		if r.err != nil && !errors.Is(r.err, nats.ErrTimeout) && !errors.Is(r.err, context.DeadlineExceeded) && !errors.Is(r.err, context.Canceled) {
+		if r.err != nil && !idleFetch(r.err) && !errors.Is(r.err, context.Canceled) {
 			failure = errors.Join(failure, r.err)
 			cancel()
 		}

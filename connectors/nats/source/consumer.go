@@ -9,7 +9,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
 )
@@ -28,31 +28,32 @@ func managedConsumer(attempt filament.AttemptRef, resource, physical string) str
 	return "filament_" + hex.EncodeToString(sum[:20])
 }
 
-func (b consumerBinding) ensureConsumer(ctx context.Context, js nats.JetStreamContext, committed uint64) (*nats.ConsumerInfo, error) {
-	info, err := js.ConsumerInfo(b.stream, b.consumer, nats.Context(ctx))
+// ensureConsumer binds the existing consumer, creating a managed one when absent.
+func (b consumerBinding) ensureConsumer(ctx context.Context, stream jetstream.Stream, committed uint64) (jetstream.Consumer, error) {
+	consumer, err := stream.Consumer(ctx, b.consumer)
 	if err == nil {
-		return info, nil
+		return consumer, nil
 	}
-	if !b.managed || !errors.Is(err, nats.ErrConsumerNotFound) {
+	if !b.managed || !errors.Is(err, jetstream.ErrConsumerNotFound) {
 		return nil, err
 	}
-	cfg := &nats.ConsumerConfig{Durable: b.consumer, Description: "Filament managed " + b.consumer, AckPolicy: nats.AckExplicitPolicy, DeliverPolicy: nats.DeliverAllPolicy, MaxAckPending: 1, AckWait: 30 * time.Second, ReplayPolicy: nats.ReplayInstantPolicy}
+	cfg := jetstream.ConsumerConfig{Durable: b.consumer, Description: "Filament managed " + b.consumer, AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: 1, AckWait: 30 * time.Second, ReplayPolicy: jetstream.ReplayInstantPolicy}
 	if len(b.filters) == 1 {
 		cfg.FilterSubject = b.filters[0]
 	} else {
 		cfg.FilterSubjects = b.filters
 	}
 	if committed > 0 {
-		cfg.DeliverPolicy = nats.DeliverByStartSequencePolicy
+		cfg.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
 		cfg.OptStartSeq = committed + 1
 		if cfg.OptStartSeq == 0 {
 			return nil, errors.New("nats: exhausted stream sequence")
 		}
 	}
-	return js.AddConsumer(b.stream, cfg, nats.Context(ctx))
+	return stream.CreateConsumer(ctx, cfg)
 }
 
-func (b consumerBinding) validateConsumer(c nats.ConsumerConfig) error {
+func (b consumerBinding) validateConsumer(c jetstream.ConsumerConfig) error {
 	if !b.managed {
 		return validateExistingConsumer(c, b.consumer)
 	}
@@ -64,18 +65,18 @@ func (b consumerBinding) validateConsumer(c nats.ConsumerConfig) error {
 	if !slices.Equal(filters, b.filters) || c.Description != "Filament managed "+b.consumer {
 		return errors.New("nats: managed consumer identity or filters changed")
 	}
-	if c.DeliverPolicy != nats.DeliverAllPolicy && c.DeliverPolicy != nats.DeliverByStartSequencePolicy {
+	if c.DeliverPolicy != jetstream.DeliverAllPolicy && c.DeliverPolicy != jetstream.DeliverByStartSequencePolicy {
 		return errors.New("nats: incompatible managed delivery policy")
 	}
 	// Reuse the safety checks without treating intentional filters as gaps.
 	c.FilterSubject = ""
 	c.FilterSubjects = nil
-	c.DeliverPolicy = nats.DeliverAllPolicy
+	c.DeliverPolicy = jetstream.DeliverAllPolicy
 	return validateExistingConsumer(c, b.consumer)
 }
 
-func validateExistingConsumer(c nats.ConsumerConfig, name string) error {
-	if c.Durable != name || c.DeliverSubject != "" || c.AckPolicy != nats.AckExplicitPolicy || c.MaxAckPending != 1 || c.DeliverPolicy != nats.DeliverAllPolicy || c.MaxDeliver > 0 || c.HeadersOnly || c.FilterSubject != "" || len(c.FilterSubjects) > 0 || len(c.BackOff) > 0 || c.AckWait < time.Second {
+func validateExistingConsumer(c jetstream.ConsumerConfig, name string) error {
+	if c.Durable != name || c.DeliverSubject != "" || c.AckPolicy != jetstream.AckExplicitPolicy || c.MaxAckPending != 1 || c.DeliverPolicy != jetstream.DeliverAllPolicy || c.MaxDeliver > 0 || c.HeadersOnly || c.FilterSubject != "" || len(c.FilterSubjects) > 0 || len(c.BackOff) > 0 || c.AckWait < time.Second {
 		return errors.New("nats: require unfiltered durable pull consumer, deliver-all, explicit ack, unlimited delivery, MaxAckPending=1, AckWait>=1s")
 	}
 	return nil

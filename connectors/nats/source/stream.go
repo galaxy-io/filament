@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -71,7 +71,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if len(multi.children) == 1 {
 		return multi.children[0], nil
 	}
-	multi.queued = make([]*nats.Msg, len(multi.children))
+	multi.queued = make([]jetstream.Msg, len(multi.children))
 	return multi, nil
 }
 
@@ -83,7 +83,7 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if s.js == nil || len(opts.Resources) != 1 || opts.Resources[0] != binding.stream {
 		return nil, errors.New("nats: select exactly the configured stream")
 	}
-	session := &session{js: s.js, binding: binding}
+	session := &session{binding: binding}
 	lifecycle, err := stream.NewSourceLifecycle(opts.Attempt, func(ctx context.Context) error {
 		if err := session.authority(ctx); err != nil {
 			return err
@@ -94,10 +94,11 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 		return nil, err
 	}
 	session.lifecycle = lifecycle
-	info, err := s.js.StreamInfo(binding.stream, nats.Context(ctx))
+	destination, err := s.js.Stream(ctx, binding.stream)
 	if err != nil {
 		return nil, err
 	}
+	info := destination.CachedInfo()
 	domain := consumerDomain(s.identity, binding.stream, info)
 	if binding.managed {
 		domain = managedDomain(s.identity, binding.resource, info)
@@ -113,15 +114,16 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if err := opts.CheckAuthority(ctx); err != nil {
 		return nil, err
 	}
-	ci, err := binding.ensureConsumer(ctx, s.js, committed)
+	consumer, err := binding.ensureConsumer(ctx, destination, committed)
 	if err != nil {
 		return nil, err
 	}
+	ci := consumer.CachedInfo()
 	if err := binding.validateConsumer(ci.Config); err != nil {
 		return nil, err
 	}
 	c := ci.Config
-	if binding.managed && c.DeliverPolicy == nats.DeliverByStartSequencePolicy && (committed == ^uint64(0) || c.OptStartSeq > committed+1) {
+	if binding.managed && c.DeliverPolicy == jetstream.DeliverByStartSequencePolicy && (committed == ^uint64(0) || c.OptStartSeq > committed+1) {
 		return nil, errors.New("nats: consumer starts beyond certified progress")
 	}
 	if ci.AckFloor.Stream > committed {
@@ -130,11 +132,8 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if (!binding.managed || committed > 0) && info.State.FirstSeq > committed+1 && info.State.Msgs > 0 {
 		return nil, errors.New("nats: retained input no longer covers resume position")
 	}
-	sub, err := s.js.PullSubscribe(ci.Config.FilterSubject, binding.consumer, nats.Bind(binding.stream, binding.consumer))
-	if err != nil {
-		return nil, err
-	}
-	session.sub = sub
+	session.stream = destination
+	session.consumer = consumer
 	session.domain = domain
 	session.created = info.Created
 	session.consumerCreated = ci.Created
@@ -148,12 +147,11 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 		session.mu.Lock()
 		defer session.mu.Unlock()
 		if session.pending != nil {
-			return session.pending.InProgress(nats.Context(ctx))
+			return session.pending.InProgress()
 		}
 		return nil
 	})
 	if err != nil {
-		_ = sub.Unsubscribe()
 		return nil, err
 	}
 	session.hb = hb
@@ -183,7 +181,7 @@ func (s *Source) openSubjects(ctx context.Context, opts filament.StreamOpenOpts)
 		}
 		multi.children = append(multi.children, child)
 	}
-	multi.queued = make([]*nats.Msg, len(multi.children))
+	multi.queued = make([]jetstream.Msg, len(multi.children))
 	return multi, nil
 }
 
