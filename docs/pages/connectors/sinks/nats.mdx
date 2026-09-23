@@ -22,8 +22,9 @@ remains an individual NATS message.
 | `max_in_flight` | Pipeline | No | Maximum outstanding messages, from 1 through 65,536; default `1024` |
 | `max_in_flight_bytes` | Pipeline | No | Maximum outstanding message bytes; positive integer, default `16777216` (16 MiB) |
 
-Both `stream` and `subject` are templates. The `{resource}` placeholder is
-replaced with the destination resource name, so one configuration can route
+Both `stream` and `subject` are templates. The `{resource}` placeholder, or
+its Go template spelling `{{resource}}`, is replaced with the destination
+resource name, so one configuration can route
 every resource to its own subject, or its own stream, or both:
 
 | `stream` | `subject` | Resource `orders` publishes to |

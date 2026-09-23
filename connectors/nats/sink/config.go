@@ -20,16 +20,30 @@ const (
 )
 
 // resourcePlaceholder expands to the destination resource name inside the
-// stream and subject templates.
+// stream and subject templates. The Go template spelling {{resource}} is
+// accepted as well, and both forms may appear in one template.
 const resourcePlaceholder = "{resource}"
+
+var resourcePlaceholders = []string{"{{resource}}", resourcePlaceholder}
 
 type template string
 
 func (t template) expand(resource string) string {
-	return strings.ReplaceAll(string(t), resourcePlaceholder, resource)
+	out := string(t)
+	for _, placeholder := range resourcePlaceholders {
+		out = strings.ReplaceAll(out, placeholder, resource)
+	}
+	return out
 }
 
-func (t template) perResource() bool { return strings.Contains(string(t), resourcePlaceholder) }
+func (t template) perResource() bool {
+	for _, placeholder := range resourcePlaceholders {
+		if strings.Contains(string(t), placeholder) {
+			return true
+		}
+	}
+	return false
+}
 
 type config struct {
 	stream, subject  template
@@ -104,7 +118,7 @@ func validStreamName(name string) error {
 // the placeholder ends the subject, * otherwise. Any other case is exact.
 func (c config) captureFilter(resource string) string {
 	if c.subject.perResource() && !c.stream.perResource() {
-		if strings.HasSuffix(string(c.subject), resourcePlaceholder) {
+		if strings.HasSuffix(string(c.subject), resourcePlaceholder) || strings.HasSuffix(string(c.subject), "{{resource}}") {
 			return c.subject.expand(">")
 		}
 		return c.subject.expand("*")

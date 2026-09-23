@@ -17,9 +17,9 @@ func (*Sink) Spec() filament.SinkSpec {
 		DarkLogoURL: connection.DarkLogoURL, LightLogoURL: connection.LightLogoURL,
 		Description: "Publish JSON records to an existing JetStream stream with acknowledged, append-only delivery.",
 		Config: filament.ConfigSchema{Fields: append(connection.Fields(), []filament.ConfigField{
-			{Name: "stream", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Destination stream name: letters, digits, - and _, no dots. {resource} expands to the destination resource name, e.g. EVENTS or {resource}_events"},
+			{Name: "stream", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Destination stream name: letters, digits, - and _, no dots. {resource} or {{resource}} expands to the destination resource name, e.g. EVENTS or {resource}_events"},
 			{Name: "create_stream", Type: filament.FieldBool, Default: true, Scope: filament.ScopePipeline, Help: "Create missing streams"},
-			{Name: "subject", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Publish subject captured by the stream. {resource} expands to the destination resource name, e.g. events.{resource}"},
+			{Name: "subject", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Publish subject captured by the stream. {resource} or {{resource}} expands to the destination resource name, e.g. events.{resource}"},
 			{Name: "max_in_flight", Type: filament.FieldInt, Default: defaultMaxInFlight, Scope: filament.ScopePipeline, Help: "Maximum outstanding messages; 1 through 65536"},
 			{Name: "max_in_flight_bytes", Type: filament.FieldInt, Default: defaultMaxInFlightBytes, Scope: filament.ScopePipeline, Help: "Maximum outstanding message bytes including payload, headers, and subject; individual messages must fit"},
 			{Name: "publish_timeout", Type: filament.FieldString, Default: "5s", Scope: filament.ScopePipeline, Help: "Maximum wait for each publish acknowledgment"},
