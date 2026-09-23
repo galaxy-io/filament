@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow/compute"
 
@@ -78,16 +77,16 @@ var (
 	}
 )
 
-// catalog is the closed set of functions a definition may call. The names
-// are mirrored by the function enum in grammar.v1.json, and a test fails when
-// the two drift.
-var catalog = map[string]function{
+// catalog is the closed set of functions a definition may call, in the order
+// a builder lists them: related functions side by side, sections in the order
+// of grammar.v1.json's function enum, which mirrors these names.
+var catalog = []function{
 	// strings
-	"lower":  unary("lower", "Lowercase", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
-	"upper":  unary("upper", "Uppercase", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
-	"trim":   unary("trim", "Trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
-	"length": unary("length", "Length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
-	"replace": {
+	unary("lower", "Lowercase", "Lower-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Lower),
+	unary("upper", "Uppercase", "Upper-cases a string column.", stringTypes, rowmodel.LogicalString, kernel.Upper),
+	unary("trim", "Trim", "Removes leading and trailing whitespace from a string column.", stringTypes, rowmodel.LogicalString, kernel.Trim),
+	unary("length", "Length", "The number of characters in a string column.", stringTypes, rowmodel.LogicalInt64, kernel.Length),
+	{
 		spec: FunctionSpec{
 			Name: "replace", DisplayName: "Replace", Description: "Replaces every occurrence of a substring in a string column.",
 			Args: []ArgSpec{
@@ -98,7 +97,7 @@ var catalog = map[string]function{
 		},
 		exec: kernel.Replace,
 	},
-	"substring": {
+	{
 		spec: FunctionSpec{
 			Name: "substring", DisplayName: "Substring", Description: "A slice of a string column, counting characters from 1.",
 			Args: []ArgSpec{
@@ -110,7 +109,7 @@ var catalog = map[string]function{
 		validate: positive("substring", 1),
 		exec:     kernel.Substring,
 	},
-	"concat": {
+	{
 		spec: FunctionSpec{
 			Name: "concat", DisplayName: "Concatenate", Description: "Joins strings end to end; null in any part gives null.",
 			Args: []ArgSpec{{Name: "part", DisplayName: "Append", Types: stringTypes, Variadic: true}}, Returns: rowmodel.LogicalString,
@@ -118,7 +117,7 @@ var catalog = map[string]function{
 		},
 		exec: kernel.Concat,
 	},
-	"regex_match": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_match", DisplayName: "Regex match", Description: "True where a string column matches a Go regular expression.",
 			Args: []ArgSpec{
@@ -129,7 +128,7 @@ var catalog = map[string]function{
 		validate: validPattern("regex_match", 1),
 		exec:     kernel.RegexMatch,
 	},
-	"regex_extract": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_extract", DisplayName: "Regex extract", Description: "The first match of a Go regular expression, or of one of its groups.",
 			Args: []ArgSpec{
@@ -141,7 +140,7 @@ var catalog = map[string]function{
 		validate: validators(validPattern("regex_extract", 1), nonnegative("regex_extract", "group", 2)),
 		exec:     kernel.RegexExtract,
 	},
-	"regex_replace": {
+	{
 		spec: FunctionSpec{
 			Name: "regex_replace", DisplayName: "Regex replace", Description: "Replaces every match of a Go regular expression; $1 refers to a group.",
 			Args: []ArgSpec{
@@ -155,20 +154,20 @@ var catalog = map[string]function{
 	},
 
 	// numbers
-	"add": arithmetic("add", "Add", "+", "Adds two numbers.", kernel.Add),
-	"sub": arithmetic("sub", "Subtract", "−", "Subtracts the second number from the first.", kernel.Sub),
-	"mul": arithmetic("mul", "Multiply", "×", "Multiplies two numbers.", kernel.Mul),
-	"div": arithmetic("div", "Divide", "÷", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
-	"abs": {
+	arithmetic("add", "Add", "+", "Adds two numbers.", kernel.Add),
+	arithmetic("sub", "Subtract", "−", "Subtracts the second number from the first.", kernel.Sub),
+	arithmetic("mul", "Multiply", "×", "Multiplies two numbers.", kernel.Mul),
+	arithmetic("div", "Divide", "÷", "Divides the first number by the second; integer inputs divide as integers.", kernel.Div),
+	{
 		spec: FunctionSpec{
 			Name: "abs", DisplayName: "Absolute value", Description: "The absolute value of a number column.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Types: numericTypes, Column: true}}, ReturnsInput: true, SameType: true,
 		},
 		exec: kernel.Abs,
 	},
-	"floor": unary("floor", "Floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
-	"ceil":  unary("ceil", "Ceiling", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
-	"round": {
+	unary("floor", "Floor", "Rounds a decimal column down to the nearest whole number.", floatTypes, "", kernel.Floor),
+	unary("ceil", "Ceiling", "Rounds a decimal column up to the nearest whole number.", floatTypes, "", kernel.Ceil),
+	{
 		spec: FunctionSpec{
 			Name: "round", DisplayName: "Round", Description: "Rounds a decimal column to a number of places, halves to even.",
 			Args: []ArgSpec{
@@ -180,39 +179,39 @@ var catalog = map[string]function{
 	},
 
 	// comparisons
-	"eq":  comparison("eq", "Equals", "=", "True where two values are equal.", nil, kernel.Eq),
-	"neq": comparison("neq", "Not equals", "≠", "True where two values differ.", nil, kernel.Neq),
-	"gt":  comparison("gt", "Greater than", ">", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
-	"gte": comparison("gte", "Greater than or equal", "≥", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
-	"lt":  comparison("lt", "Less than", "<", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
-	"lte": comparison("lte", "Less than or equal", "≤", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
+	comparison("eq", "Equals", "=", "True where two values are equal.", nil, kernel.Eq),
+	comparison("neq", "Not equals", "≠", "True where two values differ.", nil, kernel.Neq),
+	comparison("gt", "Greater than", ">", "True where the first orderable value is greater than the second.", orderableTypes, kernel.Gt),
+	comparison("gte", "Greater than or equal", "≥", "True where the first orderable value is greater than or equal to the second.", orderableTypes, kernel.Gte),
+	comparison("lt", "Less than", "<", "True where the first orderable value is less than the second.", orderableTypes, kernel.Lt),
+	comparison("lte", "Less than or equal", "≤", "True where the first orderable value is less than or equal to the second.", orderableTypes, kernel.Lte),
 
 	// logic
-	"and": {
+	{
 		spec: FunctionSpec{
 			Name: "and", DisplayName: "And", Description: "True where both conditions are true.",
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "and",
 		},
 		exec: kernel.And,
 	},
-	"or": {
+	{
 		spec: FunctionSpec{
 			Name: "or", DisplayName: "Or", Description: "True where either condition is true.",
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: boolTypes}, {Name: "right", DisplayName: "Right", Types: boolTypes}}, Returns: rowmodel.LogicalBool, SameType: true, ConditionJoin: "or",
 		},
 		exec: kernel.Or,
 	},
-	"not": unary("not", "Not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
+	unary("not", "Not", "Flips a condition.", boolTypes, rowmodel.LogicalBool, kernel.Not),
 
 	// nulls
-	"is_null": {
+	{
 		spec: FunctionSpec{
 			Name: "is_null", DisplayName: "Is null", Description: "True where a column has no value.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Column: true}}, Returns: rowmodel.LogicalBool, ConditionOperator: true,
 		},
 		exec: kernel.IsNull,
 	},
-	"coalesce": {
+	{
 		spec: FunctionSpec{
 			Name: "coalesce", DisplayName: "Coalesce", Description: "The first value that is not null, left to right.",
 			Args: []ArgSpec{{Name: "value", DisplayName: "Value", Variadic: true}}, ReturnsInput: true, SameType: true, VariadicAddLabel: "Add value",
@@ -221,23 +220,30 @@ var catalog = map[string]function{
 	},
 
 	// dates
-	"to_date": {
+	{
 		spec: FunctionSpec{
-			Name: "to_date", DisplayName: "To date", Description: "Parses a string column into a date, by an optional Go time layout.",
+			Name: "to_date", DisplayName: "To date", Description: "Parses a string column of ISO dates (2006-01-02) into a date.",
 			Args: []ArgSpec{
 				{Name: "value", DisplayName: "Value", Types: stringTypes, Column: true},
-				{Name: "layout", DisplayName: "Format", Types: stringTypes, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalDate,
 		},
-		validate: validLayout("to_date", 1),
-		exec:     kernel.ToDate,
+		exec: kernel.ToDate,
 	},
-	"year":  unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
-	"month": unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
-	"day":   unary("day", "Day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
+	unary("year", "Year", "The calendar year of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Year),
+	unary("month", "Month", "The calendar month, 1 to 12, of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Month),
+	unary("day", "Day", "The day of the month of a date or timestamp column.", temporalTypes, rowmodel.LogicalInt64, kernel.Day),
 }
 
 // unary builds a one-column function. An empty returns means the input type.
+// catalogByName indexes the catalog for the compiler's lookups.
+var catalogByName = func() map[string]function {
+	byName := make(map[string]function, len(catalog))
+	for _, fn := range catalog {
+		byName[fn.spec.Name] = fn
+	}
+	return byName
+}()
+
 func unary(name, display, desc string, types []rowmodel.LogicalType, returns rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
 	return function{
 		spec: FunctionSpec{
@@ -283,7 +289,8 @@ func (s FunctionSpec) argSpec(i int) ArgSpec {
 
 // check verifies a call's arity, argument kinds, and argument types against
 // the signature, then runs the function's own validate hook. It returns the
-// call's result type.
+// call's result type. A failure one argument is responsible for comes back
+// as an argError naming it.
 func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
 	spec := fn.spec
 	required := 0
@@ -309,13 +316,13 @@ func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
 	for i, arg := range args {
 		a := spec.argSpec(i)
 		if a.Column && arg.literal {
-			return "", fmt.Errorf("%s expects a column for %s, got a literal", spec.Name, a.Name)
+			return "", argErrorf(i, "%s expects a column for %s, got a literal", spec.Name, a.Name)
 		}
 		if a.Literal && !arg.literal {
-			return "", fmt.Errorf("%s expects a literal for %s, got a column", spec.Name, a.Name)
+			return "", argErrorf(i, "%s expects a literal for %s, got a column", spec.Name, a.Name)
 		}
 		if len(a.Types) > 0 && !slices.Contains(a.Types, arg.logical) {
-			return "", fmt.Errorf("%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
+			return "", argErrorf(i, "%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
 		}
 	}
 	shared := rowmodel.LogicalUnknown
@@ -356,7 +363,7 @@ func sharedType(spec FunctionSpec, args []argType) (rowmodel.LogicalType, error)
 			continue
 		}
 		if a.logical != shared {
-			return "", fmt.Errorf("%s expects matching types, got %s and %s", spec.Name, shared, a.logical)
+			return "", argErrorf(i, "%s expects matching types, got %s and %s", spec.Name, shared, a.logical)
 		}
 	}
 	return shared, nil
@@ -371,32 +378,13 @@ func joinTypes(types []rowmodel.LogicalType) string {
 	return strings.Join(names, " or ")
 }
 
-// validLayout checks the Go time layout at index, when present, by formatting
-// and re-parsing the current time. A layout that cannot round-trip fails at
-// compile time instead of on the first batch.
-func validLayout(name string, index int) func([]argType) error {
-	return func(args []argType) error {
-		if len(args) <= index {
-			return nil
-		}
-		layout, ok := args[index].value.(string)
-		if !ok || layout == "" {
-			return fmt.Errorf("%s layout must be a non-empty string", name)
-		}
-		if _, err := time.Parse(layout, time.Now().Format(layout)); err != nil {
-			return fmt.Errorf("%s layout %q does not round-trip: %w", name, layout, err)
-		}
-		return nil
-	}
-}
-
 // validPattern compiles the regular expression at index so a bad pattern
 // fails at compile time. The kernel compiles it again per batch from a cache.
 func validPattern(name string, index int) func([]argType) error {
 	return func(args []argType) error {
 		pattern, _ := args[index].value.(string)
 		if _, err := regexp.Compile(pattern); err != nil {
-			return fmt.Errorf("%s pattern: %w", name, err)
+			return argErrorf(index, "%s pattern: %w", name, err)
 		}
 		return nil
 	}
@@ -409,7 +397,7 @@ func positive(name string, index int) func([]argType) error {
 			return nil
 		}
 		if v, _ := args[index].value.(int64); v < 1 {
-			return fmt.Errorf("%s %s must be 1 or more, got %d", name, "start", v)
+			return argErrorf(index, "%s %s must be 1 or more, got %d", name, "start", v)
 		}
 		return nil
 	}
@@ -422,7 +410,7 @@ func nonnegative(name, argument string, index int) func([]argType) error {
 			return nil
 		}
 		if v, _ := args[index].value.(int64); v < 0 {
-			return fmt.Errorf("%s %s must be zero or more, got %d", name, argument, v)
+			return argErrorf(index, "%s %s must be zero or more, got %d", name, argument, v)
 		}
 		return nil
 	}

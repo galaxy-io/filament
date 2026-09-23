@@ -14,6 +14,8 @@ export enum PipelineCanvasNodeType {
 export interface PipelineCanvasNodeTableInfo {
   name: Resource["name"];
   isConnected: boolean;
+  hasTransform: boolean;
+  isInvalid: boolean;
 }
 
 export type PipelineCanvasConnectionNodeData = {
@@ -42,7 +44,6 @@ export type CanvasNode =
   | PipelineCanvasSinkNode
   | PipelineCanvasPlaceholderNode;
 
-/** A transform definition as the JSON object the grammar accepts. */
 export type PipelineCanvasEdgeTransform = JsonObject;
 
 export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors"> & {

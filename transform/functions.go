@@ -1,7 +1,6 @@
 package transform
 
 import (
-	"maps"
 	"slices"
 
 	"github.com/galaxy-io/filament/rowmodel"
@@ -14,17 +13,17 @@ func GrammarVersion() int { return supportedVersion }
 // want to check a document's shape before sending it.
 func Grammar() []byte { return slices.Clone(grammarJSON) }
 
-// Functions returns every catalog function's signature, sorted by name.
+// Functions returns every catalog function's signature, in catalog order.
 func Functions() []FunctionSpec {
 	specs := make([]FunctionSpec, 0, len(catalog))
-	for _, name := range slices.Sorted(maps.Keys(catalog)) {
-		specs = append(specs, catalog[name].spec)
+	for _, fn := range catalog {
+		specs = append(specs, fn.spec)
 	}
 	return specs
 }
 
 // FunctionsFor returns the functions that accept a column of the given type
-// in some argument, sorted by name. It is the same acceptance the compiler
+// in some argument, in catalog order. It is the same acceptance the compiler
 // applies, so a builder offering these never proposes a call Compile rejects.
 func FunctionsFor(t rowmodel.LogicalType) []FunctionSpec {
 	var out []FunctionSpec

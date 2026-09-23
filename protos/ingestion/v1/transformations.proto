@@ -64,11 +64,24 @@ message ValidateTransformRequest {
   google.protobuf.Struct transform = 3;
 }
 
+// TransformExpressionType is the logical type of one compiled sub-expression.
+// path uses the grammar ValidationError.field uses, extended into
+// expressions: resources["r"].steps[2].compute["x"] is a whole expression,
+// resources["r"].steps[2].compute["x"].concat[1] its second argument, and
+// resources["r"].steps[2].where.and[0].gt[1] a value inside a condition.
+message TransformExpressionType {
+  string path = 1;
+  string logical_type = 2;
+}
+
 // ValidateTransformResponse lists every issue with the path in the definition
-// it sits at, or on success the columns the resource will have after the
-// transform.
+// it sits at, the columns the resource will have after the steps that
+// compiled, and the type of every sub-expression that compiled. Columns and
+// types come back on failure too, so a builder can show them while a
+// definition is still being edited.
 message ValidateTransformResponse {
   bool valid = 1;
   repeated ValidationError issues = 2;
   repeated ResourceColumn output_columns = 3;
+  repeated TransformExpressionType expression_types = 4;
 }

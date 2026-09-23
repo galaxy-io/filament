@@ -1,29 +1,22 @@
-import { type UseQueryOptions, useQuery } from "@connectrpc/connect-query";
+import { type UseQueryOptions, useQuery, useSuspenseQuery } from "@connectrpc/connect-query";
 
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 import type {
   ListTransformFunctionsRequest,
-  ListTransformFunctionsResponse,
   ValidateTransformRequest,
   ValidateTransformResponse,
 } from "@/gen/ingestion/v1/transformations_pb";
 
-export const useListTransformFunctionsQuery = ({
+export const useSuspenseListTransformFunctionsQuery = ({
   input,
-  options = {},
 }: {
   input: ListTransformFunctionsRequest;
-  options?: UseQueryOptions<
-    typeof IngestionService.method.listTransformFunctions.output,
-    ListTransformFunctionsResponse
-  >;
 }) => {
-  return useQuery<
+  return useSuspenseQuery<
     typeof IngestionService.method.listTransformFunctions.input,
     typeof IngestionService.method.listTransformFunctions.output
   >(IngestionService.method.listTransformFunctions, input, {
     staleTime: Number.POSITIVE_INFINITY,
-    ...options,
   });
 };
 

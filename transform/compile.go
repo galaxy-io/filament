@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -8,30 +9,74 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
+// ExpressionType is the logical type of one compiled sub-expression, at the
+// same kind of path an Issue uses, so a client reads types and issues off one
+// map. resources["r"].steps[2].compute["x"] is a whole expression,
+// resources["r"].steps[2].compute["x"].concat[1] its second argument, and
+// resources["r"].steps[2].where.and[0].gt[1] a value inside a condition. A
+// literal that was widened to a column's type reports the widened type.
+type ExpressionType struct {
+	Path    string
+	Logical rowmodel.LogicalType
+}
+
+// Analysis is what Analyze learns besides the plan: the type of every
+// sub-expression that compiled, and the schema as the steps leave it. Layout
+// is filled in whether or not the definition compiled: the entries of a step
+// that compiled still apply, and the ones that failed are skipped, so a
+// builder can offer the right columns to the steps after a broken one.
+type Analysis struct {
+	Types  []ExpressionType
+	Layout rowmodel.Schema
+}
+
 // Compile resolves the definition's steps for in.Resource against in and
 // returns the plan that applies them. Every column reference and function
 // call is checked here, so Apply never meets a name or type it has not seen.
 // A resource the definition does not mention compiles to an identity plan.
 func Compile(def *Definition, in rowmodel.Schema) (*Plan, error) {
-	c := compiler{layout: in.Clone()}
+	plan, _, err := Analyze(def, in)
+	return plan, err
+}
+
+// Analyze compiles like Compile and also reports the type of every
+// sub-expression that compiled, in compile order, and the schema the steps
+// produce, whether or not the whole definition did. A builder shows those
+// while the author is mid-edit.
+func Analyze(def *Definition, in rowmodel.Schema) (*Plan, Analysis, error) {
+	c := compiler{layout: in.Clone(), typeIndex: map[string]int{}}
 	if res, ok := def.Resources[in.Resource]; ok {
 		for i, st := range res.Steps {
 			c.step(fmt.Sprintf("resources[%q].steps[%d]", in.Resource, i), st)
 		}
 	}
+	analysis := Analysis{Types: c.types, Layout: c.layout}
 	if err := c.errs.asError(); err != nil {
-		return nil, err
+		return nil, analysis, err
 	}
-	return newPlan(in, c.layout, c.ops), nil
+	return newPlan(in, c.layout, c.ops), analysis, nil
 }
 
 // compiler walks the steps while carrying the schema as each step leaves it.
 // Ops record column indices against that working layout, and Apply mutates
 // its frame in the same order, so the indices line up at run time.
 type compiler struct {
-	layout rowmodel.Schema
-	ops    []op
-	errs   Errors
+	layout    rowmodel.Schema
+	ops       []op
+	errs      Errors
+	types     []ExpressionType
+	typeIndex map[string]int
+}
+
+// recordType notes the type at path, replacing an earlier note for the same
+// path when a literal is widened after it was first compiled.
+func (c *compiler) recordType(path string, t rowmodel.LogicalType) {
+	if i, ok := c.typeIndex[path]; ok {
+		c.types[i].Logical = t
+		return
+	}
+	c.typeIndex[path] = len(c.types)
+	c.types = append(c.types, ExpressionType{Path: path, Logical: t})
 }
 
 // index finds a column in the working layout.
@@ -154,10 +199,13 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 
 // expr compiles one expression into an executable node and reports its type.
 // ok is false when an issue was recorded, in which case the node is nil.
+// Every argument is compiled even after one fails, so the types of the parts
+// that do compile are still reported.
 func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 	switch {
 	case e.Lit != nil:
 		t := literalType(e.Lit)
+		c.recordType(path, t)
 		return newLiteralNode(e.Lit, t), argType{logical: t, literal: true, value: e.Lit}, true
 	case e.Col != "":
 		i, ok := c.index(e.Col)
@@ -165,31 +213,48 @@ func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 			c.errs.addf(path, "unknown column %q", e.Col)
 			return nil, argType{}, false
 		}
-		return colNode{idx: i}, argType{logical: c.layout.Fields[i].Logical}, true
+		t := c.layout.Fields[i].Logical
+		c.recordType(path, t)
+		return colNode{idx: i}, argType{logical: t}, true
 	}
 
-	fn, ok := catalog[e.Fn]
+	fn, ok := catalogByName[e.Fn]
 	if !ok {
 		c.errs.addf(path, "unknown function %q", e.Fn)
 		return nil, argType{}, false
 	}
+	argPath := func(i int) string { return fmt.Sprintf("%s.%s[%d]", path, e.Fn, i) }
 	args := make([]node, len(e.Args))
 	types := make([]argType, len(e.Args))
+	failed := false
 	for i, a := range e.Args {
-		n, t, ok := c.expr(fmt.Sprintf("%s.%s[%d]", path, e.Fn, i), a)
+		n, t, ok := c.expr(argPath(i), a)
 		if !ok {
-			return nil, argType{}, false
+			failed = true
+			continue
 		}
 		args[i], types[i] = n, t
 	}
+	if failed {
+		return nil, argType{}, false
+	}
 	if fn.spec.SameType {
 		coerceLiterals(fn.spec, args, types)
+		for i, t := range types {
+			c.recordType(argPath(i), t.logical)
+		}
 	}
 	ret, err := fn.check(types)
 	if err != nil {
-		c.errs.addf(path, "%v", err)
+		at := path
+		var ae *argError
+		if errors.As(err, &ae) {
+			at = argPath(ae.index)
+		}
+		c.errs.addf(at, "%v", err)
 		return nil, argType{}, false
 	}
+	c.recordType(path, ret)
 	return callNode{fn: fn, args: args}, argType{logical: ret}, true
 }
 

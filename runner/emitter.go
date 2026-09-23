@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -274,6 +275,22 @@ func (e *emitter) failed(err error, resources []string, resumable bool) {
 	if resumable {
 		e.partial(err)
 		return
+	}
+	e.fail(err)
+}
+
+// failedAt is failed for a run that died on one resource before extraction:
+// that resource carries the cause, the rest are marked aborted on its account,
+// and the run fails. Every announced resource still gets its terminal.
+func (e *emitter) failedAt(err error, resource string, resources []string) {
+	defer e.finish()()
+	aborted := fmt.Sprintf("aborted: resource %q failed", resource)
+	for _, res := range resources {
+		message := aborted
+		if res == resource {
+			message = err.Error()
+		}
+		emit(e, events.ResourceFailed, res, events.ResourceFailedEvent{Error: message})
 	}
 	e.fail(err)
 }

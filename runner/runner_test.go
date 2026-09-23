@@ -393,3 +393,87 @@ func TestSeedEmitterProgressIgnoresPartialAttemptCounters(t *testing.T) {
 		t.Fatalf("partial totals = %d/%d, want 0/0", records, bytes)
 	}
 }
+
+type schemaFailSink struct {
+	incrementalTestSink
+}
+
+func (*schemaFailSink) EnsureSchema(_ context.Context, resource string, _ filament.RecordSchema) error {
+	if resource == "orders" {
+		return errors.New("schema boom")
+	}
+	return nil
+}
+
+// A schema failure on one resource names that resource as the cause and marks
+// the others aborted, instead of repeating the cause against every resource.
+func TestRunOneSchemaFailureAttributesResource(t *testing.T) {
+	bus := inproc.New()
+	facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = facts.Close() }()
+
+	failed := make(chan string, 1)
+	resourceFailed := make(chan [2]string, 2)
+	go func() {
+		for msg := range facts.C() {
+			f, decodeErr := events.Decode(msg)
+			_ = msg.Ack()
+			if decodeErr != nil {
+				continue
+			}
+			if d, ok := f.Data.(events.RunFailedEvent); ok {
+				failed <- d.Error
+				return
+			}
+			if d, ok := f.Data.(events.ResourceFailedEvent); ok {
+				resourceFailed <- [2]string{f.Resource, d.Error}
+			}
+		}
+	}()
+
+	sources := registry.NewSources()
+	sources.Register("test", func() filament.Source { return &incrementalTestSource{} })
+	sinks := registry.NewSinks()
+	sinks.Register("test-sink", func() filament.Sink { return &schemaFailSink{} })
+
+	RunOne(context.Background(), Deps{
+		Bus:       bus,
+		DataStore: sqlite.NewMemory(),
+		Sources:   sources,
+		Sinks:     sinks,
+	}, filament.RunSpec{
+		Tenant:         "t1",
+		Run:            "r1",
+		Source:         filament.Ref{Connector: "test"},
+		Sink:           filament.Ref{Connector: "test-sink"},
+		Resources:      []string{"users", "orders"},
+		IngestionTypes: map[string]filament.IngestionType{"": filament.IngestionFullUpsert},
+	})
+
+	select {
+	case msg := <-failed:
+		if !strings.Contains(msg, "ensure schema") || !strings.Contains(msg, "schema boom") {
+			t.Fatalf("run.failed error = %q, want the schema failure", msg)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no run.failed fact published")
+	}
+	got := map[string]string{}
+	for range 2 {
+		select {
+		case pair := <-resourceFailed:
+			got[pair[0]] = pair[1]
+		case <-time.After(5 * time.Second):
+			t.Fatalf("resource.failed facts = %v, want users and orders", got)
+		}
+	}
+	if !strings.Contains(got["orders"], "schema boom") {
+		t.Errorf("orders error = %q, want the cause", got["orders"])
+	}
+	if !strings.Contains(got["users"], `aborted: resource "orders" failed`) || strings.Contains(got["users"], "boom") {
+		t.Errorf("users error = %q, want aborted on orders' account", got["users"])
+	}
+}

@@ -421,21 +421,81 @@ func (x *ValidateTransformRequest) GetTransform() *structpb.Struct {
 	return nil
 }
 
-// ValidateTransformResponse lists every issue with the path in the definition
-// it sits at, or on success the columns the resource will have after the
-// transform.
-type ValidateTransformResponse struct {
+// TransformExpressionType is the logical type of one compiled sub-expression.
+// path uses the grammar ValidationError.field uses, extended into
+// expressions: resources["r"].steps[2].compute["x"] is a whole expression,
+// resources["r"].steps[2].compute["x"].concat[1] its second argument, and
+// resources["r"].steps[2].where.and[0].gt[1] a value inside a condition.
+type TransformExpressionType struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Valid         bool                   `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
-	Issues        []*ValidationError     `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
-	OutputColumns []*ResourceColumn      `protobuf:"bytes,3,rep,name=output_columns,json=outputColumns,proto3" json:"output_columns,omitempty"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	LogicalType   string                 `protobuf:"bytes,2,opt,name=logical_type,json=logicalType,proto3" json:"logical_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *TransformExpressionType) Reset() {
+	*x = TransformExpressionType{}
+	mi := &file_ingestion_v1_transformations_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransformExpressionType) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransformExpressionType) ProtoMessage() {}
+
+func (x *TransformExpressionType) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_transformations_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransformExpressionType.ProtoReflect.Descriptor instead.
+func (*TransformExpressionType) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_transformations_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *TransformExpressionType) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *TransformExpressionType) GetLogicalType() string {
+	if x != nil {
+		return x.LogicalType
+	}
+	return ""
+}
+
+// ValidateTransformResponse lists every issue with the path in the definition
+// it sits at, the columns the resource will have after the steps that
+// compiled, and the type of every sub-expression that compiled. Columns and
+// types come back on failure too, so a builder can show them while a
+// definition is still being edited.
+type ValidateTransformResponse struct {
+	state           protoimpl.MessageState     `protogen:"open.v1"`
+	Valid           bool                       `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
+	Issues          []*ValidationError         `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
+	OutputColumns   []*ResourceColumn          `protobuf:"bytes,3,rep,name=output_columns,json=outputColumns,proto3" json:"output_columns,omitempty"`
+	ExpressionTypes []*TransformExpressionType `protobuf:"bytes,4,rep,name=expression_types,json=expressionTypes,proto3" json:"expression_types,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
 func (x *ValidateTransformResponse) Reset() {
 	*x = ValidateTransformResponse{}
-	mi := &file_ingestion_v1_transformations_proto_msgTypes[5]
+	mi := &file_ingestion_v1_transformations_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +507,7 @@ func (x *ValidateTransformResponse) String() string {
 func (*ValidateTransformResponse) ProtoMessage() {}
 
 func (x *ValidateTransformResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_transformations_proto_msgTypes[5]
+	mi := &file_ingestion_v1_transformations_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +520,7 @@ func (x *ValidateTransformResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateTransformResponse.ProtoReflect.Descriptor instead.
 func (*ValidateTransformResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_transformations_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_transformations_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ValidateTransformResponse) GetValid() bool {
@@ -480,6 +540,13 @@ func (x *ValidateTransformResponse) GetIssues() []*ValidationError {
 func (x *ValidateTransformResponse) GetOutputColumns() []*ResourceColumn {
 	if x != nil {
 		return x.OutputColumns
+	}
+	return nil
+}
+
+func (x *ValidateTransformResponse) GetExpressionTypes() []*TransformExpressionType {
+	if x != nil {
+		return x.ExpressionTypes
 	}
 	return nil
 }
@@ -522,11 +589,15 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\x18ValidateTransformRequest\x120\n" +
 	"\x14source_connection_id\x18\x01 \x01(\tR\x12sourceConnectionId\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x125\n" +
-	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\"\xad\x01\n" +
+	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\"P\n" +
+	"\x17TransformExpressionType\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
+	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xff\x01\n" +
 	"\x19ValidateTransformResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
 	"\x06issues\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06issues\x12C\n" +
-	"\x0eoutput_columns\x18\x03 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\routputColumnsB\xb5\x01\n" +
+	"\x0eoutput_columns\x18\x03 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\routputColumns\x12P\n" +
+	"\x10expression_types\x18\x04 \x03(\v2%.ingestion.v1.TransformExpressionTypeR\x0fexpressionTypesB\xb5\x01\n" +
 	"\x10com.ingestion.v1B\x14TransformationsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -541,29 +612,31 @@ func file_ingestion_v1_transformations_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_transformations_proto_rawDescData
 }
 
-var file_ingestion_v1_transformations_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_ingestion_v1_transformations_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ingestion_v1_transformations_proto_goTypes = []any{
 	(*ListTransformFunctionsRequest)(nil),  // 0: ingestion.v1.ListTransformFunctionsRequest
 	(*TransformArgument)(nil),              // 1: ingestion.v1.TransformArgument
 	(*TransformFunction)(nil),              // 2: ingestion.v1.TransformFunction
 	(*ListTransformFunctionsResponse)(nil), // 3: ingestion.v1.ListTransformFunctionsResponse
 	(*ValidateTransformRequest)(nil),       // 4: ingestion.v1.ValidateTransformRequest
-	(*ValidateTransformResponse)(nil),      // 5: ingestion.v1.ValidateTransformResponse
-	(*structpb.Struct)(nil),                // 6: google.protobuf.Struct
-	(*ValidationError)(nil),                // 7: ingestion.v1.ValidationError
-	(*ResourceColumn)(nil),                 // 8: ingestion.v1.ResourceColumn
+	(*TransformExpressionType)(nil),        // 5: ingestion.v1.TransformExpressionType
+	(*ValidateTransformResponse)(nil),      // 6: ingestion.v1.ValidateTransformResponse
+	(*structpb.Struct)(nil),                // 7: google.protobuf.Struct
+	(*ValidationError)(nil),                // 8: ingestion.v1.ValidationError
+	(*ResourceColumn)(nil),                 // 9: ingestion.v1.ResourceColumn
 }
 var file_ingestion_v1_transformations_proto_depIdxs = []int32{
 	1, // 0: ingestion.v1.TransformFunction.args:type_name -> ingestion.v1.TransformArgument
 	2, // 1: ingestion.v1.ListTransformFunctionsResponse.functions:type_name -> ingestion.v1.TransformFunction
-	6, // 2: ingestion.v1.ValidateTransformRequest.transform:type_name -> google.protobuf.Struct
-	7, // 3: ingestion.v1.ValidateTransformResponse.issues:type_name -> ingestion.v1.ValidationError
-	8, // 4: ingestion.v1.ValidateTransformResponse.output_columns:type_name -> ingestion.v1.ResourceColumn
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	7, // 2: ingestion.v1.ValidateTransformRequest.transform:type_name -> google.protobuf.Struct
+	8, // 3: ingestion.v1.ValidateTransformResponse.issues:type_name -> ingestion.v1.ValidationError
+	9, // 4: ingestion.v1.ValidateTransformResponse.output_columns:type_name -> ingestion.v1.ResourceColumn
+	5, // 5: ingestion.v1.ValidateTransformResponse.expression_types:type_name -> ingestion.v1.TransformExpressionType
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_transformations_proto_init() }
@@ -578,7 +651,7 @@ func file_ingestion_v1_transformations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_transformations_proto_rawDesc), len(file_ingestion_v1_transformations_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

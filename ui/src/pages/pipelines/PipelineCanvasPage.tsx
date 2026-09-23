@@ -33,6 +33,7 @@ import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdg
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import PipelineCanvasNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodePlaceholder";
 import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSink";
 import PipelineCanvasNodeSource from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSource";
@@ -191,9 +192,10 @@ const PipelineCanvasPage = () => {
   });
   const isRunning = (activeRunsData?.runs.length ?? 0) > 0;
 
+  const { invalidEdgeIds } = usePipelineCanvasValidation();
   const styledEdges = useMemo(
-    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, isRunning),
-    [selectedEdges, selectedNodes, theme, isRunning],
+    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, isRunning, invalidEdgeIds),
+    [selectedEdges, selectedNodes, theme, isRunning, invalidEdgeIds],
   );
 
   return (
