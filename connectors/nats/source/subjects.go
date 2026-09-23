@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
 	"slices"
 	"strings"
 	"unicode"
@@ -26,38 +27,12 @@ func validateSubject(subject string) error {
 	return nil
 }
 
-// intersectSubjects returns the common subject language. Terminal > consumes
-// one or more tokens; * consumes exactly one.
-func intersectSubjects(a, b string) (string, bool) {
-	x, y := strings.Split(a, "."), strings.Split(b, ".")
-	out := []string{}
-	for i := 0; ; i++ {
-		if i == len(x) || i == len(y) {
-			return strings.Join(out, "."), i == len(x) && i == len(y)
-		}
-		if x[i] == ">" {
-			return strings.Join(append(out, y[i:]...), "."), true
-		}
-		if y[i] == ">" {
-			return strings.Join(append(out, x[i:]...), "."), true
-		}
-		switch {
-		case x[i] == y[i]:
-			out = append(out, x[i])
-		case x[i] == "*":
-			out = append(out, y[i])
-		case y[i] == "*":
-			out = append(out, x[i])
-		default:
-			return "", false
-		}
-	}
-}
-
+// subjectFilters returns the minimal filters covering pattern within a stream's
+// stored subjects. Terminal > consumes one or more tokens; * exactly one.
 func subjectFilters(pattern string, subjects []string) []string {
 	var filters []string
-	for _, subject := range subjects {
-		if f, ok := intersectSubjects(pattern, subject); ok {
+	for _, stored := range subjects {
+		if f, ok := subject.Intersect(pattern, stored); ok {
 			filters = append(filters, f)
 		}
 	}
@@ -68,7 +43,7 @@ func subjectFilters(pattern string, subjects []string) []string {
 		redundant := false
 		for j, g := range filters {
 			if i != j {
-				if intersection, ok := intersectSubjects(f, g); ok && intersection == f {
+				if intersection, ok := subject.Intersect(f, g); ok && intersection == f {
 					redundant = true
 					break
 				}

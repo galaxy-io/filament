@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/nats/internal/connection"
+	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
 )
 
 const (
@@ -101,12 +102,31 @@ func validSubject(subject string) error {
 	return nil
 }
 
-func (c config) route(resource string) (string, error) {
-	subject := c.subject
-	if subject == "" {
-		subject = c.prefix + "." + resource
+// verifyCapture checks the configured routing against a stream's subject
+// filters: the fixed subject must match, or the prefix must overlap.
+func (c config) verifyCapture(filters []string) error {
+	pattern := c.subject
+	if pattern == "" {
+		pattern = c.prefix + ".>"
 	}
-	return subject, validSubject(subject)
+	if !subject.Covered(filters, pattern) {
+		return fmt.Errorf("nats sink: stream %q subjects %v do not capture %q; adjust the stream's subject filter or the sink routing", c.stream, filters, pattern)
+	}
+	return nil
+}
+
+func (c config) route(resource string, filters []string) (string, error) {
+	target := c.subject
+	if target == "" {
+		target = c.prefix + "." + resource
+	}
+	if err := validSubject(target); err != nil {
+		return "", err
+	}
+	if !subject.Covered(filters, target) {
+		return "", fmt.Errorf("nats sink: stream %q subjects %v do not capture %q for resource %q", c.stream, filters, target, resource)
+	}
+	return target, nil
 }
 
 // Decode integer config without silently truncating fractional JSON numbers.

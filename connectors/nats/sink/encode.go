@@ -27,7 +27,7 @@ type encoded struct {
 
 // encode validates the complete batch before its first destination effect.
 func (s *Sink) encode(b *arrowbatch.Batch) ([]*nats.Msg, encoded, error) {
-	subject, err := s.cfg.route(b.Resource)
+	subject, err := s.cfg.route(b.Resource, s.filters)
 	if err != nil {
 		return nil, encoded{}, err
 	}

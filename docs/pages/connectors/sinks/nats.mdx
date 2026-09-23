@@ -43,7 +43,10 @@ rejected. Resource names are not silently sanitized. Use destination resource
 mapping when source names are unsuitable for NATS subjects.
 
 The sink never creates or modifies streams. The configured stream must enable
-publish acknowledgments. Each publish carries `Nats-Expected-Stream`, so a
+publish acknowledgments and its subject filter must capture the publish
+subjects: the fixed subject itself, or `<prefix>.>` for prefix routing. Open
+fails before any write when it does not. Note that a filter of `events.>`
+matches `events.orders` but not the bare subject `events`. Each publish carries `Nats-Expected-Stream`, so a
 subject routed to another stream fails rather than silently writing there.
 Workers need permission to inspect the stream, publish to its subjects, and
 receive publish acknowledgments. Connection testing also requires JetStream

@@ -32,6 +32,7 @@ type Sink struct {
 	publisher                    publisher
 	publications                 atomic.Pointer[publishTracker]
 	cfg                          config
+	filters                      []string
 	namespace                    string
 	maxPayload                   int64
 	opened, closed, continuous   bool
@@ -132,6 +133,12 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if info.Config.NoAck {
 		return errors.New("nats sink: destination stream must enable publish acknowledgments")
 	}
+	// Fail before any write when the stream cannot capture what we publish.
+	// Per-resource subjects are verified again when each batch is routed.
+	if err := resolved.verifyCapture(info.Config.Subjects); err != nil {
+		return err
+	}
+	s.filters = info.Config.Subjects
 	namespace, _ := json.Marshal([]string{string(run.Tenant), run.PipelineID, run.SinkConnectionID})
 	s.namespace = string(namespace)
 	s.maxPayload = conn.MaxPayload()

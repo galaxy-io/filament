@@ -83,6 +83,9 @@ func (s *Sink) publishError(_ jetstream.JetStream, msg *nats.Msg, err error) {
 		if errors.Is(err, jetstream.ErrAsyncPublishTimeout) {
 			err = errors.Join(context.DeadlineExceeded, err)
 		}
+		if errors.Is(err, jetstream.ErrNoStreamResponse) {
+			err = fmt.Errorf("%w: no stream captures subject %q", err, msg.Subject)
+		}
 		if err == nil {
 			err = errors.New("nats sink: missing publish error")
 		}
