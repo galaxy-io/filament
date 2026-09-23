@@ -21,7 +21,9 @@ func (*epochTestSink) Spec() filament.SinkSpec                      { return fil
 func (*epochTestSink) Name() string                                 { return "epoch-test" }
 func (*epochTestSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (*epochTestSink) Commit(context.Context) error                 { return errors.New("not called") }
-func (*epochTestSink) Abort(context.Context) error                  { return errors.New("not called") }
+
+func (*epochTestSink) Abort(context.Context) error { return errors.New("not called") }
+
 func (s *epochTestSink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if err := s.bound.ValidateApply(opts); err != nil {
 		return filament.WriteReceipt{}, err

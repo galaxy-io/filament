@@ -94,13 +94,13 @@ func resolve(cfg filament.Config) (config, error) {
 	return c, nil
 }
 
-func validSubject(subject string) error {
-	if subject == "" || strings.ContainsAny(subject, "*>") || strings.ContainsFunc(subject, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) {
-		return fmt.Errorf("nats sink: invalid publish subject %q", subject)
+func validSubject(name string) error {
+	if name == "" || strings.ContainsAny(name, "*>") || strings.ContainsFunc(name, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) {
+		return fmt.Errorf("nats sink: invalid publish subject %q", name)
 	}
-	for _, token := range strings.Split(subject, ".") {
+	for _, token := range strings.Split(name, ".") {
 		if token == "" {
-			return fmt.Errorf("nats sink: empty subject token in %q", subject)
+			return fmt.Errorf("nats sink: empty subject token in %q", name)
 		}
 	}
 	return nil

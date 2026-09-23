@@ -156,14 +156,14 @@ func (s *Sink) destination(ctx context.Context, resource string) (*destination, 
 	}
 	lookupCtx, cancel := context.WithTimeout(ctx, s.cfg.timeout)
 	defer cancel()
-	stream, err := s.js.Stream(lookupCtx, name)
+	jsStream, err := s.js.Stream(lookupCtx, name)
 	if errors.Is(err, jetstream.ErrStreamNotFound) && s.cfg.createStream {
-		stream, err = s.createStream(lookupCtx, name, resource)
+		jsStream, err = s.createStream(lookupCtx, name, resource)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("nats sink: stream %q lookup: %w", name, err)
 	}
-	info := stream.CachedInfo()
+	info := jsStream.CachedInfo()
 	if info.Config.NoAck {
 		return nil, fmt.Errorf("nats sink: stream %q must enable publish acknowledgments", name)
 	}
@@ -190,14 +190,14 @@ func (s *Sink) createStream(ctx context.Context, name, resource string) (jetstre
 		resource = "resource"
 	}
 	cfg := jetstream.StreamConfig{Name: name, Subjects: []string{s.cfg.captureFilter(resource)}, Storage: jetstream.FileStorage}
-	stream, err := s.js.CreateStream(ctx, cfg)
+	jsStream, err := s.js.CreateStream(ctx, cfg)
 	if errors.Is(err, jetstream.ErrStreamNameAlreadyInUse) {
 		return s.js.Stream(ctx, name)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create: %w", err)
 	}
-	return stream, nil
+	return jsStream, nil
 }
 
 func (s *Sink) fail(err error) error {
@@ -289,7 +289,7 @@ func (s *Sink) Abort(ctx context.Context) error {
 	if !s.opened || s.closed {
 		return nil
 	}
-	s.close(ctx)
+	_ = s.close(ctx) // Abort reports only cleanup errors, not prior publication failures.
 	return ctx.Err()
 }
 

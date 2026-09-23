@@ -2,17 +2,18 @@ package source
 
 import (
 	"fmt"
-	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
 	"slices"
 	"strings"
 	"unicode"
+
+	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
 )
 
-func validateSubject(subject string) error {
-	tokens := strings.Split(subject, ".")
+func validateSubject(pattern string) error {
+	tokens := strings.Split(pattern, ".")
 	for i, t := range tokens {
 		if t == "" || strings.IndexFunc(t, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) >= 0 {
-			return fmt.Errorf("nats: invalid subject pattern %q", subject)
+			return fmt.Errorf("nats: invalid subject pattern %q", pattern)
 		}
 		if t == ">" {
 			if i != len(tokens)-1 {

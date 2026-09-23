@@ -1,10 +1,11 @@
 package server
 
 import (
-	"google.golang.org/protobuf/types/known/structpb"
 	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"

@@ -22,5 +22,6 @@ func (*Source) Spec() filament.ConnectorSpec {
 			}},
 			{Name: "stream", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "JetStream stream to consume"},
 			{Name: "consumer", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Existing unfiltered durable pull consumer: explicit ack, MaxAckPending=1, deliver-all"},
-		}...)}, Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce}}
+		}...)}, Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce},
+	}
 }
