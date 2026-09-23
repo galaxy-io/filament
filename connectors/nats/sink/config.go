@@ -19,55 +19,45 @@ const (
 	maxPublishConcurrency   = 65536
 )
 
-// Subject routing modes. Prefix is the default: each destination resource
-// publishes to its own subject beneath the prefix.
-const (
-	routingField  = "subject_mode"
-	routingPrefix = "prefix"
-	routingFixed  = "fixed"
-)
+// resourcePlaceholder expands to the destination resource name inside the
+// stream and subject templates.
+const resourcePlaceholder = "{resource}"
+
+type template string
+
+func (t template) expand(resource string) string {
+	return strings.ReplaceAll(string(t), resourcePlaceholder, resource)
+}
+
+func (t template) perResource() bool { return strings.Contains(string(t), resourcePlaceholder) }
 
 type config struct {
-	stream, subject, prefix string
-	timeout                 time.Duration
-	maxInFlight             int
-	maxInFlightBytes        int64
+	stream, subject  template
+	createStream     bool
+	timeout          time.Duration
+	maxInFlight      int
+	maxInFlightBytes int64
 }
 
 // Validate checks connection settings independently of pipeline settings.
 func (*Sink) Validate(cfg filament.Config) error { return connection.Validate(cfg) }
 
 func resolve(cfg filament.Config) (config, error) {
-	c := config{stream: cfg.String("stream"), timeout: 5 * time.Second, maxInFlight: defaultMaxInFlight, maxInFlightBytes: defaultMaxInFlightBytes}
+	c := config{stream: template(cfg.String("stream")), subject: template(cfg.String("subject")), timeout: 5 * time.Second, maxInFlight: defaultMaxInFlight, maxInFlightBytes: defaultMaxInFlightBytes}
 	if c.stream == "" {
 		return c, fmt.Errorf("nats sink: stream is required")
 	}
-	// The selector decides which subject field applies; the other is ignored so
-	// a stale value left behind by a form switch cannot cause a conflict.
-	mode := cfg.String(routingField)
-	if mode == "" {
-		mode = routingPrefix
+	if c.subject == "" {
+		return c, fmt.Errorf("nats sink: subject is required")
 	}
-	var target string
-	switch mode {
-	case routingPrefix:
-		c.prefix = cfg.String("subject_prefix")
-		if c.prefix == "" {
-			return c, fmt.Errorf("nats sink: subject_prefix is required for prefix routing")
-		}
-		target = c.prefix
-	case routingFixed:
-		c.subject = cfg.String("subject")
-		if c.subject == "" {
-			return c, fmt.Errorf("nats sink: subject is required for fixed routing")
-		}
-		target = c.subject
-	default:
-		return c, fmt.Errorf("nats sink: %s must be %q or %q", routingField, routingPrefix, routingFixed)
-	}
-	if err := validSubject(target); err != nil {
+	// Templates must be valid once a well-formed resource name is substituted.
+	if err := validStreamName(c.stream.expand("resource")); err != nil {
 		return c, err
 	}
+	if err := validSubject(c.subject.expand("resource")); err != nil {
+		return c, err
+	}
+	c.createStream = !cfg.Has("create_stream") || cfg.Bool("create_stream")
 	if cfg.Has("publish_timeout") {
 		var err error
 		c.timeout, err = time.ParseDuration(cfg.String("publish_timeout"))
@@ -102,29 +92,42 @@ func validSubject(subject string) error {
 	return nil
 }
 
-// verifyCapture checks the configured routing against a stream's subject
-// filters: the fixed subject must match, or the prefix must overlap.
-func (c config) verifyCapture(filters []string) error {
-	pattern := c.subject
-	if pattern == "" {
-		pattern = c.prefix + ".>"
-	}
-	if !subject.Covered(filters, pattern) {
-		return fmt.Errorf("nats sink: stream %q subjects %v do not capture %q; adjust the stream's subject filter or the sink routing", c.stream, filters, pattern)
+func validStreamName(name string) error {
+	if name == "" || strings.ContainsAny(name, ".*>/\\") || strings.ContainsFunc(name, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) {
+		return fmt.Errorf("nats sink: invalid stream name %q: use letters, digits, - and _; dots, spaces, and wildcards are not allowed", name)
 	}
 	return nil
 }
 
-func (c config) route(resource string, filters []string) (string, error) {
-	target := c.subject
-	if target == "" {
-		target = c.prefix + "." + resource
+// captureFilter is the subject filter a created stream needs for a resource.
+// A shared stream with a per-resource subject captures every expansion: > when
+// the placeholder ends the subject, * otherwise. Any other case is exact.
+func (c config) captureFilter(resource string) string {
+	if c.subject.perResource() && !c.stream.perResource() {
+		if strings.HasSuffix(string(c.subject), resourcePlaceholder) {
+			return c.subject.expand(">")
+		}
+		return c.subject.expand("*")
 	}
+	return c.subject.expand(resource)
+}
+
+// destination is one resolved stream: its subject filters and size limit.
+type destination struct {
+	name       string
+	filters    []string
+	maxPayload int64
+}
+
+// route resolves the concrete subject for a resource and verifies the
+// destination captures it, so a misrouted batch fails before any publish.
+func (c config) route(resource string, d *destination) (string, error) {
+	target := c.subject.expand(resource)
 	if err := validSubject(target); err != nil {
-		return "", err
+		return "", fmt.Errorf("%w for resource %q", err, resource)
 	}
-	if !subject.Covered(filters, target) {
-		return "", fmt.Errorf("nats sink: stream %q subjects %v do not capture %q for resource %q", c.stream, filters, target, resource)
+	if !subject.Covered(d.filters, target) {
+		return "", fmt.Errorf("nats sink: stream %q subjects %v do not capture %q for resource %q", d.name, d.filters, target, resource)
 	}
 	return target, nil
 }

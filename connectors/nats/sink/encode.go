@@ -1,6 +1,7 @@
 package sink
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -21,13 +22,18 @@ var crcTable = crc32.MakeTable(crc32.Castagnoli)
 // encoded is payload accounting for one batch: CRC32C over concatenated JSON
 // message bodies without NDJSON delimiters, and their total byte length.
 type encoded struct {
-	crc   uint32
-	bytes int64
+	crc    uint32
+	bytes  int64
+	stream string
 }
 
 // encode validates the complete batch before its first destination effect.
-func (s *Sink) encode(b *arrowbatch.Batch) ([]*nats.Msg, encoded, error) {
-	subject, err := s.cfg.route(b.Resource, s.filters)
+func (s *Sink) encode(ctx context.Context, b *arrowbatch.Batch) ([]*nats.Msg, encoded, error) {
+	d, err := s.destination(ctx, b.Resource)
+	if err != nil {
+		return nil, encoded{}, err
+	}
+	subject, err := s.cfg.route(b.Resource, d)
 	if err != nil {
 		return nil, encoded{}, err
 	}
@@ -49,7 +55,7 @@ func (s *Sink) encode(b *arrowbatch.Batch) ([]*nats.Msg, encoded, error) {
 		}
 	}
 	messages := make([]*nats.Msg, 0, b.NumRows())
-	var acc encoded
+	acc := encoded{stream: d.name}
 	for i := range b.NumRows() {
 		op := b.Op(i)
 		if op != filament.OpInsert && op != filament.OpUpdate && op != filament.OpDelete {
@@ -62,18 +68,18 @@ func (s *Sink) encode(b *arrowbatch.Batch) ([]*nats.Msg, encoded, error) {
 		msg := &nats.Msg{Subject: subject, Data: payload, Header: nats.Header{}}
 		msg.Header.Set("Content-Type", "application/json")
 		msg.Header.Set("Filament-Operation", filament.OperationName(op))
-		msg.Header.Set(nats.ExpectedStreamHdr, s.cfg.stream)
+		msg.Header.Set(nats.ExpectedStreamHdr, d.name)
 		if ids != nil && !ids.IsNull(i) && ids.Value(i) != "" {
 			// The namespace excludes run, attempt, epoch, and batch identities so replay
 			// keeps the same ID. Subject/resource distinguish fan-out of one source event.
-			identity, _ := json.Marshal([]string{s.namespace, s.cfg.stream, subject, b.Resource, ids.Value(i)})
+			identity, _ := json.Marshal([]string{s.namespace, d.name, subject, b.Resource, ids.Value(i)})
 			sum := sha256.Sum256(identity)
 			msg.Header.Set(nats.MsgIdHdr, hex.EncodeToString(sum[:]))
 		}
 		// Size includes the subject, which is conservative for the server's payload
 		// limit. Headers (including expected stream and dedup ID) are already final.
-		if int64(msg.Size()) > s.maxPayload {
-			return nil, encoded{}, fmt.Errorf("nats sink: row %d exceeds maximum message size %d", i, s.maxPayload)
+		if int64(msg.Size()) > d.maxPayload {
+			return nil, encoded{}, fmt.Errorf("nats sink: row %d exceeds maximum message size %d", i, d.maxPayload)
 		}
 		if int64(msg.Size()) > s.cfg.maxInFlightBytes {
 			return nil, encoded{}, fmt.Errorf("nats sink: row %d exceeds max_in_flight_bytes %d", i, s.cfg.maxInFlightBytes)

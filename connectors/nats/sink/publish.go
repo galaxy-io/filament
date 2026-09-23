@@ -71,7 +71,7 @@ func (p *publishTracker) complete(msg *nats.Msg, err error) {
 func (s *Sink) publishAck(_ jetstream.JetStream, msg *nats.Msg, ack *jetstream.PubAck) {
 	if pending := s.publications.Load(); pending != nil {
 		var err error
-		if ack == nil || ack.Stream != s.cfg.stream || ack.Sequence == 0 {
+		if ack == nil || msg == nil || ack.Stream != msg.Header.Get(nats.ExpectedStreamHdr) || ack.Sequence == 0 {
 			err = errors.New("nats sink: invalid publish acknowledgment")
 		}
 		pending.complete(msg, err)

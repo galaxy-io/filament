@@ -15,13 +15,22 @@ remains an individual NATS message.
 | `url` | Connection | Yes | NATS server URL; use `tls://` for TLS |
 | `token` | Connection | No | Authentication token; mutually exclusive with `credentials_file` |
 | `credentials_file` | Connection | No | NATS credentials file available on every worker |
-| `stream` | Pipeline | Yes | Existing destination JetStream stream |
-| `subject_mode` | Pipeline | No | `prefix` (default) publishes each destination resource under a prefix; `fixed` publishes every record to one subject |
-| `subject_prefix` | Pipeline | In `prefix` mode | Publishes to `<prefix>.<destination resource>` |
-| `subject` | Pipeline | In `fixed` mode | One subject for all records |
+| `stream` | Pipeline | Yes | Destination stream name: letters, digits, `-` and `_`, no dots. `{resource}` expands to the destination resource name |
+| `subject` | Pipeline | Yes | Publish subject. `{resource}` expands to the destination resource name |
+| `create_stream` | Pipeline | No | Create a missing stream; default `true` |
 | `publish_timeout` | Pipeline | No | Positive duration from each publish submission to its acknowledgment; default `5s` |
 | `max_in_flight` | Pipeline | No | Maximum outstanding messages, from 1 through 65,536; default `1024` |
 | `max_in_flight_bytes` | Pipeline | No | Maximum outstanding message bytes; positive integer, default `16777216` (16 MiB) |
+
+Both `stream` and `subject` are templates. The `{resource}` placeholder is
+replaced with the destination resource name, so one configuration can route
+every resource to its own subject, or its own stream, or both:
+
+| `stream` | `subject` | Resource `orders` publishes to |
+|---|---|---|
+| `EVENTS` | `events.{resource}` | `events.orders` in `EVENTS` |
+| `EVENTS` | `events.all` | `events.all` in `EVENTS` |
+| `{resource}` | `{resource}.v1` | `orders.v1` in `orders` |
 
 For example, provision a stream named `WAREHOUSE_EVENTS` capturing
 `warehouse.>`, then configure:
@@ -30,23 +39,32 @@ For example, provision a stream named `WAREHOUSE_EVENTS` capturing
 {
   "url": "nats://localhost:4222",
   "stream": "WAREHOUSE_EVENTS",
-  "subject_prefix": "warehouse",
+  "subject": "warehouse.{resource}",
   "publish_timeout": "5s",
   "max_in_flight": 1024,
   "max_in_flight_bytes": 16777216
 }
 ```
 
-A destination resource named `orders` publishes to `warehouse.orders`.
-Subjects must be concrete: wildcards, whitespace, and empty subject tokens are
-rejected. Resource names are not silently sanitized. Use destination resource
-mapping when source names are unsuitable for NATS subjects.
+Expanded subjects must be concrete: wildcards, whitespace, and empty subject
+tokens are rejected, and stream names cannot contain dots or wildcards.
+Resource names are not sanitized. Use destination resource mapping when source
+names are unsuitable for NATS subjects or stream names.
 
-The sink never creates or modifies streams. The configured stream must enable
-publish acknowledgments and its subject filter must capture the publish
-subjects: the fixed subject itself, or `<prefix>.>` for prefix routing. Open
-fails before any write when it does not. Note that a filter of `events.>`
-matches `events.orders` but not the bare subject `events`. Each publish carries `Nats-Expected-Stream`, so a
+With `create_stream` enabled, a missing stream is created with file storage,
+server defaults for retention and limits, and one subject filter derived from
+the subject template: `events.{resource}` yields `events.>`, `{resource}.events`
+yields `*.events`, a fixed subject yields itself, and a per-resource stream
+captures that resource's exact subject. Anything beyond that, such as retention
+or replicas, belongs in server-side stream management. Disable creation on
+production pipelines where streams are provisioned deliberately.
+
+The sink never modifies an existing stream. It must enable publish
+acknowledgments and its subject filter must capture the expanded subject. A shared stream is checked at open using `*` for the resource, before
+any write. A per-resource stream is resolved when that resource's first batch
+is routed, and a missing or non-capturing stream fails the batch before any
+message is sent. Note that a filter of `events.>` matches `events.orders` but
+not the bare subject `events`. Each publish carries `Nats-Expected-Stream`, so a
 subject routed to another stream fails rather than silently writing there.
 Workers need permission to inspect the stream, publish to its subjects, and
 receive publish acknowledgments. Connection testing also requires JetStream

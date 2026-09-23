@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/nats/internal/connection"
+	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
 	"github.com/galaxy-io/filament/internal/stream"
 )
 
@@ -32,7 +33,8 @@ type Sink struct {
 	publisher                    publisher
 	publications                 atomic.Pointer[publishTracker]
 	cfg                          config
-	filters                      []string
+	js                           jetstream.JetStream
+	destinations                 map[string]*destination
 	namespace                    string
 	maxPayload                   int64
 	opened, closed, continuous   bool
@@ -123,32 +125,79 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if err != nil {
 		return err
 	}
-	checkCtx, cancel := context.WithTimeout(ctx, resolved.timeout)
-	defer cancel()
-	destination, err := js.Stream(checkCtx, resolved.stream)
-	if err != nil {
-		return fmt.Errorf("nats sink: stream lookup: %w", err)
+	s.js, s.cfg, s.maxPayload = js, resolved, conn.MaxPayload()
+	s.destinations = map[string]*destination{}
+	// A shared stream is verified before any write, using * for the resource so
+	// the check covers every subject the template can produce. Per-resource
+	// streams are resolved when their first batch is routed.
+	if !resolved.stream.perResource() {
+		if _, err := s.destination(ctx, "*"); err != nil {
+			return err
+		}
 	}
-	info := destination.CachedInfo()
-	if info.Config.NoAck {
-		return errors.New("nats sink: destination stream must enable publish acknowledgments")
-	}
-	// Fail before any write when the stream cannot capture what we publish.
-	// Per-resource subjects are verified again when each batch is routed.
-	if err := resolved.verifyCapture(info.Config.Subjects); err != nil {
-		return err
-	}
-	s.filters = info.Config.Subjects
 	namespace, _ := json.Marshal([]string{string(run.Tenant), run.PipelineID, run.SinkConnectionID})
 	s.namespace = string(namespace)
-	s.maxPayload = conn.MaxPayload()
-	if info.Config.MaxMsgSize > 0 {
-		s.maxPayload = min(s.maxPayload, int64(info.Config.MaxMsgSize))
-	}
-	s.conn, s.publisher, s.cfg = conn, js, resolved
+	s.conn, s.publisher = conn, js
 	s.continuous, s.lifecycle = continuous, lifecycle
 	s.opened, ready = true, true
 	return nil
+}
+
+// destination resolves and caches the stream serving a resource. The lookup
+// fails when the stream is missing, cannot acknowledge, or does not capture
+// the subject the template produces for that resource.
+func (s *Sink) destination(ctx context.Context, resource string) (*destination, error) {
+	name := s.cfg.stream.expand(resource)
+	if d, ok := s.destinations[name]; ok {
+		return d, nil
+	}
+	if err := validStreamName(name); err != nil {
+		return nil, fmt.Errorf("%w for resource %q", err, resource)
+	}
+	lookupCtx, cancel := context.WithTimeout(ctx, s.cfg.timeout)
+	defer cancel()
+	stream, err := s.js.Stream(lookupCtx, name)
+	if errors.Is(err, jetstream.ErrStreamNotFound) && s.cfg.createStream {
+		stream, err = s.createStream(lookupCtx, name, resource)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("nats sink: stream %q lookup: %w", name, err)
+	}
+	info := stream.CachedInfo()
+	if info.Config.NoAck {
+		return nil, fmt.Errorf("nats sink: stream %q must enable publish acknowledgments", name)
+	}
+	d := &destination{name: name, filters: info.Config.Subjects, maxPayload: s.maxPayload}
+	if info.Config.MaxMsgSize > 0 {
+		d.maxPayload = min(d.maxPayload, int64(info.Config.MaxMsgSize))
+	}
+	// Open probes a shared stream with * as the resource, so check coverage of
+	// the expanded pattern here; route validates the concrete subject per batch.
+	if pattern := s.cfg.subject.expand(resource); !subject.Covered(d.filters, pattern) {
+		return nil, fmt.Errorf("nats sink: stream %q subjects %v do not capture %q", name, d.filters, pattern)
+	}
+	s.destinations[name] = d
+	return d, nil
+}
+
+// createStream provisions a missing destination with file storage and server
+// defaults, capturing the subjects the template produces. A concurrent creator
+// winning the race is fine: the stream is looked up again and verified like
+// any existing one. Existing streams are never modified.
+func (s *Sink) createStream(ctx context.Context, name, resource string) (jetstream.Stream, error) {
+	if resource == "*" {
+		// Open's shared-stream probe: the filter must cover real resources.
+		resource = "resource"
+	}
+	cfg := jetstream.StreamConfig{Name: name, Subjects: []string{s.cfg.captureFilter(resource)}, Storage: jetstream.FileStorage}
+	stream, err := s.js.CreateStream(ctx, cfg)
+	if errors.Is(err, jetstream.ErrStreamNameAlreadyInUse) {
+		return s.js.Stream(ctx, name)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create: %w", err)
+	}
+	return stream, nil
 }
 
 func (s *Sink) fail(err error) error {
@@ -194,7 +243,7 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	}
 	// encode hashes the exact payload bytes handed to the SDK; the same slices
 	// are published unchanged, so that CRC is the transport-boundary evidence.
-	messages, encoded, err := s.encode(b)
+	messages, encoded, err := s.encode(ctx, b)
 	if err != nil {
 		return empty, s.fail(err)
 	}
@@ -202,7 +251,7 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 		return empty, s.fail(err)
 	}
 	encodedCRC := encoded.crc
-	receipt := filament.WriteReceipt{URI: "nats://" + s.cfg.stream + "/" + b.Resource, Rows: b.NumRows(), Bytes: encoded.bytes, WriteCRC: b.IntegrityCRC(), EncodedCRC: &encodedCRC}
+	receipt := filament.WriteReceipt{URI: "nats://" + encoded.stream + "/" + b.Resource, Rows: b.NumRows(), Bytes: encoded.bytes, WriteCRC: b.IntegrityCRC(), EncodedCRC: &encodedCRC}
 	if s.continuous {
 		total := s.receipts[b.Resource]
 		total.Resource = b.Resource
