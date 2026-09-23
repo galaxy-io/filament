@@ -4,6 +4,11 @@ import { FunctionIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 
+import {
+  PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_HEADER,
+  PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_MESSAGE,
+  PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_HEADER,
+} from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import PipelineTransformFields from "@/pages/pipelines/components/transform/PipelineTransformFields";
 import {
@@ -23,10 +28,10 @@ const PipelineCanvasPanelResourceTransformSection = () => {
   return (
     <PipelineCanvasPanelSection
       icon={FunctionIcon}
-      header="Transformations"
+      header={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_HEADER}
       isEmpty={!hasContent}
-      emptyHeader="No steps"
-      emptyMessage="Columns arrive at the sink as they leave the source."
+      emptyHeader={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_HEADER}
+      emptyMessage={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_MESSAGE}
       isOpen={isOpen}
       onToggle={() => setIsOpen((prev) => !prev)}
       headerAction={

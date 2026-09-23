@@ -12,9 +12,6 @@ import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import PendingLayout from "@/layouts/PendingLayout";
-import { LayoutSize } from "@/layouts/types";
-
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
@@ -23,6 +20,7 @@ import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
+import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
 import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
@@ -240,9 +238,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           </FlexWrapper>
         </PipelineCanvasPanelSection>
         {isLoading ? (
-          <PendingLayout size={LayoutSize.SMALL} />
+          <PipelineCanvasPanelResourceTransformSectionPending />
         ) : (
-          <Suspense fallback={<PendingLayout size={LayoutSize.SMALL} />}>
+          <Suspense fallback={<PipelineCanvasPanelResourceTransformSectionPending />}>
             <PipelineTransformFieldsProvider
               definition={edge.data?.transform}
               onChange={handleTransformChange}

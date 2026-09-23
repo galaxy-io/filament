@@ -7,12 +7,17 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
+import PendingLayout from "@/layouts/PendingLayout";
 import { LayoutSize } from "@/layouts/types";
+
+const PIPELINE_CANVAS_PANEL_SECTION_EMPTY_HEIGHT = 37;
 
 interface PipelineCanvasPanelSectionProps {
   icon?: PhosphorIcon;
   header: string;
   isEmpty: boolean;
+  /** Renders a pending state the same size as the empty state. */
+  isPending?: boolean;
   emptyHeader: string;
   emptyMessage: string;
   padding?: ComponentProps<typeof Accordion>["padding"];
@@ -32,6 +37,7 @@ const PipelineCanvasPanelSection = ({
   icon,
   header,
   isEmpty,
+  isPending = false,
   emptyHeader,
   emptyMessage,
   padding = 0,
@@ -43,22 +49,28 @@ const PipelineCanvasPanelSection = ({
   onToggle,
   children,
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
+  const body = isPending ? (
+    <FlexItem height={PIPELINE_CANVAS_PANEL_SECTION_EMPTY_HEIGHT} fillWidth>
+      <PendingLayout size={LayoutSize.SMALL} />
+    </FlexItem>
+  ) : isEmpty ? (
+    <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+  ) : (
+    children
+  );
+
   const accordion = (
     <Accordion
       icon={icon}
       header={header}
       variant={AccordionVariant.TERTIARY}
-      padding={isEmpty ? "24px" : padding}
+      padding={isEmpty || isPending ? "24px" : padding}
       isOpenInitial={isOpenInitial}
       isOpen={isOpen}
       onToggle={onToggle}
       metric={headerAction ? <FlexItem width={headerActionWidth} shrink={0} /> : metric}
     >
-      {isEmpty ? (
-        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
-      ) : (
-        children
-      )}
+      {body}
     </Accordion>
   );
 
