@@ -24,9 +24,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "rename": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "minLength": 1 } },
+        "rename": { "type": "object", "minProperties": 1, "propertyNames": { "minLength": 1 }, "additionalProperties": { "type": "string", "minLength": 1 } },
         "drop": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "compute": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/expr" } },
+        "compute": { "type": "object", "minProperties": 1, "propertyNames": { "minLength": 1 }, "additionalProperties": { "$ref": "#/$defs/expr" } },
         "where": { "$ref": "#/$defs/expr" }
       },
       "oneOf": [

@@ -28,6 +28,16 @@ func TestValidateGrammarCollapsesAlternatives(t *testing.T) {
 			doc:  `{"version":1,"resources":{"r":{"steps":[{"compute":{"x":{"trim":[]}}}]}}}`,
 			path: `resources["r"].steps[0].compute["x"].trim`,
 		},
+		{
+			name: "empty compute name",
+			doc:  `{"version":1,"resources":{"r":{"steps":[{"compute":{"":"hello"}}]}}}`,
+			path: `resources["r"].steps[0].compute`,
+		},
+		{
+			name: "empty rename source",
+			doc:  `{"version":1,"resources":{"r":{"steps":[{"rename":{"":"b"}}]}}}`,
+			path: `resources["r"].steps[0].rename`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

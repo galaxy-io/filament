@@ -302,12 +302,16 @@ export const getTransformTypeSummary = (
       ? getTransformExprType(output.expr, getTransformOutputPath(output, isMatchingRows), editor)
       : undefined;
   const isChanged = outputType !== undefined && columnType !== "" && columnType !== outputType;
+  // A compute step whose expression has no type yet shows nothing rather than
+  // its subject's type, which reads as the result.
   const typeSummary =
-    outputType === undefined
-      ? columnType
-      : isChanged
-        ? `${columnType} → ${outputType}`
-        : outputType;
+    output && outputType === undefined
+      ? ""
+      : outputType === undefined
+        ? columnType
+        : isChanged
+          ? `${columnType} → ${outputType}`
+          : outputType;
   const warning =
     output && isChanged && !isMatchingRows && isTransformOutputInPlace(output, false)
       ? `${getTransformOutputName(output, false)} is ${columnType}; this expression returns ${outputType}.`

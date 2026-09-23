@@ -1,3 +1,4 @@
+import type { JsonValue } from "@bufbuild/protobuf";
 import { match } from "ts-pattern";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -12,7 +13,10 @@ import {
   getTransformChain,
   TRANSFORM_EMPTY_EXPR,
 } from "@/pages/pipelines/components/transform/grammar/chain";
-import { getTransformOutputName } from "@/pages/pipelines/components/transform/grammar/serialize";
+import {
+  getTransformOutputName,
+  serializeTransformStep,
+} from "@/pages/pipelines/components/transform/grammar/serialize";
 import {
   type PipelineTransformFieldsDraft,
   type TransformExpr,
@@ -47,6 +51,11 @@ export const isTransformDraftComplete = (
       if (!step.outputs.every((output) => isTransformExprComplete(output.expr, functionsByName))) {
         return false;
       }
+      if (
+        step.outputs.some((output) => getTransformOutputName(output, step.where !== null) === "")
+      ) {
+        return false;
+      }
       if (step.where === null) return true;
       if (!isTransformExprComplete(step.where, functionsByName)) return false;
       const { root, calls } = getTransformChain(step.where);
@@ -58,6 +67,22 @@ export const isTransformDraftComplete = (
     })
     .exhaustive();
 };
+
+const isGrammarValue = (value: JsonValue): boolean =>
+  value === null
+    ? false
+    : Array.isArray(value)
+      ? value.every(isGrammarValue)
+      : typeof value === "object"
+        ? Object.entries(value).every(([key, entry]) => key !== "" && isGrammarValue(entry))
+        : true;
+
+// A draft the grammar would reject yields no types or columns, so it is not
+// worth a round trip. A partial draft that still serializes cleanly is: the
+// compiler types whatever did compile, and the builder needs that for the
+// next function in a chain.
+export const isTransformDraftValidatable = (draft: PipelineTransformFieldsDraft): boolean =>
+  draft.resource !== "" && isGrammarValue(serializeTransformStep(draft.step));
 
 const getTransformExprError = (
   expr: TransformExpr,

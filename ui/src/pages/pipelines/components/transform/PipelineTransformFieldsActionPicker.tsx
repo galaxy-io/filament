@@ -1,4 +1,4 @@
-import { CopyIcon } from "@phosphor-icons/react";
+import { CopyIcon, PencilSimpleIcon, TrashSimpleIcon } from "@phosphor-icons/react";
 
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
@@ -36,8 +36,16 @@ const createActionOption = (
 ): SelectInputOption => ({ id: getTransformActionId(action), label, value: action, icon });
 
 const KIND_OPTIONS: SelectInputOption[] = [
-  createActionOption({ kind: TransformActionKind.RENAME }, "Rename"),
-  createActionOption({ kind: TransformActionKind.DROP }, "Drop"),
+  createActionOption(
+    { kind: TransformActionKind.RENAME },
+    "Rename",
+    <PipelineTransformFieldsOptionIcon icon={PencilSimpleIcon} />,
+  ),
+  createActionOption(
+    { kind: TransformActionKind.DROP },
+    "Drop",
+    <PipelineTransformFieldsOptionIcon icon={TrashSimpleIcon} />,
+  ),
 ];
 const COPY_OPTION = createActionOption(
   COPY_ACTION,

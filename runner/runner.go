@@ -203,6 +203,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
+		var re *resourceError
+		if errors.As(err, &re) {
+			em.failedAt(fmt.Errorf("ensure schema: %w", err), re.resource, spec.Resources)
+			return nil
+		}
 		em.failed(fmt.Errorf("ensure schema: %w", err), spec.Resources, false)
 		return nil
 	}

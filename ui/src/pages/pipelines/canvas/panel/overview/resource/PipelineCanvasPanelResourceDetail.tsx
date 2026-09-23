@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
+import { CatchBoundary } from "@tanstack/react-router";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -20,6 +21,7 @@ import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
+import PipelineCanvasPanelResourceTransformSectionError from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionError";
 import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
 import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
@@ -240,18 +242,23 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         {isLoading ? (
           <PipelineCanvasPanelResourceTransformSectionPending />
         ) : (
-          <Suspense fallback={<PipelineCanvasPanelResourceTransformSectionPending />}>
-            <PipelineTransformFieldsProvider
-              definition={edge.data?.transform}
-              onChange={handleTransformChange}
-              resources={coveredResources}
-              columnsByResource={columnsByResource}
-              sourceConnectionId={sourceConnectionId}
-              isReadOnly={isReadOnly}
-            >
-              <PipelineCanvasPanelResourceTransformSection />
-            </PipelineTransformFieldsProvider>
-          </Suspense>
+          <CatchBoundary
+            getResetKey={() => edge.id}
+            errorComponent={PipelineCanvasPanelResourceTransformSectionError}
+          >
+            <Suspense fallback={<PipelineCanvasPanelResourceTransformSectionPending />}>
+              <PipelineTransformFieldsProvider
+                definition={edge.data?.transform}
+                onChange={handleTransformChange}
+                resources={coveredResources}
+                columnsByResource={columnsByResource}
+                sourceConnectionId={sourceConnectionId}
+                isReadOnly={isReadOnly}
+              >
+                <PipelineCanvasPanelResourceTransformSection />
+              </PipelineTransformFieldsProvider>
+            </Suspense>
+          </CatchBoundary>
         )}
       </PipelineCanvasPanelBody>
     </>

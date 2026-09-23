@@ -14,6 +14,8 @@ export enum PipelineCanvasNodeType {
 export interface PipelineCanvasNodeTableInfo {
   name: Resource["name"];
   isConnected: boolean;
+  hasTransform: boolean;
+  isInvalid: boolean;
 }
 
 export type PipelineCanvasConnectionNodeData = {

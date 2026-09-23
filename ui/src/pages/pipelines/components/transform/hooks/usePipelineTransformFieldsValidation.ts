@@ -32,6 +32,7 @@ import {
 import {
   getTransformDraftError,
   isTransformDraftComplete,
+  isTransformDraftValidatable,
 } from "@/pages/pipelines/components/transform/validation";
 
 import { useValidateTransformQuery } from "@/api/queries/transforms";
@@ -70,6 +71,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
   const isPrefixPending = hasPrefix && prefix.data === undefined && prefixError === null;
 
   const isComplete = isTransformDraftComplete(draft, columns, functionsByName);
+  const isValidatable = isTransformDraftValidatable(draft);
   const clientError = getTransformDraftError(draft, functionsByName);
 
   const debounced = useDebouncedValue(draft, TRANSFORM_VALIDATION_DEBOUNCE_MS);
@@ -89,7 +91,12 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       transform: definition,
     }),
     options: {
-      enabled: requiresValidation && isSettled && !isPrefixPending && prefixError === null,
+      enabled:
+        requiresValidation &&
+        isValidatable &&
+        isSettled &&
+        !isPrefixPending &&
+        prefixError === null,
       placeholderData: keepPreviousData,
     },
   });
