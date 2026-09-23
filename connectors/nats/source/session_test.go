@@ -60,7 +60,7 @@ func testSession(t *testing.T, failControl bool) {
 		t.Fatal(err)
 	}
 	src := New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "stream": name, "consumer": "consumer"})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "streams": []streamBinding{{Stream: name, Consumer: "consumer"}}})); err != nil {
 		t.Fatal(err)
 	}
 	defer src.Teardown(ctx)

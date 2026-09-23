@@ -13,7 +13,7 @@ import (
 )
 
 // Source reads subject resources using managed consumers, or binds explicit
-// user-owned consumers for compatibility. One connection serves all resources.
+// user-owned consumers. One connection serves all resources.
 type Source struct {
 	conn     *nats.Conn
 	js       jetstream.JetStream
