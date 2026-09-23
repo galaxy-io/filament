@@ -16,8 +16,9 @@ remains an individual NATS message.
 | `token` | Connection | No | Authentication token; mutually exclusive with `credentials_file` |
 | `credentials_file` | Connection | No | NATS credentials file available on every worker |
 | `stream` | Pipeline | Yes | Existing destination JetStream stream |
-| `subject` | Pipeline | Either subject or prefix | Fixed subject for all records |
-| `subject_prefix` | Pipeline | Either subject or prefix | Publishes to `<prefix>.<destination resource>` |
+| `subject_mode` | Pipeline | No | `prefix` (default) publishes each destination resource under a prefix; `fixed` publishes every record to one subject |
+| `subject_prefix` | Pipeline | In `prefix` mode | Publishes to `<prefix>.<destination resource>` |
+| `subject` | Pipeline | In `fixed` mode | One subject for all records |
 | `publish_timeout` | Pipeline | No | Positive duration from each publish submission to its acknowledgment; default `5s` |
 | `max_in_flight` | Pipeline | No | Maximum outstanding messages, from 1 through 65,536; default `1024` |
 | `max_in_flight_bytes` | Pipeline | No | Maximum outstanding message bytes; positive integer, default `16777216` (16 MiB) |

@@ -18,8 +18,12 @@ func (*Sink) Spec() filament.SinkSpec {
 		Description: "Publish JSON records to an existing JetStream stream with acknowledged, append-only delivery.",
 		Config: filament.ConfigSchema{Fields: append(connection.Fields(), []filament.ConfigField{
 			{Name: "stream", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Existing destination JetStream stream"},
-			{Name: "subject", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Fixed publish subject; use this or subject_prefix"},
-			{Name: "subject_prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Publish to prefix.<destination resource>; no trailing dot"},
+			{Name: routingField, Type: filament.FieldEnum, Default: routingPrefix, Scope: filament.ScopePipeline, Enum: []filament.EnumOption{
+				{Value: routingPrefix, Label: "Prefix per resource"},
+				{Value: routingFixed, Label: "Fixed subject"},
+			}, Help: "Publish each destination resource under a subject prefix, or every record to one fixed subject"},
+			{Name: "subject_prefix", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, VisibleWhen: &filament.FieldCondition{Field: routingField, Values: []string{routingPrefix}}, Help: "Publish to <prefix>.<destination resource>; no trailing dot. Must be captured by the stream"},
+			{Name: "subject", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, VisibleWhen: &filament.FieldCondition{Field: routingField, Values: []string{routingFixed}}, Help: "One subject for every record. Must be captured by the stream"},
 			{Name: "max_in_flight", Type: filament.FieldInt, Default: defaultMaxInFlight, Scope: filament.ScopePipeline, Help: "Maximum outstanding messages; 1 through 65536"},
 			{Name: "max_in_flight_bytes", Type: filament.FieldInt, Default: defaultMaxInFlightBytes, Scope: filament.ScopePipeline, Help: "Maximum outstanding message bytes including payload, headers, and subject; individual messages must fit"},
 			{Name: "publish_timeout", Type: filament.FieldString, Default: "5s", Scope: filament.ScopePipeline, Help: "Maximum wait for each publish acknowledgment"},

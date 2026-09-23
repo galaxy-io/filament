@@ -18,6 +18,14 @@ const (
 	maxPublishConcurrency   = 65536
 )
 
+// Subject routing modes. Prefix is the default: each destination resource
+// publishes to its own subject beneath the prefix.
+const (
+	routingField  = "subject_mode"
+	routingPrefix = "prefix"
+	routingFixed  = "fixed"
+)
+
 type config struct {
 	stream, subject, prefix string
 	timeout                 time.Duration
@@ -29,16 +37,32 @@ type config struct {
 func (*Sink) Validate(cfg filament.Config) error { return connection.Validate(cfg) }
 
 func resolve(cfg filament.Config) (config, error) {
-	c := config{stream: cfg.String("stream"), subject: cfg.String("subject"), prefix: cfg.String("subject_prefix"), timeout: 5 * time.Second, maxInFlight: defaultMaxInFlight, maxInFlightBytes: defaultMaxInFlightBytes}
+	c := config{stream: cfg.String("stream"), timeout: 5 * time.Second, maxInFlight: defaultMaxInFlight, maxInFlightBytes: defaultMaxInFlightBytes}
 	if c.stream == "" {
 		return c, fmt.Errorf("nats sink: stream is required")
 	}
-	if (c.subject == "") == (c.prefix == "") {
-		return c, fmt.Errorf("nats sink: configure exactly one of subject and subject_prefix")
+	// The selector decides which subject field applies; the other is ignored so
+	// a stale value left behind by a form switch cannot cause a conflict.
+	mode := cfg.String(routingField)
+	if mode == "" {
+		mode = routingPrefix
 	}
-	target := c.subject
-	if target == "" {
+	var target string
+	switch mode {
+	case routingPrefix:
+		c.prefix = cfg.String("subject_prefix")
+		if c.prefix == "" {
+			return c, fmt.Errorf("nats sink: subject_prefix is required for prefix routing")
+		}
 		target = c.prefix
+	case routingFixed:
+		c.subject = cfg.String("subject")
+		if c.subject == "" {
+			return c, fmt.Errorf("nats sink: subject is required for fixed routing")
+		}
+		target = c.subject
+	default:
+		return c, fmt.Errorf("nats sink: %s must be %q or %q", routingField, routingPrefix, routingFixed)
 	}
 	if err := validSubject(target); err != nil {
 		return c, err
