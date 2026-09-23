@@ -69,7 +69,6 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Config:       ConfigSchema(),
 		Capabilities: filament.SinkCapabilities{
 			Schematized:        true,
-			Upsertable:         true,
 			EncodedIntegrity:   true,
 			PreferredBatchRows: defaultBatchSize,
 			WritePolicies: commitDurableCapabilities(
