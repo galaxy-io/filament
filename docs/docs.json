@@ -158,6 +158,7 @@
             "pages": [
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
+              "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
