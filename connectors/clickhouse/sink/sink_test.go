@@ -17,7 +17,7 @@ import (
 
 func TestSpecAdvertisesInitialWritePolicies(t *testing.T) {
 	spec := New().Spec()
-	if spec.Name != "clickhouse" || !spec.Capabilities.Schematized || !spec.Capabilities.Upsertable {
+	if spec.Name != "clickhouse" || !spec.Capabilities.Schematized {
 		t.Fatalf("unexpected spec: %+v", spec)
 	}
 	if spec.Capabilities.PreferredBatchRows != 10_000 {

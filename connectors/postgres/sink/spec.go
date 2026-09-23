@@ -29,7 +29,6 @@ func (t *Sink) Spec() filament.SinkSpec {
 					Durability: filament.DurabilityAfterCommit,
 				}},
 			},
-			Upsertable:          true,
 			EncodedIntegrity:    true,
 			PreferredBatchBytes: 16 << 20,
 			WritePolicies: filament.WriteCapabilities(
