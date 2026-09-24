@@ -103,3 +103,9 @@ func NewPipedrive() *Source {
 func newCatalogSource(data []byte) *Source {
 	return NewManifest(data)
 }
+
+//go:embed manifests/novada.yaml
+var novadaManifest []byte
+
+// NewNovada returns a Source backed by the embedded Novada manifest.
+func NewNovada() *Source { return newCatalogSource(novadaManifest) }

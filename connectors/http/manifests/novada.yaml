@@ -1,0 +1,131 @@
+version: 1
+name: novada
+display_name: Novada
+description: Read proxy traffic balances, scraping prices, usage reports, task metadata, and request logs from Novada.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-light.svg
+config:
+  api_key: { type: secret, required: true, help: API key from Dashboard > Account Settings > My account > API Key. }
+  start_time: { type: string, scope: pipeline, help: Required when selecting scraping_usage. Report start in YYYY-MM-DD HH:mm:ss format. }
+  end_time: { type: string, scope: pipeline, help: Required when selecting scraping_usage. Report end in YYYY-MM-DD HH:mm:ss format. }
+connection:
+  base_url: https://api-m.novada.com
+  auth: { bearer: config.api_key }
+  headers: { Accept: application/json }
+defaults:
+  method: POST
+  response:
+    # Existing GJSON array query selects the code only when it is nonzero.
+    error: { path: "[code].#(!=0)", when_present: true, message_path: msg, code_path: code }
+field_sets:
+  balance:
+    balance: int64
+    # Units of expiry are unspecified; retain the upstream integer.
+    expire_time: int64
+  request_log:
+    request_id: string
+    request_time: string?
+    request_params: string?
+    http_code: int64?
+    cost_time: int64?
+    used_balance: string?
+    res: int64?
+    flow: int64?
+resources:
+  - name: residential_balance
+    path: /v1/residential_flow/balance
+    body: { encoding: multipart, template: {} }
+    primary_key: []
+    use_fields: [balance]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    response: { records: $.data, cardinality: one, pagination: none }
+  - name: isp_balance
+    path: /v1/isp_flow/balance
+    body: { encoding: multipart, template: {} }
+    primary_key: []
+    use_fields: [balance]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    response: { records: $.data, cardinality: one, pagination: none }
+  - name: datacenter_balance
+    path: /v1/dc_flow/balance
+    body: { encoding: multipart, template: {} }
+    primary_key: []
+    use_fields: [balance]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    response: { records: $.data, cardinality: one, pagination: none }
+  - name: scraping_prices
+    path: /v1/capture/unit
+    primary_key: []
+    fields:
+      scraper: json
+      unblocker: json
+      raw: { path: $, type: json, mode: remainder }
+    response: { records: $.data, cardinality: one, pagination: none }
+  - name: scraping_usage
+    path: /v1/capture/all_logs
+    body:
+      encoding: multipart
+      template:
+        start_time: "{{ config.start_time }}"
+        end_time: "{{ config.end_time }}"
+    primary_key: []
+    # The live report is an object containing totals and a list, whereas the
+    # published schema describes an array. Preserve the complete report.
+    fields:
+      report: { path: data, type: json }
+      timestamp: int64?
+      raw: { path: $, type: json, mode: remainder }
+    response: { records: $, cardinality: one, pagination: none }
+  - name: scraper_tasks
+    path: /v1/scraper/task_list
+    body: { encoding: multipart, template: {} }
+    primary_key: [task_id]
+    fields:
+      task_id: string
+      id: string?
+      status: int64?
+      start_time: int64?
+      finish_time: int64?
+      total: int64?
+      success_count: int64?
+      fail_count: int64?
+      success_rate: float64?
+      file_size: int64?
+      unit_price: float64?
+      unit_type: string?
+      used_quota: float64?
+      used_balance: float64?
+      error_info: string?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data.list
+      pagination:
+        page: { number: body.page, size: body.limit, page_size: 100 }
+  - name: scraper_request_logs
+    path: /v1/capture/request_log
+    body: { encoding: multipart, template: { category: scraper } }
+    primary_key: [request_id]
+    use_fields: [request_log]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data.list
+      pagination:
+        page: { number: body.page, size: body.limit, page_size: 10 }
+  - name: unblocker_request_logs
+    path: /v1/capture/request_log
+    body: { encoding: multipart, template: { category: unblocker } }
+    primary_key: [request_id]
+    use_fields: [request_log]
+    fields:
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $.data.list
+      pagination:
+        page: { number: body.page, size: body.limit, page_size: 10 }
+discovery:
+  mode: static
+  default_resources: [residential_balance, isp_balance, datacenter_balance, scraping_prices, scraper_tasks]
