@@ -145,6 +145,7 @@
               "pages/connectors/sources/linear",
               "pages/connectors/sources/monday",
               "pages/connectors/sources/notion",
+              "pages/connectors/sources/novada",
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
               "pages/connectors/sources/resend",
