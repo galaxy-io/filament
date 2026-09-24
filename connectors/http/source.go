@@ -39,6 +39,7 @@ type Source struct {
 	description      string
 	darkLogoURL      string
 	lightLogoURL     string
+	apiVersion       string
 	config           filament.ConfigSchema
 	embeddedManifest *manifest.Manifest
 	manifestErr      error
@@ -76,7 +77,7 @@ func NewManifest(manifestData []byte) *Source {
 	}
 	return &Source{
 		name: m.Name, displayName: m.DisplayName, description: m.Description,
-		darkLogoURL: m.DarkLogoURL, lightLogoURL: m.LightLogoURL,
+		darkLogoURL: m.DarkLogoURL, lightLogoURL: m.LightLogoURL, apiVersion: m.APIVersion,
 		config: configSchemaFromManifest(m), embeddedManifest: m,
 	}
 }
@@ -103,6 +104,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:    s.darkLogoURL,
 		LightLogoURL:   s.lightLogoURL,
 		Version:        "1",
+		APIVersion:     s.apiVersion,
 		Modes:          modes,
 		SourcePolicies: filament.SourcePolicies(policies...),
 		Config:         s.config,

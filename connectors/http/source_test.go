@@ -1538,6 +1538,7 @@ display_name: Notion
 description: Test Notion connector.
 dark_logo_url: https://cdn.example.com/notion-dark.svg
 light_logo_url: https://cdn.example.com/notion-light.svg
+api_version: "2022-06-28"
 connection:
   base_url: %s
   auth:

@@ -20,6 +20,7 @@ message ConnectorSpec {
   string light_logo_url = 9;
   string schema_field = 10;
   ConnectorMaturity maturity = 11;
+  string api_version = 12;
 }
 
 enum ConnectorMaturity {

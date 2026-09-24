@@ -4,6 +4,7 @@ display_name: Gong
 description: Calls, transcripts, users, workspaces, tracker and scorecard definitions, and call libraries from Gong.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-light.svg
+api_version: "v2"
 config:
   access_key:
     type: secret

@@ -251,6 +251,7 @@ type ConnectorSpec struct {
 	DarkLogoURL    string
 	LightLogoURL   string
 	Version        string
+	APIVersion     string // upstream API version; empty for unversioned APIs and drivers
 	Maturity       ConnectorMaturity
 	Modes          []ReadMode
 	SourcePolicies []SourcePolicy

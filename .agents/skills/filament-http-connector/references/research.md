@@ -8,7 +8,8 @@ enough evidence to implement the reads correctly, not a long research report.
 Start with the company's official API documentation, including any URL supplied
 by the user. Read endpoint request and response schemas, not just the product
 overview. Use an official OpenAPI specification or documentation index when it
-helps enumerate the API. Check versions and relevant deprecation notices.
+helps enumerate the API. Check versions and relevant deprecation notices, and
+record the version you build against as `api_version`.
 
 Official SDK source can clarify serialization or paging. A sanitized live response
 can confirm what the service actually returns. Other connectors and community
