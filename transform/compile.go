@@ -102,13 +102,18 @@ func (c *compiler) step(path string, st Step) {
 }
 
 // rename changes names in the layout only; the frame at run time is indexed
-// by position and never sees a name. Primary key entries follow the rename.
+// by position and never sees a name. A primary key column keeps its name so
+// an existing destination stays keyed the same way.
 func (c *compiler) rename(path string, m map[string]string) {
 	for _, from := range slices.Sorted(maps.Keys(m)) {
 		to := m[from]
 		i, ok := c.index(from)
 		if !ok {
 			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "unknown column")
+			continue
+		}
+		if slices.Contains(c.layout.PrimaryKey, from) {
+			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "cannot rename primary key column %q", from)
 			continue
 		}
 		if rowmodel.IsReservedColumn(to) {
@@ -120,11 +125,6 @@ func (c *compiler) rename(path string, m map[string]string) {
 			continue
 		}
 		c.layout.Fields[i].Name = to
-		for k, key := range c.layout.PrimaryKey {
-			if key == from {
-				c.layout.PrimaryKey[k] = to
-			}
-		}
 	}
 }
 
@@ -175,6 +175,10 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 		epath := fmt.Sprintf("%s.compute[%q]", path, name)
 		if rowmodel.IsReservedColumn(name) {
 			c.errs.addf(epath, "column %q is reserved", name)
+			continue
+		}
+		if slices.Contains(c.layout.PrimaryKey, name) {
+			c.errs.addf(epath, "cannot compute onto primary key column %q", name)
 			continue
 		}
 		n, t, ok := c.expr(epath, entries[name])
