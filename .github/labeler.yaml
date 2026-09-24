@@ -37,3 +37,7 @@ migrations:
 helm:
   - changed-files:
       - any-glob-to-any-file: "charts/**"
+  
+skils:
+  - changed-files:
+      - any-glob-to-any-file: ".agents/skils/**"
