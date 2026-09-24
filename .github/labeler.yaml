@@ -38,6 +38,6 @@ helm:
   - changed-files:
       - any-glob-to-any-file: "charts/**"
   
-skils:
+skills:
   - changed-files:
-      - any-glob-to-any-file: ".agents/skils/**"
+      - any-glob-to-any-file: ".agents/skills/**"
