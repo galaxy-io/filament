@@ -43,7 +43,6 @@ export interface PipelineCanvasValidation {
   invalidEdgeIds: Set<CanvasEdge["id"]>;
   issues: PipelineCanvasValidationIssue[];
   isPending: boolean;
-  // The request itself failed, so nothing is known about the canvas.
   isError: boolean;
 }
 

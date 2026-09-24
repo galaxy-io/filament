@@ -39,8 +39,6 @@ export const getCanvasEdgeConfig = (
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
-  // A reconnected resource starts without a transform; loading a version
-  // sets it explicitly.
   transform: edge.data?.transform,
 });
 
