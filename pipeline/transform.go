@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -11,8 +12,8 @@ import (
 	"github.com/galaxy-io/filament/transform"
 )
 
-// planFor compiles the run's transform for one resource against the schema the
-// source supplied, before audit fields are appended. A resource the definition
+// planFor compiles the run's transform for one resource against the layout the
+// builder emits, before audit fields are appended. A resource the definition
 // does not name gets no plan and bypasses the transformer pool. Called with
 // registryMu held.
 func (p *Pipeline) planFor(resource string, supplied rowmodel.Schema) (*transform.Plan, error) {
@@ -48,6 +49,14 @@ func (p *Pipeline) transformer(ctx context.Context) {
 }
 
 func (p *Pipeline) transformBatch(ctx context.Context, b *arrowbatch.Batch) {
+	// A kernel that panics fails the run, not the worker. Whichever batch is
+	// current at that point is still owned here and gets its terminal Release.
+	defer func() {
+		if r := recover(); r != nil {
+			b.Release()
+			p.setErr(fmt.Errorf("transform %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))
+		}
+	}()
 	if !b.Drained {
 		p.registryMu.Lock()
 		plan := p.schemas[b.Resource].plan

@@ -178,8 +178,12 @@ const PipelineLayoutNavbar = () => {
   );
   const canvasValidation = usePipelineCanvasValidation();
   const saveIssues = useMemo(
-    () => [...graphConflicts.map((message) => ({ message })), ...canvasValidation.issues],
-    [graphConflicts, canvasValidation.issues],
+    () => [
+      ...graphConflicts.map((message) => ({ message })),
+      ...canvasValidation.issues,
+      ...(canvasValidation.isError ? [{ message: "Unable to validate this pipeline." }] : []),
+    ],
+    [graphConflicts, canvasValidation.issues, canvasValidation.isError],
   );
 
   const runErrors = useMemo(() => getPipelineValidationErrors(validation), [validation]);
@@ -364,8 +368,8 @@ const PipelineLayoutNavbar = () => {
                 icon={FloppyDiskIcon}
                 variant={ButtonVariant.PRIMARY_ALT}
                 size={ButtonSize.SMALL}
-                isLoading={isSaving}
-                isDisabled={saveIssues.length > 0 || canvasValidation.isPending}
+                isLoading={isSaving || canvasValidation.isPending}
+                isDisabled={saveIssues.length > 0}
                 onClick={handleSave}
               />
             </>

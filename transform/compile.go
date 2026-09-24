@@ -111,6 +111,10 @@ func (c *compiler) rename(path string, m map[string]string) {
 			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "unknown column")
 			continue
 		}
+		if rowmodel.IsReservedColumn(to) {
+			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "column %q is reserved", to)
+			continue
+		}
 		if _, taken := c.index(to); taken {
 			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "column %q already exists", to)
 			continue
@@ -169,20 +173,24 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 	var changes []pending
 	for _, name := range slices.Sorted(maps.Keys(entries)) {
 		epath := fmt.Sprintf("%s.compute[%q]", path, name)
+		if rowmodel.IsReservedColumn(name) {
+			c.errs.addf(epath, "column %q is reserved", name)
+			continue
+		}
 		n, t, ok := c.expr(epath, entries[name])
 		if !ok {
 			continue
 		}
 		idx, exists := c.index(name)
-		if exists && where != nil && c.layout.Fields[idx].Logical != t.logical {
-			c.errs.addf(epath, "where cannot change type: column is %s, expression is %s", c.layout.Fields[idx].Logical, t.logical)
+		if exists && where != nil && typeOf(c.layout.Fields[idx]) != t.valueType {
+			c.errs.addf(epath, "where cannot change type: column is %s, expression is %s", typeOf(c.layout.Fields[idx]), t.valueType)
 			continue
 		}
 		if !exists {
 			idx = -1
 		}
 		o.entries = append(o.entries, computeEntry{idx: idx, expr: n})
-		changes = append(changes, pending{idx: idx, field: rowmodel.Field{Name: name, Nullable: true, Logical: t.logical}})
+		changes = append(changes, pending{idx: idx, field: rowmodel.Field{Name: name, Nullable: true, Logical: t.logical, Precision: t.precision, Scale: t.scale}})
 	}
 	if len(o.entries) == 0 {
 		return
@@ -204,18 +212,18 @@ func (c *compiler) compute(path string, entries map[string]Expr, where *Expr) {
 func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 	switch {
 	case e.Lit != nil:
-		t := literalType(e.Lit)
-		c.recordType(path, t)
-		return newLiteralNode(e.Lit, t), argType{logical: t, literal: true, value: e.Lit}, true
+		t := valueType{logical: literalType(e.Lit)}
+		c.recordType(path, t.logical)
+		return newLiteralNode(e.Lit, t), argType{valueType: t, literal: true, value: e.Lit}, true
 	case e.Col != "":
 		i, ok := c.index(e.Col)
 		if !ok {
 			c.errs.addf(path, "unknown column %q", e.Col)
 			return nil, argType{}, false
 		}
-		t := c.layout.Fields[i].Logical
-		c.recordType(path, t)
-		return colNode{idx: i}, argType{logical: t}, true
+		t := typeOf(c.layout.Fields[i])
+		c.recordType(path, t.logical)
+		return colNode{idx: i}, argType{valueType: t}, true
 	}
 
 	fn, ok := catalogByName[e.Fn]
@@ -254,39 +262,43 @@ func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 		c.errs.addf(at, "%v", err)
 		return nil, argType{}, false
 	}
-	c.recordType(path, ret)
-	return callNode{fn: fn, args: args}, argType{logical: ret}, true
+	c.recordType(path, ret.logical)
+	return callNode{fn: fn, args: args}, argType{valueType: ret}, true
 }
 
 // coerceLiterals widens each literal argument to the type of the first column
 // argument when the value fits, so eq(int32_col, 1) reads as the author
 // meant it. A literal that cannot widen is left alone for check to reject.
 func coerceLiterals(spec FunctionSpec, args []node, types []argType) {
-	target := rowmodel.LogicalUnknown
+	var target valueType
 	for i, t := range types {
 		if !t.literal && !spec.argSpec(i).Literal {
-			target = t.logical
+			target = t.valueType
 			break
 		}
 	}
-	if target == rowmodel.LogicalUnknown {
+	if target.logical == rowmodel.LogicalUnknown {
 		return
 	}
 	for i, t := range types {
-		if !t.literal || spec.argSpec(i).Literal || t.logical == target || !coercible(t.value, target) {
+		if !t.literal || spec.argSpec(i).Literal || t.valueType == target || !coercible(t.value, target) {
 			continue
 		}
 		args[i] = newLiteralNode(t.value, target)
-		types[i].logical = target
+		types[i].valueType = target
 	}
 }
 
 // coercible reports whether literal v can stand in for a value of type to
 // without losing anything.
-func coercible(v any, to rowmodel.LogicalType) bool {
+func coercible(v any, to valueType) bool {
+	if to.logical == rowmodel.LogicalDecimal {
+		_, _, ok := decimalLiteral(v, to)
+		return ok
+	}
 	switch x := v.(type) {
 	case int64:
-		switch to {
+		switch to.logical {
 		case rowmodel.LogicalInt16:
 			return x >= -1<<15 && x < 1<<15
 		case rowmodel.LogicalInt32:
@@ -295,7 +307,7 @@ func coercible(v any, to rowmodel.LogicalType) bool {
 			return true
 		}
 	case float64:
-		return to == rowmodel.LogicalFloat32 || to == rowmodel.LogicalFloat64
+		return to.logical == rowmodel.LogicalFloat32 || to.logical == rowmodel.LogicalFloat64
 	}
 	return false
 }

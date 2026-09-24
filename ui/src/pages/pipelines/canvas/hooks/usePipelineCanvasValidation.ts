@@ -43,6 +43,8 @@ export interface PipelineCanvasValidation {
   invalidEdgeIds: Set<CanvasEdge["id"]>;
   issues: PipelineCanvasValidationIssue[];
   isPending: boolean;
+  // The request itself failed, so nothing is known about the canvas.
+  isError: boolean;
 }
 
 // Transform issues are keyed by their path in the definition; every other
@@ -106,7 +108,7 @@ export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
     () => fromJsonString(ValidatePipelineRequestSchema, debouncedJson),
     [debouncedJson],
   );
-  const { data, isPending, isPlaceholderData } = useValidatePipelineQuery({
+  const { data, isPending, isError, isPlaceholderData } = useValidatePipelineQuery({
     input,
     options: { placeholderData: keepPreviousData },
   });
@@ -124,6 +126,7 @@ export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
       invalidEdgeIds,
       issues: getCanvasValidationIssues(data, edgeIdsByKey),
       isPending: isPending || !isSettled,
+      isError,
     };
-  }, [data, isPending, isSettled, state.edges]);
+  }, [data, isPending, isError, isSettled, state.edges]);
 };

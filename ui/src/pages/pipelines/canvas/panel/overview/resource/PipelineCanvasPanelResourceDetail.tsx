@@ -55,6 +55,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const {
     isCdc,
     isLoading,
+    isLoadingColumns,
     sourceConnectionId,
     coveredResources,
     columnsByResource,
@@ -239,7 +240,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               ))}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
-        {isLoading ? (
+        {isLoadingColumns ? (
           <PipelineCanvasPanelResourceTransformSectionPending />
         ) : (
           <CatchBoundary

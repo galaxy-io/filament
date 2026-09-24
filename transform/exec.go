@@ -6,13 +6,18 @@ package transform
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/compute"
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/apache/arrow-go/v18/arrow/scalar"
 
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform/kernel"
 )
@@ -127,17 +132,21 @@ func (n colNode) eval(_ context.Context, f *frame) (compute.Datum, error) {
 
 type literalNode struct{ sc scalar.Scalar }
 
-// newLiteralNode boxes a literal into an Arrow scalar of the logical type t
-// once, at compile time, so no batch pays for it. The compiler has already
-// checked that v converts to t.
-func newLiteralNode(v any, t rowmodel.LogicalType) literalNode {
+// newLiteralNode boxes a literal into an Arrow scalar of type t once, at
+// compile time, so no batch pays for it. The compiler has already checked
+// that v converts to t.
+func newLiteralNode(v any, t valueType) literalNode {
+	if t.logical == rowmodel.LogicalDecimal {
+		n, dt, _ := decimalLiteral(v, t)
+		return literalNode{sc: scalar.NewDecimal128Scalar(n, dt)}
+	}
 	switch x := v.(type) {
 	case string:
 		return literalNode{sc: scalar.NewStringScalar(x)}
 	case bool:
 		return literalNode{sc: scalar.NewBooleanScalar(x)}
 	case int64:
-		switch t {
+		switch t.logical {
 		case rowmodel.LogicalInt16:
 			return literalNode{sc: scalar.NewInt16Scalar(int16(x))} //nolint:gosec // range checked by coercible
 		case rowmodel.LogicalInt32:
@@ -149,12 +158,47 @@ func newLiteralNode(v any, t rowmodel.LogicalType) literalNode {
 		}
 		return literalNode{sc: scalar.NewInt64Scalar(x)}
 	case float64:
-		if t == rowmodel.LogicalFloat32 {
+		if t.logical == rowmodel.LogicalFloat32 {
 			return literalNode{sc: scalar.NewFloat32Scalar(float32(x))}
 		}
 		return literalNode{sc: scalar.NewFloat64Scalar(x)}
 	}
 	panic(fmt.Sprintf("transform: literal %T not admitted by Expr", v))
+}
+
+// decimalLiteral converts an int or float literal to the decimal128 a column
+// of type t is stored as. The value goes through its shortest decimal
+// spelling, never float arithmetic, so it is exact or refused. ok is false
+// when the literal needs more scale or precision than t has, or when
+// arrowbatch carries t as text rather than decimal128, in which case no
+// literal can stand in for it.
+func decimalLiteral(v any, t valueType) (n decimal128.Num, dt *arrow.Decimal128Type, ok bool) {
+	dt, ok = arrowbatch.Type(rowmodel.Field{Logical: t.logical, Precision: t.precision, Scale: t.scale}).(*arrow.Decimal128Type)
+	if !ok {
+		return n, nil, false
+	}
+	var s string
+	switch x := v.(type) {
+	case int64:
+		s = strconv.FormatInt(x, 10)
+	case float64:
+		s = strconv.FormatFloat(x, 'f', -1, 64)
+	default:
+		return n, nil, false
+	}
+	whole, frac, _ := strings.Cut(s, ".")
+	if len(frac) > int(dt.Scale) {
+		return n, nil, false
+	}
+	unscaled, ok := new(big.Int).SetString(whole+frac+strings.Repeat("0", int(dt.Scale)-len(frac)), 10)
+	if !ok {
+		return n, nil, false
+	}
+	limit := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(dt.Precision)), nil)
+	if new(big.Int).Abs(unscaled).Cmp(limit) >= 0 {
+		return n, nil, false
+	}
+	return decimal128.FromBigInt(unscaled), dt, true
 }
 
 func (n literalNode) eval(context.Context, *frame) (compute.Datum, error) {

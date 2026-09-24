@@ -154,6 +154,7 @@ const PipelineTransformFieldsProvider = ({
       const nextDefinition = serializeTransformDefinition(
         next.stepsByResource,
         catalog.grammarVersion,
+        definition,
       );
       emitted.current = nextDefinition;
       onChange(nextDefinition);
@@ -177,7 +178,7 @@ const PipelineTransformFieldsProvider = ({
           payload: { resource, from, to },
         }),
     };
-  }, [state, catalog.grammarVersion, onChange, resources]);
+  }, [state, catalog.grammarVersion, onChange, resources, definition]);
 
   const environment = useMemo<PipelineTransformFieldsEnvironment>(
     () => ({

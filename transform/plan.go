@@ -41,10 +41,6 @@ func (p *Plan) Apply(ctx context.Context, mem memory.Allocator, rec arrow.Record
 	if err := p.checkInput(rec.Schema()); err != nil {
 		return nil, err
 	}
-	if len(p.ops) == 0 {
-		rec.Retain()
-		return rec, nil
-	}
 	if mem == nil {
 		mem = memory.DefaultAllocator
 	}

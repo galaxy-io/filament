@@ -3,6 +3,8 @@ import { match } from "ts-pattern";
 
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
+import { isJsonObject } from "@/components/fields/utils";
+
 import { TRANSFORM_NEW_COLUMN_SUFFIX } from "@/pages/pipelines/components/transform/constants";
 import {
   getTransformRootColumn,
@@ -76,11 +78,19 @@ export const serializeTransformStep = (step: TransformStep): JsonValue =>
     })
     .exhaustive();
 
+// Resources the builder does not cover keep their entries from base verbatim.
 export const serializeTransformDefinition = (
   stepsByResource: Map<Resource["name"], TransformStep[]>,
   grammarVersion: number,
+  base?: TransformDefinition,
 ): TransformDefinition | undefined => {
   const resources: Record<string, JsonValue> = {};
+  const saved = base?.resources;
+  if (saved !== undefined && isJsonObject(saved)) {
+    for (const [resource, entry] of Object.entries(saved)) {
+      if (!stepsByResource.has(resource)) resources[resource] = entry;
+    }
+  }
   for (const [resource, steps] of stepsByResource) {
     if (steps.length === 0) continue;
     resources[resource] = { steps: steps.map(serializeTransformStep) };
