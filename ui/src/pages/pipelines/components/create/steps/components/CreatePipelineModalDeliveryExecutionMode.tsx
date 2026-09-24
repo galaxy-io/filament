@@ -1,15 +1,13 @@
-import { styled } from "@linaria/react";
-
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+
+import IconTile from "@/components/IconTile";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -17,8 +15,6 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
-  CREATE_PIPELINE_MODAL_EXECUTION_MODE_ICON_SIZE,
-  CREATE_PIPELINE_MODAL_EXECUTION_MODE_TILE_SIZE,
   EXECUTION_MODE_TO_DESCRIPTION_MAP,
   EXECUTION_MODE_TO_ICON_MAP,
   EXECUTION_MODE_TO_LABEL_MAP,
@@ -26,19 +22,6 @@ import {
 import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
 
 import { NOOP } from "@/constants";
-
-const IconTile = withTheme(styled.div<PropsWithTheme>`
-  width: ${CREATE_PIPELINE_MODAL_EXECUTION_MODE_TILE_SIZE}px;
-  height: ${CREATE_PIPELINE_MODAL_EXECUTION_MODE_TILE_SIZE}px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  border: 0.5px solid ${({ theme }) => theme.color.border.tertiary};
-  border-radius: 6px;
-`);
 
 interface CreatePipelineModalDeliveryExecutionModeOptionProps {
   mode: ExecutionMode;
@@ -57,7 +40,7 @@ const CreatePipelineModalDeliveryExecutionModeOption = ({
     <Widget
       variant={
         isDisabled
-          ? WidgetVariant.TERTIARY
+          ? WidgetVariant.DISABLED
           : isSelected
             ? WidgetVariant.SECONDARY
             : WidgetVariant.PRIMARY
@@ -70,13 +53,10 @@ const CreatePipelineModalDeliveryExecutionModeOption = ({
     >
       <FlexWrapper alignItems={AlignItems.CENTER} gap={12} fillWidth>
         <RadioInput isSelected={isSelected} isDisabled={isDisabled} onChange={NOOP} />
-        <IconTile>
-          <Icon
-            component={EXECUTION_MODE_TO_ICON_MAP[mode]}
-            variant={isDisabled ? IconVariant.DISABLED : IconVariant.SECONDARY}
-            size={CREATE_PIPELINE_MODAL_EXECUTION_MODE_ICON_SIZE}
-          />
-        </IconTile>
+        <IconTile
+          icon={EXECUTION_MODE_TO_ICON_MAP[mode]}
+          variant={isDisabled ? IconVariant.DISABLED : IconVariant.SECONDARY}
+        />
         <FlexWrapper direction={FlexDirection.COLUMN} gap={2} minWidth={0}>
           <Text variant={isDisabled ? TextVariant.DISABLED : TextVariant.PRIMARY}>
             {EXECUTION_MODE_TO_LABEL_MAP[mode]}

@@ -115,9 +115,6 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalS
 export const CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT =
   "These connections have no execution type in common";
 
-export const CREATE_PIPELINE_MODAL_EXECUTION_MODE_TILE_SIZE = 32;
-export const CREATE_PIPELINE_MODAL_EXECUTION_MODE_ICON_SIZE = 16;
-
 export const EXECUTION_MODE_TO_ICON_MAP: Record<ExecutionMode, PhosphorIcon> = {
   [ExecutionMode.UNSPECIFIED]: CircleIcon,
   [ExecutionMode.BOUNDED]: StackIcon,
