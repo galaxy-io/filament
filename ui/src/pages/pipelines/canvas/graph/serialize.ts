@@ -39,7 +39,7 @@ export const getCanvasEdgeConfig = (
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
-  transform: edge.data ? edge.data.transform : baseEdge?.transform,
+  transform: edge.data?.transform,
 });
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
@@ -82,7 +82,7 @@ export const mapPipelineVersionToCanvasState = (
       target: edge.toNode,
       sourceHandle: edge.resource || PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
       targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
-      data: getCanvasEdgeConfig({}, edge),
+      data: { ...getCanvasEdgeConfig({}, edge), transform: edge.transform },
     }));
 
   return { nodes, edges };

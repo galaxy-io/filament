@@ -58,18 +58,36 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	defer probes.teardown(ctx)
 
 	routeWriteModes := map[string]filament.WriteMode{}
+	routeTransforms := map[string]map[string]bool{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
 			return nil, err
 		}
 		ev := resp.Edges[len(resp.Edges)-1]
+		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+		// Run compile merges a route's transforms and refuses a resource named
+		// twice; catch it here so the version is not saved only to fail at run.
+		if edge.GetTransform() != nil {
+			if resources, err := compile.TransformResources(edge); err == nil {
+				seen := routeTransforms[route]
+				if seen == nil {
+					seen = map[string]bool{}
+					routeTransforms[route] = seen
+				}
+				for _, resource := range slices.Sorted(maps.Keys(resources)) {
+					if seen[resource] {
+						edgeError(ev, "transform", fmt.Sprintf("resource %q is transformed by more than one edge", resource))
+					}
+					seen[resource] = true
+				}
+			}
+		}
 		writeMode, err := writeModeFromProto(ev.GetEffectiveWriteMode())
 		if err != nil {
 			continue
 		}
-		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
 		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-			edgeError(resp.Edges[len(resp.Edges)-1], "write_mode", "all resources on a source-to-destination route must use the same write mode")
+			edgeError(ev, "write_mode", "all resources on a source-to-destination route must use the same write mode")
 		} else {
 			routeWriteModes[route] = writeMode
 		}

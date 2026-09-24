@@ -47,10 +47,30 @@ type FunctionSpec struct {
 	ReturnsInput      bool
 }
 
-// argType is what the compiler knows about a compiled expression: its logical
-// type, whether it is a literal, and the literal's value when it is one.
+// valueType is the type of a compiled value: its logical type and, for a
+// decimal, the precision and scale that fix its Arrow storage.
+type valueType struct {
+	logical          rowmodel.LogicalType
+	precision, scale int
+}
+
+func typeOf(f rowmodel.Field) valueType {
+	return valueType{logical: f.Logical, precision: f.Precision, scale: f.Scale}
+}
+
+// String spells a bounded decimal with its precision and scale, so a
+// mismatch between two decimals reads as one.
+func (t valueType) String() string {
+	if t.logical == rowmodel.LogicalDecimal && t.precision > 0 {
+		return fmt.Sprintf("%s(%d,%d)", t.logical, t.precision, t.scale)
+	}
+	return string(t.logical)
+}
+
+// argType is what the compiler knows about a compiled expression: its type,
+// whether it is a literal, and the literal's value when it is one.
 type argType struct {
-	logical rowmodel.LogicalType
+	valueType
 	literal bool
 	value   any // set when literal
 }
@@ -137,7 +157,7 @@ var catalog = []function{
 				{Name: "group", DisplayName: "Group", Types: int64Types, Literal: true, Optional: true},
 			}, Returns: rowmodel.LogicalString,
 		},
-		validate: validators(validPattern("regex_extract", 1), nonnegative("regex_extract", "group", 2)),
+		validate: validators(validPattern("regex_extract", 1), nonnegative("regex_extract", "group", 2), groupInPattern("regex_extract", 1, 2)),
 		exec:     kernel.RegexExtract,
 	},
 	{
@@ -291,7 +311,7 @@ func (s FunctionSpec) argSpec(i int) ArgSpec {
 // the signature, then runs the function's own validate hook. It returns the
 // call's result type. A failure one argument is responsible for comes back
 // as an argError naming it.
-func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
+func (fn function) check(args []argType) (valueType, error) {
 	spec := fn.spec
 	required := 0
 	for _, a := range spec.Args {
@@ -311,59 +331,59 @@ func (fn function) check(args []argType) (rowmodel.LogicalType, error) {
 		case required != len(spec.Args):
 			want = fmt.Sprintf("%d to %d", required, len(spec.Args))
 		}
-		return "", fmt.Errorf("%s expects %s arguments, got %d", spec.Name, want, len(args))
+		return valueType{}, fmt.Errorf("%s expects %s arguments, got %d", spec.Name, want, len(args))
 	}
 	for i, arg := range args {
 		a := spec.argSpec(i)
 		if a.Column && arg.literal {
-			return "", argErrorf(i, "%s expects a column for %s, got a literal", spec.Name, a.Name)
+			return valueType{}, argErrorf(i, "%s expects a column for %s, got a literal", spec.Name, a.Name)
 		}
 		if a.Literal && !arg.literal {
-			return "", argErrorf(i, "%s expects a literal for %s, got a column", spec.Name, a.Name)
+			return valueType{}, argErrorf(i, "%s expects a literal for %s, got a column", spec.Name, a.Name)
 		}
 		if len(a.Types) > 0 && !slices.Contains(a.Types, arg.logical) {
-			return "", argErrorf(i, "%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
+			return valueType{}, argErrorf(i, "%s expects %s for %s, got %s", spec.Name, joinTypes(a.Types), a.Name, arg.logical)
 		}
 	}
-	shared := rowmodel.LogicalUnknown
+	var shared valueType
 	if spec.SameType {
 		var err error
 		if shared, err = sharedType(spec, args); err != nil {
-			return "", err
+			return valueType{}, err
 		}
 	}
 	if fn.validate != nil {
 		if err := fn.validate(args); err != nil {
-			return "", err
+			return valueType{}, err
 		}
 	}
 	if spec.ReturnsInput {
 		return shared, nil
 	}
-	return spec.Returns, nil
+	return valueType{logical: spec.Returns}, nil
 }
 
-// sharedType requires every value argument to share one logical type and at
-// least one of them to be a column, so the result always has a column's
-// shape. Parameters the spec marks Literal, such as a count of places, are
-// not values and stay out of it.
-func sharedType(spec FunctionSpec, args []argType) (rowmodel.LogicalType, error) {
-	shared := rowmodel.LogicalUnknown
+// sharedType requires every value argument to share one type, precision and
+// scale included, and at least one of them to be a column, so the result
+// always has a column's shape. Parameters the spec marks Literal, such as a
+// count of places, are not values and stay out of it.
+func sharedType(spec FunctionSpec, args []argType) (valueType, error) {
+	var shared valueType
 	for i, a := range args {
 		if !a.literal && !spec.argSpec(i).Literal {
-			shared = a.logical
+			shared = a.valueType
 			break
 		}
 	}
-	if shared == rowmodel.LogicalUnknown {
-		return "", fmt.Errorf("%s expects at least one column", spec.Name)
+	if shared.logical == rowmodel.LogicalUnknown {
+		return valueType{}, fmt.Errorf("%s expects at least one column", spec.Name)
 	}
 	for i, a := range args {
 		if spec.argSpec(i).Literal {
 			continue
 		}
-		if a.logical != shared {
-			return "", argErrorf(i, "%s expects matching types, got %s and %s", spec.Name, shared, a.logical)
+		if a.valueType != shared {
+			return valueType{}, argErrorf(i, "%s expects matching types, got %s and %s", spec.Name, shared, a.valueType)
 		}
 	}
 	return shared, nil
@@ -385,6 +405,23 @@ func validPattern(name string, index int) func([]argType) error {
 		pattern, _ := args[index].value.(string)
 		if _, err := regexp.Compile(pattern); err != nil {
 			return argErrorf(index, "%s pattern: %w", name, err)
+		}
+		return nil
+	}
+}
+
+// groupInPattern requires the optional group literal at index to name a
+// group the pattern at patternIndex has. validPattern has already run, so
+// the pattern compiles.
+func groupInPattern(name string, patternIndex, index int) func([]argType) error {
+	return func(args []argType) error {
+		if len(args) <= index {
+			return nil
+		}
+		pattern, _ := args[patternIndex].value.(string)
+		groups := regexp.MustCompile(pattern).NumSubexp()
+		if v, _ := args[index].value.(int64); int(v) > groups {
+			return argErrorf(index, "%s pattern has %d groups, asked for %d", name, groups, v)
 		}
 		return nil
 	}

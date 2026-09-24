@@ -11,9 +11,25 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/scalar"
 )
 
-// IsNull is true where the column has no value.
+// IsNull is true where the column has no value. It reads validity itself;
+// the registry's is_null lacks a kernel for some column types, decimal
+// among them.
 func IsNull(ctx context.Context, args []compute.Datum) (compute.Datum, error) {
-	return compute.CallFunction(ctx, "is_null", nil, args[0])
+	ad, ok := args[0].(*compute.ArrayDatum)
+	if !ok {
+		return nil, fmt.Errorf("is_null: expected a column, got %s", args[0])
+	}
+	a := array.MakeFromData(ad.Value)
+	defer a.Release()
+	b := array.NewBooleanBuilder(compute.GetAllocator(ctx))
+	defer b.Release()
+	b.Reserve(a.Len())
+	for i := range a.Len() {
+		b.UnsafeAppend(a.IsNull(i))
+	}
+	out := b.NewArray()
+	defer out.Release()
+	return compute.NewDatum(out), nil
 }
 
 // Coalesce takes, per row, the first argument that is not null. Arguments

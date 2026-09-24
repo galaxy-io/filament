@@ -49,11 +49,14 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	} else if schema.Resource != resource {
 		return nil, fmt.Errorf("pipeline: schema resource %q does not match builder resource %q", schema.Resource, resource)
 	}
+	if p.audit != nil && p.audit.CDCAppend {
+		schema = rowmodel.AsCDCAppendHistory(schema)
+	}
+	// The plan sees the source layout the builder emits, so its output
+	// nullability matches the DDL ensureSchema derives after the same shaping.
+	layout := schema
 	if p.audit != nil {
 		var err error
-		if p.audit.CDCAppend {
-			schema = rowmodel.AsCDCAppendHistory(schema)
-		}
 		schema, err = rowmodel.WithAuditFields(schema, p.audit.CDC)
 		if err != nil {
 			return nil, fmt.Errorf("pipeline: %w", err)
@@ -67,7 +70,7 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 		}
 		want = registered.arrow
 	} else {
-		plan, err := p.planFor(resource, supplied)
+		plan, err := p.planFor(resource, layout)
 		if err != nil {
 			return nil, err
 		}
