@@ -12,13 +12,12 @@ import type {
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalActionType {
-  SET_STREAM_RESOURCE = "SET_STREAM_RESOURCE",
-  SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
-  ADD_STREAM_RESOURCE = "ADD_STREAM_RESOURCE",
   SELECT_SOURCE = "SELECT_SOURCE",
   TOGGLE_SINK = "TOGGLE_SINK",
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
   OPEN_SINK_RESOURCES = "OPEN_SINK_RESOURCES",
+  SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
+  ADD_RESOURCE = "ADD_RESOURCE",
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
@@ -55,6 +54,16 @@ export interface SetActiveSinkAction {
 export interface OpenSinkResourcesAction {
   type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES;
   payload: Connection["id"];
+}
+
+export interface SetExecutionModeAction {
+  type: CreatePipelineModalActionType.SET_EXECUTION_MODE;
+  payload: ExecutionMode;
+}
+
+export interface AddResourceAction {
+  type: CreatePipelineModalActionType.ADD_RESOURCE;
+  payload: { sinkId: Connection["id"]; name: Resource["name"] };
 }
 
 export interface SetResourceSelectionAction {
@@ -144,18 +153,11 @@ export interface SetSubmittingAction {
 }
 
 export type CreatePipelineModalAction =
-  | {
-      type: CreatePipelineModalActionType.SET_STREAM_RESOURCE;
-      payload: { id: string; label: string; subject: string };
-    }
-  | { type: CreatePipelineModalActionType.SET_EXECUTION_MODE; payload: ExecutionMode }
-  | {
-      type: CreatePipelineModalActionType.ADD_STREAM_RESOURCE;
-      payload: { id: string; sinkId: string };
-    }
   | SelectSourceAction
   | ToggleSinkAction
   | SetActiveSinkAction
+  | SetExecutionModeAction
+  | AddResourceAction
   | OpenSinkResourcesAction
   | SetResourceSelectionAction
   | SetResourceReadModeAction

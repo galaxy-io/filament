@@ -56,18 +56,12 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
   const sinkConnection = connectionByNodeId.get(edge.target);
   const sourceConnectionId = sourceConnection?.id ?? "";
   const isCdc = sourceConnection?.replication === ReplicationMode.CDC;
+  const hasReadLevers = !isCdc && !isContinuous;
   const edgeResource = getCanvasEdgeResource(edge);
 
-  const {
-    data: discovered,
-    error: discoverError,
-    isLoading: isLoadingResources,
-  } = useDiscoverResourcesQuery({
+  const { data: discovered, isLoading: isLoadingResources } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId: sourceConnectionId }),
-    options: {
-      ...PROBE_QUERY_OPTIONS,
-      enabled: sourceConnectionId !== "" && (isContinuous || edgeResource === ""),
-    },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: sourceConnectionId !== "" && edgeResource === "" },
   });
 
   const coveredResources = useMemo<Resource["name"][]>(
@@ -91,7 +85,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: !isContinuous && sourceConnectionId !== "" && coveredResources.length > 0,
+      enabled: hasReadLevers && sourceConnectionId !== "" && coveredResources.length > 0,
     },
   });
 
@@ -171,22 +165,20 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
 
   const readModeOptions = useMemo<ReadMode[]>(() => {
     const verdict = validation?.edges[0];
-    if (!verdict || isCdc || isContinuous) return [];
+    if (!verdict || !hasReadLevers) return [];
     return intersectModes(verdict.resources.map((resource) => resource.supportedReadModes));
-  }, [validation?.edges, isCdc, isContinuous]);
+  }, [validation?.edges, hasReadLevers]);
 
   const verdict = validation?.edges[0];
 
   const isLoading =
     isLoadingValidation ||
     (edgeResource === "" && isLoadingResources) ||
-    (!isContinuous && coveredResources.length > 0 && isPendingColumns && !isErrorColumns);
+    (hasReadLevers && coveredResources.length > 0 && isPendingColumns && !isErrorColumns);
 
   return {
-    discoveredResources: discovered?.resources ?? [],
-    discoverError,
     isContinuous,
-    isCdc,
+    hasReadLevers,
     isLoading,
     coveredResources,
     readModeOptions,

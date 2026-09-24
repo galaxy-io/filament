@@ -1,10 +1,10 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleIcon, InfinityIcon, StackIcon } from "@phosphor-icons/react";
 
 import { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
 import {
   CreatePipelineModalStep,
@@ -110,6 +110,30 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalS
   [CreatePipelineModalStep.RESOURCES]: "Select at least one resource",
   [CreatePipelineModalStep.DELIVERY]: "Complete the schedule to continue",
   [CreatePipelineModalStep.DETAILS]: "Enter a valid pipeline name",
+};
+
+export const CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT =
+  "These connections have no execution type in common";
+
+export const CREATE_PIPELINE_MODAL_EXECUTION_MODE_TILE_SIZE = 32;
+export const CREATE_PIPELINE_MODAL_EXECUTION_MODE_ICON_SIZE = 16;
+
+export const EXECUTION_MODE_TO_ICON_MAP: Record<ExecutionMode, PhosphorIcon> = {
+  [ExecutionMode.UNSPECIFIED]: CircleIcon,
+  [ExecutionMode.BOUNDED]: StackIcon,
+  [ExecutionMode.CONTINUOUS]: InfinityIcon,
+};
+
+export const EXECUTION_MODE_TO_LABEL_MAP: Record<ExecutionMode, string> = {
+  [ExecutionMode.UNSPECIFIED]: "Unknown",
+  [ExecutionMode.BOUNDED]: "Batch",
+  [ExecutionMode.CONTINUOUS]: "Continuous",
+};
+
+export const EXECUTION_MODE_TO_DESCRIPTION_MAP: Record<ExecutionMode, string> = {
+  [ExecutionMode.UNSPECIFIED]: "",
+  [ExecutionMode.BOUNDED]: "Finish after reading the available data.",
+  [ExecutionMode.CONTINUOUS]: "Keep listening for data until stopped.",
 };
 
 export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {

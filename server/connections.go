@@ -223,14 +223,21 @@ func (a *Server) connectionForResponse(conn filament.Connection) *ingestionv1.Co
 		canonicalizeConnectionConfig(schema, conn.Config, cloneStrings(conn.SecretRefs))
 	}
 	out := connectionToProto(conn)
-	if conn.Kind != filament.ConnectorKindSource {
-		return out
+	switch conn.Kind {
+	case filament.ConnectorKindSource:
+		source, err := a.sources.Resolve(conn.Connector)
+		if err != nil {
+			return out
+		}
+		out.Replication = replicationToProto(filament.ReplicationOf(source, filament.NewConfig(conn.Config)))
+		out.ExecutionModes = a.sourceExecutionModes(source)
+	case filament.ConnectorKindSink:
+		sink, err := a.sinks.Resolve(conn.Connector)
+		if err != nil {
+			return out
+		}
+		out.ExecutionModes = a.sinkExecutionModes(sink)
 	}
-	source, err := a.sources.Resolve(conn.Connector)
-	if err != nil {
-		return out
-	}
-	out.Replication = replicationToProto(filament.ReplicationOf(source, filament.NewConfig(conn.Config)))
 	return out
 }
 

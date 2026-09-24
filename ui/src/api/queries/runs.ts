@@ -28,7 +28,7 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { isContinuousRunActive } from "@/pages/pipelines/streaming";
+import { isContinuousRunActive } from "@/pages/pipelines/utils";
 
 import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";

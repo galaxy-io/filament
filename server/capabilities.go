@@ -615,16 +615,13 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 
 func (a *Server) edgeExecutionModes(source filament.Source, sink filament.Sink, mode ingestionv1.ExecutionMode, ev *ingestionv1.EdgeValidation) bool {
 	ev.EffectiveExecutionMode = mode
-	ev.SupportedExecutionModes = []ingestionv1.ExecutionMode{ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED}
-	if len(source.Spec().SourcePolicies) == 0 && source.Spec().Stream != nil {
-		ev.SupportedExecutionModes = nil
+	for _, candidate := range a.sourceExecutionModes(source) {
+		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && filament.ValidateContinuousConnectors(source, sink) != nil {
+			continue
+		}
+		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, candidate)
 	}
-	_, runtimeSupported := a.store.(filament.ContinuousRunStore)
-	_, planningSupported := source.(filament.ReplicationStreamPlanner)
-	if runtimeSupported && planningSupported && filament.ValidateContinuousConnectors(source, sink) == nil {
-		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
-	}
-	return runtimeSupported
+	return a.continuousSupported()
 }
 
 func edgeNodes(edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, resp *ingestionv1.ValidatePipelineResponse) (*ingestionv1.PipelineNode, *ingestionv1.PipelineNode) {

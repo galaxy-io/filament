@@ -1,12 +1,10 @@
-import { useState } from "react";
-
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
-import Button from "@galaxy-io/dls/buttons/Button";
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
@@ -29,15 +27,14 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
+import {
+  getCanvasEdgeResourceLabel,
+  getDefaultDestinationResource,
+} from "@/pages/pipelines/canvas/utils";
 import {
   READ_MODE_TO_LABEL_MAP,
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
-import StreamResourcesTable, {
-  type StreamResourceRow,
-} from "@/pages/pipelines/components/StreamResourcesTable";
-import { streamResourceLabel } from "@/pages/pipelines/streaming";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -52,10 +49,8 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const resource = getCanvasEdgeResource(edge);
 
   const {
-    isCdc,
     isContinuous,
-    discoveredResources,
-    discoverError,
+    hasReadLevers,
     isLoading,
     coveredResources,
     readModeOptions,
@@ -71,58 +66,6 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     coveredResources.length,
   );
 
-  const routeEdges = edges.filter(
-    (candidate) => candidate.source === edge.source && candidate.target === edge.target,
-  );
-  const [resourceDraft, setResourceDraft] = useState<StreamResourceRow[] | null>(null);
-  const initialRows: StreamResourceRow[] = routeEdges
-    .filter((candidate) => getCanvasEdgeResource(candidate))
-    .map((candidate) => ({
-      id: candidate.id,
-      subject: getCanvasEdgeResource(candidate),
-      label:
-        candidate.data?.destinationResource ||
-        streamResourceLabel(getCanvasEdgeResource(candidate)),
-      selected: true,
-    }));
-  for (const discovered of discoveredResources) {
-    if (discovered.isSelectable && !initialRows.some((row) => row.subject === discovered.name))
-      initialRows.push({
-        id: `discovered:${discovered.name}`,
-        label: streamResourceLabel(discovered.name),
-        subject: discovered.name,
-        selected: false,
-      });
-  }
-  const resourceRows = resourceDraft ?? initialRows;
-  const selectedRows = resourceRows.filter((row) => row.selected);
-  const invalidResources =
-    !selectedRows.length ||
-    selectedRows.some((row) => !row.label.trim() || !row.subject.trim()) ||
-    new Set(selectedRows.map((row) => row.label.trim())).size !== selectedRows.length ||
-    new Set(selectedRows.map((row) => row.subject.trim())).size !== selectedRows.length;
-  const applyResources = () => {
-    if (invalidResources) return;
-    applyEdgeChanges([
-      ...routeEdges.map((candidate) => ({ type: "remove" as const, id: candidate.id })),
-      ...selectedRows.map((row) => ({
-        type: "add" as const,
-        item: {
-          ...edge,
-          id: `${edge.source}|${row.subject.trim()}|${edge.target}`,
-          sourceHandle: row.subject.trim(),
-          data: {
-            destinationResource: row.label.trim(),
-            readMode: ReadMode.UNSPECIFIED,
-            writeMode: edge.data?.writeMode || effectiveWriteMode || WriteMode.APPEND,
-            cursors: [],
-          },
-        },
-      })),
-    ]);
-    clearSelection();
-  };
-
   const configuredReadMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
   const configuredWriteMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
   const readMode =
@@ -130,6 +73,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const writeMode =
     configuredWriteMode === WriteMode.UNSPECIFIED ? effectiveWriteMode : configuredWriteMode;
   const cursors = edge.data?.cursors ?? [];
+  const destinationResource = edge.data?.destinationResource ?? "";
 
   const buildRecommendedCursors = () =>
     coveredResources
@@ -181,6 +125,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         }),
       ],
     });
+
+  const handleDestinationChange = (value: string) =>
+    setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value.trim() });
 
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
@@ -245,45 +192,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           padding="12px"
         >
           <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            {isContinuous && (
-              <>
-                {discoverError && (
-                  <Text>Discovery is unavailable. Add subjects or topics manually.</Text>
-                )}
-                <StreamResourcesTable
-                  rows={resourceRows}
-                  onChange={(row) =>
-                    setResourceDraft(
-                      resourceRows.map((candidate) => (candidate.id === row.id ? row : candidate)),
-                    )
-                  }
-                  onSelection={(selection) =>
-                    setResourceDraft(
-                      resourceRows.map((row) => ({ ...row, selected: !!selection[row.id] })),
-                    )
-                  }
-                  onAdd={() =>
-                    setResourceDraft([
-                      ...resourceRows,
-                      { id: crypto.randomUUID(), label: "", subject: "", selected: true },
-                    ])
-                  }
-                  isDisabled={isReadOnly}
-                />
-                <Text>Changes take effect after stopping the stream and starting a new run.</Text>
-                {resourceDraft && invalidResources && (
-                  <Text>
-                    Select at least one resource with a unique, non-empty label and subject/topic.
-                  </Text>
-                )}
-                <Button
-                  label="Apply resources"
-                  onClick={applyResources}
-                  isDisabled={isReadOnly || invalidResources || resourceDraft === null}
-                />
-              </>
-            )}
-            {!isCdc && !isContinuous && (
+            {hasReadLevers && (
               <SelectInput
                 label="Read mode"
                 options={readModeSelectOptions}
@@ -307,7 +216,19 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               isDisabled={isReadOnly || isLoading}
               fillWidth
             />
-            {!isContinuous &&
+            {isContinuous && isNamedResource && (
+              <TextInput
+                label="Destination"
+                value={destinationResource}
+                onChange={handleDestinationChange}
+                placeholder={getDefaultDestinationResource(resource)}
+                variant={InputVariant.TERTIARY}
+                size={InputSize.LARGE}
+                isDisabled={isReadOnly}
+                fillWidth
+              />
+            )}
+            {hasReadLevers &&
               readMode === ReadMode.INCREMENTAL &&
               coveredResources.map((resourceName) => (
                 <PipelineCanvasPanelResourceCursorField

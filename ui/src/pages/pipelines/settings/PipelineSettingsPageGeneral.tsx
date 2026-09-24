@@ -13,11 +13,9 @@ import FlexWrapper, {
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
   GetPipelineRequestSchema,
   type Pipeline,
@@ -110,10 +108,6 @@ const PipelineSettingsPageGeneral = () => {
   return (
     <Accordion header="General" isOpenInitial>
       <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-        <Text>
-          Execution:{" "}
-          {pipeline.executionMode === ExecutionMode.CONTINUOUS ? "Continuous" : "Bounded"}
-        </Text>
         <TextInput
           value={state.name}
           onChange={handleNameChange}

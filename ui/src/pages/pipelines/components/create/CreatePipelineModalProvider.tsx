@@ -3,21 +3,18 @@ import {
   type Dispatch,
   type PropsWithChildren,
   useContext,
-  useEffect,
   useMemo,
   useReducer,
 } from "react";
 
 import { match } from "ts-pattern";
 
-import { ExecutionMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
+import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
-  type CreatePipelineModalAction,
-  CreatePipelineModalActionType,
-} from "@/pages/pipelines/components/create/actions";
-import {
+  CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
 } from "@/pages/pipelines/components/create/constants";
@@ -37,10 +34,11 @@ import {
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { PipelineScheduleFrequency } from "@/pages/pipelines/settings/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
 const DEFAULT_STATE: CreatePipelineModalState = {
   executionMode: ExecutionMode.BOUNDED,
-  manualStreamResources: [],
+  manualResources: [],
   step: CreatePipelineModalStep.CONNECTIONS,
   activeSinkId: "",
   sourceConnection: null,
@@ -92,46 +90,24 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
   const [state, dispatch] = useReducer(createPipelineModalReducer, DEFAULT_STATE);
 
   const {
-    supportedExecutionModes,
-    executionModeError,
     rowsBySink,
     sinks,
     replication,
-    isCdc,
+    hasReadLevers,
     issuesBySink,
     selectedCountBySink,
     isLoading,
+    isValidating,
     discoverError,
   } = useCreatePipelineResources(state);
 
-  useEffect(() => {
-    if (
-      supportedExecutionModes?.length === 1 &&
-      supportedExecutionModes[0] !== state.executionMode
-    ) {
-      dispatch({
-        type: CreatePipelineModalActionType.SET_EXECUTION_MODE,
-        payload: supportedExecutionModes[0],
-      });
-    }
-  }, [supportedExecutionModes, state.executionMode]);
-
-  useEffect(() => {
-    if (state.executionMode !== ExecutionMode.CONTINUOUS) return;
-    for (const sink of sinks) {
-      if (
-        sink.writeMode !== WriteMode.UNSPECIFIED &&
-        state.sinkWriteModes[sink.connection.id] !== sink.writeMode
-      ) {
-        dispatch({
-          type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE,
-          payload: { sinkId: sink.connection.id, writeMode: sink.writeMode },
-        });
-      }
-    }
-  }, [sinks, state.executionMode, state.sinkWriteModes]);
-
   const value = useMemo<CreatePipelineModalContextValue>(() => {
+    const supportedExecutionModes = getSupportedExecutionModes(
+      state.sourceConnection,
+      state.sinkConnections,
+    );
+    const isContinuous = state.executionMode === ExecutionMode.CONTINUOUS;
+
     const blockingMessages = sinks.flatMap((sink) =>
       (issuesBySink[sink.connection.id] ?? []).map((message) =>
         sinks.length > 1 ? `[Sink: ${sink.connection.name}] ${message}` : message,
@@ -143,15 +119,14 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       : getDefaultPipelineName(state.sourceConnection, state.sinkConnections);
 
     const isScheduleValid =
-      !state.schedule.isEnabled || formatPipelineScheduleSummary(state.schedule) !== null;
+      isContinuous ||
+      !state.schedule.isEnabled ||
+      formatPipelineScheduleSummary(state.schedule) !== null;
     const isNotifiersValid = state.notifiers.every(isPipelineNotifierValid);
     const workerConfigurationError = parseWorkerConfiguration(state.workerConfiguration).error;
     const isConnectionsValid =
-      !!state.sourceConnection &&
-      state.sinkConnections.length > 0 &&
-      !isLoading &&
-      !executionModeError;
-    const isResourcesValid = !isLoading && !blockingMessages.length;
+      state.sinkConnections.length > 0 && supportedExecutionModes.length > 0;
+    const isResourcesValid = !isValidating && !blockingMessages.length;
 
     const isNextDisabled = match(state.step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => !isConnectionsValid)
@@ -172,26 +147,29 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       : (sinks[0]?.connection.id ?? "");
 
     const stepIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(state.step);
-    const blockingHints = executionModeError
-      ? [executionModeError]
-      : blockingMessages.length
-        ? blockingMessages
-        : state.step === CreatePipelineModalStep.DELIVERY && isScheduleValid && !isNotifiersValid
-          ? ["Complete the notifiers to continue"]
-          : state.step === CreatePipelineModalStep.DELIVERY &&
-              isScheduleValid &&
-              workerConfigurationError
-            ? ["Fix the worker configuration to continue"]
-            : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
+    const blockingHints =
+      state.step === CreatePipelineModalStep.CONNECTIONS &&
+      state.sourceConnection &&
+      state.sinkConnections.length > 0
+        ? [CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT]
+        : blockingMessages.length
+          ? blockingMessages
+          : state.step === CreatePipelineModalStep.DELIVERY && isScheduleValid && !isNotifiersValid
+            ? ["Complete the notifiers to continue"]
+            : state.step === CreatePipelineModalStep.DELIVERY &&
+                isScheduleValid &&
+                workerConfigurationError
+              ? ["Fix the worker configuration to continue"]
+              : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
 
     return {
       ...state,
       supportedExecutionModes,
+      hasReadLevers,
       activeSinkId,
       rowsBySink,
       sinks,
       replication,
-      isCdc,
       issuesBySink,
       selectedCountBySink,
       isLoading,
@@ -206,16 +184,15 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       isLastStep: stepIndex === CREATE_PIPELINE_MODAL_STEP_ORDER.length - 1,
     };
   }, [
-    supportedExecutionModes,
-    executionModeError,
     state,
     rowsBySink,
     sinks,
     replication,
-    isCdc,
+    hasReadLevers,
     issuesBySink,
     selectedCountBySink,
     isLoading,
+    isValidating,
     discoverError,
   ]);
 

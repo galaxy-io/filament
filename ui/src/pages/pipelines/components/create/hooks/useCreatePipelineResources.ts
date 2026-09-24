@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
+import { keepPreviousData } from "@tanstack/react-query";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import {
@@ -10,6 +11,7 @@ import {
   ReplicationMode,
   WriteMode,
 } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
@@ -27,9 +29,10 @@ import {
   buildSinkRows,
   getIssuesBySink,
   getSelectedCountBySink,
+  isResourceSelected,
 } from "@/pages/pipelines/components/create/rows";
 import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
-import { commonExecutionModes, streamResourceLabel } from "@/pages/pipelines/streaming";
+import { getEdgeValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
@@ -41,10 +44,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const replication = source?.replication ?? ReplicationMode.UNSPECIFIED;
   const isCdc = replication === ReplicationMode.CDC;
   const isContinuous = state.executionMode === ExecutionMode.CONTINUOUS;
-  const explicitNames = useMemo(
-    () => (isContinuous ? state.manualStreamResources : []),
-    [state.manualStreamResources, isContinuous],
-  );
+  const hasReadLevers = !isCdc && !isContinuous;
 
   const {
     data: discovered,
@@ -56,28 +56,13 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   });
 
   const resources = useMemo(
-    () =>
-      isContinuous
-        ? [
-            ...(discovered?.resources ?? [])
-              .filter((r) => r.isSelectable && !explicitNames.includes(r.name))
-              .map((r) =>
-                create(ResourceSchema, {
-                  ...r,
-                  metadata: { ...r.metadata, default_resources: "false" },
-                }),
-              ),
-            ...explicitNames.map((name) =>
-              create(ResourceSchema, {
-                name,
-                displayName: name,
-                isSelectable: true,
-                metadata: { default_resources: "false" },
-              }),
-            ),
-          ]
-        : (discovered?.resources ?? []),
-    [discovered?.resources, explicitNames, isContinuous],
+    () => [
+      ...(discovered?.resources ?? []),
+      ...state.manualResources.map((name) =>
+        create(ResourceSchema, { name, displayName: name, isSelectable: true }),
+      ),
+    ],
+    [discovered?.resources, state.manualResources],
   );
   const resourceNames = useMemo(() => resources.map((resource) => resource.name), [resources]);
 
@@ -89,104 +74,79 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: !isContinuous && connectionId !== "" && resourceNames.length > 0,
+      enabled: hasReadLevers && connectionId !== "" && resourceNames.length > 0,
     },
   });
 
-  const validationInput = useMemo(
-    () =>
-      create(ValidatePipelineRequestSchema, {
-        executionMode: state.executionMode,
-        graph: create(PipelineGraphSchema, {
-          nodes: source
-            ? [
-                create(PipelineNodeSchema, {
-                  id: source.id,
-                  kind: ConnectorKind.SOURCE,
-                  connectionId: source.id,
-                  config: state.nodeConfigs[source.id],
-                }),
-                ...state.sinkConnections.map((sink) =>
-                  create(PipelineNodeSchema, {
-                    id: sink.id,
-                    kind: ConnectorKind.SINK,
-                    connectionId: sink.id,
-                    config: state.nodeConfigs[sink.id],
-                  }),
-                ),
-              ]
-            : [],
-          edges: source
-            ? state.sinkConnections.flatMap((sink) =>
-                (isContinuous
-                  ? (() => {
-                      const selected = resourceNames.filter(
-                        (name) => state.resourceSelection[sink.id]?.[name] === true,
-                      );
-                      return selected.length ? selected : [""];
-                    })()
-                  : [""]
-                ).map((resource) =>
-                  create(PipelineEdgeSchema, {
-                    resource: isContinuous
-                      ? (state.streamResourceEdits?.[resource]?.subject ?? resource).trim()
-                      : resource,
-                    destinationResource: isContinuous
-                      ? (
-                          state.streamResourceEdits?.[resource]?.label ??
-                          streamResourceLabel(resource)
-                        ).trim()
-                      : undefined,
-                    fromNode: source.id,
-                    toNode: sink.id,
-                    readMode: isCdc || isContinuous ? ReadMode.UNSPECIFIED : ReadMode.FULL,
-                    writeMode:
-                      isCdc || isContinuous
-                        ? (state.sinkWriteModes[sink.id] ?? WriteMode.APPEND)
-                        : (state.sinkWriteModes[sink.id] ??
-                          CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE),
-                  }),
-                ),
-              )
-            : [],
+  const { sinkConnections, sinkWriteModes, nodeConfigs, resourceSelection, executionMode } = state;
+  const validationInput = useMemo(() => {
+    const buildSinkEdges = (sink: Connection) => {
+      const writeMode =
+        sinkWriteModes[sink.id] ??
+        (hasReadLevers ? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE : WriteMode.APPEND);
+      const selected = isContinuous
+        ? resources.filter((resource) => isResourceSelected(resourceSelection[sink.id], resource))
+        : [];
+      const edgeResources = selected.length ? selected.map((resource) => resource.name) : [""];
+      return edgeResources.map((resource) =>
+        create(PipelineEdgeSchema, {
+          fromNode: source?.id,
+          toNode: sink.id,
+          resource,
+          readMode: hasReadLevers ? ReadMode.FULL : ReadMode.UNSPECIFIED,
+          writeMode,
         }),
+      );
+    };
+    return create(ValidatePipelineRequestSchema, {
+      executionMode,
+      graph: create(PipelineGraphSchema, {
+        nodes: source
+          ? [
+              create(PipelineNodeSchema, {
+                id: source.id,
+                kind: ConnectorKind.SOURCE,
+                connectionId: source.id,
+                config: nodeConfigs[source.id],
+              }),
+              ...sinkConnections.map((sink) =>
+                create(PipelineNodeSchema, {
+                  id: sink.id,
+                  kind: ConnectorKind.SINK,
+                  connectionId: sink.id,
+                  config: nodeConfigs[sink.id],
+                }),
+              ),
+            ]
+          : [],
+        edges: source ? sinkConnections.flatMap(buildSinkEdges) : [],
       }),
-    [
-      source,
-      state.sinkConnections,
-      state.sinkWriteModes,
-      state.executionMode,
-      state.nodeConfigs,
-      state.resourceSelection,
-      state.streamResourceEdits,
-      resourceNames,
-      isCdc,
-      isContinuous,
-    ],
-  );
+    });
+  }, [
+    source,
+    sinkConnections,
+    sinkWriteModes,
+    nodeConfigs,
+    resourceSelection,
+    executionMode,
+    resources,
+    hasReadLevers,
+    isContinuous,
+  ]);
 
   const {
     data: validation,
-    isFetching: isLoadingValidation,
+    isLoading: isLoadingValidation,
+    isFetching: isValidating,
     error: validationError,
   } = useValidatePipelineQuery({
     input: validationInput,
     options: {
       ...PROBE_QUERY_OPTIONS,
+      placeholderData: keepPreviousData,
       enabled: connectionId !== "" && state.sinkConnections.length > 0,
     },
   });
-
-  const supportedExecutionModes = useMemo(
-    () => commonExecutionModes(validation?.edges ?? []),
-    [validation?.edges],
-  );
-  const executionModeError =
-    supportedExecutionModes && !supportedExecutionModes.includes(state.executionMode)
-      ? supportedExecutionModes.length
-        ? "Select an execution mode supported by all selected connections"
-        : "These connections have no compatible execution mode available on this server"
-      : undefined;
 
   const supportedReadModesBySink = useMemo(
     () =>
@@ -212,82 +172,62 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const isLoading =
     isLoadingResources ||
     isLoadingValidation ||
-    (!isContinuous && resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
+    (hasReadLevers && resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
 
   const rowsBySink = useMemo(
     () =>
-      buildResourceRowsBySink({
-        state,
-        resources,
-        columns,
-        supportedReadModesBySink,
-        isCdc,
-      }),
-    [state, resources, columns, supportedReadModesBySink, isCdc],
+      isLoading
+        ? {}
+        : buildResourceRowsBySink({
+            state,
+            resources,
+            columns,
+            supportedReadModesBySink,
+            hasReadLevers,
+          }),
+    [isLoading, state, resources, columns, supportedReadModesBySink, hasReadLevers],
   );
 
   const sinks = useMemo(
-    () => buildSinkRows({ state, rowsBySink, isCdc, supportedWriteModesBySink }),
-    [state, rowsBySink, isCdc, supportedWriteModesBySink],
+    () => buildSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
+    [state, rowsBySink, hasReadLevers, supportedWriteModesBySink],
   );
 
   const issuesBySink = useMemo(() => {
-    if (!isContinuous && (isLoading || discoverError)) return {};
-    if (executionModeError) {
-      return Object.fromEntries(sinks.map((sink) => [sink.connection.id, [executionModeError]]));
-    }
+    if (isLoading || discoverError) return {};
     const issues = getIssuesBySink(rowsBySink, sinks);
-    if (isContinuous) {
-      for (const sink of sinks) {
-        const errors = [
-          ...(validationError ? [validationError.message] : []),
-          ...(validation?.errors ?? []).map((error) => error.message),
-          ...(validation?.edges ?? [])
-            .filter((edge) => edge.toNode === sink.connection.id)
-            .flatMap((edge) => [
-              ...edge.errors.map((error) => error.message),
-              ...edge.requirements
-                .filter((requirement) => requirement.blocking)
-                .map((requirement) => requirement.message),
-            ]),
-        ];
-        const selected = (rowsBySink[sink.connection.id] ?? []).filter((row) => row.isSelected);
-        if (selected.some((row) => !row.subject?.trim() || !row.destinationResource?.trim()))
-          errors.push("Selected resources need a label and subject/topic");
-        if (new Set(selected.map((row) => row.subject?.trim())).size !== selected.length)
-          errors.push("Each selected subject/topic must be unique");
-        if (
-          new Set(selected.map((row) => row.destinationResource?.trim())).size !== selected.length
-        )
-          errors.push("Each destination label must be unique");
-        issues[sink.connection.id] = [
-          ...new Set([...(issues[sink.connection.id] ?? []), ...errors]),
-        ];
-      }
-    }
-    return issues;
-  }, [
-    rowsBySink,
-    sinks,
-    isContinuous,
-    validation,
-    validationError,
-    isLoading,
-    discoverError,
-    executionModeError,
-  ]);
+    if (!isContinuous) return issues;
+    const graphErrors = [
+      ...(validationError ? [validationError.message] : []),
+      ...(validation?.errors ?? []).map((error) => error.message),
+    ];
+    return Object.fromEntries(
+      sinks.map((sink) => {
+        const sinkId = sink.connection.id;
+        const hasSelection = (rowsBySink[sinkId] ?? []).some((row) => row.isSelected);
+        const edgeErrors = hasSelection
+          ? [
+              ...graphErrors,
+              ...(validation?.edges ?? [])
+                .filter((edge) => edge.toNode === sinkId)
+                .flatMap(getEdgeValidationErrors),
+            ]
+          : [];
+        return [sinkId, [...new Set([...(issues[sinkId] ?? []), ...edgeErrors])]];
+      }),
+    );
+  }, [rowsBySink, sinks, isContinuous, validation, validationError, isLoading, discoverError]);
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
 
   return {
-    supportedExecutionModes,
-    executionModeError,
     rowsBySink,
     sinks,
     replication,
-    isCdc,
+    hasReadLevers,
     issuesBySink,
     selectedCountBySink,
     isLoading,
+    isValidating,
     discoverError,
   };
 };
