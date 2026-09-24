@@ -1,0 +1,98 @@
+---
+title: "Novada"
+description: "Read proxy balances, scraping prices, usage reports, tasks, and request logs from Novada"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-novada-dark.svg"
+---
+
+The Novada source reads proxy balances and scraping reports, prices, and task
+metadata. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. Balances, prices, usage reports, and task pagination have been checked
+with a live account. Request logs have not been tested with live access.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Novada API key. |
+| `start_time` | Pipeline | | Required for `scraping_usage`. Report start as `YYYY-MM-DD HH:mm:ss`. |
+| `end_time` | Pipeline | | Required for `scraping_usage`. Report end in the same format. |
+
+Create a key under **Dashboard → Account Settings → My account → API Key**.
+The key reads the products available to your account. See
+[Novada's authentication guide](https://developer-api.novada.com/getting-started/authentication)
+for setup details. Token exchange is not required.
+
+Set both date fields when selecting `scraping_usage`. Novada does not specify
+the report timezone in its API
+reference, so use the dates shown in your Novada account.
+
+Connection testing makes one request to the residential balance endpoint.
+Request logs require additional permission from Novada support. A selected
+resource without access fails the read.
+
+## Resources
+
+| Resource | Endpoint | Modes |
+|---|---|---|
+| `residential_balance` | `POST /v1/residential_flow/balance` | Full |
+| `isp_balance` | `POST /v1/isp_flow/balance` | Full |
+| `datacenter_balance` | `POST /v1/dc_flow/balance` | Full |
+| `scraping_prices` | `POST /v1/capture/unit` | Full |
+| `scraper_tasks` | `POST /v1/scraper/task_list` | Full |
+| `scraping_usage` | `POST /v1/capture/all_logs` | Full |
+| `scraper_request_logs` | `POST /v1/capture/request_log` | Full |
+| `unblocker_request_logs` | `POST /v1/capture/request_log` | Full |
+
+Balances, prices, and tasks are selected by default. Usage reports and request
+logs are optional. No resource depends on another.
+
+Each balance resource returns one snapshot, with the remaining traffic in
+bytes. `scraping_prices` returns one snapshot with nested `scraper` and
+`unblocker` price arrays stored as JSON.
+
+`scraper_tasks` returns one row per task, keyed by `task_id`, with status,
+counts, timestamps, and costs. Request logs return one row per request, keyed
+by `request_id`. Each log resource filters to its corresponding product.
+Request parameters and API key information may appear in the returned data.
+
+`scraping_usage` returns one row for the configured date window. Its `report`
+JSON column preserves the complete response data, including totals and nested
+period entries. See [Novada's reporting reference](https://developer-api.novada.com/scraping-solutions/universal).
+
+The `raw` column keeps fields that are not mapped to their own columns.
+
+Not included: proxy users, IP inventories, whitelists, wallet records,
+geography dictionaries, mobile balances, and proxy consumption logs. The
+source does not create scraping jobs, download task results, purchase proxies,
+or run browser sessions.
+
+## Modes
+
+All resources support full reads. Use **full replace** for balance, price,
+and usage snapshots, which have no primary key. Use **full append** to retain
+successive snapshots, or **full upsert** for tasks and request logs keyed by
+ID. Full replacement also removes rows that Novada no longer returns.
+
+Incremental reads are not supported. Tasks and request logs have no documented
+update filter. Usage date filters select reporting periods and could miss
+later corrections if used as an update cursor. Each read requests the configured
+usage window and all available pages of the selected tasks and request logs.
+
+## Behavior
+
+- **Auth**: every request uses `api_key` as a bearer token against
+  `https://api-m.novada.com`. Parameterized reads use multipart form bodies.
+- **Pagination**: tasks request 100 rows per page and request logs request 10.
+  Pages start at 1, and a short or empty page ends the read. Balance, price,
+  and usage snapshots do not use pagination.
+- **Recovery**: interrupted top-level reads can resume from a saved page
+  checkpoint. If that request fails, the read restarts from the beginning.
+- **Errors**: nonzero response `code` values fail extraction and connection
+  testing, including errors returned with HTTP 200.
+- **Rate limiting**: Filament retries HTTP 429 and server errors. Novada does
+  not publish a numerical quota in the reviewed reference. Business-code
+  errors remain failures.
+- **Timestamps**: task timestamps and balance expiry values retain their
+  upstream integer format. Novada does not document the balance expiry unit.
+- **Availability**: history depends on Novada's account visibility and retention.
