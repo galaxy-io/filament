@@ -13,14 +13,25 @@ remains an individual NATS message.
 | Field | Scope | Required | Description |
 |---|---|---|---|
 | `url` | Connection | Yes | NATS server URL; use `tls://` for TLS |
-| `token` | Connection | No | Authentication token; mutually exclusive with `credentials_file` |
-| `credentials_file` | Connection | No | NATS credentials file available on every worker |
+| `auth_mode` | Connection | No | `none` (default), `user_password`, `jwt`, or `token`; shows only the selected method’s fields |
+| `username` | Connection | No | Username; supply with `password` |
+| `password` | Connection | No | Secret password; supply with `username` |
+| `jwt` | Connection | No | Secret NATS user JWT; supply with `nkey_seed` |
+| `nkey_seed` | Connection | No | Secret private user NKey seed matching the JWT |
+| `token` | Connection | No | Secret authentication token |
 | `stream` | Pipeline | Yes | Destination stream name: letters, digits, `-` and `_`, no dots. `{resource}` expands to the destination resource name |
 | `subject` | Pipeline | Yes | Publish subject. `{resource}` expands to the destination resource name |
 | `create_stream` | Pipeline | No | Create a missing stream; default `true` |
 | `publish_timeout` | Pipeline | No | Positive duration from each publish submission to its acknowledgment; default `5s` |
 | `max_in_flight` | Pipeline | No | Maximum outstanding messages, from 1 through 65,536; default `1024` |
 | `max_in_flight_bytes` | Pipeline | No | Maximum outstanding message bytes; positive integer, default `16777216` (16 MiB) |
+
+Source and sink connections share these authentication settings. Choose only one
+method: username/password, JWT/NKey seed, or token. Select `none` for an unauthenticated server. Selected authentication fields are required.
+An omitted `auth_mode` means no authentication; credentials require an explicit mode. JWT authentication
+uses the seed to sign the server challenge; a JWT alone is insufficient.
+Username/password and JWT/seed require no files mounted on workers. Passwords,
+JWTs, seeds, and tokens use Filament’s secret storage.
 
 Both `stream` and `subject` are templates. The `{resource}` placeholder, or
 its Go template spelling `{{resource}}`, is replaced with the destination

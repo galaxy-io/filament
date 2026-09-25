@@ -52,3 +52,27 @@ func TestConsumerBindingValidation(t *testing.T) {
 		t.Fatal("explicit consumer accepted managed delivery contract")
 	}
 }
+
+func TestConsumerProgress(t *testing.T) {
+	for _, tc := range []struct {
+		name                                 string
+		committed, initial, stream, consumer uint64
+		wantErr                              bool
+	}{
+		{name: "new consumer on retained input", initial: 4, stream: 4},
+		{name: "older server starts at zero", initial: 4},
+		{name: "uncertified acknowledgement", initial: 4, stream: 5, consumer: 1, wantErr: true},
+		{name: "retention cannot hide acknowledgement", initial: 9, stream: 5, consumer: 1, wantErr: true},
+		{name: "starting floor cannot advance", initial: 4, stream: 6, wantErr: true},
+		{name: "explicit consumer has no bootstrap floor", stream: 4, wantErr: true},
+		{name: "certified acknowledgement", committed: 5, initial: 4, stream: 5, consumer: 1},
+		{name: "resume cannot bootstrap", committed: 3, initial: 4, stream: 4, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			info := &jetstream.ConsumerInfo{AckFloor: jetstream.SequenceInfo{Stream: tc.stream, Consumer: tc.consumer}}
+			if err := validateConsumerProgress(info, tc.committed, tc.initial); (err != nil) != tc.wantErr {
+				t.Fatalf("validateConsumerProgress: %v, want error=%v", err, tc.wantErr)
+			}
+		})
+	}
+}

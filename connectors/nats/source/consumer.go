@@ -81,3 +81,16 @@ func validateExistingConsumer(c jetstream.ConsumerConfig, name string) error {
 	}
 	return nil
 }
+
+// initialFloor is captured only for managed consumers with no certified progress.
+// It is not a checkpoint: any actual acknowledgement ahead of committed still
+// fails, even if retention has since removed the acknowledged message.
+func validateConsumerProgress(info *jetstream.ConsumerInfo, committed, initialFloor uint64) error {
+	if info.AckFloor.Stream <= committed {
+		return nil
+	}
+	if committed == 0 && info.AckFloor.Consumer == 0 && info.AckFloor.Stream <= initialFloor {
+		return nil
+	}
+	return errors.New("nats: consumer acknowledged beyond certified progress")
+}

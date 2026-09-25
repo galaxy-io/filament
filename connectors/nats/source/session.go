@@ -25,6 +25,7 @@ type session struct {
 	domain                   filament.DomainKey
 	created, consumerCreated time.Time
 	committed                uint64
+	initialFloor             uint64
 	scanFloor                uint64
 	codecs                   *streamkit.Registry
 	writer                   arrowbatch.RowWriter
@@ -59,8 +60,8 @@ func (s *session) authority(ctx context.Context) error {
 	if err := s.binding.validateConsumer(ci.Config); err != nil {
 		return err
 	}
-	if ci.AckFloor.Stream > s.committed {
-		return errors.New("nats: consumer acknowledged beyond certified progress")
+	if err := validateConsumerProgress(ci, s.committed, s.initialFloor); err != nil {
+		return err
 	}
 	if !si.Created.Equal(s.created) || !ci.Created.Equal(s.consumerCreated) {
 		return filament.ErrPositionIncomparable
