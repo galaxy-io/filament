@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -97,6 +98,7 @@ display_name: Example API
 description: Example connector used to verify manifest-owned catalog metadata.
 dark_logo_url: https://cdn.example.com/example-dark.svg
 light_logo_url: https://cdn.example.com/example-light.svg
+api_version: "2024-01-01"
 connection:
   base_url: https://example.com
 resources:
@@ -106,7 +108,8 @@ resources:
 	if err != nil {
 		t.Fatalf("parse manifest metadata: %v", err)
 	}
-	if m.DisplayName != "Example API" ||
+	if m.APIVersion != "2024-01-01" ||
+		m.DisplayName != "Example API" ||
 		m.Description != "Example connector used to verify manifest-owned catalog metadata." ||
 		m.DarkLogoURL != "https://cdn.example.com/example-dark.svg" ||
 		m.LightLogoURL != "https://cdn.example.com/example-light.svg" {
@@ -554,6 +557,46 @@ discovery:
   ` + tc.discovery))
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("error=%v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseRequiresAPIVersionToMatchPinnedHeader(t *testing.T) {
+	base := `
+version: 1
+name: example
+display_name: Example
+description: Example.
+dark_logo_url: https://cdn.example.com/example-dark.svg
+light_logo_url: https://cdn.example.com/example-light.svg
+%s
+connection:
+  base_url: https://example.com
+  headers:
+    Stripe-Version: "2026-07-29.dahlia"
+resources:
+  - name: records
+    path: /records
+`
+	for name, tc := range map[string]struct {
+		decl    string
+		wantErr string
+	}{
+		"missing":  {"", "api_version: is required when Stripe-Version is pinned"},
+		"mismatch": {`api_version: "2025-01-01"`, `api_version: "2025-01-01" does not match Stripe-Version "2026-07-29.dahlia"`},
+		"match":    {`api_version: "2026-07-29.dahlia"`, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Parse([]byte(fmt.Sprintf(base, tc.decl)))
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("parse: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want %q", err, tc.wantErr)
 			}
 		})
 	}

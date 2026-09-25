@@ -352,6 +352,7 @@ const ConnectionForm = ({
           connectorName={connectorName}
           connectorKind={connectorKind}
           connectorMaturity={connector.maturity}
+          connectorApiVersion={connector.apiVersion}
           title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
           onClose={onClose}
         />

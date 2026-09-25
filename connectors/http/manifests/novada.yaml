@@ -4,6 +4,7 @@ display_name: Novada
 description: Read proxy traffic balances, scraping prices, usage reports, task metadata, and request logs from Novada.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-light.svg
+api_version: "v1"
 config:
   api_key: { type: secret, required: true, help: API key from Dashboard > Account Settings > My account > API Key. }
   start_time: { type: string, scope: pipeline, help: Required when selecting scraping_usage. Report start in YYYY-MM-DD HH:mm:ss format. }
