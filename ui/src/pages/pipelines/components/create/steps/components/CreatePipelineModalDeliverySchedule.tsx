@@ -1,7 +1,3 @@
-import Text from "@galaxy-io/dls/text/Text";
-
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
-
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -10,11 +6,8 @@ import {
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
 
 const CreatePipelineModalDeliverySchedule = () => {
-  const { schedule, executionMode } = useCreatePipelineModalState();
+  const { schedule } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-
-  if (executionMode === ExecutionMode.CONTINUOUS)
-    return <Text>Continuous pipelines run until paused or stopped. No schedule is needed.</Text>;
 
   return (
     <PipelineScheduleFields

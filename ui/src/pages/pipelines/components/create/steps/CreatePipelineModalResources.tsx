@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 
 import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
+import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -17,10 +18,11 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import CreatePipelineModalDeliveryNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNodeConfig";
 import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
 import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
-import StreamResourcesTable from "@/pages/pipelines/components/StreamResourcesTable";
+import PipelineResourceCreateForm, {
+  type PipelineResourceCreateState,
+} from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -33,32 +35,51 @@ const ResourcesWrapper = styled.div`
 
 interface CreatePipelineModalResourcesState {
   search: string;
+  isCreating: boolean;
 }
 
 const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   search: "",
+  isCreating: false,
 };
 
 const CreatePipelineModalResources = () => {
-  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode, sourceConnection } =
+  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
-
   const dispatch = useCreatePipelineModalDispatch();
-  const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
+
   const [localState, setLocalState] =
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
 
+  const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
   const rows = rowsBySink[activeSinkId] ?? [];
   const filteredRows = useMemo(
     () => rows.filter((row) => isSearchMatch(localState.search, row.displayName)),
     [rows, localState.search],
   );
 
+  const activeSink = sinks.find((sink) => sink.connection.id === activeSinkId);
+
   const handleSearchChange = (search: string) => {
     setLocalState((prev) => ({ ...prev, search }));
   };
 
-  if (discoverError && !isContinuous) {
+  const setCreating = (isCreating: boolean) => {
+    setLocalState((prev) => ({ ...prev, isCreating }));
+  };
+
+  const getCreateError = ({ resource }: PipelineResourceCreateState) =>
+    rows.some((row) => row.name === resource) ? "This subject is already listed." : null;
+
+  const handleCreate = ({ resource }: PipelineResourceCreateState) => {
+    dispatch({
+      type: CreatePipelineModalActionType.ADD_RESOURCE,
+      payload: { sinkId: activeSinkId, name: resource },
+    });
+    setLocalState(DEFAULT_RESOURCES_STATE);
+  };
+
+  if (discoverError) {
     return (
       <FlexWrapper padding={24} fillWidth fillHeight>
         <ErrorLayout
@@ -72,79 +93,45 @@ const CreatePipelineModalResources = () => {
 
   return (
     <ResourcesWrapper>
-      {isContinuous && (
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={8} padding="16px" shrink={0} fillWidth>
-          {discoverError && (
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              Discovery is unavailable. You can still add subjects or topics manually.
-            </Text>
-          )}
-          {sourceConnection && (
-            <CreatePipelineModalDeliveryNodeConfig
-              header="Source configuration"
-              connection={sourceConnection}
-              kind={ConnectorKind.SOURCE}
-            />
-          )}
-        </FlexWrapper>
-      )}
       {sinks.length > 1 && (
         <>
           <CreatePipelineModalResourcesTabs />
           <HorizontalDivider />
         </>
       )}
-      {isContinuous && (
-        <StreamResourcesTable
-          fillHeight
-          rows={rows.map((row) => ({
-            id: row.name,
-            label: row.destinationResource ?? "",
-            subject: row.subject ?? row.name,
-            selected: row.isSelected,
-          }))}
-          onChange={(row) =>
-            dispatch({ type: CreatePipelineModalActionType.SET_STREAM_RESOURCE, payload: row })
-          }
-          onSelection={(selection) =>
-            dispatch({
-              type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
-              payload: {
-                sinkId: activeSinkId,
-                visibleNames: rows.map((row) => row.name),
-                selection,
-              },
-            })
-          }
-          onAdd={() =>
-            dispatch({
-              type: CreatePipelineModalActionType.ADD_STREAM_RESOURCE,
-              payload: { id: crypto.randomUUID(), sinkId: activeSinkId },
-            })
-          }
+      <FlexWrapper gap={8} padding="8px" alignItems={AlignItems.CENTER} fillWidth>
+        <TextInput
+          value={localState.search}
+          onChange={handleSearchChange}
+          placeholder="Search resources..."
+          leading={{ icon: MagnifyingGlassIcon }}
+          fillWidth
         />
-      )}
-      {!isContinuous && (
-        <>
-          <FlexWrapper
-            direction={FlexDirection.COLUMN}
-            gap={8}
-            padding="8px"
-            alignItems={AlignItems.STRETCH}
-            fillWidth
-          >
-            <TextInput
-              value={localState.search}
-              onChange={handleSearchChange}
-              placeholder="Search resources..."
-              leading={{ icon: MagnifyingGlassIcon }}
-              fillWidth
+        {isContinuous && (
+          <FlexItem shrink={0}>
+            <Button
+              label="Add subject"
+              icon={PlusIcon}
+              variant={ButtonVariant.SECONDARY}
+              isDisabled={localState.isCreating}
+              onClick={() => setCreating(true)}
             />
-          </FlexWrapper>
+          </FlexItem>
+        )}
+      </FlexWrapper>
+      <HorizontalDivider />
+      {localState.isCreating && activeSink && (
+        <>
+          <PipelineResourceCreateForm
+            sinks={[{ id: activeSink.connection.id, label: activeSink.connection.name }]}
+            getError={getCreateError}
+            onSave={handleCreate}
+            onCancel={() => setCreating(false)}
+          />
           <HorizontalDivider />
-          <CreatePipelineModalResourcesTable rows={filteredRows} />
         </>
       )}
+      <CreatePipelineModalResourcesTable rows={filteredRows} />
     </ResourcesWrapper>
   );
 };

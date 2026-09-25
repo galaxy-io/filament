@@ -119,7 +119,7 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
   writeMode: WriteMode;
 
   /**
-   * Optional destination name for a continuous resource; source identity is unchanged.
+   * Optional destination name for this resource in any execution mode; source identity is unchanged.
    *
    * @generated from field: string destination_resource = 8;
    */

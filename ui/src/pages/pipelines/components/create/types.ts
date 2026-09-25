@@ -27,8 +27,7 @@ export enum CreatePipelineModalStepStatus {
 
 export interface CreatePipelineModalState {
   executionMode: ExecutionMode;
-  manualStreamResources: string[];
-  streamResourceEdits?: Record<string, { label: string; subject: string }>;
+  manualResources: Resource["name"][];
   step: CreatePipelineModalStep;
   activeSinkId: Connection["id"];
   sourceConnection: Connection | null;
@@ -53,8 +52,6 @@ export interface CreatePipelineModalResourceStatus {
 }
 
 export interface CreatePipelineModalResourceRow {
-  destinationResource?: string;
-  subject?: string;
   name: Resource["name"];
   displayName: Resource["displayName"];
   isSelectable: boolean;
@@ -73,11 +70,11 @@ export interface CreatePipelineModalSinkRow {
 }
 
 export interface CreatePipelineModalDerivedState {
-  supportedExecutionModes?: ExecutionMode[];
+  supportedExecutionModes: ExecutionMode[];
+  hasReadLevers: boolean;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   replication: ReplicationMode;
-  isCdc: boolean;
   issuesBySink: Record<Connection["id"], string[]>;
   selectedCountBySink: Record<Connection["id"], number>;
   isLoading: boolean;

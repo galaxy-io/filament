@@ -11,7 +11,6 @@ import FlexWrapper, {
   FlexGap,
   JustifyContent,
 } from "@galaxy-io/dls/containers/FlexWrapper";
-import Text from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -132,12 +131,7 @@ const PipelineSettingsPageSchedule = () => {
   const isDisabledDraft = !schedule && !state.isEnabled;
   const canSave = hasChanges && !isDisabledDraft && summary !== null;
 
-  if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS)
-    return (
-      <Accordion header="Schedule" isOpenInitial>
-        <Text>Continuous pipelines run until paused or stopped. No schedule is needed.</Text>
-      </Accordion>
-    );
+  if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS) return null;
 
   return (
     <Accordion header="Schedule" isOpenInitial>

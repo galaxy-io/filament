@@ -80,38 +80,27 @@ const buildSinkEdges = ({
   sourceId,
   rows,
   sink,
-  isCdc,
+  hasReadLevers,
   isContinuous,
 }: {
-  isContinuous: boolean;
   sourceId: PipelineNode["id"];
   rows: CreatePipelineModalResourceRow[];
   sink: CreatePipelineModalSinkRow;
-  isCdc: boolean;
+  hasReadLevers: boolean;
+  isContinuous: boolean;
 }): PipelineEdge[] => {
   const selectable = rows.filter((row) => row.isSelectable);
   const selected = rows.filter((row) => row.isSelected);
-  if (isContinuous)
-    return selected.map((row) =>
-      create(PipelineEdgeSchema, {
-        fromNode: sourceId,
-        toNode: sink.connection.id,
-        resource: (row.subject ?? row.name).trim(),
-        destinationResource: row.destinationResource?.trim(),
-        readMode: ReadMode.UNSPECIFIED,
-        writeMode: sink.writeMode,
-        cursors: [],
-      }),
-    );
   const readModes = [
-    ...new Set(selected.map((row) => (isCdc ? ReadMode.UNSPECIFIED : row.readMode))),
+    ...new Set(selected.map((row) => (hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED))),
   ];
 
   const isCollapsible =
-    !selectable.length || (selected.length === selectable.length && readModes.length <= 1);
+    !isContinuous &&
+    (!selectable.length || (selected.length === selectable.length && readModes.length <= 1));
 
   if (isCollapsible) {
-    const readMode = readModes[0] ?? (isCdc ? ReadMode.UNSPECIFIED : ReadMode.FULL);
+    const readMode = readModes[0] ?? (hasReadLevers ? ReadMode.FULL : ReadMode.UNSPECIFIED);
     return [
       create(PipelineEdgeSchema, {
         fromNode: sourceId,
@@ -119,20 +108,20 @@ const buildSinkEdges = ({
         toNode: sink.connection.id,
         readMode,
         writeMode: sink.writeMode,
-        cursors: isCdc ? [] : buildCursors(selected, readMode),
+        cursors: hasReadLevers ? buildCursors(selected, readMode) : [],
       }),
     ];
   }
 
   return selected.map((row) => {
-    const readMode = isCdc ? ReadMode.UNSPECIFIED : row.readMode;
+    const readMode = hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
     return create(PipelineEdgeSchema, {
       fromNode: sourceId,
       resource: row.name,
       toNode: sink.connection.id,
       readMode,
       writeMode: sink.writeMode,
-      cursors: isCdc ? [] : buildCursors([row], readMode),
+      cursors: hasReadLevers ? buildCursors([row], readMode) : [],
     });
   });
 };
@@ -141,14 +130,14 @@ const buildEdges = ({
   sourceConnection,
   rowsBySink,
   sinks,
-  isCdc,
+  hasReadLevers,
   isContinuous,
 }: {
-  isContinuous: boolean;
   sourceConnection: Connection | null;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
-  isCdc: boolean;
+  hasReadLevers: boolean;
+  isContinuous: boolean;
 }): PipelineEdge[] => {
   if (!sourceConnection) return [];
   return sinks.flatMap((sink) =>
@@ -156,7 +145,7 @@ const buildEdges = ({
       sourceId: sourceConnection.id,
       rows: rowsBySink[sink.connection.id] ?? [],
       sink,
-      isCdc,
+      hasReadLevers,
       isContinuous,
     }),
   );
@@ -187,7 +176,8 @@ export const mapCreatePipelineStateToVersionRequest = ({
         sourceConnection,
         rowsBySink,
         sinks,
-        isCdc: replication === ReplicationMode.CDC,
+        hasReadLevers:
+          replication !== ReplicationMode.CDC && executionMode !== ExecutionMode.CONTINUOUS,
         isContinuous: executionMode === ExecutionMode.CONTINUOUS,
       }),
     },

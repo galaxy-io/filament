@@ -63,8 +63,13 @@ import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { isContinuousRunActive, runPauseSignal, runStopSignal } from "@/pages/pipelines/streaming";
-import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
+import {
+  formatPipelineName,
+  getPipelineValidationErrors,
+  getRunPauseSignal,
+  getRunStopSignal,
+  isContinuousRunActive,
+} from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
@@ -141,17 +146,15 @@ const PipelineLayoutNavbar = () => {
   const { data: activeRunsData } = useSuspenseListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
-      status: isContinuous ? [] : [...ACTIVE_RUN_STATUSES],
+      status: [...ACTIVE_RUN_STATUSES],
       pagination: create(PaginationRequestSchema, { pageSize: 1 }),
     }),
     options: {
-      refetchInterval: (query) =>
-        isContinuous ? 2000 : getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
+      refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
     },
   });
-  const latestRun = activeRunsData.runs[0];
-  const activeRun = isContinuous ? activeRunsData.runs.find(isContinuousRunActive) : latestRun;
-  const isResuming = activeRun && runPauseSignal(activeRun) === RunSignal.RESUME;
+  const activeRun = activeRunsData.runs.find((run) => !isContinuous || isContinuousRunActive(run));
+  const isResuming = activeRun && getRunPauseSignal(activeRun) === RunSignal.RESUME;
   const isBlocked = activeRun?.executionStatus?.observedState === ExecutionObservedState.BLOCKED;
   const isStopping = activeRun?.executionStatus?.desiredState === ExecutionDesiredState.STOPPED;
 
@@ -329,7 +332,6 @@ const PipelineLayoutNavbar = () => {
       </FlexWrapper>
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
-        {isContinuous && <Chip label="Continuous" />}
         {isPreview && (
           <Button
             label="Back to latest"
@@ -393,7 +395,7 @@ const PipelineLayoutNavbar = () => {
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping || isBlocked}
-                    onClick={() => handleSignal(activeRun.id, runPauseSignal(activeRun))}
+                    onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
                     isIconFilled
                   />
                   <Button
@@ -403,7 +405,7 @@ const PipelineLayoutNavbar = () => {
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping}
-                    onClick={() => handleSignal(activeRun.id, runStopSignal(activeRun))}
+                    onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
                     isIconFilled
                   />
                 </>

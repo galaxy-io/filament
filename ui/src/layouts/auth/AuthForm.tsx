@@ -15,6 +15,8 @@ import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Tex
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import IconTile from "@/components/IconTile";
+
 import AuthLayout from "@/layouts/auth/AuthLayout";
 
 const Form = styled.form`
@@ -24,19 +26,6 @@ const Form = styled.form`
   flex-direction: column;
   gap: 24px;
 `;
-
-const IconWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 28px;
-  height: 28px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 6px;
-`);
 
 const ErrorWrapper = withTheme(styled.div<PropsWithTheme>`
   width: 100%;
@@ -107,11 +96,7 @@ const AuthForm = ({
     <AuthLayout>
       <Form onSubmit={handleFormSubmit} onKeyDown={handleKeyDown}>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-          {icon && (
-            <IconWrapper>
-              <Icon component={icon} size={14} variant={IconVariant.SECONDARY} />
-            </IconWrapper>
-          )}
+          {icon && <IconTile icon={icon} size={28} />}
           <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
             <Text size={TextSize.HEADING_MD} weight={TextWeight.MEDIUM}>
               {title}

@@ -22,7 +22,6 @@ import {
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import ContinuousRunSummary from "@/pages/pipelines/components/ContinuousRunSummary";
 import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
@@ -31,6 +30,7 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
   PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/history/constants";
+import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/PipelineHistoryRunContinuousSummary";
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
@@ -120,7 +120,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS)
     return (
       <ResourceTableWrapper>
-        <ContinuousRunSummary run={data.snapshot.run} />
+        <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
       </ResourceTableWrapper>
     );
 

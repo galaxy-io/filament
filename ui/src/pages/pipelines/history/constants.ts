@@ -2,7 +2,7 @@ import { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import { ChartPalette } from "@galaxy-io/dls/charts/types";
 import { TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 export const PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT = 1;
 
@@ -60,3 +60,54 @@ export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVari
   [RunStatus.PARTIAL]: TextVariant.PINK,
   [RunStatus.SCHEDULED]: TextVariant.YELLOW,
 };
+
+export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
+  ExecutionObservedState,
+  string
+> = {
+  [ExecutionObservedState.UNSPECIFIED]: "Unknown",
+  [ExecutionObservedState.STARTING]: "Starting",
+  [ExecutionObservedState.RUNNING]: "Running",
+  [ExecutionObservedState.DRAINING]: "Draining",
+  [ExecutionObservedState.PAUSED]: "Paused",
+  [ExecutionObservedState.STOPPED]: "Stopped",
+  [ExecutionObservedState.RETRYING]: "Retrying",
+  [ExecutionObservedState.BLOCKED]: "Blocked",
+  [ExecutionObservedState.FAILED]: "Failed",
+};
+
+export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP: Record<
+  ExecutionObservedState,
+  BeaconVariant
+> = {
+  [ExecutionObservedState.UNSPECIFIED]: BeaconVariant.SECONDARY,
+  [ExecutionObservedState.STARTING]: BeaconVariant.ORANGE,
+  [ExecutionObservedState.RUNNING]: BeaconVariant.BLUE,
+  [ExecutionObservedState.DRAINING]: BeaconVariant.ORANGE,
+  [ExecutionObservedState.PAUSED]: BeaconVariant.TEAL,
+  [ExecutionObservedState.STOPPED]: BeaconVariant.SECONDARY,
+  [ExecutionObservedState.RETRYING]: BeaconVariant.YELLOW,
+  [ExecutionObservedState.BLOCKED]: BeaconVariant.ERROR,
+  [ExecutionObservedState.FAILED]: BeaconVariant.ERROR,
+};
+
+export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_TEXT_VARIANT_MAP: Record<
+  ExecutionObservedState,
+  TextVariant
+> = {
+  [ExecutionObservedState.UNSPECIFIED]: TextVariant.SECONDARY,
+  [ExecutionObservedState.STARTING]: TextVariant.ORANGE,
+  [ExecutionObservedState.RUNNING]: TextVariant.BLUE,
+  [ExecutionObservedState.DRAINING]: TextVariant.ORANGE,
+  [ExecutionObservedState.PAUSED]: TextVariant.TEAL,
+  [ExecutionObservedState.STOPPED]: TextVariant.SECONDARY,
+  [ExecutionObservedState.RETRYING]: TextVariant.YELLOW,
+  [ExecutionObservedState.BLOCKED]: TextVariant.ERROR,
+  [ExecutionObservedState.FAILED]: TextVariant.ERROR,
+};
+
+export const PIPELINE_EXECUTION_OBSERVED_STATE_PULSING = new Set<ExecutionObservedState>([
+  ExecutionObservedState.STARTING,
+  ExecutionObservedState.RUNNING,
+  ExecutionObservedState.DRAINING,
+]);

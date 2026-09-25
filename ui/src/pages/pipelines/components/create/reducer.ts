@@ -1,7 +1,8 @@
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import {
   type AddNotifierAction,
+  type AddResourceAction,
   type CreatePipelineModalAction,
   CreatePipelineModalActionType,
   type GoToStepAction,
@@ -10,6 +11,7 @@ import {
   type SelectSourceAction,
   type SetActiveSinkAction,
   type SetDescriptionAction,
+  type SetExecutionModeAction,
   type SetNameAction,
   type SetNodeConfigAction,
   type SetResourceCursorAction,
@@ -27,31 +29,75 @@ import {
   type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
+
+function applyExecutionMode(
+  state: CreatePipelineModalState,
+  executionMode: ExecutionMode,
+): CreatePipelineModalState {
+  if (executionMode === state.executionMode) return state;
+  return {
+    ...state,
+    executionMode,
+    resourceReadModes: {},
+    resourceCursors: {},
+    sinkWriteModes: {},
+  };
+}
+
+function reconcileExecutionMode(state: CreatePipelineModalState): CreatePipelineModalState {
+  const supported = getSupportedExecutionModes(state.sourceConnection, state.sinkConnections);
+  if (supported.includes(state.executionMode)) return state;
+  return applyExecutionMode(state, supported[0] ?? state.executionMode);
+}
 
 function selectSource(
   state: CreatePipelineModalState,
   action: SelectSourceAction,
 ): CreatePipelineModalState {
-  return {
+  return reconcileExecutionMode({
     ...state,
-    manualStreamResources: [],
-    streamResourceEdits: {},
     sourceConnection: state.sourceConnection?.id === action.payload.id ? null : action.payload,
+    manualResources: [],
     resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
-  };
+  });
 }
 
 function toggleSink(
   state: CreatePipelineModalState,
   action: ToggleSinkAction,
 ): CreatePipelineModalState {
-  return {
+  return reconcileExecutionMode({
     ...state,
     sinkConnections: state.sinkConnections.some((sink) => sink.id === action.payload.id)
       ? state.sinkConnections.filter((sink) => sink.id !== action.payload.id)
       : [...state.sinkConnections, action.payload],
+  });
+}
+
+function setExecutionMode(
+  state: CreatePipelineModalState,
+  action: SetExecutionModeAction,
+): CreatePipelineModalState {
+  return applyExecutionMode(state, action.payload);
+}
+
+function addResource(
+  state: CreatePipelineModalState,
+  action: AddResourceAction,
+): CreatePipelineModalState {
+  const { sinkId, name } = action.payload;
+  return {
+    ...state,
+    manualResources: state.manualResources.includes(name)
+      ? state.manualResources
+      : [...state.manualResources, name],
+    resourceSelection: {
+      ...state.resourceSelection,
+      [sinkId]: { ...state.resourceSelection[sinkId], [name]: true },
+    },
   };
 }
 
@@ -217,48 +263,16 @@ const createPipelineModalReducer = (
   action: CreatePipelineModalAction,
 ): CreatePipelineModalState => {
   switch (action.type) {
-    case CreatePipelineModalActionType.SET_STREAM_RESOURCE:
-      return {
-        ...state,
-        streamResourceEdits: {
-          ...state.streamResourceEdits,
-          [action.payload.id]: { label: action.payload.label, subject: action.payload.subject },
-        },
-      };
-    case CreatePipelineModalActionType.SET_EXECUTION_MODE:
-      return {
-        ...state,
-        executionMode: action.payload,
-        resourceReadModes: {},
-        resourceCursors: {},
-        sinkWriteModes: {},
-        schedule: {
-          ...state.schedule,
-          isEnabled: action.payload === ExecutionMode.CONTINUOUS ? false : state.schedule.isEnabled,
-        },
-      };
-    case CreatePipelineModalActionType.ADD_STREAM_RESOURCE:
-      return {
-        ...state,
-        manualStreamResources: [...state.manualStreamResources, action.payload.id],
-        streamResourceEdits: {
-          ...state.streamResourceEdits,
-          [action.payload.id]: { label: "", subject: "" },
-        },
-        resourceSelection: {
-          ...state.resourceSelection,
-          [action.payload.sinkId]: {
-            ...state.resourceSelection[action.payload.sinkId],
-            [action.payload.id]: true,
-          },
-        },
-      };
     case CreatePipelineModalActionType.SELECT_SOURCE:
       return selectSource(state, action);
     case CreatePipelineModalActionType.TOGGLE_SINK:
       return toggleSink(state, action);
     case CreatePipelineModalActionType.SET_ACTIVE_SINK:
       return setActiveSink(state, action);
+    case CreatePipelineModalActionType.SET_EXECUTION_MODE:
+      return setExecutionMode(state, action);
+    case CreatePipelineModalActionType.ADD_RESOURCE:
+      return addResource(state, action);
     case CreatePipelineModalActionType.OPEN_SINK_RESOURCES:
       return openSinkResources(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_SELECTION:

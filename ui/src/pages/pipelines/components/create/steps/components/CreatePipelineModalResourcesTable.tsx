@@ -14,8 +14,6 @@ import InfiniteTable, {
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
-
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -85,17 +83,15 @@ interface CreatePipelineModalResourcesTableProps {
 }
 
 const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
-  const { activeSinkId, isCdc, isLoading, executionMode } = useCreatePipelineModalState();
+  const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-
-  const hasLevers = !isCdc && executionMode !== ExecutionMode.CONTINUOUS;
 
   const rowSelection = useMemo(
     () => Object.fromEntries(rows.map((row) => [row.name, row.isSelected])),
     [rows],
   );
 
-  const columns = hasLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+  const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
 
   return (
     <TableWrapper>

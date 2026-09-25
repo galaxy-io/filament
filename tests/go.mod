@@ -4,7 +4,6 @@ go 1.26.4
 
 require (
 	connectrpc.com/connect v1.20.0
-	github.com/apache/arrow-go/v18 v18.7.0
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0
 	github.com/galaxy-io/filament/connectors/object v0.0.0
@@ -52,6 +51,7 @@ require (
 	github.com/RoaringBitmap/roaring/v2 v2.21.0 // indirect
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/apache/arrow-go/v18 v18.7.0 // indirect
 	github.com/apache/iceberg-go v0.6.1-0.20260805181059-d785b279495f // indirect
 	github.com/apache/thrift v0.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.0 // indirect
