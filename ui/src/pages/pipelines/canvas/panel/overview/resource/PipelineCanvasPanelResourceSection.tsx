@@ -102,7 +102,7 @@ const PipelineCanvasPanelResourceSection = ({
     sourceNode &&
     canConnectEdge({ source: sourceNode.id, sourceHandle: resource, target: sinkId }, state.edges)
       ? null
-      : "This subject is already routed to that sink.";
+      : "This resource is already routed to that sink.";
 
   const handleCreate = ({ resource, sinkId }: PipelineResourceCreateState) => {
     if (!sourceNode) return;
