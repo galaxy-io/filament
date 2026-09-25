@@ -96,11 +96,10 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP: Record<
   string
 > = {
   [CreatePipelineModalStep.CONNECTIONS]:
-    "Choose a source to pull data from and one or more sinks to deliver it to.",
+    "Pick a source to read from and one or more sinks to write to.",
   [CreatePipelineModalStep.RESOURCES]:
     "Pick the resources you want to ingest and how each one is read and written.",
-  [CreatePipelineModalStep.DELIVERY]:
-    "Set a schedule so the pipeline runs on its own, or leave it manual and trigger runs yourself. Optionally get notified when runs complete or fail.",
+  [CreatePipelineModalStep.DELIVERY]: "Choose how each sink is written and who gets notified.",
   [CreatePipelineModalStep.DETAILS]:
     "Name your pipeline and add an optional description so your team knows what it does.",
 };
@@ -111,9 +110,6 @@ export const CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP: Record<CreatePipelineModalS
   [CreatePipelineModalStep.DELIVERY]: "Complete the schedule to continue",
   [CreatePipelineModalStep.DETAILS]: "Enter a valid pipeline name",
 };
-
-export const CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT =
-  "These connections have no execution type in common";
 
 export const EXECUTION_MODE_TO_ICON_MAP: Record<ExecutionMode, PhosphorIcon> = {
   [ExecutionMode.UNSPECIFIED]: CircleIcon,
@@ -129,8 +125,16 @@ export const EXECUTION_MODE_TO_LABEL_MAP: Record<ExecutionMode, string> = {
 
 export const EXECUTION_MODE_TO_DESCRIPTION_MAP: Record<ExecutionMode, string> = {
   [ExecutionMode.UNSPECIFIED]: "",
-  [ExecutionMode.BOUNDED]: "Finish after reading the available data.",
-  [ExecutionMode.CONTINUOUS]: "Keep listening for data until stopped.",
+  [ExecutionMode.BOUNDED]: "Reads available data then stops.",
+  [ExecutionMode.CONTINUOUS]: "Streams new data until stopped.",
+};
+
+export const EXECUTION_MODE_TO_DETAILS_MAP: Record<ExecutionMode, string> = {
+  [ExecutionMode.UNSPECIFIED]: "",
+  [ExecutionMode.BOUNDED]:
+    "Reads available data then stops. Runs on a schedule or on demand, with full or incremental reads.",
+  [ExecutionMode.CONTINUOUS]:
+    "Streams new data until you stop it. Saves progress in epochs and appends records to each sink.",
 };
 
 export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {

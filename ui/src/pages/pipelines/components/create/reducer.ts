@@ -39,6 +39,11 @@ function applyExecutionMode(
   return {
     ...state,
     executionMode,
+    sinkConnections: state.sinkConnections.filter((sink) =>
+      sink.executionModes.includes(executionMode),
+    ),
+    manualResources: [],
+    resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
     sinkWriteModes: {},
@@ -46,7 +51,7 @@ function applyExecutionMode(
 }
 
 function reconcileExecutionMode(state: CreatePipelineModalState): CreatePipelineModalState {
-  const supported = getSupportedExecutionModes(state.sourceConnection, state.sinkConnections);
+  const supported = getSupportedExecutionModes(state.sourceConnection);
   if (supported.includes(state.executionMode)) return state;
   return applyExecutionMode(state, supported[0] ?? state.executionMode);
 }
@@ -69,12 +74,12 @@ function toggleSink(
   state: CreatePipelineModalState,
   action: ToggleSinkAction,
 ): CreatePipelineModalState {
-  return reconcileExecutionMode({
+  return {
     ...state,
     sinkConnections: state.sinkConnections.some((sink) => sink.id === action.payload.id)
       ? state.sinkConnections.filter((sink) => sink.id !== action.payload.id)
       : [...state.sinkConnections, action.payload],
-  });
+  };
 }
 
 function setExecutionMode(

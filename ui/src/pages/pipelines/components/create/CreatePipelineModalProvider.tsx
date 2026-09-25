@@ -14,7 +14,6 @@ import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
-  CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
 } from "@/pages/pipelines/components/create/constants";
@@ -102,10 +101,7 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
   } = useCreatePipelineResources(state);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
-    const supportedExecutionModes = getSupportedExecutionModes(
-      state.sourceConnection,
-      state.sinkConnections,
-    );
+    const supportedExecutionModes = getSupportedExecutionModes(state.sourceConnection);
     const isContinuous = state.executionMode === ExecutionMode.CONTINUOUS;
 
     const blockingMessages = sinks.flatMap((sink) =>
@@ -147,20 +143,15 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       : (sinks[0]?.connection.id ?? "");
 
     const stepIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(state.step);
-    const blockingHints =
-      state.step === CreatePipelineModalStep.CONNECTIONS &&
-      state.sourceConnection &&
-      state.sinkConnections.length > 0
-        ? [CREATE_PIPELINE_MODAL_NO_EXECUTION_MODE_HINT]
-        : blockingMessages.length
-          ? blockingMessages
-          : state.step === CreatePipelineModalStep.DELIVERY && isScheduleValid && !isNotifiersValid
-            ? ["Complete the notifiers to continue"]
-            : state.step === CreatePipelineModalStep.DELIVERY &&
-                isScheduleValid &&
-                workerConfigurationError
-              ? ["Fix the worker configuration to continue"]
-              : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
+    const blockingHints = blockingMessages.length
+      ? blockingMessages
+      : state.step === CreatePipelineModalStep.DELIVERY && isScheduleValid && !isNotifiersValid
+        ? ["Complete the notifiers to continue"]
+        : state.step === CreatePipelineModalStep.DELIVERY &&
+            isScheduleValid &&
+            workerConfigurationError
+          ? ["Fix the worker configuration to continue"]
+          : [CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]];
 
     return {
       ...state,

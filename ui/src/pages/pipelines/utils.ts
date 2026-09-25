@@ -18,15 +18,8 @@ import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
 
 import { stripDeletedName } from "@/utils/format";
 
-export const getSupportedExecutionModes = (
-  source: Connection | null,
-  sinks: Connection[],
-): ExecutionMode[] =>
-  source
-    ? PIPELINE_EXECUTION_MODES.filter((mode) =>
-        [source, ...sinks].every((connection) => connection.executionModes.includes(mode)),
-      )
-    : [];
+export const getSupportedExecutionModes = (source: Connection | null): ExecutionMode[] =>
+  source ? PIPELINE_EXECUTION_MODES.filter((mode) => source.executionModes.includes(mode)) : [];
 
 export const isContinuousRun = (run: RunInfo) => run.executionMode === ExecutionMode.CONTINUOUS;
 

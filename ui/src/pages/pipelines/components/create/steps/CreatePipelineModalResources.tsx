@@ -69,7 +69,7 @@ const CreatePipelineModalResources = () => {
   };
 
   const getCreateError = ({ resource }: PipelineResourceCreateState) =>
-    rows.some((row) => row.name === resource) ? "This subject is already listed." : null;
+    rows.some((row) => row.name === resource) ? "This resource is already listed." : null;
 
   const handleCreate = ({ resource }: PipelineResourceCreateState) => {
     dispatch({
@@ -110,7 +110,7 @@ const CreatePipelineModalResources = () => {
         {isContinuous && (
           <FlexItem shrink={0}>
             <Button
-              label="Add subject"
+              label="Add resource"
               icon={PlusIcon}
               variant={ButtonVariant.SECONDARY}
               isDisabled={localState.isCreating}

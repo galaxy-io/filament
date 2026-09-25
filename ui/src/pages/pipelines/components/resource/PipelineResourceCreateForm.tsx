@@ -59,7 +59,7 @@ const PipelineResourceCreateForm = ({
       <Widget variant={WidgetVariant.TERTIARY} noHover padding="16px" fillWidth>
         <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
           <TextInput
-            label="Subject"
+            label="Resource"
             value={state.resource}
             onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
             onKeyDown={(event) => {
