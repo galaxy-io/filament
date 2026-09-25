@@ -523,8 +523,17 @@ func requiredConfigFieldError(path string) error {
 }
 
 func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
+	return validateConfigScope(schema, cfg, filament.ScopeConnection)
+}
+
+// validateConfigScope checks the fields of one scope. A pipeline-scoped field
+// with a default is filled at run time, so its absence is never an error.
+func validateConfigScope(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
 	for _, field := range schema.Fields {
-		if field.Scope != filament.ScopeConnection {
+		if field.Scope != scope {
+			continue
+		}
+		if scope == filament.ScopePipeline && field.Default != nil && !cfg.Has(field.Name) {
 			continue
 		}
 		if err := validateConfigField(field, cfg, field.Name); err != nil {

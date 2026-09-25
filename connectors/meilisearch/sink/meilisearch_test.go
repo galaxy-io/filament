@@ -77,9 +77,6 @@ func TestSinkSpec(t *testing.T) {
 	if !spec.Capabilities.Schematized {
 		t.Error("Spec does not advertise Schematized")
 	}
-	if !spec.Capabilities.Upsertable {
-		t.Error("Spec does not advertise Upsertable")
-	}
 	if spec.Capabilities.PreferredBatchRows != defaultBatchSize {
 		t.Errorf("PreferredBatchRows = %d, want %d", spec.Capabilities.PreferredBatchRows, defaultBatchSize)
 	}

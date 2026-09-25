@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -16,16 +17,11 @@ import (
 	"github.com/galaxy-io/filament/streamkit"
 )
 
-type pullSubscription interface {
-	Fetch(int, ...nats.PullOpt) ([]*nats.Msg, error)
-	Unsubscribe() error
-}
-
 type session struct {
 	lifecycle                stream.SourceLifecycle
-	js                       nats.JetStreamContext
+	stream                   jetstream.Stream
+	consumer                 jetstream.Consumer
 	binding                  consumerBinding
-	sub                      pullSubscription
 	domain                   filament.DomainKey
 	created, consumerCreated time.Time
 	committed                uint64
@@ -35,7 +31,7 @@ type session struct {
 	projector                *streamkit.Projector
 	hb                       *streamkit.Heartbeat
 	mu                       sync.Mutex
-	pending                  *nats.Msg
+	pending                  jetstream.Msg
 	pendingSeq               uint64
 	failed                   error
 	closed                   bool
@@ -52,11 +48,11 @@ func (s *session) authority(ctx context.Context) error {
 	if err := context.Cause(s.hb.Context()); err != nil {
 		return err
 	}
-	si, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx))
+	si, err := s.stream.Info(ctx)
 	if err != nil {
 		return err
 	}
-	ci, err := s.js.ConsumerInfo(s.binding.stream, s.binding.consumer, nats.Context(ctx))
+	ci, err := s.consumer.Info(ctx)
 	if err != nil {
 		return err
 	}
@@ -90,7 +86,7 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 	defer cancel()
 	stop := context.AfterFunc(s.hb.Context(), cancel)
 	defer stop()
-	messages, err := s.sub.Fetch(1, nats.Context(readCtx))
+	msg, err := s.consumer.Next(jetstream.FetchContext(readCtx))
 	if err != nil {
 		if ctx.Err() != nil {
 			return filament.Coverage{}, context.Cause(ctx)
@@ -98,16 +94,21 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		if s.hb.Err() != nil {
 			return filament.Coverage{}, s.hb.Err()
 		}
-		if errors.Is(err, nats.ErrTimeout) || errors.Is(err, context.DeadlineExceeded) {
+		if idleFetch(err) {
 			return filament.Coverage{}, nil
 		}
 		return filament.Coverage{}, err
 	}
-	return s.readMessage(ctx, out, messages[0])
+	return s.readMessage(ctx, out, msg)
+}
+
+// idleFetch reports a pull that expired without a message.
+func idleFetch(err error) bool {
+	return errors.Is(err, nats.ErrTimeout) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // readMessage is called only on the owner goroutine; fetchers never touch builders.
-func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink, msg *nats.Msg) (coverage filament.Coverage, result error) {
+func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink, msg jetstream.Msg) (coverage filament.Coverage, result error) {
 	defer func() {
 		if result != nil {
 			s.failed = result
@@ -136,14 +137,14 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 		if err := s.lifecycle.CheckAuthority(ctx); err != nil {
 			return filament.Coverage{}, err
 		}
-		return filament.Coverage{}, msg.AckSync(nats.Context(ctx))
+		return filament.Coverage{}, msg.DoubleAck(ctx)
 	}
 	// Whole-stream, single-credit delivery cannot safely skip missing input.
 	if !s.binding.managed && seq != s.committed+1 {
 		return filament.Coverage{}, errors.New("nats: source sequence gap; retention or another consumer owner changed progress")
 	}
 	if s.binding.managed && seq > s.scanFloor && seq-s.scanFloor > 1 {
-		info, err := s.js.StreamInfo(s.binding.stream, nats.Context(ctx), &nats.StreamInfoRequest{DeletedDetails: true})
+		info, err := s.stream.Info(ctx, jetstream.WithDeletedDetails(true))
 		if err != nil {
 			return filament.Coverage{}, err
 		}
@@ -160,10 +161,10 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 	s.pending = msg
 	s.pendingSeq = seq
 	s.mu.Unlock()
-	headers := messageHeaders(msg)
+	headers := messageHeaders(msg.Headers())
 	position := filament.Position{Codec: PositionCodec, Version: 0, Value: []byte(strconv.FormatUint(seq, 10))}
-	s.writer.String(msg.Subject)
-	if err := s.projector.EndEvent(streamkit.Envelope{Identity: filament.EventIdentity{Domain: s.domain, Position: position}, Timestamp: &meta.Timestamp, Headers: headers, KeyNull: true, Payload: msg.Data}, rowmodel.Meta{}); err != nil {
+	s.writer.String(msg.Subject())
+	if err := s.projector.EndEvent(streamkit.Envelope{Identity: filament.EventIdentity{Domain: s.domain, Position: position}, Timestamp: &meta.Timestamp, Headers: headers, KeyNull: true, Payload: msg.Data()}, rowmodel.Meta{}); err != nil {
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err
 	}
@@ -188,7 +189,7 @@ func (s *session) Acknowledge(ctx context.Context, coverage filament.Coverage) e
 	if s.pending == nil {
 		return filament.ErrIncompleteCoverage
 	}
-	if err := s.pending.AckSync(nats.Context(ctx)); err != nil {
+	if err := s.pending.DoubleAck(ctx); err != nil {
 		return err
 	}
 	s.committed = s.pendingSeq
@@ -208,10 +209,7 @@ func (s *session) Close(ctx context.Context) error {
 		s.failed = err
 		return err
 	}
-	if unsubErr := s.sub.Unsubscribe(); unsubErr != nil {
-		s.failed = errors.Join(err, unsubErr)
-		return s.failed
-	}
+	// Consumer handles hold no client resources; the pull expires server-side.
 	s.closed, s.closeErr = true, err
 	return err
 }

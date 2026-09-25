@@ -58,6 +58,11 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	if err := compile.ValidateDestinations(edges); err != nil {
 		resp.Errors = append(resp.Errors, graphError(err.Error()))
 	}
+	for _, node := range graphNodes {
+		if err := a.validateNodeConfig(ctx, tenant, node, resp); err != nil {
+			return nil, err
+		}
+	}
 	routeWriteModes := map[string]filament.WriteMode{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp, mode); err != nil {
@@ -429,6 +434,48 @@ func cursorRequirement(resource string, candidates []*ingestionv1.CandidateValue
 		requirement.Message = fmt.Sprintf("resource %q has no usable cursor column; use full replication for it instead", resource)
 	}
 	return requirement
+}
+
+// validateNodeConfig checks the pipeline-scoped fields of a node's effective
+// config: the connection's settings overlaid with the node's own overrides.
+// Missing or mismatched connections are reported by edge validation instead.
+func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *ingestionv1.PipelineNode, resp *ingestionv1.ValidatePipelineResponse) error {
+	if node.GetConnectionId() == "" {
+		return nil
+	}
+	conn, err := a.store.LoadConnection(ctx, filament.TenantID(tenant), node.GetConnectionId())
+	if err != nil {
+		if errors.Is(err, filament.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	var schema filament.ConfigSchema
+	switch conn.Kind {
+	case filament.ConnectorKindSource:
+		source, err := a.sources.Resolve(conn.Connector)
+		if err != nil {
+			return nil
+		}
+		schema = source.Spec().Config
+	case filament.ConnectorKindSink:
+		sink, err := a.sinks.Resolve(conn.Connector)
+		if err != nil {
+			return nil
+		}
+		schema = sink.Spec().Config
+	default:
+		return nil
+	}
+	cfg := filament.NewConfig(overlayConfig(conn.Config, structMap(node.GetConfig())))
+	if err := validateConfigScope(schema, cfg, filament.ScopePipeline); err != nil {
+		validationErr := &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: %s", node.GetId(), err.Error())}
+		if fieldErr, ok := err.(*configValidationError); ok {
+			validationErr.Field = fieldErr.Field
+		}
+		resp.Errors = append(resp.Errors, validationErr)
+	}
+	return nil
 }
 
 func edgeError(ev *ingestionv1.EdgeValidation, field, message string) {

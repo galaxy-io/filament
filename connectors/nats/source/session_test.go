@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -44,22 +45,22 @@ func testSession(t *testing.T, failControl bool) {
 		t.Fatal(err)
 	}
 	defer nc.Close()
-	js, err := nc.JetStream()
+	js, err := jetstream.New(nc)
 	if err != nil {
 		t.Fatal(err)
 	}
 	name := "session_" + uuid.NewString()[:8]
-	streamCfg := &nats.StreamConfig{Name: name, Subjects: []string{name}}
-	if _, err := js.AddStream(streamCfg); err != nil {
+	streamCfg := jetstream.StreamConfig{Name: name, Subjects: []string{name}}
+	if _, err := js.CreateStream(ctx, streamCfg); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = js.DeleteStream(name) }()
-	cc := &nats.ConsumerConfig{Durable: "consumer", AckPolicy: nats.AckExplicitPolicy, DeliverPolicy: nats.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
-	if _, err := js.AddConsumer(name, cc); err != nil {
+	defer func() { _ = js.DeleteStream(context.Background(), name) }()
+	cc := jetstream.ConsumerConfig{Durable: "consumer", AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
+	if _, err := js.CreateConsumer(ctx, name, cc); err != nil {
 		t.Fatal(err)
 	}
 	src := New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "stream": name, "consumer": "consumer"})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url, "streams": []streamBinding{{Stream: name, Consumer: "consumer"}}})); err != nil {
 		t.Fatal(err)
 	}
 	defer src.Teardown(ctx)
@@ -86,7 +87,7 @@ func testSession(t *testing.T, failControl bool) {
 	if err != nil || len(coverage.Positions) != 0 {
 		t.Fatalf("idle: %+v %v", coverage, err)
 	}
-	if _, err := js.Publish(name, []byte("event")); err != nil {
+	if _, err := js.Publish(ctx, name, []byte("event")); err != nil {
 		t.Fatal(err)
 	}
 	if failControl {
@@ -125,7 +126,7 @@ func testSession(t *testing.T, failControl bool) {
 		t.Fatal(ctx.Err())
 	}
 	raw := opened.(*session)
-	if _, err := raw.sub.Fetch(1, nats.MaxWait(100*time.Millisecond)); !errors.Is(err, nats.ErrTimeout) {
+	if _, err := raw.consumer.Next(jetstream.FetchMaxWait(100 * time.Millisecond)); !errors.Is(err, nats.ErrTimeout) {
 		t.Fatalf("heartbeat allowed redelivery: %v", err)
 	}
 	authorityErr = filament.ErrFenced
@@ -136,13 +137,13 @@ func testSession(t *testing.T, failControl bool) {
 	if err := opened.Acknowledge(ctx, coverage); err != nil {
 		t.Fatal(err)
 	}
-	if err := js.DeleteStream(name); err != nil {
+	if err := js.DeleteStream(ctx, name); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := js.AddStream(streamCfg); err != nil {
+	if _, err := js.CreateStream(ctx, streamCfg); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := js.AddConsumer(name, cc); err != nil {
+	if _, err := js.CreateConsumer(ctx, name, cc); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := opened.Read(ctx, records, boundary); !errors.Is(err, filament.ErrPositionIncomparable) {

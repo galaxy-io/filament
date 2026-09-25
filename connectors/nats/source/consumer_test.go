@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestConsumerContract(t *testing.T) {
-	c := nats.ConsumerConfig{Durable: "consumer", AckPolicy: nats.AckExplicitPolicy, DeliverPolicy: nats.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
+	c := jetstream.ConsumerConfig{Durable: "consumer", AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
 	if err := validateExistingConsumer(c, "consumer"); err != nil {
 		t.Fatal(err)
 	}
-	for _, mutate := range []func(*nats.ConsumerConfig){func(c *nats.ConsumerConfig) { c.MaxAckPending = 10 }, func(c *nats.ConsumerConfig) { c.AckPolicy = nats.AckAllPolicy }, func(c *nats.ConsumerConfig) { c.FilterSubject = "x" }, func(c *nats.ConsumerConfig) { c.MaxDeliver = 1 }, func(c *nats.ConsumerConfig) { c.DeliverPolicy = nats.DeliverNewPolicy }} {
+	for _, mutate := range []func(*jetstream.ConsumerConfig){func(c *jetstream.ConsumerConfig) { c.MaxAckPending = 10 }, func(c *jetstream.ConsumerConfig) { c.AckPolicy = jetstream.AckAllPolicy }, func(c *jetstream.ConsumerConfig) { c.FilterSubject = "x" }, func(c *jetstream.ConsumerConfig) { c.MaxDeliver = 1 }, func(c *jetstream.ConsumerConfig) { c.DeliverPolicy = jetstream.DeliverNewPolicy }} {
 		bad := c
 		mutate(&bad)
 		if validateExistingConsumer(bad, "consumer") == nil {
@@ -24,17 +24,17 @@ func TestConsumerContract(t *testing.T) {
 func TestConsumerBindingValidation(t *testing.T) {
 	orders := consumerBinding{stream: "EVENTS", consumer: "orders", resource: "orders.>", filters: []string{"orders.>"}, managed: true}
 	products := consumerBinding{stream: "EVENTS", consumer: "products", resource: "products.>", filters: []string{"products.>"}, managed: true}
-	config := nats.ConsumerConfig{Durable: "orders", Description: "Filament managed orders", FilterSubject: "orders.>", AckPolicy: nats.AckExplicitPolicy, DeliverPolicy: nats.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
+	config := jetstream.ConsumerConfig{Durable: "orders", Description: "Filament managed orders", FilterSubject: "orders.>", AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: 1, AckWait: time.Second}
 	if err := orders.validateConsumer(config); err != nil {
 		t.Fatal(err)
 	}
 	if err := products.validateConsumer(config); err == nil {
 		t.Fatal("another resource's consumer accepted")
 	}
-	for _, mutate := range []func(*nats.ConsumerConfig){
-		func(c *nats.ConsumerConfig) { c.FilterSubject = "products.>" },
-		func(c *nats.ConsumerConfig) { c.Description = "user-owned" },
-		func(c *nats.ConsumerConfig) { c.MaxAckPending = 2 },
+	for _, mutate := range []func(*jetstream.ConsumerConfig){
+		func(c *jetstream.ConsumerConfig) { c.FilterSubject = "products.>" },
+		func(c *jetstream.ConsumerConfig) { c.Description = "user-owned" },
+		func(c *jetstream.ConsumerConfig) { c.MaxAckPending = 2 },
 	} {
 		bad := config
 		mutate(&bad)
@@ -42,7 +42,7 @@ func TestConsumerBindingValidation(t *testing.T) {
 			t.Fatal("incompatible managed consumer accepted")
 		}
 	}
-	config.DeliverPolicy = nats.DeliverByStartSequencePolicy
+	config.DeliverPolicy = jetstream.DeliverByStartSequencePolicy
 	config.OptStartSeq = 42
 	if err := orders.validateConsumer(config); err != nil {
 		t.Fatalf("managed resume rejected: %v", err)

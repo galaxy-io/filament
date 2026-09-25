@@ -34,11 +34,6 @@ type Transactional interface {
 	Promote(ctx context.Context, id StageID) error
 }
 
-// Upsertable is the optional sink contract for key-based merge writes.
-type Upsertable interface {
-	Upsert(ctx context.Context, b *arrowbatch.Batch, keys []string) (WriteReceipt, error)
-}
-
 // Schematized is the optional sink contract for typed DDL: materialize a
 // resource's schema before its records arrive. The runner supplies destination
 // resource names consistently to Open, EnsureSchema, and Apply.
@@ -71,7 +66,6 @@ type SinkSpec struct {
 type SinkCapabilities struct {
 	Stream        *StreamingSinkCapabilities
 	Transactional bool
-	Upsertable    bool
 	Schematized   bool
 	// EncodedIntegrity requires Apply to verify the final serialized bytes at
 	// its write boundary and return the resulting EncodedCRC as evidence.

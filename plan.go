@@ -84,6 +84,7 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 }
 
 func bindSinkDurability(policy *WritePolicy, capability WritePolicyCapability) {
+	policy.Capability.Atomicity = capability.Atomicity
 	policy.Capability.Durability = capability.Durability
 	if policy.Checkpoint != CheckpointNone && capability.Durability == DurabilityAfterCommit {
 		policy.Checkpoint = CheckpointAfterCommit
@@ -116,9 +117,8 @@ func ValidateReplication(replication ReplicationMode, t IngestionType) error {
 	return nil
 }
 
-// ValidateSinkIngestion reports whether the sink spec can serve the write-side
-// policy the ingestion type implies. Any sink may serve append and replace;
-// upsert falls back to the Upsertable capability.
+// ValidateSinkIngestion reports whether the sink spec declares a write policy
+// that can serve the ingestion type. Undeclared policies are rejected.
 func ValidateSinkIngestion(spec SinkSpec, t IngestionType) error {
 	_, err := sinkCapabilityForIngestion(spec, t)
 	return err
@@ -133,18 +133,6 @@ func sinkCapabilityForIngestion(spec SinkSpec, t IngestionType) (WritePolicyCapa
 				return WritePolicyCapability{}, fmt.Errorf("sink %q write policy %q must declare durability as %q or %q", spec.Name, candidate.Mode, DurabilityAfterApply, DurabilityAfterCommit)
 			}
 			return candidate, nil
-		}
-	}
-	switch policy.Capability.Mode {
-	case WriteAppend:
-		if acceptsOperations([]Operation{OpInsert}, policy.Capability.AcceptsOps) {
-			return policy.Capability, nil
-		}
-	case WriteReplace:
-		return policy.Capability, nil
-	case WriteUpsert:
-		if spec.Capabilities.Upsertable {
-			return policy.Capability, nil
 		}
 	}
 	return WritePolicyCapability{}, fmt.Errorf("sink %q does not support write policy %q", spec.Name, policy.Capability.Mode)

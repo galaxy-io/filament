@@ -13,22 +13,18 @@ type streamBinding struct {
 	Consumer string `json:"consumer"`
 }
 
-// configuredStreams accepts either the legacy pair or an explicit set of pairs.
+// configuredStreams validates the explicit stream/consumer bindings.
 func configuredStreams(cfg filament.Config) ([]streamBinding, error) {
+	if cfg.Has("stream") || cfg.Has("consumer") {
+		return nil, fmt.Errorf("nats: explicit consumers must be configured in streams")
+	}
 	var bindings []streamBinding
-	if cfg.Has("streams") {
-		if cfg.Has("stream") || cfg.Has("consumer") {
-			return nil, fmt.Errorf("nats: use streams or stream/consumer, not both")
-		}
-		raw, err := json.Marshal(cfg.Raw()["streams"])
-		if err != nil {
-			return nil, fmt.Errorf("nats: streams: %w", err)
-		}
-		if err := json.Unmarshal(raw, &bindings); err != nil {
-			return nil, fmt.Errorf("nats: streams must be an array of stream/consumer objects: %w", err)
-		}
-	} else if cfg.Has("stream") || cfg.Has("consumer") {
-		bindings = []streamBinding{{Stream: cfg.String("stream"), Consumer: cfg.String("consumer")}}
+	raw, err := json.Marshal(cfg.Raw()["streams"])
+	if err != nil {
+		return nil, fmt.Errorf("nats: streams: %w", err)
+	}
+	if err := json.Unmarshal(raw, &bindings); err != nil {
+		return nil, fmt.Errorf("nats: streams must be an array of stream/consumer objects: %w", err)
 	}
 	if len(bindings) == 0 {
 		return nil, fmt.Errorf("nats: configure at least one stream and consumer")

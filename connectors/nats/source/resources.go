@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
@@ -30,27 +30,20 @@ func (s *Source) resolveSubjects(ctx context.Context, opts filament.StreamOpenOp
 			return nil, fmt.Errorf("nats: duplicate resource %q", p)
 		}
 	}
-	js, err := jetstream.New(s.conn)
-	if err != nil {
+	streams := s.js.ListStreams(ctx)
+	var physical []*jetstream.StreamInfo
+	for info := range streams.Info() {
+		physical = append(physical, info)
+	}
+	if err := streams.Err(); err != nil {
 		return nil, err
 	}
-	names := js.StreamNames(ctx)
-	var physical []string
-	for name := range names.Name() {
-		physical = append(physical, name)
-	}
-	if err := names.Err(); err != nil {
-		return nil, err
-	}
-	slices.Sort(physical)
+	slices.SortFunc(physical, func(a, b *jetstream.StreamInfo) int { return strings.Compare(a.Config.Name, b.Config.Name) })
 	var targets []resourceTarget
 	found := map[string]bool{}
 	domains := map[filament.DomainKey]bool{}
-	for _, name := range physical {
-		info, err := s.js.StreamInfo(name, nats.Context(ctx))
-		if err != nil {
-			return nil, err
-		}
+	for _, info := range physical {
+		name := info.Config.Name
 		for _, pattern := range patterns {
 			filters := subjectFilters(pattern, info.Config.Subjects)
 			if len(filters) == 0 {

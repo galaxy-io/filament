@@ -73,11 +73,8 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 }
 
 // The admitted consumer name identifies the logical set, not an extra provider
-// consumer. Preserve legacy single-consumer metadata for existing admissions.
+// consumer. All binding sets use the same admission metadata format.
 func consumerPlan(bindings []streamBinding) (string, map[string]any) {
-	if len(bindings) == 1 {
-		return bindings[0].Consumer, map[string]any{"stream": bindings[0].Stream}
-	}
 	raw, _ := json.Marshal(bindings)
 	sum := sha256.Sum256(raw)
 	return "nats-" + hex.EncodeToString(sum[:]), map[string]any{"streams": bindings}
@@ -112,14 +109,9 @@ func (*Source) BindReplicationStream(config map[string]any, admitted filament.Re
 	if err != nil {
 		return nil, err
 	}
-	var bound []streamBinding
-	if resource, ok := admitted.ConsumerConfig["stream"].(string); ok {
-		bound = []streamBinding{{Stream: resource, Consumer: admitted.ConsumerName}}
-	} else {
-		bound, err = configuredStreams(filament.NewConfig(admitted.ConsumerConfig))
-		if err != nil {
-			return nil, err
-		}
+	bound, err := configuredStreams(filament.NewConfig(admitted.ConsumerConfig))
+	if err != nil {
+		return nil, err
 	}
 	resources := make([]string, len(bound))
 	for i, b := range bound {

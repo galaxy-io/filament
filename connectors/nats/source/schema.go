@@ -17,18 +17,18 @@ func Schema(resource string) (rowmodel.Schema, error) {
 	return streamkit.WithEnvelopeFields(rowmodel.Schema{Resource: resource, DestinationResource: destinationResource(resource), Fields: []rowmodel.Field{{Name: "subject", Logical: rowmodel.LogicalString}}})
 }
 
-func messageHeaders(msg *nats.Msg) []streamkit.Header {
-	if msg.Header == nil {
+func messageHeaders(header nats.Header) []streamkit.Header {
+	if header == nil {
 		return nil
 	}
-	keys := make([]string, 0, len(msg.Header))
-	for key := range msg.Header {
+	keys := make([]string, 0, len(header))
+	for key := range header {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	headers := make([]streamkit.Header, 0)
 	for _, key := range keys {
-		for _, value := range msg.Header[key] {
+		for _, value := range header[key] {
 			headers = append(headers, streamkit.Header{Key: key, Value: []byte(value)})
 		}
 	}
