@@ -23,6 +23,13 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	if err != nil {
 		return nil, err
 	}
+	if _, err := compile.ExecutionModeFromProto(req.Msg.GetExecutionMode()); err != nil {
+		return nil, compileError(err)
+	}
+	execution := req.Msg.GetExecutionMode()
+	if execution == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		execution = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	}
 	id := uuid.NewString()
 	workerConfiguration := defaultWorkerConfiguration()
 	if supplied := req.Msg.GetWorkerConfiguration(); supplied != nil {
@@ -33,7 +40,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	}
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
-		WorkerConfiguration: workerConfiguration,
+		WorkerConfiguration: workerConfiguration, ExecutionMode: execution,
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -103,16 +110,23 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
 	}
+	if err := validateExecutionMode(pipeline.GetExecutionMode()); err != nil {
+		return nil, err
+	}
 	validationCtx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
-	validation, err := a.validatePipelineGraph(validationCtx, pipeline.GetTenantId(), nodes, edges)
+	validation, err := a.validatePipelineGraph(validationCtx, pipeline.GetTenantId(), nodes, edges, pipeline.GetExecutionMode())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if !validation.GetValid() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid: %s", pipelineValidationMessage(validation)))
 	}
-	if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
+	if pipeline.GetExecutionMode() == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+		for _, edge := range edges {
+			edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+		}
+	} else if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	a.defaultSinkSchemas(ctx, tenant, nodes, edges)
@@ -262,12 +276,15 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
+	if _, err := compile.ExecutionModeFromProto(req.Msg.GetExecutionMode()); err != nil {
+		return nil, compileError(err)
+	}
 	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
 		return nil, compileError(err)
 	}
 	pipeline := &ingestionv1.Pipeline{
 		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
-		WorkerConfiguration: req.Msg.GetWorkerConfiguration(),
+		WorkerConfiguration: req.Msg.GetWorkerConfiguration(), ExecutionMode: req.Msg.GetExecutionMode(),
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {
@@ -338,6 +355,9 @@ func (a *Server) GetPipeline(ctx context.Context, req *connect.Request[ingestion
 }
 
 func newPipelineSchedule(pipeline *ingestionv1.Pipeline, config *ingestionv1.PipelineScheduleConfig) (filament.ScheduleState, error) {
+	if pipeline.GetExecutionMode() == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+		return filament.ScheduleState{}, fmt.Errorf("continuous pipelines do not support cron schedules")
+	}
 	timezone := config.GetTimezone()
 	if timezone == "" {
 		timezone = "UTC"
@@ -462,7 +482,10 @@ func (a *Server) expandPipeline(ctx context.Context, tenant filament.TenantID, p
 			return connect.NewError(connect.CodeInternal, err)
 		}
 		if len(states) > 0 {
-			pipeline.LastRun = runInfoToProto(states[0])
+			pipeline.LastRun, err = a.runInfo(ctx, states[0])
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if includeSchedule && a.schedules != nil {
@@ -505,6 +528,9 @@ func (a *Server) RunPipeline(ctx context.Context, req *connect.Request[ingestion
 }
 
 func (a *Server) submitPipeline(ctx context.Context, tenant filament.TenantID, req *ingestionv1.RunPipelineRequest) ([]*ingestionv1.PipelineEdgeRun, error) {
+	if err := a.validateExecution(req.GetOptions().GetExecutionMode()); err != nil {
+		return nil, err
+	}
 	token := req.GetClientToken()
 	if token == "" {
 		token = uuid.NewString()
@@ -535,9 +561,15 @@ func (a *Server) submitPipeline(ctx context.Context, tenant filament.TenantID, r
 				filament.Field{Key: "resource_count", Value: len(c.Submission.Request.Resources)},
 				filament.Field{Key: "run_id", Value: string(run)})
 		}
-		runRequest := c.Submission.Request
-		state := filament.RunState{Run: run, Tenant: runRequest.Tenant, Request: runRequest, ScheduleID: runRequest.ScheduleID, Status: filament.RunRequested}
-		edgeRuns = append(edgeRuns, &ingestionv1.PipelineEdgeRun{PipelineEdgeKey: c.Edge, Run: runInfoToProto(state)})
+		state, err := a.store.LoadRun(ctx, tenant, run)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		info, err := a.runInfo(ctx, state)
+		if err != nil {
+			return nil, err
+		}
+		edgeRuns = append(edgeRuns, &ingestionv1.PipelineEdgeRun{PipelineEdgeKey: c.Edge, Run: info})
 	}
 	if a.log != nil {
 		a.log.Debug("pipeline submitted",

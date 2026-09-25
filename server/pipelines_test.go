@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 
@@ -262,5 +264,60 @@ func TestCreatePipelineVersionRejectsResourceRequirements(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("valid Incremental resource: %v", err)
+	}
+}
+
+// strictSink requires a pipeline-scoped field with no default.
+type strictSink struct{ leverSink }
+
+func (strictSink) Spec() filament.SinkSpec {
+	spec := leverSink{}.Spec()
+	spec.Name = "strictsink"
+	spec.Config = filament.ConfigSchema{Fields: []filament.ConfigField{
+		{Name: "stream", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline},
+		{Name: "schema", Type: filament.FieldString, Required: true, Default: "public", Scope: filament.ScopePipeline},
+	}}
+	return spec
+}
+
+func TestCreatePipelineVersionRequiresPipelineScopedFields(t *testing.T) {
+	ctx := testCtx()
+	api, ids := leverAPI(t)
+	api.sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
+	created, err := api.CreateConnection(ctx, connect.NewRequest(&ingestionv1.CreateConnectionRequest{Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, Name: "strict", Connector: "strictsink"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "strict"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := func(config map[string]any) error {
+		var cfg *structpb.Struct
+		if config != nil {
+			cfg, err = structpb.NewStruct(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+			PipelineId: pipelineResp.Msg.GetPipeline().GetId(),
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: created.Msg.GetConnection().GetId(), Config: cfg},
+				},
+				Edges: []*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND}},
+			},
+		}))
+		return err
+	}
+	err = version(nil)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "stream is required") {
+		t.Fatalf("missing required pipeline field accepted: %v", err)
+	}
+	// A required field with a default is filled at run time and never blocks.
+	if err := version(map[string]any{"stream": "EVENTS"}); err != nil {
+		t.Fatalf("declared required field rejected: %v", err)
 	}
 }

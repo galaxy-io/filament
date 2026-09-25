@@ -88,14 +88,13 @@ run-level rate settings.
 | Interface or capability | What it means today |
 |---|---|
 | `Schematized` | The runner calls `EnsureSchema` for each resource before extraction. |
-| `SinkCapabilities.Upsertable` | Planning may bind upsert policies; the sink applies them inside `Apply`. |
+| `SinkCapabilities.WritePolicies` | The only source of write modes. Planning rejects any ingestion type without a declared policy; the sink applies bound policies inside `Apply`. |
 | `SinkCapabilities.EncodedIntegrity` | Every `Apply` must return an `EncodedCRC` verified over the exact serialized bytes. |
 | `Transactional` | Declares stage/promote methods, but the engine does not currently call them. |
-| `Upsertable` | Declares a direct `Upsert` method, but the engine does not currently call it. |
 
-The last two interfaces should not be confused with runtime behavior. Today the
+The last interface should not be confused with runtime behavior. Today the
 engine always writes through `Sink.Apply` and finishes through `Commit` or
-`Abort`. A sink that advertises upsert implements that policy inside `Apply`.
+`Abort`. A sink that declares an upsert policy implements it inside `Apply`.
 A sink that needs staging manages it inside its own lifecycle.
 
 ## Keep declaration and behavior together

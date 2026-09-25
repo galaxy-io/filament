@@ -21,15 +21,24 @@ import (
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 )
 
-// Store is a Postgres-backed filament.DataStore and filament.ScheduleStore.
+// Store provides ordinary and continuous-stream persistence on PostgreSQL.
 type Store struct {
-	pool *pgxpool.Pool
-	q    *sqlcgen.Queries
+	pool   *pgxpool.Pool
+	q      *sqlcgen.Queries
+	codecs filament.CodecResolver
 }
 
 // New wraps an already-connected pool. Run Migrate before first use.
 func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool, q: sqlcgen.New(pool)}
+}
+
+// ConfigureStreamCodecs supplies the codecs used to certify and compare stream
+// progress. Call during boot, before using the store. The resolver and its codecs
+// must remain fixed, pure, deterministic, and concurrency-safe for the store's
+// lifetime. Configuration does not start workers or enable continuous execution.
+func (s *Store) ConfigureStreamCodecs(codecs filament.CodecResolver) {
+	s.codecs = codecs
 }
 
 // Pool exposes the underlying connection pool for components backed by the
@@ -186,6 +195,9 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := s.q.WithTx(tx)
 	if desired != nil {
+		if desired.Tenant != r.Tenant || desired.PipelineID != r.Request.PipelineID || desired.Route != r.Request.CheckpointRoute {
+			return fmt.Errorf("datastore/postgres: desired replication stream does not match run route identity")
+		}
 		stream, err := resolveReplicationStream(ctx, q, *desired)
 		if err != nil {
 			return err
@@ -226,6 +238,11 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 		return fmt.Errorf("create run %q: %w", r.Run, filament.ErrVersionConflict)
 	}
 
+	if desired != nil && r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		if err := initializeContinuousActivation(ctx, q, r); err != nil {
+			return err
+		}
+	}
 	for _, rs := range r.Resources {
 		rs.Run = r.Run
 		rs.Tenant = r.Tenant
@@ -241,7 +258,7 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 
 func replicationRouteConflict(err error) bool {
 	var pgErr *pgconn.PgError
-	if !errors.As(err, &pgErr) {
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
 		return false
 	}
 	switch pgErr.ConstraintName {
@@ -589,6 +606,7 @@ func (s *Store) SaveResourceCheckpoint(ctx context.Context, tenant filament.Tena
 	var rows int64
 	if state.Key.ReplicationStreamID != "" {
 		rows, err = s.q.SaveStreamResourceCheckpoint(ctx, sqlcgen.SaveStreamResourceCheckpointParams{
+			TenantID:   string(tenant),
 			PipelineID: state.Key.PipelineID, PipelineVersionID: state.Key.PipelineVersionID,
 			RouteKey: state.Key.Route, ResourceName: state.Key.Resource,
 			ReplicationStreamID: state.Key.ReplicationStreamID,
@@ -709,6 +727,7 @@ func (s *Store) DeleteResourceCheckpoint(ctx context.Context, tenant filament.Te
 	var err error
 	if key.ReplicationStreamID != "" {
 		err = s.q.DeleteStreamResourceCheckpoint(ctx, sqlcgen.DeleteStreamResourceCheckpointParams{
+			TenantID:            string(tenant),
 			ReplicationStreamID: key.ReplicationStreamID, ResourceName: key.Resource,
 		})
 	} else {

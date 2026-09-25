@@ -17,7 +17,7 @@ import VerticalDivider from "@galaxy-io/dls/dividers/VerticalDivider";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text from "@galaxy-io/dls/text/Text";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
@@ -40,6 +40,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
+import CreatePipelineModalConnectionsExecutionMode from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionsExecutionMode";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
@@ -47,7 +48,7 @@ import { NOOP } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
-const RowWrapper = withTheme(styled.div<PropsWithTheme>`
+const RowWrapper = withTheme(styled.div<PropsWithTheme<{ $isDisabled?: boolean }>>`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -55,10 +56,11 @@ const RowWrapper = withTheme(styled.div<PropsWithTheme>`
   flex-shrink: 0;
 
   border-radius: 4px;
-  cursor: pointer;
+  cursor: ${({ $isDisabled }) => ($isDisabled ? "default" : "pointer")};
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${({ theme, $isDisabled }) =>
+      $isDisabled ? "transparent" : theme.color.background.tertiary};
   }
 `);
 
@@ -126,10 +128,13 @@ const CreatePipelineModalConnectionRow = ({
   connection: Connection;
   kind: ConnectorKind;
 }) => {
-  const { sourceConnection, sinkConnections } = useCreatePipelineModalState();
+  const { sourceConnection, sinkConnections, executionMode } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
   const isSource = kind === ConnectorKind.SOURCE;
+  const isDisabled = isSource
+    ? connection.executionModes.length === 0
+    : !connection.executionModes.includes(executionMode);
 
   const handleClick = () => {
     dispatch(
@@ -140,13 +145,18 @@ const CreatePipelineModalConnectionRow = ({
   };
 
   return (
-    <RowWrapper onClick={handleClick}>
+    <RowWrapper $isDisabled={isDisabled} onClick={isDisabled ? undefined : handleClick}>
       <RowControlWrapper>
         {isSource ? (
-          <RadioInput isSelected={sourceConnection?.id === connection.id} onChange={NOOP} />
+          <RadioInput
+            isSelected={sourceConnection?.id === connection.id}
+            isDisabled={isDisabled}
+            onChange={NOOP}
+          />
         ) : (
           <CheckboxInput
             isChecked={sinkConnections.some((sink) => sink.id === connection.id)}
+            isDisabled={isDisabled}
             onChange={NOOP}
             ariaLabel={connection.name}
           />
@@ -154,7 +164,9 @@ const CreatePipelineModalConnectionRow = ({
       </RowControlWrapper>
       <ConnectorTile connector={connection.connector} kind={connection.kind} />
       <FlexItem minWidth={0} overflow="hidden">
-        <Text isEllipsis>{connection.name}</Text>
+        <Text isEllipsis variant={isDisabled ? TextVariant.DISABLED : TextVariant.PRIMARY}>
+          {connection.name}
+        </Text>
       </FlexItem>
     </RowWrapper>
   );
@@ -290,11 +302,29 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
 };
 
 const CreatePipelineModalConnections = () => {
+  const { supportedExecutionModes } = useCreatePipelineModalState();
+
   return (
-    <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
-      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SOURCE} />
-      <VerticalDivider />
-      <CreatePipelineModalConnectionsPane kind={ConnectorKind.SINK} />
+    <FlexWrapper
+      direction={FlexDirection.COLUMN}
+      alignItems={AlignItems.STRETCH}
+      grow={1}
+      basis={0}
+      minHeight={0}
+    >
+      <FlexWrapper alignItems={AlignItems.STRETCH} grow={1} basis={0} minHeight={0}>
+        <CreatePipelineModalConnectionsPane kind={ConnectorKind.SOURCE} />
+        <VerticalDivider />
+        <CreatePipelineModalConnectionsPane kind={ConnectorKind.SINK} />
+      </FlexWrapper>
+      {supportedExecutionModes.length > 1 && (
+        <>
+          <HorizontalDivider />
+          <FlexWrapper padding="12px" shrink={0} fillWidth>
+            <CreatePipelineModalConnectionsExecutionMode />
+          </FlexWrapper>
+        </>
+      )}
     </FlexWrapper>
   );
 };

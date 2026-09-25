@@ -58,8 +58,8 @@ func (q *Queries) CountPipelines(ctx context.Context, arg CountPipelinesParams) 
 }
 
 const createPipeline = `-- name: CreatePipeline :exec
-INSERT INTO pipelines (id, tenant_id, name, description, worker_configuration, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, coalesce(nullif(?5, ''), '{}'), ?6, ?7)
+INSERT INTO pipelines (id, tenant_id, name, description, execution_mode, worker_configuration, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, coalesce(nullif(?5, 0), 1), coalesce(nullif(?6, ''), '{}'), ?7, ?8)
 `
 
 type CreatePipelineParams struct {
@@ -67,6 +67,7 @@ type CreatePipelineParams struct {
 	TenantID            string
 	Name                string
 	Description         string
+	ExecutionMode       interface{}
 	WorkerConfiguration interface{}
 	CreatedAt           int64
 	UpdatedAt           int64
@@ -78,6 +79,7 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 		arg.TenantID,
 		arg.Name,
 		arg.Description,
+		arg.ExecutionMode,
 		arg.WorkerConfiguration,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -130,7 +132,7 @@ func (q *Queries) GetCurrentPipelineVersionID(ctx context.Context, arg GetCurren
 }
 
 const getPipeline = `-- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, worker_configuration,
+SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration,
        created_at, updated_at, deleted_at,
        coalesce(created_by_user_id, '') AS created_by_user_id,
        coalesce(updated_by_user_id, '') AS updated_by_user_id,
@@ -149,6 +151,7 @@ type GetPipelineRow struct {
 	Name                string
 	Description         string
 	CurrentVersionID    sql.NullString
+	ExecutionMode       int64
 	WorkerConfiguration string
 	CreatedAt           int64
 	UpdatedAt           int64
@@ -167,6 +170,7 @@ func (q *Queries) GetPipeline(ctx context.Context, arg GetPipelineParams) (*GetP
 		&i.Name,
 		&i.Description,
 		&i.CurrentVersionID,
+		&i.ExecutionMode,
 		&i.WorkerConfiguration,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -349,14 +353,16 @@ func (q *Queries) SetCurrentPipelineVersion(ctx context.Context, arg SetCurrentP
 
 const updatePipeline = `-- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = ?1, description = ?2,
-  worker_configuration = coalesce(nullif(?3, ''), worker_configuration),
-  updated_at = ?4
-WHERE tenant_id = ?5 AND id = ?6 AND is_deleted = 0
+  execution_mode = coalesce(nullif(?3, 0), execution_mode),
+  worker_configuration = coalesce(nullif(?4, ''), worker_configuration),
+  updated_at = ?5
+WHERE tenant_id = ?6 AND id = ?7 AND is_deleted = 0
 `
 
 type UpdatePipelineParams struct {
 	Name                string
 	Description         string
+	ExecutionMode       interface{}
 	WorkerConfiguration interface{}
 	UpdatedAt           int64
 	TenantID            string
@@ -367,6 +373,7 @@ func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) 
 	result, err := q.db.ExecContext(ctx, updatePipeline,
 		arg.Name,
 		arg.Description,
+		arg.ExecutionMode,
 		arg.WorkerConfiguration,
 		arg.UpdatedAt,
 		arg.TenantID,

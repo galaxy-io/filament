@@ -9,6 +9,8 @@ import {
 
 import { match } from "ts-pattern";
 
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+
 import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
@@ -31,8 +33,11 @@ import {
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { PipelineScheduleFrequency } from "@/pages/pipelines/settings/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
 const DEFAULT_STATE: CreatePipelineModalState = {
+  executionMode: ExecutionMode.BOUNDED,
+  manualResources: [],
   step: CreatePipelineModalStep.CONNECTIONS,
   activeSinkId: "",
   sourceConnection: null,
@@ -87,14 +92,18 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     rowsBySink,
     sinks,
     replication,
-    isCdc,
+    hasReadLevers,
     issuesBySink,
     selectedCountBySink,
     isLoading,
+    isValidating,
     discoverError,
   } = useCreatePipelineResources(state);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
+    const supportedExecutionModes = getSupportedExecutionModes(state.sourceConnection);
+    const isContinuous = state.executionMode === ExecutionMode.CONTINUOUS;
+
     const blockingMessages = sinks.flatMap((sink) =>
       (issuesBySink[sink.connection.id] ?? []).map((message) =>
         sinks.length > 1 ? `[Sink: ${sink.connection.name}] ${message}` : message,
@@ -106,20 +115,27 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
       : getDefaultPipelineName(state.sourceConnection, state.sinkConnections);
 
     const isScheduleValid =
-      !state.schedule.isEnabled || formatPipelineScheduleSummary(state.schedule) !== null;
+      isContinuous ||
+      !state.schedule.isEnabled ||
+      formatPipelineScheduleSummary(state.schedule) !== null;
     const isNotifiersValid = state.notifiers.every(isPipelineNotifierValid);
     const workerConfigurationError = parseWorkerConfiguration(state.workerConfiguration).error;
-    const isConnectionsValid = !!state.sourceConnection && state.sinkConnections.length > 0;
-    const isResourcesValid = !blockingMessages.length;
+    const isConnectionsValid =
+      state.sinkConnections.length > 0 && supportedExecutionModes.length > 0;
+    const isResourcesValid = !isValidating && !blockingMessages.length;
 
     const isNextDisabled = match(state.step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => !isConnectionsValid)
       .with(CreatePipelineModalStep.RESOURCES, () => !isResourcesValid)
       .with(
         CreatePipelineModalStep.DELIVERY,
-        () => !isScheduleValid || !isNotifiersValid || !!workerConfigurationError,
+        () =>
+          !isResourcesValid || !isScheduleValid || !isNotifiersValid || !!workerConfigurationError,
       )
-      .with(CreatePipelineModalStep.DETAILS, () => !isNameValid(effectiveName))
+      .with(
+        CreatePipelineModalStep.DETAILS,
+        () => !isResourcesValid || !isScheduleValid || !isNameValid(effectiveName),
+      )
       .exhaustive();
 
     const activeSinkId = sinks.some((sink) => sink.connection.id === state.activeSinkId)
@@ -139,11 +155,12 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
 
     return {
       ...state,
+      supportedExecutionModes,
+      hasReadLevers,
       activeSinkId,
       rowsBySink,
       sinks,
       replication,
-      isCdc,
       issuesBySink,
       selectedCountBySink,
       isLoading,
@@ -162,10 +179,11 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     rowsBySink,
     sinks,
     replication,
-    isCdc,
+    hasReadLevers,
     issuesBySink,
     selectedCountBySink,
     isLoading,
+    isValidating,
     discoverError,
   ]);
 

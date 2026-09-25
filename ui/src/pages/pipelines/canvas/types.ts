@@ -41,7 +41,9 @@ export type CanvasNode =
   | PipelineCanvasSinkNode
   | PipelineCanvasPlaceholderNode;
 
-export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors">;
+export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode" | "cursors"> & {
+  destinationResource?: string;
+};
 
 export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
 

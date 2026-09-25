@@ -56,6 +56,7 @@ const PipelineCanvasPanelActivity = () => {
     input: create(ListRunsRequestSchema, {
       pipelineId: id,
       status: [...ACTIVE_RUN_STATUSES],
+      pagination: { pageSize: PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS },
     }),
   });
 

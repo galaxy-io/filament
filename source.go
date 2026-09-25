@@ -17,6 +17,13 @@ type Source interface {
 	Teardown(ctx context.Context) error
 }
 
+// DestinationResourceNamer optionally supplies a default output name without
+// schema discovery. Implementations must be deterministic and perform no I/O.
+// An empty result leaves the resource name unchanged. Pipeline labels override it.
+type DestinationResourceNamer interface {
+	DestinationResource(resource string) string
+}
+
 // Resumable is the optional source contract for checkpointed extraction. prev maps
 // each resource to the cursor to resume from (a plan produced by ResumePlanner,
 // carrying any progress from a prior run); a resource absent from prev — or mapped
@@ -194,13 +201,20 @@ type ReplicationAware interface {
 // ReplicationStreamPlanningRequest is the connector-owned input for planning
 // an independently advancing source consumer.
 type ReplicationStreamPlanningRequest struct {
+	// SourceConnectionID is the stable Filament connection identity, independent of runs.
+	SourceConnectionID  string
 	ReplicationStreamID string
 	Config              Config
+	// Resources fixes continuous membership. Empty asks the connector for its default.
+	Resources []string
 }
 
 // ReplicationStreamPlan describes the connector-specific external consumer and
 // the normalized config fields that determine whether its continuity is reusable.
 type ReplicationStreamPlan struct {
+	// Resources is the connector-resolved fixed membership for continuous admission.
+	// Bounded CDC planning may leave it empty.
+	Resources        []string
 	ConsumerName     string
 	ConsumerConfig   map[string]any
 	ContinuityConfig map[string]any
@@ -245,6 +259,7 @@ type ConfigValidatable interface {
 // ConnectorSpec is a source's self-description: identity, supported modes and
 // policies, config schema, and resource capabilities. It powers the catalog.
 type ConnectorSpec struct {
+	Stream         *StreamCapabilities
 	Name           string
 	DisplayName    string
 	Description    string

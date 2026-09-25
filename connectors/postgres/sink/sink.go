@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
+	"github.com/galaxy-io/filament/internal/stream"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -22,6 +23,9 @@ import (
 // implements filament.Schematized; the engine only runs schema discovery for sinks
 // that do.
 type Sink struct {
+	continuous bool
+	stream     streamSession
+
 	pool     *pgxpool.Pool
 	run      filament.RunID
 	schema   string
@@ -109,6 +113,26 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
+	if run.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		if err := run.ValidateStreamAttempt(); err != nil {
+			return err
+		}
+		for _, resource := range run.Resources {
+			p, ok := run.WritePolicies[resource]
+			if !ok {
+				p = run.WritePolicies[""]
+			}
+			if p.Capability.Mode != filament.WriteAppend {
+				return fmt.Errorf("postgres stream: only append is supported")
+			}
+		}
+		t.continuous = true
+		lifecycle, err := stream.NewSinkLifecycle(*run.StreamAttempt)
+		if err != nil {
+			return err
+		}
+		t.stream = streamSession{lifecycle: lifecycle}
+	}
 	cfg := filament.NewConfig(run.Sink.Config)
 	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
@@ -141,6 +165,9 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 
 // Commit releases the pool; the COPYs are already durable.
 func (t *Sink) Commit(context.Context) error {
+	if t.continuous {
+		return filament.ErrEpochMismatch
+	}
 	t.release()
 	return nil
 }
@@ -149,6 +176,9 @@ func (t *Sink) Commit(context.Context) error {
 // rather than a half-load) and releases the pool. Best-effort on a cancel-free
 // context so cleanup runs even when the failure cancelled ctx.
 func (t *Sink) Abort(ctx context.Context) error {
+	if t.continuous {
+		return filament.ErrEpochMismatch
+	}
 	defer t.release()
 	if t.pool == nil {
 		return nil

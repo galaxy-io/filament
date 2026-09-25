@@ -1,7 +1,7 @@
 import { type JsonValue, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 
-import { type ConfigField, FieldScope } from "@/gen/ingestion/v1/common_pb";
+import { type ConfigField, FieldScope, FieldType } from "@/gen/ingestion/v1/common_pb";
 
 const ACRONYMS_TO_CAPITALIZE: string[] = [
   "api",
@@ -99,6 +99,9 @@ export function getConnectionScopedFields(fields: ConfigField[]): ConfigField[] 
   return fields.filter((field) => field.scope === FieldScope.CONNECTION);
 }
 
+const isRenderableField = (field: ConfigField): boolean =>
+  field.type !== FieldType.LIST || field.enum.length > 0;
+
 export function getPipelineScopedFields(fields: ConfigField[]): ConfigField[] {
-  return fields.filter((field) => field.scope === FieldScope.PIPELINE);
+  return fields.filter((field) => field.scope === FieldScope.PIPELINE && isRenderableField(field));
 }
