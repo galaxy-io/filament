@@ -69,6 +69,7 @@ type Manifest struct {
 	Description  string                `yaml:"description,omitempty"`
 	DarkLogoURL  string                `yaml:"dark_logo_url,omitempty"`
 	LightLogoURL string                `yaml:"light_logo_url,omitempty"`
+	APIVersion   string                `yaml:"api_version,omitempty"`
 	Config       map[string]ConfigSpec `yaml:"config,omitempty"`
 	Defaults     Defaults              `yaml:"defaults,omitempty"`
 	FieldSets    map[string]FieldList  `yaml:"field_sets,omitempty"`

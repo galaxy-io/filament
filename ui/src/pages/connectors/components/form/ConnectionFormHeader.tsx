@@ -1,6 +1,6 @@
 import pluralize from "pluralize";
 
-import { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 
@@ -21,6 +21,7 @@ interface ConnectionFormHeaderProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   connectorMaturity: ConnectorMaturity;
+  connectorApiVersion: ConnectorSpec["apiVersion"];
   title: string;
   onClose: () => void;
 }
@@ -34,6 +35,7 @@ const ConnectionFormHeader = ({
   connectorName,
   connectorKind,
   connectorMaturity,
+  connectorApiVersion,
   title,
   onClose,
 }: ConnectionFormHeaderProps) => {
@@ -58,6 +60,13 @@ const ConnectionFormHeader = ({
           />
           <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
             <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+            {connectorApiVersion && (
+              <Chip
+                label={`Version ${connectorApiVersion}`}
+                variant={ChipVariant.SECONDARY}
+                size={ChipSize.SMALL}
+              />
+            )}
             <ConnectorMaturityIcon maturity={connectorMaturity} />
           </FlexWrapper>
         </FlexWrapper>

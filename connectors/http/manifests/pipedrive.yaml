@@ -4,6 +4,9 @@ display_name: Pipedrive
 description: Deals, leads, persons, organizations, activities, notes, products, users, pipelines, stages, and field definitions from Pipedrive.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-light.svg
+# v2 is the current API; users, leads, notes, files and reference data have
+# no v2 endpoint yet and stay on /api/v1.
+api_version: "v2"
 config:
   api_token:
     type: secret

@@ -28,6 +28,11 @@ var (
 	ValidRateLimitResetFormats = []string{"unix_seconds", "seconds_from_now", "http_date", ""}
 )
 
+// VersionHeaders are request headers vendors use to pin an API version. A
+// manifest that sends one must declare the same value as api_version so the
+// advertised version cannot drift from the one actually requested.
+var VersionHeaders = []string{"Stripe-Version", "Notion-Version", "X-GitHub-Api-Version", "API-Version"}
+
 // checkEnum errors when v is not in allowed. Caller wraps the returned error
 // with a manifest path so the author sees both the bad value and where it
 // landed in their YAML.

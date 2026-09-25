@@ -266,6 +266,7 @@ type ConnectorSpec struct {
 	DarkLogoURL    string
 	LightLogoURL   string
 	Version        string
+	APIVersion     string
 	Maturity       ConnectorMaturity
 	Modes          []ReadMode
 	SourcePolicies []SourcePolicy

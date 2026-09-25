@@ -7,8 +7,8 @@ old pages or constructor APIs.
 ## Manifest metadata and logos
 
 Write `connectors/http/manifests/<name>.yaml`. The manifest owns `name`,
-`display_name`, `description`, `dark_logo_url`, and `light_logo_url`, as well as
-its config schema. Describe the data the connector reads, not the product's
+`display_name`, `description`, `dark_logo_url`, `light_logo_url`, and
+`api_version`, as well as its config schema. Describe the data the connector reads, not the product's
 marketing positioning.
 
 Prefer the existing catalog CDN convention:

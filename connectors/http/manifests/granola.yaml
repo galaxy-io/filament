@@ -4,6 +4,7 @@ display_name: Granola
 description: Meeting notes, AI summaries, transcripts, folders, and webhook configuration from Granola.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-light.svg
+api_version: "v1"
 config:
   api_key:
     type: secret

@@ -18,6 +18,7 @@ display_name: Example # required catalog metadata
 description: Read records from Example.
 dark_logo_url: https://cdn.example.com/example-dark.svg
 light_logo_url: https://cdn.example.com/example-light.svg
+api_version: "v1"     # upstream API version; omit when the vendor does not version
 config: {}            # user-facing connector settings
 defaults: {}          # inherited by every resource
 field_sets: {}        # reusable field bundles
@@ -28,6 +29,11 @@ discovery: {}         # static or dynamic
 
 Metadata belongs in the manifest, not in constructor arguments. Resolve real
 logo URLs using [wiring.md](wiring.md).
+
+`api_version` is the version the manifest was researched against: a pinned
+header value, a path segment such as `v2`, or a GraphQL schema date. It must
+equal any pinned version header (`Stripe-Version`, `Notion-Version`,
+`X-GitHub-Api-Version`, `API-Version`). Omit it for unversioned APIs.
 
 ## Complete minimal example
 
@@ -41,6 +47,7 @@ display_name: Example
 description: Records from Example.
 dark_logo_url: https://cdn.example.com/example-dark.svg
 light_logo_url: https://cdn.example.com/example-light.svg
+api_version: "v1"
 config:
   api_key: { type: secret, required: true, help: Example API key }
 connection:

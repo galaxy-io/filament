@@ -88,6 +88,7 @@ type ConnectorSpec struct {
 	LightLogoUrl  string                 `protobuf:"bytes,9,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
 	SchemaField   string                 `protobuf:"bytes,10,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
 	Maturity      ConnectorMaturity      `protobuf:"varint,11,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
+	ApiVersion    string                 `protobuf:"bytes,12,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +198,13 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 		return x.Maturity
 	}
 	return ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED
+}
+
+func (x *ConnectorSpec) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
 }
 
 type ListConnectorsRequest struct {
@@ -1075,7 +1083,7 @@ var File_ingestion_v1_connectors_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\xd3\x03\n" +
+	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\xf4\x03\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1088,7 +1096,9 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\x0elight_logo_url\x18\t \x01(\tR\flightLogoUrl\x12!\n" +
 	"\fschema_field\x18\n" +
 	" \x01(\tR\vschemaField\x12;\n" +
-	"\bmaturity\x18\v \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\"\xd9\x01\n" +
+	"\bmaturity\x18\v \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\x12\x1f\n" +
+	"\vapi_version\x18\f \x01(\tR\n" +
+	"apiVersion\"\xd9\x01\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +
