@@ -31,7 +31,7 @@ func envelopeFields() []Field {
 // WithEnvelopeFields declares the SDK-owned suffix. It rejects user collisions
 // before adding columns; callers cannot mark arbitrary fields as SDK-generated.
 func WithEnvelopeFields(s Schema) (Schema, error) {
-	if s.envelope {
+	if s.envelope || s.projectedEnvelope {
 		return Schema{}, fmt.Errorf("resource %q already has an envelope", s.Resource)
 	}
 	if err := ValidateReservedFields(s); err != nil {
@@ -43,12 +43,30 @@ func WithEnvelopeFields(s Schema) (Schema, error) {
 	return s, nil
 }
 
+// WithEventMetadataFields adds event metadata without the raw message payload.
+// Decoded message columns remain source-owned.
+func WithEventMetadataFields(s Schema) (Schema, error) {
+	if s.envelope || s.projectedEnvelope {
+		return Schema{}, fmt.Errorf("resource %q already has event metadata", s.Resource)
+	}
+	if err := ValidateReservedFields(s); err != nil {
+		return Schema{}, err
+	}
+	s = s.Clone()
+	s.Fields = append(s.Fields, envelopeFields()[:5]...)
+	s.projectedEnvelope = true
+	return s, nil
+}
+
 // ValidateReservedFields permits only the exact SDK-declared suffix. The marker
 // is schema provenance, not a security boundary against malicious Go code.
 func ValidateReservedFields(s Schema) error {
 	start := len(s.Fields)
-	if s.envelope {
+	if s.envelope || s.projectedEnvelope {
 		fields := envelopeFields()
+		if s.projectedEnvelope {
+			fields = fields[:5]
+		}
 		start -= len(fields)
 		if start < 0 {
 			return fmt.Errorf("resource %q has incomplete envelope fields", s.Resource)

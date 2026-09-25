@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ type session struct {
 	codecs                   *streamkit.Registry
 	writer                   arrowbatch.RowWriter
 	projector                *streamkit.Projector
+	columns                  *streamkit.MessageColumns
 	hb                       *streamkit.Heartbeat
 	mu                       sync.Mutex
 	pending                  jetstream.Msg
@@ -118,17 +120,6 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 	if err := s.authority(ctx); err != nil {
 		return filament.Coverage{}, err
 	}
-	if s.writer == nil {
-		schema, err := Schema(s.binding.resource)
-		if err != nil {
-			return filament.Coverage{}, err
-		}
-		s.writer, err = out.Builder(s.binding.resource, 0, schema)
-		if err != nil {
-			return filament.Coverage{}, err
-		}
-		s.projector = streamkit.NewProjector(s.writer, s.codecs)
-	}
 	meta, err := msg.Metadata()
 	if err != nil {
 		return filament.Coverage{}, err
@@ -158,6 +149,22 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 			}
 		}
 	}
+	if s.writer == nil {
+		columns, schema, err := streamkit.NewMessageColumns(messageBaseSchema(s.binding.resource), msg.Data())
+		if err != nil {
+			return filament.Coverage{}, err
+		}
+		s.writer, err = out.Builder(s.binding.resource, 0, schema)
+		if err != nil {
+			return filament.Coverage{}, err
+		}
+		s.projector = streamkit.NewEventMetadataProjector(s.writer, s.codecs)
+		s.columns = columns
+	}
+	appendPayload, err := s.columns.Prepare(msg.Data())
+	if err != nil {
+		return filament.Coverage{}, fmt.Errorf("nats: subject %s sequence %d: %w", msg.Subject(), seq, err)
+	}
 	s.mu.Lock()
 	s.pending = msg
 	s.pendingSeq = seq
@@ -165,6 +172,7 @@ func (s *session) readMessage(ctx context.Context, out filament.StreamRecordSink
 	headers := messageHeaders(msg.Headers())
 	position := filament.Position{Codec: PositionCodec, Version: 0, Value: []byte(strconv.FormatUint(seq, 10))}
 	s.writer.String(msg.Subject())
+	appendPayload(s.writer)
 	if err := s.projector.EndEvent(streamkit.Envelope{Identity: filament.EventIdentity{Domain: s.domain, Position: position}, Timestamp: &meta.Timestamp, Headers: headers, KeyNull: true, Payload: msg.Data()}, rowmodel.Meta{}); err != nil {
 		s.lifecycle.Fail(err)
 		return filament.Coverage{}, err

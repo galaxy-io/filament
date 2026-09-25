@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
 
@@ -27,9 +28,15 @@ type partKey struct {
 	part     int
 }
 
+type schemaPreparation struct {
+	once sync.Once
+	err  error
+}
+
 type registeredSchema struct {
-	model rowmodel.Schema
-	arrow *arrow.Schema
+	model       rowmodel.Schema
+	preparation *schemaPreparation
+	arrow       *arrow.Schema
 }
 
 var _ arrowbatch.Inlet = (*inlet)(nil)
@@ -67,7 +74,7 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 		}
 		want = registered.arrow
 	} else {
-		p.schemas[resource] = registeredSchema{model: schema, arrow: want}
+		p.schemas[resource] = registeredSchema{model: schema, arrow: want, preparation: &schemaPreparation{}}
 	}
 	if _, exists := p.builders[key]; exists {
 		return nil, fmt.Errorf("pipeline: builder already open for %q part %d", resource, part)

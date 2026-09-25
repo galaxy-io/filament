@@ -40,8 +40,9 @@ const (
 
 // Schema is one resource's column layout.
 type Schema struct {
-	envelope bool
-	Resource string
+	envelope          bool
+	projectedEnvelope bool
+	Resource          string
 	// DestinationResource names the output object without changing source identity.
 	// Empty preserves the source resource name.
 	DestinationResource string
@@ -52,7 +53,7 @@ type Schema struct {
 
 // Equal reports whether two supplied schemas describe the same resource model.
 func (s Schema) Equal(other Schema) bool {
-	return s.envelope == other.envelope && s.Resource == other.Resource && s.DestinationResource == other.DestinationResource && s.Engine == other.Engine &&
+	return s.envelope == other.envelope && s.projectedEnvelope == other.projectedEnvelope && s.Resource == other.Resource && s.DestinationResource == other.DestinationResource && s.Engine == other.Engine &&
 		slices.Equal(s.PrimaryKey, other.PrimaryKey) && slices.Equal(s.Fields, other.Fields)
 }
 

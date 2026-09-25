@@ -83,14 +83,20 @@ type Envelope struct {
 // before any outer audit writer appends legacy lineage. No last-row Meta is used
 // to reconstruct earlier envelopes. A projector is owned by one producer loop.
 type Projector struct {
-	writer arrowbatch.RowWriter
-	codecs rowmodel.CodecResolver
+	writer      arrowbatch.RowWriter
+	codecs      rowmodel.CodecResolver
+	omitPayload bool
 }
 
 // NewProjector binds an envelope writer to its position codecs.
 // The writer must have been opened with WithEnvelopeFields.
 func NewProjector(w arrowbatch.RowWriter, r rowmodel.CodecResolver) *Projector {
-	return &Projector{w, r}
+	return &Projector{writer: w, codecs: r}
+}
+
+// NewEventMetadataProjector writes the suffix declared by WithEventMetadataFields.
+func NewEventMetadataProjector(w arrowbatch.RowWriter, r rowmodel.CodecResolver) *Projector {
+	return &Projector{writer: w, codecs: r, omitPayload: true}
 }
 
 // WithEnvelopeFields appends the SDK schema suffix after rejecting reserved-name collisions.
@@ -134,10 +140,12 @@ func (w *Projector) EndEvent(e Envelope, meta rowmodel.Meta) error {
 	} else {
 		w.writer.Bytes(e.Key)
 	}
-	if e.PayloadNull {
-		w.writer.Null()
-	} else {
-		w.writer.Bytes(e.Payload)
+	if !w.omitPayload {
+		if e.PayloadNull {
+			w.writer.Null()
+		} else {
+			w.writer.Bytes(e.Payload)
+		}
 	}
 	meta.Stream = &rowmodel.StreamMeta{Identity: e.Identity.Clone()}
 	return w.writer.EndRow(meta)

@@ -341,6 +341,15 @@ func continuousResourceErrorReporter(cfg ContinuousConfig, lease filament.LeaseT
 func newContinuousPipeline(cfg *ContinuousConfig, ordering filament.Ordering) (*pipeline.Pipeline, error) {
 	spec := cfg.Spec
 	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
+		pipelineConfig.PrepareSchema = func(ctx context.Context, resource string, schema rowmodel.Schema) error {
+			if planned, ok := cfg.Schemas[resource]; ok && planned.Equal(schema) {
+				return nil
+			}
+			destination, actual := destinationSchema(resource, schema, spec.WritePolicies)
+			return schemaSink.EnsureSchema(ctx, destination, actual)
+		}
+	}
 	if cfg.events != nil {
 		cfg.pipelineEvents = &continuousPipelineEvents{emitter: cfg.events}
 		pipelineConfig.Emit = cfg.pipelineEvents.observe

@@ -22,9 +22,10 @@ type streamSession struct {
 }
 
 type sinkEpoch struct {
-	ref      filament.EpochRef
-	tx       pgx.Tx
-	receipts map[string]filament.EpochReceipt
+	ref            filament.EpochRef
+	tx             pgx.Tx
+	receipts       map[string]filament.EpochReceipt
+	previousTables map[string]*table
 }
 
 var _ filament.StreamingSink = (*Sink)(nil)
@@ -66,7 +67,11 @@ func (t *Sink) applyEpoch(ctx context.Context, b *arrowbatch.Batch, opts filamen
 		t.stream.lifecycle.Fail(err)
 		return filament.WriteReceipt{}, err
 	}
-	c := tbl.copierFor(b.Rows(), false)
+	c, err := tbl.copierFor(b.Rows(), false)
+	if err != nil {
+		t.stream.lifecycle.Fail(err)
+		return filament.WriteReceipt{}, err
+	}
 	payload, crc := c.encode(b.Rows(), 0, b.NumRows(), false)
 	if err := verifyCopyChecksum(payload, crc); err != nil {
 		t.stream.lifecycle.Fail(err)
@@ -135,6 +140,13 @@ func (t *Sink) AbortEpoch(ctx context.Context, ref filament.EpochRef) error {
 		t.stream.lifecycle.Fail(err)
 		t.stream.cleanupErr = errors.Join(t.stream.cleanupErr, err)
 		return err
+	}
+	for resource, previous := range t.stream.active.previousTables {
+		if previous == nil {
+			delete(t.tables, resource)
+		} else {
+			t.tables[resource] = previous
+		}
 	}
 	t.stream.active = nil
 	return t.stream.lifecycle.MarkAborted(ref)

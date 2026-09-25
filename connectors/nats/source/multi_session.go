@@ -17,6 +17,7 @@ import (
 // and acknowledged in an epoch. No cross-stream ordering is implied.
 type multiSession struct {
 	writers  map[string]arrowbatch.RowWriter
+	columns  map[string]*streamkit.MessageColumns
 	children []*session
 	queued   []jetstream.Msg
 	next     int
@@ -63,27 +64,23 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 		// A pattern may span multiple physical streams. All its children must
 		// share the one builder allowed for that logical resource.
 		if s.writers != nil && child.writer == nil {
-			writer := s.writers[child.binding.resource]
-			if writer == nil {
-				schema, err := Schema(child.binding.resource)
-				if err != nil {
-					s.failed = err
-					return filament.Coverage{}, err
-				}
-				writer, err = out.Builder(child.binding.resource, 0, schema)
-				if err != nil {
-					s.failed = err
-					return filament.Coverage{}, err
-				}
-				s.writers[child.binding.resource] = writer
+			if writer := s.writers[child.binding.resource]; writer != nil {
+				child.writer = writer
+				child.columns = s.columns[child.binding.resource]
+				child.projector = streamkit.NewEventMetadataProjector(writer, child.codecs)
 			}
-			child.writer = writer
-			child.projector = streamkit.NewProjector(writer, child.codecs)
 		}
 		coverage, err := child.readMessage(ctx, out, msg)
 		if err != nil {
 			s.failed = err
 			return filament.Coverage{}, err
+		}
+		if s.writers != nil && child.writer != nil {
+			s.writers[child.binding.resource] = child.writer
+			if s.columns == nil {
+				s.columns = map[string]*streamkit.MessageColumns{}
+			}
+			s.columns[child.binding.resource] = child.columns
 		}
 		if len(coverage.Positions) > 0 {
 			s.active = child

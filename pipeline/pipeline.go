@@ -23,6 +23,7 @@ import (
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultBatchRows is used when Config.Options.BatchMaxRows is unset.
@@ -36,6 +37,8 @@ const defaultFlushInterval = time.Second
 // Commit/Abort are the engine's responsibility, not the pipeline's — the pipeline
 // only calls Apply.
 type Config struct {
+	// PrepareSchema runs once per resource, on the writer, before its first Apply.
+	PrepareSchema func(context.Context, string, rowmodel.Schema) error
 	Tenant        filament.TenantID
 	Run           filament.RunID
 	Sink          filament.Sink
@@ -61,6 +64,7 @@ type AuditConfig struct {
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
+	prepareSchema    func(context.Context, string, rowmodel.Schema) error
 	tenant           filament.TenantID
 	run              filament.RunID
 	sink             filament.Sink
@@ -127,6 +131,7 @@ func New(cfg Config) *Pipeline {
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
 	return &Pipeline{
+		prepareSchema:    cfg.PrepareSchema,
 		tenant:           cfg.Tenant,
 		run:              cfg.Run,
 		sink:             cfg.Sink,

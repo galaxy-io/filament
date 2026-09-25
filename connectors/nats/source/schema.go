@@ -12,9 +12,13 @@ import (
 	"github.com/galaxy-io/filament/streamkit"
 )
 
-// Schema returns the subject and public row-aligned event envelope.
+func messageBaseSchema(resource string) rowmodel.Schema {
+	return rowmodel.Schema{Resource: resource, DestinationResource: destinationResource(resource), Fields: []rowmodel.Field{{Name: "subject", Logical: rowmodel.LogicalString}}}
+}
+
+// Schema returns transport and event metadata; payload fields are inferred on the first read.
 func Schema(resource string) (rowmodel.Schema, error) {
-	return streamkit.WithEnvelopeFields(rowmodel.Schema{Resource: resource, DestinationResource: destinationResource(resource), Fields: []rowmodel.Field{{Name: "subject", Logical: rowmodel.LogicalString}}})
+	return rowmodel.WithEventMetadataFields(messageBaseSchema(resource))
 }
 
 func messageHeaders(header nats.Header) []streamkit.Header {
@@ -35,7 +39,7 @@ func messageHeaders(header nats.Header) []streamkit.Header {
 	return headers
 }
 
-// Schema returns the fixed message envelope and subject column for a stream.
+// Schema returns transport and event metadata; payload fields are inferred on the first read.
 func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	return Schema(resource)
 }
