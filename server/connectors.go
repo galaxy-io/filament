@@ -283,30 +283,9 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
-	connector := req.Msg.GetConnector()
-	config := structMap(req.Msg.GetConfig())
-	if id := req.Msg.GetConnectionId(); id != "" {
-		conn, err := a.store.LoadConnection(ctx, tenant, id)
-		if err != nil {
-			if errors.Is(err, filament.ErrNotFound) {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		if connector == "" {
-			connector = conn.Connector
-		}
-		config = compile.MergeConfig(conn.Config, config)
-		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-		}
-	}
-	source, err := a.sources.Resolve(connector)
+	connector, source, err := a.openSource(ctx, tenant, req.Msg.GetConnector(), req.Msg.GetConnectionId(), structMap(req.Msg.GetConfig()))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, err
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
@@ -338,6 +317,37 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
 	}
 	return connect.NewResponse(response), nil
+}
+
+// openSource resolves and configures a source from a connector name and
+// inline config, a saved connection, or both, with the connection's secrets
+// resolved and the inline config layered over its stored one. The caller
+// tears the source down. Errors are already connect errors.
+func (a *Server) openSource(ctx context.Context, tenant filament.TenantID, connector, connectionID string, config map[string]any) (string, filament.Source, error) {
+	if connectionID != "" {
+		conn, err := a.store.LoadConnection(ctx, tenant, connectionID)
+		if err != nil {
+			if errors.Is(err, filament.ErrNotFound) {
+				return "", nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			return "", nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if connector == "" {
+			connector = conn.Connector
+		}
+		config = compile.MergeConfig(conn.Config, config)
+		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+			return "", nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
+	source, err := a.sources.Resolve(connector)
+	if err != nil {
+		return "", nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
+		return "", nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connector, source, nil
 }
 
 func cursorColumnsToProto(columns []filament.CursorColumn) []*ingestionv1.ResourceColumn {

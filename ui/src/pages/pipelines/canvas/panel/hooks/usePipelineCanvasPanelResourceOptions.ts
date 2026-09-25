@@ -148,15 +148,20 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
 
   const verdict = validation?.edges[0];
 
-  const isLoading =
-    isLoadingValidation ||
+  // The builder needs resources and columns, not the edge verdict, so a
+  // config change does not remount it.
+  const isLoadingColumns =
     (edgeResource === "" && isLoadingResources) ||
     (coveredResources.length > 0 && isPendingColumns && !isErrorColumns);
+  const isLoading = isLoadingValidation || isLoadingColumns;
 
   return {
     isCdc,
     isLoading,
+    isLoadingColumns,
+    sourceConnectionId,
     coveredResources,
+    columnsByResource,
     readModeOptions,
     writeModeOptions: verdict?.supportedWriteModes ?? [],
     effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,

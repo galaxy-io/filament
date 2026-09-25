@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"connectrpc.com/connect"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // ValidatePipeline checks every edge of a graph: the per-resource read modes
@@ -40,6 +43,12 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 
 	resp := &ingestionv1.ValidatePipelineResponse{}
+	if !hasNodeOfKind(graphNodes, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE) ||
+		!hasNodeOfKind(graphNodes, ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK) ||
+		len(edges) == 0 {
+		resp.Errors = append(resp.Errors, graphError("Add a source, a sink, and at least one resource"))
+		return resp, nil
+	}
 	probes := &sourceProbes{
 		server:     a,
 		sources:    map[string]filament.Source{},
@@ -49,18 +58,36 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	defer probes.teardown(ctx)
 
 	routeWriteModes := map[string]filament.WriteMode{}
+	routeTransforms := map[string]map[string]bool{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp); err != nil {
 			return nil, err
 		}
 		ev := resp.Edges[len(resp.Edges)-1]
+		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+		// Run compile merges a route's transforms and refuses a resource named
+		// twice; catch it here so the version is not saved only to fail at run.
+		if edge.GetTransform() != nil {
+			if resources, err := compile.TransformResources(edge); err == nil {
+				seen := routeTransforms[route]
+				if seen == nil {
+					seen = map[string]bool{}
+					routeTransforms[route] = seen
+				}
+				for _, resource := range slices.Sorted(maps.Keys(resources)) {
+					if seen[resource] {
+						edgeError(ev, "transform", fmt.Sprintf("resource %q is transformed by more than one edge", resource))
+					}
+					seen[resource] = true
+				}
+			}
+		}
 		writeMode, err := writeModeFromProto(ev.GetEffectiveWriteMode())
 		if err != nil {
 			continue
 		}
-		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
 		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-			edgeError(resp.Edges[len(resp.Edges)-1], "write_mode", "all resources on a source-to-destination route must use the same write mode")
+			edgeError(ev, "write_mode", "all resources on a source-to-destination route must use the same write mode")
 		} else {
 			routeWriteModes[route] = writeMode
 		}
@@ -215,7 +242,71 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, supportedReadModes, probes, ev)
+	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeTransform compiles the edge's transform against the schema of
+// every resource it names, so a definition the source no longer satisfies
+// fails validation rather than the run. Issues carry the definition path the
+// builder uses to place them.
+func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+	if edge.GetTransform() == nil {
+		return
+	}
+	raw, err := edge.GetTransform().MarshalJSON()
+	if err != nil {
+		edgeError(ev, "transform", err.Error())
+		return
+	}
+	def, err := transform.Parse(raw)
+	if err != nil {
+		transformErrors(ev, err)
+		return
+	}
+	if own := edge.GetResource(); own != "" {
+		for resource := range def.Resources {
+			if resource != own {
+				edgeError(ev, "transform", fmt.Sprintf("edge for %q defines resource %q", own, resource))
+				return
+			}
+		}
+	}
+	src, err := probes.get(ctx, from, srcConn)
+	if err != nil {
+		edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+		return
+	}
+	provider, ok := src.(filament.SchemaProvider)
+	if !ok {
+		edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
+		return
+	}
+	for _, resource := range slices.Sorted(maps.Keys(def.Resources)) {
+		schema, err := provider.Schema(ctx, resource)
+		if err != nil {
+			edgeError(ev, "transform", fmt.Sprintf("schema for %q: %v", resource, err))
+			continue
+		}
+		if schema.Resource == "" {
+			schema.Resource = resource
+		}
+		if _, _, err := transform.Analyze(def, schema); err != nil {
+			transformErrors(ev, err)
+		}
+	}
+}
+
+// transformErrors records each path-addressed transform issue on the edge.
+func transformErrors(ev *ingestionv1.EdgeValidation, err error) {
+	var errs *transform.Errors
+	if !errors.As(err, &errs) {
+		edgeError(ev, "transform", err.Error())
+		return
+	}
+	for _, issue := range errs.Issues {
+		edgeError(ev, issue.Path, issue.Message)
+	}
 }
 
 func supportedCDCWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
@@ -424,6 +515,15 @@ func cursorRequirement(resource string, candidates []*ingestionv1.CandidateValue
 
 func edgeError(ev *ingestionv1.EdgeValidation, field, message string) {
 	ev.Errors = append(ev.Errors, &ingestionv1.ValidationError{Field: field, Message: message})
+}
+
+func hasNodeOfKind(nodes []*ingestionv1.PipelineNode, kind ingestionv1.ConnectorKind) bool {
+	for _, node := range nodes {
+		if node.GetKind() == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func graphError(message string) *ingestionv1.ValidationError {

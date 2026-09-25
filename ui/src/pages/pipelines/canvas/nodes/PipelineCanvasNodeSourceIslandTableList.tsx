@@ -1,7 +1,9 @@
 import { styled } from "@linaria/react";
+import { FunctionIcon } from "@phosphor-icons/react";
 import { Position } from "@xyflow/react";
 
 import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 
@@ -42,11 +44,19 @@ const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
     >
       {table.name}
     </Text>
+    {table.hasTransform && (
+      <Icon
+        component={FunctionIcon}
+        size={12}
+        variant={table.isInvalid ? IconVariant.ERROR : IconVariant.SECONDARY}
+      />
+    )}
     <PipelineCanvasNodeHandle
       id={table.name}
       kind={ConnectorKind.SOURCE}
       position={Position.Right}
       isConnected={table.isConnected}
+      isInvalid={table.isInvalid}
     />
   </TableRow>
 );

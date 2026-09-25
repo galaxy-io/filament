@@ -9,12 +9,14 @@ import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";
 import PipelineCanvasNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIsland";
 import type { PipelineCanvasNodeSourceProps } from "@/pages/pipelines/canvas/nodes/types";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
+  usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
@@ -32,6 +34,8 @@ const useSourceResources = (connectionId: Connection["id"]) => {
       data?.resources.map((resource) => ({
         name: resource.name,
         isConnected: false,
+        hasTransform: false,
+        isInvalid: false,
       })) ?? [],
     [data?.resources],
   );
@@ -58,14 +62,25 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
     [connections],
   );
 
-  const tables = useMemo(
-    () =>
-      discoveredTables.map((table) => ({
-        ...table,
-        isConnected: connectedHandleIds.has(table.name),
-      })),
-    [discoveredTables, connectedHandleIds],
-  );
+  const { edges } = usePipelineCanvasState();
+  const { invalidEdgeIds } = usePipelineCanvasValidation();
+  const tables = useMemo(() => {
+    const own = edges.filter((edge) => edge.source === id && edge.data?.transform !== undefined);
+    // A resource routed to several sinks is invalid if any of its edges is.
+    const transformed = new Map<string | null | undefined, boolean>();
+    for (const edge of own) {
+      transformed.set(
+        edge.sourceHandle,
+        (transformed.get(edge.sourceHandle) ?? false) || invalidEdgeIds.has(edge.id),
+      );
+    }
+    return discoveredTables.map((table) => ({
+      ...table,
+      isConnected: connectedHandleIds.has(table.name),
+      hasTransform: transformed.has(table.name),
+      isInvalid: transformed.get(table.name) ?? false,
+    }));
+  }, [discoveredTables, connectedHandleIds, edges, id, invalidEdgeIds]);
 
   return (
     <PipelineCanvasNode

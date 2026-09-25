@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transform v1",
+  "type": "object",
+  "required": ["version", "resources"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "resources": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["steps"],
+        "additionalProperties": false,
+        "properties": {
+          "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/step" } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rename": { "type": "object", "minProperties": 1, "propertyNames": { "minLength": 1 }, "additionalProperties": { "type": "string", "minLength": 1 } },
+        "drop": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "compute": { "type": "object", "minProperties": 1, "propertyNames": { "minLength": 1 }, "additionalProperties": { "$ref": "#/$defs/expr" } },
+        "where": { "$ref": "#/$defs/expr" }
+      },
+      "oneOf": [
+        { "required": ["rename"], "not": { "anyOf": [{ "required": ["drop"] }, { "required": ["compute"] }, { "required": ["where"] }] } },
+        { "required": ["drop"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["compute"] }, { "required": ["where"] }] } },
+        { "required": ["compute"], "not": { "anyOf": [{ "required": ["rename"] }, { "required": ["drop"] }] } }
+      ]
+    },
+    "expr": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "required": ["col"],
+          "additionalProperties": false,
+          "properties": { "col": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "propertyNames": { "enum": ["lower", "upper", "trim", "length", "replace", "substring", "concat", "regex_match", "regex_extract", "regex_replace", "add", "sub", "mul", "div", "abs", "floor", "ceil", "round", "eq", "neq", "gt", "gte", "lt", "lte", "and", "or", "not", "is_null", "coalesce", "to_date", "year", "month", "day"] },
+          "additionalProperties": {
+            "oneOf": [
+              { "$ref": "#/$defs/expr" },
+              { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/expr" } }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

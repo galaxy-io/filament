@@ -39,11 +39,16 @@ const canonicalize = (value: JsonValue): JsonValue => {
 const serializeNodeConfig = (config: PipelineNode["config"]): string =>
   config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
 
-const serializeEdgeConfig = ({ readMode, writeMode, cursors }: PipelineCanvasEdgeData): string =>
+const serializeEdgeConfig = ({
+  readMode,
+  writeMode,
+  cursors,
+  transform,
+}: PipelineCanvasEdgeData): string =>
   `${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
-    .join(";")}`;
+    .join(";")}|${transform ? JSON.stringify(canonicalize(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },

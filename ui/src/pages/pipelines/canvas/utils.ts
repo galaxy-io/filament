@@ -59,6 +59,7 @@ export const mapEdgesToStyledEdges = (
   nodes: CanvasNode[],
   theme: Theme,
   isRunning: boolean,
+  invalidEdgeIds: Set<CanvasEdge["id"]>,
 ): CanvasEdge[] => {
   const selectedNodeIds = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
 
@@ -66,14 +67,23 @@ export const mapEdgesToStyledEdges = (
     const isConnectedToSelected =
       selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target);
     const isHighlighted = edge.selected || isConnectedToSelected;
+    const isInvalid = invalidEdgeIds.has(edge.id);
+    const stroke = isInvalid
+      ? theme.color.text.error
+      : isRunning || isHighlighted
+        ? theme.color.background.galaxy
+        : theme.color.border.primary;
 
     return {
       ...edge,
-      zIndex: PIPELINE_CANVAS_EDGE_Z_INDEX,
+      zIndex: edge.selected
+        ? PIPELINE_CANVAS_EDGE_Z_INDEX + 2
+        : isInvalid || isHighlighted
+          ? PIPELINE_CANVAS_EDGE_Z_INDEX + 1
+          : PIPELINE_CANVAS_EDGE_Z_INDEX,
       animated: isRunning,
       style: {
-        stroke:
-          isRunning || isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
+        stroke,
         strokeWidth: edge.selected ? 3 : 2,
         ...(isRunning && { strokeDasharray: "5 5" }),
       },

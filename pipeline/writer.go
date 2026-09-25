@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -30,6 +31,12 @@ func (p *Pipeline) writer(ctx context.Context) {
 
 func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch) (ok bool) {
 	defer b.Release()
+	// A sink that panics fails the run, not the worker.
+	defer func() {
+		if r := recover(); r != nil {
+			p.setErr(fmt.Errorf("write %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))
+		}
+	}()
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
 		p.setErr(err)

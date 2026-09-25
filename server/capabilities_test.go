@@ -59,7 +59,11 @@ func (leverSource) Discover(context.Context, filament.DiscoverOpts) (filament.Di
 
 func (leverSource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
 	if resource == "orders" {
-		return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}}, nil
+		return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "email", Logical: filament.LogicalString, Nullable: true},
+			{Name: "created_at", Logical: filament.LogicalTimestamp},
+		}}, nil
 	}
 	return filament.RecordSchema{Resource: resource}, nil
 }
@@ -380,5 +384,46 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	}
 	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
 		t.Fatal("unknown read mode must be rejected")
+	}
+}
+
+// A transform is compiled against the live source schema during validation,
+// with each issue keyed by its definition path.
+func TestValidatePipelineCompilesTransforms(t *testing.T) {
+	api, ids := leverAPI(t)
+	validate := func(steps []any) *ingestionv1.ValidatePipelineResponse {
+		transform, err := structpb.NewStruct(map[string]any{
+			"version":   1,
+			"resources": map[string]any{"orders": map[string]any{"steps": steps}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+				},
+				Edges: []*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders", Transform: transform}},
+			},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp.Msg
+	}
+
+	if resp := validate([]any{map[string]any{"compute": map[string]any{"shout": map[string]any{"upper": []any{map[string]any{"col": "email"}}}}}}); !resp.GetValid() {
+		t.Fatalf("valid = false: %v", resp.GetEdges()[0].GetErrors())
+	}
+
+	resp := validate([]any{map[string]any{"compute": map[string]any{"shout": map[string]any{"upper": []any{map[string]any{"col": "missing"}}}}}})
+	if resp.GetValid() {
+		t.Fatal("valid = true, want a transform issue")
+	}
+	errs := resp.GetEdges()[0].GetErrors()
+	if len(errs) != 1 || errs[0].GetField() != `resources["orders"].steps[0].compute["shout"].upper[0]` {
+		t.Fatalf("errors = %v", errs)
 	}
 }

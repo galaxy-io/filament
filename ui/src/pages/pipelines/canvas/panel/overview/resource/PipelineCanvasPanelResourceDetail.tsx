@@ -1,5 +1,8 @@
+import { Suspense } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
+import { CatchBoundary } from "@tanstack/react-router";
 
 import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -17,6 +20,9 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
+import PipelineCanvasPanelResourceTransformSectionError from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionError";
+import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
 import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
@@ -31,6 +37,8 @@ import {
   READ_MODE_TO_LABEL_MAP,
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
+import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
+import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -47,7 +55,10 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const {
     isCdc,
     isLoading,
+    isLoadingColumns,
+    sourceConnectionId,
     coveredResources,
+    columnsByResource,
     readModeOptions,
     writeModeOptions,
     effectiveReadMode,
@@ -99,6 +110,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
       readMode: mode,
       writeMode: nextWriteMode,
       cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+      transform: edge.data?.transform,
     });
     if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
   };
@@ -110,6 +122,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     setEdgeConfig(edge.id, {
       readMode,
       writeMode,
+      transform: edge.data?.transform,
       cursors: [
         ...cursors.filter((cursor) => cursor.resource !== resourceName),
         create(ResourceCursorConfigSchema, {
@@ -118,6 +131,14 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           lookbackSeconds: 0n,
         }),
       ],
+    });
+
+  const handleTransformChange = (transform: TransformDefinition | undefined) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      transform,
     });
 
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
@@ -219,6 +240,27 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               ))}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
+        {isLoadingColumns ? (
+          <PipelineCanvasPanelResourceTransformSectionPending />
+        ) : (
+          <CatchBoundary
+            getResetKey={() => edge.id}
+            errorComponent={PipelineCanvasPanelResourceTransformSectionError}
+          >
+            <Suspense fallback={<PipelineCanvasPanelResourceTransformSectionPending />}>
+              <PipelineTransformFieldsProvider
+                definition={edge.data?.transform}
+                onChange={handleTransformChange}
+                resources={coveredResources}
+                columnsByResource={columnsByResource}
+                sourceConnectionId={sourceConnectionId}
+                isReadOnly={isReadOnly}
+              >
+                <PipelineCanvasPanelResourceTransformSection />
+              </PipelineTransformFieldsProvider>
+            </Suspense>
+          </CatchBoundary>
+        )}
       </PipelineCanvasPanelBody>
     </>
   );

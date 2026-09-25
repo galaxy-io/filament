@@ -19,6 +19,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // abortWait bounds sink cleanup after a failed run. Detached from run
@@ -51,6 +52,7 @@ func SpecFromState(s filament.RunState) filament.RunSpec {
 		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,
+		Transform:           r.Transform,
 	}
 }
 
@@ -181,12 +183,29 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		emit(em, events.ResourceStarted, res, events.ResourceStartedEvent{})
 	}
 
+	// The transform definition is parsed once here and compiled per resource
+	// twice: against the discovered schema for sink DDL, and again inside the
+	// pipeline when each resource's first builder opens.
+	var transformDef *transform.Definition
+	if spec.Transform != "" {
+		if transformDef, err = transform.Parse([]byte(spec.Transform)); err != nil {
+			abortSink(ctx, deps, snk)
+			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			return nil
+		}
+	}
+
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
-	if err := ensureSchemas(extractCtx, src, snk, spec); err != nil {
+	if err := ensureSchemas(extractCtx, src, snk, spec, transformDef); err != nil {
 		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		var re *resourceError
+		if errors.As(err, &re) {
+			em.failedAt(fmt.Errorf("ensure schema: %w", err), re.resource, spec.Resources)
 			return nil
 		}
 		em.failed(fmt.Errorf("ensure schema: %w", err), spec.Resources, false)
@@ -216,6 +235,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		WritePolicies: plan.WritePolicies,
 		Options:       spec.Options,
 		Log:           deps.Log,
+		Transform:     transformDef,
 		Audit: &pipeline.AuditConfig{
 			RunStartedAt: runStartedAt,
 			CDC:          plan.RequiresCDC,
