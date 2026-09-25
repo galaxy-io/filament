@@ -78,6 +78,10 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 			filament.Field{Key: "run_id", Value: string(ev.Run)})
 	}
 	state, err := m.ds.LoadRun(ctx, ev.Tenant, ev.Run)
+	// Runs are persisted before publication, but may be deleted before delivery.
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("k8sdispatch: load run %q: %w", ev.Run, err)
 	}

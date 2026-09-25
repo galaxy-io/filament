@@ -61,7 +61,8 @@ AND a.ended_at IS NULL AND (a.expires_at<=clock_timestamp() OR EXISTS (SELECT 1 
 
 -- name: PendingContinuousRuns :many
 SELECT r.id,r.tenant_id FROM runs r JOIN replication_streams s ON s.current_run_id=r.id
-WHERE s.status=0 AND r.ended_at IS NULL AND r.id::text>sqlc.arg(after_id)::text
+JOIN pipelines p ON p.id=s.pipeline_id AND p.tenant_id=s.tenant_id
+WHERE p.deleted_at IS NULL AND s.status=0 AND r.ended_at IS NULL AND r.id::text>sqlc.arg(after_id)::text
 ORDER BY r.id::text LIMIT sqlc.arg(page_limit);
 
 -- name: ActivateStreamResource :exec
