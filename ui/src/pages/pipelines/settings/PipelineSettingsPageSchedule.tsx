@@ -14,6 +14,7 @@ import FlexWrapper, {
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
   CreatePipelineScheduleRequestSchema,
   GetPipelineRequestSchema,
@@ -129,6 +130,8 @@ const PipelineSettingsPageSchedule = () => {
   const hasChanges = hasPipelineScheduleChanges(state, schedule);
   const isDisabledDraft = !schedule && !state.isEnabled;
   const canSave = hasChanges && !isDisabledDraft && summary !== null;
+
+  if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS) return null;
 
   return (
     <Accordion header="Schedule" isOpenInitial>
