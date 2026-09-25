@@ -2,7 +2,7 @@ name: "CD: Nightly Release"
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 2 * * *"
       timezone: "America/New_York"
   workflow_dispatch:
 
