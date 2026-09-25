@@ -126,8 +126,14 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if binding.managed && c.DeliverPolicy == jetstream.DeliverByStartSequencePolicy && (committed == ^uint64(0) || c.OptStartSeq > committed+1) {
 		return nil, errors.New("nats: consumer starts beyond certified progress")
 	}
-	if ci.AckFloor.Stream > committed {
-		return nil, errors.New("nats: consumer acknowledged beyond certified progress")
+	// A fresh managed consumer starts at retained input, which may no longer
+	// begin at sequence one. NATS can report that starting floor even before
+	// any delivery is acknowledged. Keep it separate from certified progress.
+	if binding.managed && committed == 0 && info.State.FirstSeq > 0 {
+		session.initialFloor = info.State.FirstSeq - 1
+	}
+	if err := validateConsumerProgress(ci, committed, session.initialFloor); err != nil {
+		return nil, err
 	}
 	if (!binding.managed || committed > 0) && info.State.FirstSeq > committed+1 && info.State.Msgs > 0 {
 		return nil, errors.New("nats: retained input no longer covers resume position")
@@ -140,9 +146,7 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	session.committed = committed
 	session.codecs = r
 	session.scanFloor = committed
-	if binding.managed && committed == 0 && info.State.FirstSeq > 0 {
-		session.scanFloor = info.State.FirstSeq - 1
-	}
+	session.scanFloor = max(session.scanFloor, session.initialFloor)
 	hb, err := streamkit.StartHeartbeat(ctx, c.AckWait/3, func(ctx context.Context) error {
 		session.mu.Lock()
 		defer session.mu.Unlock()

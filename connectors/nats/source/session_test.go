@@ -150,3 +150,108 @@ func testSession(t *testing.T, failControl bool) {
 		t.Fatalf("stream recreation accepted: %v", err)
 	}
 }
+
+// A retained stream need not begin at sequence one. Recent NATS versions set
+// a new consumer's stream ack floor to FirstSeq-1 without acknowledging data.
+func TestManagedSessionRetainedStartingFloor(t *testing.T) {
+	url := os.Getenv("FILAMENT_TEST_NATS_URL")
+	if url == "" {
+		t.Skip("set FILAMENT_TEST_NATS_URL")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	nc, err := nats.Connect(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nc.Close()
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "retained_" + uuid.NewString()[:8]
+	physical, err := js.CreateStream(ctx, jetstream.StreamConfig{Name: name, Subjects: []string{name}, Storage: jetstream.FileStorage})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = js.DeleteStream(context.Background(), name) }()
+	for i := 0; i < 5; i++ {
+		if _, err := js.Publish(ctx, name, []byte("event")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for seq := uint64(1); seq < 5; seq++ {
+		if err := physical.DeleteMsg(ctx, seq); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url})); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(ctx)
+	src.identity = "source-connection"
+	binding := consumerBinding{stream: name, consumer: "managed", resource: name, filters: []string{name}, managed: true}
+	opts := filament.StreamOpenOpts{Resources: []string{name}, CheckAuthority: func(context.Context) error { return nil }, Attempt: filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}}
+	opened, err := src.openSingleStream(ctx, binding, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.committed != 0 {
+		t.Fatalf("bootstrap certified position %d", opened.committed)
+	}
+	if err := opened.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// An attempt may restart before its first delivery; the existing consumer's
+	// initial floor must be accepted without promoting it to a checkpoint.
+	opened, err = src.openSingleStream(ctx, binding, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close(ctx)
+	p, err := pipeline.NewStream(pipeline.Config{Sink: &testSink{}, WritePolicies: map[string]filament.WritePolicy{name: {Capability: filament.WriteCapabilities(filament.IngestionFullAppend)[0]}}}, filament.OrderingNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Start(ctx)
+	defer func() {
+		p.CloseIngest(nil)
+		if err := p.Wait(); err != nil {
+			t.Error(err)
+		}
+	}()
+	coverage, err := opened.Read(ctx, p.Records().(filament.StreamRecordSink), filament.Boundary{MaxRecords: 1, MaxWait: time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(coverage.Positions) != 1 || string(coverage.Positions[opened.domain].Value) != "5" {
+		t.Fatalf("first retained message coverage: %+v", coverage)
+	}
+	if err := opened.Acknowledge(ctx, coverage); err != nil {
+		t.Fatal(err)
+	}
+	if err := opened.authority(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := opened.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Losing the certified position must still reject this consumer, including
+	// when retention has moved past the acknowledged message.
+	if err := physical.DeleteMsg(ctx, 5); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := src.openSingleStream(ctx, binding, opts); err == nil || err.Error() != "nats: consumer acknowledged beyond certified progress" {
+		t.Fatalf("accepted uncertified acknowledgement: %v", err)
+	}
+	opts.CommittedPositions = coverage.Positions
+	resumed, err := src.openSingleStream(ctx, binding, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resumed.Close(ctx)
+	if err := resumed.authority(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
