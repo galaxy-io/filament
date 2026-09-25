@@ -21,6 +21,7 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
+		ApiVersion:   spec.APIVersion,
 		Maturity:     connectorMaturityToProto(spec.Maturity),
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),

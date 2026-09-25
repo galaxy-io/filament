@@ -4,6 +4,7 @@ display_name: Stripe
 description: Payments platform covering charges, payment intents, invoicing, subscriptions, and the account balance ledger.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-stripe-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-stripe-light.svg
+api_version: "2026-07-29.dahlia"
 config:
   api_key:
     type: secret

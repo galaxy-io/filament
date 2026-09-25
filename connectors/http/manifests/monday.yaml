@@ -7,6 +7,7 @@ display_name: monday.com
 description: Read monday.com boards, items, collaboration, documents, and account data.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-monday-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-monday-light.svg
+api_version: "2026-07"
 config:
   api_token:
     type: secret

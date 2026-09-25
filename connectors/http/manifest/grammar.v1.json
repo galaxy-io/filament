@@ -11,6 +11,7 @@
     "description": { "type": "string", "minLength": 1 },
     "dark_logo_url": { "type": "string", "format": "uri" },
     "light_logo_url": { "type": "string", "format": "uri" },
+    "api_version": { "type": "string", "minLength": 1 },
     "config": {
       "type": "object",
       "additionalProperties": {

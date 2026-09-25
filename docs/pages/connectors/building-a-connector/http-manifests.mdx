@@ -22,6 +22,7 @@ how they fit together:
 version: 1
 name: github
 display_name: GitHub
+api_version: "2022-11-28"
 config:
   token:
     type: secret
@@ -238,6 +239,15 @@ together. It checks:
 - defaults and shorthand expansion
 - semantic checks for cross-field rules such as parent cycles and unprojected
   cursor fields
+
+## API version
+
+`api_version` records the upstream API version the manifest was authored
+against. It is optional, since some APIs are unversioned, and free-form, since
+vendors use dates, semantic versions, or path segments. The catalog and the
+connection form show it. When the connection pins a version header such as
+`Stripe-Version` or `Notion-Version`, validation requires `api_version` to
+match its value.
 
 ## Maturity
 

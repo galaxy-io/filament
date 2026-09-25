@@ -155,6 +155,7 @@ func (m *Manifest) validateSemantics() error {
 		validateTemplate(&agg, fmt.Sprintf("connection.headers[%q]", k), v)
 	}
 	validateTemplateScopes(&agg, "connection.base_url", m.Connection.BaseURL, template.AuthScopes)
+	validateVersionHeaders(&agg, m)
 	validateAuthParams(&agg, "connection.auth", m.Connection.Auth.Params)
 
 	names := make(map[string]struct{}, len(m.Resources))
@@ -680,4 +681,19 @@ func formatCycle(cycle []string) string {
 		out += " → " + n
 	}
 	return out
+}
+
+// validateVersionHeaders requires api_version to match any pinned version
+// header. Header names compare case-insensitively per RFC 9110.
+func validateVersionHeaders(agg *errs.ManifestErrors, m *Manifest) {
+	for name, value := range m.Connection.Headers {
+		if !slices.ContainsFunc(VersionHeaders, func(h string) bool { return strings.EqualFold(h, name) }) {
+			continue
+		}
+		if m.APIVersion == "" {
+			_ = agg.Addf("api_version", "is required when %s is pinned", name)
+		} else if value != m.APIVersion {
+			_ = agg.Addf("api_version", "%q does not match %s %q", m.APIVersion, name, value)
+		}
+	}
 }
