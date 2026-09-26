@@ -10,7 +10,7 @@ interface ThemeButtonProps {
 }
 
 const ThemeButton = ({
-  variant = ButtonVariant.TERTIARY,
+  variant = ButtonVariant.SECONDARY,
   size = ButtonSize.SMALL,
 }: ThemeButtonProps) => {
   const { activeTheme, setTheme } = useGalaxyTheme();
