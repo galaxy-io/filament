@@ -12,7 +12,7 @@ import type { RegisterRequest } from "@/gen/auth/v1/session_pb";
 
 import AuthForm, { AuthFormFooter } from "@/layouts/auth/AuthForm";
 
-import { useRegisterMutation } from "@/api/mutations/auth";
+import { useRegisterMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
 

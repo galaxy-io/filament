@@ -45,10 +45,10 @@ import type { ServiceAccountCredentials } from "@/pages/settings/types";
 import { serviceAccountRoleLabel } from "@/pages/settings/utils";
 
 import {
+  useListServiceAccountsQuery,
   useRemoveServiceAccountMutation,
   useRotateServiceAccountSecretMutation,
-} from "@/api/mutations/auth";
-import { useListServiceAccountsQuery } from "@/api/queries/auth";
+} from "@/api/queries/auth";
 
 import { useConfirm } from "@/hooks/useConfirm";
 

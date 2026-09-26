@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
-import { useLogoutMutation } from "@/api/mutations/auth";
+import { useLogoutMutation } from "@/api/queries/auth";
 
 export const useSignOut = () => {
   const navigate = useNavigate();

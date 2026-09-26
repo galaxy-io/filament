@@ -10,7 +10,7 @@ import type { AcceptInviteRequest } from "@/gen/auth/v1/session_pb";
 
 import AuthForm from "@/layouts/auth/AuthForm";
 
-import { useAcceptInviteMutation } from "@/api/mutations/auth";
+import { useAcceptInviteMutation } from "@/api/queries/auth";
 
 import { decodeInviteToken } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";
