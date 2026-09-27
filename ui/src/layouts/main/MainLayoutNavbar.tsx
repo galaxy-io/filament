@@ -1,5 +1,5 @@
 import { styled } from "@linaria/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 
 import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -16,6 +16,7 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import DocsButton from "@/components/DocsButton";
 import GithubButton from "@/components/GithubButton";
+import ThemeButton from "@/components/ThemeButton";
 
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
 
@@ -91,6 +92,8 @@ const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
 };
 
 const MainLayoutNavbar = () => {
+  const { session } = useRouteContext({ from: "/_app" });
+
   return (
     <NavbarWrapper>
       <Link to={"/"}>
@@ -124,6 +127,11 @@ const MainLayoutNavbar = () => {
         <FlexItem shrink={0}>
           <GithubButton />
         </FlexItem>
+        {!session.isAuthenticated && (
+          <FlexItem shrink={0}>
+            <ThemeButton />
+          </FlexItem>
+        )}
         <FlexItem shrink={0}>
           <MainLayoutSettingsButton />
         </FlexItem>

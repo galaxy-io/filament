@@ -11,7 +11,7 @@ import type { LoginRequest } from "@/gen/auth/v1/session_pb";
 
 import AuthForm, { AuthFormFooter } from "@/layouts/auth/AuthForm";
 
-import { useLoginMutation } from "@/api/mutations/auth";
+import { useLoginMutation } from "@/api/queries/auth";
 
 import { resolveReturnTo } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";

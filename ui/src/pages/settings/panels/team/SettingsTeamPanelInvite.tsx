@@ -17,8 +17,7 @@ import { INVITE_DEFAULT_ROLE, ROLE_OPTIONS } from "@/pages/settings/constants";
 import { TeamSettingsView } from "@/pages/settings/types";
 import { optionRole, roleOption } from "@/pages/settings/utils";
 
-import { useInviteMemberMutation } from "@/api/mutations/auth";
-import { useListMembersQuery } from "@/api/queries/auth";
+import { useInviteMemberMutation, useListMembersQuery } from "@/api/queries/auth";
 
 import type { AppSession } from "@/auth/types";
 import { buildInviteUrl, encodeInviteToken } from "@/auth/utils";

@@ -17,7 +17,7 @@ import SettingsServiceAccountsPanelCredentials from "@/pages/settings/panels/ser
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
 import { optionRole, serviceAccountRoleOption } from "@/pages/settings/utils";
 
-import { useCreateServiceAccountMutation } from "@/api/mutations/auth";
+import { useCreateServiceAccountMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
 

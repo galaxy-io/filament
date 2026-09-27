@@ -33,8 +33,11 @@ import {
 } from "@/pages/settings/constants";
 import { optionRole, roleLabel, roleOption } from "@/pages/settings/utils";
 
-import { useRemoveMemberMutation, useSetMemberRoleMutation } from "@/api/mutations/auth";
-import { useListMembersQuery } from "@/api/queries/auth";
+import {
+  useListMembersQuery,
+  useRemoveMemberMutation,
+  useSetMemberRoleMutation,
+} from "@/api/queries/auth";
 
 import { useConfirm } from "@/hooks/useConfirm";
 
