@@ -26,15 +26,14 @@ from filament import Filament
 
 filament = Filament(
     base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
-    token=os.getenv("FILAMENT_TOKEN"),
 )
 
 for connector in filament.connector.list().connectors or []:
     print(connector.name)
 ~~~
 
-For a local server with authentication disabled, omit `token`. Otherwise see
-[Authentication](#authentication) for where the token comes from.
+This connects to a server with authentication disabled. See
+[Authentication](#authentication) for a deployed server.
 
 You can configure request timeouts with `Filament(..., timeout=30)`; the value is
 in seconds. The SDK creates its HTTP client and supplies protocol headers.
@@ -42,12 +41,24 @@ in seconds. The SDK creates its HTTP client and supplies protocol headers.
 ## Authentication
 
 When the server runs with an identity provider, the SDK authenticates as a
-**service account**. Create one on the Members page of the UI, or with
+service account. Create one on the Members page of the web app, or with
 `filament.service_account.create(...)` while signed in as an admin. Both return a
 client id and a client secret; the secret is shown once.
 
-Pass the service account's access token as `token`. Access tokens expire, so
-long-running programs pass a callable that returns a current token instead.
+Pass them to the client. It mints an access token through the server and mints
+again as the token nears expiry, so nothing about the identity provider reaches
+your code:
+
+~~~python
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+    client_id=os.getenv("FILAMENT_CLIENT_ID"),
+    client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
+)
+~~~
+
+A token minted elsewhere still works as `token`. For a local server with
+authentication disabled, pass neither.
 
 ## Create and run a pipeline
 
@@ -171,7 +182,8 @@ from filament import AsyncFilament
 async def main():
     filament = AsyncFilament(
         base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
-        token=os.getenv("FILAMENT_TOKEN"),
+        client_id=os.getenv("FILAMENT_CLIENT_ID"),
+        client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
     )
     response = await filament.pipeline.list()
     for pipeline in response.pipelines or []:

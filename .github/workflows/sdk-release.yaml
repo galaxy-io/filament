@@ -2,6 +2,11 @@ name: "CD: SDK"
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to the registries"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,6 +20,10 @@ jobs:
     name: Build Python SDK
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      # PyPI trusted publishing: the workflow's OIDC identity is the credential.
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -39,10 +48,20 @@ jobs:
           path: ${{ runner.temp }}/sdk-dist/
           if-no-files-found: error
 
+      - name: Publish to PyPI
+        if: inputs.publish
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: ${{ runner.temp }}/sdk-dist/
+
   typescript:
     name: Build TypeScript SDK
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      # npm trusted publishing: the workflow's OIDC identity is the credential.
+      id-token: write
     defaults:
       run:
         working-directory: sdks/typescript
@@ -52,8 +71,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
+          registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: sdks/typescript/package-lock.json
+
+      # Trusted publishing needs a newer npm than Node 22 ships.
+      - run: npm install -g npm@latest
 
       - name: Read TypeScript SDK version
         id: version
@@ -73,3 +96,7 @@ jobs:
           name: filament-ts-${{ steps.version.outputs.version }}
           path: ${{ runner.temp }}/sdk-dist/
           if-no-files-found: error
+
+      - name: Publish to npm
+        if: inputs.publish
+        run: npm publish --access public

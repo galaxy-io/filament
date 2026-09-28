@@ -20,7 +20,7 @@ import { FilamentClient } from "@galaxy-io/filament-ts";
 
 const filament = new FilamentClient({
   environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
-  token: process.env.FILAMENT_TOKEN,
+  auth: false,
 });
 
 const { connectors } = await filament.connector.list({});
@@ -29,8 +29,8 @@ for (const connector of connectors ?? []) {
 }
 ~~~
 
-For a local server with authentication disabled, omit `token`. Otherwise see
-[Authentication](#authentication) for where the token comes from.
+This connects to a server with authentication disabled. See
+[Authentication](#authentication) for a deployed server.
 
 Request timeouts are set with `timeoutInSeconds`, and retries with `maxRetries`,
 either on the client or per call. The client retries twice by default; pass
@@ -39,12 +39,25 @@ either on the client or per call. The client retries twice by default; pass
 ## Authentication
 
 When the server runs with an identity provider, the SDK authenticates as a
-**service account**. Create one on the Members page of the UI, or with
+service account. Create one on the Members page of the web app, or with
 `filament.serviceAccount.create(...)` while signed in as an admin. Both return a
 client id and a client secret; the secret is shown once.
 
-Pass the service account's access token as `token`. Access tokens expire, so
-long-running programs pass an async function that returns a current token instead.
+Pass them to the client. It mints an access token through the server and mints
+again as the token nears expiry, so nothing about the identity provider reaches
+your code:
+
+~~~ts
+const filament = new FilamentClient({
+  environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
+  clientId: process.env.FILAMENT_CLIENT_ID!,
+  clientSecret: process.env.FILAMENT_CLIENT_SECRET!,
+});
+~~~
+
+A token minted elsewhere still works as `token`. For a local server with
+authentication disabled, pass `auth: false` instead; the client refuses to
+construct without one of the three.
 
 ## Create and run a pipeline
 
@@ -67,6 +80,7 @@ import { FilamentClient } from "@galaxy-io/filament-ts";
 
 const filament = new FilamentClient({
   environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
+  auth: false,
 });
 const name = `sample-to-stdout-${randomUUID().slice(0, 8)}`;
 
