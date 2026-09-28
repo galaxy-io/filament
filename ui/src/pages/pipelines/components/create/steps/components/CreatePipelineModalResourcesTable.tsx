@@ -83,17 +83,15 @@ interface CreatePipelineModalResourcesTableProps {
 }
 
 const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
-  const { activeSinkId, isCdc, isLoading } = useCreatePipelineModalState();
+  const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-
-  const hasLevers = !isCdc;
 
   const rowSelection = useMemo(
     () => Object.fromEntries(rows.map((row) => [row.name, row.isSelected])),
     [rows],
   );
 
-  const columns = hasLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+  const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
 
   return (
     <TableWrapper>

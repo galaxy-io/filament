@@ -94,6 +94,7 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
         <PipelineHistoryRunStatus
           status={row.original.lastRun.status}
           error={row.original.lastRun.error}
+          executionStatus={row.original.lastRun.executionStatus}
         />
       ) : (
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>

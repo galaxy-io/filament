@@ -14,6 +14,7 @@ import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import { withTheme } from "@galaxy-io/dls/theme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
   GetRunRequestSchema,
   type RunInfo,
@@ -29,6 +30,7 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
   PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/history/constants";
+import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/PipelineHistoryRunContinuousSummary";
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
@@ -114,6 +116,13 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       </ResourceTableWrapper>
     );
   }
+
+  if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS)
+    return (
+      <ResourceTableWrapper>
+        <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
+      </ResourceTableWrapper>
+    );
 
   if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
     return (

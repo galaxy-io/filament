@@ -40,27 +40,45 @@ func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResour
 }
 
 const deleteStreamResourceCheckpoint = `-- name: DeleteStreamResourceCheckpoint :exec
-WITH deleted AS (
+WITH locked_stream AS MATERIALIZED (
+  SELECT s.id
+  FROM replication_streams AS s
+  WHERE s.id = $1
+    AND s.tenant_id = $2
+  FOR UPDATE
+), target AS MATERIALIZED (
+  SELECT r.id, r.status
+  FROM replication_stream_resources AS r
+  JOIN locked_stream AS s ON s.id = r.replication_stream_id
+  WHERE r.resource_name = $3
+  FOR UPDATE OF r
+), deleted AS (
   DELETE FROM pipeline_resource_checkpoints AS c
-  USING replication_stream_resources AS r
-  WHERE c.replication_stream_resource_id = r.id
-    AND r.replication_stream_id = $1
-    AND r.resource_name = $2
+  USING target
+  WHERE c.replication_stream_resource_id = target.id
+), reset AS (
+  UPDATE replication_stream_resources AS r
+  SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
+  FROM target
+  WHERE r.id = target.id
+    AND target.status <> 3
+  RETURNING r.replication_stream_id, target.status AS previous_status
 )
-UPDATE replication_stream_resources AS r
-SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
-WHERE r.replication_stream_id = $1
-  AND r.resource_name = $2
-  AND r.status <> 3
+UPDATE replication_streams AS s
+SET membership_revision = membership_revision + 1
+FROM reset
+WHERE s.id = reset.replication_stream_id
+  AND reset.previous_status <> 0
 `
 
 type DeleteStreamResourceCheckpointParams struct {
 	ReplicationStreamID string
+	TenantID            string
 	ResourceName        string
 }
 
 func (q *Queries) DeleteStreamResourceCheckpoint(ctx context.Context, arg DeleteStreamResourceCheckpointParams) error {
-	_, err := q.db.Exec(ctx, deleteStreamResourceCheckpoint, arg.ReplicationStreamID, arg.ResourceName)
+	_, err := q.db.Exec(ctx, deleteStreamResourceCheckpoint, arg.ReplicationStreamID, arg.TenantID, arg.ResourceName)
 	return err
 }
 
@@ -264,7 +282,20 @@ func (q *Queries) SaveResourceCheckpoint(ctx context.Context, arg SaveResourceCh
 }
 
 const saveStreamResourceCheckpoint = `-- name: SaveStreamResourceCheckpoint :execrows
-WITH activated AS (
+WITH locked_stream AS MATERIALIZED (
+  SELECT s.id
+  FROM replication_streams AS s
+  WHERE s.id = $7
+    AND s.tenant_id = $8
+  FOR UPDATE
+), target AS MATERIALIZED (
+  SELECT r.id, r.status
+  FROM replication_stream_resources AS r
+  JOIN locked_stream AS s ON s.id = r.replication_stream_id
+  WHERE r.resource_name = $4
+    AND r.status <> 3
+  FOR UPDATE OF r
+), activated AS (
   UPDATE replication_stream_resources AS r
   SET status = 2,
       bootstrap_run_id = COALESCE(r.bootstrap_run_id, $6),
@@ -272,10 +303,17 @@ WITH activated AS (
       retired_at = NULL,
       error = NULL,
       updated_at = now()
-  WHERE r.replication_stream_id = $7
-    AND r.resource_name = $4
-    AND r.status <> 3
-  RETURNING r.id, r.tenant_id
+  FROM target
+  WHERE r.id = target.id
+  RETURNING r.id, r.tenant_id, r.replication_stream_id,
+            target.status AS previous_status
+), bumped_revision AS (
+  UPDATE replication_streams AS s
+  SET membership_revision = membership_revision + 1
+  FROM activated AS a
+  WHERE s.id = a.replication_stream_id
+    AND a.previous_status <> 2
+  RETURNING s.id
 ), removed_conflict AS (
   DELETE FROM pipeline_resource_checkpoints AS c
   USING activated AS a
@@ -294,6 +332,7 @@ SELECT tenant_id, $1, $2, $3, $4,
        id, $5, $6, now()
 FROM activated
 CROSS JOIN (SELECT count(*) FROM removed_conflict) AS removed
+CROSS JOIN (SELECT count(*) FROM bumped_revision) AS bumped
 ON CONFLICT (replication_stream_resource_id)
   WHERE replication_stream_resource_id IS NOT NULL
 DO UPDATE SET
@@ -314,6 +353,7 @@ type SaveStreamResourceCheckpointParams struct {
 	Cursor              []byte
 	LastRunID           string
 	ReplicationStreamID string
+	TenantID            string
 }
 
 func (q *Queries) SaveStreamResourceCheckpoint(ctx context.Context, arg SaveStreamResourceCheckpointParams) (int64, error) {
@@ -325,6 +365,7 @@ func (q *Queries) SaveStreamResourceCheckpoint(ctx context.Context, arg SaveStre
 		arg.Cursor,
 		arg.LastRunID,
 		arg.ReplicationStreamID,
+		arg.TenantID,
 	)
 	if err != nil {
 		return 0, err

@@ -43,6 +43,9 @@ export const mapElementsToSelected = <T extends { id: string; selected?: boolean
     return element.selected === selected ? element : { ...element, selected };
   });
 
+export const getDefaultDestinationResource = (resource: PipelineEdge["resource"]): string =>
+  resource.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+
 export const getCanvasEdgeResourceLabel = (
   resource: PipelineEdge["resource"],
   coveredCount: number,

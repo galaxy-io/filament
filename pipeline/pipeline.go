@@ -12,6 +12,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // defaultBatchRows is used when Config.Options.BatchMaxRows is unset.
@@ -35,6 +37,8 @@ const defaultFlushInterval = time.Second
 // Commit/Abort are the engine's responsibility, not the pipeline's — the pipeline
 // only calls Apply.
 type Config struct {
+	// PrepareSchema runs once per resource, on the writer, before its first Apply.
+	PrepareSchema func(context.Context, string, rowmodel.Schema) error
 	Tenant        filament.TenantID
 	Run           filament.RunID
 	Sink          filament.Sink
@@ -60,6 +64,7 @@ type AuditConfig struct {
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
+	prepareSchema    func(context.Context, string, rowmodel.Schema) error
 	tenant           filament.TenantID
 	run              filament.RunID
 	sink             filament.Sink
@@ -71,7 +76,8 @@ type Pipeline struct {
 	log              filament.Logger
 	encodedIntegrity bool
 
-	batchCh chan *arrowbatch.Batch
+	batchCh chan queuedBatch
+	stream  *streamInlet
 
 	registryMu sync.Mutex
 	schemas    map[string]registeredSchema
@@ -125,6 +131,7 @@ func New(cfg Config) *Pipeline {
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
 	return &Pipeline{
+		prepareSchema:    cfg.PrepareSchema,
 		tenant:           cfg.Tenant,
 		run:              cfg.Run,
 		sink:             cfg.Sink,
@@ -135,7 +142,7 @@ func New(cfg Config) *Pipeline {
 		writers:          writers,
 		log:              cfg.Log,
 		encodedIntegrity: sinkCapabilities.EncodedIntegrity,
-		batchCh:          make(chan *arrowbatch.Batch, 2*writers),
+		batchCh:          make(chan queuedBatch, 2*writers),
 		schemas:          make(map[string]registeredSchema),
 		builders:         make(map[partKey]*arrowbatch.Builder),
 		alloc:            cfg.Allocator,
@@ -149,7 +156,12 @@ func New(cfg Config) *Pipeline {
 
 // Records returns the inlet a Source opens its row writers on. Safe to call
 // before Start.
-func (p *Pipeline) Records() arrowbatch.Inlet { return &inlet{p: p} }
+func (p *Pipeline) Records() arrowbatch.Inlet {
+	if p.stream != nil {
+		return p.stream
+	}
+	return &inlet{p: p}
+}
 
 // Start launches the flush timer and a pool of writer goroutines. The ctx governs
 // them; cancel it to stop the pipeline. With parallelism > 1 the Sink's Apply is
@@ -201,7 +213,18 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 		close(p.tickStop)
 		<-p.tickDone
 	}
-	if extractErr == nil {
+	if p.stream != nil {
+		p.stream.closed = true
+		if extractErr == nil && len(p.stream.transactions) != 0 {
+			extractErr = errors.New("pipeline: ingestion closed with an open transaction")
+		}
+		if extractErr != nil {
+			p.setErr(extractErr)
+		} else if err := p.stream.flush(); err != nil {
+			p.setErr(err)
+		}
+	}
+	if extractErr == nil && p.stream == nil {
 		p.registryMu.Lock()
 		builders := make([]*arrowbatch.Builder, 0, len(p.builders))
 		for _, builder := range p.builders {

@@ -102,7 +102,11 @@ const ObservabilityRunsTable = () => {
         enableSorting: false,
         cellLoading: () => <TextShimmer width={64} height={18} />,
         cell: ({ row }) => (
-          <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
+          <PipelineHistoryRunStatus
+            status={row.original.status}
+            error={row.original.error}
+            executionStatus={row.original.executionStatus}
+          />
         ),
       },
       {

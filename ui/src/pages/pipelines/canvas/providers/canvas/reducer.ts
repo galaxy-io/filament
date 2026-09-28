@@ -133,7 +133,9 @@ function setEdgeConfig(
   return {
     ...state,
     edges: state.edges.map((edge) =>
-      edge.id === action.payload.edgeId ? { ...edge, data: action.payload.data } : edge,
+      edge.id === action.payload.edgeId
+        ? { ...edge, data: { ...edge.data, ...action.payload.data } }
+        : edge,
     ),
   };
 }
@@ -149,6 +151,7 @@ function setRouteWriteMode(
         ? {
             ...edge,
             data: {
+              ...edge.data,
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: action.payload.writeMode,
               cursors: edge.data?.cursors ?? [],

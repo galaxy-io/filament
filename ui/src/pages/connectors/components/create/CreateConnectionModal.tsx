@@ -22,6 +22,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
           ...prev,
           connector: connector.name,
           connectorKind: connector.kind,
+          connectorSearch: undefined,
         }),
       });
     },

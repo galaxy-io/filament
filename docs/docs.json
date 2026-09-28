@@ -137,6 +137,7 @@
             "pages": [
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
+              "pages/connectors/sources/nats",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gong",
@@ -159,6 +160,7 @@
             "pages": [
               "pages/connectors/sinks/postgres",
               "pages/connectors/sinks/mysql",
+              "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",

@@ -1,4 +1,9 @@
-import type { ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type {
+  ExecutionMode,
+  ReadMode,
+  ReplicationMode,
+  WriteMode,
+} from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -21,6 +26,8 @@ export enum CreatePipelineModalStepStatus {
 }
 
 export interface CreatePipelineModalState {
+  executionMode: ExecutionMode;
+  manualResources: Resource["name"][];
   step: CreatePipelineModalStep;
   activeSinkId: Connection["id"];
   sourceConnection: Connection | null;
@@ -63,10 +70,11 @@ export interface CreatePipelineModalSinkRow {
 }
 
 export interface CreatePipelineModalDerivedState {
+  supportedExecutionModes: ExecutionMode[];
+  hasReadLevers: boolean;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   replication: ReplicationMode;
-  isCdc: boolean;
   issuesBySink: Record<Connection["id"], string[]>;
   selectedCountBySink: Record<Connection["id"], number>;
   isLoading: boolean;

@@ -39,9 +39,11 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/notifier"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
+	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
 )
 
@@ -170,10 +172,12 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("mount: %w", err)
 	}
+	streams := streamsupervisor.New(runner.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}, nil)
 	h := host.New(cfg.Bus)
 	ctx, cancel := context.WithCancel(ctx)
 	cleanup = func() {
 		cancel()
+		streams.Close()
 		_ = h.Close()
 		if c, ok := cfg.Bus.(io.Closer); ok {
 			_ = c.Close()
@@ -186,6 +190,7 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 		cleanup()
 		return nil, nil, nil, fmt.Errorf("run: %w", err)
 	}
+	streams.Start(ctx)
 	sched.Start(ctx)
 	mux = http.NewServeMux()
 	api.Mount(mux)

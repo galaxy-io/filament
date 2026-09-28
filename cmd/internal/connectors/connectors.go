@@ -12,6 +12,7 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/iceberg"
 	_ "github.com/galaxy-io/filament/connectors/meilisearch"
 	_ "github.com/galaxy-io/filament/connectors/mysql"
+	_ "github.com/galaxy-io/filament/connectors/nats"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
 	_ "github.com/galaxy-io/filament/connectors/redshift"

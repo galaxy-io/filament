@@ -118,8 +118,8 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
 
         <PipelineCanvasPanelResourceSection
           edges={nodeEdges}
+          nodeId={node.id}
           nodeType={node.type}
-          isOpenInitial={false}
         />
       </PipelineCanvasPanelBody>
     </>

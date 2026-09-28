@@ -159,6 +159,9 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 	probeFailures := 0
 	publishFailures := 0
 	for _, r := range stale {
+		if r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+			continue
+		}
 		workload := filament.WorkloadAbsent
 		if m.probe != nil {
 			workload, err = m.probe(ctx, r.Run)

@@ -7,7 +7,69 @@ package sqlcgen
 
 import (
 	"context"
+	"database/sql"
 )
+
+const activateStreamResourceForCheckpoint = `-- name: ActivateStreamResourceForCheckpoint :execrows
+UPDATE replication_stream_resources
+SET status = 2,
+    bootstrap_run_id = coalesce(bootstrap_run_id, ?1),
+    activated_at = coalesce(activated_at, ?2),
+    retired_at = NULL,
+    error = NULL,
+    updated_at = ?3
+WHERE id = ?4 AND tenant_id = ?5 AND status <> 3
+`
+
+type ActivateStreamResourceForCheckpointParams struct {
+	LastRunID   sql.NullString
+	ActivatedAt sql.NullInt64
+	UpdatedAt   int64
+	ResourceID  string
+	TenantID    string
+}
+
+func (q *Queries) ActivateStreamResourceForCheckpoint(ctx context.Context, arg ActivateStreamResourceForCheckpointParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, activateStreamResourceForCheckpoint,
+		arg.LastRunID,
+		arg.ActivatedAt,
+		arg.UpdatedAt,
+		arg.ResourceID,
+		arg.TenantID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteConflictingStreamResourceCheckpoint = `-- name: DeleteConflictingStreamResourceCheckpoint :exec
+DELETE FROM pipeline_resource_checkpoints
+WHERE pipeline_id = ?1
+  AND pipeline_version_id = ?2
+  AND route_key = ?3
+  AND resource_name = ?4
+  AND replication_stream_resource_id IS NOT ?5
+`
+
+type DeleteConflictingStreamResourceCheckpointParams struct {
+	PipelineID        string
+	PipelineVersionID string
+	RouteKey          string
+	ResourceName      string
+	ResourceID        sql.NullString
+}
+
+func (q *Queries) DeleteConflictingStreamResourceCheckpoint(ctx context.Context, arg DeleteConflictingStreamResourceCheckpointParams) error {
+	_, err := q.db.ExecContext(ctx, deleteConflictingStreamResourceCheckpoint,
+		arg.PipelineID,
+		arg.PipelineVersionID,
+		arg.RouteKey,
+		arg.ResourceName,
+		arg.ResourceID,
+	)
+	return err
+}
 
 const deleteResourceCheckpoint = `-- name: DeleteResourceCheckpoint :exec
 DELETE FROM pipeline_resource_checkpoints
@@ -35,6 +97,80 @@ func (q *Queries) DeleteResourceCheckpoint(ctx context.Context, arg DeleteResour
 		arg.ResourceName,
 	)
 	return err
+}
+
+const deleteStreamResourceCheckpoint = `-- name: DeleteStreamResourceCheckpoint :exec
+DELETE FROM pipeline_resource_checkpoints
+WHERE replication_stream_resource_id IN (
+  SELECT r.id FROM replication_stream_resources AS r
+  JOIN replication_streams AS s ON s.id = r.replication_stream_id
+  WHERE s.id = ?1 AND s.tenant_id = ?2
+    AND r.resource_name = ?3
+)
+`
+
+type DeleteStreamResourceCheckpointParams struct {
+	ReplicationStreamID string
+	TenantID            string
+	ResourceName        string
+}
+
+func (q *Queries) DeleteStreamResourceCheckpoint(ctx context.Context, arg DeleteStreamResourceCheckpointParams) error {
+	_, err := q.db.ExecContext(ctx, deleteStreamResourceCheckpoint, arg.ReplicationStreamID, arg.TenantID, arg.ResourceName)
+	return err
+}
+
+const getStreamResourceForCheckpoint = `-- name: GetStreamResourceForCheckpoint :one
+
+SELECT r.id, r.replication_stream_id, r.tenant_id, r.resource_name, r.status, r.bootstrap_mode, r.bootstrap_config, r.schema_fingerprint, r.bootstrap_run_id, r.bootstrap_started_at, r.activated_at, r.retired_at, r.error, r.created_by_user_id, r.updated_by_user_id, r.deleted_by_user_id, r.created_at, r.updated_at
+FROM replication_stream_resources AS r
+JOIN replication_streams AS s ON s.id = r.replication_stream_id
+WHERE s.id = ?1
+  AND s.tenant_id = ?2
+  AND r.resource_name = ?3
+`
+
+type GetStreamResourceForCheckpointParams struct {
+	ReplicationStreamID string
+	TenantID            string
+	ResourceName        string
+}
+
+// SQLite cannot modify several tables in a CTE. Stream checkpoint saves must
+// run in one transaction using these steps:
+//  1. LockReplicationStreamGeneration (or another tenant-scoped stream read).
+//  2. GetStreamResourceForCheckpoint; skip retired resources (status = 3).
+//  3. DeleteConflictingStreamResourceCheckpoint.
+//  4. BumpReplicationStreamMembershipRevision if the resource status is not 2.
+//  5. ActivateStreamResourceForCheckpoint, then SaveStreamResourceCheckpoint.
+//
+// Deletion uses the same stream/resource reads, then DeleteStreamResourceCheckpoint.
+// For a non-retired resource, bump the membership revision if its status is not
+// 0, then ResetStreamResourceForCheckpoint. Commit all changes together.
+func (q *Queries) GetStreamResourceForCheckpoint(ctx context.Context, arg GetStreamResourceForCheckpointParams) (*ReplicationStreamResource, error) {
+	row := q.db.QueryRowContext(ctx, getStreamResourceForCheckpoint, arg.ReplicationStreamID, arg.TenantID, arg.ResourceName)
+	var i ReplicationStreamResource
+	err := row.Scan(
+		&i.ID,
+		&i.ReplicationStreamID,
+		&i.TenantID,
+		&i.ResourceName,
+		&i.Status,
+		&i.BootstrapMode,
+		&i.BootstrapConfig,
+		&i.SchemaFingerprint,
+		&i.BootstrapRunID,
+		&i.BootstrapStartedAt,
+		&i.ActivatedAt,
+		&i.RetiredAt,
+		&i.Error,
+		&i.CreatedByUserID,
+		&i.UpdatedByUserID,
+		&i.DeletedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return &i, err
 }
 
 const listResourceCheckpoints = `-- name: ListResourceCheckpoints :many
@@ -94,6 +230,49 @@ func (q *Queries) ListResourceCheckpoints(ctx context.Context, arg ListResourceC
 	return items, nil
 }
 
+const listStreamResourceCheckpoints = `-- name: ListStreamResourceCheckpoints :many
+SELECT c.resource_name, c.cursor, c.last_run_id, c.updated_at
+FROM pipeline_resource_checkpoints AS c
+JOIN replication_stream_resources AS r ON r.id = c.replication_stream_resource_id
+WHERE r.replication_stream_id = ?1 AND r.status = 2
+ORDER BY c.resource_name
+`
+
+type ListStreamResourceCheckpointsRow struct {
+	ResourceName string
+	Cursor       string
+	LastRunID    string
+	UpdatedAt    int64
+}
+
+func (q *Queries) ListStreamResourceCheckpoints(ctx context.Context, replicationStreamID string) ([]*ListStreamResourceCheckpointsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listStreamResourceCheckpoints, replicationStreamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListStreamResourceCheckpointsRow
+	for rows.Next() {
+		var i ListStreamResourceCheckpointsRow
+		if err := rows.Scan(
+			&i.ResourceName,
+			&i.Cursor,
+			&i.LastRunID,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loadResourceCheckpoint = `-- name: LoadResourceCheckpoint :one
 SELECT cursor, last_run_id, updated_at
 FROM pipeline_resource_checkpoints
@@ -129,6 +308,53 @@ func (q *Queries) LoadResourceCheckpoint(ctx context.Context, arg LoadResourceCh
 	var i LoadResourceCheckpointRow
 	err := row.Scan(&i.Cursor, &i.LastRunID, &i.UpdatedAt)
 	return &i, err
+}
+
+const loadStreamResourceCheckpoint = `-- name: LoadStreamResourceCheckpoint :one
+SELECT c.cursor, c.last_run_id, c.updated_at
+FROM pipeline_resource_checkpoints AS c
+JOIN replication_stream_resources AS r ON r.id = c.replication_stream_resource_id
+WHERE r.replication_stream_id = ?1
+  AND r.resource_name = ?2
+  AND r.status = 2
+`
+
+type LoadStreamResourceCheckpointParams struct {
+	ReplicationStreamID string
+	ResourceName        string
+}
+
+type LoadStreamResourceCheckpointRow struct {
+	Cursor    string
+	LastRunID string
+	UpdatedAt int64
+}
+
+func (q *Queries) LoadStreamResourceCheckpoint(ctx context.Context, arg LoadStreamResourceCheckpointParams) (*LoadStreamResourceCheckpointRow, error) {
+	row := q.db.QueryRowContext(ctx, loadStreamResourceCheckpoint, arg.ReplicationStreamID, arg.ResourceName)
+	var i LoadStreamResourceCheckpointRow
+	err := row.Scan(&i.Cursor, &i.LastRunID, &i.UpdatedAt)
+	return &i, err
+}
+
+const resetStreamResourceForCheckpoint = `-- name: ResetStreamResourceForCheckpoint :execrows
+UPDATE replication_stream_resources
+SET status = 0, activated_at = NULL, error = NULL, updated_at = ?1
+WHERE id = ?2 AND tenant_id = ?3 AND status <> 3
+`
+
+type ResetStreamResourceForCheckpointParams struct {
+	UpdatedAt  int64
+	ResourceID string
+	TenantID   string
+}
+
+func (q *Queries) ResetStreamResourceForCheckpoint(ctx context.Context, arg ResetStreamResourceForCheckpointParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resetStreamResourceForCheckpoint, arg.UpdatedAt, arg.ResourceID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const saveResourceCheckpoint = `-- name: SaveResourceCheckpoint :execrows
@@ -167,6 +393,57 @@ func (q *Queries) SaveResourceCheckpoint(ctx context.Context, arg SaveResourceCh
 		arg.LastRunID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const saveStreamResourceCheckpoint = `-- name: SaveStreamResourceCheckpoint :execrows
+INSERT INTO pipeline_resource_checkpoints (
+  tenant_id, pipeline_id, pipeline_version_id, route_key, resource_name,
+  replication_stream_resource_id, cursor, last_run_id, created_at, updated_at
+)
+SELECT r.tenant_id, ?1, ?2, ?3, r.resource_name,
+       r.id, ?4, ?5, ?6, ?7
+FROM replication_stream_resources AS r
+WHERE r.id = ?8 AND r.tenant_id = ?9 AND r.status = 2
+ON CONFLICT (replication_stream_resource_id)
+  WHERE replication_stream_resource_id IS NOT NULL
+DO UPDATE SET
+  tenant_id = excluded.tenant_id,
+  pipeline_id = excluded.pipeline_id,
+  pipeline_version_id = excluded.pipeline_version_id,
+  route_key = excluded.route_key,
+  cursor = excluded.cursor,
+  last_run_id = excluded.last_run_id,
+  updated_at = excluded.updated_at
+`
+
+type SaveStreamResourceCheckpointParams struct {
+	PipelineID        string
+	PipelineVersionID string
+	RouteKey          string
+	Cursor            string
+	LastRunID         string
+	CreatedAt         int64
+	UpdatedAt         int64
+	ResourceID        string
+	TenantID          string
+}
+
+func (q *Queries) SaveStreamResourceCheckpoint(ctx context.Context, arg SaveStreamResourceCheckpointParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, saveStreamResourceCheckpoint,
+		arg.PipelineID,
+		arg.PipelineVersionID,
+		arg.RouteKey,
+		arg.Cursor,
+		arg.LastRunID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.ResourceID,
+		arg.TenantID,
 	)
 	if err != nil {
 		return 0, err

@@ -53,7 +53,11 @@ func (a *Server) ListRuns(ctx context.Context, req *connect.Request[ingestionv1.
 	}
 	runs := make([]*ingestionv1.RunInfo, 0, len(states))
 	for _, state := range states {
-		runs = append(runs, runInfoToProto(state))
+		info, err := a.runInfo(ctx, state)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, info)
 	}
 	return connect.NewResponse(&ingestionv1.ListRunsResponse{
 		Runs:       runs,
@@ -84,25 +88,25 @@ func (a *Server) GetRun(ctx context.Context, req *connect.Request[ingestionv1.Ge
 			Error:        resource.Error,
 		})
 	}
-	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: runInfoToProto(state), Resources: resources}}), nil
+	info, err := a.runInfo(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&ingestionv1.GetRunResponse{Snapshot: &ingestionv1.RunSnapshot{Run: info, Resources: resources}}), nil
 }
 
 // SignalRun validates transport concerns and delegates lifecycle policy to the
 // shared run command layer.
 func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1.SignalRunRequest]) (*connect.Response[ingestionv1.SignalRunResponse], error) {
+	if a.store == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore is not configured"))
+	}
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if req.Msg.GetRunId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
-	}
-	if a.bus == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
-	}
-	transitions, ok := a.store.(filament.RunTransitionStore)
-	if !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
 	}
 	run := filament.RunID(req.Msg.GetRunId())
 	state, err := a.store.LoadRun(ctx, tenant, run)
@@ -111,6 +115,19 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		return a.signalContinuous(ctx, state, req.Msg)
+	}
+	if req.Msg.GetSignal() == ingestionv1.RunSignal_RUN_SIGNAL_STOP || req.Msg.ExpectedRevision != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, filament.ErrContinuousDisabled)
+	}
+	if a.bus == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
+	}
+	transitions, ok := a.store.(filament.RunTransitionStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
 	}
 	signal, err := runSignalFromProto(req.Msg.GetSignal())
 	if err != nil {
@@ -231,23 +248,21 @@ func (a *Server) TailRun(ctx context.Context, req *connect.Request[ingestionv1.T
 	if run == "" {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("run_id is required"))
 	}
-	if req.Msg.GetShouldReplay() {
-		if err := a.replayRun(ctx, tenant, run, send); err != nil {
-			return connect.NewError(connect.CodeInternal, err)
-		}
-		if state, ok, err := a.loadRunSnapshot(ctx, tenant, run); err != nil {
-			return connect.NewError(connect.CodeInternal, err)
-		} else if ok && runStatusTerminal(state.Status) {
-			// Terminal since replay; emit the terminal event replay skipped.
-			return send(tailResponse(runSnapshotEvent(state, true)))
-		}
-	}
-
 	sub, err := a.bus.Subscribe(events.RunPattern(tenant, run), eventbus.SubOpts{})
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
 	defer func() { _ = sub.Close() }()
+
+	if req.Msg.GetShouldReplay() {
+		terminal, err := a.replayRun(ctx, tenant, run, send)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, err)
+		}
+		if terminal {
+			return nil
+		}
+	}
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
@@ -308,17 +323,18 @@ func (a *Server) awaitTerminalPersisted(ctx context.Context, tenant filament.Ten
 	}
 }
 
-func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run filament.RunID, send func(*ingestionv1.TailRunResponse) error) error {
+func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run filament.RunID, send func(*ingestionv1.TailRunResponse) error) (bool, error) {
 	state, ok, err := a.loadRunSnapshot(ctx, tenant, run)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !ok {
-		return nil
+		return false, nil
 	}
 	for _, resource := range state.Resources {
 		if err := send(tailResponse(&ingestionv1.RunEvent{
 			EventType: runStatusEventType(resource.Status),
+			CreatedAt: snapshotTime(state),
 			TenantId:  string(state.Tenant),
 			RunId:     string(state.Run),
 			Resource:  resource.Resource,
@@ -329,13 +345,13 @@ func (a *Server) replayRun(ctx context.Context, tenant filament.TenantID, run fi
 			},
 			IsReplay: true,
 		})); err != nil {
-			return err
+			return false, err
 		}
 	}
 	if runStatusTerminal(state.Status) {
-		return send(tailResponse(runSnapshotEvent(state, true)))
+		return true, send(tailResponse(runSnapshotEvent(state, true)))
 	}
-	return nil
+	return false, nil
 }
 
 func (a *Server) loadRunSnapshot(ctx context.Context, tenant filament.TenantID, run filament.RunID) (filament.RunState, bool, error) {

@@ -60,6 +60,7 @@ type Pipeline struct {
 	DeletedByUserID     sql.NullString
 	CreatedAt           int64
 	UpdatedAt           int64
+	ExecutionMode       int64
 }
 
 type PipelineResourceCheckpoint struct {
@@ -108,6 +109,12 @@ type ReplicationStream struct {
 	DeletedByUserID              sql.NullString
 	CreatedAt                    int64
 	UpdatedAt                    int64
+	MembershipRevision           int64
+	CurrentRunID                 sql.NullString
+	DesiredState                 string
+	DesiredRevision              int64
+	RunSpec                      sql.NullString
+	LastEpoch                    int64
 }
 
 type ReplicationStreamResource struct {
@@ -212,6 +219,32 @@ type Secret struct {
 	Metadata   string
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type StreamAttempt struct {
+	Token           int64
+	StreamID        string
+	TenantID        string
+	ExecutionID     string
+	DesiredRevision int64
+	RequestTtlUs    int64
+	StartedAt       int64
+	ClaimedAt       sql.NullInt64
+	RunSpec         string
+	ExpiresAt       int64
+	EndedAt         sql.NullInt64
+	Termination     sql.NullString
+	Reason          string
+}
+
+type StreamEpoch struct {
+	StreamID     string
+	TenantID     string
+	Epoch        int64
+	AttemptToken int64
+	Certificate  []byte
+	Positions    string
+	CommittedAt  int64
 }
 
 type Tenant struct {

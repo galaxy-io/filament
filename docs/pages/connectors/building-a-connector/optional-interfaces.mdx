@@ -87,15 +87,15 @@ run-level rate settings.
 
 | Interface or capability | What it means today |
 |---|---|
-| `Schematized` | The runner calls `EnsureSchema` for each resource before extraction. |
-| `SinkCapabilities.Upsertable` | Planning may bind upsert policies; the sink applies them inside `Apply`. |
+| `Schematized` | The runner calls `EnsureSchema` for each resource before extraction. Continuous runs also prepare inferred payload columns before their first batch is applied. |
+| `SinkCapabilities.WritePolicies` | Declares bounded write modes. Bounded planning rejects ingestion types without a declared policy; the sink applies bound policies inside `Apply`. |
+| `SinkCapabilities.Stream.WritePolicies` | Declares continuous write modes. Continuous planning selects these policies independently of the bounded list; the sink implements them through its epoch lifecycle. |
 | `SinkCapabilities.EncodedIntegrity` | Every `Apply` must return an `EncodedCRC` verified over the exact serialized bytes. |
 | `Transactional` | Declares stage/promote methods, but the engine does not currently call them. |
-| `Upsertable` | Declares a direct `Upsert` method, but the engine does not currently call it. |
 
-The last two interfaces should not be confused with runtime behavior. Today the
-engine always writes through `Sink.Apply` and finishes through `Commit` or
-`Abort`. A sink that advertises upsert implements that policy inside `Apply`.
+The last interface should not be confused with runtime behavior. Today the
+bounded engine writes through `Sink.Apply` and finishes through `Commit` or
+`Abort`. Continuous execution uses `BeginEpoch`, `CommitEpoch`, and `AbortEpoch`. A sink that declares an upsert policy implements it inside `Apply`.
 A sink that needs staging manages it inside its own lifecycle.
 
 ## Keep declaration and behavior together

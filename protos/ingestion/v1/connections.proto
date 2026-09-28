@@ -30,6 +30,10 @@ message Connection {
   // replication is the effective source behavior derived from the immutable
   // connection configuration. Sinks report UNSPECIFIED.
   ReplicationMode replication = 15;
+  // execution_modes lists the modes this connection can take part in, derived
+  // from connector capabilities and runtime support. Route compatibility is
+  // still decided by ValidatePipeline.
+  repeated ExecutionMode execution_modes = 16;
 }
 
 message CreateConnectionRequest {

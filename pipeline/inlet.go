@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
 
@@ -27,9 +28,15 @@ type partKey struct {
 	part     int
 }
 
+type schemaPreparation struct {
+	once sync.Once
+	err  error
+}
+
 type registeredSchema struct {
-	model rowmodel.Schema
-	arrow *arrow.Schema
+	model       rowmodel.Schema
+	preparation *schemaPreparation
+	arrow       *arrow.Schema
 }
 
 var _ arrowbatch.Inlet = (*inlet)(nil)
@@ -41,6 +48,9 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	key := partKey{resource: resource, part: part}
 	p.registryMu.Lock()
 	defer p.registryMu.Unlock()
+	if err := rowmodel.ValidateReservedFields(supplied); err != nil {
+		return nil, fmt.Errorf("pipeline: %w", err)
+	}
 	schema := supplied.Clone()
 	if schema.Resource == "" {
 		schema.Resource = resource
@@ -64,7 +74,7 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 		}
 		want = registered.arrow
 	} else {
-		p.schemas[resource] = registeredSchema{model: schema, arrow: want}
+		p.schemas[resource] = registeredSchema{model: schema, arrow: want, preparation: &schemaPreparation{}}
 	}
 	if _, exists := p.builders[key]; exists {
 		return nil, fmt.Errorf("pipeline: builder already open for %q part %d", resource, part)
@@ -119,7 +129,9 @@ func (s *slot) Chunk(b *arrowbatch.Batch) error {
 	b.Resource = s.resource
 	b.Part = s.part
 	b.Seq = seq
-	b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
+	if s.p.stream == nil {
+		b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
+	}
 	if err := s.send(b); err != nil {
 		return err
 	}
@@ -152,8 +164,13 @@ func (s *slot) Drained(meta filament.RowMeta, total int) error {
 // (or ErrPipelineClosed) once the writer has given up, so a Source stops
 // extracting instead of spinning against a dead pipeline.
 func (s *slot) send(b *arrowbatch.Batch) error {
+	var epoch *filament.EpochRef
+	if s.p.stream != nil && s.p.stream.epoch != nil {
+		ref := *s.p.stream.epoch
+		epoch = &ref
+	}
 	select {
-	case s.p.batchCh <- b:
+	case s.p.batchCh <- queuedBatch{batch: b, epoch: epoch}:
 		return nil
 	case <-s.p.done:
 		if err := s.p.Err(); err != nil {

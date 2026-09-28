@@ -169,3 +169,29 @@ func TestResolveIngestionPlanRejectsMissingSinkDurability(t *testing.T) {
 		t.Fatal("sink capability without durability was accepted")
 	}
 }
+
+func TestUndeclaredWritePoliciesRejected(t *testing.T) {
+	appendOnly := SinkSpec{Name: "append-only", Capabilities: SinkCapabilities{WritePolicies: WriteCapabilities(IngestionFullAppend)}}
+	for _, mode := range []IngestionType{IngestionFullReplace, IngestionFullUpsert, IngestionCDCAppend} {
+		if err := ValidateSinkIngestion(appendOnly, mode); err == nil {
+			t.Fatalf("append-only sink accepted %s", mode)
+		}
+	}
+	if err := ValidateSinkIngestion(appendOnly, IngestionFullAppend); err != nil {
+		t.Fatal(err)
+	}
+	bare := SinkSpec{Name: "bare"}
+	for _, mode := range []IngestionType{IngestionFullReplace, IngestionFullAppend, IngestionFullUpsert} {
+		if err := ValidateSinkIngestion(bare, mode); err == nil {
+			t.Fatalf("sink without write policies accepted %s", mode)
+		}
+	}
+}
+
+func TestBindSinkRecordAtomicity(t *testing.T) {
+	policy := WritePolicyForIngestion(IngestionFullAppend)
+	bindSinkDurability(&policy, WritePolicyCapability{Atomicity: AtomicityRecord, Durability: DurabilityAfterApply})
+	if policy.Capability.Atomicity != AtomicityRecord {
+		t.Fatal("planner retained batch atomicity for record-at-a-time sink")
+	}
+}

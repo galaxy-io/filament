@@ -12,8 +12,11 @@ import (
 // RunSpec is the fully resolved execution plan for one run — what a Runtime
 // receives after the engine has bound refs, ingestion type, and options.
 type RunSpec struct {
-	Tenant TenantID
-	Run    RunID
+	// StreamAttempt is authoritative for continuous execution. Existing dispatch
+	// fields, when populated, must agree with the admitted attempt.
+	StreamAttempt *AttemptRef `json:",omitempty"`
+	Tenant        TenantID
+	Run           RunID
 	// StartedAt is the logical run's first start time. A zero value is stamped by
 	// the runner; resumed executions retain the original value.
 	StartedAt time.Time
@@ -45,6 +48,9 @@ type RunSpec struct {
 // RunRequest is the caller-facing ask for a run, deduplicated by
 // IdempotencyKey; the engine resolves it into a RunSpec.
 type RunRequest struct {
+	// WritePolicies preserves continuous admission policies and destination-name
+	// overrides for bounded runs. Runtime negotiation binds bounded capabilities.
+	WritePolicies      map[string]WritePolicy `json:",omitempty"`
 	Tenant             TenantID
 	PipelineID         string
 	PipelineVersionID  string
@@ -165,6 +171,8 @@ func (s RunSpec) ResourceCheckpointKey(resource string) (ResourceCheckpointKey, 
 // RunOptions tunes throughput knobs for a run; zero values defer to engine
 // defaults.
 type RunOptions struct {
+	Execution           ExecutionMode `json:",omitempty"`
+	EpochBoundary       *Boundary     `json:",omitempty"`
 	FetchSize           int
 	BatchMaxRows        int
 	BatchMaxBytes       int64
@@ -529,6 +537,7 @@ type WriteAtomicity string
 
 // Atomicity units, smallest to largest.
 const (
+	AtomicityRecord   WriteAtomicity = "record"
 	AtomicityBatch    WriteAtomicity = "batch"
 	AtomicityResource WriteAtomicity = "resource"
 	AtomicityRun      WriteAtomicity = "run"
@@ -603,11 +612,13 @@ type VersionPolicy struct {
 // WritePolicy binds a capability to one resource's keys and checkpoint timing
 // — the per-resource contract handed to a sink via ApplyOptions.
 type WritePolicy struct {
-	Capability WritePolicyCapability
-	Resource   string
-	Keys       []string
-	Version    VersionPolicy
-	Checkpoint CheckpointPolicy
+	// DestinationResource overrides the sink name without changing source progress identity.
+	DestinationResource string
+	Capability          WritePolicyCapability
+	Resource            string
+	Keys                []string
+	Version             VersionPolicy
+	Checkpoint          CheckpointPolicy
 }
 
 // Accepts reports whether the capability admits op; an empty AcceptsOps
@@ -674,6 +685,7 @@ type SourcePolicy struct {
 // IngestionPlan is the resolved policy set for a run: per-resource write
 // policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
+	Ordering      Ordering
 	WritePolicies map[string]WritePolicy
 	RequiresCDC   bool
 }
@@ -804,5 +816,22 @@ func CheckpointCoverageFor(resources []string, types map[string]IngestionType) C
 		return CheckpointCoverageAll
 	default:
 		return CheckpointCoverageSome
+	}
+}
+
+// ExecutionSpec snapshots persisted execution settings without resolving secrets.
+func (s RunState) ExecutionSpec() RunSpec {
+	r := s.Request
+	return RunSpec{
+		Tenant: r.Tenant, Run: s.Run, StartedAt: s.StartedAt,
+		PipelineID: r.PipelineID, PipelineVersionID: r.PipelineVersionID,
+		SourceConnectionID: r.SourceConnectionID, SinkConnectionID: r.SinkConnectionID,
+		CheckpointRoute:   r.CheckpointRoute,
+		ReplicationStream: r.ReplicationStream,
+		CursorConfigs:     r.CursorConfigs,
+		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
+		IngestionTypes: r.IngestionTypes, Options: r.Options,
+		WorkerConfiguration: r.WorkerConfiguration,
+		WritePolicies:       r.WritePolicies,
 	}
 }

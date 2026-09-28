@@ -65,6 +65,9 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, submis
 			// dispatch and its compensating delete both failed. Publishing the
 			// idempotent trigger again repairs that row; progressed runs need no
 			// further dispatch.
+			if state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+				return id, nil
+			}
 			if state.Status != filament.RunRequested || !state.StartedAt.IsZero() {
 				return id, nil
 			}
@@ -80,6 +83,13 @@ func Submit(ctx context.Context, bus eventbus.Bus, ds filament.DataStore, submis
 		return "", fmt.Errorf("runs: save run %q: %w", id, err)
 	}
 
+	if req.Options.Execution.Normalize() == filament.ExecutionContinuous {
+		// Atomic activation is authoritative; the reconciler repairs lost wakeups.
+		if bus != nil {
+			_ = dispatch(ctx, bus, req.Tenant, id, now)
+		}
+		return id, nil
+	}
 	if err := dispatch(ctx, bus, req.Tenant, id, now); err != nil {
 		// A row with no trigger would sit Requested forever — reap it and
 		// surface the failure so the caller retries the whole submit.

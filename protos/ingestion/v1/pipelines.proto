@@ -38,6 +38,8 @@ message PipelineEdge {
   repeated ResourceCursorConfig cursors = 5;
   ReadMode read_mode = 6;
   WriteMode write_mode = 7;
+  // Optional destination name for this resource in any execution mode; source identity is unchanged.
+  string destination_resource = 8;
 }
 
 message ResourceCursorConfig {
@@ -82,6 +84,8 @@ message Pipeline {
   // the pipeline rather than the version so editing it cannot mint a version
   // and orphan the resource checkpoints keyed by the old one.
   WorkerConfiguration worker_configuration = 15;
+  // Default execution mode for subsequent starts; existing pipelines are bounded.
+  ExecutionMode execution_mode = 16;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -115,6 +119,8 @@ message CreatePipelineRequest {
   // worker_configuration shapes this pipeline's runs. Omit it to configure the
   // pipeline's workers later through UpdatePipeline.
   WorkerConfiguration worker_configuration = 4;
+  // Unspecified defaults to bounded.
+  ExecutionMode execution_mode = 5;
 }
 
 message CreatePipelineResponse {
@@ -154,6 +160,8 @@ message UpdatePipelineRequest {
   string name = 2;
   string description = 3;
   WorkerConfiguration worker_configuration = 4;
+  // Unspecified preserves the saved mode; affects future starts only.
+  ExecutionMode execution_mode = 5;
 }
 
 message UpdatePipelineResponse {

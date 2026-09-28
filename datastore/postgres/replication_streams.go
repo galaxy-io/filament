@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -170,6 +171,10 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 		}
 		return nil, fmt.Errorf("datastore/postgres: lock replication stream: %w", err)
 	}
+	before, err := q.ListReplicationStreamResources(ctx, streamID)
+	if err != nil {
+		return nil, fmt.Errorf("datastore/postgres: list replication resources before reconciliation: %w", err)
+	}
 	for _, name := range names {
 		if err := q.UpsertReplicationStreamResource(ctx, sqlcgen.UpsertReplicationStreamResourceParams{
 			ReplicationStreamID: streamID, TenantID: string(tenant), ResourceName: name,
@@ -187,6 +192,13 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list reconciled replication resources: %w", err)
 	}
+	if !sameReplicationStreamMembership(before, rows) {
+		if err := q.BumpReplicationStreamMembershipRevision(ctx, sqlcgen.BumpReplicationStreamMembershipRevisionParams{
+			ReplicationStreamID: streamID, TenantID: string(tenant),
+		}); err != nil {
+			return nil, fmt.Errorf("datastore/postgres: bump replication membership revision: %w", err)
+		}
+	}
 	out, err := replicationStreamResourcesFromRows(rows)
 	if err != nil {
 		return nil, err
@@ -195,6 +207,24 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 		return nil, fmt.Errorf("datastore/postgres: commit replication resource reconciliation: %w", err)
 	}
 	return out, nil
+}
+
+func sameReplicationStreamMembership(a, b []*sqlcgen.ReplicationStreamResource) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ReplicationStreamID != b[i].ReplicationStreamID ||
+			a[i].TenantID != b[i].TenantID ||
+			a[i].ResourceName != b[i].ResourceName ||
+			a[i].Status != b[i].Status ||
+			a[i].BootstrapMode != b[i].BootstrapMode ||
+			!bytes.Equal(a[i].BootstrapConfig, b[i].BootstrapConfig) ||
+			a[i].SchemaFingerprint != b[i].SchemaFingerprint {
+			return false
+		}
+	}
+	return true
 }
 
 // ListReplicationStreamResources returns current and historical resource

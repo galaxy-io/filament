@@ -4,7 +4,6 @@ import { styled } from "@linaria/react";
 
 import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import {
@@ -99,7 +98,6 @@ const PipelineCanvasNodeSourceIsland = ({
           placeholder="Search"
           value={state.search}
           onChange={handleSearchChange}
-          size={InputSize.LARGE}
           fillWidth
         />
         {connectedCount > 0 && (

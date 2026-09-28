@@ -76,7 +76,7 @@ func (*incrementalTestSource) ExtractFrom(context.Context, filament.RecordSink, 
 type incrementalTestSink struct{}
 
 func (*incrementalTestSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Name: "test-sink", Capabilities: filament.SinkCapabilities{Upsertable: true}}
+	return filament.SinkSpec{Name: "test-sink", Capabilities: filament.SinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend, filament.IngestionFullReplace, filament.IngestionFullUpsert, filament.IngestionIncrementalUpsert)}}
 }
 func (*incrementalTestSink) Open(context.Context, filament.RunSpec) error { return nil }
 func (*incrementalTestSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions) (filament.WriteReceipt, error) {

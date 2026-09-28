@@ -9,6 +9,10 @@ import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import {
+  PIPELINE_EXECUTION_OBSERVED_STATE_PULSING,
+  PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP,
+  PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP,
+  PIPELINE_EXECUTION_OBSERVED_STATE_TO_TEXT_VARIANT_MAP,
   PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
   PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP,
@@ -17,23 +21,42 @@ import {
 interface PipelineHistoryRunStatusProps {
   status: RunStatus;
   error?: RunInfo["error"];
+  executionStatus?: RunInfo["executionStatus"];
 }
 
-const PipelineHistoryRunStatus = ({ status, error }: PipelineHistoryRunStatusProps) => {
+const PipelineHistoryRunStatus = ({
+  status,
+  error,
+  executionStatus,
+}: PipelineHistoryRunStatusProps) => {
+  const observedState = executionStatus?.observedState;
+  const display =
+    observedState !== undefined
+      ? {
+          label: PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP[observedState],
+          beacon: PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP[observedState],
+          text: PIPELINE_EXECUTION_OBSERVED_STATE_TO_TEXT_VARIANT_MAP[observedState],
+          isPulse: PIPELINE_EXECUTION_OBSERVED_STATE_PULSING.has(observedState),
+        }
+      : {
+          label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+          beacon: PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status],
+          text: PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP[status],
+          isPulse: status === RunStatus.RUNNING,
+        };
+  const reason = executionStatus?.reason || error;
+
   return (
     <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-      <Beacon
-        variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]}
-        isPulse={status === RunStatus.RUNNING}
-      />
-      <Text size={TextSize.BODY_SM} variant={PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP[status]}>
-        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
+      <Beacon variant={display.beacon} isPulse={display.isPulse} />
+      <Text size={TextSize.BODY_SM} variant={display.text}>
+        {display.label}
       </Text>
-      {error && (
+      {reason && (
         <Tooltip
           body={
             <Text size={TextSize.CAPTION} isMonospace isSelectable>
-              {error}
+              {reason}
             </Text>
           }
           position={TooltipPosition.RIGHT}

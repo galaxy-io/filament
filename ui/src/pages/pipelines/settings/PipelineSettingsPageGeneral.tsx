@@ -84,6 +84,7 @@ const PipelineSettingsPageGeneral = () => {
       pipelineId: pipeline.id,
       name: state.name.trim(),
       description: state.description.trim(),
+      executionMode: pipeline.executionMode,
     });
 
     updatePipeline(request, {

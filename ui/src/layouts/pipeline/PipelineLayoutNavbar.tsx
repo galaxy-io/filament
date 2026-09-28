@@ -25,15 +25,16 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import {
+  ExecutionDesiredState,
+  ExecutionObservedState,
   ListRunsRequestSchema,
   type RunInfo,
   RunPipelineRequestSchema,
   RunSignal,
-  RunStatus,
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
@@ -62,7 +63,13 @@ import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow
 import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { formatPipelineName, getPipelineValidationErrors } from "@/pages/pipelines/utils";
+import {
+  formatPipelineName,
+  getPipelineValidationErrors,
+  getRunPauseSignal,
+  getRunStopSignal,
+  isContinuousRunActive,
+} from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
@@ -106,6 +113,7 @@ const PipelineLayoutNavbar = () => {
   const previewed = usePipelinePreviewVersion();
 
   const pipeline = pipelineData.pipeline;
+  const isContinuous = pipeline?.executionMode === ExecutionMode.CONTINUOUS;
   const currentVersion = pipelineData.pipeline?.currentVersion;
   const versions = pipelineData.pipeline?.versions ?? [];
   const previewVersion = previewed?.version ?? null;
@@ -145,16 +153,24 @@ const PipelineLayoutNavbar = () => {
       refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
     },
   });
-  const activeRun = activeRunsData.runs[0];
+  const activeRun = activeRunsData.runs.find((run) => !isContinuous || isContinuousRunActive(run));
+  const isResuming = activeRun && getRunPauseSignal(activeRun) === RunSignal.RESUME;
+  const isBlocked = activeRun?.executionStatus?.observedState === ExecutionObservedState.BLOCKED;
+  const isStopping = activeRun?.executionStatus?.desiredState === ExecutionDesiredState.STOPPED;
 
   const validateInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
         graph: currentVersion?.graph,
+        executionMode: pipeline?.executionMode,
       }),
-    [currentVersion],
+    [currentVersion, pipeline?.executionMode],
   );
-  const { data: validation, isPending: isValidating } = useValidatePipelineQuery({
+  const {
+    data: validation,
+    isFetching: isValidating,
+    error: validationError,
+  } = useValidatePipelineQuery({
     input: validateInput,
   });
   const graphConflicts = useMemo(
@@ -162,7 +178,10 @@ const PipelineLayoutNavbar = () => {
     [state.edges, connectionByNodeId],
   );
 
-  const runErrors = useMemo(() => getPipelineValidationErrors(validation), [validation]);
+  const runErrors = useMemo(
+    () => (validationError ? [validationError.message] : getPipelineValidationErrors(validation)),
+    [validation, validationError],
+  );
 
   const hasChanges = useMemo(
     () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
@@ -215,54 +234,71 @@ const PipelineLayoutNavbar = () => {
   };
 
   const handleSave = () => {
-    createPipelineVersion(mapCanvasStateToVersionRequest(state, id, currentVersion), {
-      onSuccess: () => {
-        showToast({
-          header: "Pipeline saved",
-          subheader: `${formatPipelineName(pipeline)} has been saved successfully.`,
-          variant: ToastVariant.SUCCESS,
-        });
+    createPipelineVersion(
+      mapCanvasStateToVersionRequest(state, id, currentVersion, pipeline.executionMode),
+      {
+        onSuccess: () => {
+          showToast({
+            header: "Pipeline saved",
+            subheader: `${formatPipelineName(pipeline)} has been saved successfully.`,
+            variant: ToastVariant.SUCCESS,
+          });
+        },
+        onError: (error) => {
+          showToast({
+            header: "Save failed",
+            subheader: getErrorMessage(error, "Failed to save pipeline"),
+            variant: ToastVariant.ERROR,
+          });
+        },
       },
-      onError: (error) => {
-        showToast({
-          header: "Save failed",
-          subheader: getErrorMessage(error, "Failed to save pipeline"),
-          variant: ToastVariant.ERROR,
-        });
-      },
-    });
+    );
   };
 
   const handleRun = (workerConfiguration?: WorkerConfiguration) => {
-    runPipeline(create(RunPipelineRequestSchema, { pipelineId: id, workerConfiguration }), {
-      onSuccess: () => {
-        showActivity();
-        showToast({
-          header: "Run started",
-          subheader: `${formatPipelineName(pipeline)} is now running.`,
-          variant: ToastVariant.SUCCESS,
-        });
+    runPipeline(
+      create(RunPipelineRequestSchema, {
+        pipelineId: id,
+        workerConfiguration,
+        options: { executionMode: pipeline.executionMode },
+      }),
+      {
+        onSuccess: () => {
+          showActivity();
+          showToast({
+            header: "Run started",
+            subheader: `${formatPipelineName(pipeline)} is now running.`,
+            variant: ToastVariant.SUCCESS,
+          });
+        },
+        onError: (error) => {
+          showToast({
+            header: "Run failed",
+            subheader: getErrorMessage(error, "Failed to run pipeline"),
+            variant: ToastVariant.ERROR,
+          });
+        },
       },
-      onError: (error) => {
-        showToast({
-          header: "Run failed",
-          subheader: getErrorMessage(error, "Failed to run pipeline"),
-          variant: ToastVariant.ERROR,
-        });
-      },
-    });
+    );
   };
 
   const handleSignal = (runId: RunInfo["id"], signal: RunSignal) => {
-    signalRun(create(SignalRunRequestSchema, { runId, signal }), {
-      onError: (error) => {
-        showToast({
-          header: "Run signal failed",
-          subheader: getErrorMessage(error, "Failed to signal run"),
-          variant: ToastVariant.ERROR,
-        });
+    signalRun(
+      create(SignalRunRequestSchema, {
+        runId,
+        signal,
+        expectedRevision: activeRun?.executionStatus?.revision,
+      }),
+      {
+        onError: (error) => {
+          showToast({
+            header: "Run signal failed",
+            subheader: getErrorMessage(error, "Failed to signal run"),
+            variant: ToastVariant.ERROR,
+          });
+        },
       },
-    });
+    );
   };
 
   return (
@@ -336,7 +372,7 @@ const PipelineLayoutNavbar = () => {
             </>
           ) : (
             <>
-              {!activeRun && <PipelineScheduleChip pipelineId={id} />}
+              {!activeRun && !isContinuous && <PipelineScheduleChip pipelineId={id} />}
               {!activeRun ? (
                 <PipelineLayoutNavbarRunButton
                   workerConfiguration={pipeline?.workerConfiguration}
@@ -347,19 +383,19 @@ const PipelineLayoutNavbar = () => {
                 />
               ) : (
                 <>
-                  <PipelineHistoryRunStatus status={activeRun.status} />
+                  <PipelineHistoryRunStatus
+                    status={activeRun.status}
+                    executionStatus={activeRun.executionStatus}
+                    error={activeRun.error}
+                  />
                   <Button
-                    label={activeRun?.status === RunStatus.PAUSED ? "Resume" : "Pause"}
-                    icon={activeRun?.status === RunStatus.PAUSED ? PlayIcon : PauseIcon}
+                    label={isResuming ? "Resume" : "Pause"}
+                    icon={isResuming ? PlayIcon : PauseIcon}
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
-                    onClick={() =>
-                      handleSignal(
-                        activeRun.id,
-                        activeRun?.status === RunStatus.PAUSED ? RunSignal.RESUME : RunSignal.PAUSE,
-                      )
-                    }
+                    isDisabled={isStopping || isBlocked}
+                    onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
                     isIconFilled
                   />
                   <Button
@@ -368,7 +404,8 @@ const PipelineLayoutNavbar = () => {
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
-                    onClick={() => handleSignal(activeRun.id, RunSignal.CANCEL)}
+                    isDisabled={isStopping}
+                    onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
                     isIconFilled
                   />
                 </>

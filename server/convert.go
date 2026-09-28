@@ -171,8 +171,10 @@ func writeModeToProto(mode filament.WriteMode) ingestionv1.WriteMode {
 		return ingestionv1.WriteMode_WRITE_MODE_UPSERT
 	case filament.WriteMerge:
 		return ingestionv1.WriteMode_WRITE_MODE_MERGE
-	default:
+	case filament.WriteReplace:
 		return ingestionv1.WriteMode_WRITE_MODE_REPLACE
+	default:
+		return ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED
 	}
 }
 
@@ -369,6 +371,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Checkpoint = checkpointToProto(d.Checkpoint)
 	case events.RateLimitedEvent:
 		fields.RetryAfterMs = d.RetryAfter.Milliseconds()
+	case events.StreamAttemptEndedEvent:
+		fields.Error = d.Error
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
 	}
@@ -393,9 +397,24 @@ func tailResponse(ev *ingestionv1.RunEvent) *ingestionv1.TailRunResponse {
 	return &ingestionv1.TailRunResponse{Event: ev}
 }
 
+// snapshotTime uses a known lifecycle stamp. Resource snapshots have no separate
+// timestamp, so their time reflects the containing run snapshot.
+func snapshotTime(state filament.RunState) int64 {
+	if state.EndedAt != nil && !state.EndedAt.IsZero() {
+		return state.EndedAt.UnixMilli()
+	}
+	for _, at := range []time.Time{state.UpdatedAt, state.StartedAt, state.RequestedAt, state.CreatedAt} {
+		if !at.IsZero() {
+			return at.UnixMilli()
+		}
+	}
+	return time.Now().UnixMilli()
+}
+
 func runSnapshotEvent(state filament.RunState, replay bool) *ingestionv1.RunEvent {
 	return &ingestionv1.RunEvent{
 		EventType: runEventType(state.Status),
+		CreatedAt: snapshotTime(state),
 		TenantId:  string(state.Tenant),
 		RunId:     string(state.Run),
 		Fields: &ingestionv1.RunEventFields{
@@ -505,8 +524,17 @@ func requiredConfigFieldError(path string) error {
 }
 
 func validateConfigSchema(schema filament.ConfigSchema, cfg filament.Config) error {
+	return validateConfigScope(schema, cfg, filament.ScopeConnection)
+}
+
+// validateConfigScope checks the fields of one scope. A pipeline-scoped field
+// with a default is filled at run time, so its absence is never an error.
+func validateConfigScope(schema filament.ConfigSchema, cfg filament.Config, scope filament.FieldScope) error {
 	for _, field := range schema.Fields {
-		if field.Scope != filament.ScopeConnection {
+		if field.Scope != scope {
+			continue
+		}
+		if scope == filament.ScopePipeline && field.Default != nil && !cfg.Has(field.Name) {
 			continue
 		}
 		if err := validateConfigField(field, cfg, field.Name); err != nil {
@@ -585,6 +613,13 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 		BatchMaxBytes:       o.GetBatchMaxBytes(),
 		SnapshotParallelism: int(o.GetSnapshotParallelism()),
 		CheckpointEvery:     int(o.GetCheckpointEvery()),
+	}
+	// Callers validate the wire enum before conversion.
+	switch o.GetExecutionMode() {
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED:
+		opts.Execution = filament.ExecutionBounded
+	case ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS:
+		opts.Execution = filament.ExecutionContinuous
 	}
 	if rl := o.GetRateLimit(); rl != nil {
 		opts.RateLimit = &filament.RatePolicy{

@@ -198,6 +198,8 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string, hasProgre
 		return 0, 0, d.Error, false
 	case events.RunFailedEvent:
 		return 0, 0, d.Error, false
+	case events.StreamAttemptEndedEvent:
+		return 0, 0, d.Error, false
 	case events.RunPartialEvent:
 		return 0, 0, d.Error, false
 	case events.RetryExhaustedEvent:

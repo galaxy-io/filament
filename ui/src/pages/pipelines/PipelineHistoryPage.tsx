@@ -60,7 +60,11 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cellLoading: () => <TextShimmer width={64} height={18} />,
     cell: ({ row }) => (
-      <PipelineHistoryRunStatus status={row.original.status} error={row.original.error} />
+      <PipelineHistoryRunStatus
+        status={row.original.status}
+        error={row.original.error}
+        executionStatus={row.original.executionStatus}
+      />
     ),
   },
   {

@@ -3,7 +3,13 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { ConnectorKind, ReadMode, ReplicationMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import {
+  ConnectorKind,
+  ExecutionMode,
+  ReadMode,
+  ReplicationMode,
+  WriteMode,
+} from "@/gen/ingestion/v1/common_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
@@ -18,8 +24,11 @@ import {
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
+import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/types";
 import { getCursorOptions } from "@/pages/pipelines/components/create/rows";
+import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
@@ -33,11 +42,21 @@ const intersectModes = (sets: ReadMode[][]): ReadMode[] => {
 };
 
 export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
+  const executionMode = usePipelineExecutionMode();
+  const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
+  const { nodes } = usePipelineCanvasState();
+  const configFor = (id: string) => {
+    const node = nodes.find((node) => node.id === id);
+    return node && isConnectionNode(node) ? node.data.config : undefined;
+  };
+  const sourceConfig = configFor(edge.source);
+  const sinkConfig = configFor(edge.target);
   const connectionByNodeId = usePipelineCanvasConnections();
   const sourceConnection = connectionByNodeId.get(edge.source);
   const sinkConnection = connectionByNodeId.get(edge.target);
   const sourceConnectionId = sourceConnection?.id ?? "";
   const isCdc = sourceConnection?.replication === ReplicationMode.CDC;
+  const hasReadLevers = !isCdc && !isContinuous;
   const edgeResource = getCanvasEdgeResource(edge);
 
   const { data: discovered, isLoading: isLoadingResources } = useDiscoverResourcesQuery({
@@ -66,13 +85,14 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: sourceConnectionId !== "" && coveredResources.length > 0,
+      enabled: hasReadLevers && sourceConnectionId !== "" && coveredResources.length > 0,
     },
   });
 
   const validationInput = useMemo(
     () =>
       create(ValidatePipelineRequestSchema, {
+        executionMode,
         graph: create(PipelineGraphSchema, {
           nodes:
             sourceConnection && sinkConnection
@@ -81,11 +101,13 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
                     id: edge.source,
                     kind: ConnectorKind.SOURCE,
                     connectionId: sourceConnection.id,
+                    config: sourceConfig,
                   }),
                   create(PipelineNodeSchema, {
                     id: edge.target,
                     kind: ConnectorKind.SINK,
                     connectionId: sinkConnection.id,
+                    config: sinkConfig,
                   }),
                 ]
               : [],
@@ -94,6 +116,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
               fromNode: edge.source,
               toNode: edge.target,
               resource: edgeResource,
+              destinationResource: edge.data?.destinationResource,
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
               cursors: edge.data?.cursors ?? [],
@@ -101,7 +124,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
           ],
         }),
       }),
-    [sourceConnection, sinkConnection, edge, edgeResource],
+    [sourceConnection, sinkConnection, edge, edgeResource, executionMode, sourceConfig, sinkConfig],
   );
 
   const { data: validation, isLoading: isLoadingValidation } = useValidatePipelineQuery({
@@ -142,19 +165,20 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
 
   const readModeOptions = useMemo<ReadMode[]>(() => {
     const verdict = validation?.edges[0];
-    if (!verdict || isCdc) return [];
+    if (!verdict || !hasReadLevers) return [];
     return intersectModes(verdict.resources.map((resource) => resource.supportedReadModes));
-  }, [validation?.edges, isCdc]);
+  }, [validation?.edges, hasReadLevers]);
 
   const verdict = validation?.edges[0];
 
   const isLoading =
     isLoadingValidation ||
     (edgeResource === "" && isLoadingResources) ||
-    (coveredResources.length > 0 && isPendingColumns && !isErrorColumns);
+    (hasReadLevers && coveredResources.length > 0 && isPendingColumns && !isErrorColumns);
 
   return {
-    isCdc,
+    isContinuous,
+    hasReadLevers,
     isLoading,
     coveredResources,
     readModeOptions,

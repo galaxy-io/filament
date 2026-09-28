@@ -23,6 +23,7 @@ type routeGroup struct {
 	resources     map[string]bool
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
+	destinations  map[string]string
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
@@ -30,6 +31,9 @@ type routeGroup struct {
 // the same resource (or two all-resources edges) with different read modes
 // conflict. All edges in a route must carry the same write mode.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
+	if err := ValidateDestinations(edges); err != nil {
+		return nil, err
+	}
 	byKey := map[string]*routeGroup{}
 	var ordered []*routeGroup
 	for _, edge := range edges {
@@ -60,6 +64,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				destinations:  map[string]string{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
@@ -74,6 +79,9 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		resource := edge.GetResource()
+		if label := edge.GetDestinationResource(); label != "" {
+			group.destinations[resource] = label
+		}
 		if previous, exists := group.readModes[resource]; exists && previous != readMode {
 			if resource == "" {
 				return nil, fmt.Errorf("%w: conflicting read modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())

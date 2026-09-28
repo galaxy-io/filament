@@ -18,6 +18,12 @@ import (
 // and append COPY into the table, upsert folds through a temp table, merge applies
 // the change stream in order.
 func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if t.continuous {
+		return t.applyEpoch(ctx, b, opts)
+	}
+	if opts.Epoch != nil {
+		return filament.WriteReceipt{}, filament.ErrEpochMismatch
+	}
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
@@ -56,8 +62,16 @@ func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 // copierFor returns the batch's COPY renderer over all columns, built once per
 // Arrow schema (one per source builder). Column order is the schema's; the
 // destination column list is the same order.
-func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) *copier {
+func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) (*copier, error) {
 	schema := rows.Schema()
+	if schema.NumFields() != len(tbl.idents) || len(tbl.idents) != len(tbl.types) {
+		return nil, fmt.Errorf("postgres sink: batch schema has %d columns but ensured COPY schema has %d", schema.NumFields(), len(tbl.types))
+	}
+	for i, field := range schema.Fields() {
+		if (pgx.Identifier{field.Name}).Sanitize() != tbl.idents[i] {
+			return nil, fmt.Errorf("postgres sink: batch column %d (%q) differs from ensured COPY column %s", i, field.Name, tbl.idents[i])
+		}
+	}
 	tbl.mu.Lock()
 	defer tbl.mu.Unlock()
 	cache := tbl.copier
@@ -65,7 +79,7 @@ func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) *copier {
 		cache = tbl.keys
 	}
 	if c := cache[schema]; c != nil {
-		return c
+		return c, nil
 	}
 	idx := make([]int, schema.NumFields())
 	for i := range idx {
@@ -77,13 +91,16 @@ func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) *copier {
 	}
 	c := newCopier(schema, idx, types)
 	cache[schema] = c
-	return c
+	return c, nil
 }
 
 // write COPYs the whole batch into the table.
 func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
 	rows := b.Rows()
-	c := tbl.copierFor(rows, false)
+	c, err := tbl.copierFor(rows, false)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
 	payload, expectedCRC := c.encode(rows, 0, b.NumRows(), false)
 	integrity := writeIntegrity{arrow: b.IntegrityCRC()}
 	conn, err := t.pool.Acquire(ctx)
@@ -133,7 +150,10 @@ func (t *Sink) upsertRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowb
 		return 0, 0, copyError("temp table", b.Resource, b.Seq, err)
 	}
 	rows := b.Rows()
-	c := tbl.copierFor(rows, false)
+	c, err := tbl.copierFor(rows, false)
+	if err != nil {
+		return 0, 0, err
+	}
 	payload, expectedCRC := c.encode(rows, lo, hi, true)
 	integrity.arrow = b.IntegrityCRC()
 	idents := append(append(make([]string, 0, len(tbl.idents)+1), tbl.idents...), "_ord")
@@ -157,7 +177,10 @@ func (t *Sink) deleteRange(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowb
 		return 0, 0, copyError("keys temp table", b.Resource, b.Seq, err)
 	}
 	rows := b.Rows()
-	c := tbl.copierFor(rows, true)
+	c, err := tbl.copierFor(rows, true)
+	if err != nil {
+		return 0, 0, err
+	}
 	payload, expectedCRC := c.encode(rows, lo, hi, false)
 	integrity.arrow = b.IntegrityCRC()
 	keyIdents := pick(tbl.idents, tbl.keyIdx)

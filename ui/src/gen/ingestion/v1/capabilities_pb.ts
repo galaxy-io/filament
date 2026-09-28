@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { ReadMode, ReplicationMode, WriteMode } from "./common_pb";
+import type { ExecutionMode, ReadMode, ReplicationMode, WriteMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
 import type { ValidationError } from "./connectors_pb";
 import { file_ingestion_v1_connectors } from "./connectors_pb";
@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/capabilities.proto.
  */
 export const file_ingestion_v1_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiRQoXVmFsaWRhdGVQaXBlbGluZVJlcXVlc3QSKgoFZ3JhcGgYASABKAsyGy5pbmdlc3Rpb24udjEuUGlwZWxpbmVHcmFwaCJTCg5DYW5kaWRhdGVWYWx1ZRINCgV2YWx1ZRgBIAEoCRITCgtyZWNvbW1lbmRlZBgCIAEoCBIMCgRyYW5rGAMgASgFEg8KB3dhcm5pbmcYBCABKAki7QEKC1JlcXVpcmVtZW50EisKBGtpbmQYASABKA4yHS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnRLaW5kEhAKCHJlc291cmNlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSMAoKY2FuZGlkYXRlcxgEIAMoCzIcLmluZ2VzdGlvbi52MS5DYW5kaWRhdGVWYWx1ZRIRCglzYXRpc2ZpZWQYBSABKAgSEAoIYmxvY2tpbmcYBiABKAgSNwoQY2FuZGlkYXRlX3N0YXR1cxgHIAEoDjIdLmluZ2VzdGlvbi52MS5DYW5kaWRhdGVTdGF0dXMijQEKElJlc291cmNlVmFsaWRhdGlvbhIQCghyZXNvdXJjZRgBIAEoCRIvCgxyZXF1aXJlbWVudHMYAiADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQSNAoUc3VwcG9ydGVkX3JlYWRfbW9kZXMYAyADKA4yFi5pbmdlc3Rpb24udjEuUmVhZE1vZGUiswMKDkVkZ2VWYWxpZGF0aW9uEhEKCWZyb21fbm9kZRgBIAEoCRIPCgd0b19ub2RlGAIgASgJEhAKCHJlc291cmNlGAMgASgJEi0KBmVycm9ycxgEIAMoCzIdLmluZ2VzdGlvbi52MS5WYWxpZGF0aW9uRXJyb3ISLwoMcmVxdWlyZW1lbnRzGAUgAygLMhkuaW5nZXN0aW9uLnYxLlJlcXVpcmVtZW50EjMKCXJlc291cmNlcxgGIAMoCzIgLmluZ2VzdGlvbi52MS5SZXNvdXJjZVZhbGlkYXRpb24SNgoVc3VwcG9ydGVkX3dyaXRlX21vZGVzGAcgAygOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRIyCgtyZXBsaWNhdGlvbhgIIAEoDjIdLmluZ2VzdGlvbi52MS5SZXBsaWNhdGlvbk1vZGUSMwoTZWZmZWN0aXZlX3JlYWRfbW9kZRgJIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRI1ChRlZmZlY3RpdmVfd3JpdGVfbW9kZRgKIAEoDjIXLmluZ2VzdGlvbi52MS5Xcml0ZU1vZGUihQEKGFZhbGlkYXRlUGlwZWxpbmVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIrCgVlZGdlcxgCIAMoCzIcLmluZ2VzdGlvbi52MS5FZGdlVmFsaWRhdGlvbhItCgZlcnJvcnMYAyADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yKnkKD1JlcXVpcmVtZW50S2luZBIgChxSRVFVSVJFTUVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASIgoeUkVRVUlSRU1FTlRfS0lORF9DVVJTT1JfQ09MVU1OEAESIAocUkVRVUlSRU1FTlRfS0lORF9QUklNQVJZX0tFWRACKpoBCg9DYW5kaWRhdGVTdGF0dXMSIAocQ0FORElEQVRFX1NUQVRVU19VTlNQRUNJRklFRBAAEh8KG0NBTkRJREFURV9TVEFUVVNfRU5VTUVSQVRFRBABEiIKHkNBTkRJREFURV9TVEFUVVNfTk9UX1NVUFBPUlRFRBACEiAKHENBTkRJREFURV9TVEFUVVNfVU5BVkFJTEFCTEUQA2IGcHJvdG8z", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
+  fileDesc("Ch9pbmdlc3Rpb24vdjEvY2FwYWJpbGl0aWVzLnByb3RvEgxpbmdlc3Rpb24udjEiegoXVmFsaWRhdGVQaXBlbGluZVJlcXVlc3QSKgoFZ3JhcGgYASABKAsyGy5pbmdlc3Rpb24udjEuUGlwZWxpbmVHcmFwaBIzCg5leGVjdXRpb25fbW9kZRgCIAEoDjIbLmluZ2VzdGlvbi52MS5FeGVjdXRpb25Nb2RlIlMKDkNhbmRpZGF0ZVZhbHVlEg0KBXZhbHVlGAEgASgJEhMKC3JlY29tbWVuZGVkGAIgASgIEgwKBHJhbmsYAyABKAUSDwoHd2FybmluZxgEIAEoCSLtAQoLUmVxdWlyZW1lbnQSKwoEa2luZBgBIAEoDjIdLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudEtpbmQSEAoIcmVzb3VyY2UYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIwCgpjYW5kaWRhdGVzGAQgAygLMhwuaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVZhbHVlEhEKCXNhdGlzZmllZBgFIAEoCBIQCghibG9ja2luZxgGIAEoCBI3ChBjYW5kaWRhdGVfc3RhdHVzGAcgASgOMh0uaW5nZXN0aW9uLnYxLkNhbmRpZGF0ZVN0YXR1cyKNAQoSUmVzb3VyY2VWYWxpZGF0aW9uEhAKCHJlc291cmNlGAEgASgJEi8KDHJlcXVpcmVtZW50cxgCIAMoCzIZLmluZ2VzdGlvbi52MS5SZXF1aXJlbWVudBI0ChRzdXBwb3J0ZWRfcmVhZF9tb2RlcxgDIAMoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZSKyBAoORWRnZVZhbGlkYXRpb24SEQoJZnJvbV9ub2RlGAEgASgJEg8KB3RvX25vZGUYAiABKAkSEAoIcmVzb3VyY2UYAyABKAkSLQoGZXJyb3JzGAQgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvchIvCgxyZXF1aXJlbWVudHMYBSADKAsyGS5pbmdlc3Rpb24udjEuUmVxdWlyZW1lbnQSMwoJcmVzb3VyY2VzGAYgAygLMiAuaW5nZXN0aW9uLnYxLlJlc291cmNlVmFsaWRhdGlvbhI2ChVzdXBwb3J0ZWRfd3JpdGVfbW9kZXMYByADKA4yFy5pbmdlc3Rpb24udjEuV3JpdGVNb2RlEjIKC3JlcGxpY2F0aW9uGAggASgOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIzChNlZmZlY3RpdmVfcmVhZF9tb2RlGAkgASgOMhYuaW5nZXN0aW9uLnYxLlJlYWRNb2RlEjUKFGVmZmVjdGl2ZV93cml0ZV9tb2RlGAogASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRI9ChhlZmZlY3RpdmVfZXhlY3V0aW9uX21vZGUYCyABKA4yGy5pbmdlc3Rpb24udjEuRXhlY3V0aW9uTW9kZRI+ChlzdXBwb3J0ZWRfZXhlY3V0aW9uX21vZGVzGAwgAygOMhsuaW5nZXN0aW9uLnYxLkV4ZWN1dGlvbk1vZGUihQEKGFZhbGlkYXRlUGlwZWxpbmVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIrCgVlZGdlcxgCIAMoCzIcLmluZ2VzdGlvbi52MS5FZGdlVmFsaWRhdGlvbhItCgZlcnJvcnMYAyADKAsyHS5pbmdlc3Rpb24udjEuVmFsaWRhdGlvbkVycm9yKnkKD1JlcXVpcmVtZW50S2luZBIgChxSRVFVSVJFTUVOVF9LSU5EX1VOU1BFQ0lGSUVEEAASIgoeUkVRVUlSRU1FTlRfS0lORF9DVVJTT1JfQ09MVU1OEAESIAocUkVRVUlSRU1FTlRfS0lORF9QUklNQVJZX0tFWRACKpoBCg9DYW5kaWRhdGVTdGF0dXMSIAocQ0FORElEQVRFX1NUQVRVU19VTlNQRUNJRklFRBAAEh8KG0NBTkRJREFURV9TVEFUVVNfRU5VTUVSQVRFRBABEiIKHkNBTkRJREFURV9TVEFUVVNfTk9UX1NVUFBPUlRFRBACEiAKHENBTkRJREFURV9TVEFUVVNfVU5BVkFJTEFCTEUQA2IGcHJvdG8z", [file_ingestion_v1_common, file_ingestion_v1_connectors, file_ingestion_v1_pipelines]);
 
 /**
  * ValidatePipelineRequest carries the graph inline so unsaved canvas state
@@ -29,6 +29,13 @@ export type ValidatePipelineRequest = Message<"ingestion.v1.ValidatePipelineRequ
    * @generated from field: ingestion.v1.PipelineGraph graph = 1;
    */
   graph?: PipelineGraph | undefined;
+
+  /**
+   * Unspecified means bounded. Validation and submission must use the same mode.
+   *
+   * @generated from field: ingestion.v1.ExecutionMode execution_mode = 2;
+   */
+  executionMode: ExecutionMode;
 };
 
 /**
@@ -203,6 +210,8 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
   replication: ReplicationMode;
 
   /**
+   * Unspecified for message streams, which do not use row cursor read modes.
+   *
    * @generated from field: ingestion.v1.ReadMode effective_read_mode = 9;
    */
   effectiveReadMode: ReadMode;
@@ -211,6 +220,16 @@ export type EdgeValidation = Message<"ingestion.v1.EdgeValidation"> & {
    * @generated from field: ingestion.v1.WriteMode effective_write_mode = 10;
    */
   effectiveWriteMode: WriteMode;
+
+  /**
+   * @generated from field: ingestion.v1.ExecutionMode effective_execution_mode = 11;
+   */
+  effectiveExecutionMode: ExecutionMode;
+
+  /**
+   * @generated from field: repeated ingestion.v1.ExecutionMode supported_execution_modes = 12;
+   */
+  supportedExecutionModes: ExecutionMode[];
 };
 
 /**

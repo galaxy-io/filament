@@ -1,0 +1,51 @@
+---
+title: "NATS JetStream"
+description: "Consume retained subject messages with certified epoch acknowledgements"
+---
+
+The `nats` source supports continuous execution. Select subject resources such as
+`orders.>` to let Filament manage durable filtered consumers. Configure the NATS
+`url` and authentication using the [shared connection settings](/pages/connectors/sinks/nats#configuration).
+Bounded extraction is unsupported.
+
+## Payload columns
+
+JSON object members become source columns alongside the subject and Filament
+event metadata. The first message fixes each resource's schema. Missing fields
+become null; incompatible payload changes fail before certification. Non-object
+payloads remain raw bytes in a source-owned `payload` column.
+
+## Retention and recovery
+
+Managed filtered consumers read **retained matching messages**. A stream can also
+hold unrelated subjects, so gaps in its sequence numbers are expected. Filament
+does not treat stream-wide deleted IDs or a moved first sequence as proof that a
+matching message was lost.
+
+JetStream's stream-wide retention metadata cannot establish which subject a
+deleted message belonged to. Matching messages removed before consumption or
+recovery can therefore be lost without detection. Size retention for the longest
+processing lag and recovery outage you need to support. Certification and delayed
+acknowledgements protect delivered input; they cannot recover input the server has
+already removed. Recovery can replay input, so destinations must tolerate duplicates.
+
+Explicit stream/consumer bindings use an unfiltered durable pull consumer with
+explicit acknowledgement, deliver-all, unlimited delivery attempts,
+`MaxAckPending=1`, and `AckWait` of at least one second. These consumers retain
+strict stream-sequence gap detection and stop when continuity cannot be proven.
+
+## Epoch batching
+
+Workers default to a soft bound of 1,000 records and a one-second read budget.
+Embedded callers can override these values through `RunOptions.EpochBoundary`;
+provide positive `MaxRecords` and `MaxWait`. `MaxBytes` and `MaxAge` can further
+limit NATS reads. These settings are persisted in the admitted run specification.
+
+Managed consumers allow up to 1,000 pending messages and older single-credit
+managed consumers are upgraded in place. A consumer's credit caps each batch;
+explicit user-owned consumers keep their single-message credit. Multiple physical
+streams are serviced in turn, with one consumer contributing to each epoch.
+
+All delivered messages in a batch receive heartbeat extensions and remain
+unacknowledged until the destination commit and Filament's epoch certification
+succeed. Failed or canceled reads do not acknowledge their tentative batch.

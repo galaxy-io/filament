@@ -1,4 +1,4 @@
-import type { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -16,6 +16,8 @@ export enum CreatePipelineModalActionType {
   TOGGLE_SINK = "TOGGLE_SINK",
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
   OPEN_SINK_RESOURCES = "OPEN_SINK_RESOURCES",
+  SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
+  ADD_RESOURCE = "ADD_RESOURCE",
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
@@ -52,6 +54,16 @@ export interface SetActiveSinkAction {
 export interface OpenSinkResourcesAction {
   type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES;
   payload: Connection["id"];
+}
+
+export interface SetExecutionModeAction {
+  type: CreatePipelineModalActionType.SET_EXECUTION_MODE;
+  payload: ExecutionMode;
+}
+
+export interface AddResourceAction {
+  type: CreatePipelineModalActionType.ADD_RESOURCE;
+  payload: { sinkId: Connection["id"]; name: Resource["name"] };
 }
 
 export interface SetResourceSelectionAction {
@@ -144,6 +156,8 @@ export type CreatePipelineModalAction =
   | SelectSourceAction
   | ToggleSinkAction
   | SetActiveSinkAction
+  | SetExecutionModeAction
+  | AddResourceAction
   | OpenSinkResourcesAction
   | SetResourceSelectionAction
   | SetResourceReadModeAction
