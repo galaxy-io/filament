@@ -27,6 +27,19 @@ data:
   {{- if eq .Values.auth.type "zitadel" }}
   AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}
   {{- end }}
+  {{- if eq .Values.auth.type "keycloak" }}
+  AUTH_ISSUER: {{ include "filament.auth.keycloak.issuer" . | quote }}
+  AUTH_CLIENT_ID: {{ .Values.auth.keycloak.clientId | quote }}
+  {{- with include "filament.auth.keycloak.adminUser" . }}
+  AUTH_ADMIN_USERNAME: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.auth.keycloak.bootstrap }}
+  {{- if .tenant }}
+  AUTH_BOOTSTRAP_TENANT: {{ .tenant | quote }}
+  AUTH_BOOTSTRAP_CLIENT_ID: {{ .clientId | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
   AUTH_UI_ORIGIN: {{ .Values.auth.uiOrigin | quote }}
   {{- end }}
 

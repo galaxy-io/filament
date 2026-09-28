@@ -18,6 +18,7 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 |------------|------|---------|
 | https://charts.bitnami.com/bitnami | postgresql | 18.7.11 |
 | https://charts.zitadel.com | zitadel | 10.0.4 |
+| https://codecentric.github.io/helm-charts | keycloak(keycloakx) | 7.3.2 |
 | https://nats-io.github.io/k8s/helm/charts | nats | 2.14.2 |
 
 The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), and [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) documentation for their full configuration surfaces.
@@ -68,7 +69,7 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and `AUTH_PAT` when auth is enabled. When set, the chart does not create its own Secret. |
+| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and when auth is enabled `AUTH_PAT` for Zitadel, or `AUTH_CLIENT_SECRET`, `AUTH_ADMIN_PASSWORD`, and `AUTH_BOOTSTRAP_CLIENT_SECRET` for Keycloak. When set, the chart does not create its own Secret, `filament-secret`, and the vendored Keycloak needs `keycloak.existingSecret` set to the same name. |
 
 ## Server parameters
 
@@ -174,7 +175,15 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
-| auth.type | string | `"zitadel"` | Identity provider. Valid value is `zitadel`. |
+| auth.keycloak.adminPassword | string | `""` | That admin's password, stored in the chart-created Secret as `AUTH_ADMIN_PASSWORD`. Generated once when `keycloak.enabled=true`. |
+| auth.keycloak.adminUser | string | `""` | Keycloak admin on the master realm, stored in the ConfigMap as `AUTH_ADMIN_USERNAME`. With `adminPassword` the server creates the realm and client on boot; empty against a realm its owners provision. The vendored Keycloak supplies its own. |
+| auth.keycloak.bootstrap.clientId | string | `""` | Client id of that tenant's admin service account, stored in the ConfigMap as `AUTH_BOOTSTRAP_CLIENT_ID`. |
+| auth.keycloak.bootstrap.clientSecret | string | `""` | Secret the service account authenticates with, chosen by you and stored in the chart-created Secret as `AUTH_BOOTSTRAP_CLIENT_SECRET`. |
+| auth.keycloak.bootstrap.tenant | string | `""` | Tenant Filament converges on every boot, stored in the ConfigMap as `AUTH_BOOTSTRAP_TENANT`. With `clientId` and `clientSecret` it gives an SDK an admin service account before any person has registered. Leave all three empty to skip. |
+| auth.keycloak.clientId | string | `"filament"` | Filament's confidential client in the realm, stored in the ConfigMap as `AUTH_CLIENT_ID`. Filament converges the realm on boot; with admin credentials it creates the realm and this client too. |
+| auth.keycloak.clientSecret | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | The client's secret, stored in the chart-created Secret as `AUTH_CLIENT_SECRET`. Generated once and kept across upgrades when `keycloak.enabled=true`. |
+| auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL Filament reaches Keycloak at, stored in the ConfigMap as `AUTH_ISSUER`, in the form `https://<host>/realms/<realm>`. It must equal the issuer the realm advertises or discovery fails. Keycloak 26 or newer. Derived from `keycloak.hostname` when `keycloak.enabled=true`. |
+| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel` and `keycloak`. |
 | auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
 | auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |
 | auth.zitadel.pat | string | required when `auth.enabled=true` and `zitadel.enabled=false` | Machine-user personal access token, stored in the chart-created Secret as `AUTH_PAT`. Zitadel generates the token itself and will not accept one you choose, so create the machine user out of band and paste the result here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a token into its own Secret and the server reads it from there. |
@@ -197,6 +206,7 @@ helm upgrade --install filament \
 | postgresql.backup.enabled | bool | `false` | Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for schedule and storage options. |
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
+| postgresql.primary.initdb.scripts | object | `{"keycloak.sql":"CREATE DATABASE keycloak OWNER filament;\n"}` | SQL run once, when the volume is first initialized. Creates the database the vendored Keycloak owns; Keycloak cannot create its own. |
 | postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
 | postgresql.primary.readinessProbe.failureThreshold | int | `2` |  |
 | postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |

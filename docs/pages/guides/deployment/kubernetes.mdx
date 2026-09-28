@@ -73,7 +73,7 @@ migrations separately.
 
 Both Deployments annotate their pods with checksums of the rendered ConfigMap
 and chart-managed Secret. Changing either resource through Helm triggers a
-rollout even when the image tag stays the same. Changes to an `existingSecret`
+rollout even when the image tag stays the same. Changes to a `existingSecret`
 do not affect the checksum, so restart both Deployments after rotating one.
 
 The server and control plane expose `/startupz`, `/readyz`, and `/livez`.
@@ -133,9 +133,6 @@ Authentication is disabled by default. Set `auth.enabled: true`,
 instance also requires `auth.zitadel.pat` or an `AUTH_PAT` entry in
 `existingSecret`. The vendored Zitadel setup mints its own token.
 
-Keycloak reads `AUTH_CLIENT_SECRET` and `AUTH_BOOTSTRAP_CLIENT_SECRET` from
-`existingSecret` the same way. The vendored Keycloak keeps its own admin
-credentials in the `filament-keycloak` Secret the chart generates.
 
 <Note>
 Do not use `--wait` when enabling the vendored Zitadel chart. Its setup Jobs
@@ -147,7 +144,9 @@ Set `auth.type: keycloak` to use Keycloak. An external realm requires
 needs only `keycloak.hostname`, which must resolve from inside the cluster
 as well as outside: the chart derives the issuer from it, generates
 the client secret and admin password once, and the server creates the realm
-and client on boot. Setting
+and client on boot. With `existingSecret`, put `AUTH_CLIENT_SECRET` and
+`AUTH_ADMIN_PASSWORD` in that Secret and set `keycloak.existingSecret` to its
+name. Setting
 `auth.keycloak.bootstrap.tenant`, `clientId`, and `clientSecret` gives an SDK
 an admin service account before anyone has registered.
 

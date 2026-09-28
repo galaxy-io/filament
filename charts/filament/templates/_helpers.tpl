@@ -72,9 +72,52 @@ app.kubernetes.io/component: worker
 {{- end -}}
 
 
-{{/* User's existingSecret, else the chart-created Secret. */}}
+{{/* User's existingSecret, else the chart-created Secret. Fixed like the
+     vendored components' names, so a subchart can name it too. */}}
 {{- define "filament.secretName" -}}
-{{- .Values.existingSecret | default (printf "%s-secret" (include "filament.fullname" .)) -}}
+{{- .Values.existingSecret | default "filament-secret" -}}
+{{- end -}}
+
+{{/* A value generated on first install and kept from the chart Secret on
+     every upgrade, so the vendored Keycloak needs no secrets typed in. */}}
+{{- define "filament.generated" -}}
+{{- $existing := lookup "v1" "Secret" (include "filament.namespace" .context) (include "filament.secretName" .context) -}}
+{{- if and $existing (hasKey $existing.data .key) -}}
+{{- index $existing.data .key | b64dec -}}
+{{- else -}}
+{{- randAlphaNum 32 -}}
+{{- end -}}
+{{- end -}}
+
+{{/* The Keycloak issuer: as configured, or derived from the vendored chart's
+     hostname, which is also what Keycloak advertises. */}}
+{{- define "filament.auth.keycloak.issuer" -}}
+{{- if .Values.auth.keycloak.issuer -}}
+{{- .Values.auth.keycloak.issuer -}}
+{{- else if .Values.keycloak.enabled -}}
+{{- required "keycloak.hostname is required when keycloak.enabled=true" .Values.keycloak.hostname | trimSuffix "/" -}}/realms/filament
+{{- else -}}
+{{- required "auth.keycloak.issuer is required when auth.type=keycloak" .Values.auth.keycloak.issuer -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "filament.auth.keycloak.clientSecret" -}}
+{{- if .Values.auth.keycloak.clientSecret -}}{{ .Values.auth.keycloak.clientSecret }}
+{{- else if .Values.keycloak.enabled -}}{{ include "filament.generated" (dict "context" . "key" "AUTH_CLIENT_SECRET") }}
+{{- else -}}{{ required "auth.keycloak.clientSecret is required when auth.type=keycloak" .Values.auth.keycloak.clientSecret }}
+{{- end -}}
+{{- end -}}
+
+{{- define "filament.auth.keycloak.adminUser" -}}
+{{- if .Values.auth.keycloak.adminUser -}}{{ .Values.auth.keycloak.adminUser }}
+{{- else if .Values.keycloak.enabled -}}{{ .Values.keycloak.adminUser }}
+{{- end -}}
+{{- end -}}
+
+{{- define "filament.auth.keycloak.adminPassword" -}}
+{{- if .Values.auth.keycloak.adminPassword -}}{{ .Values.auth.keycloak.adminPassword }}
+{{- else if .Values.keycloak.enabled -}}{{ include "filament.generated" (dict "context" . "key" "AUTH_ADMIN_PASSWORD") }}
+{{- end -}}
 {{- end -}}
 
 {{/* Secret the vendored provider mints its own admin token into during setup,
