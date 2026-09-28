@@ -8,6 +8,7 @@ use (
 	./connectors/object
 	./connectors/redshift
 	./connectors/snowflake
+	./identity/keycloak
 	./identity/zitadel
 	./secret/aws
 	./secret/gcp

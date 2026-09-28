@@ -1,7 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -151,8 +150,9 @@ const PipelineSettingsPageNotifications = () => {
   };
 
   return (
-    <Accordion header="Notifications" isOpenInitial>
+    <>
       <PipelineNotifierTable
+        header="Notifications"
         rows={rows}
         isLoading={isLoading}
         isSaving={isCreating || isUpdating || isDeleting}
@@ -172,7 +172,7 @@ const PipelineSettingsPageNotifications = () => {
         confirmVariant={ButtonVariant.ERROR}
         isPending={isDeleting}
       />
-    </Accordion>
+    </>
   );
 };
 

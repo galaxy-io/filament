@@ -18,9 +18,10 @@ This chart deploys Filament server, control plane, Kubernetes worker dispatch su
 |------------|------|---------|
 | https://charts.bitnami.com/bitnami | postgresql | 18.7.11 |
 | https://charts.zitadel.com | zitadel | 10.0.4 |
+| https://codecentric.github.io/helm-charts | keycloak(keycloakx) | 7.3.2 |
 | https://nats-io.github.io/k8s/helm/charts | nats | 2.14.2 |
 
-The vendored PostgreSQL, NATS, and Zitadel charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), and [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel) documentation for their full configuration surfaces.
+The vendored PostgreSQL, NATS, Zitadel, and Keycloak charts are disabled by default. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql), [NATS chart](https://artifacthub.io/packages/helm/nats/nats), [Zitadel chart](https://artifacthub.io/packages/helm/zitadel/zitadel), and [keycloakx chart](https://artifacthub.io/packages/helm/codecentric/keycloakx) documentation for their full configuration surfaces.
 
 ## Runtime configuration
 
@@ -68,7 +69,7 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and `AUTH_PAT` when auth is enabled. When set, the chart does not create its own Secret. |
+| existingSecret | string | `""` | Existing runtime Secret with `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY`. Shared by the server, control plane, and workers. Provider credentials live in a separate Secret so workers never receive them. |
 
 ## Server parameters
 
@@ -171,13 +172,26 @@ helm upgrade --install filament \
 
 ## Authentication parameters
 
+Provider credentials live in a separate Secret so workers never receive them. External Zitadel uses `auth.zitadel.pat` or `auth.zitadel.existingSecret` containing `AUTH_PAT`; the chart creates `<release>-zitadel-auth` when no existing provider Secret is supplied. Vendored Zitadel keeps its setup-generated PAT Secret.
+
+Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the provider Secret on upgrade. Changes to chart-managed auth Secrets roll the server. After changing an existing auth Secret, restart the server yourself.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
-| auth.type | string | `"zitadel"` | Identity provider. Valid value is `zitadel`. |
+| auth.keycloak.adminPassword | string | `""` | Master-realm admin password, stored as `AUTH_ADMIN_PASSWORD` in the dedicated Keycloak Secret. Required when vendored unless `keycloak.existingSecret` is set. Changing it does not rotate the password stored in Keycloak; rotate there first. |
+| auth.keycloak.adminUser | string | `""` | Master-realm admin, stored as `AUTH_ADMIN_USERNAME`. With `adminPassword` the server creates the realm and client on boot. For vendored Keycloak use `keycloak.adminUser`; this value is ignored. |
+| auth.keycloak.bootstrap.clientId | string | `""` | The service account's client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`. |
+| auth.keycloak.bootstrap.clientSecret | string | `""` | Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`. With `keycloak.existingSecret`, supply that key in the Secret instead. |
+| auth.keycloak.bootstrap.tenant | string | `""` | Tenant created on boot with an admin service account, so an SDK works before anyone registers. Stored as `AUTH_BOOTSTRAP_TENANT`. Set all three or none. |
+| auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
+| auth.keycloak.clientSecret | string | required unless `keycloak.existingSecret` is set | The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated Keycloak Secret. Supply a stable value; the chart never generates it. |
+| auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |
+| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel` and `keycloak`. |
 | auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
+| auth.zitadel.existingSecret | string | `""` | Server-only Secret containing `AUTH_PAT` for external Zitadel. Kept apart from `existingSecret`, which every worker receives. Unset, the chart creates a dedicated Secret from `auth.zitadel.pat`. Vendored Zitadel mints its own. |
 | auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |
-| auth.zitadel.pat | string | required when `auth.enabled=true` and `zitadel.enabled=false` | Machine-user personal access token, stored in the chart-created Secret as `AUTH_PAT`. Zitadel generates the token itself and will not accept one you choose, so create the machine user out of band and paste the result here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a token into its own Secret and the server reads it from there. |
+| auth.zitadel.pat | string | required for external Zitadel unless `auth.zitadel.existingSecret` is set | Machine-user personal access token, stored in the chart-created Secret as `AUTH_PAT`. Zitadel generates the token itself and will not accept one you choose, so create the machine user out of band and paste the result here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a token into its own Secret and the server reads it from there. |
 
 ## Observability parameters
 
@@ -238,6 +252,47 @@ The vendored Zitadel runs its init and setup jobs as post-install hooks so the v
 | zitadel.zitadel.configmapConfig.ExternalDomain | string | required when `zitadel.enabled=true` | Hostname Zitadel advertises itself at. |
 | zitadel.zitadel.configmapConfig.ExternalSecure | bool | `true` | Serve external traffic over HTTPS. Zitadel builds its OIDC issuer from `ExternalSecure`, `ExternalDomain`, and `ExternalPort`, and that issuer must match `auth.zitadel.issuer` exactly. |
 | zitadel.zitadel.masterkey | string | required when `zitadel.enabled=true` | 32-character key Zitadel encrypts its stored credentials with. |
+
+## Vendored Keycloak parameters
+
+Enable `auth.enabled`, set `auth.type: keycloak`, and enable `keycloak.enabled`.
+Set `keycloak.hostname` to the HTTP(S) origin reachable from both the cluster and token clients. Configure `keycloak.ingress.tls` when terminating HTTPS at the ingress.
+
+Keycloak uses the vendored PostgreSQL by default; enable `postgresql.enabled` and set its password, or configure `keycloak.database` for an external database.
+Supply stable `auth.keycloak.clientSecret` and `auth.keycloak.adminPassword` values, or set `keycloak.existingSecret` to a dedicated Secret with `AUTH_CLIENT_SECRET` and `AUTH_ADMIN_PASSWORD`. The chart creates `<release>-keycloak-auth` when no existing Secret is supplied. The server creates the realm and client on boot. `keycloak.adminUser` configures both the vendored admin and the server's admin login.
+
+Changing the bootstrap admin password value does not rotate the password in Keycloak; rotate it there first, then update the Secret.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| keycloak.adminUser | string | `"admin"` | Master-realm admin the server creates Filament's realm with. |
+| keycloak.command[0] | string | `"/opt/keycloak/bin/kc.sh"` |  |
+| keycloak.command[1] | string | `"start"` |  |
+| keycloak.database.database | string | `"keycloak"` | Database the init container below creates for Keycloak. Keep it separate from Filament's own database even when they share a server. |
+| keycloak.database.existingSecret | string | `"filament-postgresql"` | Secret the vendored PostgreSQL chart stores its user password in. |
+| keycloak.database.existingSecretKey | string | `"password"` |  |
+| keycloak.database.hostname | string | `"filament-postgresql"` | The vendored PostgreSQL Service. |
+| keycloak.database.port | int | `5432` |  |
+| keycloak.database.username | string | `"filament"` |  |
+| keycloak.database.vendor | string | `"postgres"` |  |
+| keycloak.dbchecker.enabled | bool | `true` | Wait for PostgreSQL before starting. |
+| keycloak.enabled | bool | `false` | Enable the vendored Keycloak chart. See the [keycloakx chart](https://artifacthub.io/packages/helm/codecentric/keycloakx) for additional configuration. |
+| keycloak.existingSecret | string | `""` | Dedicated Secret containing `AUTH_CLIENT_SECRET`, plus `AUTH_ADMIN_PASSWORD` when bootstrapping a realm and `AUTH_BOOTSTRAP_CLIENT_SECRET` when bootstrapping a tenant. Used for external and vendored Keycloak. Kept apart from `existingSecret`, which every worker receives. Unset, the chart creates `<release>-keycloak-auth` from `auth.keycloak`. |
+| keycloak.extraEnv | string | `"- name: KC_BOOTSTRAP_ADMIN_USERNAME\n  value: {{ .Values.adminUser | quote }}\n- name: KC_BOOTSTRAP_ADMIN_PASSWORD\n  valueFrom:\n    secretKeyRef:\n      name: {{ include \"filament.keycloak.secretName\" . | quote }}\n      key: AUTH_ADMIN_PASSWORD\n- name: KC_HOSTNAME\n  value: {{ required \"keycloak.hostname is required when keycloak.enabled=true\" .Values.hostname | trimSuffix \"/\" | quote }}\n"` |  |
+| keycloak.extraInitContainers | string | `"- name: create-database\n  image: postgres:17-alpine\n  env:\n    - name: PGHOST\n      value: {{ .Values.database.hostname | quote }}\n    - name: PGPORT\n      value: {{ .Values.database.port | quote }}\n    - name: PGUSER\n      value: {{ .Values.database.username | quote }}\n    - name: PGPASSWORD\n      valueFrom:\n        secretKeyRef:\n          name: {{ .Values.database.existingSecret | quote }}\n          key: {{ .Values.database.existingSecretKey | quote }}\n  command:\n    - sh\n    - -ec\n    - |\n      db={{ .Values.database.database | quote }}\n      psql -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$db'\" | grep -q 1 || psql -d postgres -c \"CREATE DATABASE \\\"$db\\\"\"\n"` | Creates `database.database` if missing, as `database.username`, which needs CREATEDB. The vendored PostgreSQL user has it. |
+| keycloak.fullnameOverride | string | `"filament-keycloak"` | Full name override for the vendored Keycloak release. |
+| keycloak.hostname | string | required when `keycloak.enabled=true` | Origin Keycloak advertises and the ingress serves, e.g. `https://id.example.com`. Becomes the issuer, so it must resolve inside the cluster too. An optional port and trailing slash are supported; paths, queries, and fragments are not. |
+| keycloak.http.relativePath | string | `"/"` |  |
+| keycloak.ingress.enabled | bool | `true` | Ingress at `hostname`, which token clients reach the issuer through. |
+| keycloak.ingress.rules[0].host | string | `"{{ first (splitList \":\" (urlParse .Values.hostname).host) }}"` |  |
+| keycloak.ingress.rules[0].paths[0].path | string | `"/"` |  |
+| keycloak.ingress.rules[0].paths[0].pathType | string | `"Prefix"` |  |
+| keycloak.ingress.tls | list | `[]` | Ingress TLS, e.g. a cert-manager Secret for `hostname`. |
+| keycloak.proxy.enabled | bool | `true` |  |
+| keycloak.proxy.http.enabled | bool | `true` |  |
+| keycloak.proxy.mode | string | `"xforwarded"` | Proxy header scheme the ingress forwards. |
+| keycloak.resources.limits.memory | string | `"1Gi"` |  |
+| keycloak.resources.requests | object | `{"cpu":"100m","memory":"512Mi"}` | Resources for the vendored Keycloak pod. The upstream chart sets none. |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs](https://github.com/norwoodj/helm-docs)

@@ -3,14 +3,8 @@ import { useState } from "react";
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -134,30 +128,27 @@ const PipelineSettingsPageSchedule = () => {
   if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS) return null;
 
   return (
-    <Accordion header="Schedule" isOpenInitial>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-        <PipelineScheduleFields state={state} onChange={handleScheduleChange} />
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          justifyContent={JustifyContent.END}
-          gap={8}
-          fillWidth
-        >
-          <Button
-            label="Cancel"
-            variant={ButtonVariant.SECONDARY}
-            isDisabled={!hasChanges || isCreating || isUpdating}
-            onClick={handleCancel}
-          />
-          <Button
-            label="Save"
-            isDisabled={!canSave}
-            isLoading={isCreating || isUpdating}
-            onClick={handleSave}
-          />
-        </FlexWrapper>
+    <PipelineScheduleFields header="Schedule" state={state} onChange={handleScheduleChange}>
+      <FlexWrapper
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.END}
+        gap={8}
+        fillWidth
+      >
+        <Button
+          label="Cancel"
+          variant={ButtonVariant.SECONDARY}
+          isDisabled={!hasChanges || isCreating || isUpdating}
+          onClick={handleCancel}
+        />
+        <Button
+          label="Save"
+          isDisabled={!canSave}
+          isLoading={isCreating || isUpdating}
+          onClick={handleSave}
+        />
       </FlexWrapper>
-    </Accordion>
+    </PipelineScheduleFields>
   );
 };
 

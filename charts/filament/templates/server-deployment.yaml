@@ -17,6 +17,11 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/server-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if and .Values.auth.enabled (eq .Values.auth.type "keycloak") }}
+        checksum/keycloak-secret: {{ include (print $.Template.BasePath "/keycloak-secret.yaml") . | sha256sum }}
+        {{- else if and .Values.auth.enabled (eq .Values.auth.type "zitadel") }}
+        checksum/zitadel-secret: {{ include (print $.Template.BasePath "/zitadel-secret.yaml") . | sha256sum }}
+        {{- end }}
       labels:
         {{- include "filament.server.selectorLabels" . | nindent 8 }}
     spec:
@@ -70,13 +75,17 @@ spec:
                 name: {{ include "filament.server.fullname" . }}
             - secretRef:
                 name: {{ include "filament.secretName" . }}
-          {{- with include "filament.auth.mintedPatSecret" . }}
+            {{- if and .Values.auth.enabled (eq .Values.auth.type "keycloak") }}
+            - secretRef:
+                name: {{ include "filament.keycloak.secretName" (dict "Values" .Values.keycloak "Release" .Release) }}
+            {{- end }}
+          {{- if and .Values.auth.enabled (eq .Values.auth.type "zitadel") }}
           env:
             - name: AUTH_PAT
               valueFrom:
                 secretKeyRef:
-                  name: {{ . }}
-                  key: pat
+                  name: {{ include "filament.auth.mintedPatSecret" . | default (.Values.auth.zitadel.existingSecret | default (printf "%s-zitadel-auth" .Release.Name)) }}
+                  key: {{ ternary "pat" "AUTH_PAT" .Values.zitadel.enabled }}
           {{- end }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}

@@ -28,7 +28,7 @@ const ConnectionDrawerSection = ({
     <Accordion
       header={header}
       icon={icon}
-      metric={<Badge count={count} size={BadgeSize.SMALL} variant={BadgeVariant.SECONDARY} />}
+      trailing={<Badge count={count} size={BadgeSize.SMALL} variant={BadgeVariant.SECONDARY} />}
       isOpenInitial={isOpenInitial}
       padding={count > 0 ? 0 : "24px"}
     >

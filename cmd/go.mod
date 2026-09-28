@@ -12,6 +12,7 @@ require (
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/redshift v0.0.0
 	github.com/galaxy-io/filament/connectors/snowflake v0.0.0
+	github.com/galaxy-io/filament/identity/keycloak v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/identity/zitadel v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/secret/aws v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/secret/gcp v0.0.0-00010101000000-000000000000
@@ -114,6 +115,7 @@ require (
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
 	github.com/containerd/console v1.0.5 // indirect
+	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/creasty/defaults v1.8.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
@@ -306,6 +308,8 @@ replace github.com/galaxy-io/filament/connectors/object => ../connectors/object
 replace github.com/galaxy-io/filament/connectors/redshift => ../connectors/redshift
 
 replace github.com/galaxy-io/filament/connectors/snowflake => ../connectors/snowflake
+
+replace github.com/galaxy-io/filament/identity/keycloak => ../identity/keycloak
 
 replace github.com/galaxy-io/filament/identity/zitadel => ../identity/zitadel
 
