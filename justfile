@@ -3,10 +3,17 @@ set dotenv-load
 default:
     @just --list
 
-# start local infra (postgres + nats); `just infra auth` adds zitadel,
-# `just infra down` stops everything, `just infra down volumes` also drops volumes
+# start local infra (postgres + nats); `just infra zitadel|keycloak` adds that provider, `just infra down [volumes]` stops everything
 infra mode="up" scope="":
-    bash scripts/container.sh compose {{ if mode == "down" { if scope == "volumes" { "--profile auth down -v" } else { "--profile auth down" } } else if mode == "auth" { "--profile auth up -d --wait" } else { "up -d --wait" } }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bash scripts/container.sh compose {{ if mode == "down" { if scope == "volumes" { "--profile zitadel --profile keycloak down -v" } else { "--profile zitadel --profile keycloak down" } } else if mode == "up" { "up -d --wait" } else { "--profile " + mode + " up -d --wait" } }}
+    # Keycloak's master realm refuses plain-http admin sign-ins from off the
+    # container, which is where the server creates filament's realm from.
+    if [ "{{ mode }}" = "keycloak" ]; then
+      bash scripts/container.sh compose --profile keycloak exec -T keycloak sh -c \
+        '/opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password admin >/dev/null && /opt/keycloak/bin/kcadm.sh update realms/master -s sslRequired=NONE'
+    fi
 
 # run datastore migrations against the local database
 migrate:
@@ -14,7 +21,7 @@ migrate:
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       GOWORK=off go run . -migrate
 
-# run the API server locally (defaults match docker-compose.yaml; env overrides)
+# run the API server locally (defaults match docker-compose.yaml; env overrides); `just server zitadel|keycloak` turns auth on
 server mode="": migrate
     cd cmd/server && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
@@ -22,9 +29,13 @@ server mode="": migrate
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
-      AUTH_PROVIDER="${AUTH_PROVIDER:-{{ if mode == "auth" { "zitadel" } else { "" } }}}" \
-      AUTH_ISSUER="${AUTH_ISSUER:-http://localhost:8300}" \
+      AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
+      AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \
       AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
+      AUTH_CLIENT_ID="${AUTH_CLIENT_ID:-filament}" \
+      AUTH_CLIENT_SECRET="${AUTH_CLIENT_SECRET:-filament}" \
+      AUTH_ADMIN_USERNAME="${AUTH_ADMIN_USERNAME:-admin}" \
+      AUTH_ADMIN_PASSWORD="${AUTH_ADMIN_PASSWORD:-admin}" \
       AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
       GOWORK=off go run .
 
@@ -43,7 +54,7 @@ control-plane:
 ui:
     cd ui && pnpm install && pnpm dev
 
-# run the full app: control plane, API server, UI
+# run the full app: control plane, API server, UI; `just dev zitadel|keycloak` turns auth on
 dev mode="": migrate
     #!/usr/bin/env bash
     set -euo pipefail

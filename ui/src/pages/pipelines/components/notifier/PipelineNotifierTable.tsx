@@ -2,12 +2,11 @@ import { useState } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Accordion, { type AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
 import InfiniteTable, {
   ColumnAlign,
@@ -16,7 +15,6 @@ import InfiniteTable, {
 } from "@galaxy-io/dls/table/InfiniteTable";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import Widget from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -31,9 +29,9 @@ import type {
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
 
-import { isSearchMatch } from "@/utils/search";
-
 interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
+  header: string;
+  size?: AccordionSize;
   rows: TRow[];
   isLoading?: boolean;
   isSaving?: boolean;
@@ -44,18 +42,20 @@ interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
 }
 
 interface PipelineNotifierTableState {
-  search: string;
+  isOpen: boolean;
   isCreating: boolean;
   expandedRowIds: PipelineNotifier["id"][];
 }
 
 const DEFAULT_STATE: PipelineNotifierTableState = {
-  search: "",
+  isOpen: false,
   isCreating: false,
   expandedRowIds: [],
 };
 
 const PipelineNotifierTable = <TRow extends PipelineNotifier>({
+  header,
+  size,
   rows,
   isLoading = false,
   isSaving = false,
@@ -66,14 +66,17 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
 }: PipelineNotifierTableProps<TRow>) => {
   const [state, setState] = useState<PipelineNotifierTableState>(DEFAULT_STATE);
 
-  const filteredRows = rows.filter((row) => isSearchMatch(state.search, row.name));
-
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
+  const handleToggle = () => {
+    setState((prev) => ({ ...prev, isOpen: !prev.isOpen }));
   };
 
   const handleCreatingChange = (isCreating: boolean) => {
-    setState((prev) => ({ ...prev, isCreating }));
+    setState((prev) => ({
+      ...prev,
+      isCreating,
+      isOpen: isCreating || prev.isOpen,
+      expandedRowIds: isCreating ? [] : prev.expandedRowIds,
+    }));
   };
 
   const handleExpandedChange = (expandedRowIds: PipelineNotifier["id"][]) => {
@@ -109,26 +112,24 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
   ];
 
   return (
-    <Widget noPadding noHover fillWidth>
+    <Accordion
+      header={header}
+      size={size}
+      padding={0}
+      isOpen={state.isOpen}
+      onToggle={handleToggle}
+      trailing={
+        <Button
+          label="Add notifier"
+          icon={PlusIcon}
+          variant={ButtonVariant.SECONDARY}
+          size={ButtonSize.SMALL}
+          onClick={() => handleCreatingChange(true)}
+          isDisabled={state.isCreating || isSaving}
+        />
+      }
+    >
       <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px" fillWidth>
-          <TextInput
-            placeholder="Search"
-            value={state.search}
-            onChange={handleSearchChange}
-            fillWidth
-          />
-          <FlexItem shrink={0}>
-            <Button
-              label="Add notifier"
-              icon={PlusIcon}
-              variant={ButtonVariant.SECONDARY}
-              onClick={() => handleCreatingChange(true)}
-              isDisabled={state.isCreating || isSaving}
-            />
-          </FlexItem>
-        </FlexWrapper>
-        <HorizontalDivider />
         {state.isCreating && (
           <>
             <PipelineNotifierForm
@@ -142,18 +143,14 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
         )}
         <InfiniteTable<TRow>
           columns={columns}
-          data={filteredRows}
+          data={rows}
           getRowId={(row) => row.id}
           isLoading={isLoading}
           contentWhenEmpty={
             <EmptyLayout
               size={LayoutSize.SMALL}
-              header={rows.length === 0 ? "No notifiers" : undefined}
-              message={
-                rows.length === 0
-                  ? "Add a notifier to get notified when runs complete or fail."
-                  : "No notifiers match your search."
-              }
+              header="No notifiers"
+              message="Add a notifier to get notified when runs complete or fail."
             />
           }
           expandedRowIds={state.expandedRowIds}
@@ -175,7 +172,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
           fillWidth
         />
       </FlexWrapper>
-    </Widget>
+    </Accordion>
   );
 };
 

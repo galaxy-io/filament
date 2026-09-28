@@ -19,14 +19,8 @@ const CreatePipelineModalDelivery = () => {
           <CreatePipelineModalDeliveryDestinations />
         </CreatePipelineModalDeliverySection>
       )}
-      {executionMode !== ExecutionMode.CONTINUOUS && (
-        <CreatePipelineModalDeliverySection header="Schedule">
-          <CreatePipelineModalDeliverySchedule />
-        </CreatePipelineModalDeliverySection>
-      )}
-      <CreatePipelineModalDeliverySection header="Notifications">
-        <CreatePipelineModalDeliveryNotifications />
-      </CreatePipelineModalDeliverySection>
+      {executionMode !== ExecutionMode.CONTINUOUS && <CreatePipelineModalDeliverySchedule />}
+      <CreatePipelineModalDeliveryNotifications />
       <CreatePipelineModalDeliverySection header="Advanced">
         <CreatePipelineModalDeliveryAdvanced />
       </CreatePipelineModalDeliverySection>
