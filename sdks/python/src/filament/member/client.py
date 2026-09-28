@@ -69,7 +69,6 @@ class MemberClient:
         from filament import Filament
 
         client = Filament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -117,7 +116,6 @@ class MemberClient:
         from filament import Filament
 
         client = Filament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -159,7 +157,6 @@ class MemberClient:
         from filament import Filament
 
         client = Filament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -203,7 +200,6 @@ class MemberClient:
         from filament import Filament
 
         client = Filament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -271,7 +267,6 @@ class AsyncMemberClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -327,7 +322,6 @@ class AsyncMemberClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -377,7 +371,6 @@ class AsyncMemberClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )
@@ -429,7 +422,6 @@ class AsyncMemberClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            base_url="YOUR_BASE_URL",
             client_id="YOUR_CLIENT_ID",
             client_secret="YOUR_CLIENT_SECRET",
         )

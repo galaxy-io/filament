@@ -19,7 +19,7 @@ npm install @galaxy-io/filament-ts
 import { FilamentClient } from "@galaxy-io/filament-ts";
 
 const filament = new FilamentClient({
-  environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
+  baseUrl: process.env.FILAMENT_URL ?? "http://localhost:8080",
   auth: false,
 });
 
@@ -49,7 +49,7 @@ your code:
 
 ~~~ts
 const filament = new FilamentClient({
-  environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
+  baseUrl: process.env.FILAMENT_URL ?? "http://localhost:8080",
   clientId: process.env.FILAMENT_CLIENT_ID!,
   clientSecret: process.env.FILAMENT_CLIENT_SECRET!,
 });
@@ -79,7 +79,7 @@ import { randomUUID } from "node:crypto";
 import { FilamentClient } from "@galaxy-io/filament-ts";
 
 const filament = new FilamentClient({
-  environment: process.env.FILAMENT_URL ?? "http://localhost:8080",
+  baseUrl: process.env.FILAMENT_URL ?? "http://localhost:8080",
   auth: false,
 });
 const name = `sample-to-stdout-${randomUUID().slice(0, 8)}`;

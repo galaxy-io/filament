@@ -2,6 +2,10 @@
 info:
   title: Filament
   description: Filament API over Connect JSON.
+# A default server makes the base URL optional; every client points it at
+# its own deployment.
+servers:
+  - url: http://localhost:8080
 components:
   schemas:
     connect-protocol-version:

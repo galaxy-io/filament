@@ -5,6 +5,7 @@ import { type NormalizedClientOptionsWithAuth, normalizeClientOptionsWithAuth } 
 import { mergeHeaders, mergeOnlyDefinedHeaders } from "../../../../../../core/headers.js";
 import * as core from "../../../../../../core/index.js";
 import { mergeAdditionalBodyParameters } from "../../../../../../core/requestBody.js";
+import * as environments from "../../../../../../environments.js";
 import { handleNonStatusCodeError } from "../../../../../../errors/handleNonStatusCodeError.js";
 import * as errors from "../../../../../../errors/index.js";
 import type * as Filament from "../../../../../index.js";
@@ -63,7 +64,8 @@ export class ScheduleClient {
         const _response = await core.fetcher({
             url: core.url.join(
                 (await core.Supplier.get(this._options.baseUrl)) ??
-                    (await core.Supplier.get(this._options.environment)),
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
                 "ingestion.v1.IngestionService/CreatePipelineSchedule",
             ),
             method: "POST",
@@ -138,7 +140,8 @@ export class ScheduleClient {
         const _response = await core.fetcher({
             url: core.url.join(
                 (await core.Supplier.get(this._options.baseUrl)) ??
-                    (await core.Supplier.get(this._options.environment)),
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
                 "ingestion.v1.IngestionService/UpdatePipelineSchedule",
             ),
             method: "POST",

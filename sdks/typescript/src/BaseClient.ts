@@ -3,6 +3,7 @@
 import { OAuthAuthProvider } from "./auth/OAuthAuthProvider.js";
 import { mergeHeaders } from "./core/headers.js";
 import * as core from "./core/index.js";
+import type * as environments from "./environments.js";
 
 export type AuthOption =
     | false
@@ -11,7 +12,7 @@ export type AuthOption =
     | OAuthAuthProvider.AuthOptions;
 
 export type BaseClientOptions = {
-    environment: core.Supplier<string>;
+    environment?: core.Supplier<environments.FilamentEnvironment | string>;
     /** Specify a custom URL to connect the client to. */
     baseUrl?: core.Supplier<string>;
     /** Override the Connect-Protocol-Version header */

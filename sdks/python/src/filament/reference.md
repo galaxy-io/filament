@@ -14,11 +14,12 @@
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.accept_invite(
@@ -111,11 +112,12 @@ Session; pre-token, public. An empty issuer means auth is disabled.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.get_config(
@@ -195,11 +197,12 @@ Session; authenticated. The UI's sign-in check.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.get_session(
@@ -265,11 +268,12 @@ client.auth.get_session(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.get_token(
@@ -342,11 +346,12 @@ client.auth.get_token(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.login(
@@ -417,11 +422,12 @@ client.auth.login(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.logout(
@@ -487,11 +493,12 @@ client.auth.logout(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.auth.register(
@@ -587,11 +594,12 @@ client.auth.register(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.service_account.create(
@@ -685,11 +693,12 @@ Service accounts; authenticated tenant administration. Secrets are only
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.service_account.list(
@@ -755,11 +764,12 @@ client.service_account.list(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.service_account.remove(
@@ -822,11 +832,12 @@ client.service_account.remove(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.service_account.rotate_secret(
@@ -890,11 +901,12 @@ client.service_account.rotate_secret(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.member.invite(
@@ -995,11 +1007,12 @@ Members; authenticated tenant administration.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.member.list(
@@ -1065,11 +1078,12 @@ client.member.list(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.member.remove(
@@ -1132,11 +1146,12 @@ client.member.remove(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.member.set_role(
@@ -1222,11 +1237,12 @@ Connections; reusable, tenant-scoped sources and sinks.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connection.create(
@@ -1321,11 +1337,12 @@ client.connection.create(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connection.delete(
@@ -1388,11 +1405,12 @@ client.connection.delete(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connection.get(
@@ -1455,11 +1473,12 @@ client.connection.get(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connection.list(
@@ -1554,11 +1573,12 @@ client.connection.list(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connection.update(
@@ -1636,11 +1656,12 @@ Pipelines; the persisted node graph.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.create(
@@ -1738,11 +1759,12 @@ worker_configuration shapes this pipeline's runs. Omit it to configure the
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.delete(
@@ -1805,11 +1827,12 @@ client.pipeline.delete(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.get(
@@ -1896,11 +1919,12 @@ client.pipeline.get(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.list(
@@ -2025,11 +2049,12 @@ Runs; compile + submit a pipeline, then list / snapshot / signal.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.run(
@@ -2127,11 +2152,12 @@ worker_configuration overrides the pipeline's own for this call only, field
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.update(
@@ -2240,11 +2266,12 @@ Pipeline options and validation are resolved for the complete graph.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.validate(
@@ -2316,11 +2343,12 @@ client.pipeline.validate(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connector.discover_resources(
@@ -2407,11 +2435,12 @@ client.connector.discover_resources(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connector.get(
@@ -2482,11 +2511,12 @@ client.connector.get(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connector.get_resource_columns(
@@ -2587,11 +2617,12 @@ Catalog of registered source/sink connectors and their config schemas.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connector.list(
@@ -2692,11 +2723,12 @@ Ephemeral source/sink operations; no persisted state.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.connector.validate_config(
@@ -2784,11 +2816,12 @@ client.connector.validate_config(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.run.get(
@@ -2851,11 +2884,12 @@ client.run.get(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.run.list(
@@ -2977,11 +3011,12 @@ since_ms/until_ms window on started_at (inclusive/exclusive, epoch
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.run.signal(
@@ -3064,11 +3099,12 @@ Optional CAS for continuous desired state. A stale revision is rejected.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.metrics.query_aggregate(
@@ -3163,11 +3199,12 @@ client.metrics.query_aggregate(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.metrics.query_timeseries(
@@ -3299,11 +3336,12 @@ Pipeline notifications; multiple independent rules per pipeline.
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.notifier.create(
@@ -3374,11 +3412,12 @@ client.pipeline.notifier.create(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.notifier.delete(
@@ -3449,11 +3488,12 @@ client.pipeline.notifier.delete(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.notifier.list(
@@ -3516,11 +3556,12 @@ client.pipeline.notifier.list(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.notifier.update(
@@ -3616,11 +3657,12 @@ Pipeline schedules; one primary schedule per pipeline. Enable/disable is
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.schedule.create(
@@ -3691,11 +3733,12 @@ client.pipeline.schedule.create(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.schedule.update(
@@ -3767,11 +3810,12 @@ client.pipeline.schedule.update(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.version.create(
@@ -3842,11 +3886,12 @@ client.pipeline.version.create(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.version.get(
@@ -3917,11 +3962,12 @@ client.pipeline.version.get(
 
 ```python
 from filament import Filament
+from filament.environment import FilamentEnvironment
 
 client = Filament(
     client_id="<clientId>",
     client_secret="<clientSecret>",
-    base_url="https://yourhost.com/path/to/api",
+    environment=FilamentEnvironment.DEFAULT,
 )
 
 client.pipeline.version.list(

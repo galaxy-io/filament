@@ -9,6 +9,7 @@ from .core.api_error import ApiError
 from .core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from .core.logging import LogConfig, Logger
 from .core.oauth_token_provider import AsyncOAuthTokenProvider, OAuthTokenProvider
+from .environment import FilamentEnvironment
 
 if typing.TYPE_CHECKING:
     from .auth.client import AsyncAuthClient, AuthClient
@@ -28,7 +29,7 @@ class Filament:
     Parameters
     ----------
 
-    base_url : str
+    base_url : typing.Optional[str]
         The base url to use for requests from the client.
 
     client_id : str
@@ -51,7 +52,7 @@ class Filament:
 
     # or ...
 
-    base_url : str
+    base_url : typing.Optional[str]
         The base url to use for requests from the client.
 
     token : typing.Union[str, typing.Callable[[], str]]
@@ -74,7 +75,6 @@ class Filament:
     from filament import Filament
 
     client = Filament(
-        base_url="YOUR_BASE_URL",
         client_id="YOUR_CLIENT_ID",
         client_secret="YOUR_CLIENT_SECRET",
     )
@@ -93,7 +93,8 @@ class Filament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         timeout: typing.Optional[float] = None,
         max_retries: typing.Optional[int] = None,
@@ -110,7 +111,8 @@ class Filament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         timeout: typing.Optional[float] = None,
         max_retries: typing.Optional[int] = None,
@@ -125,7 +127,8 @@ class Filament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         client_id: typing.Optional[str] = None,
         client_secret: typing.Optional[str] = None,
@@ -144,7 +147,7 @@ class Filament:
         _defaulted_max_retries = max_retries if max_retries is not None else 0
         if token is not None:
             self._client_wrapper = SyncClientWrapper(
-                base_url=base_url,
+                base_url=_get_base_url(base_url=base_url, environment=environment),
                 headers=headers,
                 httpx_client=httpx_client
                 if httpx_client is not None
@@ -164,7 +167,7 @@ class Filament:
                 client_id=client_id,
                 client_secret=client_secret,
                 client_wrapper=SyncClientWrapper(
-                    base_url=base_url,
+                    base_url=_get_base_url(base_url=base_url, environment=environment),
                     headers=headers,
                     httpx_client=httpx_client
                     if httpx_client is not None
@@ -180,7 +183,7 @@ class Filament:
                 ),
             )
             self._client_wrapper = SyncClientWrapper(
-                base_url=base_url,
+                base_url=_get_base_url(base_url=base_url, environment=environment),
                 headers=headers,
                 token=_token_getter_override if _token_getter_override is not None else oauth_token_provider.get_token,
                 httpx_client=httpx_client
@@ -298,7 +301,7 @@ class AsyncFilament:
     Parameters
     ----------
 
-    base_url : str
+    base_url : typing.Optional[str]
         The base url to use for requests from the client.
 
     client_id : str
@@ -321,7 +324,7 @@ class AsyncFilament:
 
     # or ...
 
-    base_url : str
+    base_url : typing.Optional[str]
         The base url to use for requests from the client.
 
     token : typing.Union[str, typing.Callable[[], str]]
@@ -344,7 +347,6 @@ class AsyncFilament:
     from filament import AsyncFilament
 
     client = AsyncFilament(
-        base_url="YOUR_BASE_URL",
         client_id="YOUR_CLIENT_ID",
         client_secret="YOUR_CLIENT_SECRET",
     )
@@ -363,7 +365,8 @@ class AsyncFilament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         timeout: typing.Optional[float] = None,
         max_retries: typing.Optional[int] = None,
@@ -380,7 +383,8 @@ class AsyncFilament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         timeout: typing.Optional[float] = None,
         max_retries: typing.Optional[int] = None,
@@ -395,7 +399,8 @@ class AsyncFilament:
     def __init__(
         self,
         *,
-        base_url: str,
+        base_url: typing.Optional[str] = None,
+        environment: FilamentEnvironment = FilamentEnvironment.DEFAULT,
         headers: typing.Optional[typing.Dict[str, str]] = None,
         client_id: typing.Optional[str] = None,
         client_secret: typing.Optional[str] = None,
@@ -414,7 +419,7 @@ class AsyncFilament:
         _defaulted_max_retries = max_retries if max_retries is not None else 0
         if token is not None:
             self._client_wrapper = AsyncClientWrapper(
-                base_url=base_url,
+                base_url=_get_base_url(base_url=base_url, environment=environment),
                 headers=headers,
                 httpx_client=httpx_client
                 if httpx_client is not None
@@ -432,7 +437,7 @@ class AsyncFilament:
                 client_id=client_id,
                 client_secret=client_secret,
                 client_wrapper=AsyncClientWrapper(
-                    base_url=base_url,
+                    base_url=_get_base_url(base_url=base_url, environment=environment),
                     headers=headers,
                     httpx_client=httpx_client
                     if httpx_client is not None
@@ -448,7 +453,7 @@ class AsyncFilament:
                 ),
             )
             self._client_wrapper = AsyncClientWrapper(
-                base_url=base_url,
+                base_url=_get_base_url(base_url=base_url, environment=environment),
                 headers=headers,
                 token=_token_getter_override,
                 async_token=oauth_token_provider.get_token,
@@ -538,3 +543,12 @@ class AsyncFilament:
 
             self._metrics = AsyncMetricsClient(client_wrapper=self._client_wrapper)
         return self._metrics
+
+
+def _get_base_url(*, base_url: typing.Optional[str] = None, environment: FilamentEnvironment) -> str:
+    if base_url is not None:
+        return base_url
+    elif environment is not None:
+        return environment.value
+    else:
+        raise Exception("Please pass in either base_url or environment to construct the client")

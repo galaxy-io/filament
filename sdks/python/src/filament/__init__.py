@@ -141,6 +141,7 @@ if typing.TYPE_CHECKING:
     from . import auth, connection, connector, member, metrics, pipeline, run, service_account
     from ._default_clients import DefaultAioHttpClient, DefaultAsyncHttpxClient
     from .client import AsyncFilament, Filament
+    from .environment import FilamentEnvironment
 _dynamic_imports: typing.Dict[str, str] = {
     "AsyncFilament": ".client",
     "AuthV1AcceptInviteResponse": ".types",
@@ -174,6 +175,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "DefaultAioHttpClient": "._default_clients",
     "DefaultAsyncHttpxClient": "._default_clients",
     "Filament": ".client",
+    "FilamentEnvironment": ".environment",
     "GoogleProtobufListValue": ".types",
     "GoogleProtobufNullValue": ".types",
     "GoogleProtobufStruct": ".types",
@@ -341,6 +343,7 @@ __all__ = [
     "DefaultAioHttpClient",
     "DefaultAsyncHttpxClient",
     "Filament",
+    "FilamentEnvironment",
     "GoogleProtobufListValue",
     "GoogleProtobufNullValue",
     "GoogleProtobufStruct",
