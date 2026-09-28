@@ -256,6 +256,68 @@
         }
       }
     },
+    "/auth.v1.AuthService/GetToken": {
+      "post": {
+        "tags": [
+          "auth.v1.AuthService"
+        ],
+        "summary": "GetToken",
+        "operationId": "auth.v1.AuthService.GetToken",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/auth.v1.GetTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/auth.v1.GetTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth.v1.AuthService/InviteMember": {
       "post": {
         "tags": [
@@ -2933,6 +2995,39 @@
         },
         "title": "GetSessionResponse",
         "additionalProperties": false
+      },
+      "auth.v1.GetTokenRequest": {
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "title": "client_id"
+          },
+          "clientSecret": {
+            "type": "string",
+            "title": "client_secret"
+          }
+        },
+        "title": "GetTokenRequest",
+        "additionalProperties": false,
+        "description": "GetTokenRequest exchanges a service account's credentials for an access\n token. The server runs the grant against the provider, so SDKs and the\n CLI need no provider knowledge and no route to it."
+      },
+      "auth.v1.GetTokenResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "title": "access_token"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "title": "expires_in",
+            "format": "int32"
+          }
+        },
+        "title": "GetTokenResponse",
+        "additionalProperties": false,
+        "description": "GetTokenResponse carries a bearer token and its lifetime in seconds.\n Clients mint again as it nears expiry."
       },
       "auth.v1.InviteMemberRequest": {
         "type": "object",

@@ -25,6 +25,21 @@ message LoginRequest {
 
 message LoginResponse {}
 
+// GetTokenRequest exchanges a service account's credentials for an access
+// token. The server runs the grant against the provider, so SDKs and the
+// CLI need no provider knowledge and no route to it.
+message GetTokenRequest {
+  string client_id = 1;
+  string client_secret = 2;
+}
+
+// GetTokenResponse carries a bearer token and its lifetime in seconds.
+// Clients mint again as it nears expiry.
+message GetTokenResponse {
+  string access_token = 1;
+  int32 expires_in = 2;
+}
+
 // LogoutRequest ends the session and clears its cookie.
 message LogoutRequest {}
 

@@ -12,6 +12,7 @@ if typing.TYPE_CHECKING:
     from .auth_v1get_auth_config_response import AuthV1GetAuthConfigResponse
     from .auth_v1get_session_request import AuthV1GetSessionRequest
     from .auth_v1get_session_response import AuthV1GetSessionResponse
+    from .auth_v1get_token_response import AuthV1GetTokenResponse
     from .auth_v1invite_member_response import AuthV1InviteMemberResponse
     from .auth_v1list_members_request import AuthV1ListMembersRequest
     from .auth_v1list_members_response import AuthV1ListMembersResponse
@@ -142,6 +143,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "AuthV1GetAuthConfigResponse": ".auth_v1get_auth_config_response",
     "AuthV1GetSessionRequest": ".auth_v1get_session_request",
     "AuthV1GetSessionResponse": ".auth_v1get_session_response",
+    "AuthV1GetTokenResponse": ".auth_v1get_token_response",
     "AuthV1InviteMemberResponse": ".auth_v1invite_member_response",
     "AuthV1ListMembersRequest": ".auth_v1list_members_request",
     "AuthV1ListMembersResponse": ".auth_v1list_members_response",
@@ -296,6 +298,7 @@ __all__ = [
     "AuthV1GetAuthConfigResponse",
     "AuthV1GetSessionRequest",
     "AuthV1GetSessionResponse",
+    "AuthV1GetTokenResponse",
     "AuthV1InviteMemberResponse",
     "AuthV1ListMembersRequest",
     "AuthV1ListMembersResponse",

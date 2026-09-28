@@ -32,12 +32,33 @@ for connector in filament.connector.list().connectors or []:
     print(connector.name)
 ~~~
 
-Set `FILAMENT_TOKEN` to a bearer token accepted by your server's identity provider.
-For a local server with authentication disabled, omit `token`. The SDK also accepts
-a callable token provider for credentials that need refreshing.
+This connects to a server with authentication disabled. See
+[Authentication](#authentication) for a deployed server.
 
 You can configure request timeouts with `Filament(..., timeout=30)`; the value is
 in seconds. The SDK creates its HTTP client and supplies protocol headers.
+
+## Authentication
+
+When the server runs with an identity provider, the SDK authenticates as a
+service account. Create one on the Members page of the web app, or with
+`filament.service_account.create(...)` while signed in as an admin. Both return a
+client id and a client secret; the secret is shown once.
+
+Pass them to the client. It mints an access token through the server and mints
+again as the token nears expiry, so nothing about the identity provider reaches
+your code:
+
+~~~python
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+    client_id=os.getenv("FILAMENT_CLIENT_ID"),
+    client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
+)
+~~~
+
+A token minted elsewhere still works as `token`. For a local server with
+authentication disabled, pass neither.
 
 ## Create and run a pipeline
 
@@ -161,7 +182,8 @@ from filament import AsyncFilament
 async def main():
     filament = AsyncFilament(
         base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
-        token=os.getenv("FILAMENT_TOKEN"),
+        client_id=os.getenv("FILAMENT_CLIENT_ID"),
+        client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
     )
     response = await filament.pipeline.list()
     for pipeline in response.pipelines or []:

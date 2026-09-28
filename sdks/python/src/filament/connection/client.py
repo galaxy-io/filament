@@ -78,8 +78,8 @@ class ConnectionClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.connection.create(
             connect_timeout_ms=1000.0,
@@ -124,8 +124,8 @@ class ConnectionClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.connection.delete(
             connect_timeout_ms=1000.0,
@@ -164,8 +164,8 @@ class ConnectionClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.connection.get(
             connect_timeout_ms=1000.0,
@@ -214,8 +214,8 @@ class ConnectionClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.connection.list(
             connect_timeout_ms=1000.0,
@@ -260,8 +260,8 @@ class ConnectionClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.connection.update(
             connect_timeout_ms=1000.0,
@@ -332,8 +332,8 @@ class AsyncConnectionClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -386,8 +386,8 @@ class AsyncConnectionClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -434,8 +434,8 @@ class AsyncConnectionClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -494,8 +494,8 @@ class AsyncConnectionClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -548,8 +548,8 @@ class AsyncConnectionClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 

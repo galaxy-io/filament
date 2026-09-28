@@ -64,8 +64,8 @@ class ScheduleClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.schedule.create(
             connect_timeout_ms=1000.0,
@@ -110,8 +110,8 @@ class ScheduleClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.schedule.update(
             connect_timeout_ms=1000.0,
@@ -178,8 +178,8 @@ class AsyncScheduleClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -232,8 +232,8 @@ class AsyncScheduleClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 

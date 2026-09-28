@@ -1,0 +1,241 @@
+---
+title: "Python SDK"
+description: "Create connections, discover resources, build pipelines, and run them from Python"
+---
+
+`filament-py` is the generated Python client for Filament's API. It ships a
+synchronous `Filament` client and an asynchronous `AsyncFilament` client with the
+same methods, and requires Python 3.10 or newer.
+
+## Installation
+
+Install [filament-py from PyPI](https://pypi.org/project/filament-py/):
+
+```sh
+uv add filament-py
+```
+
+For an existing virtual environment, use `uv pip install filament-py`.
+
+## Connect
+
+```python
+import os
+
+from filament import Filament
+
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+)
+
+for connector in filament.connector.list().connectors or []:
+    print(connector.name)
+```
+
+This connects to a server with authentication disabled; see
+[Authentication](#authentication) for a deployed server. Request timeouts
+are set with `Filament(..., timeout=30)`, in seconds.
+
+## Authentication
+
+When the server runs with an identity provider, the SDK authenticates as a
+service account. Create one on the Members page of the web app, or with
+`filament.service_account.create(...)` while signed in as an admin. Both return a
+client id and a client secret; the secret is shown once.
+
+Pass them to the client. It mints an access token through the server and mints
+again as the token nears expiry, so nothing about the identity provider reaches
+your code:
+
+```python
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+    client_id=os.getenv("FILAMENT_CLIENT_ID"),
+    client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
+)
+```
+
+A token minted elsewhere still works as `token`. For a local server with
+authentication disabled, pass neither.
+
+## Create and run a pipeline
+
+A connector is an available integration, such as `sample` or `stdout`. A
+connection is a configured instance you create using that connector. The
+workflow is:
+
+1. Create source and sink connections.
+2. Discover the source's resources and select which ones to include.
+3. Create a pipeline and save its graph.
+4. Submit a run.
+
+This example routes five rows from each selected sample resource to stdout. It
+requires a running Filament deployment with a working execution backend.
+
+```python
+import os
+from uuid import uuid4
+
+from filament import (
+    Filament,
+    IngestionV1PipelineEdge,
+    IngestionV1PipelineGraph,
+    IngestionV1PipelineNode,
+)
+
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+)
+name = f"sample-to-stdout-{uuid4().hex[:8]}"
+
+source = filament.connection.create(
+    name=f"{name}-source",
+    kind="CONNECTOR_KIND_SOURCE",
+    connector="sample",
+).connection
+
+sink = filament.connection.create(
+    name=f"{name}-sink",
+    kind="CONNECTOR_KIND_SINK",
+    connector="stdout",
+).connection
+
+resources = filament.connector.discover_resources(
+    connection_id=source.id,
+).resources or []
+
+# Select every available resource, or set this to ["users"].
+selected_resources = [
+    resource.name for resource in resources if resource.is_selectable
+]
+
+pipeline = filament.pipeline.create(name=name).pipeline
+
+filament.pipeline.version.create(
+    pipeline_id=pipeline.id,
+    graph=IngestionV1PipelineGraph(
+        nodes=[
+            IngestionV1PipelineNode(
+                id="source",
+                kind="CONNECTOR_KIND_SOURCE",
+                connection_id=source.id,
+                config={"rows": 5},
+            ),
+            IngestionV1PipelineNode(
+                id="sink",
+                kind="CONNECTOR_KIND_SINK",
+                connection_id=sink.id,
+            ),
+        ],
+        edges=[
+            IngestionV1PipelineEdge(
+                from_node="source",
+                to_node="sink",
+                resource=resource,
+            )
+            for resource in selected_resources
+        ],
+    ),
+)
+
+submitted = filament.pipeline.run(pipeline_id=pipeline.id)
+
+print("Pipeline:", pipeline.id)
+for edge_run in submitted.edge_runs or []:
+    print("Run:", edge_run.run.id, edge_run.run.status)
+```
+
+`pipeline.create(...)` creates the pipeline's metadata and
+`pipeline.version.create(...)` saves its graph; the backend assigns the version.
+Both steps are required before the first run.
+
+The sample source discovers `users` and `orders`. To route every resource
+without enumerating them, save one edge with `resource` omitted.
+
+Submitting a run returns its id and initial status without waiting for
+completion. Inspect a run with `filament.run.get(run_id=run_id)`, or open the
+pipeline in the web app. The stdout sink writes rows to the worker's logs.
+
+The runnable version lives in
+[examples/smoke.py](https://github.com/galaxy-io/filament/blob/main/sdks/python/examples/smoke.py).
+
+## Async usage
+
+`AsyncFilament` exposes the same resource groups and methods.
+
+```python
+import asyncio
+import os
+
+from filament import AsyncFilament
+
+async def main():
+    filament = AsyncFilament(
+        base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+        client_id=os.getenv("FILAMENT_CLIENT_ID"),
+        client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
+    )
+    response = await filament.pipeline.list()
+    for pipeline in response.pipelines or []:
+        print(pipeline.id, pipeline.name)
+
+asyncio.run(main())
+```
+
+## API groups
+
+| Group | Examples |
+| --- | --- |
+| `connector` | `list`, `get`, `discover_resources`, `validate_config` |
+| `connection` | `create`, `get`, `list`, `update`, `delete` |
+| `pipeline` | `create`, `get`, `list`, `update`, `validate`, `run` |
+| `pipeline.version` | `create`, `get`, `list` |
+| `pipeline.schedule` | `create`, `update` |
+| `pipeline.notifier` | `create`, `list`, `update`, `delete` |
+| `run` | `get`, `list`, `signal` |
+| `metrics` | `query_timeseries`, `query_aggregate` |
+| `auth` | `get_config`, `get_session`, `login`, `logout` |
+| `member` | `list`, `invite`, `set_role`, `remove` |
+| `service_account` | `create`, `list`, `rotate_secret`, `remove` |
+
+The SDK covers unary API methods. Streaming `TailRun` is not included.
+
+## Responses and pagination
+
+Methods return generated models. `pipeline.create(...)` returns a response whose
+`pipeline` property holds the created pipeline.
+
+Fields omitted by the server are `None`, including lists, so iterate with
+`response.pipelines or []`. Protobuf 64-bit integer fields, such as timestamps and
+record counts, can be decimal strings; use `int(value)` when needed.
+
+List methods paginate explicitly:
+
+```python
+from filament import IngestionV1PaginationRequest
+
+page = filament.pipeline.list(
+    pagination=IngestionV1PaginationRequest(page_size=25),
+)
+next_cursor = page.pagination.next_cursor if page.pagination else None
+```
+
+Pass `next_cursor` as `IngestionV1PaginationRequest(cursor=next_cursor, page_size=25)`
+to fetch the next page while a cursor is present. Omitting pagination returns the
+full result set.
+
+## Errors and retries
+
+```python
+from filament.core.api_error import ApiError
+
+try:
+    filament.pipeline.get(id="missing-pipeline")
+except ApiError as error:
+    print(error.status_code)  # e.g. 404
+    print(error.body)         # Connect error code, message, and optional details
+```
+
+Automatic retries are disabled because mutations are not generally idempotent.
+For a read you want retried, pass
+`request_options={"max_retries": 2}` on the call.

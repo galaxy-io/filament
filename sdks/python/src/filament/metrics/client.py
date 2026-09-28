@@ -75,8 +75,8 @@ class MetricsClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.metrics.query_aggregate(
             connect_timeout_ms=1000.0,
@@ -146,8 +146,8 @@ class MetricsClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.metrics.query_timeseries(
             connect_timeout_ms=1000.0,
@@ -227,8 +227,8 @@ class AsyncMetricsClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -306,8 +306,8 @@ class AsyncMetricsClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
