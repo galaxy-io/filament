@@ -28,9 +28,13 @@ data:
   AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}
   {{- end }}
   {{- if eq .Values.auth.type "keycloak" }}
-  AUTH_ISSUER: {{ include "filament.auth.keycloak.issuer" . | quote }}
+  {{- if .Values.keycloak.enabled }}
+  AUTH_ISSUER: {{ .Values.auth.keycloak.issuer | default (printf "%s/realms/filament" (.Values.keycloak.hostname | trimSuffix "/")) | quote }}
+  {{- else }}
+  AUTH_ISSUER: {{ required "auth.keycloak.issuer is required for external Keycloak" .Values.auth.keycloak.issuer | quote }}
+  {{- end }}
   AUTH_CLIENT_ID: {{ .Values.auth.keycloak.clientId | quote }}
-  {{- with include "filament.auth.keycloak.adminUser" . }}
+  {{- with ternary .Values.keycloak.adminUser .Values.auth.keycloak.adminUser .Values.keycloak.enabled }}
   AUTH_ADMIN_USERNAME: {{ . | quote }}
   {{- end }}
   {{- with .Values.auth.keycloak.bootstrap }}

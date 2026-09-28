@@ -15,10 +15,9 @@ namespaceOverride: ""
 # -- Labels added to all Filament resources.
 commonLabels: {}
 
-# -- Existing Secret with the server's secret values: `PERSISTENCE_DSN`,
-# `NATS_URL`, `ENCRYPTION_KEY`, and the `AUTH_*` secrets of the provider in
-# use. When set, the chart creates no Secret; point `keycloak.existingSecret`
-# at the same one when vendoring Keycloak.
+# -- Existing runtime Secret with `PERSISTENCE_DSN`, `NATS_URL`, and
+# `ENCRYPTION_KEY`. Shared by the server, control plane, and workers.
+# Provider credentials live in a separate Secret so workers never receive them.
 existingSecret: ""
 
 server:
@@ -267,6 +266,10 @@ auth:
   uiOrigin: ""
 
   zitadel:
+    # -- Server-only Secret containing `AUTH_PAT` for external Zitadel.
+    # Kept apart from `existingSecret`, which every worker receives. Unset,
+    # the chart creates a dedicated Secret from `auth.zitadel.pat`. Vendored Zitadel mints its own.
+    existingSecret: ""
     # -- Issuer URL Filament reaches the provider at, stored in the ConfigMap
     # as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name
     # is fine, but it must equal the issuer Zitadel advertises or discovery
@@ -278,7 +281,7 @@ auth:
     # you choose, so create the machine user out of band and paste the result
     # here. Ignored when `zitadel.enabled=true`: the vendored setup job mints a
     # token into its own Secret and the server reads it from there.
-    # @default -- required when `auth.enabled=true` and `zitadel.enabled=false`
+    # @default -- required for external Zitadel unless `auth.zitadel.existingSecret` is set
     pat: ""
 
   keycloak:
@@ -289,15 +292,18 @@ auth:
     issuer: ""
     # -- Filament's confidential client, stored as `AUTH_CLIENT_ID`.
     clientId: filament
-    # -- The client's secret, stored as `AUTH_CLIENT_SECRET`. Generated when
-    # vendored.
-    # @default -- required when `auth.type=keycloak` and `keycloak.enabled=false`
+    # -- The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated
+    # Keycloak Secret. Supply a stable value; the chart never generates it.
+    # @default -- required unless `keycloak.existingSecret` is set
     clientSecret: ""
     # -- Master-realm admin, stored as `AUTH_ADMIN_USERNAME`. With
-    # `adminPassword` the server creates the realm and client on boot. Not
-    # needed when vendored.
+    # `adminPassword` the server creates the realm and client on boot. For
+    # vendored Keycloak use `keycloak.adminUser`; this value is ignored.
     adminUser: ""
-    # -- That admin's password, stored as `AUTH_ADMIN_PASSWORD`.
+    # -- Master-realm admin password, stored as `AUTH_ADMIN_PASSWORD` in the
+    # dedicated Keycloak Secret. Required when vendored unless
+    # `keycloak.existingSecret` is set. Changing it does not rotate the
+    # password stored in Keycloak; rotate there first.
     adminPassword: ""
     bootstrap:
       # -- Tenant created on boot with an admin service account, so an SDK
@@ -306,7 +312,8 @@ auth:
       tenant: ""
       # -- The service account's client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`.
       clientId: ""
-      # -- Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`.
+      # -- Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`. With
+      # `keycloak.existingSecret`, supply that key in the Secret instead.
       clientSecret: ""
 
 observability:
@@ -339,6 +346,9 @@ postgresql:
     # @default -- required when `postgresql.enabled=true`
     password: ""
   primary:
+    initdb:
+      # -- Init scripts, from the chart ConfigMap creating the `auth` database.
+      scriptsConfigMap: filament-postgresql-initdb
     # -- Resources for the vendored PostgreSQL primary. Overrides the upstream
     # `nano` preset (192Mi memory limit), which risks OOM kills and unclean
     # shutdowns under real load.
@@ -429,9 +439,9 @@ zitadel:
           # databases, and the runtime needs `User.Password`.
           # @default -- required when `zitadel.enabled=true`
           Host: ""
-          # -- Database Zitadel creates and owns. Keep it separate from
-          # Filament's own database even when they share a server.
-          Database: zitadel
+          # -- Database Zitadel uses. The vendored PostgreSQL creates `auth` on
+          # first init; Zitadel creates it itself anywhere else.
+          Database: auth
           User:
             Username: zitadel
             SSL:
@@ -478,16 +488,20 @@ keycloak:
   enabled: false
   # -- Full name override for the vendored Keycloak release.
   fullnameOverride: filament-keycloak
-  # -- URL Keycloak advertises and the ingress serves, e.g.
+  # -- Origin Keycloak advertises and the ingress serves, e.g.
   # `https://id.example.com`. Becomes the issuer, so it must resolve inside
-  # the cluster too.
+  # the cluster too. An optional port and trailing slash are supported;
+  # paths, queries, and fragments are not.
   # @default -- required when `keycloak.enabled=true`
   hostname: ""
   # -- Master-realm admin the server creates Filament's realm with.
   adminUser: admin
-  # -- Secret holding `AUTH_ADMIN_PASSWORD`; the top-level `existingSecret`
-  # when using one.
-  existingSecret: filament-secret
+  # -- Dedicated Secret containing `AUTH_CLIENT_SECRET`, plus
+  # `AUTH_ADMIN_PASSWORD` when bootstrapping a realm and
+  # `AUTH_BOOTSTRAP_CLIENT_SECRET` when bootstrapping a tenant. Used for
+  # external and vendored Keycloak. Kept apart from `existingSecret`, which every worker receives.
+  # Unset, the chart creates `<release>-keycloak-auth` from `auth.keycloak`.
+  existingSecret: ""
   command:
     - /opt/keycloak/bin/kc.sh
     - start
@@ -504,8 +518,8 @@ keycloak:
     # -- The vendored PostgreSQL Service.
     hostname: filament-postgresql
     port: 5432
-    # -- Filament's database; Keycloak keeps its own tables alongside.
-    database: filament
+    # -- Database the vendored PostgreSQL creates on first init.
+    database: auth
     username: filament
     # -- Secret the vendored PostgreSQL chart stores its user password in.
     existingSecret: filament-postgresql
@@ -519,15 +533,15 @@ keycloak:
     - name: KC_BOOTSTRAP_ADMIN_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.existingSecret }}
+          name: {{ include "filament.keycloak.secretName" . | quote }}
           key: AUTH_ADMIN_PASSWORD
     - name: KC_HOSTNAME
-      value: {{ .Values.hostname | quote }}
+      value: {{ required "keycloak.hostname is required when keycloak.enabled=true" .Values.hostname | trimSuffix "/" | quote }}
   ingress:
     # -- Ingress at `hostname`, which token clients reach the issuer through.
     enabled: true
     rules:
-      - host: "{{ .Values.hostname | trimPrefix \"https://\" | trimPrefix \"http://\" }}"
+      - host: '{{ first (splitList ":" (urlParse .Values.hostname).host) }}'
         paths:
           - path: /
             pathType: Prefix

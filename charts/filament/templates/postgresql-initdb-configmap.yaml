@@ -1,0 +1,11 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filament-postgresql-initdb
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.labels" . | nindent 4 }}
+data:
+  auth.sql: CREATE DATABASE auth OWNER {{ .Values.postgresql.auth.username | quote }};
+{{- end }}

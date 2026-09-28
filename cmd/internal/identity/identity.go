@@ -43,8 +43,8 @@ func FromEnv(ctx context.Context) (identity.Provider, error) {
 			return nil, errors.New("identity: AUTH_CLIENT_ID and AUTH_CLIENT_SECRET are required for AUTH_PROVIDER=keycloak")
 		}
 		return keycloak.New(ctx, keycloak.Options{
-			Issuer:       os.Getenv("AUTH_ISSUER"),
-			ClientID:     clientID,
+			Issuer:        os.Getenv("AUTH_ISSUER"),
+			ClientID:      clientID,
 			ClientSecret:  clientSecret,
 			UIOrigin:      uiOrigin(),
 			AdminUsername: os.Getenv("AUTH_ADMIN_USERNAME"),

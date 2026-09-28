@@ -74,47 +74,12 @@ app.kubernetes.io/component: worker
 
 {{/* User's existingSecret, else the chart's own Secret. */}}
 {{- define "filament.secretName" -}}
-{{- .Values.existingSecret | default "filament-secret" -}}
+{{- .Values.existingSecret | default (printf "%s-secret" (include "filament.fullname" .)) -}}
 {{- end -}}
 
-{{/* Generated on first install, read back from the Secret on upgrades. */}}
-{{- define "filament.generated" -}}
-{{- $existing := lookup "v1" "Secret" (include "filament.namespace" .context) (include "filament.secretName" .context) -}}
-{{- if and $existing (hasKey $existing.data .key) -}}
-{{- index $existing.data .key | b64dec -}}
-{{- else -}}
-{{- randAlphaNum 32 -}}
-{{- end -}}
-{{- end -}}
-
-{{/* Configured issuer, else the vendored Keycloak's. */}}
-{{- define "filament.auth.keycloak.issuer" -}}
-{{- if .Values.auth.keycloak.issuer -}}
-{{- .Values.auth.keycloak.issuer -}}
-{{- else if .Values.keycloak.enabled -}}
-{{- required "keycloak.hostname is required when keycloak.enabled=true" .Values.keycloak.hostname | trimSuffix "/" -}}/realms/filament
-{{- else -}}
-{{- required "auth.keycloak.issuer is required when auth.type=keycloak" .Values.auth.keycloak.issuer -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "filament.auth.keycloak.clientSecret" -}}
-{{- if .Values.auth.keycloak.clientSecret -}}{{ .Values.auth.keycloak.clientSecret }}
-{{- else if .Values.keycloak.enabled -}}{{ include "filament.generated" (dict "context" . "key" "AUTH_CLIENT_SECRET") }}
-{{- else -}}{{ required "auth.keycloak.clientSecret is required when auth.type=keycloak" .Values.auth.keycloak.clientSecret }}
-{{- end -}}
-{{- end -}}
-
-{{- define "filament.auth.keycloak.adminUser" -}}
-{{- if .Values.auth.keycloak.adminUser -}}{{ .Values.auth.keycloak.adminUser }}
-{{- else if .Values.keycloak.enabled -}}{{ .Values.keycloak.adminUser }}
-{{- end -}}
-{{- end -}}
-
-{{- define "filament.auth.keycloak.adminPassword" -}}
-{{- if .Values.auth.keycloak.adminPassword -}}{{ .Values.auth.keycloak.adminPassword }}
-{{- else if .Values.keycloak.enabled -}}{{ include "filament.generated" (dict "context" . "key" "AUTH_ADMIN_PASSWORD") }}
-{{- end -}}
+{{/* Takes Keycloak values so the parent and subchart share the same name. */}}
+{{- define "filament.keycloak.secretName" -}}
+{{- .Values.existingSecret | default (printf "%s-keycloak-auth" .Release.Name) -}}
 {{- end -}}
 
 {{/* Secret the vendored provider mints its own admin token into during setup,
@@ -126,7 +91,6 @@ app.kubernetes.io/component: worker
 {{- printf "%s-pat" (default "iam-admin" $machine.Username) -}}
 {{- end -}}
 {{- end -}}
-
 
 {{- define "filament.server.fullname" -}}
 {{- printf "%s-server" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
