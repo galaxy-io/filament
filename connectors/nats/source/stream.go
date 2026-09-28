@@ -126,16 +126,16 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if binding.managed && c.DeliverPolicy == jetstream.DeliverByStartSequencePolicy && (committed == ^uint64(0) || c.OptStartSeq > committed+1) {
 		return nil, errors.New("nats: consumer starts beyond certified progress")
 	}
-	// A fresh managed consumer starts at retained input, which may no longer
+	// A managed consumer with no acknowledgements starts at retained input, which may no longer
 	// begin at sequence one. NATS can report that starting floor even before
 	// any delivery is acknowledged. Keep it separate from certified progress.
-	if binding.managed && committed == 0 && info.State.FirstSeq > 0 {
+	if binding.managed && ci.AckFloor.Consumer == 0 && info.State.FirstSeq > 0 {
 		session.initialFloor = info.State.FirstSeq - 1
 	}
 	if err := validateConsumerProgress(ci, committed, session.initialFloor); err != nil {
 		return nil, err
 	}
-	if (!binding.managed || committed > 0) && info.State.FirstSeq > committed+1 && info.State.Msgs > 0 {
+	if !binding.managed && info.State.FirstSeq > committed+1 && info.State.Msgs > 0 {
 		return nil, errors.New("nats: retained input no longer covers resume position")
 	}
 	session.stream = destination
@@ -145,13 +145,19 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	session.consumerCreated = ci.Created
 	session.committed = committed
 	session.codecs = r
-	session.scanFloor = committed
-	session.scanFloor = max(session.scanFloor, session.initialFloor)
+	session.maxPending = c.MaxAckPending
 	hb, err := streamkit.StartHeartbeat(ctx, c.AckWait/3, func(ctx context.Context) error {
 		session.mu.Lock()
 		defer session.mu.Unlock()
-		if session.pending != nil {
-			return session.pending.InProgress()
+		if session.prefetched != nil {
+			if err := session.prefetched.InProgress(); err != nil {
+				return err
+			}
+		}
+		for _, msg := range session.pending {
+			if err := msg.InProgress(); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

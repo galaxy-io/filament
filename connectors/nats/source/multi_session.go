@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -13,8 +14,8 @@ import (
 )
 
 // multiSession multiplexes independent consumers into serial epoch work. At most
-// one message per resource is prefetched; only the selected message is emitted
-// and acknowledged in an epoch. No cross-stream ordering is implied.
+// one message per resource is prefetched; the selected consumer is then drained up to the epoch boundary
+// and acknowledged only after certification. No cross-stream ordering is implied.
 type multiSession struct {
 	writers  map[string]arrowbatch.RowWriter
 	columns  map[string]*streamkit.MessageColumns
@@ -28,6 +29,10 @@ type multiSession struct {
 }
 
 func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, b filament.Boundary) (filament.Coverage, error) {
+	started := time.Now()
+	if b.MaxAge > 0 && b.MaxAge < b.MaxWait {
+		b.MaxWait = b.MaxAge
+	}
 	if s.closed {
 		return filament.Coverage{}, errors.New("nats: session closed")
 	}
@@ -70,7 +75,9 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 				child.projector = streamkit.NewEventMetadataProjector(writer, child.codecs)
 			}
 		}
-		coverage, err := child.readMessage(ctx, out, msg)
+		remaining := b
+		remaining.MaxWait = max(time.Nanosecond, b.MaxWait-time.Since(started))
+		coverage, err := child.readBatch(ctx, out, remaining, msg)
 		if err != nil {
 			s.failed = err
 			return filament.Coverage{}, err
@@ -86,7 +93,7 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 			s.active = child
 		} else {
 			child.mu.Lock()
-			child.pending = nil
+			child.prefetched = nil
 			child.mu.Unlock()
 		}
 		return coverage, nil
@@ -119,7 +126,7 @@ func (s *multiSession) fetch(ctx context.Context, b filament.Boundary) error {
 			msg, err := child.consumer.Next(jetstream.FetchContext(readCtx))
 			if msg != nil {
 				child.mu.Lock()
-				child.pending = msg
+				child.prefetched = msg
 				child.mu.Unlock()
 			}
 			results <- result{i, msg, err}

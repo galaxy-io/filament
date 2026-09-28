@@ -52,7 +52,7 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if !ok {
 		return errors.New("continuous source must resolve position codecs")
 	}
-	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: filament.Boundary{MaxRecords: 1, MaxWait: time.Second}, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
+	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: continuousBoundary(spec.Options), LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}
@@ -75,4 +75,14 @@ func LoadContinuousAttempt(ctx context.Context, store filament.StreamRuntimeStor
 		return filament.RunSpec{}, filament.ErrFenced
 	}
 	return current.Attempt.Spec, nil
+}
+
+// continuousBoundary uses the persisted run override when present. Defaults
+// amortize certification while keeping a one-second read latency bound.
+func continuousBoundary(options filament.RunOptions) filament.Boundary {
+	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second}
+	if options.EpochBoundary != nil {
+		b = *options.EpochBoundary
+	}
+	return b
 }

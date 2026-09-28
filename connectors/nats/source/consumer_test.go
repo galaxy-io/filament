@@ -66,7 +66,7 @@ func TestConsumerProgress(t *testing.T) {
 		{name: "starting floor cannot advance", initial: 4, stream: 6, wantErr: true},
 		{name: "explicit consumer has no bootstrap floor", stream: 4, wantErr: true},
 		{name: "certified acknowledgement", committed: 5, initial: 4, stream: 5, consumer: 1},
-		{name: "resume cannot bootstrap", committed: 3, initial: 4, stream: 4, wantErr: true},
+		{name: "filtered resume at retained input without acknowledgements", committed: 3, initial: 4, stream: 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			info := &jetstream.ConsumerInfo{AckFloor: jetstream.SequenceInfo{Stream: tc.stream, Consumer: tc.consumer}}

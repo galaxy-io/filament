@@ -14,6 +14,8 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
+const managedMaxAckPending = 1000
+
 // consumerBinding describes one physical consumer serving a logical resource.
 // It is fixed for the lifetime of a session; Source owns the shared connection.
 type consumerBinding struct {
@@ -32,12 +34,22 @@ func managedConsumer(attempt filament.AttemptRef, resource, physical string) str
 func (b consumerBinding) ensureConsumer(ctx context.Context, stream jetstream.Stream, committed uint64) (jetstream.Consumer, error) {
 	consumer, err := stream.Consumer(ctx, b.consumer)
 	if err == nil {
+		cfg := consumer.CachedInfo().Config
+		if err := b.validateConsumer(cfg); err != nil {
+			return nil, err
+		}
+		// Upgrade our legacy single-credit consumers without recreating them or
+		// changing their durable position. Explicit user-owned consumers stay intact.
+		if b.managed && cfg.MaxAckPending == 1 {
+			cfg.MaxAckPending = managedMaxAckPending
+			return stream.UpdateConsumer(ctx, cfg)
+		}
 		return consumer, nil
 	}
 	if !b.managed || !errors.Is(err, jetstream.ErrConsumerNotFound) {
 		return nil, err
 	}
-	cfg := jetstream.ConsumerConfig{Durable: b.consumer, Description: "Filament managed " + b.consumer, AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: 1, AckWait: 30 * time.Second, ReplayPolicy: jetstream.ReplayInstantPolicy}
+	cfg := jetstream.ConsumerConfig{Durable: b.consumer, Description: "Filament managed " + b.consumer, AckPolicy: jetstream.AckExplicitPolicy, DeliverPolicy: jetstream.DeliverAllPolicy, MaxAckPending: managedMaxAckPending, AckWait: 30 * time.Second, ReplayPolicy: jetstream.ReplayInstantPolicy}
 	if len(b.filters) == 1 {
 		cfg.FilterSubject = b.filters[0]
 	} else {
@@ -68,6 +80,10 @@ func (b consumerBinding) validateConsumer(c jetstream.ConsumerConfig) error {
 	if c.DeliverPolicy != jetstream.DeliverAllPolicy && c.DeliverPolicy != jetstream.DeliverByStartSequencePolicy {
 		return errors.New("nats: incompatible managed delivery policy")
 	}
+	if c.MaxAckPending != 1 && c.MaxAckPending != managedMaxAckPending {
+		return errors.New("nats: incompatible managed acknowledgement credit")
+	}
+	c.MaxAckPending = 1
 	// Reuse the safety checks without treating intentional filters as gaps.
 	c.FilterSubject = ""
 	c.FilterSubjects = nil
@@ -82,14 +98,14 @@ func validateExistingConsumer(c jetstream.ConsumerConfig, name string) error {
 	return nil
 }
 
-// initialFloor is captured only for managed consumers with no certified progress.
+// initialFloor is captured only for managed consumers with no provider acknowledgements.
 // It is not a checkpoint: any actual acknowledgement ahead of committed still
 // fails, even if retention has since removed the acknowledged message.
 func validateConsumerProgress(info *jetstream.ConsumerInfo, committed, initialFloor uint64) error {
 	if info.AckFloor.Stream <= committed {
 		return nil
 	}
-	if committed == 0 && info.AckFloor.Consumer == 0 && info.AckFloor.Stream <= initialFloor {
+	if info.AckFloor.Consumer == 0 && info.AckFloor.Stream <= initialFloor {
 		return nil
 	}
 	return errors.New("nats: consumer acknowledged beyond certified progress")

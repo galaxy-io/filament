@@ -179,7 +179,17 @@ func validateContinuous(cfg ContinuousConfig) error {
 	if _, _, err := filament.PlanContinuousRun(cfg.Source, cfg.Sink, spec); err != nil {
 		return err
 	}
-	if len(spec.Resources) == 0 || cfg.MaxEpochs < 0 || cfg.Store == nil || cfg.Codecs == nil || cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour || cfg.DrainTimeout <= 0 || cfg.Boundary.MaxWait <= 0 || cfg.Boundary.MaxRecords <= 0 {
+	switch {
+	case len(spec.Resources) == 0,
+		cfg.Store == nil,
+		cfg.Codecs == nil,
+		cfg.MaxEpochs < 0,
+		cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour,
+		cfg.DrainTimeout <= 0,
+		cfg.Boundary.MaxWait <= 0,
+		cfg.Boundary.MaxRecords <= 0,
+		cfg.Boundary.MaxBytes < 0,
+		cfg.Boundary.MaxAge < 0:
 		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
 	}
 	for _, r := range spec.Resources {
