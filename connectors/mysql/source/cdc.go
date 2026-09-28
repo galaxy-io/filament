@@ -242,6 +242,8 @@ func (r *cdcRun) pushRowsEvent(ctx context.Context, s *Source, typ replication.E
 // this run. The callback lets each mode keep a resource's mark at or above its
 // own floor.
 func (r *cdcRun) pushStreamMarks(ctx context.Context, s *Source, cursor func(resource string) (string, error)) error {
+	// The final position must outrank every row even when checkpoint folds arrive out of order.
+	r.seq++
 	for _, resource := range r.resources {
 		t, err := r.table(ctx, s, resource, -1)
 		if err != nil {

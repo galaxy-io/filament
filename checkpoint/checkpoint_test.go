@@ -8,6 +8,29 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
+func TestMergeStream(t *testing.T) {
+	row := NewStreamDelta("orders", "0/1D753D8", 3)
+	mark := NewStreamDelta("orders", "0/1D75498", 4)
+	for _, tt := range []struct {
+		name              string
+		base, delta, want filament.Checkpoint
+	}{
+		{"initial", nil, row, row},
+		{"newer marker", row, mark, mark},
+		{"late row", mark, row, mark},
+		{"tie keeps delta", row, NewStreamDelta("orders", "opaque", 3), NewStreamDelta("orders", "opaque", 3)},
+		{"nil delta", row, nil, row},
+		{"invalid delta", row, NewShardDelta("orders", 0, nil), row},
+		{"non-stream base", NewShardDelta("orders", 0, nil), row, row},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MergeStream(tt.base, tt.delta); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("MergeStream = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestKeysetCheckpointRoundTrip checks the keyset cursor survives both an in-process
 // pass and a JSON round-trip, since ParseKeyset must tolerate both []string and []any encodings.
 func TestKeysetCheckpointRoundTrip(t *testing.T) {
