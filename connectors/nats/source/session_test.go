@@ -21,6 +21,9 @@ type testSink struct{ filament.Sink }
 
 func (*testSink) Spec() filament.SinkSpec { return filament.SinkSpec{} }
 func (*testSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if len(b.Rows().Schema().FieldIndices("event_id")) != 1 || len(b.Rows().Schema().FieldIndices("_filament_event_id")) != 1 || len(b.Rows().Schema().FieldIndices("_filament_payload")) != 0 {
+		return filament.WriteReceipt{}, errors.New("NATS JSON payload was not projected into source-owned columns")
+	}
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
 
@@ -87,7 +90,7 @@ func testSession(t *testing.T, failControl bool) {
 	if err != nil || len(coverage.Positions) != 0 {
 		t.Fatalf("idle: %+v %v", coverage, err)
 	}
-	if _, err := js.Publish(ctx, name, []byte("event")); err != nil {
+	if _, err := js.Publish(ctx, name, []byte(`{"event_id":"source-event","value":42}`)); err != nil {
 		t.Fatal(err)
 	}
 	if failControl {
@@ -176,7 +179,7 @@ func TestManagedSessionRetainedStartingFloor(t *testing.T) {
 	}
 	defer func() { _ = js.DeleteStream(context.Background(), name) }()
 	for i := 0; i < 5; i++ {
-		if _, err := js.Publish(ctx, name, []byte("event")); err != nil {
+		if _, err := js.Publish(ctx, name, []byte(`{"event_id":"source-event","value":42}`)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -253,5 +256,68 @@ func TestManagedSessionRetainedStartingFloor(t *testing.T) {
 	defer resumed.Close(ctx)
 	if err := resumed.authority(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestJSONColumnsSharedAcrossPhysicalStreams(t *testing.T) {
+	url := os.Getenv("FILAMENT_TEST_NATS_URL")
+	if url == "" {
+		t.Skip("set FILAMENT_TEST_NATS_URL")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	nc, err := nats.Connect(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nc.Close()
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := "json_" + uuid.NewString()[:8]
+	for _, suffix := range []string{"a", "b"} {
+		name := prefix + suffix
+		if _, err := js.CreateStream(ctx, jetstream.StreamConfig{Name: name, Subjects: []string{prefix + "." + suffix}}); err != nil {
+			t.Fatal(err)
+		}
+		defer js.DeleteStream(context.Background(), name)
+		if _, err := js.Publish(ctx, prefix+"."+suffix, []byte(`{"event_id":"source-event","value":42}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"url": url})); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(ctx)
+	resource := prefix + ".>"
+	opened, err := src.OpenStream(ctx, filament.StreamOpenOpts{SourceConnectionID: "source", Resources: []string{resource}, CheckAuthority: func(context.Context) error { return nil }, Attempt: filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer opened.Close(ctx)
+	p, err := pipeline.NewStream(pipeline.Config{Sink: &testSink{}, WritePolicies: map[string]filament.WritePolicy{resource: {Capability: filament.WriteCapabilities(filament.IngestionFullAppend)[0]}}}, filament.OrderingNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Start(ctx)
+	defer func() {
+		p.CloseIngest(nil)
+		if err := p.Wait(); err != nil {
+			t.Error(err)
+		}
+	}()
+	for range 2 {
+		coverage, err := opened.Read(ctx, p.Records().(filament.StreamRecordSink), filament.Boundary{MaxRecords: 1, MaxWait: time.Second})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(coverage.Positions) != 1 {
+			t.Fatalf("missing message coverage: %+v", coverage)
+		}
+		if err := opened.Acknowledge(ctx, coverage); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

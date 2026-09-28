@@ -15,9 +15,12 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
-func TestNativeEpochCommitAbortAndBoundedReplace(t *testing.T)     { nativeEpochScenario(t, false) }
-func TestNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) { nativeEpochScenario(t, true) }
-func nativeEpochScenario(t *testing.T, failSecond bool) {
+func TestNativeEpochCommitAbortAndBoundedReplace(t *testing.T) { nativeEpochScenario(t, false, false) }
+func TestNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) {
+	nativeEpochScenario(t, true, false)
+}
+func TestNativeEpochInferredColumns(t *testing.T) { nativeEpochScenario(t, false, true) }
+func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 	dsn := os.Getenv("FILAMENT_TEST_POSTGRES_DSN")
 	if dsn == "" {
 		t.Skip("set FILAMENT_TEST_POSTGRES_DSN")
@@ -48,7 +51,15 @@ func nativeEpochScenario(t *testing.T, failSecond bool) {
 	if err := sink.EnsureSchema(ctx, "events", fields); err != nil {
 		t.Fatal(err)
 	}
-	p, err := pipeline.NewStream(pipeline.Config{Sink: sink, WritePolicies: spec.WritePolicies}, filament.OrderingNone)
+	if inferred {
+		fields.Fields = append(fields.Fields, rowmodel.Field{Name: "amount", Logical: rowmodel.LogicalJSON, Nullable: true})
+	}
+	p, err := pipeline.NewStream(pipeline.Config{Sink: sink, WritePolicies: spec.WritePolicies, PrepareSchema: func(ctx context.Context, resource string, actual rowmodel.Schema) error {
+		if !inferred {
+			return nil
+		}
+		return sink.EnsureSchema(ctx, resource, actual)
+	}}, filament.OrderingNone)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,6 +92,9 @@ func nativeEpochScenario(t *testing.T, failSecond bool) {
 			t.Fatal(err)
 		}
 		writer.String("value")
+		if inferred {
+			writer.String("9007199254740993")
+		}
 		if err := writer.EndRow(rowmodel.Meta{}); err != nil {
 			t.Fatal(err)
 		}
@@ -104,7 +118,9 @@ func nativeEpochScenario(t *testing.T, failSecond bool) {
 			t.Fatal(err)
 		}
 		if epoch == 1 {
-			count(0)
+			if !inferred {
+				count(0)
+			}
 			r, err := sink.CommitEpoch(ctx, ref)
 			if err != nil || len(r) != 1 || r[0].Rows != 1 {
 				t.Fatalf("receipts %+v: %v", r, err)
@@ -114,11 +130,33 @@ func nativeEpochScenario(t *testing.T, failSecond bool) {
 			}
 		} else {
 			count(1)
+			if inferred {
+				changed := fields.Clone()
+				changed.Fields = append(changed.Fields, rowmodel.Field{Name: "aborted_field", Logical: rowmodel.LogicalString, Nullable: true})
+				if err := sink.EnsureSchema(ctx, "events", changed); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if err := sink.AbortEpoch(ctx, ref); err != nil {
 				t.Fatal(err)
 			}
 		}
 		count(1)
+		if inferred && epoch == 2 {
+			if len(sink.tables["events"].types) != len(fields.Fields) {
+				t.Fatal("aborted schema remained in COPY cache")
+			}
+			var n int
+			if err := conn.QueryRow(ctx, "SELECT count(*) FROM information_schema.columns WHERE table_schema=$1 AND table_name='events' AND column_name='aborted_field'", schema).Scan(&n); err != nil || n != 0 {
+				t.Fatalf("aborted column survived: %d %v", n, err)
+			}
+		}
+		if inferred {
+			var amount string
+			if err := conn.QueryRow(ctx, "SELECT amount::text FROM "+pgx.Identifier{schema, "events"}.Sanitize()).Scan(&amount); err != nil || amount != "9007199254740993" {
+				t.Fatalf("inferred amount %s: %v", amount, err)
+			}
+		}
 	}
 	if err := sink.Commit(ctx); !errors.Is(err, filament.ErrEpochMismatch) {
 		t.Fatal("bounded lifecycle accepted stream", err)

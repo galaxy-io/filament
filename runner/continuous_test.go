@@ -504,3 +504,42 @@ func TestContinuousPassesSourceConnectionIdentity(t *testing.T) {
 		t.Fatalf("stream connection ID = %q", src.sourceConnectionID)
 	}
 }
+
+// A discovery schema can contain only transport fields; the first source batch
+// supplies the inferred payload columns. Ensure those reach the sink before Apply.
+type inferredSchemaSink struct {
+	*continuousTestSink
+	ensured rowmodel.Schema
+	calls   int
+	reject  bool
+}
+
+func (s *inferredSchemaSink) EnsureSchema(_ context.Context, _ string, schema rowmodel.Schema) error {
+	s.calls++
+	if s.reject && len(schema.Fields) > 0 {
+		return errors.New("inferred schema rejected")
+	}
+	s.ensured = schema.Clone()
+	return nil
+}
+func (s *inferredSchemaSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	if !arrowbatch.Schema(s.ensured).Equal(b.Rows().Schema()) {
+		return filament.WriteReceipt{}, errors.New("Apply called before actual schema was ensured")
+	}
+	return s.continuousTestSink.Apply(ctx, b, opts)
+}
+func TestContinuousEnsuresInferredSchemaBeforeApply(t *testing.T) {
+	for _, reject := range []bool{false, true} {
+		cfg, store, src, sink := continuousFixture(t)
+		typed := &inferredSchemaSink{continuousTestSink: sink, reject: reject}
+		cfg.Sink = typed
+		err := RunContinuous(t.Context(), cfg)
+		if reject {
+			if err == nil || sink.commits != 0 || src.ack != 0 || store.cert != nil {
+				t.Fatalf("schema failure advanced progress: %v", err)
+			}
+		} else if err != nil || typed.calls != 2 || sink.commits != 2 {
+			t.Fatalf("schema preparation calls=%d commits=%d: %v", typed.calls, sink.commits, err)
+		}
+	}
+}
