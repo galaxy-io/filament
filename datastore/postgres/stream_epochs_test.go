@@ -207,6 +207,10 @@ func TestRuntimeEpochRollbackAfterCertificateInsert(t *testing.T) {
 	if _, err := f.store.GetEpoch(ctx, filament.EpochLookup{Tenant: tenantA, Key: req.Certificate.Ref.Key()}); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatalf("partial certificate survived: %v", err)
 	}
+	records, nbytes, last, err := f.store.StreamProgress(ctx, tenantA, f.request.Run)
+	if err != nil || records != 0 || nbytes != 0 || !last.IsZero() {
+		t.Fatalf("rolled back epoch affected totals: %d/%d %s: %v", records, nbytes, last, err)
+	}
 	state, err := f.store.LoadStreamState(ctx, f.activation.StreamStateRequest)
 	if err != nil || state.LastEpoch != nil || len(state.CommittedPositions) != 0 {
 		t.Fatalf("partial progress: %+v %v", state, err)
