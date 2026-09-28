@@ -6,3 +6,5 @@ ui/src/gen/**                 linguist-generated=true
 ui/src/assets/components/**   linguist-generated=true
 sdks/python/src/filament/**   linguist-generated=true
 sdks/python/README.md         linguist-generated=false
+sdks/python/src/filament/CONTRIBUTING.md linguist-generated=false
+sdks/python/src/filament/.fernignore linguist-generated=false
