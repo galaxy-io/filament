@@ -7,6 +7,8 @@ package sqlcgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const advanceStreamEpoch = `-- name: AdvanceStreamEpoch :execrows
@@ -34,8 +36,21 @@ func (q *Queries) AdvanceStreamEpoch(ctx context.Context, arg AdvanceStreamEpoch
 }
 
 const createStreamEpoch = `-- name: CreateStreamEpoch :one
-INSERT INTO stream_epochs(stream_id,tenant_id,epoch,attempt_token,certificate,positions)
-VALUES($1,$2,$3,$4,$5,$6) RETURNING stream_id, tenant_id, epoch, attempt_token, certificate, positions, committed_at
+WITH inserted AS (
+ INSERT INTO stream_epochs(stream_id,tenant_id,epoch,attempt_token,certificate,positions)
+ VALUES($1,$2,$3,$4,$5,$6)
+ RETURNING stream_id, tenant_id, epoch, attempt_token, certificate, positions, committed_at
+), progress AS (
+ UPDATE runs SET
+  records=runs.records+$7::bigint,
+  bytes=runs.bytes+$8::bigint,
+  last_committed_at=inserted.committed_at,
+  updated_at=inserted.committed_at
+ FROM inserted
+ WHERE runs.tenant_id=inserted.tenant_id AND runs.id=$9::uuid
+ RETURNING runs.id
+)
+SELECT inserted.stream_id, inserted.tenant_id, inserted.epoch, inserted.attempt_token, inserted.certificate, inserted.positions, inserted.committed_at FROM inserted CROSS JOIN progress
 `
 
 type CreateStreamEpochParams struct {
@@ -45,9 +60,22 @@ type CreateStreamEpochParams struct {
 	AttemptToken int64
 	Certificate  []byte
 	Positions    []byte
+	Records      int64
+	Bytes        int64
+	RunID        string
 }
 
-func (q *Queries) CreateStreamEpoch(ctx context.Context, arg CreateStreamEpochParams) (*StreamEpoch, error) {
+type CreateStreamEpochRow struct {
+	StreamID     string
+	TenantID     string
+	Epoch        int64
+	AttemptToken int64
+	Certificate  []byte
+	Positions    []byte
+	CommittedAt  pgtype.Timestamptz
+}
+
+func (q *Queries) CreateStreamEpoch(ctx context.Context, arg CreateStreamEpochParams) (*CreateStreamEpochRow, error) {
 	row := q.db.QueryRow(ctx, createStreamEpoch,
 		arg.StreamID,
 		arg.TenantID,
@@ -55,8 +83,11 @@ func (q *Queries) CreateStreamEpoch(ctx context.Context, arg CreateStreamEpochPa
 		arg.AttemptToken,
 		arg.Certificate,
 		arg.Positions,
+		arg.Records,
+		arg.Bytes,
+		arg.RunID,
 	)
-	var i StreamEpoch
+	var i CreateStreamEpochRow
 	err := row.Scan(
 		&i.StreamID,
 		&i.TenantID,

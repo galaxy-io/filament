@@ -2,6 +2,8 @@
 ALTER TABLE pipelines ADD COLUMN execution_mode INTEGER NOT NULL DEFAULT 1 CHECK (execution_mode IN (1, 2));
 
 ALTER TABLE runs ADD CONSTRAINT runs_id_tenant_unique UNIQUE (id, tenant_id);
+-- Continuous counters use runs.records/bytes; only epoch commits own this stamp.
+ALTER TABLE runs ADD COLUMN last_committed_at TIMESTAMPTZ;
 ALTER TABLE replication_streams ADD COLUMN membership_revision BIGINT NOT NULL DEFAULT 1 CHECK (membership_revision > 0);
 
 -- Existing bounded replication streams have no continuous execution intent.
@@ -73,5 +75,6 @@ ALTER TABLE replication_streams
  DROP COLUMN current_run_id,
  DROP COLUMN membership_revision;
 
+ALTER TABLE runs DROP COLUMN last_committed_at;
 ALTER TABLE runs DROP CONSTRAINT runs_id_tenant_unique;
 ALTER TABLE pipelines DROP COLUMN execution_mode;

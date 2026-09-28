@@ -250,6 +250,7 @@ type Run struct {
 	DeletedByUserID   pgtype.Text
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
+	LastCommittedAt   pgtype.Timestamptz
 }
 
 type RunDedupSeen struct {
