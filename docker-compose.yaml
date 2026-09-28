@@ -38,7 +38,7 @@ services:
 
   zitadel:
     image: ${ZITADEL_IMAGE:-ghcr.io/zitadel/zitadel:v4.17.0}
-    profiles: ["auth"]
+    profiles: ["zitadel"]
     command: ["start-from-init", "--masterkey", "MasterkeyNeedsToHave32Characters", "--tlsMode", "disabled"]
     networks:
       - filament
@@ -78,9 +78,34 @@ services:
       postgres:
         condition: service_healthy
 
+  keycloak:
+    image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.4}
+    profiles: ["keycloak"]
+    # Dev mode with its file-backed database, kept in the volume. The server
+    # creates filament's realm on boot with the admin credentials below.
+    command: ["start-dev"]
+    networks:
+      - filament
+    ports:
+      - "8400:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      # The whole data directory, so the volume inherits the image's ownership.
+      - keycloak-data:/opt/keycloak/data
+    healthcheck:
+      # The image ships no curl; bash reaches the management port directly.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
 networks:
   filament:
 
 volumes:
   postgres-data:
   nats-data:
+  keycloak-data:

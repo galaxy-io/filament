@@ -115,12 +115,13 @@ its own Job and resource configuration.
 
 ## Vendored dependencies
 
-The chart includes optional PostgreSQL, NATS, and Zitadel subcharts. All three
-are disabled by default:
+The chart includes optional PostgreSQL, NATS, Zitadel, and Keycloak subcharts.
+All four are disabled by default:
 
 - Bitnami PostgreSQL with an 8Gi PVC and optional daily `pg_dumpall` backups
 - NATS with JetStream and a 10Gi file store
 - Zitadel for authentication
+- Keycloak (codecentric keycloakx) for authentication, sharing the vendored PostgreSQL
 
 <Warning>
 Use the vendored subcharts for local and test clusters. For production, use
@@ -132,10 +133,23 @@ Authentication is disabled by default. Set `auth.enabled: true`,
 instance also requires `auth.zitadel.pat` or an `AUTH_PAT` entry in
 `existingSecret`. The vendored Zitadel setup mints its own token.
 
+Keycloak reads `AUTH_CLIENT_SECRET` and `AUTH_BOOTSTRAP_CLIENT_SECRET` from
+`existingSecret` the same way. The vendored Keycloak keeps its own admin
+credentials in the `filament-keycloak` Secret the chart generates.
+
 <Note>
 Do not use `--wait` when enabling the vendored Zitadel chart. Its setup Jobs
 must mint the server token before the server can become ready.
 </Note>
+
+Set `auth.type: keycloak` to use Keycloak. An external realm requires
+`auth.keycloak.issuer` and `auth.keycloak.clientSecret`. The vendored Keycloak
+needs only `keycloak.hostname`, which must resolve from inside the cluster
+as well as outside: the chart derives the issuer from it, generates
+the client secret and admin password once, and the server creates the realm
+and client on boot. Setting
+`auth.keycloak.bootstrap.tenant`, `clientId`, and `clientSecret` gives an SDK
+an admin service account before anyone has registered.
 
 ## Chart reference
 
