@@ -72,14 +72,12 @@ app.kubernetes.io/component: worker
 {{- end -}}
 
 
-{{/* User's existingSecret, else the chart-created Secret. Fixed like the
-     vendored components' names, so a subchart can name it too. */}}
+{{/* User's existingSecret, else the chart's own Secret. */}}
 {{- define "filament.secretName" -}}
 {{- .Values.existingSecret | default "filament-secret" -}}
 {{- end -}}
 
-{{/* A value generated on first install and kept from the chart Secret on
-     every upgrade, so the vendored Keycloak needs no secrets typed in. */}}
+{{/* Generated on first install, read back from the Secret on upgrades. */}}
 {{- define "filament.generated" -}}
 {{- $existing := lookup "v1" "Secret" (include "filament.namespace" .context) (include "filament.secretName" .context) -}}
 {{- if and $existing (hasKey $existing.data .key) -}}
@@ -89,8 +87,7 @@ app.kubernetes.io/component: worker
 {{- end -}}
 {{- end -}}
 
-{{/* The Keycloak issuer: as configured, or derived from the vendored chart's
-     hostname, which is also what Keycloak advertises. */}}
+{{/* Configured issuer, else the vendored Keycloak's. */}}
 {{- define "filament.auth.keycloak.issuer" -}}
 {{- if .Values.auth.keycloak.issuer -}}
 {{- .Values.auth.keycloak.issuer -}}

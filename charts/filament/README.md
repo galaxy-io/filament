@@ -69,7 +69,7 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
-| existingSecret | string | `""` | Name of an existing Secret containing `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY` when using the PostgreSQL-backed secret provider, and when auth is enabled `AUTH_PAT` for Zitadel, or `AUTH_CLIENT_SECRET`, `AUTH_ADMIN_PASSWORD`, and `AUTH_BOOTSTRAP_CLIENT_SECRET` for Keycloak. When set, the chart does not create its own Secret, `filament-secret`, and the vendored Keycloak needs `keycloak.existingSecret` set to the same name. |
+| existingSecret | string | `""` | Existing Secret with the server's secret values: `PERSISTENCE_DSN`, `NATS_URL`, `ENCRYPTION_KEY`, and the `AUTH_*` secrets of the provider in use. When set, the chart creates no Secret; point `keycloak.existingSecret` at the same one when vendoring Keycloak. |
 
 ## Server parameters
 
@@ -175,14 +175,14 @@ helm upgrade --install filament \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
-| auth.keycloak.adminPassword | string | `""` | That admin's password, stored in the chart-created Secret as `AUTH_ADMIN_PASSWORD`. Generated once when `keycloak.enabled=true`. |
-| auth.keycloak.adminUser | string | `""` | Keycloak admin on the master realm, stored in the ConfigMap as `AUTH_ADMIN_USERNAME`. With `adminPassword` the server creates the realm and client on boot; empty against a realm its owners provision. The vendored Keycloak supplies its own. |
-| auth.keycloak.bootstrap.clientId | string | `""` | Client id of that tenant's admin service account, stored in the ConfigMap as `AUTH_BOOTSTRAP_CLIENT_ID`. |
-| auth.keycloak.bootstrap.clientSecret | string | `""` | Secret the service account authenticates with, chosen by you and stored in the chart-created Secret as `AUTH_BOOTSTRAP_CLIENT_SECRET`. |
-| auth.keycloak.bootstrap.tenant | string | `""` | Tenant Filament converges on every boot, stored in the ConfigMap as `AUTH_BOOTSTRAP_TENANT`. With `clientId` and `clientSecret` it gives an SDK an admin service account before any person has registered. Leave all three empty to skip. |
-| auth.keycloak.clientId | string | `"filament"` | Filament's confidential client in the realm, stored in the ConfigMap as `AUTH_CLIENT_ID`. Filament converges the realm on boot; with admin credentials it creates the realm and this client too. |
-| auth.keycloak.clientSecret | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | The client's secret, stored in the chart-created Secret as `AUTH_CLIENT_SECRET`. Generated once and kept across upgrades when `keycloak.enabled=true`. |
-| auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL Filament reaches Keycloak at, stored in the ConfigMap as `AUTH_ISSUER`, in the form `https://<host>/realms/<realm>`. It must equal the issuer the realm advertises or discovery fails. Keycloak 26 or newer. Derived from `keycloak.hostname` when `keycloak.enabled=true`. |
+| auth.keycloak.adminPassword | string | `""` | That admin's password, stored as `AUTH_ADMIN_PASSWORD`. |
+| auth.keycloak.adminUser | string | `""` | Master-realm admin, stored as `AUTH_ADMIN_USERNAME`. With `adminPassword` the server creates the realm and client on boot. Not needed when vendored. |
+| auth.keycloak.bootstrap.clientId | string | `""` | The service account's client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`. |
+| auth.keycloak.bootstrap.clientSecret | string | `""` | Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`. |
+| auth.keycloak.bootstrap.tenant | string | `""` | Tenant created on boot with an admin service account, so an SDK works before anyone registers. Stored as `AUTH_BOOTSTRAP_TENANT`. Set all three or none. |
+| auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
+| auth.keycloak.clientSecret | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | The client's secret, stored as `AUTH_CLIENT_SECRET`. Generated when vendored. |
+| auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |
 | auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel` and `keycloak`. |
 | auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
 | auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |
@@ -206,7 +206,7 @@ helm upgrade --install filament \
 | postgresql.backup.enabled | bool | `false` | Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for schedule and storage options. |
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
-| postgresql.primary.initdb.scripts | object | `{"keycloak.sql":"CREATE DATABASE keycloak OWNER filament;\n"}` | SQL run once, when the volume is first initialized. Creates the database the vendored Keycloak owns; Keycloak cannot create its own. |
+| postgresql.primary.initdb.scripts | object | `{"keycloak.sql":"CREATE DATABASE keycloak OWNER filament;\n"}` | Runs once at first init. Creates the vendored Keycloak's database. |
 | postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
 | postgresql.primary.readinessProbe.failureThreshold | int | `2` |  |
 | postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |
