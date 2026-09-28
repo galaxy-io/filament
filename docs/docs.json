@@ -129,6 +129,13 @@
         ]
       },
       {
+        "group": "SDKs",
+        "pages": [
+          "pages/guides/sdks/python",
+          "pages/guides/sdks/typescript"
+        ]
+      },
+      {
         "group": "Connectors",
         "pages": [
           "pages/connectors/overview/introduction",

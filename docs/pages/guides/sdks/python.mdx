@@ -1,25 +1,25 @@
-# Filament Python SDK
+---
+title: "Python SDK"
+description: "Create connections, discover resources, build pipelines, and run them from Python"
+---
 
-Create connections, discover resources, build pipelines, and run them from Python.
-
-- **Package:** `filament-py`
-- **Import:** `from filament import Filament`
-- **Python:** 3.10+
-- **Clients:** synchronous `Filament` and asynchronous `AsyncFilament`
+`filament-py` is the generated Python client for Filament's API. It ships a
+synchronous `Filament` client and an asynchronous `AsyncFilament` client with the
+same methods, and requires Python 3.10 or newer.
 
 ## Installation
 
-Install [filament-py from PyPI](https://pypi.org/project/filament-py/) with uv:
+Install [filament-py from PyPI](https://pypi.org/project/filament-py/):
 
-~~~sh
+```sh
 uv add filament-py
-~~~
+```
 
 For an existing virtual environment, use `uv pip install filament-py`.
 
-## Connect to Filament
+## Connect
 
-~~~python
+```python
 import os
 
 from filament import Filament
@@ -31,18 +31,15 @@ filament = Filament(
 
 for connector in filament.connector.list().connectors or []:
     print(connector.name)
-~~~
+```
 
-For a local server with authentication disabled, omit `token`. Otherwise see
-[Authentication](#authentication) for where the token comes from.
-
-You can configure request timeouts with `Filament(..., timeout=30)`; the value is
-in seconds. The SDK creates its HTTP client and supplies protocol headers.
+For a local server with authentication disabled, omit `token`. Request timeouts
+are set with `Filament(..., timeout=30)`, in seconds.
 
 ## Authentication
 
 When the server runs with an identity provider, the SDK authenticates as a
-**service account**. Create one on the Members page of the UI, or with
+service account. Create one on the Members page of the web app, or with
 `filament.service_account.create(...)` while signed in as an admin. Both return a
 client id and a client secret; the secret is shown once.
 
@@ -51,20 +48,19 @@ long-running programs pass a callable that returns a current token instead.
 
 ## Create and run a pipeline
 
-A **connector** is an available integration, such as `sample` or `stdout`.
-A **connection** is a configured instance you create using that connector.
-
-The workflow is:
+A connector is an available integration, such as `sample` or `stdout`. A
+connection is a configured instance you create using that connector. The
+workflow is:
 
 1. Create source and sink connections.
 2. Discover the source's resources and select which ones to include.
 3. Create a pipeline and save its graph.
 4. Submit a run.
 
-This complete example routes five rows from each selected sample resource to
-stdout. It requires a running Filament deployment with a working execution backend.
+This example routes five rows from each selected sample resource to stdout. It
+requires a running Filament deployment with a working execution backend.
 
-~~~python
+```python
 import os
 from uuid import uuid4
 
@@ -135,34 +131,27 @@ submitted = filament.pipeline.run(pipeline_id=pipeline.id)
 print("Pipeline:", pipeline.id)
 for edge_run in submitted.edge_runs or []:
     print("Run:", edge_run.run.id, edge_run.run.status)
-~~~
+```
 
-`pipeline.create(...)` creates the pipeline's metadata.
-`pipeline.version.create(...)` saves its graph; the backend assigns the version
-automatically. Both steps are required before the first run.
+`pipeline.create(...)` creates the pipeline's metadata and
+`pipeline.version.create(...)` saves its graph; the backend assigns the version.
+Both steps are required before the first run.
 
-The sample source discovers `users` and `orders`. To route all resources without
-enumerating them, save one edge with `resource` omitted. You still supply the source
-and sink nodes.
+The sample source discovers `users` and `orders`. To route every resource
+without enumerating them, save one edge with `resource` omitted.
 
-Submitting a run returns its ID and initial status. It does not wait for completion.
-Inspect a run with `filament.run.get(run_id=run_id)`, or open the pipeline in the UI.
-The stdout sink writes rows to the worker's logs. The example leaves its connections,
-pipeline, and run available for inspection.
+Submitting a run returns its id and initial status without waiting for
+completion. Inspect a run with `filament.run.get(run_id=run_id)`, or open the
+pipeline in the web app. The stdout sink writes rows to the worker's logs.
 
 The runnable version lives in
 [examples/smoke.py](https://github.com/galaxy-io/filament/blob/main/sdks/python/examples/smoke.py).
-From the repository root:
-
-~~~sh
-uv run --project sdks/python sdks/python/examples/smoke.py
-~~~
 
 ## Async usage
 
-The async client exposes the same resource groups and methods.
+`AsyncFilament` exposes the same resource groups and methods.
 
-~~~python
+```python
 import asyncio
 import os
 
@@ -178,7 +167,7 @@ async def main():
         print(pipeline.id, pipeline.name)
 
 asyncio.run(main())
-~~~
+```
 
 ## API groups
 
@@ -200,31 +189,31 @@ The SDK covers unary API methods. Streaming `TailRun` is not included.
 
 ## Responses and pagination
 
-Methods return generated models. For example, `pipeline.create(...)` returns a
-response whose `pipeline` property holds the created pipeline.
+Methods return generated models. `pipeline.create(...)` returns a response whose
+`pipeline` property holds the created pipeline.
 
-Fields omitted by the server can be `None`, including lists. Use
-`response.pipelines or []` when iterating. Protobuf 64-bit integer fields, such as
-timestamps and record counts, can be decimal strings; use `int(value)` when needed.
+Fields omitted by the server are `None`, including lists, so iterate with
+`response.pipelines or []`. Protobuf 64-bit integer fields, such as timestamps and
+record counts, can be decimal strings; use `int(value)` when needed.
 
-List methods expose explicit pagination:
+List methods paginate explicitly:
 
-~~~python
+```python
 from filament import IngestionV1PaginationRequest
 
 page = filament.pipeline.list(
     pagination=IngestionV1PaginationRequest(page_size=25),
 )
 next_cursor = page.pagination.next_cursor if page.pagination else None
-~~~
+```
 
 Pass `next_cursor` as `IngestionV1PaginationRequest(cursor=next_cursor, page_size=25)`
-to fetch the next page when a cursor is present. Omitting pagination returns the
+to fetch the next page while a cursor is present. Omitting pagination returns the
 full result set.
 
 ## Errors and retries
 
-~~~python
+```python
 from filament.core.api_error import ApiError
 
 try:
@@ -232,34 +221,8 @@ try:
 except ApiError as error:
     print(error.status_code)  # e.g. 404
     print(error.body)         # Connect error code, message, and optional details
-~~~
+```
 
 Automatic retries are disabled because mutations are not generally idempotent.
-For a read you want to retry, use
-`filament.pipeline.list(request_options={"max_retries": 2})`.
-
-## Development
-
-The client and models are generated by Fern from the protobuf-derived OpenAPI
-specification. Configure names and generation in `fern/`; do not edit
-`sdks/python/src/filament/` directly. This README and the package metadata are
-maintained separately and preserved across regeneration.
-
-From the repository root:
-
-~~~sh
-# Regenerate the OpenAPI specification and SDK (requires Buf and Fern login).
-just sdks
-
-# Install the SDK and run interoperability tests against an ephemeral Go server.
-uv sync --project sdks/python
-FILAMENT_SDK_PYTHON="$PWD/sdks/python/.venv/bin/python" GOWORK=off \
-  go test ./sdks/python/tests -run TestPythonSDK -count=1
-
-# Build the wheel and source distribution.
-uv build --no-sources --project sdks/python
-~~~
-
-## License
-
-Apache-2.0.
+For a read you want retried, pass
+`request_options={"max_retries": 2}` on the call.

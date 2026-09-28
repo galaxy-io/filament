@@ -1,21 +1,21 @@
-# Filament TypeScript SDK
+---
+title: "TypeScript SDK"
+description: "Create connections, discover resources, build pipelines, and run them from TypeScript or JavaScript"
+---
 
-Create connections, discover resources, build pipelines, and run them from TypeScript or JavaScript.
-
-- **Package:** `@galaxy-io/filament-ts`
-- **Import:** `import { FilamentClient } from "@galaxy-io/filament-ts"`
-- **Node:** 18+, or any runtime with `fetch`
-- **Module format:** ES modules with bundled type declarations
+`@galaxy-io/filament-ts` is the generated TypeScript client for Filament's API.
+It ships as ES modules with type declarations, has no runtime dependencies, and
+runs on Node 18 or newer or any runtime with `fetch`.
 
 ## Installation
 
-~~~sh
+```sh
 npm install @galaxy-io/filament-ts
-~~~
+```
 
-## Connect to Filament
+## Connect
 
-~~~ts
+```ts
 import { FilamentClient } from "@galaxy-io/filament-ts";
 
 const filament = new FilamentClient({
@@ -27,19 +27,16 @@ const { connectors } = await filament.connector.list({});
 for (const connector of connectors ?? []) {
   console.log(connector.name);
 }
-~~~
+```
 
-For a local server with authentication disabled, omit `token`. Otherwise see
-[Authentication](#authentication) for where the token comes from.
-
-Request timeouts are set with `timeoutInSeconds`, and retries with `maxRetries`,
-either on the client or per call. The client retries twice by default; pass
-`maxRetries: 0` on calls that must not repeat.
+For a local server with authentication disabled, omit `token`. Request timeouts
+are set with `timeoutInSeconds` and retries with `maxRetries`, on the client or
+per call.
 
 ## Authentication
 
 When the server runs with an identity provider, the SDK authenticates as a
-**service account**. Create one on the Members page of the UI, or with
+service account. Create one on the Members page of the web app, or with
 `filament.serviceAccount.create(...)` while signed in as an admin. Both return a
 client id and a client secret; the secret is shown once.
 
@@ -48,20 +45,19 @@ long-running programs pass an async function that returns a current token instea
 
 ## Create and run a pipeline
 
-A **connector** is an available integration, such as `sample` or `stdout`.
-A **connection** is a configured instance you create using that connector.
-
-The workflow is:
+A connector is an available integration, such as `sample` or `stdout`. A
+connection is a configured instance you create using that connector. The
+workflow is:
 
 1. Create source and sink connections.
 2. Discover the source's resources and select which ones to include.
 3. Create a pipeline and save its graph.
 4. Submit a run.
 
-This complete example routes five rows from each selected sample resource to
-stdout. It requires a running Filament deployment with a working execution backend.
+This example routes five rows from each selected sample resource to stdout. It
+requires a running Filament deployment with a working execution backend.
 
-~~~ts
+```ts
 import { randomUUID } from "node:crypto";
 import { FilamentClient } from "@galaxy-io/filament-ts";
 
@@ -123,19 +119,18 @@ console.log("Pipeline:", pipeline!.id);
 for (const edgeRun of submitted.edgeRuns ?? []) {
   console.log("Run:", edgeRun.run?.id, edgeRun.run?.status);
 }
-~~~
+```
 
-`pipeline.create(...)` creates the pipeline's metadata.
-`pipeline.version.create(...)` saves its graph; the backend assigns the version
-automatically. Both steps are required before the first run.
+`pipeline.create(...)` creates the pipeline's metadata and
+`pipeline.version.create(...)` saves its graph; the backend assigns the version.
+Both steps are required before the first run.
 
-The sample source discovers `users` and `orders`. To route all resources without
-enumerating them, save one edge with `resource` omitted. You still supply the source
-and sink nodes.
+The sample source discovers `users` and `orders`. To route every resource
+without enumerating them, save one edge with `resource` omitted.
 
-Submitting a run returns its ID and initial status. It does not wait for completion.
-Inspect a run with `filament.run.get({ runId })`, or open the pipeline in the UI.
-The stdout sink writes rows to the worker's logs.
+Submitting a run returns its id and initial status without waiting for
+completion. Inspect a run with `filament.run.get({ runId })`, or open the
+pipeline in the web app. The stdout sink writes rows to the worker's logs.
 
 ## API groups
 
@@ -155,24 +150,45 @@ The stdout sink writes rows to the worker's logs.
 
 The SDK covers unary API methods. Streaming `TailRun` is not included.
 
-## Responses
+## Responses and pagination
 
-Methods return typed responses. For example, `pipeline.create(...)` resolves to an
-object whose `pipeline` property holds the created pipeline.
+Methods resolve to typed responses. `pipeline.create(...)` resolves to an object
+whose `pipeline` property holds the created pipeline. Request and response types
+are exported under the `Filament` namespace.
 
-Fields omitted by the server are `undefined`, including lists. Use
-`response.pipelines ?? []` when iterating. Protobuf 64-bit integer fields, such as
-timestamps and record counts, can be decimal strings; use `Number(value)` or
-`BigInt(value)` when needed.
+Fields omitted by the server are `undefined`, including lists, so iterate with
+`response.pipelines ?? []`. Protobuf 64-bit integer fields, such as timestamps and
+record counts, can be decimal strings; use `Number(value)` or `BigInt(value)` when
+needed.
 
-Errors are thrown as `FilamentError`, with `statusCode` and the server's message.
-Timeouts throw `FilamentTimeoutError`.
+List methods paginate explicitly:
 
-## Regenerating
+```ts
+const page = await filament.pipeline.list({
+  pagination: { pageSize: 25 },
+});
+const nextCursor = page.pagination?.nextCursor;
+```
 
-The client under `src/` is generated by Fern from the server's OpenAPI specification.
-From the repository root:
+Pass `nextCursor` as `pagination: { cursor: nextCursor, pageSize: 25 }` to fetch
+the next page while a cursor is present. Omitting pagination returns the full
+result set.
 
-~~~sh
-just sdks
-~~~
+## Errors and retries
+
+```ts
+import { FilamentError } from "@galaxy-io/filament-ts";
+
+try {
+  await filament.pipeline.get({ id: "missing-pipeline" });
+} catch (error) {
+  if (error instanceof FilamentError) {
+    console.log(error.statusCode); // e.g. 404
+    console.log(error.body);       // Connect error code, message, and optional details
+  }
+}
+```
+
+Timeouts throw `FilamentTimeoutError`. The client retries failed requests twice
+by default; pass `maxRetries: 0` on calls that must not repeat, since mutations
+are not generally idempotent.

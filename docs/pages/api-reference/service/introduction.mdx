@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "Use the Python SDK or call Filament's API directly, with authentication, tenancy, and pagination"
+description: "Use an SDK or call Filament's API directly, with authentication, tenancy, and pagination"
 ---
 
 Filament's API is [ConnectRPC](https://connectrpc.com), generated from the
@@ -9,7 +9,7 @@ protobuf definitions in `protos/ingestion/v1/`, `protos/metrics/v1/`, and
 `ingestion.v1.IngestionService` (connectors, connections, pipelines, runs) and
 `metrics.v1.MetricsService` (dashboard aggregations) share one listener with
 `auth.v1.AuthService` (authentication and team management). The built-in web
-app and Python SDK use this same API.
+app and the SDKs use this same API.
 
 Every RPC has a Connect HTTP POST route at `/{package.Service}/{Method}`:
 
@@ -60,7 +60,7 @@ JSON endpoints. Buf runs this plugin remotely; generation requires network
 access to the Buf Schema Registry.
 
 The specification describes request and response types, Connect headers,
-and error responses. Fern uses it to generate the Python SDK, with method
+and error responses. Fern uses it to generate the SDKs, with method
 names and authentication metadata configured in `fern/`. The SDK calls the
 existing Connect JSON endpoints directly.
 
@@ -69,40 +69,12 @@ specification and configured SDKs. This requires Buf and Fern login.
 Use `just proto-check` to check generated API files against their committed
 versions.
 
-## Python SDK
+## SDKs
 
-Install [filament-py from PyPI](https://pypi.org/project/filament-py/).
-The SDK requires Python 3.10 or newer:
-
-```sh
-uv add filament-py
-```
-
-For an existing virtual environment, use `uv pip install filament-py`.
-
-```python
-from filament import Filament
-
-filament = Filament(base_url="http://localhost:8080")
-
-for connector in filament.connector.list().connectors or []:
-    print(connector.name)
-
-pipeline = filament.pipeline.create(name="daily-import").pipeline
-```
-
-Pass `token="your-access-token"` to `Filament` when authentication is enabled.
-Use `AsyncFilament` for async applications. The client creates its HTTP client
-and supplies the Connect protocol header automatically.
-
-`pipeline.create(...)` creates metadata. Before the first run, save a graph
-with `pipeline.version.create(...)`, then call `pipeline.run(...)`.
-The [Python SDK README](https://github.com/galaxy-io/filament/blob/main/sdks/python/README.md)
-includes a complete example that creates source and sink connections,
-discovers resources, saves a graph, and runs the pipeline.
-
-The SDK and OpenAPI specification cover unary methods. Streaming `TailRun`
-requires a client with Connect streaming support and is not included.
+Generated clients wrap this API for [Python](/pages/guides/sdks/python) and
+[TypeScript](/pages/guides/sdks/typescript). Both cover the unary methods;
+streaming `TailRun` requires a client with Connect streaming support and is
+not included.
 
 ## Authentication
 
