@@ -58,7 +58,10 @@ func (a *Server) sourceExecutionModes(source filament.Source) []ingestionv1.Exec
 // sinkExecutionModes lists the modes a sink can receive on this server. Write
 // policy compatibility with a particular source is decided by edge validation.
 func (a *Server) sinkExecutionModes(sink filament.Sink) []ingestionv1.ExecutionMode {
-	modes := []ingestionv1.ExecutionMode{ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED}
+	var modes []ingestionv1.ExecutionMode
+	if len(sink.Spec().Capabilities.WritePolicies) > 0 {
+		modes = append(modes, ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED)
+	}
 	_, streamingSupported := sink.(filament.StreamingSink)
 	if a.continuousSupported() && streamingSupported && sink.Spec().Capabilities.Stream != nil {
 		modes = append(modes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)

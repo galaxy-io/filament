@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"connectrpc.com/connect"
 
@@ -616,6 +617,12 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 func (a *Server) edgeExecutionModes(source filament.Source, sink filament.Sink, mode ingestionv1.ExecutionMode, ev *ingestionv1.EdgeValidation) bool {
 	ev.EffectiveExecutionMode = mode
 	for _, candidate := range a.sourceExecutionModes(source) {
+		if !slices.Contains(a.sinkExecutionModes(sink), candidate) {
+			continue
+		}
+		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED && !boundedPairSupported(source.Spec(), sink.Spec()) {
+			continue
+		}
 		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && filament.ValidateContinuousConnectors(source, sink) != nil {
 			continue
 		}
@@ -637,4 +644,15 @@ func edgeNodes(edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.Pip
 	}
 
 	return from, to
+}
+
+// Advertise bounded execution only when at least one declared ingestion policy
+// is shared. Resource-specific keys and cursors are checked by graph validation.
+func boundedPairSupported(source filament.ConnectorSpec, sink filament.SinkSpec) bool {
+	for _, ingestion := range []filament.IngestionType{filament.IngestionFullReplace, filament.IngestionFullAppend, filament.IngestionFullUpsert, filament.IngestionIncrementalAppend, filament.IngestionIncrementalUpsert, filament.IngestionIncrementalDelete, filament.IngestionCDCAppend, filament.IngestionCDCMerge} {
+		if filament.ValidateSourceIngestion(source, ingestion) == nil && filament.ValidateSinkIngestion(sink, ingestion) == nil {
+			return true
+		}
+	}
+	return false
 }

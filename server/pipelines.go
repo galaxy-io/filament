@@ -23,8 +23,8 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	if err != nil {
 		return nil, err
 	}
-	if _, err := compile.ExecutionModeFromProto(req.Msg.GetExecutionMode()); err != nil {
-		return nil, compileError(err)
+	if err := a.validateExecution(req.Msg.GetExecutionMode()); err != nil {
+		return nil, err
 	}
 	execution := req.Msg.GetExecutionMode()
 	if execution == ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
@@ -110,7 +110,7 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if pipeline.GetDeletedAt() != 0 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q is deleted", pipeline.GetId()))
 	}
-	if err := validateExecutionMode(pipeline.GetExecutionMode()); err != nil {
+	if err := a.validateExecution(pipeline.GetExecutionMode()); err != nil {
 		return nil, err
 	}
 	validationCtx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
@@ -124,7 +124,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	}
 	if pipeline.GetExecutionMode() == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
 		for _, edge := range edges {
-			edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+			if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
+			}
 		}
 	} else if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -276,11 +278,34 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	if req.Msg.GetPipelineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline_id is required"))
 	}
-	if _, err := compile.ExecutionModeFromProto(req.Msg.GetExecutionMode()); err != nil {
-		return nil, compileError(err)
+	if err := a.validateExecution(req.Msg.GetExecutionMode()); err != nil {
+		return nil, err
 	}
 	if err := compile.ValidateWorkerConfiguration(compile.WorkerConfigurationFromProto(req.Msg.GetWorkerConfiguration())); err != nil {
 		return nil, compileError(err)
+	}
+	// An omitted mode is preserved atomically by the store. Only explicit
+	// mode changes need to revalidate the saved graph.
+	if requested := req.Msg.GetExecutionMode(); requested != ingestionv1.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+		saved, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
+		if errors.Is(err, filament.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if saved.GetExecutionMode() != requested && saved.GetCurrentVersion().GetGraph() != nil {
+			graph := saved.GetCurrentVersion().GetGraph()
+			validationCtx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
+			defer cancel()
+			validation, err := a.validatePipelineGraph(validationCtx, string(tenant), graph.GetNodes(), graph.GetEdges(), requested)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, err)
+			}
+			if !validation.GetValid() {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid for requested execution mode: %s", pipelineValidationMessage(validation)))
+			}
+		}
 	}
 	pipeline := &ingestionv1.Pipeline{
 		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
