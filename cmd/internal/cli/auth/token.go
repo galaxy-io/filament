@@ -2,27 +2,26 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
+	"connectrpc.com/connect"
+
+	authv1 "github.com/galaxy-io/filament/api/auth/v1"
+	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 )
 
 // expirySkew refreshes a cached token this long before it expires so a
 // request never leaves with a token that dies in flight.
 const expirySkew = time.Minute
 
-// Source mints access tokens for one stored profile via the OAuth2 client
-// credentials grant, reusing the cached token until it nears expiry.
+// Source mints access tokens for one stored profile through the server's
+// GetToken RPC, reusing the cached token until it nears expiry.
 type Source struct {
 	Store   Store
 	Profile string
-	// Client issues discovery and token requests; nil means the default.
+	// Client carries the token requests; nil means the default.
 	Client *http.Client
 	// Now is a clock override for tests; nil means time.Now.
 	Now func() time.Time
@@ -31,11 +30,11 @@ type Source struct {
 // Mint exchanges an in-memory profile without persisting it. Login uses this
 // to prove new credentials before replacing a working stored profile.
 func Mint(ctx context.Context, profile Profile, client *http.Client) (string, Cache, error) {
-	token, err := (Source{Client: client}).mint(ctx, profile)
+	cache, err := (Source{Client: client}).mint(ctx, profile)
 	if err != nil {
 		return "", Cache{}, err
 	}
-	return token.AccessToken, Cache{AccessToken: token.AccessToken, ExpiresAt: token.Expiry}, nil
+	return cache.AccessToken, cache, nil
 }
 
 // Token returns a valid access token, minting and persisting a fresh one
@@ -52,73 +51,42 @@ func (s Source) Token(ctx context.Context) (string, error) {
 	if c := profile.Cache; c != nil && now().Add(expirySkew).Before(c.ExpiresAt) {
 		return c.AccessToken, nil
 	}
-	token, err := s.mint(ctx, profile)
+	cache, err := s.mint(ctx, profile)
 	if err != nil {
 		return "", err
 	}
-	cache := Cache{AccessToken: token.AccessToken, ExpiresAt: token.Expiry}
 	if err := s.Store.SaveCache(s.Profile, cache); err != nil {
 		return "", err
 	}
-	return token.AccessToken, nil
+	return cache.AccessToken, nil
 }
 
 // Invalidate discards the cached token after the server rejected it, so the
 // caller's retry mints a fresh one.
 func (s Source) Invalidate() error { return s.Store.ClearCache(s.Profile) }
 
-func (s Source) mint(ctx context.Context, profile Profile) (*oauth2.Token, error) {
+func (s Source) mint(ctx context.Context, profile Profile) (Cache, error) {
 	client := s.Client
 	if client == nil {
 		client = http.DefaultClient
 	}
-	endpoint, err := tokenEndpoint(ctx, client, profile.Issuer)
-	if err != nil {
-		return nil, err
+	now := time.Now
+	if s.Now != nil {
+		now = s.Now
 	}
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, client)
-	config := clientcredentials.Config{
-		ClientID:     profile.ClientID,
+	auth := authv1connect.NewAuthServiceClient(client, profile.Server)
+	res, err := auth.GetToken(ctx, connect.NewRequest(&authv1.GetTokenRequest{
+		ClientId:     profile.ClientID,
 		ClientSecret: profile.ClientSecret,
-		TokenURL:     endpoint,
-		Scopes:       profile.Scopes,
-		AuthStyle:    oauth2.AuthStyleInHeader,
-	}
-	token, err := config.Token(ctx)
+	}))
 	if err != nil {
-		var refused *oauth2.RetrieveError
-		if errors.As(err, &refused) {
-			return nil, fmt.Errorf("%w: %w", ErrTokenRejected, err)
+		if connect.CodeOf(err) == connect.CodeUnauthenticated {
+			return Cache{}, fmt.Errorf("%w: %w", ErrTokenRejected, err)
 		}
-		return nil, fmt.Errorf("%w: %w", ErrAuthServerUnreachable, err)
+		return Cache{}, fmt.Errorf("%w: %s: %w", ErrAuthServerUnreachable, profile.Server, err)
 	}
-	return token, nil
-}
-
-// tokenEndpoint resolves the issuer's token endpoint through OIDC discovery,
-// keeping the source agnostic to the identity provider behind the issuer.
-func tokenEndpoint(ctx context.Context, client *http.Client, issuer string) (string, error) {
-	url := strings.TrimSuffix(issuer, "/") + "/.well-known/openid-configuration"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("%w: %s: %w", ErrAuthServerUnreachable, issuer, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%w: %s: discovery returned status %d", ErrAuthServerInvalid, issuer, resp.StatusCode)
-	}
-	var discovered struct {
-		TokenEndpoint string `json:"token_endpoint"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&discovered); err != nil {
-		return "", fmt.Errorf("%w: %s: discovery is not valid JSON: %w", ErrAuthServerInvalid, issuer, err)
-	}
-	if discovered.TokenEndpoint == "" {
-		return "", fmt.Errorf("%w: %s: discovery lists no token endpoint", ErrAuthServerInvalid, issuer)
-	}
-	return discovered.TokenEndpoint, nil
+	return Cache{
+		AccessToken: res.Msg.GetAccessToken(),
+		ExpiresAt:   now().Add(time.Duration(res.Msg.GetExpiresIn()) * time.Second),
+	}, nil
 }

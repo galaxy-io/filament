@@ -85,17 +85,16 @@ func (a *cliApp) authLogin(ctx context.Context, server, clientID, clientSecret s
 
 	store := cliauth.Store{Path: a.credentialsPath()}
 	profile := cliauth.Profile{
-		Issuer:       config.Msg.GetIssuer(),
+		Server:       server,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       config.Msg.GetServiceAccountScopes(),
 	}
 	token, cache, err := cliauth.Mint(ctx, profile, http.DefaultClient)
 	switch {
 	case errors.Is(err, cliauth.ErrTokenRejected):
 		return fmt.Errorf("login to %s failed: %w", server, err)
-	case errors.Is(err, cliauth.ErrAuthServerUnreachable), errors.Is(err, cliauth.ErrAuthServerInvalid):
-		return fmt.Errorf("login to %s failed: its %w", server, err)
+	case errors.Is(err, cliauth.ErrAuthServerUnreachable):
+		return fmt.Errorf("login to %s failed: %w", server, err)
 	case err != nil:
 		return err
 	}

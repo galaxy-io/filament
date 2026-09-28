@@ -4,17 +4,56 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	filterv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/filter/v2"
 	metadatav2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/metadata/v2"
 	userv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/user/v2"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
 
 const managedServiceAccountKey = "filament.service_account"
+
+// tokenTimeout bounds each grant against the token endpoint.
+const tokenTimeout = 10 * time.Second
+
+// GetToken runs the client-credentials grant for a service account. Proxying
+// it keeps the scopes and the issuer the server's business, so a client only
+// ever holds its id and secret.
+func (p *Provider) GetToken(ctx context.Context, req *connect.Request[authv1.GetTokenRequest]) (*connect.Response[authv1.GetTokenResponse], error) {
+	m := req.Msg
+	if m.GetClientId() == "" || m.GetClientSecret() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("client_id and client_secret are required"))
+	}
+	ctx, cancel := context.WithTimeout(ctx, tokenTimeout)
+	defer cancel()
+	config := clientcredentials.Config{
+		ClientID:     m.GetClientId(),
+		ClientSecret: m.GetClientSecret(),
+		TokenURL:     p.tokenEndpoint,
+		Scopes:       p.serviceAccountScopes(),
+		AuthStyle:    oauth2.AuthStyleInHeader,
+	}
+	token, err := config.Token(ctx)
+	if err != nil {
+		var refused *oauth2.RetrieveError
+		if errors.As(err, &refused) {
+			// Unknown clients and wrong secrets both land here; neither
+			// should tell the caller which it was.
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid credentials"))
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return connect.NewResponse(&authv1.GetTokenResponse{
+		AccessToken: token.AccessToken,
+		ExpiresIn:   int32(time.Until(token.Expiry).Seconds()),
+	}), nil
+}
 
 // ListServiceAccounts returns the machine users in the caller's organization.
 // Client secrets are never readable after creation and are not part of the

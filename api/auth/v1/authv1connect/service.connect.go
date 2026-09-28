@@ -38,6 +38,8 @@ const (
 	AuthServiceGetAuthConfigProcedure = "/auth.v1.AuthService/GetAuthConfig"
 	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
 	AuthServiceLoginProcedure = "/auth.v1.AuthService/Login"
+	// AuthServiceGetTokenProcedure is the fully-qualified name of the AuthService's GetToken RPC.
+	AuthServiceGetTokenProcedure = "/auth.v1.AuthService/GetToken"
 	// AuthServiceLogoutProcedure is the fully-qualified name of the AuthService's Logout RPC.
 	AuthServiceLogoutProcedure = "/auth.v1.AuthService/Logout"
 	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
@@ -77,6 +79,7 @@ type AuthServiceClient interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
@@ -116,6 +119,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+AuthServiceLoginProcedure,
 			connect.WithSchema(authServiceMethods.ByName("Login")),
+			connect.WithClientOptions(opts...),
+		),
+		getToken: connect.NewClient[v1.GetTokenRequest, v1.GetTokenResponse](
+			httpClient,
+			baseURL+AuthServiceGetTokenProcedure,
+			connect.WithSchema(authServiceMethods.ByName("GetToken")),
 			connect.WithClientOptions(opts...),
 		),
 		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
@@ -197,6 +206,7 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type authServiceClient struct {
 	getAuthConfig              *connect.Client[v1.GetAuthConfigRequest, v1.GetAuthConfigResponse]
 	login                      *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	getToken                   *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
 	logout                     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 	register                   *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
 	acceptInvite               *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
@@ -219,6 +229,11 @@ func (c *authServiceClient) GetAuthConfig(ctx context.Context, req *connect.Requ
 // Login calls auth.v1.AuthService.Login.
 func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
 	return c.login.CallUnary(ctx, req)
+}
+
+// GetToken calls auth.v1.AuthService.GetToken.
+func (c *authServiceClient) GetToken(ctx context.Context, req *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error) {
+	return c.getToken.CallUnary(ctx, req)
 }
 
 // Logout calls auth.v1.AuthService.Logout.
@@ -286,6 +301,7 @@ type AuthServiceHandler interface {
 	// Session; pre-token, public. An empty issuer means auth is disabled.
 	GetAuthConfig(context.Context, *connect.Request[v1.GetAuthConfigRequest]) (*connect.Response[v1.GetAuthConfigResponse], error)
 	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
+	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
 	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
 	AcceptInvite(context.Context, *connect.Request[v1.AcceptInviteRequest]) (*connect.Response[v1.AcceptInviteResponse], error)
@@ -321,6 +337,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		AuthServiceLoginProcedure,
 		svc.Login,
 		connect.WithSchema(authServiceMethods.ByName("Login")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceGetTokenHandler := connect.NewUnaryHandler(
+		AuthServiceGetTokenProcedure,
+		svc.GetToken,
+		connect.WithSchema(authServiceMethods.ByName("GetToken")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceLogoutHandler := connect.NewUnaryHandler(
@@ -401,6 +423,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetAuthConfigHandler.ServeHTTP(w, r)
 		case AuthServiceLoginProcedure:
 			authServiceLoginHandler.ServeHTTP(w, r)
+		case AuthServiceGetTokenProcedure:
+			authServiceGetTokenHandler.ServeHTTP(w, r)
 		case AuthServiceLogoutProcedure:
 			authServiceLogoutHandler.ServeHTTP(w, r)
 		case AuthServiceRegisterProcedure:
@@ -440,6 +464,10 @@ func (UnimplementedAuthServiceHandler) GetAuthConfig(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.Login is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetToken is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {

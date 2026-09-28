@@ -9,6 +9,7 @@ from ..types.auth_v1get_auth_config_request import AuthV1GetAuthConfigRequest
 from ..types.auth_v1get_auth_config_response import AuthV1GetAuthConfigResponse
 from ..types.auth_v1get_session_request import AuthV1GetSessionRequest
 from ..types.auth_v1get_session_response import AuthV1GetSessionResponse
+from ..types.auth_v1get_token_response import AuthV1GetTokenResponse
 from ..types.auth_v1login_response import AuthV1LoginResponse
 from ..types.auth_v1logout_request import AuthV1LogoutRequest
 from ..types.auth_v1logout_response import AuthV1LogoutResponse
@@ -69,8 +70,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.accept_invite(
             connect_timeout_ms=1000.0,
@@ -115,8 +117,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.get_config(
             connect_timeout_ms=1000.0,
@@ -158,8 +161,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.get_session(
             connect_timeout_ms=1000.0,
@@ -168,6 +172,55 @@ class AuthClient:
         """
         _response = self._raw_client.get_session(
             request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
+
+    def get_token(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AuthV1GetTokenResponse:
+        """
+        Parameters
+        ----------
+        client_id : str
+
+        client_secret : str
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AuthV1GetTokenResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.auth.get_token(
+            connect_timeout_ms=1000.0,
+            client_id="clientId",
+            client_secret="clientSecret",
+        )
+        """
+        _response = self._raw_client.get_token(
+            client_id=client_id,
+            client_secret=client_secret,
+            connect_timeout_ms=connect_timeout_ms,
+            request_options=request_options,
         )
         return _response.data
 
@@ -202,8 +255,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.login(
             connect_timeout_ms=1000.0,
@@ -245,8 +299,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.logout(
             connect_timeout_ms=1000.0,
@@ -298,8 +353,9 @@ class AuthClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.auth.register(
             connect_timeout_ms=1000.0,
@@ -368,8 +424,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -422,8 +479,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -473,8 +531,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -489,6 +548,63 @@ class AsyncAuthClient:
         """
         _response = await self._raw_client.get_session(
             request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
+
+    async def get_token(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AuthV1GetTokenResponse:
+        """
+        Parameters
+        ----------
+        client_id : str
+
+        client_secret : str
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AuthV1GetTokenResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.auth.get_token(
+                connect_timeout_ms=1000.0,
+                client_id="clientId",
+                client_secret="clientSecret",
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.get_token(
+            client_id=client_id,
+            client_secret=client_secret,
+            connect_timeout_ms=connect_timeout_ms,
+            request_options=request_options,
         )
         return _response.data
 
@@ -525,8 +641,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -576,8 +693,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -637,8 +755,9 @@ class AsyncAuthClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 

@@ -4,6 +4,7 @@ export * from "./AuthV1GetAuthConfigRequest.js";
 export * from "./AuthV1GetAuthConfigResponse.js";
 export * from "./AuthV1GetSessionRequest.js";
 export * from "./AuthV1GetSessionResponse.js";
+export * from "./AuthV1GetTokenResponse.js";
 export * from "./AuthV1InviteMemberResponse.js";
 export * from "./AuthV1ListMembersRequest.js";
 export * from "./AuthV1ListMembersResponse.js";
