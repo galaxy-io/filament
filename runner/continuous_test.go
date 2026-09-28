@@ -522,12 +522,14 @@ func (s *inferredSchemaSink) EnsureSchema(_ context.Context, _ string, schema ro
 	s.ensured = schema.Clone()
 	return nil
 }
+
 func (s *inferredSchemaSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if !arrowbatch.Schema(s.ensured).Equal(b.Rows().Schema()) {
 		return filament.WriteReceipt{}, errors.New("Apply called before actual schema was ensured")
 	}
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
+
 func TestContinuousEnsuresInferredSchemaBeforeApply(t *testing.T) {
 	for _, reject := range []bool{false, true} {
 		cfg, store, src, sink := continuousFixture(t)

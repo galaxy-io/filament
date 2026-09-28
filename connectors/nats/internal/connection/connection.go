@@ -96,8 +96,10 @@ func Connect(ctx context.Context, cfg filament.Config) (*nats.Conn, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		timeout = min(timeout, time.Until(deadline))
 	}
-	opts := []nats.Option{nats.Timeout(timeout), nats.NoReconnect()}
-	opts = append(opts, authOptions(cfg)...)
+	auth := authOptions(cfg)
+	opts := make([]nats.Option, 0, 2+len(auth))
+	opts = append(opts, nats.Timeout(timeout), nats.NoReconnect())
+	opts = append(opts, auth...)
 	conn, err := nats.Connect(cfg.String("url"), opts...)
 	if err != nil {
 		return nil, err

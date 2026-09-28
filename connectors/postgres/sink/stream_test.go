@@ -16,6 +16,7 @@ import (
 )
 
 func TestNativeEpochCommitAbortAndBoundedReplace(t *testing.T) { nativeEpochScenario(t, false, false) }
+
 func TestNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) {
 	nativeEpochScenario(t, true, false)
 }
