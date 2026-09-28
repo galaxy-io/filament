@@ -26,6 +26,7 @@ type Module struct {
 	// consumer folds facts serially, but the maps are mutex-guarded in case the host
 	// delivers concurrently. cp holds the live merged cursor; since counts written
 	// batches toward the per-run persist cadence.
+	modes map[runKey]filament.ExecutionMode
 	mu    sync.Mutex
 	cp    map[ckKey]filament.Checkpoint
 	since map[ckKey]int
@@ -129,7 +130,11 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return nil
 	}
 	// Continuous lifecycle and progress are owned by runtime persistence.
-	if state, err := m.ds.LoadRun(ctx, f.Tenant, f.Run); err == nil && state.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+	mode, err := m.executionMode(ctx, f.Tenant, f.Run)
+	if err != nil {
+		return err
+	}
+	if mode == filament.ExecutionContinuous {
 		return nil
 	}
 	// Terminal folds promote checkpoints and are idempotent. Apply them before
@@ -374,6 +379,11 @@ func (m *Module) evictRun(run filament.RunID) {
 		}
 	}
 	delete(m.every, run)
+	for key := range m.modes {
+		if key.run == run {
+			delete(m.modes, key)
+		}
+	}
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint.
