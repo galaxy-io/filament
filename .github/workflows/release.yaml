@@ -16,13 +16,12 @@ concurrency:
 
 jobs:
   # Release Please creates the tag and the GitHub release; this builds
-  # what the release ships.
+  # what the release ships. Prereleases are nightly-release.yaml's.
   release:
     runs-on: ubuntu-latest
     environment: release
     outputs:
       tag: ${{ github.ref_name }}
-      prerelease: ${{ contains(github.ref_name, '-') }}
     steps:
       - run: echo "Releasing ${GITHUB_REF_NAME}"
 
@@ -33,7 +32,7 @@ jobs:
       ref: ${{ needs.release.outputs.tag }}
       tag: ${{ needs.release.outputs.tag }}
       publish: true
-      prerelease: ${{ needs.release.outputs.prerelease == 'true' }}
+      prerelease: false
     secrets: inherit
 
   cli:
@@ -42,14 +41,13 @@ jobs:
     with:
       ref: ${{ needs.release.outputs.tag }}
       tag: ${{ needs.release.outputs.tag }}
-      prerelease: ${{ needs.release.outputs.prerelease == 'true' }}
+      prerelease: false
     secrets: inherit
 
   # The chart tracks the platform through appVersion. Committing it as a fix
   # lets Release Please open the chart's release PR.
   chart-app-version:
     needs: [release, images, cli]
-    if: needs.release.outputs.prerelease != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
