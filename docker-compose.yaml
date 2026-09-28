@@ -8,7 +8,7 @@ services:
     networks:
       - filament
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: filament
       POSTGRES_PASSWORD: filament
@@ -27,7 +27,7 @@ services:
     networks:
       - filament
     ports:
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"
     volumes:
       - nats-data:/data
     healthcheck:
@@ -43,7 +43,7 @@ services:
     networks:
       - filament
     ports:
-      - "8300:8080"
+      - "127.0.0.1:8300:8080"
     environment:
       ZITADEL_DATABASE_POSTGRES_HOST: postgres
       ZITADEL_DATABASE_POSTGRES_PORT: 5432
@@ -87,7 +87,7 @@ services:
     networks:
       - filament
     ports:
-      - "8400:8080"
+      - "127.0.0.1:8400:8080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin

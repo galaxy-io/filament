@@ -144,7 +144,8 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		clientSecret:  credentials.ClientSecret,
 		tokenEndpoint: realm.Endpoint().TokenURL,
 		verifier:      realm.Verifier(&oidc.Config{ClientID: opts.ClientID}),
-		admin:         &admin{base: adminBase, client: credentials.Client(ctx)},
+		// The token source outlives boot and refreshes on this context.
+		admin:         &admin{base: adminBase, client: credentials.Client(context.WithoutCancel(ctx))},
 		secureCookies: strings.HasPrefix(opts.UIOrigin, "https://"),
 	}
 	if err := p.bootstrap(ctx); err != nil {

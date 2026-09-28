@@ -101,6 +101,8 @@ func ensureRealm(ctx context.Context, server, realm string, opts Options) error 
 
 // adminToken signs the Keycloak admin in on the master realm.
 func adminToken(ctx context.Context, server, username, password string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, tokenTimeout)
+	defer cancel()
 	form := url.Values{
 		"grant_type": {"password"},
 		"client_id":  {"admin-cli"},

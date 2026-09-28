@@ -74,8 +74,13 @@ type tokenResponse struct {
 // credentials, a revoked token, or an account that cannot sign in.
 var errGrantRejected = errors.New("grant rejected")
 
+// tokenTimeout bounds each call to the token endpoint.
+const tokenTimeout = 10 * time.Second
+
 // grant runs one grant against the token endpoint as filament's client.
 func (p *Provider) grant(ctx context.Context, form url.Values) (tokenResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, tokenTimeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return tokenResponse{}, err
@@ -108,6 +113,8 @@ func (p *Provider) grant(ctx context.Context, form url.Values) (tokenResponse, e
 // regardless.
 func (p *Provider) revoke(ctx context.Context, refreshToken string) {
 	form := url.Values{"token": {refreshToken}, "token_type_hint": {"refresh_token"}}
+	ctx, cancel := context.WithTimeout(ctx, tokenTimeout)
+	defer cancel()
 	endpoint := strings.TrimSuffix(p.tokenEndpoint, "/token") + "/revoke"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
