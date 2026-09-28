@@ -1,0 +1,40 @@
+name: "CD: SDK"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-release
+  cancel-in-progress: false
+
+jobs:
+  python:
+    name: Build Python SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.10.7"
+          python-version: "3.12"
+
+      - name: Read Python SDK version
+        id: version
+        run: |
+          version="$(uv version --project sdks/python --short)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build distributions
+        run: uv build --no-sources --project sdks/python --out-dir "$RUNNER_TEMP/sdk-dist"
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: filament-py-${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/sdk-dist/
+          if-no-files-found: error

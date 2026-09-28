@@ -4,3 +4,5 @@ api/**/*.connect.go           linguist-generated=true
 datastore/postgres/sqlcgen/** linguist-generated=true
 ui/src/gen/**                 linguist-generated=true
 ui/src/assets/components/**   linguist-generated=true
+sdks/python/src/filament/**   linguist-generated=true
+sdks/python/README.md         linguist-generated=false

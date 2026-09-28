@@ -62,9 +62,14 @@ cli: ui-dist
 # generate all checked-in generated code
 gen: proto sqlc
 
-# generate protobuf and ConnectRPC Go stubs
+# generate protobuf, ConnectRPC Go stubs, and the OpenAPI specification
 proto:
     buf generate
+
+# generate SDKs from the current API (requires Fern login)
+sdks: proto
+    fern check
+    fern generate --group python
 
 # generate sqlc Go code
 sqlc:
@@ -79,7 +84,7 @@ proto-lint:
 proto-format mode="fix":
     buf format {{ if mode == "check" { "-d --exit-code" } else { "-w" } }}
 
-# verify generated protobuf files are up to date
+# verify generated protobuf files and the OpenAPI specification are up to date
 proto-check:
     buf generate
     git diff --exit-code -- api
