@@ -70,6 +70,7 @@ proto:
 sdks: proto
     fern check
     fern generate --group python
+    fern generate --group typescript
 
 # generate sqlc Go code
 sqlc:

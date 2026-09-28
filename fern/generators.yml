@@ -22,3 +22,14 @@ groups:
           optional_auth: true
           # Mutations are not generally idempotent; callers can opt in per call.
           default_max_retries: 0
+  typescript:
+    generators:
+      - name: fern-typescript-sdk
+        version: 3.98.0
+        output:
+          location: local-file-system
+          path: ../sdks/typescript/src
+        config:
+          namespaceExport: Filament
+          noSerdeLayer: true
+          inlinePathParameters: true
