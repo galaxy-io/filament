@@ -179,7 +179,17 @@ func validateContinuous(cfg ContinuousConfig) error {
 	if _, _, err := filament.PlanContinuousRun(cfg.Source, cfg.Sink, spec); err != nil {
 		return err
 	}
-	if len(spec.Resources) == 0 || cfg.MaxEpochs < 0 || cfg.Store == nil || cfg.Codecs == nil || cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour || cfg.DrainTimeout <= 0 || cfg.Boundary.MaxWait <= 0 || cfg.Boundary.MaxRecords <= 0 {
+	switch {
+	case len(spec.Resources) == 0,
+		cfg.Store == nil,
+		cfg.Codecs == nil,
+		cfg.MaxEpochs < 0,
+		cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour,
+		cfg.DrainTimeout <= 0,
+		cfg.Boundary.MaxWait <= 0,
+		cfg.Boundary.MaxRecords <= 0,
+		cfg.Boundary.MaxBytes < 0,
+		cfg.Boundary.MaxAge < 0:
 		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
 	}
 	for _, r := range spec.Resources {
@@ -341,6 +351,15 @@ func continuousResourceErrorReporter(cfg ContinuousConfig, lease filament.LeaseT
 func newContinuousPipeline(cfg *ContinuousConfig, ordering filament.Ordering) (*pipeline.Pipeline, error) {
 	spec := cfg.Spec
 	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
+		pipelineConfig.PrepareSchema = func(ctx context.Context, resource string, schema rowmodel.Schema) error {
+			if planned, ok := cfg.Schemas[resource]; ok && planned.Equal(schema) {
+				return nil
+			}
+			destination, actual := destinationSchema(resource, schema, spec.WritePolicies)
+			return schemaSink.EnsureSchema(ctx, destination, actual)
+		}
+	}
 	if cfg.events != nil {
 		cfg.pipelineEvents = &continuousPipelineEvents{emitter: cfg.events}
 		pipelineConfig.Emit = cfg.pipelineEvents.observe

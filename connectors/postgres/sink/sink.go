@@ -33,8 +33,8 @@ type Sink struct {
 	policies map[string]filament.WritePolicy
 	written  atomic.Int64
 
-	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
-	// (sequential), then only read by concurrent Write calls — no lock needed.
+	// Bounded runs prepare tables before extraction. Continuous runs may also
+	// prepare inferred schemas on their single writer inside the active epoch.
 	tables map[string]*table
 }
 

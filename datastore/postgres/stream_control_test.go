@@ -78,3 +78,24 @@ func TestStreamStopRetiresOnlyUnclaimedDispatch(t *testing.T) {
 		})
 	}
 }
+
+func TestPendingStreamRunsExcludesDeletedPipeline(t *testing.T) {
+	f := newRuntimeFixture(t)
+	ctx := context.Background()
+	runs, err := f.store.PendingStreamRuns(ctx, "", 100)
+	if err != nil || len(runs) != 1 || runs[0].Run != f.request.Run {
+		t.Fatalf("pending before delete = %v, %v", runs, err)
+	}
+	if err := f.store.DeletePipeline(ctx, f.request.Tenant, f.activation.Spec.PipelineID); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		runs, err = f.store.PendingStreamRuns(ctx, "", 100)
+		if err != nil || len(runs) != 0 {
+			t.Fatalf("pending after delete = %v, %v", runs, err)
+		}
+	}
+	if _, err := f.store.LoadRun(ctx, f.request.Tenant, f.request.Run); err != nil {
+		t.Fatalf("pipeline deletion should retain run history: %v", err)
+	}
+}

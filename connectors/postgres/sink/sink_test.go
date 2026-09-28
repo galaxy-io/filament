@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
+	"github.com/apache/arrow-go/v18/arrow/memory"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -182,5 +184,21 @@ func TestCopierPicksFormat(t *testing.T) {
 	bin[len(bin)-3] ^= 1
 	if err := verifyCopyChecksum(bin, binCRC); err == nil {
 		t.Fatal("checksum accepted mutated binary COPY payload")
+	}
+}
+
+func TestCopierRejectsUnpreparedBatchSchema(t *testing.T) {
+	schema := arrowbatch.Schema(rowmodel.Schema{Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}, {Name: "payload_field", Logical: rowmodel.LogicalString}}})
+	builder := array.NewRecordBuilder(memory.DefaultAllocator, schema)
+	defer builder.Release()
+	rows := builder.NewRecordBatch()
+	defer rows.Release()
+	for _, tbl := range []*table{
+		{idents: []string{`"value"`}, types: []string{"text"}},
+		{idents: []string{`"payload_field"`, `"value"`}, types: []string{"text", "text"}},
+	} {
+		if _, err := tbl.copierFor(rows, false); err == nil {
+			t.Fatal("unprepared COPY layout accepted")
+		}
 	}
 }

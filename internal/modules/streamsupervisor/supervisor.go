@@ -95,6 +95,10 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 		return err
 	}
 	state, err := s.store.LoadStreamState(ctx, req)
+	// Deletion can race the pending-run scan. There is no remaining work.
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

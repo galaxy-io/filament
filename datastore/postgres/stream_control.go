@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -138,26 +137,14 @@ func (s *Store) PendingStreamRuns(ctx context.Context, after string, limit int) 
 	return out, nil
 }
 
-// StreamProgress is derived from immutable certificates, never tracker facts.
+// StreamProgress reads totals maintained atomically by the epoch-insert query.
+// Idempotent CommitEpoch retries never insert again and cannot double-count.
 func (s *Store) StreamProgress(ctx context.Context, tenant filament.TenantID, run filament.RunID) (int64, int64, time.Time, error) {
-	rows, err := s.pool.Query(ctx, `SELECT e.certificate,e.committed_at FROM stream_epochs e JOIN stream_attempts a ON a.token=e.attempt_token WHERE e.tenant_id=$1 AND a.run_spec->>'Run'=$2 ORDER BY e.epoch`, string(tenant), string(run))
-	if err != nil {
-		return 0, 0, time.Time{}, err
-	}
-	defer rows.Close()
 	var records, nbytes int64
 	var last time.Time
-	for rows.Next() {
-		var data []byte
-		if err := rows.Scan(&data, &last); err != nil {
-			return 0, 0, time.Time{}, err
-		}
-		var c filament.EpochCertificate
-		if err := json.Unmarshal(data, &c); err != nil {
-			return 0, 0, time.Time{}, fmt.Errorf("stream: certificate: %w", err)
-		}
-		records += c.Records
-		nbytes += c.Bytes
+	err := s.pool.QueryRow(ctx, `SELECT records,bytes,last_committed_at FROM runs WHERE tenant_id=$1 AND id=$2 AND last_committed_at IS NOT NULL`, string(tenant), string(run)).Scan(&records, &nbytes, &last)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, 0, time.Time{}, nil
 	}
-	return records, nbytes, last, rows.Err()
+	return records, nbytes, last, err
 }

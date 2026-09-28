@@ -59,6 +59,16 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 			return false
 		}
 	}
+	if p.prepareSchema != nil {
+		p.registryMu.Lock()
+		registered := p.schemas[b.Resource]
+		p.registryMu.Unlock()
+		registered.preparation.once.Do(func() { registered.preparation.err = p.prepareSchema(ctx, b.Resource, registered.model.Clone()) })
+		if err := registered.preparation.err; err != nil {
+			p.setErr(fmt.Errorf("prepare schema for %s: %w", b.Resource, err))
+			return false
+		}
+	}
 	readCRC := b.IntegrityCRC()
 	receipt, err := p.writeBatch(ctx, b, policy, epoch)
 	if err != nil {

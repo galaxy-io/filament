@@ -18,11 +18,17 @@ import (
 // (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
 // a COPY error (full type-change handling is deferred to schema evolution).
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
-	if t.continuous && (t.stream.active != nil || t.modeFor(resource) != filament.WriteAppend) {
+	if t.continuous && t.modeFor(resource) != filament.WriteAppend {
 		return filament.ErrEpochMismatch
 	}
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
+	}
+	// In continuous runs, inferred columns must be installed atomically with
+	// the first batch, using the active epoch transaction (and its connection).
+	exec := t.pool.Exec
+	if t.continuous && t.stream.active != nil {
+		exec = t.stream.active.tx.Exec
 	}
 	qualified := pgx.Identifier{t.schema, resource}.Sanitize()
 	var builtin map[string]bool
@@ -53,7 +59,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		ddl += ",\n\tPRIMARY KEY (" + strings.Join(pk, ", ") + ")"
 	}
 	ddl += "\n)"
-	if _, err := t.pool.Exec(ctx, ddl); err != nil {
+	if _, err := exec(ctx, ddl); err != nil {
 		return fmt.Errorf("create %s: %w", qualified, err)
 	}
 	// A resumable table upserts by key and must preserve any partial load from a prior
@@ -63,12 +69,12 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	resumable := t.resumableFor(resource)
 	if mode == filament.WriteReplace {
 		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
-		if _, err := t.pool.Exec(ctx, "TRUNCATE "+qualified); err != nil {
+		if _, err := exec(ctx, "TRUNCATE "+qualified); err != nil {
 			return fmt.Errorf("truncate %s: %w", qualified, err)
 		}
 	}
 	for i := range schema.Fields {
-		if _, err := t.pool.Exec(ctx, "ALTER TABLE "+qualified+" ADD COLUMN IF NOT EXISTS "+cols[i]); err != nil {
+		if _, err := exec(ctx, "ALTER TABLE "+qualified+" ADD COLUMN IF NOT EXISTS "+cols[i]); err != nil {
 			return fmt.Errorf("add column on %s: %w", qualified, err)
 		}
 	}
@@ -96,6 +102,15 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		keyIdents, keyTypes := pick(idents, tbl.keyIdx), pick(types, tbl.keyIdx)
 		tbl.keysTempSQL = tempTableSQL(tbl.keysTemp, keyIdents, keyTypes, false)
 		tbl.deleteSQL = deleteSQL(tbl.qualified, tbl.keysTemp, keyIdents)
+	}
+	if t.continuous && t.stream.active != nil {
+		epoch := t.stream.active
+		if epoch.previousTables == nil {
+			epoch.previousTables = map[string]*table{}
+		}
+		if _, saved := epoch.previousTables[resource]; !saved {
+			epoch.previousTables[resource] = t.tables[resource]
+		}
 	}
 	t.tables[resource] = tbl
 	return nil

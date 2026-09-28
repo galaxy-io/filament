@@ -83,7 +83,12 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
-	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{StreamID: stream.ID, TenantID: stream.TenantID, Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token, Certificate: data, Positions: positions})
+	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{
+		StreamID: stream.ID, TenantID: stream.TenantID,
+		Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token,
+		Certificate: data, Positions: positions,
+		RunID: string(cert.Ref.Attempt.RunID), Records: cert.Records, Bytes: cert.Bytes,
+	})
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
@@ -97,7 +102,7 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if err := tx.Commit(ctx); err != nil {
 		return filament.CommittedEpoch{}, err
 	}
-	return committedFromRow(row)
+	return filament.CommittedEpoch{Certificate: cert, CommittedAt: row.CommittedAt.Time}, nil
 }
 
 func validateEpochResources(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, cert filament.EpochCertificate) error {

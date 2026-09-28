@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -13,10 +14,11 @@ import (
 )
 
 // multiSession multiplexes independent consumers into serial epoch work. At most
-// one message per resource is prefetched; only the selected message is emitted
-// and acknowledged in an epoch. No cross-stream ordering is implied.
+// one message per resource is prefetched; the selected consumer is then drained up to the epoch boundary
+// and acknowledged only after certification. No cross-stream ordering is implied.
 type multiSession struct {
 	writers  map[string]arrowbatch.RowWriter
+	columns  map[string]*streamkit.MessageColumns
 	children []*session
 	queued   []jetstream.Msg
 	next     int
@@ -27,6 +29,10 @@ type multiSession struct {
 }
 
 func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, b filament.Boundary) (filament.Coverage, error) {
+	started := time.Now()
+	if b.MaxAge > 0 && b.MaxAge < b.MaxWait {
+		b.MaxWait = b.MaxAge
+	}
 	if s.closed {
 		return filament.Coverage{}, errors.New("nats: session closed")
 	}
@@ -63,33 +69,31 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 		// A pattern may span multiple physical streams. All its children must
 		// share the one builder allowed for that logical resource.
 		if s.writers != nil && child.writer == nil {
-			writer := s.writers[child.binding.resource]
-			if writer == nil {
-				schema, err := Schema(child.binding.resource)
-				if err != nil {
-					s.failed = err
-					return filament.Coverage{}, err
-				}
-				writer, err = out.Builder(child.binding.resource, 0, schema)
-				if err != nil {
-					s.failed = err
-					return filament.Coverage{}, err
-				}
-				s.writers[child.binding.resource] = writer
+			if writer := s.writers[child.binding.resource]; writer != nil {
+				child.writer = writer
+				child.columns = s.columns[child.binding.resource]
+				child.projector = streamkit.NewEventMetadataProjector(writer, child.codecs)
 			}
-			child.writer = writer
-			child.projector = streamkit.NewProjector(writer, child.codecs)
 		}
-		coverage, err := child.readMessage(ctx, out, msg)
+		remaining := b
+		remaining.MaxWait = max(time.Nanosecond, b.MaxWait-time.Since(started))
+		coverage, err := child.readBatch(ctx, out, remaining, msg)
 		if err != nil {
 			s.failed = err
 			return filament.Coverage{}, err
+		}
+		if s.writers != nil && child.writer != nil {
+			s.writers[child.binding.resource] = child.writer
+			if s.columns == nil {
+				s.columns = map[string]*streamkit.MessageColumns{}
+			}
+			s.columns[child.binding.resource] = child.columns
 		}
 		if len(coverage.Positions) > 0 {
 			s.active = child
 		} else {
 			child.mu.Lock()
-			child.pending = nil
+			child.prefetched = nil
 			child.mu.Unlock()
 		}
 		return coverage, nil
@@ -122,7 +126,7 @@ func (s *multiSession) fetch(ctx context.Context, b filament.Boundary) error {
 			msg, err := child.consumer.Next(jetstream.FetchContext(readCtx))
 			if msg != nil {
 				child.mu.Lock()
-				child.pending = msg
+				child.prefetched = msg
 				child.mu.Unlock()
 			}
 			results <- result{i, msg, err}

@@ -7,8 +7,9 @@ ON CONFLICT (id) DO UPDATE SET
     schedule_id = EXCLUDED.schedule_id,
     status = EXCLUDED.status,
     request = EXCLUDED.request,
-    records = EXCLUDED.records,
-    bytes = EXCLUDED.bytes,
+    -- Certified continuous totals belong exclusively to CommitEpoch.
+    records = CASE WHEN runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN runs.records ELSE EXCLUDED.records END,
+    bytes = CASE WHEN runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN runs.bytes ELSE EXCLUDED.bytes END,
     -- Lifecycle stamps are first-write-wins. Each is owned by exactly one
     -- module, so a save from any other must not roll it back — that makes the
     -- ordering guarantee a property of the store rather than of every caller
@@ -35,8 +36,9 @@ ON CONFLICT (id) DO UPDATE SET
     schedule_id = EXCLUDED.schedule_id,
     status = EXCLUDED.status,
     request = EXCLUDED.request,
-    records = EXCLUDED.records,
-    bytes = EXCLUDED.bytes,
+    -- Certified continuous totals belong exclusively to CommitEpoch.
+    records = CASE WHEN runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN runs.records ELSE EXCLUDED.records END,
+    bytes = CASE WHEN runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN runs.bytes ELSE EXCLUDED.bytes END,
     scheduled_at = coalesce(runs.scheduled_at, EXCLUDED.scheduled_at),
     requested_at = coalesce(runs.requested_at, EXCLUDED.requested_at),
     started_at = coalesce(runs.started_at, EXCLUDED.started_at),
@@ -63,8 +65,8 @@ WHERE tenant_id = @tenant_id AND id = @run_id;
 -- name: ResetRunExecution :exec
 UPDATE runs SET
     status = @status,
-    records = CASE WHEN @preserve_progress::boolean THEN records ELSE 0 END,
-    bytes = CASE WHEN @preserve_progress::boolean THEN bytes ELSE 0 END,
+    records = CASE WHEN @preserve_progress::boolean OR runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN records ELSE 0 END,
+    bytes = CASE WHEN @preserve_progress::boolean OR runs.last_committed_at IS NOT NULL OR runs.request #>> '{Options,Execution}' = 'continuous' THEN bytes ELSE 0 END,
     cpu_seconds = 0,
     memory_peak_bytes = 0,
     requested_at = now(),

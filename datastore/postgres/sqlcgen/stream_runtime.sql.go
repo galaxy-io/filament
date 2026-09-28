@@ -479,7 +479,8 @@ func (q *Queries) Now(ctx context.Context) (pgtype.Timestamptz, error) {
 
 const pendingContinuousRuns = `-- name: PendingContinuousRuns :many
 SELECT r.id,r.tenant_id FROM runs r JOIN replication_streams s ON s.current_run_id=r.id
-WHERE s.status=0 AND r.ended_at IS NULL AND r.id::text>$1::text
+JOIN pipelines p ON p.id=s.pipeline_id AND p.tenant_id=s.tenant_id
+WHERE p.deleted_at IS NULL AND s.status=0 AND r.ended_at IS NULL AND r.id::text>$1::text
 ORDER BY r.id::text LIMIT $2
 `
 
