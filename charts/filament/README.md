@@ -211,7 +211,6 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | postgresql.backup.enabled | bool | `false` | Enable daily logical dumps (`pg_dumpall`) of the vendored PostgreSQL to a dedicated PVC. See `backup.cronjob.*` in the upstream chart for schedule and storage options. |
 | postgresql.enabled | bool | `false` | Enable the vendored Bitnami PostgreSQL chart for local or test clusters. See the [Bitnami PostgreSQL chart](https://artifacthub.io/packages/helm/bitnami/postgresql) for additional configuration. |
 | postgresql.fullnameOverride | string | `"filament-postgresql"` | Full name override for the vendored PostgreSQL release. |
-| postgresql.primary.initdb.scriptsConfigMap | string | `"filament-postgresql-initdb"` | Init scripts, from the chart ConfigMap creating the `auth` database. |
 | postgresql.primary.persistence.size | string | `"8Gi"` | PVC size for the vendored PostgreSQL primary. |
 | postgresql.primary.readinessProbe.failureThreshold | int | `2` |  |
 | postgresql.primary.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Resources for the vendored PostgreSQL primary. Overrides the upstream `nano` preset (192Mi memory limit), which risks OOM kills and unclean shutdowns under real load. |
@@ -246,7 +245,7 @@ The vendored Zitadel runs its init and setup jobs as post-install hooks so the v
 | zitadel.resources.requests | object | `{"cpu":"100m","memory":"512Mi"}` | Resources for the vendored Zitadel pod. The upstream chart sets none, which leaves it BestEffort QoS and first to be evicted. |
 | zitadel.setupJob.annotations | object | `{"helm.sh/hook":"post-install,post-upgrade","helm.sh/hook-delete-policy":"before-hook-creation","helm.sh/hook-weight":"2"}` | Hook timing for the Zitadel setup job, weighted to run after init. |
 | zitadel.zitadel.configmapConfig.Database.Postgres.Admin.SSL.Mode | string | `"disable"` |  |
-| zitadel.zitadel.configmapConfig.Database.Postgres.Database | string | `"auth"` | Database Zitadel uses. The vendored PostgreSQL creates `auth` on first init; Zitadel creates it itself anywhere else. |
+| zitadel.zitadel.configmapConfig.Database.Postgres.Database | string | `"zitadel"` | Database Zitadel creates and owns. Keep it separate from Filament's own database even when they share a server. |
 | zitadel.zitadel.configmapConfig.Database.Postgres.Host | string | required when `zitadel.enabled=true` | PostgreSQL server Zitadel connects to, e.g. the vendored `filament-postgresql` Service. The init job also needs `Admin.Username` and `Admin.Password` for a role that can create databases, and the runtime needs `User.Password`. |
 | zitadel.zitadel.configmapConfig.Database.Postgres.User.SSL.Mode | string | `"disable"` |  |
 | zitadel.zitadel.configmapConfig.Database.Postgres.User.Username | string | `"zitadel"` |  |
@@ -269,7 +268,7 @@ Changing the bootstrap admin password value does not rotate the password in Keyc
 | keycloak.adminUser | string | `"admin"` | Master-realm admin the server creates Filament's realm with. |
 | keycloak.command[0] | string | `"/opt/keycloak/bin/kc.sh"` |  |
 | keycloak.command[1] | string | `"start"` |  |
-| keycloak.database.database | string | `"auth"` | Database the vendored PostgreSQL creates on first init. |
+| keycloak.database.database | string | `"keycloak"` | Database the init container below creates for Keycloak. Keep it separate from Filament's own database even when they share a server. |
 | keycloak.database.existingSecret | string | `"filament-postgresql"` | Secret the vendored PostgreSQL chart stores its user password in. |
 | keycloak.database.existingSecretKey | string | `"password"` |  |
 | keycloak.database.hostname | string | `"filament-postgresql"` | The vendored PostgreSQL Service. |
@@ -280,6 +279,7 @@ Changing the bootstrap admin password value does not rotate the password in Keyc
 | keycloak.enabled | bool | `false` | Enable the vendored Keycloak chart. See the [keycloakx chart](https://artifacthub.io/packages/helm/codecentric/keycloakx) for additional configuration. |
 | keycloak.existingSecret | string | `""` | Dedicated Secret containing `AUTH_CLIENT_SECRET`, plus `AUTH_ADMIN_PASSWORD` when bootstrapping a realm and `AUTH_BOOTSTRAP_CLIENT_SECRET` when bootstrapping a tenant. Used for external and vendored Keycloak. Kept apart from `existingSecret`, which every worker receives. Unset, the chart creates `<release>-keycloak-auth` from `auth.keycloak`. |
 | keycloak.extraEnv | string | `"- name: KC_BOOTSTRAP_ADMIN_USERNAME\n  value: {{ .Values.adminUser | quote }}\n- name: KC_BOOTSTRAP_ADMIN_PASSWORD\n  valueFrom:\n    secretKeyRef:\n      name: {{ include \"filament.keycloak.secretName\" . | quote }}\n      key: AUTH_ADMIN_PASSWORD\n- name: KC_HOSTNAME\n  value: {{ required \"keycloak.hostname is required when keycloak.enabled=true\" .Values.hostname | trimSuffix \"/\" | quote }}\n"` |  |
+| keycloak.extraInitContainers | string | `"- name: create-database\n  image: postgres:17-alpine\n  env:\n    - name: PGHOST\n      value: {{ .Values.database.hostname | quote }}\n    - name: PGPORT\n      value: {{ .Values.database.port | quote }}\n    - name: PGUSER\n      value: {{ .Values.database.username | quote }}\n    - name: PGPASSWORD\n      valueFrom:\n        secretKeyRef:\n          name: {{ .Values.database.existingSecret | quote }}\n          key: {{ .Values.database.existingSecretKey | quote }}\n  command:\n    - sh\n    - -ec\n    - |\n      db={{ .Values.database.database | quote }}\n      psql -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$db'\" | grep -q 1 || psql -d postgres -c \"CREATE DATABASE \\\"$db\\\"\"\n"` | Creates `database.database` if missing, as `database.username`, which needs CREATEDB. The vendored PostgreSQL user has it. |
 | keycloak.fullnameOverride | string | `"filament-keycloak"` | Full name override for the vendored Keycloak release. |
 | keycloak.hostname | string | required when `keycloak.enabled=true` | Origin Keycloak advertises and the ingress serves, e.g. `https://id.example.com`. Becomes the issuer, so it must resolve inside the cluster too. An optional port and trailing slash are supported; paths, queries, and fragments are not. |
 | keycloak.http.relativePath | string | `"/"` |  |

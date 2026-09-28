@@ -346,9 +346,6 @@ postgresql:
     # @default -- required when `postgresql.enabled=true`
     password: ""
   primary:
-    initdb:
-      # -- Init scripts, from the chart ConfigMap creating the `auth` database.
-      scriptsConfigMap: filament-postgresql-initdb
     # -- Resources for the vendored PostgreSQL primary. Overrides the upstream
     # `nano` preset (192Mi memory limit), which risks OOM kills and unclean
     # shutdowns under real load.
@@ -439,9 +436,9 @@ zitadel:
           # databases, and the runtime needs `User.Password`.
           # @default -- required when `zitadel.enabled=true`
           Host: ""
-          # -- Database Zitadel uses. The vendored PostgreSQL creates `auth` on
-          # first init; Zitadel creates it itself anywhere else.
-          Database: auth
+          # -- Database Zitadel creates and owns. Keep it separate from
+          # Filament's own database even when they share a server.
+          Database: zitadel
           User:
             Username: zitadel
             SSL:
@@ -518,8 +515,9 @@ keycloak:
     # -- The vendored PostgreSQL Service.
     hostname: filament-postgresql
     port: 5432
-    # -- Database the vendored PostgreSQL creates on first init.
-    database: auth
+    # -- Database the init container below creates for Keycloak. Keep it
+    # separate from Filament's own database even when they share a server.
+    database: keycloak
     username: filament
     # -- Secret the vendored PostgreSQL chart stores its user password in.
     existingSecret: filament-postgresql
@@ -527,6 +525,29 @@ keycloak:
   dbchecker:
     # -- Wait for PostgreSQL before starting.
     enabled: true
+  # -- Creates `database.database` if missing, as `database.username`, which
+  # needs CREATEDB. The vendored PostgreSQL user has it.
+  extraInitContainers: |
+    - name: create-database
+      image: postgres:17-alpine
+      env:
+        - name: PGHOST
+          value: {{ .Values.database.hostname | quote }}
+        - name: PGPORT
+          value: {{ .Values.database.port | quote }}
+        - name: PGUSER
+          value: {{ .Values.database.username | quote }}
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.database.existingSecret | quote }}
+              key: {{ .Values.database.existingSecretKey | quote }}
+      command:
+        - sh
+        - -ec
+        - |
+          db={{ .Values.database.database | quote }}
+          psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$db'" | grep -q 1 || psql -d postgres -c "CREATE DATABASE \"$db\""
   extraEnv: |
     - name: KC_BOOTSTRAP_ADMIN_USERNAME
       value: {{ .Values.adminUser | quote }}
