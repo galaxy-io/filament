@@ -1,8 +1,6 @@
 import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
 import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -14,9 +12,7 @@ interface PipelineCanvasPanelSectionProps {
   emptyMessage: string;
   padding?: ComponentProps<typeof Accordion>["padding"];
   isOpenInitial?: boolean;
-  metric?: ReactNode;
-  headerAction?: ReactNode;
-  headerActionWidth?: number;
+  trailing?: ReactNode;
   isOpen?: boolean;
   onToggle?: () => void;
 }
@@ -28,14 +24,12 @@ const PipelineCanvasPanelSection = ({
   emptyMessage,
   padding = 0,
   isOpenInitial = true,
-  metric,
-  headerAction,
-  headerActionWidth = 96,
+  trailing,
   isOpen,
   onToggle,
   children,
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
-  const accordion = (
+  return (
     <Accordion
       header={header}
       variant={AccordionVariant.TERTIARY}
@@ -43,7 +37,7 @@ const PipelineCanvasPanelSection = ({
       isOpenInitial={isOpenInitial}
       isOpen={isOpen}
       onToggle={onToggle}
-      metric={headerAction ? <FlexItem width={headerActionWidth} shrink={0} /> : metric}
+      trailing={trailing}
     >
       {isEmpty ? (
         <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
@@ -51,17 +45,6 @@ const PipelineCanvasPanelSection = ({
         children
       )}
     </Accordion>
-  );
-
-  if (!headerAction) return accordion;
-
-  return (
-    <Wrapper position="relative" fillWidth>
-      {accordion}
-      <Wrapper position="absolute" top="8px" right="32px">
-        {headerAction}
-      </Wrapper>
-    </Wrapper>
   );
 };
 

@@ -123,7 +123,7 @@ const PipelineCanvasPanelResourceSection = ({
       emptyMessage={PIPELINE_CANVAS_NODE_TYPE_TO_RESOURCE_EMPTY_MESSAGE_MAP[nodeType]}
       isOpen={isOpen}
       onToggle={() => setIsOpen((prev) => !prev)}
-      headerAction={
+      trailing={
         canCreate ? (
           <Button
             label="Add resource"
@@ -138,7 +138,6 @@ const PipelineCanvasPanelResourceSection = ({
           />
         ) : undefined
       }
-      headerActionWidth={128}
     >
       <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
         {isCreating && (

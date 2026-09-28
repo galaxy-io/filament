@@ -38,6 +38,7 @@ jobs:
               - "ui/**"
             chart:
               - "charts/**"
+              - ".github/workflows/lint.yaml"
             migrations:
               - "datastore/*/migrations/**"
 
@@ -123,6 +124,7 @@ jobs:
           helm repo add bitnami https://charts.bitnami.com/bitnami
           helm repo add nats https://nats-io.github.io/k8s/helm/charts
           helm repo add zitadel https://charts.zitadel.com
+          helm repo add codecentric https://codecentric.github.io/helm-charts
           helm dependency build charts/filament
 
       - name: Lint
@@ -134,6 +136,11 @@ jobs:
           helm template filament charts/filament --set existingSecret=byo > /dev/null
           helm template filament charts/filament --set controlPlane.autoscaling.enabled=true --set server.autoscaling.enabled=true > /dev/null
           helm template filament charts/filament --set server.ingress.enabled=true --set "server.ingress.hosts[0]=filament.example.com" > /dev/null
+          helm template filament charts/filament --set auth.enabled=true --set auth.type=keycloak --set auth.keycloak.issuer=https://id.example.com/realms/filament --set auth.keycloak.clientSecret=s > /dev/null
+          helm template filament charts/filament --set auth.enabled=true --set auth.type=keycloak --set keycloak.enabled=true --set keycloak.hostname=https://id.example.com/ --set auth.keycloak.clientSecret=s --set auth.keycloak.adminPassword=a --set postgresql.enabled=true --set postgresql.auth.password=p > /dev/null
+          helm template filament charts/filament --set existingSecret=runtime-byo --set keycloak.existingSecret=keycloak-byo --set auth.enabled=true --set auth.type=keycloak --set keycloak.enabled=true --set keycloak.hostname=https://id.example.com --set postgresql.enabled=true > /dev/null
+          helm template filament charts/filament --set auth.enabled=true --set auth.zitadel.issuer=https://id.example.com --set auth.zitadel.pat=p > /dev/null
+          helm template filament charts/filament --set existingSecret=runtime-byo --set auth.enabled=true --set auth.zitadel.issuer=https://id.example.com --set auth.zitadel.existingSecret=zitadel-byo > /dev/null
 
       - name: Package
         run: helm package charts/filament --destination /tmp

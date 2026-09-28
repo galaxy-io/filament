@@ -2,6 +2,7 @@ import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
@@ -42,6 +43,16 @@ export const PIPELINE_NOTIFIER_EVENT_TO_LABEL_MAP: Record<NotifierEvent, string>
   [NotifierEvent.RUN_PARTIAL]: "run.partial",
   [NotifierEvent.RUN_CANCELED]: "run.canceled",
   [NotifierEvent.RUN_PAUSED]: "run.paused",
+};
+
+export const PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP: Record<NotifierEvent, RunStatus> = {
+  [NotifierEvent.UNSPECIFIED]: RunStatus.UNSPECIFIED,
+  [NotifierEvent.RUN_STARTED]: RunStatus.RUNNING,
+  [NotifierEvent.RUN_COMPLETED]: RunStatus.COMPLETED,
+  [NotifierEvent.RUN_FAILED]: RunStatus.FAILED,
+  [NotifierEvent.RUN_PARTIAL]: RunStatus.PARTIAL,
+  [NotifierEvent.RUN_CANCELED]: RunStatus.CANCELED,
+  [NotifierEvent.RUN_PAUSED]: RunStatus.PAUSED,
 };
 
 export const PIPELINE_NOTIFIER_EVENTS = Object.values(NotifierEvent).filter(

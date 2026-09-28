@@ -101,9 +101,16 @@ Filament does not export logs through OTLP.
 
 | Variable | Default | Description |
 |---|---|---|
-| `AUTH_PROVIDER` | unset | Unset disables authentication. The supported provider is `zitadel` |
-| `AUTH_ISSUER` | — | Zitadel issuer URL. Required when `AUTH_PROVIDER=zitadel` |
+| `AUTH_PROVIDER` | unset | Unset disables authentication. Supported providers are `zitadel` and `keycloak` |
+| `AUTH_ISSUER` | — | Issuer URL. The Zitadel base URL, or the Keycloak realm URL in the form `https://<host>/realms/<realm>`. Required when `AUTH_PROVIDER` is set |
 | `AUTH_PAT` | — | Zitadel machine-user personal access token. Required when `AUTH_PROVIDER=zitadel` |
+| `AUTH_CLIENT_ID` | — | Filament's confidential client in the Keycloak realm. Required when `AUTH_PROVIDER=keycloak` |
+| `AUTH_CLIENT_SECRET` | — | That client's secret. Required when `AUTH_PROVIDER=keycloak` |
+| `AUTH_ADMIN_USERNAME` | unset | Keycloak admin on the master realm. With `AUTH_ADMIN_PASSWORD`, the server creates the realm and client on boot when they are missing; unset, the realm's owners provision both |
+| `AUTH_ADMIN_PASSWORD` | unset | That admin's password |
+| `AUTH_BOOTSTRAP_TENANT` | unset | Tenant converged on every boot with an admin service account, so an SDK can act before any person registers. Keycloak only; set all three bootstrap variables or none |
+| `AUTH_BOOTSTRAP_CLIENT_ID` | unset | Client id of that service account |
+| `AUTH_BOOTSTRAP_CLIENT_SECRET` | unset | Secret that service account authenticates with, chosen by you |
 | `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies |
 
 <Warning>
