@@ -1,3 +1,5 @@
+import { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -11,7 +13,11 @@ const CreatePipelineModalDeliverySchedule = () => {
 
   return (
     <PipelineScheduleFields
+      header="Schedule"
+      size={AccordionSize.LARGE}
+      padding="16px"
       state={schedule}
+      isOpenInitial
       onChange={(partial) =>
         dispatch({
           type: CreatePipelineModalActionType.SET_SCHEDULE,

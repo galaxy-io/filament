@@ -1,3 +1,5 @@
+import { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -46,6 +48,8 @@ const CreatePipelineModalDeliveryNotifications = () => {
 
   return (
     <PipelineNotifierTable
+      header="Notifications"
+      size={AccordionSize.LARGE}
       rows={notifiers}
       onCreate={handleCreate}
       onUpdate={handleUpdate}
