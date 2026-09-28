@@ -6,6 +6,7 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .ingestion_v1execution_mode import IngestionV1ExecutionMode
 from .ingestion_v1read_mode import IngestionV1ReadMode
 from .ingestion_v1replication_mode import IngestionV1ReplicationMode
 from .ingestion_v1requirement import IngestionV1Requirement
@@ -39,12 +40,29 @@ class IngestionV1EdgeValidation(UniversalBaseModel):
     effective_read_mode: typing_extensions.Annotated[
         typing.Optional[IngestionV1ReadMode],
         FieldMetadata(alias="effectiveReadMode"),
-        pydantic.Field(alias="effectiveReadMode"),
+        pydantic.Field(
+            alias="effectiveReadMode",
+            description="Unspecified for message streams, which do not use row cursor read modes.",
+        ),
     ] = None
+    """
+    Unspecified for message streams, which do not use row cursor read modes.
+    """
+
     effective_write_mode: typing_extensions.Annotated[
         typing.Optional[IngestionV1WriteMode],
         FieldMetadata(alias="effectiveWriteMode"),
         pydantic.Field(alias="effectiveWriteMode"),
+    ] = None
+    effective_execution_mode: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionMode],
+        FieldMetadata(alias="effectiveExecutionMode"),
+        pydantic.Field(alias="effectiveExecutionMode"),
+    ] = None
+    supported_execution_modes: typing_extensions.Annotated[
+        typing.Optional[typing.List[IngestionV1ExecutionMode]],
+        FieldMetadata(alias="supportedExecutionModes"),
+        pydantic.Field(alias="supportedExecutionModes"),
     ] = None
 
     if IS_PYDANTIC_V2:

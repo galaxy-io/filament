@@ -56,6 +56,10 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1discover_resources_response import IngestionV1DiscoverResourcesResponse
     from .ingestion_v1edge_validation import IngestionV1EdgeValidation
     from .ingestion_v1enum_option import IngestionV1EnumOption
+    from .ingestion_v1execution_desired_state import IngestionV1ExecutionDesiredState
+    from .ingestion_v1execution_mode import IngestionV1ExecutionMode
+    from .ingestion_v1execution_observed_state import IngestionV1ExecutionObservedState
+    from .ingestion_v1execution_status import IngestionV1ExecutionStatus
     from .ingestion_v1field_condition import IngestionV1FieldCondition
     from .ingestion_v1field_scope import IngestionV1FieldScope
     from .ingestion_v1field_type import IngestionV1FieldType
@@ -182,6 +186,10 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1DiscoverResourcesResponse": ".ingestion_v1discover_resources_response",
     "IngestionV1EdgeValidation": ".ingestion_v1edge_validation",
     "IngestionV1EnumOption": ".ingestion_v1enum_option",
+    "IngestionV1ExecutionDesiredState": ".ingestion_v1execution_desired_state",
+    "IngestionV1ExecutionMode": ".ingestion_v1execution_mode",
+    "IngestionV1ExecutionObservedState": ".ingestion_v1execution_observed_state",
+    "IngestionV1ExecutionStatus": ".ingestion_v1execution_status",
     "IngestionV1FieldCondition": ".ingestion_v1field_condition",
     "IngestionV1FieldScope": ".ingestion_v1field_scope",
     "IngestionV1FieldType": ".ingestion_v1field_type",
@@ -332,6 +340,10 @@ __all__ = [
     "IngestionV1DiscoverResourcesResponse",
     "IngestionV1EdgeValidation",
     "IngestionV1EnumOption",
+    "IngestionV1ExecutionDesiredState",
+    "IngestionV1ExecutionMode",
+    "IngestionV1ExecutionObservedState",
+    "IngestionV1ExecutionStatus",
     "IngestionV1FieldCondition",
     "IngestionV1FieldScope",
     "IngestionV1FieldType",

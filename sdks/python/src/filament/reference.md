@@ -1607,6 +1607,14 @@ worker_configuration shapes this pipeline's runs. Omit it to configure the
 <dl>
 <dd>
 
+**execution_mode:** `typing.Optional[IngestionV1ExecutionMode]` — Unspecified defaults to bounded.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
@@ -2082,6 +2090,14 @@ client.pipeline.update(
 <dl>
 <dd>
 
+**execution_mode:** `typing.Optional[IngestionV1ExecutionMode]` — Unspecified preserves the saved mode; affects future starts only.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
@@ -2155,6 +2171,14 @@ client.pipeline.validate(
 <dd>
 
 **graph:** `typing.Optional[IngestionV1PipelineGraph]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**execution_mode:** `typing.Optional[IngestionV1ExecutionMode]` — Unspecified means bounded. Validation and submission must use the same mode.
     
 </dd>
 </dl>
@@ -2884,6 +2908,17 @@ client.run.signal(
 <dd>
 
 **signal:** `typing.Optional[IngestionV1RunSignal]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**expected_revision:** `typing.Optional[str]` 
+
+Optional CAS for continuous desired state. A stale revision is rejected.
+ Absent permits a transition against the current revision.
     
 </dd>
 </dl>

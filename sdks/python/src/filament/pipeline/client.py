@@ -9,6 +9,7 @@ from ..core.request_options import RequestOptions
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.ingestion_v1create_pipeline_response import IngestionV1CreatePipelineResponse
 from ..types.ingestion_v1delete_pipeline_response import IngestionV1DeletePipelineResponse
+from ..types.ingestion_v1execution_mode import IngestionV1ExecutionMode
 from ..types.ingestion_v1get_pipeline_response import IngestionV1GetPipelineResponse
 from ..types.ingestion_v1list_pipelines_response import IngestionV1ListPipelinesResponse
 from ..types.ingestion_v1pagination_request import IngestionV1PaginationRequest
@@ -57,6 +58,7 @@ class PipelineClient:
         description: typing.Optional[str] = OMIT,
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1CreatePipelineResponse:
         """
@@ -76,6 +78,9 @@ class PipelineClient:
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
             worker_configuration shapes this pipeline's runs. Omit it to configure the
              pipeline's workers later through UpdatePipeline.
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified defaults to bounded.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -103,6 +108,7 @@ class PipelineClient:
             description=description,
             schedule=schedule,
             worker_configuration=worker_configuration,
+            execution_mode=execution_mode,
             request_options=request_options,
         )
         return _response.data
@@ -339,6 +345,7 @@ class PipelineClient:
         name: typing.Optional[str] = OMIT,
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1UpdatePipelineResponse:
         """
@@ -354,6 +361,9 @@ class PipelineClient:
         description : typing.Optional[str]
 
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified preserves the saved mode; affects future starts only.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -381,6 +391,7 @@ class PipelineClient:
             name=name,
             description=description,
             worker_configuration=worker_configuration,
+            execution_mode=execution_mode,
             request_options=request_options,
         )
         return _response.data
@@ -390,6 +401,7 @@ class PipelineClient:
         *,
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         graph: typing.Optional[IngestionV1PipelineGraph] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1ValidatePipelineResponse:
         """
@@ -401,6 +413,9 @@ class PipelineClient:
             Define the timeout, in ms
 
         graph : typing.Optional[IngestionV1PipelineGraph]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified means bounded. Validation and submission must use the same mode.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -423,7 +438,10 @@ class PipelineClient:
         )
         """
         _response = self._raw_client.validate(
-            connect_timeout_ms=connect_timeout_ms, graph=graph, request_options=request_options
+            connect_timeout_ms=connect_timeout_ms,
+            graph=graph,
+            execution_mode=execution_mode,
+            request_options=request_options,
         )
         return _response.data
 
@@ -479,6 +497,7 @@ class AsyncPipelineClient:
         description: typing.Optional[str] = OMIT,
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1CreatePipelineResponse:
         """
@@ -498,6 +517,9 @@ class AsyncPipelineClient:
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
             worker_configuration shapes this pipeline's runs. Omit it to configure the
              pipeline's workers later through UpdatePipeline.
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified defaults to bounded.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -533,6 +555,7 @@ class AsyncPipelineClient:
             description=description,
             schedule=schedule,
             worker_configuration=worker_configuration,
+            execution_mode=execution_mode,
             request_options=request_options,
         )
         return _response.data
@@ -801,6 +824,7 @@ class AsyncPipelineClient:
         name: typing.Optional[str] = OMIT,
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1UpdatePipelineResponse:
         """
@@ -816,6 +840,9 @@ class AsyncPipelineClient:
         description : typing.Optional[str]
 
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified preserves the saved mode; affects future starts only.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -851,6 +878,7 @@ class AsyncPipelineClient:
             name=name,
             description=description,
             worker_configuration=worker_configuration,
+            execution_mode=execution_mode,
             request_options=request_options,
         )
         return _response.data
@@ -860,6 +888,7 @@ class AsyncPipelineClient:
         *,
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         graph: typing.Optional[IngestionV1PipelineGraph] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1ValidatePipelineResponse:
         """
@@ -871,6 +900,9 @@ class AsyncPipelineClient:
             Define the timeout, in ms
 
         graph : typing.Optional[IngestionV1PipelineGraph]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified means bounded. Validation and submission must use the same mode.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -901,7 +933,10 @@ class AsyncPipelineClient:
         asyncio.run(main())
         """
         _response = await self._raw_client.validate(
-            connect_timeout_ms=connect_timeout_ms, graph=graph, request_options=request_options
+            connect_timeout_ms=connect_timeout_ms,
+            graph=graph,
+            execution_mode=execution_mode,
+            request_options=request_options,
         )
         return _response.data
 

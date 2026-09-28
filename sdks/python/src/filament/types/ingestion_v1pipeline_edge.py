@@ -42,6 +42,17 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
     write_mode: typing_extensions.Annotated[
         typing.Optional[IngestionV1WriteMode], FieldMetadata(alias="writeMode"), pydantic.Field(alias="writeMode")
     ] = None
+    destination_resource: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="destinationResource"),
+        pydantic.Field(
+            alias="destinationResource",
+            description="Optional destination name for this resource in any execution mode; source identity is unchanged.",
+        ),
+    ] = None
+    """
+    Optional destination name for this resource in any execution mode; source identity is unchanged.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

@@ -13,6 +13,7 @@ from ..core.serialization import convert_and_respect_annotation_metadata
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.ingestion_v1create_pipeline_response import IngestionV1CreatePipelineResponse
 from ..types.ingestion_v1delete_pipeline_response import IngestionV1DeletePipelineResponse
+from ..types.ingestion_v1execution_mode import IngestionV1ExecutionMode
 from ..types.ingestion_v1get_pipeline_response import IngestionV1GetPipelineResponse
 from ..types.ingestion_v1list_pipelines_response import IngestionV1ListPipelinesResponse
 from ..types.ingestion_v1pagination_request import IngestionV1PaginationRequest
@@ -42,6 +43,7 @@ class RawPipelineClient:
         description: typing.Optional[str] = OMIT,
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1CreatePipelineResponse]:
         """
@@ -61,6 +63,9 @@ class RawPipelineClient:
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
             worker_configuration shapes this pipeline's runs. Omit it to configure the
              pipeline's workers later through UpdatePipeline.
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified defaults to bounded.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -82,6 +87,7 @@ class RawPipelineClient:
                 "workerConfiguration": convert_and_respect_annotation_metadata(
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",
@@ -403,6 +409,7 @@ class RawPipelineClient:
         name: typing.Optional[str] = OMIT,
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1UpdatePipelineResponse]:
         """
@@ -418,6 +425,9 @@ class RawPipelineClient:
         description : typing.Optional[str]
 
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified preserves the saved mode; affects future starts only.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -437,6 +447,7 @@ class RawPipelineClient:
                 "workerConfiguration": convert_and_respect_annotation_metadata(
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",
@@ -469,6 +480,7 @@ class RawPipelineClient:
         *,
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         graph: typing.Optional[IngestionV1PipelineGraph] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1ValidatePipelineResponse]:
         """
@@ -480,6 +492,9 @@ class RawPipelineClient:
             Define the timeout, in ms
 
         graph : typing.Optional[IngestionV1PipelineGraph]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified means bounded. Validation and submission must use the same mode.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -496,6 +511,7 @@ class RawPipelineClient:
                 "graph": convert_and_respect_annotation_metadata(
                     object_=graph, annotation=IngestionV1PipelineGraph, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",
@@ -536,6 +552,7 @@ class AsyncRawPipelineClient:
         description: typing.Optional[str] = OMIT,
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1CreatePipelineResponse]:
         """
@@ -555,6 +572,9 @@ class AsyncRawPipelineClient:
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
             worker_configuration shapes this pipeline's runs. Omit it to configure the
              pipeline's workers later through UpdatePipeline.
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified defaults to bounded.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -576,6 +596,7 @@ class AsyncRawPipelineClient:
                 "workerConfiguration": convert_and_respect_annotation_metadata(
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",
@@ -897,6 +918,7 @@ class AsyncRawPipelineClient:
         name: typing.Optional[str] = OMIT,
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1UpdatePipelineResponse]:
         """
@@ -912,6 +934,9 @@ class AsyncRawPipelineClient:
         description : typing.Optional[str]
 
         worker_configuration : typing.Optional[IngestionV1WorkerConfiguration]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified preserves the saved mode; affects future starts only.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -931,6 +956,7 @@ class AsyncRawPipelineClient:
                 "workerConfiguration": convert_and_respect_annotation_metadata(
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",
@@ -963,6 +989,7 @@ class AsyncRawPipelineClient:
         *,
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         graph: typing.Optional[IngestionV1PipelineGraph] = OMIT,
+        execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1ValidatePipelineResponse]:
         """
@@ -974,6 +1001,9 @@ class AsyncRawPipelineClient:
             Define the timeout, in ms
 
         graph : typing.Optional[IngestionV1PipelineGraph]
+
+        execution_mode : typing.Optional[IngestionV1ExecutionMode]
+            Unspecified means bounded. Validation and submission must use the same mode.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -990,6 +1020,7 @@ class AsyncRawPipelineClient:
                 "graph": convert_and_respect_annotation_metadata(
                     object_=graph, annotation=IngestionV1PipelineGraph, direction="write"
                 ),
+                "executionMode": execution_mode,
             },
             headers={
                 "content-type": "application/json",

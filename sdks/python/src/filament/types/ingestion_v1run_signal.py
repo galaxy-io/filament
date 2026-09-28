@@ -3,5 +3,8 @@
 import typing
 
 IngestionV1RunSignal = typing.Union[
-    typing.Literal["RUN_SIGNAL_UNSPECIFIED", "RUN_SIGNAL_PAUSE", "RUN_SIGNAL_RESUME", "RUN_SIGNAL_CANCEL"], typing.Any
+    typing.Literal[
+        "RUN_SIGNAL_UNSPECIFIED", "RUN_SIGNAL_PAUSE", "RUN_SIGNAL_RESUME", "RUN_SIGNAL_CANCEL", "RUN_SIGNAL_STOP"
+    ],
+    typing.Any,
 ]

@@ -3586,6 +3586,14 @@
             ],
             "title": "replication",
             "description": "replication is the effective source behavior derived from the immutable\n connection configuration. Sinks report UNSPECIFIED."
+          },
+          "executionModes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+            },
+            "title": "execution_modes",
+            "description": "execution_modes lists the modes this connection can take part in, derived\n from connector capabilities and runtime support. Route compatibility is\n still decided by ValidatePipeline."
           }
         },
         "title": "Connection",
@@ -3798,6 +3806,15 @@
             ],
             "title": "worker_configuration",
             "description": "worker_configuration shapes this pipeline's runs. Omit it to configure the\n pipeline's workers later through UpdatePipeline."
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode",
+            "description": "Unspecified defaults to bounded."
           }
         },
         "title": "CreatePipelineRequest",
@@ -4044,7 +4061,8 @@
                 "$ref": "#/components/schemas/ingestion.v1.ReadMode"
               }
             ],
-            "title": "effective_read_mode"
+            "title": "effective_read_mode",
+            "description": "Unspecified for message streams, which do not use row cursor read modes."
           },
           "effectiveWriteMode": {
             "allOf": [
@@ -4053,6 +4071,21 @@
               }
             ],
             "title": "effective_write_mode"
+          },
+          "effectiveExecutionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "effective_execution_mode"
+          },
+          "supportedExecutionModes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+            },
+            "title": "supported_execution_modes"
           }
         },
         "title": "EdgeValidation",
@@ -4074,6 +4107,84 @@
         "title": "EnumOption",
         "additionalProperties": false,
         "description": "EnumOption is one ordered choice for an enum or list config field."
+      },
+      "ingestion.v1.ExecutionDesiredState": {
+        "type": "string",
+        "title": "ExecutionDesiredState",
+        "enum": [
+          "EXECUTION_DESIRED_STATE_UNSPECIFIED",
+          "EXECUTION_DESIRED_STATE_ENABLED",
+          "EXECUTION_DESIRED_STATE_PAUSED",
+          "EXECUTION_DESIRED_STATE_STOPPED"
+        ],
+        "description": "ExecutionDesiredState is the persisted intent for continuous execution."
+      },
+      "ingestion.v1.ExecutionMode": {
+        "type": "string",
+        "title": "ExecutionMode",
+        "enum": [
+          "EXECUTION_MODE_UNSPECIFIED",
+          "EXECUTION_MODE_BOUNDED",
+          "EXECUTION_MODE_CONTINUOUS"
+        ],
+        "description": "ExecutionMode is independent of replication and write semantics.\n Unspecified preserves bounded execution for existing clients."
+      },
+      "ingestion.v1.ExecutionObservedState": {
+        "type": "string",
+        "title": "ExecutionObservedState",
+        "enum": [
+          "EXECUTION_OBSERVED_STATE_UNSPECIFIED",
+          "EXECUTION_OBSERVED_STATE_STARTING",
+          "EXECUTION_OBSERVED_STATE_RUNNING",
+          "EXECUTION_OBSERVED_STATE_DRAINING",
+          "EXECUTION_OBSERVED_STATE_PAUSED",
+          "EXECUTION_OBSERVED_STATE_STOPPED",
+          "EXECUTION_OBSERVED_STATE_RETRYING",
+          "EXECUTION_OBSERVED_STATE_BLOCKED",
+          "EXECUTION_OBSERVED_STATE_FAILED"
+        ],
+        "description": "ExecutionObservedState describes progress toward the requested state.\n An idle source can remain RUNNING; lack of arriving records is not a failure."
+      },
+      "ingestion.v1.ExecutionStatus": {
+        "type": "object",
+        "properties": {
+          "desiredState": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionDesiredState"
+              }
+            ],
+            "title": "desired_state"
+          },
+          "observedState": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionObservedState"
+              }
+            ],
+            "title": "observed_state"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64",
+            "description": "Opaque revision for SignalRunRequest.expected_revision; clients echo it."
+          },
+          "reason": {
+            "type": "string",
+            "title": "reason",
+            "description": "User-facing explanation, including actionable blocked/failed conditions."
+          },
+          "lastCommittedAt": {
+            "type": "string",
+            "title": "last_committed_at",
+            "format": "int64",
+            "description": "Epoch milliseconds of the most recent durable commit; zero means none yet."
+          }
+        },
+        "title": "ExecutionStatus",
+        "additionalProperties": false,
+        "description": "ExecutionStatus is the user-facing state of continuous execution, loaded from\n durable state. GetRun/ListRuns remain authoritative after missed live events.\n Pause/resume and worker restarts retain the run ID; starting again after stop\n creates a new run. Desired and observed states can differ while draining."
       },
       "ingestion.v1.FieldCondition": {
         "type": "object",
@@ -4956,6 +5067,15 @@
             ],
             "title": "worker_configuration",
             "description": "worker_configuration shapes this pipeline's runs by default. It lives on\n the pipeline rather than the version so editing it cannot mint a version\n and orphan the resource checkpoints keyed by the old one."
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode",
+            "description": "Default execution mode for subsequent starts; existing pipelines are bounded."
           }
         },
         "title": "Pipeline",
@@ -5004,6 +5124,11 @@
               }
             ],
             "title": "write_mode"
+          },
+          "destinationResource": {
+            "type": "string",
+            "title": "destination_resource",
+            "description": "Optional destination name for this resource in any execution mode; source identity is unchanged."
           }
         },
         "title": "PipelineEdge",
@@ -5546,7 +5671,7 @@
               }
             ],
             "title": "checkpoint",
-            "description": "checkpoint preserves the connector cursor together with its resource."
+            "description": "Legacy bounded cursor payload. Continuous progress is read through GetRun;\n continuous events do not carry raw customer cursors."
           }
         },
         "title": "RunEventFields",
@@ -5643,6 +5768,23 @@
             "type": "string",
             "title": "updated_at",
             "format": "int64"
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode"
+          },
+          "executionStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionStatus"
+              }
+            ],
+            "title": "execution_status",
+            "description": "Present for continuous runs. records/bytes above reflect committed progress."
           }
         },
         "title": "RunInfo",
@@ -5684,6 +5826,15 @@
             "type": "integer",
             "title": "checkpoint_every",
             "format": "int32"
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode",
+            "description": "Unspecified inherits the pipeline mode. Explicit values override this start.\n Continuous creates a durable activation; unavailable profiles are rejected."
           }
         },
         "title": "RunOptions",
@@ -5779,7 +5930,8 @@
           "RUN_SIGNAL_UNSPECIFIED",
           "RUN_SIGNAL_PAUSE",
           "RUN_SIGNAL_RESUME",
-          "RUN_SIGNAL_CANCEL"
+          "RUN_SIGNAL_CANCEL",
+          "RUN_SIGNAL_STOP"
         ],
         "description": "RunSignal is a lifecycle command sent to a run."
       },
@@ -5840,6 +5992,15 @@
               }
             ],
             "title": "signal"
+          },
+          "expectedRevision": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "expected_revision",
+            "format": "int64",
+            "description": "Optional CAS for continuous desired state. A stale revision is rejected.\n Absent permits a transition against the current revision."
           }
         },
         "title": "SignalRunRequest",
@@ -5847,8 +6008,19 @@
       },
       "ingestion.v1.SignalRunResponse": {
         "type": "object",
+        "properties": {
+          "executionStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionStatus"
+              }
+            ],
+            "title": "execution_status"
+          }
+        },
         "title": "SignalRunResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Continuous success confirms persisted intent, not completed worker drainage.\n Bounded responses leave execution_status absent."
       },
       "ingestion.v1.SortBy": {
         "type": "string",
@@ -6013,6 +6185,15 @@
               }
             ],
             "title": "worker_configuration"
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode",
+            "description": "Unspecified preserves the saved mode; affects future starts only."
           }
         },
         "title": "UpdatePipelineRequest",
@@ -6126,6 +6307,15 @@
               }
             ],
             "title": "graph"
+          },
+          "executionMode": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.ExecutionMode"
+              }
+            ],
+            "title": "execution_mode",
+            "description": "Unspecified means bounded. Validation and submission must use the same mode."
           }
         },
         "title": "ValidatePipelineRequest",

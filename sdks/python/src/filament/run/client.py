@@ -151,6 +151,7 @@ class RunClient:
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         run_id: typing.Optional[str] = OMIT,
         signal: typing.Optional[IngestionV1RunSignal] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1SignalRunResponse:
         """
@@ -162,6 +163,10 @@ class RunClient:
         run_id : typing.Optional[str]
 
         signal : typing.Optional[IngestionV1RunSignal]
+
+        expected_revision : typing.Optional[str]
+            Optional CAS for continuous desired state. A stale revision is rejected.
+             Absent permits a transition against the current revision.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -184,7 +189,11 @@ class RunClient:
         )
         """
         _response = self._raw_client.signal(
-            connect_timeout_ms=connect_timeout_ms, run_id=run_id, signal=signal, request_options=request_options
+            connect_timeout_ms=connect_timeout_ms,
+            run_id=run_id,
+            signal=signal,
+            expected_revision=expected_revision,
+            request_options=request_options,
         )
         return _response.data
 
@@ -338,6 +347,7 @@ class AsyncRunClient:
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         run_id: typing.Optional[str] = OMIT,
         signal: typing.Optional[IngestionV1RunSignal] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1SignalRunResponse:
         """
@@ -349,6 +359,10 @@ class AsyncRunClient:
         run_id : typing.Optional[str]
 
         signal : typing.Optional[IngestionV1RunSignal]
+
+        expected_revision : typing.Optional[str]
+            Optional CAS for continuous desired state. A stale revision is rejected.
+             Absent permits a transition against the current revision.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -379,6 +393,10 @@ class AsyncRunClient:
         asyncio.run(main())
         """
         _response = await self._raw_client.signal(
-            connect_timeout_ms=connect_timeout_ms, run_id=run_id, signal=signal, request_options=request_options
+            connect_timeout_ms=connect_timeout_ms,
+            run_id=run_id,
+            signal=signal,
+            expected_revision=expected_revision,
+            request_options=request_options,
         )
         return _response.data

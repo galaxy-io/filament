@@ -6,6 +6,8 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .ingestion_v1execution_mode import IngestionV1ExecutionMode
+from .ingestion_v1execution_status import IngestionV1ExecutionStatus
 from .ingestion_v1run_status import IngestionV1RunStatus
 
 
@@ -76,6 +78,22 @@ class IngestionV1RunInfo(UniversalBaseModel):
     updated_at: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="updatedAt"), pydantic.Field(alias="updatedAt")
     ] = None
+    execution_mode: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionMode],
+        FieldMetadata(alias="executionMode"),
+        pydantic.Field(alias="executionMode"),
+    ] = None
+    execution_status: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionStatus],
+        FieldMetadata(alias="executionStatus"),
+        pydantic.Field(
+            alias="executionStatus",
+            description="Present for continuous runs. records/bytes above reflect committed progress.",
+        ),
+    ] = None
+    """
+    Present for continuous runs. records/bytes above reflect committed progress.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

@@ -6,6 +6,7 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .ingestion_v1execution_mode import IngestionV1ExecutionMode
 from .ingestion_v1pipeline_schedule import IngestionV1PipelineSchedule
 from .ingestion_v1pipeline_version import IngestionV1PipelineVersion
 from .ingestion_v1run_info import IngestionV1RunInfo
@@ -63,6 +64,18 @@ class IngestionV1Pipeline(UniversalBaseModel):
     worker_configuration shapes this pipeline's runs by default. It lives on
      the pipeline rather than the version so editing it cannot mint a version
      and orphan the resource checkpoints keyed by the old one.
+    """
+
+    execution_mode: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionMode],
+        FieldMetadata(alias="executionMode"),
+        pydantic.Field(
+            alias="executionMode",
+            description="Default execution mode for subsequent starts; existing pipelines are bounded.",
+        ),
+    ] = None
+    """
+    Default execution mode for subsequent starts; existing pipelines are bounded.
     """
 
     if IS_PYDANTIC_V2:

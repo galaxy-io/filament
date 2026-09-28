@@ -2,4 +2,30 @@
 
 import typing
 
-IngestionV1SignalRunResponse = typing.Dict[str, typing.Any]
+import pydantic
+import typing_extensions
+from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
+from ..core.serialization import FieldMetadata
+from .ingestion_v1execution_status import IngestionV1ExecutionStatus
+
+
+class IngestionV1SignalRunResponse(UniversalBaseModel):
+    """
+    Continuous success confirms persisted intent, not completed worker drainage.
+     Bounded responses leave execution_status absent.
+    """
+
+    execution_status: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionStatus],
+        FieldMetadata(alias="executionStatus"),
+        pydantic.Field(alias="executionStatus"),
+    ] = None
+
+    if IS_PYDANTIC_V2:
+        model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
+    else:
+
+        class Config:
+            frozen = True
+            smart_union = True
+            extra = pydantic.Extra.allow

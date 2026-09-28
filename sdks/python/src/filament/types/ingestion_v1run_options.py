@@ -6,6 +6,7 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .ingestion_v1execution_mode import IngestionV1ExecutionMode
 from .ingestion_v1rate_policy import IngestionV1RatePolicy
 
 
@@ -33,6 +34,18 @@ class IngestionV1RunOptions(UniversalBaseModel):
     checkpoint_every: typing_extensions.Annotated[
         typing.Optional[int], FieldMetadata(alias="checkpointEvery"), pydantic.Field(alias="checkpointEvery")
     ] = None
+    execution_mode: typing_extensions.Annotated[
+        typing.Optional[IngestionV1ExecutionMode],
+        FieldMetadata(alias="executionMode"),
+        pydantic.Field(
+            alias="executionMode",
+            description="Unspecified inherits the pipeline mode. Explicit values override this start.\n Continuous creates a durable activation; unavailable profiles are rejected.",
+        ),
+    ] = None
+    """
+    Unspecified inherits the pipeline mode. Explicit values override this start.
+     Continuous creates a durable activation; unavailable profiles are rejected.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

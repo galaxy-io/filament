@@ -8,6 +8,7 @@ from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
 from .google_protobuf_struct import GoogleProtobufStruct
 from .ingestion_v1connector_kind import IngestionV1ConnectorKind
+from .ingestion_v1execution_mode import IngestionV1ExecutionMode
 from .ingestion_v1replication_mode import IngestionV1ReplicationMode
 
 
@@ -58,6 +59,20 @@ class IngestionV1Connection(UniversalBaseModel):
     """
     replication is the effective source behavior derived from the immutable
      connection configuration. Sinks report UNSPECIFIED.
+    """
+
+    execution_modes: typing_extensions.Annotated[
+        typing.Optional[typing.List[IngestionV1ExecutionMode]],
+        FieldMetadata(alias="executionModes"),
+        pydantic.Field(
+            alias="executionModes",
+            description="execution_modes lists the modes this connection can take part in, derived\n from connector capabilities and runtime support. Route compatibility is\n still decided by ValidatePipeline.",
+        ),
+    ] = None
+    """
+    execution_modes lists the modes this connection can take part in, derived
+     from connector capabilities and runtime support. Route compatibility is
+     still decided by ValidatePipeline.
     """
 
     if IS_PYDANTIC_V2:

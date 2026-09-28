@@ -27,7 +27,8 @@ class IngestionV1RunEventFields(UniversalBaseModel):
     ] = None
     checkpoint: typing.Optional[GoogleProtobufStruct] = pydantic.Field(default=None)
     """
-    checkpoint preserves the connector cursor together with its resource.
+    Legacy bounded cursor payload. Continuous progress is read through GetRun;
+     continuous events do not carry raw customer cursors.
     """
 
     if IS_PYDANTIC_V2:

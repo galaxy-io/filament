@@ -178,6 +178,7 @@ class RawRunClient:
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         run_id: typing.Optional[str] = OMIT,
         signal: typing.Optional[IngestionV1RunSignal] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1SignalRunResponse]:
         """
@@ -189,6 +190,10 @@ class RawRunClient:
         run_id : typing.Optional[str]
 
         signal : typing.Optional[IngestionV1RunSignal]
+
+        expected_revision : typing.Optional[str]
+            Optional CAS for continuous desired state. A stale revision is rejected.
+             Absent permits a transition against the current revision.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -204,6 +209,7 @@ class RawRunClient:
             json={
                 "runId": run_id,
                 "signal": signal,
+                "expectedRevision": expected_revision,
             },
             headers={
                 "content-type": "application/json",
@@ -386,6 +392,7 @@ class AsyncRawRunClient:
         connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
         run_id: typing.Optional[str] = OMIT,
         signal: typing.Optional[IngestionV1RunSignal] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1SignalRunResponse]:
         """
@@ -397,6 +404,10 @@ class AsyncRawRunClient:
         run_id : typing.Optional[str]
 
         signal : typing.Optional[IngestionV1RunSignal]
+
+        expected_revision : typing.Optional[str]
+            Optional CAS for continuous desired state. A stale revision is rejected.
+             Absent permits a transition against the current revision.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -412,6 +423,7 @@ class AsyncRawRunClient:
             json={
                 "runId": run_id,
                 "signal": signal,
+                "expectedRevision": expected_revision,
             },
             headers={
                 "content-type": "application/json",
