@@ -182,6 +182,7 @@
               "pages/connectors/sinks/kafka",
               "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
+              "pages/connectors/sinks/databricks-zerobus",
               "pages/connectors/sinks/motherduck",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
