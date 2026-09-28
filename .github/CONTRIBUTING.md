@@ -17,7 +17,7 @@ You will need:
 - Go 1.26.4 or newer
 - Docker with Compose
 - `just`
-- Node.js 22 and pnpm 10 for UI changes
+- Node.js 22 and pnpm 12 for UI changes
 - `golangci-lint`, Buf, and sqlc for formatting, linting, and code generation
 
 On macOS, the repository's [`Brewfile`](../Brewfile) installs the toolchain:
