@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": true,
+  "skip-changelog": true,
+  "bump-minor-pre-major": true,
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "include-component-in-tag": false,
+      "exclude-paths": ["charts", "sdks", "docs"]
+    },
+    "charts/filament": {
+      "release-type": "helm",
+      "component": "helm-chart",
+      "include-v-in-tag": false
+    },
+    "sdks/python": {
+      "release-type": "python",
+      "component": "filament-py",
+      "include-v-in-tag": false
+    },
+    "sdks/typescript": {
+      "release-type": "node",
+      "component": "filament-ts",
+      "include-v-in-tag": false
+    }
+  }
+}

@@ -2,9 +2,7 @@ name: "CD: Helm Chart"
 
 on:
   push:
-    branches: [main]
-    paths: [charts/filament/Chart.yaml]
-  workflow_dispatch:
+    tags: ["helm-chart-*"]
 
 permissions:
   attestations: write
@@ -18,7 +16,6 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,6 +37,11 @@ jobs:
           version=$(yq -r '.version' charts/filament/Chart.yaml)
           app_version=$(yq -r '.appVersion' charts/filament/Chart.yaml)
           owner="${GITHUB_REPOSITORY_OWNER,,}"
+
+          if [[ "helm-chart-${version}" != "$GITHUB_REF_NAME" ]]; then
+            echo "Chart.yaml is $version but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
 
           {
             echo "version=$version"
