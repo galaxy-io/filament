@@ -95,8 +95,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.create(
             connect_timeout_ms=1000.0,
@@ -141,8 +142,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.delete(
             connect_timeout_ms=1000.0,
@@ -190,8 +192,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.get(
             connect_timeout_ms=1000.0,
@@ -253,8 +256,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.list(
             connect_timeout_ms=1000.0,
@@ -320,8 +324,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.run(
             connect_timeout_ms=1000.0,
@@ -378,8 +383,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.update(
             connect_timeout_ms=1000.0,
@@ -430,8 +436,9 @@ class PipelineClient:
         from filament import Filament
 
         client = Filament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
         client.pipeline.validate(
             connect_timeout_ms=1000.0,
@@ -536,8 +543,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -590,8 +598,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -647,8 +656,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -718,8 +728,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -793,8 +804,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -859,8 +871,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 
@@ -919,8 +932,9 @@ class AsyncPipelineClient:
         from filament import AsyncFilament
 
         client = AsyncFilament(
-            token="YOUR_TOKEN",
-            base_url="https://yourhost.com/path/to/api",
+            base_url="YOUR_BASE_URL",
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
         )
 
 

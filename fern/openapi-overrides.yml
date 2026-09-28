@@ -8,6 +8,10 @@ components:
       type: string
       const: "1"
       examples: ["1"]
+    auth.v1.GetTokenRequest:
+      required: [clientId, clientSecret]
+    auth.v1.GetTokenResponse:
+      required: [accessToken, expiresIn]
   securitySchemes:
     BearerAuth:
       type: http
@@ -69,6 +73,12 @@ paths:
       parameters: *connect_headers
       x-fern-sdk-group-name: "auth"
       x-fern-sdk-method-name: login
+      security: []
+  /auth.v1.AuthService/GetToken:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: get_token
       security: []
   /auth.v1.AuthService/Logout:
     post:

@@ -14,6 +14,7 @@ from ..types.auth_v1get_auth_config_request import AuthV1GetAuthConfigRequest
 from ..types.auth_v1get_auth_config_response import AuthV1GetAuthConfigResponse
 from ..types.auth_v1get_session_request import AuthV1GetSessionRequest
 from ..types.auth_v1get_session_response import AuthV1GetSessionResponse
+from ..types.auth_v1get_token_response import AuthV1GetTokenResponse
 from ..types.auth_v1login_response import AuthV1LoginResponse
 from ..types.auth_v1logout_request import AuthV1LogoutRequest
 from ..types.auth_v1logout_response import AuthV1LogoutResponse
@@ -189,6 +190,65 @@ class RawAuthClient:
                     AuthV1GetSessionResponse,
                     parse_obj_as(
                         type_=AuthV1GetSessionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def get_token(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[AuthV1GetTokenResponse]:
+        """
+        Parameters
+        ----------
+        client_id : str
+
+        client_secret : str
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[AuthV1GetTokenResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "auth.v1.AuthService/GetToken",
+            method="POST",
+            json={
+                "clientId": client_id,
+                "clientSecret": client_secret,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AuthV1GetTokenResponse,
+                    parse_obj_as(
+                        type_=AuthV1GetTokenResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )
@@ -550,6 +610,65 @@ class AsyncRawAuthClient:
                     AuthV1GetSessionResponse,
                     parse_obj_as(
                         type_=AuthV1GetSessionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def get_token(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[AuthV1GetTokenResponse]:
+        """
+        Parameters
+        ----------
+        client_id : str
+
+        client_secret : str
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[AuthV1GetTokenResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "auth.v1.AuthService/GetToken",
+            method="POST",
+            json={
+                "clientId": client_id,
+                "clientSecret": client_secret,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    AuthV1GetTokenResponse,
+                    parse_obj_as(
+                        type_=AuthV1GetTokenResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )

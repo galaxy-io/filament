@@ -16,7 +16,8 @@
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -112,7 +113,8 @@ Session; pre-token, public. An empty issuer means auth is disabled.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -195,7 +197,8 @@ Session; authenticated. The UI's sign-in check.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -248,6 +251,83 @@ client.auth.get_session(
 </dl>
 </details>
 
+<details><summary><code>client.auth.<a href="src/filament/auth/client.py">get_token</a>(...) -> AuthV1GetTokenResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    base_url="https://yourhost.com/path/to/api",
+)
+
+client.auth.get_token(
+    connect_timeout_ms=1000,
+    client_id="clientId",
+    client_secret="clientSecret",
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**client_id:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**client_secret:** `str` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.auth.<a href="src/filament/auth/client.py">login</a>(...) -> AuthV1LoginResponse</code></summary>
 <dl>
 <dd>
@@ -264,7 +344,8 @@ client.auth.get_session(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -338,7 +419,8 @@ client.auth.login(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -407,7 +489,8 @@ client.auth.logout(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -506,7 +589,8 @@ client.auth.register(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -603,7 +687,8 @@ Service accounts; authenticated tenant administration. Secrets are only
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -672,7 +757,8 @@ client.service_account.list(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -738,7 +824,8 @@ client.service_account.remove(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -805,7 +892,8 @@ client.service_account.rotate_secret(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -909,7 +997,8 @@ Members; authenticated tenant administration.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -978,7 +1067,8 @@ client.member.list(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1044,7 +1134,8 @@ client.member.remove(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1133,7 +1224,8 @@ Connections; reusable, tenant-scoped sources and sinks.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1231,7 +1323,8 @@ client.connection.create(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1297,7 +1390,8 @@ client.connection.delete(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1363,7 +1457,8 @@ client.connection.get(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1461,7 +1556,8 @@ client.connection.list(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1542,7 +1638,8 @@ Pipelines; the persisted node graph.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1643,7 +1740,8 @@ worker_configuration shapes this pipeline's runs. Omit it to configure the
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1709,7 +1807,8 @@ client.pipeline.delete(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1799,7 +1898,8 @@ client.pipeline.get(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -1927,7 +2027,8 @@ Runs; compile + submit a pipeline, then list / snapshot / signal.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2028,7 +2129,8 @@ worker_configuration overrides the pipeline's own for this call only, field
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2140,7 +2242,8 @@ Pipeline options and validation are resolved for the complete graph.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2215,7 +2318,8 @@ client.pipeline.validate(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2305,7 +2409,8 @@ client.connector.discover_resources(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2379,7 +2484,8 @@ client.connector.get(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2483,7 +2589,8 @@ Catalog of registered source/sink connectors and their config schemas.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2587,7 +2694,8 @@ Ephemeral source/sink operations; no persisted state.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2678,7 +2786,8 @@ client.connector.validate_config(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2744,7 +2853,8 @@ client.run.get(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2869,7 +2979,8 @@ since_ms/until_ms window on started_at (inclusive/exclusive, epoch
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -2955,7 +3066,8 @@ Optional CAS for continuous desired state. A stale revision is rejected.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3053,7 +3165,8 @@ client.metrics.query_aggregate(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3188,7 +3301,8 @@ Pipeline notifications; multiple independent rules per pipeline.
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3262,7 +3376,8 @@ client.pipeline.notifier.create(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3336,7 +3451,8 @@ client.pipeline.notifier.delete(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3402,7 +3518,8 @@ client.pipeline.notifier.list(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3501,7 +3618,8 @@ Pipeline schedules; one primary schedule per pipeline. Enable/disable is
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3575,7 +3693,8 @@ client.pipeline.schedule.create(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3650,7 +3769,8 @@ client.pipeline.schedule.update(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3724,7 +3844,8 @@ client.pipeline.version.create(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 
@@ -3798,7 +3919,8 @@ client.pipeline.version.get(
 from filament import Filament
 
 client = Filament(
-    token="<token>",
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
     base_url="https://yourhost.com/path/to/api",
 )
 

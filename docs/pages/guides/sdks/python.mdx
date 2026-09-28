@@ -26,14 +26,14 @@ from filament import Filament
 
 filament = Filament(
     base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
-    token=os.getenv("FILAMENT_TOKEN"),
 )
 
 for connector in filament.connector.list().connectors or []:
     print(connector.name)
 ```
 
-For a local server with authentication disabled, omit `token`. Request timeouts
+This connects to a server with authentication disabled; see
+[Authentication](#authentication) for a deployed server. Request timeouts
 are set with `Filament(..., timeout=30)`, in seconds.
 
 ## Authentication
@@ -43,8 +43,20 @@ service account. Create one on the Members page of the web app, or with
 `filament.service_account.create(...)` while signed in as an admin. Both return a
 client id and a client secret; the secret is shown once.
 
-Pass the service account's access token as `token`. Access tokens expire, so
-long-running programs pass a callable that returns a current token instead.
+Pass them to the client. It mints an access token through the server and mints
+again as the token nears expiry, so nothing about the identity provider reaches
+your code:
+
+```python
+filament = Filament(
+    base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
+    client_id=os.getenv("FILAMENT_CLIENT_ID"),
+    client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
+)
+```
+
+A token minted elsewhere still works as `token`. For a local server with
+authentication disabled, pass neither.
 
 ## Create and run a pipeline
 
@@ -160,7 +172,8 @@ from filament import AsyncFilament
 async def main():
     filament = AsyncFilament(
         base_url=os.getenv("FILAMENT_URL", "http://localhost:8080"),
-        token=os.getenv("FILAMENT_TOKEN"),
+        client_id=os.getenv("FILAMENT_CLIENT_ID"),
+        client_secret=os.getenv("FILAMENT_CLIENT_SECRET"),
     )
     response = await filament.pipeline.list()
     for pipeline in response.pipelines or []:

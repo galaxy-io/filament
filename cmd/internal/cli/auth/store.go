@@ -14,15 +14,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Profile holds one service account's credentials and where to redeem them.
-// Issuer and Scopes are captured from the server at login so minting a token
-// never needs an unauthenticated round trip first.
+// Profile holds one service account's credentials and the Filament server
+// that redeems them for tokens.
 type Profile struct {
-	Issuer       string   `yaml:"issuer"`
-	ClientID     string   `yaml:"client_id"`
-	ClientSecret string   `yaml:"client_secret"`
-	Scopes       []string `yaml:"scopes,omitempty"`
-	Cache        *Cache   `yaml:"cache,omitempty"`
+	Server       string `yaml:"server"`
+	ClientID     string `yaml:"client_id"`
+	ClientSecret string `yaml:"client_secret"`
+	Cache        *Cache `yaml:"cache,omitempty"`
 }
 
 // Cache is a previously minted access token retained until expiry.
@@ -61,7 +59,7 @@ func (s Store) Put(name string, profile Profile) error {
 	if name == "" {
 		return fmt.Errorf("%w: name is required", ErrProfileInvalid)
 	}
-	if profile.Issuer == "" || profile.ClientID == "" || profile.ClientSecret == "" {
+	if profile.Server == "" || profile.ClientID == "" || profile.ClientSecret == "" {
 		return fmt.Errorf("%w: %s needs a server, client id, and client secret", ErrProfileInvalid, name)
 	}
 	doc, err := s.Load()

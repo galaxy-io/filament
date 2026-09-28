@@ -14,10 +14,9 @@ func testStore(t *testing.T) Store {
 
 func testProfile() Profile {
 	return Profile{
-		Issuer:       "https://auth.example.com",
+		Server:       "https://filament.example.com",
 		ClientID:     "331693296033546241",
 		ClientSecret: "s3cr3t",
-		Scopes:       []string{"openid", "urn:zitadel:iam:user:resourceowner"},
 	}
 }
 
@@ -40,7 +39,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.ClientID != testProfile().ClientID || len(got.Scopes) != 2 {
+	if got.ClientID != testProfile().ClientID || got.Server != testProfile().Server {
 		t.Fatalf("unexpected profile %+v", got)
 	}
 	info, err := os.Stat(store.Path)
