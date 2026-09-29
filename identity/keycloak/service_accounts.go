@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"net/url"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -23,6 +24,34 @@ const (
 	managedKey                 = "filament.service_account"
 	tenantKey                  = "filament.tenant"
 )
+
+// GetToken runs the client-credentials grant for a service account. Proxying
+// it keeps the scopes and the issuer the server's business, so a client only
+// ever holds its id and secret.
+func (p *Provider) GetToken(ctx context.Context, req *connect.Request[authv1.GetTokenRequest]) (*connect.Response[authv1.GetTokenResponse], error) {
+	m := req.Msg
+	if m.GetClientId() == "" || m.GetClientSecret() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("client_id and client_secret are required"))
+	}
+	// The organization scope is what puts the tenant on the token; Keycloak
+	// never grants it by default.
+	token, err := p.grantAs(ctx, m.GetClientId(), m.GetClientSecret(), url.Values{
+		"grant_type": {"client_credentials"},
+		"scope":      {"openid organization"},
+	})
+	if errors.Is(err, errGrantRejected) {
+		// Unknown clients and wrong secrets both land here; neither should
+		// tell the caller which it was.
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid credentials"))
+	}
+	if err != nil {
+		return nil, rpcError(err)
+	}
+	return connect.NewResponse(&authv1.GetTokenResponse{
+		AccessToken: token.AccessToken,
+		ExpiresIn:   token.ExpiresIn,
+	}), nil
+}
 
 // managedServiceAccounts lists the clients filament manages for a tenant.
 func (p *Provider) managedServiceAccounts(ctx context.Context, tenant string) ([]clientRep, error) {
