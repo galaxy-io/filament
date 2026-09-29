@@ -13,17 +13,18 @@ import (
 // New SaaS connectors are a catalog/<name>.yaml manifest + one line here — no
 // new module, no new dependency.
 func init() {
-	registry.RegisterSource("novada", filament.MaturityAlpha, func() filament.Source { return NewNovada() })
-	registry.RegisterSource("monday", filament.MaturityAlpha, func() filament.Source { return NewMonday() })
-	registry.RegisterSource("notion", filament.MaturityBeta, func() filament.Source { return NewNotion() })
-	registry.RegisterSource("linear", filament.MaturityBeta, func() filament.Source { return NewLinear() })
 	registry.RegisterSource("attio", filament.MaturityAlpha, func() filament.Source { return NewAttio() })
 	registry.RegisterSource("github", filament.MaturityBeta, func() filament.Source { return NewGitHub() })
-	registry.RegisterSource("granola", filament.MaturityAlpha, func() filament.Source { return NewGranola() })
 	registry.RegisterSource("gong", filament.MaturityAlpha, func() filament.Source { return NewGong() })
-	registry.RegisterSource("slack", filament.MaturityAlpha, func() filament.Source { return NewSlack() })
-	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
-	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })
-	registry.RegisterSource("posthog", filament.MaturityBeta, func() filament.Source { return NewPostHog() })
+	registry.RegisterSource("granola", filament.MaturityAlpha, func() filament.Source { return NewGranola() })
+	registry.RegisterSource("instantly", filament.MaturityAlpha, func() filament.Source { return NewInstantly() })
+	registry.RegisterSource("linear", filament.MaturityBeta, func() filament.Source { return NewLinear() })
+	registry.RegisterSource("monday", filament.MaturityAlpha, func() filament.Source { return NewMonday() })
+	registry.RegisterSource("notion", filament.MaturityBeta, func() filament.Source { return NewNotion() })
+	registry.RegisterSource("novada", filament.MaturityAlpha, func() filament.Source { return NewNovada() })
 	registry.RegisterSource("pipedrive", filament.MaturityAlpha, func() filament.Source { return NewPipedrive() })
+	registry.RegisterSource("posthog", filament.MaturityBeta, func() filament.Source { return NewPostHog() })
+	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
+	registry.RegisterSource("slack", filament.MaturityAlpha, func() filament.Source { return NewSlack() })
+	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })
 }

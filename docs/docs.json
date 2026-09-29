@@ -150,6 +150,7 @@
               "pages/connectors/sources/gong",
               "pages/connectors/sources/granola",
               "pages/connectors/sources/hubspot",
+              "pages/connectors/sources/instantly",
               "pages/connectors/sources/linear",
               "pages/connectors/sources/monday",
               "pages/connectors/sources/notion",
