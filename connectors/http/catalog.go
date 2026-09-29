@@ -19,6 +19,9 @@ var granolaManifest []byte
 //go:embed manifests/linear.yaml
 var linearManifest []byte
 
+//go:embed manifests/mailchimp.yaml
+var mailchimpManifest []byte
+
 //go:embed manifests/monday.yaml
 var mondayManifest []byte
 
@@ -69,6 +72,11 @@ func NewGranola() *Source {
 // NewLinear returns a Source backed by the embedded Linear manifest.
 func NewLinear() *Source {
 	return newCatalogSource(linearManifest)
+}
+
+// NewMailchimp returns a Source backed by the embedded Mailchimp Marketing manifest.
+func NewMailchimp() *Source {
+	return newCatalogSource(mailchimpManifest)
 }
 
 // NewMonday returns a Source backed by the embedded monday.com manifest.
