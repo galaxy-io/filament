@@ -152,6 +152,7 @@
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
+              "pages/connectors/sources/zoho",
               "pages/connectors/sources/sample"
             ]
           },
