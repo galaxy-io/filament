@@ -3,6 +3,7 @@ package remote_test
 import (
 	"context"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -52,6 +53,26 @@ func TestCatalogComesFromTheDeployment(t *testing.T) {
 	}
 	if _, ok := catalog.Sinks["stdout"]; !ok {
 		t.Fatalf("sinks = %v", catalog.Sinks)
+	}
+}
+
+func TestHTTPAliasesSurviveRemoteCatalog(t *testing.T) {
+	catalog, err := serve(t).Catalog(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"github", "attio", "stripe"} {
+		alias, ok := catalog.Sources[name]
+		if !ok {
+			t.Fatalf("missing alias %s", name)
+		}
+		version, ok := catalog.Sources[name+"@v1"]
+		if !ok {
+			t.Fatalf("missing version %s@v1", name)
+		}
+		if alias.Version != "v1" || alias.Maturity != version.Maturity || !reflect.DeepEqual(alias.Config, version.Config) {
+			t.Fatalf("alias metadata differs for %s", name)
+		}
 	}
 }
 

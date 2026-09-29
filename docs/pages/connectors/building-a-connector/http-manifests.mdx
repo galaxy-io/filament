@@ -12,6 +12,56 @@ To try a manifest without recompiling Filament, create an `httpapi` connection
 and set its required `manifest_path` to your v1 YAML file. Once embedded in the
 catalog, the same manifest behaves like any other named source.
 
+## Register a bundled connector
+
+Bundled HTTP connectors are discovered from the embedded `manifests` directory.
+Adding a connector or version requires no Go registration or constructor:
+
+```text
+connectors/http/manifests/github/
+  registry.json
+  v1/manifest.yaml
+  v2/manifest.yaml
+```
+
+The root `registry.json` lists the shipped versions and selects the default:
+
+```json
+{
+  "schema_version": 1,
+  "name": "github",
+  "default_version": "v1",
+  "versions": {
+    "v1": { "maturity": "beta" },
+    "v2": { "maturity": "alpha" }
+  }
+}
+```
+
+Use lowercase connector names matching their directory and YAML `name`.
+Versions use `v1`, `v2`, and so on. Each listed version must contain
+`manifest.yaml`; each version directory must be listed. Maturity is per version
+and must be `alpha`, `beta`, or `stable`. New connectors start at `alpha`.
+Display names, descriptions, logos, configuration, and API behavior stay in YAML.
+The complete catalog is validated at startup; invalid entries stop startup with
+the failing file path. Run `go test ./connectors/http/... ./registry` before shipping.
+
+The catalog exposes concrete keys such as `github@v1` and `github@v2`.
+Resolve those through the source registry; there are no provider-specific Go
+constructors. The unversioned name `github` is a lookup alias for `default_version`
+and appears alongside concrete versions in catalog listings so existing CLI
+configurations continue to resolve. Use concrete keys to select a specific version.
+Previously stored unversioned connections still follow the default; migrate them
+before changing it if they must retain their original behavior.
+
+Connector versions are separate from YAML `version: 1` (the manifest grammar),
+registry `schema_version` (the JSON format), and `api_version` (the upstream API).
+Use a new connector version for breaking configuration, resource, schema, or
+cursor changes. Moving an existing pipeline to another version may require a
+checkpoint reset or migration; version registration does not migrate state.
+Compatible fixes within a version can change its behavior across builds.
+Embedded catalog changes require rebuilding and deploying Filament.
+
 ## Start with the basic structure
 
 A manifest has four main parts: connector metadata, user configuration, shared

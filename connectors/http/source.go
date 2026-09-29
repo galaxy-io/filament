@@ -40,6 +40,7 @@ type Source struct {
 	darkLogoURL      string
 	lightLogoURL     string
 	apiVersion       string
+	catalogVersion   string
 	config           filament.ConfigSchema
 	embeddedManifest *manifest.Manifest
 	manifestErr      error
@@ -97,13 +98,17 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionIncrementalUpsert,
 		)
 	}
+	version := s.catalogVersion
+	if version == "" {
+		version = "1"
+	}
 	return filament.ConnectorSpec{
 		Name:           s.name,
 		DisplayName:    s.displayName,
 		Description:    s.description,
 		DarkLogoURL:    s.darkLogoURL,
 		LightLogoURL:   s.lightLogoURL,
-		Version:        "1",
+		Version:        version,
 		APIVersion:     s.apiVersion,
 		Modes:          modes,
 		SourcePolicies: filament.SourcePolicies(policies...),
