@@ -22,6 +22,7 @@ type Notification struct {
 	Run                   filament.RunID
 	Resource              string
 	PipelineID            string
+	PipelineName          string
 	PipelineVersionID     string
 	DeliveryID            string
 	AttemptID             string

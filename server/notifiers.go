@@ -23,11 +23,11 @@ func (a *Server) CreatePipelineNotifier(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if err := a.validateNotifierConfig(ctx, string(tenant), cfg, refs); err != nil {
+	if err := a.validateNotifierConfig(ctx, string(tenant), n.GetNotificationType(), cfg, refs); err != nil {
 		return nil, err
 	}
 	n.Id, n.TenantId, n.PipelineId = uuid.NewString(), string(tenant), req.Msg.GetPipelineId()
-	written, err := a.storeNotifierSecretFields(ctx, string(tenant), n.Id, cfg, refs, false)
+	written, err := a.storeNotifierSecretFields(ctx, string(tenant), n, cfg, refs, false)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -68,12 +68,12 @@ func (a *Server) UpdatePipelineNotifier(ctx context.Context, req *connect.Reques
 	if stored.GetNotificationType() != n.GetNotificationType() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("notification type cannot change"))
 	}
-	if err := a.validateNotifierConfig(ctx, string(tenant), cfg, refs); err != nil {
+	if err := a.validateNotifierConfig(ctx, string(tenant), n.GetNotificationType(), cfg, refs); err != nil {
 		return nil, err
 	}
 	// A newly submitted value gets a fresh ref. The old value stays active
 	// until the update succeeds.
-	written, err := a.storeNotifierSecretFields(ctx, string(tenant), stored.GetId(), cfg, refs, true)
+	written, err := a.storeNotifierSecretFields(ctx, string(tenant), stored, cfg, refs, true)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}

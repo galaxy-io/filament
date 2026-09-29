@@ -29,6 +29,7 @@ type NotificationType int32
 const (
 	NotificationType_NOTIFICATION_TYPE_UNSPECIFIED NotificationType = 0
 	NotificationType_NOTIFICATION_TYPE_WEBHOOK     NotificationType = 1
+	NotificationType_NOTIFICATION_TYPE_SLACK       NotificationType = 2
 )
 
 // Enum value maps for NotificationType.
@@ -36,10 +37,12 @@ var (
 	NotificationType_name = map[int32]string{
 		0: "NOTIFICATION_TYPE_UNSPECIFIED",
 		1: "NOTIFICATION_TYPE_WEBHOOK",
+		2: "NOTIFICATION_TYPE_SLACK",
 	}
 	NotificationType_value = map[string]int32{
 		"NOTIFICATION_TYPE_UNSPECIFIED": 0,
 		"NOTIFICATION_TYPE_WEBHOOK":     1,
+		"NOTIFICATION_TYPE_SLACK":       2,
 	}
 )
 
@@ -134,7 +137,8 @@ func (NotifierEvent) EnumDescriptor() ([]byte, []int) {
 }
 
 // Notifier holds settings, plain config, and secret references, never secret
-// values. Webhook config carries url; secret_refs carries headers.
+// values. Webhook config carries url; secret_refs carries headers. Slack
+// config is empty; secret_refs carries url.
 type Notifier struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -839,10 +843,11 @@ const file_ingestion_v1_notifiers_proto_rawDesc = "" +
 	"pipelineId\x12\x1f\n" +
 	"\vnotifier_id\x18\x02 \x01(\tR\n" +
 	"notifierId\" \n" +
-	"\x1eDeletePipelineNotifierResponse*T\n" +
+	"\x1eDeletePipelineNotifierResponse*q\n" +
 	"\x10NotificationType\x12!\n" +
 	"\x1dNOTIFICATION_TYPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
-	"\x19NOTIFICATION_TYPE_WEBHOOK\x10\x01*\xf0\x01\n" +
+	"\x19NOTIFICATION_TYPE_WEBHOOK\x10\x01\x12\x1b\n" +
+	"\x17NOTIFICATION_TYPE_SLACK\x10\x02*\xf0\x01\n" +
 	"\rNotifierEvent\x12\x1e\n" +
 	"\x1aNOTIFIER_EVENT_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aNOTIFIER_EVENT_RUN_STARTED\x10\x01\x12 \n" +
