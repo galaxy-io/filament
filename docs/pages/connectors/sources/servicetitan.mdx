@@ -1,0 +1,102 @@
+---
+title: "ServiceTitan"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-servicetitan-dark.svg"
+description: "Read ServiceTitan exports and supporting operational resources"
+---
+
+The ServiceTitan source uses the v2 REST APIs and is **alpha**. It covers
+48 resources. Shared pagination, projection, and checkpoint behavior have
+regression coverage. Live tenant reads have not been validated.
+
+The source is backed by an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+Use `servicetitan@v2` to select API v2; `servicetitan` resolves to this default version.
+
+## Configuration
+
+| Field | Default | Description |
+|---|---|---|
+| `tenant_id` | | Required. ServiceTitan tenant ID. |
+| `client_id` | | Required. OAuth client ID. |
+| `client_secret` | | Required secret. OAuth client secret. |
+| `app_key` | | Required secret. ServiceTitan application key. |
+| `environment_suffix` | Empty | Empty selects production. `-integration` selects integration for both the API and token endpoint. |
+
+Create an application with read permissions for the resources you select and
+connect it to the tenant. Credentials and app access must match the environment.
+Filament obtains and renews a client-credentials access token and sends the
+application key in `ST-App-Key`. Connection testing reads the first jobs export
+page; it does not establish access to every API family. See the official
+[API documentation](https://developer.servicetitan.io/docs/apis).
+
+## Resources
+
+| Family | Resources |
+|---|---|
+| Jobs and projects | `jobs`, `appointments`, `projects`, `job_notes`, `job_history`, `job_types` |
+| Customers | `customers`, `locations`, `leads`, `bookings`, `customer_contacts`, `location_contacts` |
+| Accounting | `invoices`, `invoice_items`, `payments` |
+| Inventory | `inventory_adjustments`, `purchase_orders`, `inventory_returns`, `inventory_transfers` |
+| Pricebook | `pricebook_categories`, `pricebook_services`, `pricebook_equipment`, `pricebook_materials` |
+| Settings | `employees`, `technicians`, `business_units`, `tag_types` |
+| Marketing and calls | `campaigns`, `campaign_costs`, `campaign_categories`, `calls` |
+| Payroll and timesheets | `timesheet_activities`, `job_timesheets`, `job_splits`, `payroll_adjustments`, `gross_pay_items`, `timesheet_codes`, `non_job_timesheets`, `technician_shifts`, `payrolls` |
+| Memberships | `membership_types`, `recurring_service_types`, `memberships`, `invoice_templates`, `recurring_services`, `recurring_service_events`, `membership_status_changes` |
+| Estimates | `estimates` |
+
+Select the resources your application can access. Other ServiceTitan resources,
+including reporting, forms, equipment systems, and newer export feeds, are outside
+the current resource set.
+
+## Modes
+
+All resources support full reads. Incremental reads are available for 41:
+39 export resources use ServiceTitan's opaque `continueFrom` token;
+`non_job_timesheets` and `payrolls` use `modifiedOnOrAfter` with a fixed lower
+bound throughout pagination and `sort=+ModifiedOn`.
+
+These seven resources support full reads only: `job_types`, `campaigns`,
+`campaign_costs`, `campaign_categories`, `technician_shifts`,
+`membership_status_changes`, and `gross_pay_items`.
+
+Use incremental upsert for mutable export records. No cursor-column selection
+or lookback is supported for export tokens. The first incremental run walks the
+complete export. A preceding full run does not seed its incremental token.
+Subsequent successful runs resume at the saved token. Append writes can retain
+replayed records after failures; they do not produce a deduplicated current view.
+
+Use **full replace** for `gross_pay_items` and `technician_shifts`.
+Gross pay items have no documented stable item key: `id` can be null, and
+multiple items can share `payrollId`. The connector preserves every item with
+an empty primary key. Technician shifts can be hard-deleted upstream, requiring
+replacement to remove missing rows. Ordinary export upserts do not infer deletes
+from records absent in a delta.
+
+## Behavior
+
+Export requests set `includeRecentChanges=false`, accepting ServiceTitan's
+approximately 15-minute export visibility delay. Each page uses `hasMore` and
+`continueFrom`, including empty pages. The terminal token is delivered separately
+from rows and becomes durable only after successful run commit. Failed runs
+replay from the prior committed token. Missing or malformed envelopes and cursor
+cycles fail the run. Invalid saved tokens are not silently discarded.
+
+`job_types`, `campaigns`, and `technician_shifts` request `active=Any` on every
+page. Transactional full reads use 5,000-row pages; the two timestamp streams use
+1,000-row pages. `includeTotal=true` is sent on each transactional page.
+Exports do not send `pageSize`. Requests share a 30-per-second limiter across
+all resource readers in a run, with a burst of one. There is one reader per selected resource (up to
+48); adding readers does not multiply the request budget. Separate runs and
+pipelines have independent limiters. Requests use the HTTP engine's retry
+handling for throttling and server errors.
+
+Nested arrays and objects stay JSON. Date/time values remain strings, preserving
+seven-digit fractional seconds. Integer IDs use 64-bit integers, and decimal values travel as text to
+preserve digits. The trailing `raw` column retains unprojected properties.
+`job_history` keeps one row per `jobId`, its complete `history` array, and nullable
+`lastEventDate`, the lexical maximum nonempty event date.
+
+Export upserts use Filament's insertion-order version policy. If an export
+returns an older version after a newer version, the older record can replace
+the newer destination row. Rows are not ordered by `modifiedOn` or
+`lastEventDate`. Begin with a fresh backfill and keep separate tenants in
+separate destination tables or namespaces.

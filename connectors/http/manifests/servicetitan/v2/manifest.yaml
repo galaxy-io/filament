@@ -1,0 +1,1964 @@
+# API contract: https://developer.servicetitan.io/docs/apis
+version: 1
+name: servicetitan
+api_version: v2
+display_name: ServiceTitan
+description: ServiceTitan operations, customers, accounting, inventory, memberships, and payroll.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-light.svg
+config:
+  tenant_id:
+    type: string
+    required: true
+    help: ServiceTitan tenant ID
+  client_id:
+    type: string
+    required: true
+    help: OAuth client ID for this tenant and environment
+  client_secret:
+    type: secret
+    required: true
+    help: OAuth client secret
+  app_key:
+    type: secret
+    required: true
+    help: Application key with read scopes for selected resources
+  environment_suffix:
+    type: enum
+    enum: ["", "-integration"]
+    default: ""
+    help: Leave empty for production, or choose -integration for the integration environment
+connection:
+  base_url: https://api{{ config.environment_suffix }}.servicetitan.io
+  auth:
+    oauth2:
+      token_url: https://auth{{ config.environment_suffix }}.servicetitan.io/connect/token
+      client_id: config.client_id
+      client_secret: config.client_secret
+  headers:
+    ST-App-Key: "{{ config.app_key }}"
+    Accept: application/json
+  timeout_seconds: 120
+  rate_limit:
+    requests_per_second: 30
+    burst: 1
+defaults:
+  method: GET
+  response:
+    records: $.data
+resources:
+  - name: jobs
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/jobs
+    primary_key: [id]
+    fields:
+      id: int64
+      total: decimal?
+      active: bool?
+      summary: string?
+      noCharge: bool?
+      priority: string?
+      soldById: int64?
+      bookingId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      jobNumber: string?
+      jobStatus: string?
+      jobTypeId: int64?
+      projectId: int64?
+      campaignId: int64?
+      customerId: int64?
+      customerPo: string?
+      leadCallId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      warrantyId: int64?
+      completedOn: string?
+      createdById: int64?
+      estimateIds: json?
+      recallForId: int64?
+      customFields: json?
+      businessUnitId: int64?
+      appointmentCount: int64?
+      lastAppointmentId: int64?
+      firstAppointmentId: int64?
+      notificationsEnabled: bool?
+      createdFromEstimateId: int64?
+      jobGeneratedLeadSource: json?
+      equipmentIds: json?
+      externalData: json?
+      isAutoDispatched: bool?
+      membershipId: int64?
+      partnerLeadCallId: int64?
+      summaryOfWork: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: jobs_export_token
+  - name: appointments
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/appointments
+    primary_key: [id]
+    fields:
+      id: int64
+      end: string?
+      jobId: int64?
+      start: string?
+      active: bool?
+      status: string?
+      unused: bool?
+      createdOn: string?
+      customerId: int64?
+      modifiedOn: string?
+      createdById: int64?
+      isConfirmed: bool?
+      arrivalWindowEnd: string?
+      appointmentNumber: string?
+      arrivalWindowStart: string?
+      specialInstructions: string?
+      appointmentSummaries: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: appointments_export_token
+  - name: projects
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/projects
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      jobIds: json?
+      number: string?
+      status: string?
+      summary: string?
+      statusId: int64?
+      createdOn: string?
+      startDate: string?
+      subStatus: string?
+      customerId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      subStatusId: int64?
+      customFields: json?
+      externalData: json?
+      projectTypeId: int64?
+      businessUnitIds: json?
+      projectManagerIds: json?
+      actualCompletionDate: string?
+      targetCompletionDate: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: projects_export_token
+  - name: job_notes
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/job-notes
+    primary_key: [id]
+    fields:
+      id: int64
+      text: string?
+      jobId: int64?
+      active: bool?
+      isPinned: bool?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_notes_export_token
+  - name: job_history
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/job-history
+    primary_key: [jobId]
+    fields:
+      jobId: int64
+      history: json?
+      lastEventDate: { path: history, type: string, nullable: true, max_string: date }
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_history_export_token
+  - name: job_types
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/job-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      businessUnitIds: json?
+      skills: json?
+      tagTypeIds: json?
+      priority: string?
+      duration: int64?
+      soldThreshold: decimal?
+      class: string?
+      summary: string?
+      noCharge: bool?
+      enforceRecurringServiceEventSelection: bool?
+      invoiceSignaturesRequired: bool?
+      active: bool?
+      externalData: json?
+      createdOn: string?
+      modifiedOn: string?
+      customFieldTypeIds: json?
+      defaultEstimateSoldAction: string?
+      isSmartDispatched: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: customers
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/customers
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      name: string?
+      active: bool?
+      address: json?
+      balance: decimal?
+      createdOn: string?
+      doNotMail: bool?
+      taxExempt: bool?
+      mergedToId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      creditLimit: decimal?
+      customFields: json?
+      doNotService: bool?
+      externalData: json?
+      paymentTermId: int64?
+      nationalAccount: bool?
+      creditLimitBalance: decimal?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: customers_export_token
+  - name: locations
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/locations
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      zoneId: int64?
+      address: json?
+      createdOn: string?
+      taxExempt: bool?
+      taxZoneId: int64?
+      customerId: int64?
+      mergedToId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: locations_export_token
+  - name: leads
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/leads
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool?
+      callId: int64?
+      status: string?
+      leadUrl: string?
+      summary: string?
+      priority: string?
+      bookingId: int64?
+      createdOn: string?
+      jobTypeId: int64?
+      leadEmail: string?
+      leadPhone: string?
+      campaignId: int64?
+      customerId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      callReasonId: int64?
+      followUpDate: string?
+      captureSource: string?
+      businessUnitId: int64?
+      leadCustomerName: string?
+      dismissingReasonId: int64?
+      leadCity: string?
+      leadCountry: string?
+      leadState: string?
+      leadStreet: string?
+      leadUnit: string?
+      leadZip: string?
+      manualCallId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: leads_export_token
+  - name: bookings
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/bookings
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      jobId: int64?
+      start: string?
+      active: bool?
+      source: string?
+      status: string?
+      address: json?
+      summary: string?
+      priority: string?
+      createdOn: string?
+      jobTypeId: int64?
+      campaignId: int64?
+      externalId: string?
+      modifiedOn: string?
+      customerType: string?
+      businessUnitId: int64?
+      bookingProviderId: int64?
+      isFirstTimeClient: bool?
+      dismissingReasonId: int64?
+      isSendConfirmationEmail: bool?
+      uploadedImages: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: bookings_export_token
+  - name: customer_contacts
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/customers/contacts
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      value: string?
+      active: bool?
+      createdOn: string?
+      customerId: int64?
+      modifiedOn: string?
+      preferences: json?
+      phoneSettings: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: customer_contacts_export_token
+  - name: location_contacts
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/locations/contacts
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      value: string?
+      active: bool?
+      createdOn: string?
+      locationId: int64?
+      modifiedOn: string?
+      preferences: json?
+      phoneSettings: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: location_contacts_export_token
+  - name: invoices
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/invoices
+    primary_key: [id]
+    fields:
+      id: int64
+      modifiedOn: string?
+      createdOn: string?
+      adjustmentToId: int64?
+      job: json?
+      projectId: int64?
+      businessUnit: json?
+      batch: json?
+      invoiceConfiguration: string?
+      discountTotal: string?
+      items: json?
+      total: string?
+      active: bool?
+      paidOn: string?
+      depositedOn: string?
+      balance: string?
+      dueDate: string?
+      summary: string?
+      customer: json?
+      location: json?
+      locationAddress: json?
+      salesTax: string?
+      salesTaxCode: json?
+      subTotal: string?
+      taxZoneId: int64?
+      syncStatus: string?
+      invoiceDate: string?
+      invoiceType: json?
+      budgetCodeId: int64?
+      customFields: json?
+      membershipId: int64?
+      materialSkuId: int64?
+      customerAddress: json?
+      referenceNumber: string?
+      termName: string?
+      createdBy: string?
+      employeeInfo: json?
+      commissionEligibilityDate: string?
+      royalty: json?
+      sentStatus: string?
+      reviewStatus: string?
+      assignedTo: json?
+      importId: string?
+      exportId: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoices_export_token
+  - name: invoice_items
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/invoice-items
+    primary_key: [id]
+    fields:
+      type: string?
+      description: string?
+      id: int64
+      cost: string?
+      addOn: bool?
+      order: int64?
+      price: string?
+      skuId: int64?
+      total: string?
+      active: bool?
+      skuName: string?
+      taxable: bool?
+      quantity: string?
+      createdOn: string?
+      inventory: bool?
+      invoiceId: int64?
+      itemGroup: json?
+      totalCost: string?
+      modifiedOn: string?
+      budgetCodeId: int64?
+      isChargeable: bool?
+      membershipTypeId: int64?
+      generalLedgerAccount: json?
+      assetAccount: string?
+      businessUnit: json?
+      costOfSaleAccount: string?
+      createdById: int64?
+      displayInAmount: bool?
+      displayName: string?
+      estimateItemId: int64?
+      exportId: string?
+      importId: string?
+      installedEquipmentId: int64?
+      inventoryLocation: string?
+      inventoryLocationId: int64?
+      inventoryStatus: string?
+      memberPrice: string?
+      serviceDate: string?
+      soldHours: decimal?
+      technicianId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoice_items_export_token
+  - name: payments
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/payments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      date: string?
+      memo: string?
+      total: string?
+      active: bool?
+      authCode: string?
+      customer: json?
+      appliedTo: json?
+      createdBy: string?
+      createdOn: string?
+      modifiedOn: string?
+      syncStatus: string?
+      checkNumber: string?
+      businessUnit: json?
+      customFields: json?
+      referenceNumber: string?
+      refundedPaymentId: int64?
+      generalLedgerAccount: json?
+      batch: json?
+      deposit: string?
+      typeId: string?
+      unappliedAmount: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: payments_export_token
+  - name: inventory_adjustments
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/adjustments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      date: string?
+      memo: string?
+      batch: json?
+      items: json?
+      active: bool?
+      number: string?
+      batchId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      projectId: int64?
+      modifiedOn: string?
+      syncStatus: json?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      businessUnitId: int64?
+      referenceNumber: string?
+      inventoryLocationId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_adjustments_export_token
+  - name: purchase_orders
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/purchase-orders
+    primary_key: [id]
+    fields:
+      id: int64
+      tax: decimal?
+      date: string?
+      items: json?
+      jobId: int64?
+      total: decimal?
+      number: string?
+      sentOn: string?
+      status: string?
+      typeId: int64?
+      summary: string?
+      shipping: decimal?
+      vendorId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      projectId: int64?
+      modifiedOn: string?
+      receivedOn: string?
+      requiredOn: string?
+      createdById: int64?
+      customFields: json?
+      technicianId: int64?
+      businessUnitId: int64?
+      inventoryLocationId: int64?
+      vendorDocumentNumber: string?
+      batchId: int64?
+      budgetCodeId: int64?
+      shipTo: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: purchase_orders_export_token
+  - name: inventory_returns
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/returns
+    primary_key: [id]
+    fields:
+      id: int64
+      memo: string?
+      items: json?
+      jobId: int64?
+      active: bool?
+      number: string?
+      status: json?
+      vendorId: int64?
+      createdOn: string?
+      projectId: int64?
+      taxAmount: decimal?
+      modifiedOn: string?
+      returnDate: string?
+      returnedOn: string?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      returnAmount: decimal?
+      businessUnitId: int64?
+      shippingAmount: decimal?
+      purchaseOrderId: int64?
+      referenceNumber: string?
+      inventoryLocationId: int64?
+      batch: json?
+      batchId: int64?
+      budgetCodeId: int64?
+      canceledById: int64?
+      canceledReason: string?
+      creditReceivedOn: string?
+      dateCanceled: string?
+      returnTypeId: int64?
+      syncStatus: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_returns_export_token
+  - name: inventory_transfers
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/transfers
+    primary_key: [id]
+    fields:
+      id: int64
+      date: string?
+      memo: string?
+      items: json?
+      jobId: int64?
+      active: bool?
+      number: string?
+      status: string?
+      createdOn: string?
+      invoiceId: int64?
+      modifiedOn: string?
+      pickedDate: string?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      receivedDate: string?
+      toLocationId: int64?
+      transferType: string?
+      fromLocationId: int64?
+      referenceNumber: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_transfers_export_token
+  - name: pricebook_categories
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/categories
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      name: string?
+      image: string?
+      active: bool?
+      source: string?
+      parentId: int64?
+      position: int64?
+      createdOn: string?
+      externalId: string?
+      modifiedOn: string?
+      categoryType: string?
+      hideInMobile: bool?
+      subcategories: json?
+      businessUnitIds: json?
+      skuImages: json?
+      skuVideos: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_categories_export_token
+  - name: pricebook_services
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/services
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      displayName: string?
+      warranty: json?
+      categories: json?
+      price: decimal?
+      memberPrice: decimal?
+      addOnPrice: decimal?
+      addOnMemberPrice: decimal?
+      taxable: bool?
+      account: string?
+      hours: decimal?
+      isLabor: bool?
+      recommendations: json?
+      upgrades: json?
+      assets: json?
+      serviceMaterials: json?
+      serviceEquipment: json?
+      active: bool?
+      paysCommission: bool?
+      bonus: decimal?
+      commissionBonus: decimal?
+      modifiedOn: string?
+      source: string?
+      externalId: string?
+      externalData: json?
+      cost: decimal?
+      createdOn: string?
+      soldByCommission: decimal?
+      defaultAssetUrl: string?
+      budgetCostCode: string?
+      budgetCostType: string?
+      businessUnitId: int64?
+      crossSaleGroup: string?
+      isPriceLocked: bool?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_services_export_token
+  - name: pricebook_equipment
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/equipment
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      cost: decimal?
+      bonus: decimal?
+      hours: decimal?
+      model: string?
+      price: decimal?
+      active: bool?
+      source: string?
+      typeId: int64?
+      taxable: bool?
+      createdOn: string?
+      addOnPrice: decimal?
+      categories: json?
+      externalId: string?
+      modifiedOn: string?
+      displayName: string?
+      isInventory: bool?
+      memberPrice: decimal?
+      externalData: json?
+      manufacturer: string?
+      primaryVendor: json?
+      unitOfMeasure: string?
+      paysCommission: bool?
+      commissionBonus: decimal?
+      addOnMemberPrice: decimal?
+      account: string?
+      assetAccount: string?
+      assets: json?
+      budgetCostCode: string?
+      budgetCostType: string?
+      costOfSaleAccount: string?
+      crossSaleGroup: string?
+      defaultAssetUrl: string?
+      dimensions: json?
+      displayInAmount: bool?
+      equipmentMaterials: json?
+      generalLedgerAccountId: int64?
+      isConfigurableEquipment: bool?
+      isCostLocked: bool?
+      isPriceLocked: bool?
+      manufacturerWarranty: json?
+      otherVendors: json?
+      recommendations: json?
+      serviceProviderWarranty: json?
+      upgrades: json?
+      variationsOrConfigurableEquipment: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_equipment_export_token
+  - name: pricebook_materials
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/materials
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      cost: decimal?
+      bonus: decimal?
+      hours: decimal?
+      price: decimal?
+      active: bool?
+      source: string?
+      account: string?
+      taxable: bool?
+      createdOn: string?
+      addOnPrice: decimal?
+      categories: json?
+      externalId: string?
+      modifiedOn: string?
+      createdById: int64?
+      displayName: string?
+      isInventory: bool?
+      memberPrice: decimal?
+      externalData: json?
+      primaryVendor: json?
+      unitOfMeasure: string?
+      businessUnitId: int64?
+      paysCommission: bool?
+      commissionBonus: decimal?
+      addOnMemberPrice: decimal?
+      activeIngredients: json?
+      assetAccount: string?
+      assets: json?
+      budgetCostCode: string?
+      budgetCostType: string?
+      chargeableByDefault: bool?
+      costOfSaleAccount: string?
+      costTypeId: int64?
+      deductAsJobCost: bool?
+      defaultAssetUrl: string?
+      displayInAmount: bool?
+      epaNumber: string?
+      generalLedgerAccountId: int64?
+      isChemical: bool?
+      isConfigurableMaterial: bool?
+      isCostLocked: bool?
+      isOtherDirectCost: bool?
+      isPriceLocked: bool?
+      otherVendors: json?
+      variationsOrConfigurableMaterials: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_materials_export_token
+  - name: employees
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/employees
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      role: string?
+      email: string?
+      active: bool?
+      userId: int64?
+      roleIds: json?
+      lastName: string?
+      createdOn: string?
+      firstName: string?
+      loginName: string?
+      managerId: int64?
+      startDate: string?
+      hourlyRate: decimal?
+      modifiedOn: string?
+      phoneNumber: string?
+      customFields: json?
+      businessUnitId: int64?
+      terminationDate: string?
+      overtimeProfileId: int64?
+      aadUserId: string?
+      accountLocked: bool?
+      agentId: int64?
+      businessUnitAccessIds: json?
+      home: json?
+      permissions: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: employees_export_token
+  - name: technicians
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/technicians
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      team: string?
+      email: string?
+      active: bool?
+      status: string?
+      userId: int64?
+      roleIds: json?
+      zoneIds: json?
+      createdOn: string?
+      dailyGoal: decimal?
+      loginName: string?
+      burdenRate: decimal?
+      hourlyRate: decimal?
+      mainZoneId: int64?
+      modifiedOn: string?
+      soldByRate: decimal?
+      licenseType: string?
+      phoneNumber: string?
+      customFields: json?
+      isManagedTech: bool?
+      businessUnitId: int64?
+      commissionRate: decimal?
+      aadUserId: string?
+      accountLocked: bool?
+      appoitmentId: int64?
+      bio: string?
+      currentValue: string?
+      firstName: string?
+      home: json?
+      jobFilter: string?
+      jobId: int64?
+      lastName: string?
+      location: json?
+      memo: string?
+      mobilePhone: string?
+      outboundCallerId: decimal?
+      payrollId: decimal?
+      payrollProfileId: int64?
+      permissions: json?
+      positions: json?
+      projectLabelIds: json?
+      shiftEnd: string?
+      shiftStart: string?
+      skills: json?
+      startDate: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: technicians_export_token
+  - name: business_units
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/business-units
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      trade: json?
+      active: bool?
+      address: json?
+      currency: string?
+      division: json?
+      createdOn: string?
+      modifiedOn: string?
+      tagTypeIds: json?
+      accountCode: string?
+      conceptCode: string?
+      franchiseId: string?
+      phoneNumber: string?
+      officialName: string?
+      defaultTaxRate: decimal?
+      quickbooksClass: string?
+      acknowledgementParagraph: string?
+      authorizationParagraph: string?
+      certifiedSentriconSpecialistCode: string?
+      corporateContractNumber: string?
+      externalData: json?
+      invoiceHeader: string?
+      invoiceMessage: string?
+      materialSku: string?
+      tenant: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: business_units_export_token
+  - name: tag_types
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/tag-types
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      name: string?
+      color: string?
+      active: bool?
+      createdOn: string?
+      importance: string?
+      modifiedOn: string?
+      isConversionOpportunity: bool?
+      allowToUseOnTimesheetActivity: bool?
+      isVisibleOnDispatchBoard: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: tag_types_export_token
+  - name: campaigns
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/campaigns
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      modifiedOn: string?
+      createdOn: string?
+      active: bool?
+      isDefaultCampaign: bool?
+      category: json?
+      source: string?
+      otherSource: string?
+      businessUnit: string?
+      medium: string?
+      otherMedium: string?
+      campaignPhoneNumbers: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: campaign_costs
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/costs
+    primary_key: [id]
+    fields:
+      id: int64
+      year: int64?
+      month: int64?
+      dailyCost: decimal?
+      campaignId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: campaign_categories
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/categories
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      type: string?
+      createdOn: string?
+      modifiedOn: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: calls
+    path: /telecom/v2/tenant/{{ config.tenant_id }}/export/calls
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      to: string?
+      job: json?
+      from: string?
+      lead: json?
+      agent: json?
+      active: bool?
+      reason: json?
+      status: string?
+      campaign: json?
+      customer: json?
+      duration: string?
+      location: json?
+      createdOn: string?
+      direction: string?
+      modifiedOn: string?
+      recordingUrl: string?
+      createdBy: json?
+      excuseMemo: string?
+      tag: string?
+      voiceMailPath: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: calls_export_token
+  - name: timesheet_activities
+    path: /timesheets/v2/tenant/{{ config.tenant_id }}/export/activities
+    primary_key: [id]
+    fields:
+      id: int64
+      memo: string?
+      jobId: int64?
+      active: bool?
+      endTime: string?
+      tagTypes: json?
+      createdOn: string?
+      projectId: int64?
+      startTime: string?
+      employeeId: int64?
+      modifiedOn: string?
+      laborTypeId: int64?
+      budgetCodeId: int64?
+      employeeType: string?
+      appointmentId: int64?
+      activityTypeId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_activities_export_token
+  - name: job_timesheets
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/jobs/timesheets
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      active: bool?
+      doneOn: string?
+      arrivedOn: string?
+      createdOn: string?
+      canceledOn: string?
+      modifiedOn: string?
+      dispatchedOn: string?
+      technicianId: int64?
+      appointmentId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_timesheets_export_token
+  - name: job_splits
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/jobs/splits
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      split: decimal?
+      active: bool?
+      createdOn: string?
+      modifiedOn: string?
+      technicianId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_splits_export_token
+  - name: payroll_adjustments
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/payroll-adjustments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      rate: decimal?
+      hours: decimal?
+      active: bool?
+      amount: decimal?
+      postedOn: string?
+      quantity: decimal?
+      createdOn: string?
+      invoiceId: int64?
+      employeeId: int64?
+      modifiedOn: string?
+      employeeType: string?
+      activityCodeId: int64?
+      businessUnitId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: payroll_adjustments_export_token
+  - name: gross_pay_items
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/gross-pay-items
+    primary_key: []
+    fields:
+      id: int64?
+      date: string?
+      active: bool?
+      amount: decimal?
+      activity: string?
+      createdOn: string?
+      payrollId: int64?
+      employeeId: int64?
+      modifiedOn: string?
+      activityCode: string?
+      employeeType: string?
+      activityCodeId: int64?
+      amountAdjustment: decimal?
+      businessUnitName: string?
+      employeePayrollId: string?
+      budgetCodeId: int64?
+      customerId: int64?
+      customerName: string?
+      endedOn: string?
+      grossPayItemType: string?
+      invoiceId: int64?
+      invoiceItemId: int64?
+      invoiceNumber: string?
+      isPrevailingWageJob: bool?
+      jobId: int64?
+      jobNumber: string?
+      jobTypeName: string?
+      laborTypeCode: string?
+      laborTypeId: int64?
+      locationAddress: string?
+      locationId: int64?
+      locationName: string?
+      locationZip: string?
+      memo: string?
+      paidDurationHours: decimal?
+      paidTimeType: string?
+      payoutBusinessUnitName: string?
+      projectId: int64?
+      projectNumber: string?
+      sourceEntityId: int64?
+      startedOn: string?
+      taxZoneName: string?
+      zoneName: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+  - name: timesheet_codes
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/timesheet-codes
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      description: string?
+      type: string?
+      applicableEmployeeType: string?
+      rateInfo: string?
+      createdOn: string?
+      modifiedOn: string?
+      active: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_codes_export_token
+  - name: non_job_timesheets
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/non-job-timesheets
+    primary_key: [id]
+    fields:
+      id: int64
+      employeeId: int64?
+      employeeType: string?
+      timesheetCodeId: int64?
+      startedOn: string?
+      endedOn: string?
+      createdOn: string?
+      modifiedOn: string
+      active: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeTotal: "true"
+      sort: "+ModifiedOn"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+    incremental:
+      cursor_field: modifiedOn
+      start_param: modifiedOnOrAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: non_job_timesheets_modified_on
+  - name: technician_shifts
+    path: /dispatch/v2/tenant/{{ config.tenant_id }}/technician-shifts
+    primary_key: [id]
+    fields:
+      id: int64
+      shiftType: string?
+      title: string?
+      note: string?
+      active: bool?
+      technicianId: int64?
+      start: string?
+      end: string?
+      timesheetCodeId: int64?
+      createdOn: string?
+      modifiedOn: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: payrolls
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/payrolls
+    primary_key: [id]
+    fields:
+      id: int64
+      startedOn: string?
+      endedOn: string?
+      employeeId: int64?
+      employeeType: string?
+      status: string?
+      burdenRate: string?
+      managerApprovedOn: string?
+      createdOn: string?
+      modifiedOn: string
+      active: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeTotal: "true"
+      sort: "+ModifiedOn"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+    incremental:
+      cursor_field: modifiedOn
+      start_param: modifiedOnOrAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: payrolls_modified_on
+  - name: membership_types
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/membership-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      discount: decimal?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      displayName: string?
+      discountMode: string?
+      locationTarget: string?
+      billingTemplateId: int64?
+      durationBilling: json?
+      discounts: json?
+      recurringServices: json?
+      tagTypeIds: json?
+      revenueRecognitionMode: string?
+      autoCalculateInvoiceTemplates: bool?
+      useMembershipPricingTable: bool?
+      showMembershipSavings: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: membership_types_export_token
+  - name: recurring_service_types
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-service-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      recurrenceType: string?
+      recurrenceInterval: int64?
+      recurrenceMonths: json?
+      durationType: string?
+      durationLength: int64?
+      invoiceTemplateId: int64?
+      businessUnitId: int64?
+      jobTypeId: int64?
+      priority: string?
+      campaignId: int64?
+      jobSummary: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_service_types_export_token
+  - name: memberships
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/memberships
+    primary_key: [id]
+    fields:
+      id: int64
+      from: string?
+      to: string?
+      memo: string?
+      active: bool?
+      status: string?
+      duration: int64?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      customerId: int64?
+      locationId: int64?
+      customerPo: string?
+      followUpOn: string?
+      soldById: int64?
+      renewedById: int64?
+      businessUnitId: int64?
+      membershipTypeId: int64?
+      activatedById: int64?
+      activatedFromId: int64?
+      billingTemplateId: int64?
+      billingFrequency: string?
+      renewalBillingFrequency: string?
+      followUpStatus: string?
+      cancellationDate: string?
+      nextScheduledBillDate: string?
+      renewalDuration: int64?
+      initialDeferredRevenue: decimal?
+      cancellationBalanceInvoiceId: int64?
+      cancellationInvoiceId: int64?
+      followUpCustomStatusId: int64?
+      paymentMethodId: int64?
+      paymentTypeId: int64?
+      recurringLocationId: int64?
+      renewalMembershipTaskId: int64?
+      customFields: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: memberships_export_token
+  - name: invoice_templates
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/invoice-templates
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      total: decimal?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      isSettingsTemplate: bool?
+      items: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoice_templates_export_token
+  - name: recurring_services
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-services
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      from: string?
+      to: string?
+      memo: string?
+      active: bool?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      membershipId: int64?
+      locationId: int64?
+      recurringServiceTypeId: int64?
+      durationType: string?
+      durationLength: int64?
+      invoiceTemplateId: int64?
+      invoiceTemplateForFollowingYearsId: int64?
+      firstVisitComplete: bool?
+      activatedFromId: int64?
+      allocation: decimal?
+      businessUnitId: int64?
+      jobTypeId: int64?
+      campaignId: int64?
+      priority: string?
+      jobSummary: string?
+      recurrenceType: string?
+      recurrenceInterval: int64?
+      recurrenceMonths: json?
+      recurrenceDaysOfWeek: json?
+      recurrenceWeek: string?
+      recurrenceDayOfNthWeek: string?
+      recurrenceDaysOfMonth: json?
+      jobStartTime: string?
+      estimatedPayrollCost: decimal?
+      preferredTechnicianIds: json?
+      tagTypeIds: json?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_services_export_token
+  - name: recurring_service_events
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-service-events
+    primary_key: [id]
+    fields:
+      id: int64
+      date: string?
+      active: bool?
+      jobId: int64?
+      status: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      membershipId: int64?
+      membershipName: string?
+      locationRecurringServiceId: int64?
+      locationRecurringServiceName: string?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_service_events_export_token
+  - name: membership_status_changes
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/membership-status-changes
+    primary_key: [id]
+    fields:
+      id: int64
+      note: string?
+      oldStatus: string?
+      newStatus: string?
+      createdOn: string?
+      createdById: int64?
+      membershipId: int64?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+  - name: estimates
+    path: /sales/v2/tenant/{{ config.tenant_id }}/export/estimates
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      projectId: int64?
+      locationId: int64?
+      customerId: int64?
+      name: string?
+      jobNumber: string?
+      status: json?
+      reviewStatus: string?
+      summary: string?
+      createdOn: string?
+      modifiedOn: string?
+      soldOn: string?
+      soldBy: int64?
+      active: bool?
+      items: json?
+      externalLinks: json?
+      subtotal: decimal?
+      tax: decimal?
+      businessUnitId: int64?
+      businessUnitName: string?
+      isRecommended: bool?
+      budgetCodeId: int64?
+      isChangeOrder: bool?
+      proposalTagName: string?
+      depositAmount: decimal?
+      depositPercent: decimal?
+      requireDepositOnSignature: bool?
+      raw: { path: $, type: json, mode: remainder }
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: estimates_export_token
