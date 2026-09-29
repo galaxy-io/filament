@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "name": "linear",
-  "default_version": "v1",
+  "default_version": "unversioned",
   "versions": {
-    "v1": {
+    "unversioned": {
       "maturity": "beta"
     }
   }

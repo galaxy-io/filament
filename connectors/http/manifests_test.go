@@ -38,7 +38,7 @@ func TestManifests(t *testing.T) {
 }
 
 func TestLinearManifestUsesExclusiveIncrementalBoundary(t *testing.T) {
-	data, err := os.ReadFile("manifests/linear/v1/manifest.yaml")
+	data, err := os.ReadFile("manifests/linear/unversioned/manifest.yaml")
 	if err != nil {
 		t.Fatalf("read Linear manifest: %v", err)
 	}

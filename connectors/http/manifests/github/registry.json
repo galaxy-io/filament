@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "name": "github",
-  "default_version": "v1",
+  "default_version": "2022-11-28",
   "versions": {
-    "v1": {
+    "2022-11-28": {
       "maturity": "beta"
     }
   }

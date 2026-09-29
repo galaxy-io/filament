@@ -15,56 +15,67 @@ catalog, the same manifest behaves like any other named source.
 ## Register a bundled connector
 
 Bundled HTTP connectors are discovered from the embedded `manifests` directory.
-Adding a connector or version requires no Go registration or constructor:
+Directories and registry keys identify the upstream API version the manifest
+uses. They are not Filament connector revisions or YAML grammar versions.
+Adding a connector or supporting another API version requires no Go registration
+or provider-specific constructor:
 
 ```text
-connectors/http/manifests/github/
-  registry.json
-  v1/manifest.yaml
-  v2/manifest.yaml
+connectors/http/manifests/
+  github/
+    registry.json
+    2022-11-28/manifest.yaml
+  attio/
+    registry.json
+    v2/manifest.yaml
 ```
 
-The root `registry.json` lists the shipped versions and selects the default:
+For example, GitHub's registry matches the manifest's `api_version: "2022-11-28"`:
 
 ```json
 {
   "schema_version": 1,
   "name": "github",
-  "default_version": "v1",
+  "default_version": "2022-11-28",
   "versions": {
-    "v1": { "maturity": "beta" },
-    "v2": { "maturity": "alpha" }
+    "2022-11-28": { "maturity": "beta" }
   }
 }
 ```
 
 Use lowercase connector names matching their directory and YAML `name`.
-Versions use `v1`, `v2`, and so on. Each listed version must contain
-`manifest.yaml`; each version directory must be listed. Maturity is per version
-and must be `alpha`, `beta`, or `stable`. New connectors start at `alpha`.
-Display names, descriptions, logos, configuration, and API behavior stay in YAML.
-The complete catalog is validated at startup; invalid entries stop startup with
-the failing file path. Run `go test ./connectors/http/... ./registry` before shipping.
+Use the provider's API version identifier exactly: for example `v2`, `3.0`,
+`2022-11-28`, or `2026-07-29.dahlia`. Identifiers must start with an ASCII letter
+or digit and contain only ASCII letters, digits, dots, underscores, or hyphens.
+Every listed version must contain `manifest.yaml`, its YAML `api_version` must
+match that version, and every version directory must be listed in the registry.
+`default_version` must name a listed entry. For manifests without an API version,
+use the reserved directory and registry key `unversioned` and omit YAML
+`api_version`; do not invent a vendor `v1`.
 
-The catalog exposes concrete keys such as `github@v1` and `github@v2`.
-Resolve those through the source registry; there are no provider-specific Go
-constructors. The unversioned name `github` is a lookup alias for `default_version`
-and appears alongside concrete versions in catalog listings so existing CLI
-configurations continue to resolve. Use concrete keys to select a specific version.
-The connection creation API resolves aliases and stores the
-concrete key, so later default changes do not upgrade those connections.
-Reapplying an unversioned local document preserves an existing connection's
-concrete version, even after the default changes.
-Previously stored unversioned connections still follow the default; migrate them
-before changing it if they must retain their original behavior.
+Maturity is per API version and must be `alpha`, `beta`, or `stable`.
+New connectors start at `alpha`. Display names, descriptions, logos,
+configuration, and API behavior stay in YAML. Invalid catalog entries stop
+startup with the failing file path. Run `go test ./connectors/http/... ./registry`
+before shipping. Embedded changes require rebuilding and deploying Filament.
 
-Connector versions are separate from YAML `version: 1` (the manifest grammar),
-registry `schema_version` (the JSON format), and `api_version` (the upstream API).
-Use a new connector version for breaking configuration, resource, schema, or
-cursor changes. Moving an existing pipeline to another version may require a
-checkpoint reset or migration; version registration does not migrate state.
-Compatible fixes within a version can change its behavior across builds.
-Embedded catalog changes require rebuilding and deploying Filament.
+The catalog exposes keys such as `github@2022-11-28`, `attio@v2`, and
+`slack@unversioned`. The bare name `github` resolves `default_version` and appears
+alongside explicit API versions in catalog listings for existing CLI configurations.
+The connection creation API stores the selected concrete key even when given a
+bare name. Reapplying a local document with a bare connector name preserves an
+existing connection's pin. Previously stored bare names still follow the default;
+pin them before changing it when their API selection must remain unchanged.
+
+A new directory means support for another upstream API version. Manifest fixes
+or added resources for the same API stay in that API's directory; do not invent
+an API version for a Filament-side change. Such changes still need compatibility
+review because an API pin does not freeze the manifest contents. YAML `version: 1`
+remains the grammar version, and registry `schema_version: 1` remains the JSON
+format version. Neither changes when another upstream API version is added.
+Moving a pipeline between API versions may require checkpoint migration or reset;
+registration does not migrate state. Upgrade workers before creating connections
+with versioned keys that older workers cannot resolve.
 
 ## Start with the basic structure
 

@@ -430,7 +430,7 @@ func TestSourcePlanResourcesExpandsSelectedNotionDatabase(t *testing.T) {
 
 func TestSourcePlanResourcesKeepsSingleStaticResource(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "attio@v1")
+	src := catalogSource(t, "attio@v2")
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
 		"api_key": "test-token",
 	})); err != nil {
@@ -591,9 +591,9 @@ func TestSourceNotionHTTPAPIManifestDiscoverAndExtractSelectedDatabase(t *testin
 
 func TestCatalogNotionSpecHidesManifestPath(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "notion@v1")
+	src := catalogSource(t, "notion@2022-06-28")
 	spec := src.Spec()
-	if spec.Name != "notion@v1" {
+	if spec.Name != "notion@2022-06-28" {
 		t.Fatalf("name = %q, want notion", spec.Name)
 	}
 	if spec.DisplayName != "Notion" {
@@ -633,19 +633,19 @@ func TestEmbeddedCatalogMetadata(t *testing.T) {
 		source                                 *Source
 	}{
 		{
-			name: "github", source: catalogSource(t, "github@v1"),
+			name: "github", source: catalogSource(t, "github@2022-11-28"),
 			description: "Code hosting platform for version control, collaboration, and software development workflows.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-github-light.svg",
 		},
 		{
-			name: "slack", source: catalogSource(t, "slack@v1"),
+			name: "slack", source: catalogSource(t, "slack@unversioned"),
 			description: "Messaging and collaboration platform designed for teams to communicate and work together efficiently.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg",
 		},
 		{
-			name: "attio", source: catalogSource(t, "attio@v1"),
+			name: "attio", source: catalogSource(t, "attio@v2"),
 			description: "CRM platform designed for modern teams to centralize customer data, pipelines, and workflows.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg",
@@ -665,9 +665,9 @@ func TestEmbeddedCatalogMetadata(t *testing.T) {
 
 func TestCatalogAttioSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "attio@v1")
+	src := catalogSource(t, "attio@v2")
 	spec := src.Spec()
-	if spec.Name != "attio@v1" || spec.DisplayName != "Attio" {
+	if spec.Name != "attio@v2" || spec.DisplayName != "Attio" {
 		t.Fatalf("spec identity = %q/%q, want attio/Attio", spec.Name, spec.DisplayName)
 	}
 	if len(spec.Config.Fields) != 1 {
@@ -724,7 +724,7 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "attio", "v1")), "https://api.attio.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "attio", "v2")), "https://api.attio.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "attio-key"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -746,7 +746,7 @@ func TestAttioUsesAPIKeyAsBearerToken(t *testing.T) {
 func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	ctx := context.Background()
 	schemaFields := map[string]filament.ConfigField{}
-	for _, field := range catalogSource(t, "slack@v1").Spec().Config.Fields {
+	for _, field := range catalogSource(t, "slack@unversioned").Spec().Config.Fields {
 		schemaFields[field.Name] = field
 	}
 	conversationTypesField := schemaFields["conversation_types"]
@@ -780,7 +780,7 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "slack", "v1")), "https://slack.com/api", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "slack", "unversioned")), "https://slack.com/api", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"token": "xoxb-test"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -992,9 +992,9 @@ func TestManifestPathIsLoadedOncePerConnector(t *testing.T) {
 
 func TestCatalogGitHubSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "github@v1")
+	src := catalogSource(t, "github@2022-11-28")
 	spec := src.Spec()
-	if spec.Name != "github@v1" || spec.DisplayName != "GitHub" {
+	if spec.Name != "github@2022-11-28" || spec.DisplayName != "GitHub" {
 		t.Fatalf("spec identity = %q/%q, want github/GitHub", spec.Name, spec.DisplayName)
 	}
 	if len(spec.Config.Fields) != 2 {
@@ -1522,7 +1522,7 @@ resources:
 func writeLinearTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "linear.yaml")
-	data := strings.Replace(string(catalogManifest(t, "linear", "v1")), "https://api.linear.app", baseURL, 1)
+	data := strings.Replace(string(catalogManifest(t, "linear", "unversioned")), "https://api.linear.app", baseURL, 1)
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatalf("write linear manifest: %v", err)
 	}
@@ -1615,9 +1615,9 @@ discovery:
 
 func TestCatalogResendSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "resend@v1")
+	src := catalogSource(t, "resend@unversioned")
 	spec := src.Spec()
-	if spec.Name != "resend@v1" || spec.DisplayName != "Resend" {
+	if spec.Name != "resend@unversioned" || spec.DisplayName != "Resend" {
 		t.Fatalf("spec identity = %q/%q, want resend/Resend", spec.Name, spec.DisplayName)
 	}
 	fields := map[string]filament.ConfigField{}
@@ -1694,7 +1694,7 @@ func TestResendPaginatesOnLastRecordIDAndSendsBearerToken(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -1750,7 +1750,7 @@ func TestResendTestConnectionProbesEmails(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
 		"api_key": "re_test_123",
@@ -1787,7 +1787,7 @@ func TestResendEmailDetailsSingletonFanOutSendsNoListParams(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -1846,7 +1846,7 @@ func TestResendDomainRecordsProjectNestedArrayFromDomainDetail(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -1929,7 +1929,7 @@ func TestResendWebhookAttemptsInheritWebhookIDThroughEventCapture(t *testing.T) 
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -1996,7 +1996,7 @@ func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "v1")), "https://api.resend.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "resend", "unversioned")), "https://api.resend.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "re_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -2028,9 +2028,9 @@ func TestResendTemplateDetailsAcceptArrayReplyTo(t *testing.T) {
 
 func TestCatalogStripeSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "stripe@v1")
+	src := catalogSource(t, "stripe@2026-07-29.dahlia")
 	spec := src.Spec()
-	if spec.Name != "stripe@v1" || spec.DisplayName != "Stripe" {
+	if spec.Name != "stripe@2026-07-29.dahlia" || spec.DisplayName != "Stripe" {
 		t.Fatalf("spec identity = %q/%q, want stripe/Stripe", spec.Name, spec.DisplayName)
 	}
 	fields := map[string]filament.ConfigField{}
@@ -2114,7 +2114,7 @@ func TestStripePaginatesOnLastRecordIDAndSendsBasicAuth(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "v1")), "https://api.stripe.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "2026-07-29.dahlia")), "https://api.stripe.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -2192,7 +2192,7 @@ func TestStripeSubscriptionItemFanOut(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "v1")), "https://api.stripe.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "2026-07-29.dahlia")), "https://api.stripe.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -2261,7 +2261,7 @@ func TestStripeInvoiceLineItemFanOut(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "v1")), "https://api.stripe.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "2026-07-29.dahlia")), "https://api.stripe.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -2324,7 +2324,7 @@ func TestStripeIncrementalInjectsBracketedCreatedFilter(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "v1")), "https://api.stripe.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "2026-07-29.dahlia")), "https://api.stripe.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"api_key": "rk_test_123"})); err != nil {
 		t.Fatalf("configure: %v", err)
@@ -2386,7 +2386,7 @@ func TestStripeTestConnectionProbesCustomers(t *testing.T) {
 	}))
 	defer api.Close()
 
-	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "v1")), "https://api.stripe.com", api.URL, 1))
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "stripe", "2026-07-29.dahlia")), "https://api.stripe.com", api.URL, 1))
 	src := NewManifest(manifestData)
 	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
 		"api_key": "rk_test_123",
@@ -2407,17 +2407,17 @@ func TestStripeTestConnectionProbesCustomers(t *testing.T) {
 func unthrottledPostHogManifest(t *testing.T) []byte {
 	t.Helper()
 	const throttled = "requests_per_second: 0.3"
-	if !strings.Contains(string(catalogManifest(t, "posthog", "v1")), throttled) {
+	if !strings.Contains(string(catalogManifest(t, "posthog", "unversioned")), throttled) {
 		t.Fatalf("manifest no longer contains %q — update the test helper", throttled)
 	}
-	return []byte(strings.Replace(string(catalogManifest(t, "posthog", "v1")), throttled, "requests_per_second: 1000", 1))
+	return []byte(strings.Replace(string(catalogManifest(t, "posthog", "unversioned")), throttled, "requests_per_second: 1000", 1))
 }
 
 func TestCatalogPostHogSpecAndEmbeddedManifest(t *testing.T) {
 	ctx := context.Background()
-	src := catalogSource(t, "posthog@v1")
+	src := catalogSource(t, "posthog@unversioned")
 	spec := src.Spec()
-	if spec.Name != "posthog@v1" || spec.DisplayName != "PostHog" {
+	if spec.Name != "posthog@unversioned" || spec.DisplayName != "PostHog" {
 		t.Fatalf("spec identity = %q/%q, want posthog/PostHog", spec.Name, spec.DisplayName)
 	}
 	fields := map[string]filament.ConfigField{}

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "name": "notion",
-  "default_version": "v1",
+  "default_version": "2022-06-28",
   "versions": {
-    "v1": {
+    "2022-06-28": {
       "maturity": "beta"
     }
   }

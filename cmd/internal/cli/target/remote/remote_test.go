@@ -61,16 +61,16 @@ func TestHTTPAliasesSurviveRemoteCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"github", "attio", "stripe"} {
+	for name, apiVersion := range map[string]string{"github": "2022-11-28", "attio": "v2", "stripe": "2026-07-29.dahlia", "slack": "unversioned"} {
 		alias, ok := catalog.Sources[name]
 		if !ok {
 			t.Fatalf("missing alias %s", name)
 		}
-		version, ok := catalog.Sources[name+"@v1"]
+		version, ok := catalog.Sources[name+"@"+apiVersion]
 		if !ok {
-			t.Fatalf("missing version %s@v1", name)
+			t.Fatalf("missing version %s@%s", name, apiVersion)
 		}
-		if alias.Version != "v1" || alias.Maturity != version.Maturity || !reflect.DeepEqual(alias.Config, version.Config) {
+		if alias.Version != apiVersion || alias.Maturity != version.Maturity || !reflect.DeepEqual(alias.Config, version.Config) {
 			t.Fatalf("alias metadata differs for %s", name)
 		}
 	}

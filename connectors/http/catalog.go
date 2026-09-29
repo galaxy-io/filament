@@ -18,7 +18,7 @@ import (
 //go:embed manifests
 var catalogFS embed.FS
 
-// Registry metadata owns release selection; the YAML owns the API contract.
+// Registry version keys identify upstream API versions, matching YAML api_version.
 type catalogRegistry struct {
 	SchemaVersion  int                       `json:"schema_version"`
 	Name           string                    `json:"name"`
@@ -39,7 +39,12 @@ type catalogEntry struct {
 }
 
 var catalogName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-var catalogRelease = regexp.MustCompile(`^v[1-9][0-9]*$`)
+
+// API versions may be majors, dates, or vendor release identifiers. Require a
+// single safe path component without imposing Filament's own version numbering.
+var catalogAPIVersion = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+const unversionedAPI = "unversioned"
 
 // loadCatalog validates every entry before its caller mutates the registry.
 // Reading through fs.FS keeps startup discovery and tests on the same path.
@@ -83,8 +88,8 @@ func loadCatalog(files fs.FS) ([]catalogEntry, error) {
 		}
 		sort.Strings(versions)
 		for _, version := range versions {
-			if !catalogRelease.MatchString(version) {
-				return nil, fmt.Errorf("%s: invalid connector version %q (want v1, v2, ...)", registryPath, version)
+			if !catalogAPIVersion.MatchString(version) {
+				return nil, fmt.Errorf("%s: invalid API version %q (must be a safe directory name)", registryPath, version)
 			}
 			release := registration.Versions[version]
 			switch release.Maturity {
@@ -103,6 +108,13 @@ func loadCatalog(files fs.FS) ([]catalogEntry, error) {
 			}
 			if parsed.Name != registration.Name {
 				return nil, fmt.Errorf("%s: name must match registry name %q", manifestPath, registration.Name)
+			}
+			if version == unversionedAPI {
+				if parsed.APIVersion != "" {
+					return nil, fmt.Errorf("%s: unversioned directory requires api_version to be omitted", manifestPath)
+				}
+			} else if parsed.APIVersion != version {
+				return nil, fmt.Errorf("%s: api_version %q must match registry API version %q (use unversioned when api_version is omitted)", manifestPath, parsed.APIVersion, version)
 			}
 			if parsed.DisplayName == "" || parsed.Description == "" || parsed.DarkLogoURL == "" || parsed.LightLogoURL == "" {
 				return nil, fmt.Errorf("%s: missing catalog presentation metadata", manifestPath)
@@ -134,6 +146,6 @@ func (entry catalogEntry) source() filament.Source {
 	// Parse per instance so mutable manifest maps and slices never cross runs.
 	source := NewManifest(entry.data)
 	source.name = entry.key()
-	source.catalogVersion = entry.version
+	source.registeredAPIVersion = entry.version
 	return source
 }

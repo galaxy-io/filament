@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "name": "gong",
-  "default_version": "v1",
+  "default_version": "v2",
   "versions": {
-    "v1": {
+    "v2": {
       "maturity": "alpha"
     }
   }

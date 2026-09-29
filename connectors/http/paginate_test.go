@@ -185,7 +185,7 @@ func gongTestSource(t *testing.T, handler http.HandlerFunc) *Source {
 	t.Helper()
 	api := httptest.NewServer(handler)
 	t.Cleanup(api.Close)
-	src := catalogSource(t, "gong@v1")
+	src := catalogSource(t, "gong@v2")
 	if err := src.Configure(t.Context(), filament.NewConfig(map[string]any{
 		"access_key":        "key",
 		"access_key_secret": "secret",
