@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { keepPreviousData } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 
 import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
@@ -11,8 +9,9 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type ConnectorSpec, ListConnectorsRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
+import { getConnectorFamily } from "@/pages/connectors/components/create/catalog";
 import CreateConnectionSelectorCard, {
   CreateConnectionSelectorEmptyCard,
 } from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
@@ -52,20 +51,28 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
   const { connectorKind, connectorSearch = "" } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
-  const { data, isLoading } = useListConnectorsQuery({
-    input: create(ListConnectorsRequestSchema, {
-      search: connectorSearch.trim().slice(0, MAX_LIST_SEARCH_LENGTH),
-    }),
-    options: { placeholderData: keepPreviousData },
-  });
+  const { data, isLoading } = useListConnectorsQuery();
 
-  const filteredConnectors = useMemo(
-    () =>
-      (data?.connectors ?? [])
-        .filter((connector) => kind === ConnectorKind.UNSPECIFIED || connector.kind === kind)
-        .sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name)),
-    [data?.connectors, kind],
-  );
+  const filteredConnectors = useMemo(() => {
+    const catalog = data?.connectors ?? [];
+    const search = connectorSearch.trim().slice(0, MAX_LIST_SEARCH_LENGTH).toLowerCase();
+    const families = new Map<string, ConnectorSpec>();
+    for (const connector of catalog) {
+      if (kind !== ConnectorKind.UNSPECIFIED && connector.kind !== kind) continue;
+      if (
+        search &&
+        ![connector.name, connector.displayName, connector.description].some((value) =>
+          value.toLowerCase().includes(search),
+        )
+      )
+        continue;
+      const family = getConnectorFamily(connector, catalog);
+      families.set(`${family.kind}:${family.name}`, family);
+    }
+    return [...families.values()].sort((a, b) =>
+      (a.displayName || a.name).localeCompare(b.displayName || b.name),
+    );
+  }, [data?.connectors, kind, connectorSearch]);
 
   if (isLoading) {
     return (

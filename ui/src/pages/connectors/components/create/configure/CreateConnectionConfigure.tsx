@@ -88,6 +88,12 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
     <ConnectionForm
       connectorName={connector ?? ""}
       connectorKind={kind}
+      onConnectorChange={(version) => {
+        void navigate({
+          to: ".",
+          search: (prev) => ({ ...prev, connector: version }),
+        });
+      }}
       onSubmit={handleCreateConnection}
       onClose={onClose}
       onBack={onBack}
