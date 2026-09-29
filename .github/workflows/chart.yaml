@@ -118,8 +118,6 @@ jobs:
           push-to-registry: true
           create-storage-record: false
 
-      # The chart keeps its own tag and release beside the platform's. Created
-      # as not-latest, so the platform release keeps that marker.
       - name: Tag release
         env:
           GH_TOKEN: ${{ github.token }}
