@@ -1,0 +1,539 @@
+version: 1
+name: heyreach
+display_name: HeyReach
+description: Read LinkedIn campaigns, lists, leads, conversations, and analytics from HeyReach.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-heyreach-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-heyreach-light.svg
+config:
+  api_key:
+    type: secret
+    required: true
+    help: HeyReach workspace API key
+  stats_start_date:
+    type: string
+    help: ISO 8601 start date required when selecting overall_stats or campaign_stats
+  stats_end_date:
+    type: string
+    help: ISO 8601 end date required when selecting overall_stats or campaign_stats
+connection:
+  base_url: https://api.heyreach.io
+  auth:
+    header:
+      name: X-API-KEY
+      value: config.api_key
+  headers:
+    Accept: application/json
+  rate_limit:
+    requests_per_second: 4
+defaults:
+  method: GET
+resources:
+  - name: campaigns
+    path: /api/public/campaign/GetAll
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      creationTime: timestamptz?
+      linkedInUserListId: string?
+      linkedInUserListName: string?
+      status: string?
+      campaignAccountIds: json?
+      progressStats: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+    capture:
+      campaign_id: id
+  - name: linkedin_accounts
+    path: /api/public/li_account/GetAll
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    primary_key: ["id"]
+    fields:
+      id: string
+      emailAddress: string?
+      firstName: string?
+      lastName: string?
+      isActive: bool?
+      activeCampaigns: int64?
+      authIsValid: bool?
+      isValidNavigator: bool?
+      isValidRecruiter: bool?
+      profileUrl: string?
+      accountLimits: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+    capture:
+      account_id: id
+  - name: lead_lists
+    path: /api/public/list/GetAll
+    method: POST
+    body:
+      encoding: json
+      template:
+        listType: USER_LIST
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      listType: string?
+      totalItemsCount: int64?
+      creationTime: timestamptz?
+      campaignIds: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+    capture:
+      list_id: id
+  - name: company_lists
+    path: /api/public/list/GetAll
+    method: POST
+    body:
+      encoding: json
+      template:
+        listType: COMPANY_LIST
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      listType: string?
+      totalItemsCount: int64?
+      creationTime: timestamptz?
+      campaignIds: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+    capture:
+      list_id: id
+  - name: list_leads
+    path: /api/public/list/GetLeadsFromList
+    method: POST
+    for_each: lead_lists
+    body:
+      encoding: json
+      template:
+        listId: "{{ parent.list_id }}"
+    primary_key: ["list_id", "profileUrl"]
+    fields:
+      list_id:
+        path: parent.list_id
+        type: string
+      profileUrl: string
+      linkedin_id: string?
+      firstName: string?
+      lastName: string?
+      headline: string?
+      location: string?
+      companyName: string?
+      companyUrl: string?
+      position: string?
+      emailAddress: string?
+      enrichedEmailAddress: string?
+      customEmailAddress: string?
+      connections: int64?
+      followers: int64?
+      tags: json?
+      customFields: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+    capture:
+      profile_url: profileUrl
+  - name: list_companies
+    path: /api/public/list/GetCompaniesFromList
+    method: POST
+    for_each: company_lists
+    body:
+      encoding: json
+      template:
+        listId: "{{ parent.list_id }}"
+    primary_key: []
+    fields:
+      list_id:
+        path: parent.list_id
+        type: string
+      name: string?
+      description: string?
+      industry: string?
+      imageUrl: string?
+      companySize: string?
+      employeesOnLinkedIn: int64?
+      location: string?
+      specialities: string?
+      website: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+  - name: campaign_leads
+    path: /api/public/campaign/GetLeadsFromCampaign
+    method: POST
+    for_each: campaigns
+    body:
+      encoding: json
+      template:
+        campaignId: "{{ parent.campaign_id }}"
+        timeFilter: Everywhere
+    primary_key: ["campaign_id", "id"]
+    fields:
+      campaign_id:
+        path: parent.campaign_id
+        type: string
+      id: string
+      linkedInUserProfileId: string?
+      linkedInUserProfile: json?
+      lastActionTime: timestamptz?
+      failedTime: timestamptz?
+      creationTime: timestamptz?
+      leadCampaignStatus: string?
+      leadConnectionStatus: string?
+      leadMessageStatus: string?
+      leadCampaignStatusMessage: string?
+      linkedInSenderId: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+  - name: conversations
+    path: /api/public/inbox/GetConversationsV3
+    method: POST
+    body:
+      encoding: json
+      template:
+        limit: 100
+    primary_key: ["linkedInAccountId", "id"]
+    fields:
+      id: string
+      linkedInAccountId: string
+      campaignId: string?
+      read: bool?
+      groupChat: bool?
+      blockedByMe: bool?
+      blockedByParticipant: bool?
+      lastMessageAt: timestamptz?
+      lastMessageText: string?
+      lastMessageType: string?
+      lastMessageSender: string?
+      totalMessages: int64?
+      correspondentProfile: json?
+      linkedInAccount: json?
+      messages: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        cursor:
+          response: nextCursor
+          request: body.cursor
+          more: hasNextPage
+          null_terminates: true
+    capture:
+      account_id: linkedInAccountId
+      conversation_id: id
+  - name: chatrooms
+    path: "/api/public/inbox/GetChatroom/{accountId}/{conversationId}"
+    method: GET
+    for_each: conversations
+    primary_key: ["linkedInAccountId", "id"]
+    fields:
+      id: string
+      linkedInAccountId: string
+      campaignId: string?
+      read: bool?
+      groupChat: bool?
+      blockedByMe: bool?
+      blockedByParticipant: bool?
+      lastMessageAt: timestamptz?
+      lastMessageText: string?
+      lastMessageType: string?
+      lastMessageSender: string?
+      totalMessages: int64?
+      correspondentProfile: json?
+      linkedInAccount: json?
+      messages: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    params:
+      accountId: parent.account_id
+      conversationId: parent.conversation_id
+  - name: lead_details
+    path: /api/public/lead/GetLead
+    method: POST
+    for_each: list_leads
+    body:
+      encoding: json
+      template:
+        profileUrl: "{{ parent.profile_url }}"
+    primary_key: ["list_id", "profileUrl"]
+    fields:
+      list_id:
+        path: parent.list_id
+        type: string
+      profileUrl: string
+      linkedin_id: string?
+      firstName: string?
+      lastName: string?
+      headline: string?
+      location: string?
+      companyName: string?
+      companyUrl: string?
+      position: string?
+      emailAddress: string?
+      enrichedEmailAddress: string?
+      customEmailAddress: string?
+      connections: int64?
+      followers: int64?
+      tags: json?
+      customFields: json?
+      fullName: string?
+      summary: string?
+      industry: string?
+      username: string?
+      experiences: string?
+      education: string?
+      emailEnrichments: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: account_status
+    path: "/api/public/li_account/GetAccountStatus/{accountId}"
+    method: GET
+    for_each: linkedin_accounts
+    primary_key: ["accountId"]
+    fields:
+      accountId: string
+      status: string?
+      failureReason: string?
+      profile: json?
+      salesNavigator: json?
+      recruiter: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    params:
+      accountId: parent.account_id
+  - name: proxy_countries
+    path: /api/public/li_account/GetProxyCountries
+    method: GET
+    primary_key: ["code"]
+    fields:
+      code: string
+      name: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+  - name: webhooks
+    path: /api/public/webhooks/GetAllWebhooks
+    method: POST
+    body:
+      encoding: json
+      template:
+        includeCustomHeaders: false
+    primary_key: ["id"]
+    fields:
+      id: string
+      webhookName: string?
+      webhookUrl: string?
+      eventType: string?
+      campaignIds: json?
+      isActive: bool?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+  - name: blacklisted_leads
+    path: /api/public/blacklist/GetLeads
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    primary_key: ["id"]
+    fields:
+      id: string
+      profileUrl: string?
+      email: string?
+      fullName: string?
+      imageUrl: string?
+      companyName: string?
+      position: string?
+      linkedInProfileId: string?
+      matchingStatus: string?
+      resolutionStage: string?
+      resolutionError: string?
+      creationTime: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+  - name: blacklisted_companies
+    path: /api/public/blacklist/GetCompanies
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    primary_key: ["id"]
+    fields:
+      id: string
+      companyName: string?
+      linkedInUrl: string?
+      imageUrl: string?
+      industry: string?
+      matchingStatus: string?
+      creationTime: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        offset:
+          offset: body.offset
+          limit: body.limit
+          page_size: 100
+  - name: overall_stats
+    path: /api/public/stats/GetOverallStats
+    method: POST
+    body:
+      encoding: json
+      template:
+        accountIds: []
+        campaignIds: []
+        startDate: "{{ config.stats_start_date }}"
+        endDate: "{{ config.stats_end_date }}"
+    primary_key: []
+    fields:
+      byDayStats: json?
+      overallStats: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: campaign_stats
+    path: /api/public/stats/GetOverallStatsByCampaign
+    method: POST
+    body:
+      encoding: json
+      template:
+        accountIds: []
+        campaignIds: []
+        startDate: "{{ config.stats_start_date }}"
+        endDate: "{{ config.stats_end_date }}"
+    primary_key: []
+    fields:
+      byDayStats: json?
+      overallStats: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+discovery:
+  mode: static
+  default_resources: [campaigns, linkedin_accounts, lead_lists, list_leads, campaign_leads, conversations]
