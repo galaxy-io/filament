@@ -2,6 +2,7 @@ package pagination
 
 import (
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/galaxy-io/filament/connectors/http/manifest"
@@ -79,6 +80,42 @@ func TestPageAndCursorContinuation(t *testing.T) {
 					t.Fatalf("next=%+v err=%v; want done=%v fail=%v", next, err, tc.done, tc.fail)
 				}
 			})
+		}
+	}
+}
+
+func TestPageStartAndTotalPages(t *testing.T) {
+	for _, start := range []int{0, 1} {
+		for _, target := range []string{"query", "body"} {
+			p, err := newPage(manifest.PaginationSpec{PageParam: "page", PageSize: 2, StartPage: &start, InjectInto: target, TotalPagesPath: "total"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			state := p.Initial()
+			for page := start; page < start+2; page++ {
+				if state.Page != page {
+					t.Fatalf("start=%d state=%+v want page=%d", start, state, page)
+				}
+				req, _ := http.NewRequest(http.MethodPost, "https://example.com", nil)
+				body, err := p.Apply(req, state)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if target == "body" {
+					if body["page"] != page {
+						t.Fatalf("body=%v", body)
+					}
+				} else if req.URL.Query().Get("page") != strconv.Itoa(page) {
+					t.Fatalf("query=%s", req.URL.RawQuery)
+				}
+				state, err = p.Next(nil, map[string]any{"total": 2}, 2)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if state.Done != (page == start+1) {
+					t.Fatalf("start=%d page=%d state=%+v", start, page, state)
+				}
+			}
 		}
 	}
 }

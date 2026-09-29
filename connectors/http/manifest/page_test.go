@@ -52,6 +52,23 @@ resources:
 			}
 		})
 	}
+	for _, value := range []string{"0", "1", "-1"} {
+		doc := strings.Replace(fmt.Sprintf(base, "query.page", `""`, ""), "page_size: 50", "page_size: 50, start_page: "+value, 1)
+		m, err := Parse([]byte(doc))
+		if value == "-1" {
+			if err == nil {
+				t.Fatal("negative start_page accepted")
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if m.Resources[0].Pagination.StartPage == nil || fmt.Sprint(*m.Resources[0].Pagination.StartPage) != value {
+			t.Fatal("start_page not preserved")
+		}
+	}
+
 	for _, param := range []string{"variables.page", "variables.limit"} {
 		inc := "    incremental: {cursor_field: updated_at, start_param: " + param + ", inject_into: body, comparator: time}"
 		_, err := Parse([]byte(fmt.Sprintf(base, "body.variables.page", "body.variables.limit", inc)))

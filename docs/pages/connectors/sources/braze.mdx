@@ -1,0 +1,147 @@
+---
+title: "Braze"
+description: "Read campaigns, Canvases, segments, templates, catalogs, and analytics from Braze"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-braze-dark.svg"
+---
+
+The Braze source reads workspace metadata and daily analytics through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It is **alpha**. The manifest has been checked against Braze's published API
+reference, but has not been tested against a live workspace.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Workspace REST API key. |
+| `endpoint` | Connection | | Required. Your workspace's REST endpoint, including `https://`. |
+| `analytics_days` | Connection | `14` | Days to read for analytics resources. Use 1–100; Canvas analytics supports at most 14. |
+| `analytics_ending_at` | Connection | | ISO 8601 end time. Required when selecting analytics, KPI, session, or purchase resources. |
+
+Create a REST API key in **Settings > APIs and Identifiers > API Keys** and copy
+your workspace's REST endpoint, such as `https://rest.iad-01.braze.com`.
+Use the endpoint for your own Braze instance. Requests authenticate with a
+Bearer token. See Braze's [API setup guide](https://www.braze.com/docs/api/basics/)
+and [API key permissions](https://www.braze.com/docs/api/api_key/).
+
+The default resources require `campaigns.list`, `canvas.list`, and `segments.list`.
+Connection testing calls `/campaigns/list`, so it also needs `campaigns.list`.
+Optional resources require the corresponding endpoint permissions:
+
+| Resources | Permissions |
+|---|---|
+| Campaign, Canvas, and segment details | `campaigns.details`, `canvas.details`, `segments.details` |
+| Email templates and details | `templates.email.list`, `templates.email.info` |
+| Catalogs and items | `catalogs.get`, `catalogs.get_items` |
+| Custom attribute and event definitions | `custom_attributes.get`, `events.get` |
+| Preference centers and details | `preference_center.list`, `preference_center.get` |
+| Cloud Data Ingestion integrations and sync status | `cdi.integration_list`, `cdi.integration_job_status` |
+| Campaign, Canvas, and segment analytics | `campaigns.data_series`, `canvas.data_series`, `segments.data_series` |
+| New users, active users, and uninstalls | `kpi.new_users.data_series`, `kpi.dau.data_series`, `kpi.mau.data_series`, `kpi.uninstalls.data_series` |
+| Sessions and purchases | `sessions.data_series`, `purchases.quantity_series`, `purchases.revenue_series` |
+
+Grant only permissions needed by selected resources and their parents. Preference
+centers and Cloud Data Ingestion also depend on those features being available
+in your workspace.
+
+## Resources
+
+`campaigns`, `canvases`, and `segments` are selected by default. All other resources
+are optional. Selecting a child also lists its parents to discover IDs; only
+selected resources are written.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `campaigns` | `GET /campaigns/list` |  |
+| `canvases` | `GET /canvas/list` |  |
+| `segments` | `GET /segments/list` |  |
+| `campaign_details` | `GET /campaigns/details` | `campaigns` |
+| `canvas_details` | `GET /canvas/details` | `canvases` |
+| `segment_details` | `GET /segments/details` | `segments` |
+| `email_templates` | `GET /templates/email/list` |  |
+| `email_template_details` | `GET /templates/email/info` | `email_templates` |
+| `catalogs` | `GET /catalogs` |  |
+| `catalog_items` | `GET /catalogs/{catalog_name}/items` | `catalogs` |
+| `custom_attributes` | `GET /custom_attributes` |  |
+| `custom_events` | `GET /events` |  |
+| `preference_centers` | `GET /preference_center/v1/list` |  |
+| `preference_center_details` | `GET /preference_center/v1/{preference_center_api_id}` | `preference_centers` |
+| `cdi_integrations` | `GET /cdi/integrations` |  |
+| `cdi_sync_status` | `GET /cdi/integrations/{integration_id}/job_sync_status` | `cdi_integrations` |
+| `campaign_analytics` | `GET /campaigns/data_series` | `campaigns` |
+| `canvas_analytics` | `GET /canvas/data_series` | `canvases` |
+| `segment_analytics` | `GET /segments/data_series` | `segments` |
+| `new_users` | `GET /kpi/new_users/data_series` |  |
+| `daily_active_users` | `GET /kpi/dau/data_series` |  |
+| `monthly_active_users` | `GET /kpi/mau/data_series` |  |
+| `uninstalls` | `GET /kpi/uninstalls/data_series` |  |
+| `sessions` | `GET /sessions/data_series` |  |
+| `purchase_quantity` | `GET /purchases/quantity_series` |  |
+| `purchase_revenue` | `GET /purchases/revenue_series` |  |
+
+Campaign and Canvas lists include archived records. Braze's segment list excludes
+archived segments. Detail resources retain message variations, Canvas steps and
+paths, and other nested data as JSON. Email template details include HTML and
+plain text bodies; the API excludes templates created with the drag-and-drop
+editor.
+
+Catalog items are keyed by catalog name and item ID. Their custom columns remain
+in `raw`, and `catalogs.fields` contains their schema. Custom attributes and events
+are **definitions**, not individual user attributes or event occurrences.
+Cloud Data Ingestion sync status emits one row per returned job and has no
+primary key because Braze does not return a stable job identifier.
+
+Analytics resources emit one row per day, scoped to a campaign, Canvas, or segment
+where applicable. Canvas totals, variant breakdowns, and step breakdowns stay in
+JSON, including deleted-step data returned by Braze. KPI, session, and purchase
+resources aggregate across the workspace. Monthly active users is a rolling
+30-day measure. Other returned fields are retained in `raw`.
+
+This connector does not export user profiles or raw message and event activity.
+[Bulk user exports](https://www.braze.com/docs/api/endpoints/export/user_data/post_users_segment/)
+require an asynchronous archive workflow, and raw event delivery uses Currents.
+Content Blocks are excluded pending verification of their
+[offset contract](https://www.braze.com/docs/api/endpoints/templates/content_blocks_templates/get_list_email_content_blocks/):
+the reference describes a count of skipped records but rejects zero in its error
+table. The connector does not assume that starting at one preserves every record.
+Email and SMS suppression lists, subscription status lookups, scheduled broadcasts,
+custom-event analytics, Data Objects, SCIM administration, SDK authentication key
+inventories, and write operations are also outside this resource set.
+
+## Modes
+
+All resources support **full reads**. `campaigns` and `canvases` also support
+**incremental reads** using `last_edited` and the `last_edit.time[gt]` filter.
+`email_templates` uses `updated_at` with the inclusive `modified_after` filter.
+Each incremental resource re-reads a 60-second overlap and can emit repeated
+records, so use upsert writes. These filters track definition edits, not new
+activity against an unchanged campaign or Canvas.
+
+Details and analytics use a full parent listing independent of metadata
+checkpoints. They therefore include unchanged parents even when the metadata
+resources run incrementally. Analytics always re-read the configured window
+because results can change after the original activity date. Set
+`analytics_ending_at` explicitly and move it forward for subsequent windows;
+this is not an automatic historical backfill. Canvas allows a maximum of
+[14 days per request](https://www.braze.com/docs/api/endpoints/export/canvas/get_canvas_analytics/).
+The other included analytics endpoints allow 100 days.
+
+Use full-replace writes for `cdi_sync_status`. Full and incremental reads do not
+emit deletion events. Use full replacement when upstream removals should also
+remove downstream rows, accounting for the selected analytics window and the
+API's visibility limits.
+
+## Behavior
+
+- **Pagination:** Campaigns, Canvases, and segments use zero-based pages of 100.
+  Email templates use offsets with 100 records per request. Catalog items,
+  custom definitions, and Cloud Data Ingestion resources follow the API's next
+  Link header. Other resources return a single response.
+- **Rate limits:** Requests are limited to 0.25 per second to stay below the
+  [1,000-per-hour limits](https://www.braze.com/docs/api/api_limits/) on included
+  definition and purchase endpoints. Other clients can consume the same quota.
+  The shared HTTP engine retries throttling responses.
+- **Access:** A key can only read its workspace and granted endpoints. Optional
+  resources do not become enabled merely because their permissions are present.
+- **Consistency:** Parent enumeration and detail requests happen separately.
+  Changes during a paginated read can affect the returned snapshot.

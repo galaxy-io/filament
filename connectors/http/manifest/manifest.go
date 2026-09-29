@@ -402,6 +402,7 @@ type PaginationSpec struct {
 	OffsetInjectInto string `yaml:"offset_inject_into,omitempty"`
 
 	// page-number
+	StartPage      *int   `yaml:"start_page,omitempty"`
 	PageParam      string `yaml:"page_param,omitempty"`
 	SizeParam      string `yaml:"size_param,omitempty"`
 	TotalPagesPath string `yaml:"total_pages_path,omitempty"`
@@ -483,6 +484,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 	case "page":
 		var spec struct {
 			Number     string `yaml:"number"`
+			StartPage  *int   `yaml:"start_page"`
 			Size       string `yaml:"size"`
 			PageSize   int    `yaml:"page_size"`
 			TotalPages string `yaml:"total_pages"`
@@ -497,7 +499,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 			return fmt.Errorf("page pagination fields must share a query or body target")
 		}
 		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
-		p.InjectInto, p.HasMorePath = numberTarget, spec.More
+		p.InjectInto, p.HasMorePath, p.StartPage = numberTarget, spec.More, spec.StartPage
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
 	}

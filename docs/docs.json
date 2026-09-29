@@ -146,6 +146,7 @@
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/nats",
               "pages/connectors/sources/attio",
+              "pages/connectors/sources/braze",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gong",
               "pages/connectors/sources/granola",

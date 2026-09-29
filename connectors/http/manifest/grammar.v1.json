@@ -369,6 +369,7 @@
               "additionalProperties": false,
               "properties": {
                 "number": { "type": "string" },
+                "start_page": { "type": "integer", "minimum": 0 },
                 "size": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 },
                 "total_pages": { "type": "string" },

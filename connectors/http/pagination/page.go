@@ -11,7 +11,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
-// pagePaginator increments a 1-based page number. Stops on a short page or
+// pagePaginator increments a page number, starting at one unless configured. Stops on a short page or
 // when total_pages is reached (if total_pages_path is configured). An explicit
 // has_more_path takes precedence over page length and total_pages.
 type pagePaginator struct {
@@ -20,6 +20,7 @@ type pagePaginator struct {
 	pageSize       int
 	totalPagesPath string
 	lastPage       int
+	startPage      int
 	injectInto     string
 	hasMorePath    string
 }
@@ -31,7 +32,15 @@ func newPage(spec manifest.PaginationSpec) (*pagePaginator, error) {
 	if spec.PageSize <= 0 {
 		return nil, fmt.Errorf("page pagination: page_size > 0 is required")
 	}
+	startPage := 1
+	if spec.StartPage != nil {
+		startPage = *spec.StartPage
+	}
+	if startPage < 0 {
+		return nil, fmt.Errorf("page pagination: start_page must be non-negative")
+	}
 	return &pagePaginator{
+		startPage:      startPage,
 		pageParam:      spec.PageParam,
 		injectInto:     spec.InjectInto,
 		hasMorePath:    spec.HasMorePath,
@@ -41,7 +50,7 @@ func newPage(spec manifest.PaginationSpec) (*pagePaginator, error) {
 	}, nil
 }
 
-func (p *pagePaginator) Initial() State { return State{Page: 1} }
+func (p *pagePaginator) Initial() State { return State{Page: p.startPage} }
 
 func (p *pagePaginator) Apply(req *http.Request, s State) (map[string]any, error) {
 	p.lastPage = s.Page
@@ -88,7 +97,7 @@ func (p *pagePaginator) Next(_ *http.Response, body map[string]any, recordCount 
 		case err != nil:
 			return State{}, fmt.Errorf("page pagination: total_pages_path %q: %w", p.totalPagesPath, err)
 		}
-		if int64(p.lastPage) >= total {
+		if int64(p.lastPage-p.startPage+1) >= total {
 			return State{Done: true}, nil
 		}
 	}

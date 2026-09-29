@@ -1,0 +1,673 @@
+version: 1
+name: braze
+display_name: Braze
+description: "Read campaigns, Canvases, segments, templates, catalogs, and analytics from Braze."
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-braze-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-braze-light.svg"
+config:
+  api_key:
+    type: secret
+    required: true
+    help: "Braze workspace REST API key with permissions for the selected endpoints."
+  endpoint:
+    type: string
+    required: true
+    help: "Workspace REST endpoint, such as https://rest.iad-01.braze.com. Copy it from Braze API settings."
+  analytics_days:
+    type: int
+    default: 14
+    help: "Days returned by analytics resources. Use 1–100, or 1–14 when selecting canvas_analytics."
+  analytics_ending_at:
+    type: string
+    help: "ISO 8601 end time, required when selecting any analytics, KPI, session, or purchase resource."
+connection:
+  base_url: "{{ config.endpoint }}"
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  rate_limit:
+    requests_per_second: 0.25
+defaults:
+  method: GET
+resources:
+  - name: campaigns
+    path: /campaigns/list
+    query:
+      include_archived: "true"
+      sort_direction: asc
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      last_edited: timestamptz
+      is_api_campaign: bool?
+      tags: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.campaigns
+      pagination:
+        page:
+          number: query.page
+          size: ""
+          page_size: 100
+          start_page: 0
+    incremental:
+      cursor_field: last_edited
+      start_param: "last_edit.time[gt]"
+      inject_into: query
+      comparator: time
+      checkpoint_key: campaigns_last_edited
+      overlap_seconds: 60
+  - name: campaigns_index
+    path: /campaigns/list
+    query:
+      include_archived: "true"
+      sort_direction: asc
+    primary_key: ["id"]
+    fields:
+      id: string
+    response:
+      records: $.campaigns
+      pagination:
+        page:
+          number: query.page
+          size: ""
+          page_size: 100
+          start_page: 0
+    capture_only: true
+    capture:
+      campaign_id: id
+  - name: canvases
+    path: /canvas/list
+    query:
+      include_archived: "true"
+      sort_direction: asc
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      last_edited: timestamptz
+      tags: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.canvases
+      pagination:
+        page:
+          number: query.page
+          size: ""
+          page_size: 100
+          start_page: 0
+    incremental:
+      cursor_field: last_edited
+      start_param: "last_edit.time[gt]"
+      inject_into: query
+      comparator: time
+      checkpoint_key: canvases_last_edited
+      overlap_seconds: 60
+  - name: canvases_index
+    path: /canvas/list
+    query:
+      include_archived: "true"
+      sort_direction: asc
+    primary_key: ["id"]
+    fields:
+      id: string
+    response:
+      records: $.canvases
+      pagination:
+        page:
+          number: query.page
+          size: ""
+          page_size: 100
+          start_page: 0
+    capture_only: true
+    capture:
+      canvas_id: id
+  - name: segments
+    path: /segments/list
+    query:
+      sort_direction: asc
+    capture:
+      segment_id: id
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      analytics_tracking_enabled: bool?
+      tags: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.segments
+      pagination:
+        page:
+          number: query.page
+          size: ""
+          page_size: 100
+          start_page: 0
+  - name: campaign_details
+    path: /campaigns/details
+    for_each: campaigns_index
+    primary_key: ["campaign_id"]
+    fields:
+      campaign_id:
+        path: parent.campaign_id
+        type: string
+      name: string?
+      description: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      archived: bool?
+      draft: bool?
+      enabled: bool?
+      has_post_launch_draft: bool?
+      schedule_type: string?
+      channels: json?
+      tags: json?
+      teams: json?
+      first_sent: timestamptz?
+      last_sent: timestamptz?
+      messages: json?
+      conversion_behaviors: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    query:
+      campaign_id: "{{ parent.campaign_id }}"
+  - name: canvas_details
+    path: /canvas/details
+    for_each: canvases_index
+    primary_key: ["canvas_id"]
+    fields:
+      canvas_id:
+        path: parent.canvas_id
+        type: string
+      name: string?
+      description: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      archived: bool?
+      draft: bool?
+      enabled: bool?
+      has_post_launch_draft: bool?
+      schedule_type: string?
+      channels: json?
+      tags: json?
+      teams: json?
+      first_entry: timestamptz?
+      last_entry: timestamptz?
+      variants: json?
+      steps: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    query:
+      canvas_id: "{{ parent.canvas_id }}"
+  - name: segment_details
+    path: /segments/details
+    for_each: segments
+    primary_key: ["segment_id"]
+    fields:
+      segment_id:
+        path: parent.segment_id
+        type: string
+      name: string?
+      description: string?
+      text_description: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      tags: json?
+      teams: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    query:
+      segment_id: "{{ parent.segment_id }}"
+  - name: email_templates
+    path: /templates/email/list
+    primary_key: ["email_template_id"]
+    fields:
+      email_template_id: string
+      template_name: string?
+      created_at: timestamptz?
+      updated_at: timestamptz
+      tags: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.templates
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 100
+    incremental:
+      cursor_field: updated_at
+      start_param: modified_after
+      inject_into: query
+      comparator: time
+      checkpoint_key: email_templates_updated_at
+      overlap_seconds: 60
+  - name: email_templates_index
+    path: /templates/email/list
+    primary_key: ["email_template_id"]
+    fields:
+      email_template_id: string
+    response:
+      records: $.templates
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 100
+    capture_only: true
+    capture:
+      email_template_id: email_template_id
+  - name: email_template_details
+    path: /templates/email/info
+    for_each: email_templates_index
+    primary_key: ["email_template_id"]
+    fields:
+      email_template_id:
+        path: parent.email_template_id
+        type: string
+      template_name: string?
+      description: string?
+      subject: string?
+      preheader: string?
+      body: string?
+      plaintext_body: string?
+      should_inline_css: bool?
+      tags: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    query:
+      email_template_id: "{{ parent.email_template_id }}"
+  - name: catalogs
+    path: /catalogs
+    capture:
+      catalog_name: name
+    primary_key: ["name"]
+    fields:
+      name: string
+      description: string?
+      fields: json?
+      num_items: int64?
+      updated_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.catalogs
+      pagination: none
+  - name: catalog_items
+    path: "/catalogs/{catalog_name}/items"
+    for_each: catalogs
+    params:
+      catalog_name: parent.catalog_name
+    primary_key: ["catalog_name", "id"]
+    fields:
+      catalog_name:
+        path: parent.catalog_name
+        type: string
+      id: string
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.items
+      pagination:
+        link: next
+  - name: custom_attributes
+    path: /custom_attributes
+    primary_key: ["name"]
+    fields:
+      name: string
+      array_length: int64?
+      data_type: string?
+      description: string?
+      status: string?
+      tag_names: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.attributes
+      pagination:
+        link: next
+  - name: custom_events
+    path: /events
+    primary_key: ["name"]
+    fields:
+      name: string
+      description: string?
+      included_in_analytics_report: bool?
+      status: string?
+      tag_names: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.events
+      pagination:
+        link: next
+  - name: preference_centers
+    path: /preference_center/v1/list
+    capture:
+      preference_center_api_id: preference_center_api_id
+    primary_key: ["preference_center_api_id"]
+    fields:
+      preference_center_api_id: string
+      name: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.preference_centers
+      pagination: none
+  - name: preference_center_details
+    path: "/preference_center/v1/{preference_center_api_id}"
+    for_each: preference_centers
+    primary_key: ["preference_center_api_id"]
+    fields:
+      preference_center_api_id:
+        path: parent.preference_center_api_id
+        type: string
+      name: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      preference_center_title: string?
+      preference_center_page_html: string?
+      confirmation_page_html: string?
+      redirect_page_html: string?
+      preference_center_options: json?
+      state: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    params:
+      preference_center_api_id: parent.preference_center_api_id
+  - name: cdi_integrations
+    path: /cdi/integrations
+    capture:
+      integration_id: integration_id
+    primary_key: ["integration_id"]
+    fields:
+      integration_id: string
+      app_group_id: string?
+      integration_name: string?
+      integration_type: string?
+      integration_status: string?
+      contact_emails: json?
+      last_updated_at: timestamptz?
+      warehouse_type: string?
+      last_job_start_time: timestamptz?
+      last_job_status: string?
+      next_scheduled_run: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.results
+      pagination:
+        link: next
+  - name: cdi_sync_status
+    path: "/cdi/integrations/{integration_id}/job_sync_status"
+    for_each: cdi_integrations
+    params:
+      integration_id: parent.integration_id
+    primary_key: []
+    fields:
+      integration_id:
+        path: parent.integration_id
+        type: string
+      job_status: string?
+      sync_start_time: timestamptz?
+      sync_finish_time: timestamptz?
+      last_timestamp_synced: timestamptz?
+      rows_synced: int64?
+      rows_failed_with_errors: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.results
+      pagination:
+        link: next
+  - name: campaign_analytics
+    path: /campaigns/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      campaign_id: "{{ parent.campaign_id }}"
+    primary_key: ["campaign_id", "time"]
+    fields:
+      campaign_id:
+        path: parent.campaign_id
+        type: string
+      time: string
+      conversions: int64?
+      unique_recipients: int64?
+      revenue: float64?
+      messages: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+    for_each: campaigns_index
+  - name: canvas_analytics
+    path: /canvas/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      include_variant_breakdown: "true"
+      include_step_breakdown: "true"
+      include_deleted_step_data: "true"
+      canvas_id: "{{ parent.canvas_id }}"
+    primary_key: ["canvas_id", "time"]
+    fields:
+      canvas_id:
+        path: parent.canvas_id
+        type: string
+      time: string
+      total_stats: json?
+      variant_stats: json?
+      step_stats: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data.stats
+      pagination: none
+    for_each: canvases_index
+  - name: segment_analytics
+    path: /segments/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      segment_id: "{{ parent.segment_id }}"
+    primary_key: ["segment_id", "time"]
+    fields:
+      segment_id:
+        path: parent.segment_id
+        type: string
+      time: string
+      size: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+    for_each: segments
+  - name: new_users
+    path: /kpi/new_users/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+    primary_key: ["time"]
+    fields:
+      time: string
+      new_users: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: daily_active_users
+    path: /kpi/dau/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+    primary_key: ["time"]
+    fields:
+      time: string
+      dau: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: monthly_active_users
+    path: /kpi/mau/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+    primary_key: ["time"]
+    fields:
+      time: string
+      mau: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: uninstalls
+    path: /kpi/uninstalls/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+    primary_key: ["time"]
+    fields:
+      time: string
+      uninstalls: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: sessions
+    path: /sessions/data_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      unit: day
+    primary_key: ["time"]
+    fields:
+      time: string
+      sessions: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: purchase_quantity
+    path: /purchases/quantity_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      unit: day
+    primary_key: ["time"]
+    fields:
+      time: string
+      purchase_quantity: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+  - name: purchase_revenue
+    path: /purchases/revenue_series
+    query:
+      length: "{{ config.analytics_days }}"
+      ending_at: "{{ config.analytics_ending_at }}"
+      unit: day
+    primary_key: ["time"]
+    fields:
+      time: string
+      revenue: float64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination: none
+discovery:
+  mode: static
+  default_resources: ["campaigns", "canvases", "segments"]
