@@ -68,6 +68,7 @@ type cachedCaller struct {
 type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int32  `json:"expires_in"`
 }
 
 // errGrantRejected means the token endpoint refused the grant: wrong
@@ -79,13 +80,18 @@ const tokenTimeout = 10 * time.Second
 
 // grant runs one grant against the token endpoint as filament's client.
 func (p *Provider) grant(ctx context.Context, form url.Values) (tokenResponse, error) {
+	return p.grantAs(ctx, p.clientID, p.clientSecret, form)
+}
+
+// grantAs runs one grant against the token endpoint as the given client.
+func (p *Provider) grantAs(ctx context.Context, clientID, clientSecret string, form url.Values) (tokenResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, tokenTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return tokenResponse{}, err
 	}
-	req.SetBasicAuth(p.clientID, p.clientSecret)
+	req.SetBasicAuth(clientID, clientSecret)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
