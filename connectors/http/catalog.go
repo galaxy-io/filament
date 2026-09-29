@@ -10,6 +10,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
@@ -49,14 +50,27 @@ const unversionedAPI = "unversioned"
 // loadCatalog validates every entry before its caller mutates the registry.
 // Reading through fs.FS keeps startup discovery and tests on the same path.
 func loadCatalog(files fs.FS) ([]catalogEntry, error) {
-	dirs, err := fs.ReadDir(files, "manifests")
+	return loadCatalogRoot(files, "manifests")
+}
+
+func loadCatalogRoot(files fs.FS, directory string) ([]catalogEntry, error) {
+	dirs, err := fs.ReadDir(files, directory)
 	if err != nil {
 		return nil, err
 	}
 	var entries []catalogEntry
 	for _, dir := range dirs {
-		root := path.Join("manifests", dir.Name())
-		if !dir.IsDir() || !catalogName.MatchString(dir.Name()) {
+		// Kubernetes projected volumes keep atomic-update data in hidden entries
+		// and expose connector directories through symlinks.
+		if strings.HasPrefix(dir.Name(), ".") {
+			continue
+		}
+		root := path.Join(directory, dir.Name())
+		info, err := fs.Stat(files, root)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() || !catalogName.MatchString(dir.Name()) {
 			return nil, fmt.Errorf("%s: expected connector directory", root)
 		}
 		registryPath := path.Join(root, "registry.json")
@@ -100,7 +114,14 @@ func loadCatalog(files fs.FS) ([]catalogEntry, error) {
 			return nil, err
 		}
 		for _, child := range children {
-			if child.IsDir() {
+			if strings.HasPrefix(child.Name(), ".") {
+				continue
+			}
+			info, err := fs.Stat(files, path.Join(root, child.Name()))
+			if err != nil {
+				return nil, err
+			}
+			if info.IsDir() {
 				if _, ok := registration.Versions[child.Name()]; !ok {
 					return nil, fmt.Errorf("%s: unlisted version directory %q", registryPath, child.Name())
 				}

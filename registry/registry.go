@@ -134,6 +134,35 @@ func NewSources() *Sources {
 
 var _ filament.SourceRegistry = (*Sources)(nil)
 
+// WithOverrides returns an independent registry where overrides take precedence
+// for matching concrete keys and aliases. Unmentioned registrations are retained.
+// Neither input is mutated, and source factories still produce fresh instances.
+func (r *Sources) WithOverrides(overrides *Sources) (*Sources, error) {
+	merged := NewSources()
+	for _, sources := range []*Sources{r, overrides} {
+		if sources == nil {
+			return nil, errors.New("registry: nil source registry")
+		}
+		p := sources.providers
+		p.mu.RLock()
+		for name, registration := range p.factories {
+			delete(merged.providers.aliases, name)
+			merged.providers.factories[name] = registration
+		}
+		for name, target := range p.aliases {
+			delete(merged.providers.factories, name)
+			merged.providers.aliases[name] = target
+		}
+		p.mu.RUnlock()
+	}
+	for name, target := range merged.providers.aliases {
+		if _, exists := merged.providers.factories[target]; !exists {
+			return nil, fmt.Errorf("registry: override leaves source alias %q without concrete target %q", name, target)
+		}
+	}
+	return merged, nil
+}
+
 // Register adds a factory under name. It panics on a nil factory or a duplicate
 func (r *Sources) Register(name string, factory filament.SourceFactory) {
 	r.RegisterWithMaturity(name, filament.MaturityAlpha, factory)
