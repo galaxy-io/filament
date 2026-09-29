@@ -1,0 +1,157 @@
+---
+title: "Mailchimp"
+description: "Read audiences, members, campaigns, reports, and commerce data from Mailchimp"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-mailchimp-dark.svg"
+---
+
+The Mailchimp source reads Marketing API 3.0 data through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It is
+**alpha**. The manifest has been checked against Mailchimp's official API schema,
+but has not been tested against a live account.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Mailchimp Marketing API key. |
+| `server` | Connection | | Required. Account data center prefix, such as `us6`. |
+
+Create a key in your Mailchimp account's **Extras → API keys** settings. The
+server is the suffix after the last hyphen in the key. Requests use
+`https://<server>.api.mailchimp.com/3.0`. Access depends on the key owner's role
+and the account's plan. See [Mailchimp's authentication guide](https://mailchimp.com/developer/marketing/docs/fundamentals/#connecting-to-the-api).
+Connection testing reads the API root account endpoint.
+
+## Resources
+
+Lists (audiences), members, campaigns, reports, and merge-field definitions are
+selected by default. All other resources are optional, including commerce,
+automations, SMS campaigns, account administration, and per-member detail reads.
+Selecting a child resource also reads its parents, but only selected resources
+are written to the destination.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `account` | `GET /3.0/` |  |
+| `lists` | `GET /3.0/lists` |  |
+| `members` | `GET /3.0/lists/{list_id}/members` | `lists` |
+| `member_tags` | `GET /3.0/lists/{list_id}/members/{subscriber_hash}/tags` | `lists (through member index)` |
+| `member_notes` | `GET /3.0/lists/{list_id}/members/{subscriber_hash}/notes` | `lists (through member index)` |
+| `member_events` | `GET /3.0/lists/{list_id}/members/{subscriber_hash}/events` | `lists (through member index)` |
+| `member_activity` | `GET /3.0/lists/{list_id}/members/{subscriber_hash}/activity` | `lists (through member index)` |
+| `member_activity_feed` | `GET /3.0/lists/{list_id}/members/{subscriber_hash}/activity-feed` | `lists (through member index)` |
+| `merge_fields` | `GET /3.0/lists/{list_id}/merge-fields` | `lists` |
+| `segments` | `GET /3.0/lists/{list_id}/segments` | `lists` |
+| `interest_categories` | `GET /3.0/lists/{list_id}/interest-categories` | `lists` |
+| `list_growth_history` | `GET /3.0/lists/{list_id}/growth-history` | `lists` |
+| `list_activity` | `GET /3.0/lists/{list_id}/activity` | `lists` |
+| `list_clients` | `GET /3.0/lists/{list_id}/clients` | `lists` |
+| `list_locations` | `GET /3.0/lists/{list_id}/locations` | `lists` |
+| `list_abuse_reports` | `GET /3.0/lists/{list_id}/abuse-reports` | `lists` |
+| `list_webhooks` | `GET /3.0/lists/{list_id}/webhooks` | `lists` |
+| `signup_forms` | `GET /3.0/lists/{list_id}/signup-forms` | `lists` |
+| `segment_members` | `GET /3.0/lists/{list_id}/segments/{segment_id}/members` | `segments` |
+| `interests` | `GET /3.0/lists/{list_id}/interest-categories/{interest_category_id}/interests` | `interest_categories` |
+| `campaigns` | `GET /3.0/campaigns` |  |
+| `campaign_content` | `GET /3.0/campaigns/{campaign_id}/content` | `campaigns` |
+| `campaign_feedback` | `GET /3.0/campaigns/{campaign_id}/feedback` | `campaigns` |
+| `campaign_folders` | `GET /3.0/campaign-folders` |  |
+| `reports` | `GET /3.0/reports` |  |
+| `report_clicks` | `GET /3.0/reports/{campaign_id}/click-details` | `reports` |
+| `report_opens` | `GET /3.0/reports/{campaign_id}/open-details` | `reports` |
+| `report_email_activity` | `GET /3.0/reports/{campaign_id}/email-activity` | `reports` |
+| `report_recipients` | `GET /3.0/reports/{campaign_id}/sent-to` | `reports` |
+| `report_unsubscribes` | `GET /3.0/reports/{campaign_id}/unsubscribed` | `reports` |
+| `report_abuse` | `GET /3.0/reports/{campaign_id}/abuse-reports` | `reports` |
+| `report_domains` | `GET /3.0/reports/{campaign_id}/domain-performance` | `reports` |
+| `report_locations` | `GET /3.0/reports/{campaign_id}/locations` | `reports` |
+| `report_product_activity` | `GET /3.0/reports/{campaign_id}/ecommerce-product-activity` | `reports` |
+| `report_subreports` | `GET /3.0/reports/{campaign_id}/sub-reports` | `reports` |
+| `report_click_members` | `GET /3.0/reports/{campaign_id}/click-details/{link_id}/members` | `report_clicks` |
+| `templates` | `GET /3.0/templates` |  |
+| `template_folders` | `GET /3.0/template-folders` |  |
+| `template_default_content` | `GET /3.0/templates/{template_id}/default-content` | `templates` |
+| `files` | `GET /3.0/file-manager/files` |  |
+| `file_folders` | `GET /3.0/file-manager/folders` |  |
+| `connected_sites` | `GET /3.0/connected-sites` |  |
+| `authorized_apps` | `GET /3.0/authorized-apps` |  |
+| `account_exports` | `GET /3.0/account-exports` |  |
+| `batch_webhooks` | `GET /3.0/batch-webhooks` |  |
+| `verified_domains` | `GET /3.0/verified-domains` |  |
+| `stores` | `GET /3.0/ecommerce/stores` |  |
+| `customers` | `GET /3.0/ecommerce/stores/{store_id}/customers` | `stores` |
+| `products` | `GET /3.0/ecommerce/stores/{store_id}/products` | `stores` |
+| `orders` | `GET /3.0/ecommerce/stores/{store_id}/orders` | `stores` |
+| `carts` | `GET /3.0/ecommerce/stores/{store_id}/carts` | `stores` |
+| `promo_rules` | `GET /3.0/ecommerce/stores/{store_id}/promo-rules` | `stores` |
+| `order_lines` | `GET /3.0/ecommerce/stores/{store_id}/orders/{order_id}/lines` | `orders` |
+| `cart_lines` | `GET /3.0/ecommerce/stores/{store_id}/carts/{cart_id}/lines` | `carts` |
+| `product_variants` | `GET /3.0/ecommerce/stores/{store_id}/products/{product_id}/variants` | `products` |
+| `product_images` | `GET /3.0/ecommerce/stores/{store_id}/products/{product_id}/images` | `products` |
+| `promo_codes` | `GET /3.0/ecommerce/stores/{store_id}/promo-rules/{promo_rule_id}/promo-codes` | `promo_rules` |
+| `automations` | `GET /3.0/automations` |  |
+| `automation_emails` | `GET /3.0/automations/{workflow_id}/emails` | `automations` |
+| `automation_queue` | `GET /3.0/automations/{workflow_id}/emails/{workflow_email_id}/queue` | `automation_emails` |
+| `automation_removed_subscribers` | `GET /3.0/automations/{workflow_id}/removed-subscribers` | `automations` |
+| `sms_campaigns` | `GET /3.0/sms-campaigns` |  |
+| `sms_campaign_content` | `GET /3.0/sms-campaigns/{sms_campaign_id}/content` | `sms_campaigns` |
+
+`members` includes contact status, merge fields, interests, tags, marketing
+permissions, and statistics. `campaign_content` reads HTML and plain text.
+Reports include delivery, engagement, and commerce summaries, with separate
+optional resources for recipients, opens, clicks, and email activity.
+
+Commerce IDs are scoped to their store. Line items, product variants, images,
+and promo codes have separate paginated resources in addition to nested JSON
+returned by their parents. File and account-export resources contain metadata
+and URLs; they do not download files or create export jobs.
+
+IDs are strings. Nested objects and arrays remain JSON. Most date fields remain
+strings so that empty provider values are preserved; the incremental member
+cursor is a timestamp with a time zone. Each resource has a `raw` column for
+returned fields that are not projected separately.
+
+The connector does not include Transactional/Mandrill, Open Commerce, beta
+omni-channel audiences, landing pages, surveys, Facebook ads, conversations,
+member goals, or batch-operation jobs. Alternate lookup/search endpoints and
+campaign send checks are not separate resources. It does not send campaigns,
+modify subscriptions, or receive webhook events.
+
+## Modes
+
+All resources support full reads. `members` also supports incremental reads
+using `last_changed` with the `since_last_changed` filter and a 60-second overlap.
+Each audience is listed on every run. Member detail resources use a separate
+full member index, so selecting incremental members does not hide older contacts
+whose notes, tags, or activity need to be read.
+
+The member cursor tracks changes to contact information. It is not a change feed
+for every engagement statistic or related resource. Use periodic full reads to
+refresh those values and reconcile archived or deleted members. Incremental
+reads do not remove destination rows. Campaigns, reports, segments, and commerce
+remain full-read because creation or send dates do not capture later changes.
+
+Use full replace for `member_events`, `member_activity`, `member_activity_feed`,
+`signup_forms`, `report_locations`, and `report_product_activity`: these have no
+stable primary key declared. Keyed resources support full upsert or full replace.
+
+## Behavior
+
+- **Auth**: requests use Bearer authentication with the API key. The credential
+  inherits its owner's role and is revoked when that user loses account access.
+- **Pagination**: endpoints that document both `count` and `offset` are read in
+  pages of 100 until a short page. Other endpoints use their documented single
+  response. Offset pagination is not a consistent snapshot during concurrent edits.
+- **Dependencies**: optional per-member reads can require one request per contact.
+  Child reads use two concurrent requests. Hidden member indexing reads IDs only.
+- **Rate limiting**: Mailchimp permits ten simultaneous connections. The engine
+  retries HTTP 429 responses and honors `Retry-After`; it does not impose an
+  account-wide connection cap shared with other clients. Select smaller resource
+  groups if broad parallel reads exhaust that allowance. Permission errors remain
+  failures rather than becoming empty results.
+- **History**: `member_activity` returns the last 50 events per member, not an unlimited
+  event archive. Report arrays contain the activity returned by Mailchimp, with
+  no promise of events outside its retention or tracking settings.
+- **Access**: optional resources can require account features, historical classic
+  automations, or additional permissions. Static resource discovery does not validate those
+  permissions. Endpoint failures remain visible.

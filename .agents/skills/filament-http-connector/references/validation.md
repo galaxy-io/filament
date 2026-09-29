@@ -16,70 +16,26 @@ This loads every shipped YAML file through grammar validation, strict decoding,
 normalization, and semantic checks. Fix all reported errors. It does not test
 the upstream API, response paths, permissions, or whether reads are complete.
 
-## Mock the API contract
+## Review the API contract
 
-Use `httptest` with fake credentials and the embedded manifest. Assert the
-outgoing request as well as the resulting rows. Derive fixtures from official
-schemas and sanitized observations. Add focused adversarial cases for risks in
-this connector rather than a large matrix of trivial variations.
+Do not write provider-specific tests for manifest-based API connectors. Check
+requests, response paths, keys, field selectors, pagination termination, parent
+selection, and read modes against official documentation and the current engine.
+Use existing engine tests to understand supported behavior. Do not treat grammar
+validation as proof of upstream fidelity.
 
-### Spec, schema, and selection
+## Shared runtime or grammar changes
 
-- Construct through `New<Product>()` and check metadata, required config fields,
-  secret types, and missing-config rejection.
-- Check exact discovery names, default selections, primary keys, and advertised
-  read modes. Static discovery should not require network access.
-- Verify selecting an optional resource actually reads it. For full-only
-  resources, check that incremental planning is rejected.
-
-### Requests, pages, and records
-
-- Assert the configured host, method, path, auth, version/Accept headers, required
-  query parameters, body encoding, and any content selectors.
-- Cover each distinct endpoint shape and each resource's response path/key
-  mapping. A single happy-path resource cannot establish a large catalog works.
-- Exercise multiple pages for each pagination strategy used. Where applicable,
-  include a short nonterminal page and each documented final-cursor form. Assert
-  that POST filters, selectors, and GraphQL variables survive cursor injection.
-- Check mapped values, missing and null optional fields, timestamps, nested
-  arrays, and raw remainder. Test numeric IDs beyond float64's exact integer
-  range through any affected projection, parent capture, and JSON paths.
-- Preserve legitimate duplicates when the API supplies no unique key. A
-  test should expose row loss if an invented key or flattened array would merge
-  repeated transcript items or snippets.
-
-### Dependencies and checkpoints
-
-- Select a child alone and verify required parents are fetched but not emitted.
-  Use more than one parent and check child state resets between them.
-- Select an independent bulk resource alone and verify it does not trigger a
-  redundant per-record or parent fetch.
-- Where recovery matters, verify a saved top-level cursor is sent, rejected
-  cursor fallback restarts the walk, and a failed restart still fails. Children
-  restart under the current engine. Do not call this incremental replication.
-- For incremental reads, test an existing checkpoint and exact lower-bound
-  injection, lookback, ties, and watermark advancement. The lower bound must
-  stay fixed across the page walk. Include late or child updates when they
-  justify the design. Missing or invalid cursor values must not be skipped.
-
-### Failures and shared runtime behavior
-
-- Check empty success results and the provider's error envelopes, including
-  errors inside HTTP 200 when relevant. Malformed JSON must fail.
-- For an empty-result rule, test exact match, wrong status, unrelated body,
-  extra error messages, wrong type/path, and malformed JSON. Check 401/403,
-  a resource with no rule, and an unaffected manifest. A match after a good
-  page must retain earlier rows without emitting the error or following its
-  cursor. A connection probe must still reject invalid credentials/paths.
-- Exercise throttling, Retry-After, and cancellation when adding rate-limit or
-  request-loop behavior. Reuse existing shared tests where they already cover
-  unchanged behavior. Do not add provider-specific retries for built-in 429s.
-- Protect shared state in mock handlers. HTTP requests may be concurrent even
-  when extraction options specify one worker.
+When connector work requires a shared code change, add focused regression tests
+for that behavior. Cover the concrete failure, unchanged defaults, and an
+unaffected manifest. For pagination changes, check page transitions and
+termination. For decoder or projection changes, check lossless IDs and nested
+JSON. For error or throttling rules, check matching and nonmatching responses.
+Protect shared state in HTTP fixture handlers.
 
 ## Repository checks
 
-After focused tests pass, run:
+Run the existing suite and checks:
 
 ```sh
 go test ./connectors/http/...
@@ -121,10 +77,10 @@ pagination, empty results, and selected optional resources. Compare IDs and
 counts where the upstream view supports it. Avoid a large account backfill just
 to prove connectivity, and never put credentials or customer data into fixtures.
 
-If live access is unavailable, complete mock validation and register the new
+If live access is unavailable, complete the existing checks and register the new
 connector as alpha. List the exact pending checks, including unavailable account
-features and inferred response behavior. Do not describe mock fixtures as
-captured live responses or silently omit a promised resource.
+features and inferred response behavior. Do not describe existing tests as
+live API verification or silently omit a promised resource.
 
 Completion means the agreed resource scope is implemented, the shared runtime
 remains compatible, wiring and docs agree with the behavior, and any remaining

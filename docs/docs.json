@@ -152,6 +152,7 @@
               "pages/connectors/sources/hubspot",
               "pages/connectors/sources/instantly",
               "pages/connectors/sources/linear",
+              "pages/connectors/sources/mailchimp",
               "pages/connectors/sources/monday",
               "pages/connectors/sources/notion",
               "pages/connectors/sources/novada",
@@ -160,6 +161,7 @@
               "pages/connectors/sources/resend",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
+              "pages/connectors/sources/zoho",
               "pages/connectors/sources/sample"
             ]
           },

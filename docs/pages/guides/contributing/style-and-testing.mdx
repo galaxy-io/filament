@@ -78,10 +78,9 @@ title must follow [Conventional Commits](https://www.conventionalcommits.org):
 `feat(charts): ...`, `fix(sdks/python): ...`, `chore(ci): ...`. A check on
 every pull request enforces the format.
 
-Release Please reads those commits on `main` and keeps one open release pull
-request per package: the platform, the Helm chart, the Python SDK, and the
-TypeScript SDK. Each collects the changes under its path since the last
-release and bumps its version. Merging one creates the tag and GitHub
-release, and that tag runs the publish workflow for the package. A platform
-release also commits the new `appVersion` to the chart, which opens the
-chart's release pull request.
+Release Please reads those commits on `main` and keeps one release pull
+request open. It collects the changes since the last release and bumps each
+package that changed: the platform, the Python SDK, and the TypeScript SDK.
+Merging it creates the tags and GitHub releases, and each tag runs the publish
+workflow for its package. The Helm chart carries the platform's version and
+ships with every platform release, after the images it deploys.

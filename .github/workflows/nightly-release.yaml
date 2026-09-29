@@ -54,8 +54,11 @@ jobs:
           fi
 
           tag="${stable_tag}-dev.${counter}"
-          echo "created=true" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "created=true"
+            echo "tag=$tag"
+            echo "stable_tag=$stable_tag"
+          } >> "$GITHUB_OUTPUT"
           echo "Creating $tag from $comparison_tag"
 
       - name: Create nightly prerelease
@@ -63,9 +66,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
+          STABLE_TAG: ${{ steps.version.outputs.stable_tag }}
         run: |
           target_sha=$(git rev-parse HEAD)
-          gh release create "$TAG" --target "$target_sha" --prerelease --generate-notes --title "$TAG: Nightly Development Release"
+          # Chart and SDK tags share the repository; the notes start at the platform's.
+          gh release create "$TAG" --target "$target_sha" --prerelease --generate-notes --notes-start-tag "$STABLE_TAG" --title "$TAG: Nightly Development Release"
 
   images:
     needs: release

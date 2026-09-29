@@ -32,7 +32,7 @@ providers. Avoid fixed counts of catalog connectors in guidance or docs.
   them in a JSON array on a keyed parent, or use a keyless resource with full
   replacement when that matches the API's row structure.
 - Keep opaque identifiers as strings. The shared decoder preserves JSON numbers
-  through `json.Number`. Test long IDs through projection, captures, nested JSON,
+  through `json.Number`. When changing shared decoding, test long IDs through projection, captures, nested JSON,
   and raw remainder. Do not reintroduce float64 decoding in an intermediate step.
 - Treat fields absent from valid responses as nullable. Distinguish null from an
   empty array or object. Required identity and incremental fields need actual
@@ -93,7 +93,8 @@ automatically require changing every one of these files.
 - `mode: remainder` and `shape` are JSON-only and mutually exclusive.
 - Parent chains must be acyclic. Checkpoint keys must be unique. Pagination and
   incremental injection must not target the same request field.
-- Existing mocks are examples, not live API proof. Build new fixtures from the
+- Existing mocks are examples, not live API proof. For shared-runtime changes,
+  build fixtures from the
   researched response contract and include cases that would break an incorrect
   implementation.
 - Top-level resources can fetch concurrently. Protect mock-server counters and

@@ -1,6 +1,6 @@
 ---
 name: filament-http-connector
-description: Research a product's official API documentation and build or update a Filament HTTP source connector, including its manifest, catalog registration, docs, and tests. Use for HTTP/SaaS connector work and manifest-versus-driver assessments.
+description: Research a product's official API documentation and build or update a Filament HTTP source connector, including its manifest, catalog registration, and docs. Use for HTTP/SaaS connector work and manifest-versus-driver assessments.
 ---
 
 # Build an HTTP connector
@@ -8,7 +8,9 @@ description: Research a product's official API documentation and build or update
 Deliver a connector that reads the agreed data correctly, fits the existing
 HTTP engine, and explains its coverage honestly. Research broadly, then choose
 the simplest implementation that meets the user's scope. A large endpoint list
-does not establish completeness.
+does not establish completeness. For an explicit all-resources request, reconcile
+the full read API index against implemented resources and disclose every remaining
+family or completeness limit; do not quietly narrow the scope to common entities.
 
 For planning requests, produce the researched design without implementing it.
 For a narrow fix, inspect the affected behavior and update only what is needed.
@@ -17,7 +19,7 @@ For a new connector, follow the workflow below through wiring and verification.
 ## 1. Inspect the current implementation
 
 Check the working tree and applicable repository instructions. Read a nearby
-manifest, its tests, and its source docs before deciding how to add the connector.
+manifest and its source docs before deciding how to add the connector.
 Treat current code as authoritative when a reference or code comment is stale:
 
 - `connectors/http/manifest/grammar.v1.json` defines accepted YAML.
@@ -98,18 +100,22 @@ choice when a date cursor would miss edits or late processing.
 
 Write the manifest, validate it, then follow [wiring.md](references/wiring.md) for
 catalog registration, logos, and the Configuration / Resources / Modes / Behavior
-docs pattern. Use direct, human prose. Avoid marketing, filler, and semicolon-heavy
-sentences.
+docs pattern. Match nearby source pages in tone, table formatting, and level of
+detail. Group manifest embeds with the other declarations in `catalog.go` and
+constructors with the other constructors. Do not update `http-manifests.mdx`
+when adding or updating a connector. Use direct, human prose.
 
 ## 5. Verify and report the actual result
 
-Follow [validation.md](references/validation.md) for mock coverage, shared-runtime
-regressions, docs checks, and live smoke tests. Tests must demonstrate requests
-and data behavior, not merely repeat the YAML. Fix failures in the changed scope
-and distinguish unrelated existing failures.
+Do not write provider-specific tests for manifest-based API connectors. Use the
+existing manifest validation and HTTP engine tests, documentation review, and
+authorized live checks. Add focused regression tests only when changing shared
+runtime or grammar behavior. Follow [validation.md](references/validation.md)
+for the checks to run. Fix failures in the changed scope and distinguish unrelated
+existing failures.
 
-New connectors start at `filament.MaturityAlpha`. Grammar validation and mocked
-responses do not establish live fidelity. Promote maturity only when the user
+New connectors start at `filament.MaturityAlpha`. Grammar validation and existing
+tests do not establish live fidelity. Promote maturity only when the user
 directs it based on live validation. If credentials or account features are
 unavailable, finish the implementation and state exactly which live checks remain.
 
@@ -121,7 +127,7 @@ Leave commits and branch creation to the user unless explicitly requested.
 
 Apply the same research and validation to each product. When parallel agent work
 is authorized and tools are available, give each agent one product's research,
-manifest, docs page, and dedicated test file. Keep shared catalog, navigation,
+manifest, and docs page. Keep shared catalog, navigation,
 and runtime edits with one coordinator. Review each product's evidence before
 final integration. Otherwise work sequentially. Use the tools available in the
 active environment.

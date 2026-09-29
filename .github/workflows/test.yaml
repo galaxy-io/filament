@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   build:
-    # Release Please PRs only bump versions; skipped checks still satisfy the ruleset.
     if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -84,6 +83,7 @@ jobs:
 
   e2e:
     name: E2E (${{ matrix.engine }})
+    if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -124,3 +124,14 @@ jobs:
 
       - name: End-to-end test
         run: just test-e2e "${{ matrix.tags }}"
+
+  test-ok:
+    needs: [build, unit, integration, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Result
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            exit 1
+          fi

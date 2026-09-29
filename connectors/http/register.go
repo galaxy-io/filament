@@ -19,6 +19,7 @@ func init() {
 	registry.RegisterSource("granola", filament.MaturityAlpha, func() filament.Source { return NewGranola() })
 	registry.RegisterSource("instantly", filament.MaturityAlpha, func() filament.Source { return NewInstantly() })
 	registry.RegisterSource("linear", filament.MaturityBeta, func() filament.Source { return NewLinear() })
+	registry.RegisterSource("mailchimp", filament.MaturityAlpha, func() filament.Source { return NewMailchimp() })
 	registry.RegisterSource("monday", filament.MaturityAlpha, func() filament.Source { return NewMonday() })
 	registry.RegisterSource("notion", filament.MaturityBeta, func() filament.Source { return NewNotion() })
 	registry.RegisterSource("novada", filament.MaturityAlpha, func() filament.Source { return NewNovada() })
@@ -27,4 +28,5 @@ func init() {
 	registry.RegisterSource("resend", filament.MaturityBeta, func() filament.Source { return NewResend() })
 	registry.RegisterSource("slack", filament.MaturityAlpha, func() filament.Source { return NewSlack() })
 	registry.RegisterSource("stripe", filament.MaturityBeta, func() filament.Source { return NewStripe() })
+	registry.RegisterSource("zoho", filament.MaturityAlpha, func() filament.Source { return NewZoho() })
 }
