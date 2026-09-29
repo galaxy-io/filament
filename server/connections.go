@@ -30,6 +30,15 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	connector := req.Msg.GetConnector()
+	if req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE {
+		source, err := a.sources.Resolve(connector)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		// Persist the concrete identity when a catalog default alias was used.
+		connector = source.Spec().Name
+	}
 	cfg := structMap(req.Msg.GetConfig())
 	refs := cloneStrings(req.Msg.GetSecretRefs())
 	canonicalizeConnectionConfig(schema, cfg, refs)
@@ -64,7 +73,7 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 
 	conn, err := a.store.CreateConnection(ctx, filament.Connection{
 		ID: id, Tenant: tenant, Kind: connectionKindFromProto(req.Msg.GetKind()), Name: req.Msg.GetName(),
-		Connector: req.Msg.GetConnector(), Config: config.AsMap(), SecretRefs: refs,
+		Connector: connector, Config: config.AsMap(), SecretRefs: refs,
 	})
 	if err != nil {
 		a.deleteSecretRefs(ctx, written)

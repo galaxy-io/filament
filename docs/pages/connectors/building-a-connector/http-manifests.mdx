@@ -51,6 +51,10 @@ Resolve those through the source registry; there are no provider-specific Go
 constructors. The unversioned name `github` is a lookup alias for `default_version`
 and appears alongside concrete versions in catalog listings so existing CLI
 configurations continue to resolve. Use concrete keys to select a specific version.
+The connection creation API resolves aliases and stores the
+concrete key, so later default changes do not upgrade those connections.
+Reapplying an unversioned local document preserves an existing connection's
+concrete version, even after the default changes.
 Previously stored unversioned connections still follow the default; migrate them
 before changing it if they must retain their original behavior.
 
