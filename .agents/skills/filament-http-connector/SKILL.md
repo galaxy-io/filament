@@ -27,7 +27,8 @@ Treat current code as authoritative when a reference or code comment is stale:
   define decoding, defaults, and semantic constraints.
 - `connectors/http/source.go`, `paginate.go`, and `pagination/` define runtime
   behavior, connection testing, selection, and recovery.
-- `connectors/http/catalog.go` and `register.go` define catalog wiring.
+- `connectors/http/catalog.go` and `register.go` discover and validate the embedded
+  versioned catalog; `connectors/http/manifests/<name>/registry.json` declares upstream API versions.
 
 Read [grammar-guide.md](references/grammar-guide.md) when authoring a manifest.
 Use [pitfalls.md](references/pitfalls.md) to choose relevant worked examples
@@ -101,9 +102,15 @@ choice when a date cursor would miss edits or late processing.
 Write the manifest, validate it, then follow [wiring.md](references/wiring.md) for
 catalog registration, logos, and the Configuration / Resources / Modes / Behavior
 docs pattern. Match nearby source pages in tone, table formatting, and level of
-detail. Group manifest embeds with the other declarations in `catalog.go` and
-constructors with the other constructors. Do not update `http-manifests.mdx`
-when adding or updating a connector. Use direct, human prose.
+detail. Add `connectors/http/manifests/<name>/registry.json` and
+`connectors/http/manifests/<name>/<api-version>/manifest.yaml` for a new connector; catalog discovery needs
+no provider-specific Go embed, constructor, or registration. For updates, use
+[wiring.md](references/wiring.md) to match the upstream API version and preserve
+existing defaults. Do not update `http-manifests.mdx` when adding or updating a
+connector. Directory and registry versions identify the provider's API, not
+Filament revisions; keep them equal to YAML `api_version`, or use `unversioned`
+when that field is omitted. YAML `version: 1` remains the grammar version.
+Use direct, human prose.
 
 ## 5. Verify and report the actual result
 
@@ -114,8 +121,8 @@ runtime or grammar behavior. Follow [validation.md](references/validation.md)
 for the checks to run. Fix failures in the changed scope and distinguish unrelated
 existing failures.
 
-New connectors start at `filament.MaturityAlpha`. Grammar validation and existing
-tests do not establish live fidelity. Promote maturity only when the user
+New connectors start with `"maturity": "alpha"` in their registry version entry.
+Grammar validation and existing tests do not establish live fidelity. Promote maturity only when the user
 directs it based on live validation. If credentials or account features are
 unavailable, finish the implementation and state exactly which live checks remain.
 
