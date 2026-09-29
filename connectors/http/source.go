@@ -153,6 +153,18 @@ func (s *Source) Validate(cfg filament.Config) error {
 		return fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
 	for _, field := range s.config.Fields {
+		if field.Type == filament.FieldEnum && cfg.Has(field.Name) {
+			found := false
+			for _, option := range field.Enum {
+				if cfg.String(field.Name) == option.Value {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("%s source: invalid value for %s", s.name, field.Name)
+			}
+		}
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}

@@ -281,10 +281,14 @@ func (c *Connector) doRequest(
 			return nil, nil, fmt.Errorf("http: %w", err)
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize+1))
 		_ = resp.Body.Close()
 		if err != nil {
 			return resp, nil, fmt.Errorf("read response body: %w", err)
+		}
+
+		if len(body) > maxResponseSize {
+			return resp, nil, fmt.Errorf("response exceeds %d bytes", maxResponseSize)
 		}
 
 		c.limiter.Observe(resp)
