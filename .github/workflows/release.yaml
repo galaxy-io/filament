@@ -43,3 +43,8 @@ jobs:
       tag: ${{ needs.release.outputs.tag }}
       prerelease: false
     secrets: inherit
+
+  # After the images, so the chart never names a version that cannot be pulled.
+  chart:
+    needs: [release, images]
+    uses: ./.github/workflows/chart.yaml

@@ -7,7 +7,6 @@
       "release-type": "go",
       "include-component-in-tag": false,
       "exclude-paths": [
-        "charts",
         "sdks",
         "docs"
       ],
@@ -15,14 +14,14 @@
         {
           "type": "yaml",
           "path": "charts/filament/Chart.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "yaml",
+          "path": "charts/filament/Chart.yaml",
           "jsonpath": "$.appVersion"
         }
       ]
-    },
-    "charts/filament": {
-      "release-type": "helm",
-      "component": "helm-chart",
-      "include-v-in-tag": false
     },
     "sdks/python": {
       "release-type": "python",

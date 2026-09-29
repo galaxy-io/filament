@@ -1,8 +1,7 @@
 name: "CD: Helm Chart"
 
 on:
-  push:
-    tags: ["helm-chart-*"]
+  workflow_call:
 
 permissions:
   attestations: write
@@ -38,8 +37,8 @@ jobs:
           app_version=$(yq -r '.appVersion' charts/filament/Chart.yaml)
           owner="${GITHUB_REPOSITORY_OWNER,,}"
 
-          if [[ "helm-chart-${version}" != "$GITHUB_REF_NAME" ]]; then
-            echo "Chart.yaml is $version but the tag is $GITHUB_REF_NAME"
+          if [[ "v${version}" != "$GITHUB_REF_NAME" || "$version" != "$app_version" ]]; then
+            echo "Chart.yaml is $version for app $app_version but the release is $GITHUB_REF_NAME"
             exit 1
           fi
 
@@ -48,7 +47,6 @@ jobs:
             echo "app_version=$app_version"
             echo "owner=$owner"
             echo "repository=ghcr.io/${owner}/charts/filament"
-            echo "tag=helm-chart-${version}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build dependencies
@@ -119,3 +117,31 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
           create-storage-record: false
+
+      # The chart keeps its own tag and release beside the platform's. Created
+      # as not-latest, so the platform release keeps that marker.
+      - name: Tag release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.metadata.outputs.app_version }}
+          OWNER: ${{ steps.metadata.outputs.owner }}
+          REPOSITORY: ${{ steps.metadata.outputs.repository }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          tag="helm-chart-${VERSION}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+
+          notes=$(cat <<NOTES
+          Helm chart ${VERSION} for Filament ${APP_VERSION}.
+
+          \`\`\`sh
+          helm install filament oci://${REPOSITORY} --version ${VERSION}
+          gh attestation verify --owner ${OWNER} oci://${REPOSITORY}:${VERSION}
+          \`\`\`
+          NOTES
+          )
+
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes "$notes" --latest=false
