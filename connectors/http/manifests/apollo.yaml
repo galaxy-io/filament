@@ -1,0 +1,602 @@
+version: 1
+name: apollo
+display_name: Apollo
+description: Read saved contacts, accounts, sequences, deals, and engagement data from Apollo.
+api_version: v1
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-light.svg
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Apollo API key with access to the selected read endpoints
+connection:
+  base_url: https://api.apollo.io
+  auth:
+    header:
+      name: x-api-key
+      value: config.api_key
+  headers:
+    Accept: application/json
+defaults:
+  method: GET
+resources:
+  - name: contacts
+    path: /api/v1/contacts/search
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      first_name: string?
+      last_name: string?
+      name: string?
+      email: string?
+      title: string?
+      account_id: string?
+      organization_id: string?
+      owner_id: string?
+      contact_stage_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      label_ids: json?
+      typed_custom_fields: json?
+      account: json?
+      organization: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    body:
+      encoding: json
+      template: {}
+    capture:
+      record_id: id
+    response:
+      records: $.contacts
+      pagination:
+        page:
+          number: body.page
+          size: body.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: accounts
+    path: /api/v1/accounts/search
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      domain: string?
+      website_url: string?
+      organization_id: string?
+      owner_id: string?
+      account_stage_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      label_ids: json?
+      typed_custom_fields: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    body:
+      encoding: json
+      template: {}
+    response:
+      records: $.accounts
+      pagination:
+        page:
+          number: body.page
+          size: body.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: sequences
+    path: /api/v1/emailer_campaigns/search
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      user_id: string?
+      active: bool?
+      archived: bool?
+      created_at: timestamptz?
+      emailer_schedule_id: string?
+      num_steps: int64?
+      label_ids: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.emailer_campaigns
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: deals
+    path: /api/v1/opportunities/search
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      account_id: string?
+      owner_id: string?
+      opportunity_stage_id: string?
+      amount: float64?
+      is_closed: bool?
+      is_won: bool?
+      created_at: timestamptz?
+      stage_updated_at: timestamptz?
+      typed_custom_fields: json?
+      opportunity_contact_roles: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.opportunities
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: tasks
+    path: /api/v1/tasks/search
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      type: string?
+      status: string?
+      contact_id: string?
+      account_id: string?
+      user_id: string?
+      due_at: timestamptz?
+      completed_at: timestamptz?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.tasks
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: account_stages
+    path: /api/v1/account_stages
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      display_name: string?
+      display_order: int64?
+      category: string?
+      team_id: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.account_stages
+      pagination: none
+  - name: contact_stages
+    path: /api/v1/contact_stages
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      display_name: string?
+      display_order: int64?
+      category: string?
+      team_id: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.contact_stages
+      pagination: none
+  - name: deal_stages
+    path: /api/v1/opportunity_stages
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      display_name: string?
+      display_order: int64?
+      category: string?
+      team_id: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.opportunity_stages
+      pagination: none
+  - name: lists
+    path: /api/v1/labels
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      modality: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+  - name: users
+    path: /api/v1/users/search
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      first_name: string?
+      last_name: string?
+      email: string?
+      title: string?
+      team_id: string?
+      created_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.users
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: email_schedules
+    path: /api/v1/emailer_schedules
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      user_id: string?
+      time_zone: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.emailer_schedules
+      pagination: none
+  - name: email_accounts
+    path: /api/v1/email_accounts
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      email: string?
+      user_id: string?
+      type: string?
+      active: bool?
+      created_at: timestamptz?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.email_accounts
+      pagination: none
+  - name: fields
+    path: /api/v1/fields
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      field_name: string?
+      label: string?
+      category: string?
+      modality: string?
+      type: string?
+      source: string?
+      editable: bool?
+      context: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.fields
+      pagination: none
+  - name: custom_fields
+    path: /api/v1/typed_custom_fields
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      name: string?
+      modality: string?
+      type: string?
+      picklist_options: json?
+      picklist_values: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.typed_custom_fields
+      pagination: none
+  - name: notes
+    path: /api/v1/notes
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      content: string?
+      user_id: string?
+      account_id: string?
+      contact_id: string?
+      opportunity_id: string?
+      conversation_id: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      contact_ids: json?
+      account_ids: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.notes
+      pagination:
+        offset:
+          offset: query.skip
+          limit: query.limit
+          page_size: 100
+  - name: calls
+    path: /api/v1/phone_calls/search
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      contact_id: string?
+      account_id: string?
+      user_id: string?
+      status: string?
+      inbound: bool?
+      start_time: timestamptz?
+      end_time: timestamptz?
+      recording_url: string?
+      note_text: string?
+      phone_call_outcome_id: string?
+      phone_call_purpose_id: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.phone_calls
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+  - name: emails
+    path: /api/v1/emailer_messages/search
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      contact_id: string?
+      account_id: string?
+      user_id: string?
+      emailer_campaign_id: string?
+      email_account_id: string?
+      status: string?
+      subject: string?
+      from_email: string?
+      to_email: string?
+      body_text: string?
+      body_html: string?
+      created_at: timestamptz?
+      completed_at: timestamptz?
+      recipients: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.emailer_messages
+      pagination:
+        page:
+          number: query.page
+          size: query.per_page
+          page_size: 100
+          total_pages: pagination.total_pages
+    capture:
+      record_id: id
+  - name: email_content
+    path: /api/v1/emailer_messages/get_content
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      subject: string?
+      body: string?
+      body_format: string?
+      status: string?
+      sent_at: timestamptz?
+      recipients: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    body:
+      encoding: json
+      template:
+        body_format: html
+        ids: ["{{ parent.record_id }}"]
+    response:
+      records: $.emailer_messages
+      pagination: none
+    for_each: emails
+  - name: email_stats
+    path: "/api/v1/emailer_messages/{id}/activities"
+    method: GET
+    primary_key: ["email_id"]
+    fields:
+      email_id:
+        path: parent.record_id
+        type: string
+      activities: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    for_each: emails
+    params:
+      id: parent.record_id
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: conversations
+    path: /api/v1/conversations/search
+    method: POST
+    primary_key: ["id"]
+    fields:
+      id: string
+      topic: string?
+      start_time: timestamptz?
+      duration: int64?
+      state: string?
+      host: string?
+      host_id: string?
+      conversation_type: string?
+      is_private: bool?
+      participants_info: json?
+      account_ids: json?
+      deals: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    body:
+      encoding: json
+      template: {}
+    capture:
+      record_id: id
+    response:
+      records: $.conversations
+      pagination:
+        page:
+          number: body.page
+          size: body.num_fetch_result
+          page_size: 25
+          total_pages: pagination.total_pages
+  - name: current_user
+    path: /api/v1/users/api_profile
+    method: GET
+    primary_key: ["id"]
+    fields:
+      id: string
+      team_id: string?
+      first_name: string?
+      last_name: string?
+      email: string?
+      title: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: credit_usage
+    path: /api/v1/usage_stats/credit_usage_stats
+    method: POST
+    primary_key: []
+    fields:
+      credit_usage_stats: json?
+      current_credit_cycle: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: api_usage
+    path: /api/v1/usage_stats/api_usage_stats
+    method: POST
+    primary_key: []
+    fields:
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+  - name: contact_sequence_activity
+    path: /api/v1/emailer_campaigns/activity_feed
+    method: POST
+    for_each: contacts
+    body:
+      encoding: json
+      template:
+        contact_id: "{{ parent.record_id }}"
+        per_page: 50
+    primary_key: [contact_id]
+    fields:
+      contact_id: string
+      events: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+  - name: conversation_details
+    path: /api/v1/conversations/{id}
+    for_each: conversations
+    params:
+      id: parent.record_id
+    primary_key: [id]
+    fields:
+      id: string
+      topic: string?
+      start_time: timestamptz?
+      duration: int64?
+      state: string?
+      host_id: string?
+      transcript: json?
+      participants: json?
+      video_recording: json?
+      audio_recording: json?
+      opportunities: json?
+      raw: { path: $, type: json, mode: remainder }
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+discovery:
+  mode: static
+  default_resources: [contacts, accounts, sequences]

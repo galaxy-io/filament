@@ -145,6 +145,7 @@
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/nats",
+              "pages/connectors/sources/apollo",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gong",
