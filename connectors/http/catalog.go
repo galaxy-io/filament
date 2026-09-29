@@ -4,6 +4,9 @@ import (
 	_ "embed"
 )
 
+//go:embed manifests/apollo.yaml
+var apolloManifest []byte
+
 //go:embed manifests/attio.yaml
 var attioManifest []byte
 
@@ -19,8 +22,14 @@ var granolaManifest []byte
 //go:embed manifests/heyreach.yaml
 var heyreachManifest []byte
 
+//go:embed manifests/instantly.yaml
+var instantlyManifest []byte
+
 //go:embed manifests/linear.yaml
 var linearManifest []byte
+
+//go:embed manifests/mailchimp.yaml
+var mailchimpManifest []byte
 
 //go:embed manifests/monday.yaml
 var mondayManifest []byte
@@ -45,6 +54,14 @@ var slackManifest []byte
 
 //go:embed manifests/stripe.yaml
 var stripeManifest []byte
+
+//go:embed manifests/zoho.yaml
+var zohoManifest []byte
+
+// NewApollo returns a Source backed by the embedded Apollo API manifest.
+func NewApollo() *Source {
+	return newCatalogSource(apolloManifest)
+}
 
 // NewAttio returns a Source backed by the embedded Attio REST API manifest.
 func NewAttio() *Source {
@@ -71,9 +88,19 @@ func NewHeyReach() *Source {
 	return newCatalogSource(heyreachManifest)
 }
 
+// NewInstantly returns a Source backed by the embedded Instantly API manifest.
+func NewInstantly() *Source {
+	return newCatalogSource(instantlyManifest)
+}
+
 // NewLinear returns a Source backed by the embedded Linear manifest.
 func NewLinear() *Source {
 	return newCatalogSource(linearManifest)
+}
+
+// NewMailchimp returns a Source backed by the embedded Mailchimp Marketing manifest.
+func NewMailchimp() *Source {
+	return newCatalogSource(mailchimpManifest)
 }
 
 // NewMonday returns a Source backed by the embedded monday.com manifest.
@@ -112,6 +139,11 @@ func NewSlack() *Source {
 // NewStripe returns a Source backed by the embedded Stripe REST API manifest.
 func NewStripe() *Source {
 	return newCatalogSource(stripeManifest)
+}
+
+// NewZoho returns a Source backed by the embedded Zoho CRM manifest.
+func NewZoho() *Source {
+	return newCatalogSource(zohoManifest)
 }
 
 func newCatalogSource(data []byte) *Source {

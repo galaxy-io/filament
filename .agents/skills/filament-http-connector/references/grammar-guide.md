@@ -273,7 +273,7 @@ are skipped. `since` requires an `incremental` block on the child.
 
 A normal parent need not be capture-only just because a child depends on it.
 The engine fetches required parents even when only the child is selected, and
-emits only selected resources. Test that behavior and parent-scoped keys.
+emits only selected resources. Account for that behavior and parent-scoped keys.
 
 ### pagination — one strategy key (or inherit from defaults)
 
@@ -303,9 +303,10 @@ Body injection changes the cursor field while preserving rendered filters and
 selectors. Offset targets must both be in query or both in body. Verify page
 number conventions and termination against the actual paginator before using it.
 The current page strategy starts at 1 and injects into query parameters. Offset
-starts at 0. Both stop on a short page, so an API that can return a short
-nonterminal page does not fit these strategies without another completion signal
-and corresponding runtime support.
+starts at 0. By default, both stop on a short page. Page pagination can instead use
+`more: info.more_records` or `total_pages` when the endpoint documents that signal.
+A configured `more` path takes precedence; missing or false stops the walk.
+Do not copy a has-more path from another endpoint that happens to look similar.
 
 ### incremental
 
