@@ -7,6 +7,12 @@ import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
 export const PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY = "headers";
+export const PIPELINE_NOTIFIER_URL_SECRET_REF_KEY = "url";
+
+export const PIPELINE_NOTIFIER_SLACK_URL_PREFIXES = [
+  "https://hooks.slack.com/services/",
+  "https://hooks.slack-gov.com/services/",
+];
 
 export const PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED = 64;
 
@@ -20,6 +26,7 @@ export const PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT = `{
 export const PIPELINE_NOTIFIER_TYPE_TO_LABEL_MAP: Record<NotificationType, string> = {
   [NotificationType.UNSPECIFIED]: "Unknown",
   [NotificationType.WEBHOOK]: "Webhook",
+  [NotificationType.SLACK]: "Slack",
 };
 
 export const PIPELINE_NOTIFIER_TYPES = Object.values(NotificationType).filter(

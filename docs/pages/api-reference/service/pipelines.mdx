@@ -136,7 +136,7 @@ and `DeletePipelineNotifier`. The messages are defined in
 `protos/ingestion/v1/notifiers.proto`.
 
 The control plane and standalone application automatically deliver matching
-events as JSON webhooks.
+events as JSON webhooks or Slack messages.
 
 Create takes `pipeline_id` and a `notifier` input:
 
@@ -194,3 +194,40 @@ change succeeds; external references are never deleted.
 Webhook delivery makes up to 10 attempts with exponential backoff. Delivery
 failures do not affect pipeline results. Restarts can cause duplicate webhooks
 and receivers should use `X-Filament-Delivery-ID` to recognize them.
+
+### Slack
+
+A notifier with `NOTIFICATION_TYPE_SLACK` posts each matching event to a Slack
+incoming webhook as a Block Kit message with a status color.
+
+```json
+{
+  "pipelineId": "<pipeline-id>",
+  "notifier": {
+    "name": "Pipeline alerts",
+    "notificationType": "NOTIFICATION_TYPE_SLACK",
+    "isEnabled": true,
+    "events": ["NOTIFIER_EVENT_RUN_FAILED"],
+    "config": {
+      "url": "https://hooks.slack.com/services/<path>"
+    }
+  }
+}
+```
+
+The URL is a credential, so it is the secret of a Slack notifier. It is
+extracted from `config`, stored through the configured secrets provider, and
+appears in responses only as `secret_refs.url`. It is never returned. To use a
+pre-existing secret, omit `config.url` and supply `secret_refs.url` instead.
+Its value must be the URL as plain text. Inline values require a writable
+provider.
+
+The URL must use `https` and the host `hooks.slack.com` or
+`hooks.slack-gov.com`, with a path under `/services/`. On update, omit
+`config.url` to keep the stored URL or send a new one to replace it.
+
+Each message names the pipeline and the outcome, followed by the run ID and
+the event time. `run.completed` adds the record and byte counts, and
+`run.paused` adds whether the run committed. Slack notifiers take no custom
+headers. Delivery follows the same attempts and backoff as webhooks, and a
+restart can post the same message twice.

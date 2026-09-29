@@ -16,6 +16,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	notification "github.com/galaxy-io/filament/internal/notifier"
+	"github.com/galaxy-io/filament/internal/notifier/slack"
 	"github.com/galaxy-io/filament/internal/notifier/webhook"
 )
 
@@ -174,33 +175,63 @@ func (m *Module) resolveConfig(ctx context.Context, trigger notification.Notific
 	return current, config, err
 }
 
-// renderConfig resolves the header secret into the config and encodes the
-// destination the sender expects.
+// renderConfig resolves the rule's secrets into the config and encodes the
+// destination its sender expects.
 func (m *Module) renderConfig(ctx context.Context, rule *ingestionv1.Notifier) ([]byte, error) {
 	cfg := rule.GetConfig().AsMap()
 	if cfg == nil {
 		cfg = map[string]any{}
 	}
-	if ref := rule.GetSecretRefs()[webhook.HeadersField]; ref != "" {
-		value, err := m.readSecret(ctx, rule, ref)
-		if err != nil {
-			return nil, err
-		}
-		var headers map[string]any
-		if err := json.Unmarshal(value, &headers); err != nil {
-			return nil, errInvalidConfiguration
-		}
-		cfg[webhook.HeadersField] = headers
+	var destination any
+	var err error
+	switch rule.GetNotificationType() {
+	case ingestionv1.NotificationType_NOTIFICATION_TYPE_SLACK:
+		destination, err = m.slackDestination(ctx, rule, cfg)
+	default:
+		destination, err = m.webhookDestination(ctx, rule, cfg)
 	}
-	destination, err := webhook.DestinationFromConfig(cfg)
 	if err != nil {
-		return nil, errInvalidConfiguration
+		return nil, err
 	}
 	raw, err := json.Marshal(destination)
 	if err != nil {
 		return nil, errInvalidConfiguration
 	}
 	return raw, nil
+}
+
+func (m *Module) webhookDestination(ctx context.Context, rule *ingestionv1.Notifier, cfg map[string]any) (webhook.Destination, error) {
+	if ref := rule.GetSecretRefs()[webhook.HeadersField]; ref != "" {
+		value, err := m.readSecret(ctx, rule, ref)
+		if err != nil {
+			return webhook.Destination{}, err
+		}
+		var headers map[string]any
+		if err := json.Unmarshal(value, &headers); err != nil {
+			return webhook.Destination{}, errInvalidConfiguration
+		}
+		cfg[webhook.HeadersField] = headers
+	}
+	destination, err := webhook.DestinationFromConfig(cfg)
+	if err != nil {
+		return webhook.Destination{}, errInvalidConfiguration
+	}
+	return destination, nil
+}
+
+func (m *Module) slackDestination(ctx context.Context, rule *ingestionv1.Notifier, cfg map[string]any) (slack.Destination, error) {
+	if ref := rule.GetSecretRefs()[slack.URLField]; ref != "" {
+		value, err := m.readSecret(ctx, rule, ref)
+		if err != nil {
+			return slack.Destination{}, err
+		}
+		cfg[slack.URLField] = string(value)
+	}
+	destination, err := slack.DestinationFromConfig(cfg)
+	if err != nil {
+		return slack.Destination{}, errInvalidConfiguration
+	}
+	return destination, nil
 }
 
 func (m *Module) readSecret(ctx context.Context, rule *ingestionv1.Notifier, ref string) ([]byte, error) {

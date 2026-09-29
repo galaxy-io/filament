@@ -3,11 +3,12 @@ import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrappe
 import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
+import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import type { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 
 import {
   PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
@@ -21,6 +22,8 @@ import {
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import {
   formatPipelineNotifierEventsSelection,
+  hasPipelineNotifierStoredUrl,
+  isPipelineNotifierSlackUrlValid,
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
@@ -50,10 +53,18 @@ const PipelineNotifierFields = ({
   onChange,
   isDisabled = false,
 }: PipelineNotifierFieldsProps) => {
+  const isSlack = state.notificationType === NotificationType.SLACK;
   const urlError =
     state.url !== "" && !isPipelineNotifierUrlValid(state.url)
       ? "Use an absolute http or https URL"
       : undefined;
+  const slackUrlError =
+    state.url !== "" && !isPipelineNotifierSlackUrlValid(state.url)
+      ? "Use a Slack incoming webhook URL"
+      : undefined;
+  const slackUrlPlaceholder = hasPipelineNotifierStoredUrl(state)
+    ? "Leave blank to keep current value"
+    : "https://hooks.slack.com/services/...";
   const headersError =
     parsePipelineNotifierHeaders(state.headers) === null
       ? "Use a JSON object with string values"
@@ -74,7 +85,7 @@ const PipelineNotifierFields = ({
   };
 
   const handleTypeChange = (option: SelectInputOption) => {
-    onChange({ notificationType: option.value as NotificationType });
+    onChange({ notificationType: option.value as NotificationType, url: "", headers: "" });
   };
 
   const handleEventsChange = (options: SelectInputOption[]) => {
@@ -95,7 +106,7 @@ const PipelineNotifierFields = ({
         label="Name"
         value={state.name}
         onChange={handleNameChange}
-        placeholder="Webhook name"
+        placeholder="Notifier name"
         size={InputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
@@ -122,35 +133,50 @@ const PipelineNotifierFields = ({
         isDisabled={isDisabled}
         fillWidth
       />
-      <TextInput
-        label="URL"
-        value={state.url}
-        onChange={handleUrlChange}
-        error={urlError}
-        placeholder="https://example.com/hooks/filament"
-        size={InputSize.LARGE}
-        isDisabled={isDisabled}
-        fillWidth
-      />
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
-        <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-          Headers
-        </Text>
-        <CodeEditor
-          content={state.headers}
-          onChange={handleHeadersChange}
-          lang="json"
-          placeholder={headersPlaceholder}
-          borderRadius={4}
-          isReadOnly={isDisabled}
-          noLineNumbers
+      {isSlack ? (
+        <PasswordInput
+          label="Webhook URL"
+          value={state.url}
+          onChange={handleUrlChange}
+          error={slackUrlError}
+          placeholder={slackUrlPlaceholder}
+          size={InputSize.LARGE}
+          isDisabled={isDisabled}
+          fillWidth
         />
-        {headersError && (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-            {headersError}
-          </Text>
-        )}
-      </FlexWrapper>
+      ) : (
+        <>
+          <TextInput
+            label="URL"
+            value={state.url}
+            onChange={handleUrlChange}
+            error={urlError}
+            placeholder="https://example.com/hooks/filament"
+            size={InputSize.LARGE}
+            isDisabled={isDisabled}
+            fillWidth
+          />
+          <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+              Headers
+            </Text>
+            <CodeEditor
+              content={state.headers}
+              onChange={handleHeadersChange}
+              lang="json"
+              placeholder={headersPlaceholder}
+              borderRadius={4}
+              isReadOnly={isDisabled}
+              noLineNumbers
+            />
+            {headersError && (
+              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+                {headersError}
+              </Text>
+            )}
+          </FlexWrapper>
+        </>
+      )}
     </FlexWrapper>
   );
 };
