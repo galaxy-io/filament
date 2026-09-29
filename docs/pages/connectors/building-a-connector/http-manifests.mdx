@@ -102,11 +102,13 @@ its registry. It becomes available as `internal_crm@v3` and through the
 including `filament up` and direct runs. When using a remote CLI context, configure
 the directory on the deployment rather than on the CLI machine.
 
-Private entries take precedence over matching bundled version keys and default
-aliases. Other bundled connectors and API versions remain available. For example,
-a private `github` registry selecting `2022-11-28` replaces `github@2022-11-28`
-and the `github` default alias. A pin to an overridden key uses the private
-implementation, so overrides need the same compatibility review as manifest edits.
+Private catalogs can add connectors and API versions and change default aliases.
+They cannot replace an existing concrete registration: a private
+`github@2022-11-28` colliding with the bundled version fails startup. Adding a new
+API version and selecting it as the default leaves existing version pins intact.
+For a customized implementation of an existing API version, use a distinct
+connector name, such as `internal_github`, and create connections explicitly for
+that connector. API version identifiers must still match the upstream API.
 
 When unset, only the bundled catalog is used. An explicitly configured missing,
 empty, or invalid directory fails startup. Files are read and validated once;
@@ -114,12 +116,16 @@ restart the process to pick up changes. A bad catalog is not partially registere
 The process-wide bundled registry is left unchanged.
 
 In a split deployment, configure the directory on the server, control plane,
-and every worker. Each must receive the same files, including overrides. The
-setting does not copy files between machines or mount volumes into worker pods;
+and every worker. Each must receive the same files. The setting does not copy
+files between machines or mount volumes into worker pods;
 provision the files in each container or filesystem before startup. Private here
 means deployment-local, not tenant-specific: registered sources appear in the
 normal connector catalog for that deployment. Keep credentials in connection
 configuration and secret references rather than embedding them in manifests.
+Treat the directory and startup environment as trusted deployment configuration:
+private manifests control authentication and request destinations. Restrict write
+access to deployment administrators. Private version pins identify an API version;
+they do not freeze private manifest contents across restarts.
 
 For a custom Go host, `httpapi.LoadDirectory(path)` returns a private source
 registry. Combine it with `registry.DefaultSources.WithOverrides(private)` and

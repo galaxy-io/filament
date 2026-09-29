@@ -2,6 +2,8 @@ package registry
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -63,7 +65,7 @@ func TestSourceAliases(t *testing.T) {
 
 func TestSourcesWithOverrides(t *testing.T) {
 	base := NewSources()
-	for _, name := range []string{"example@v1", "example@v2", "other"} {
+	for _, name := range []string{"example@v1", "other"} {
 		base.RegisterWithMaturity(name, filament.MaturityBeta, func() filament.Source { return &specSource{name: name} })
 	}
 	base.RegisterAlias("example", "example@v1")
@@ -89,9 +91,8 @@ func TestSourcesWithOverrides(t *testing.T) {
 	if err != nil || original.Name != "example@v1" {
 		t.Fatalf("base alias mutated: %+v, %v", original, err)
 	}
-	original, err = base.Spec("example@v2")
-	if err != nil || original.Maturity != filament.MaturityBeta {
-		t.Fatalf("base version mutated: %+v, %v", original, err)
+	if _, err := base.Resolve("example@v2"); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatal("private version leaked into base")
 	}
 	if _, err := base.Resolve("private"); !errors.Is(err, ErrUnknownProvider) {
 		t.Fatal("private source leaked into base")
@@ -102,7 +103,7 @@ func TestSourcesWithOverrides(t *testing.T) {
 	}
 }
 
-func TestSourcesWithOverridesRejectsBrokenAliases(t *testing.T) {
+func TestSourcesWithOverridesRejectsInvalidInputs(t *testing.T) {
 	base := NewSources()
 	base.Register("target", func() filament.Source { return &specSource{name: "target"} })
 	base.RegisterAlias("alias", "target")
@@ -110,9 +111,45 @@ func TestSourcesWithOverridesRejectsBrokenAliases(t *testing.T) {
 	overrides.Register("replacement", func() filament.Source { return &specSource{name: "replacement"} })
 	overrides.RegisterAlias("target", "replacement")
 	if merged, err := base.WithOverrides(overrides); err == nil || merged != nil {
-		t.Fatal("overrides introduced an alias chain")
+		t.Fatal("alias replaced an existing concrete target")
 	}
 	if merged, err := base.WithOverrides(nil); err == nil || merged != nil {
 		t.Fatal("nil overrides accepted")
+	}
+}
+
+func TestSourcesWithOverridesRejectsRegistrationReplacement(t *testing.T) {
+	for _, name := range []string{"example", "example@v1"} {
+		for _, replacementAlias := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/alias=%t", name, replacementAlias), func(t *testing.T) {
+				base := NewSources()
+				base.RegisterWithMaturity(name, filament.MaturityStable, func() filament.Source { return &specSource{name: name} })
+				private := NewSources()
+				if replacementAlias {
+					private.Register("replacement", func() filament.Source { return &specSource{name: "replacement"} })
+					private.RegisterAlias(name, "replacement")
+				} else {
+					private.Register(name, func() filament.Source { return &specSource{name: name} })
+				}
+				if merged, err := base.WithOverrides(private); err == nil || merged != nil || !strings.Contains(err.Error(), name) {
+					t.Fatalf("replacement accepted: %v, %v", merged, err)
+				}
+				spec, err := base.Spec(name)
+				if err != nil || spec.Name != name || spec.Maturity != filament.MaturityStable {
+					t.Fatalf("original registration changed: %+v, %v", spec, err)
+				}
+			})
+		}
+	}
+}
+
+func TestSourcesWithOverridesRejectsConcreteOverAlias(t *testing.T) {
+	base := NewSources()
+	base.Register("example@v1", func() filament.Source { return &specSource{name: "example@v1"} })
+	base.RegisterAlias("example", "example@v1")
+	private := NewSources()
+	private.Register("example", func() filament.Source { return &specSource{name: "example"} })
+	if merged, err := base.WithOverrides(private); err == nil || merged != nil {
+		t.Fatalf("concrete replacement of alias accepted: %v, %v", merged, err)
 	}
 }

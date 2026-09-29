@@ -9,7 +9,8 @@ import (
 )
 
 // SourcesFromEnv adds HTTP_MANIFESTS_DIR to the bundled catalog. Private versions
-// and default aliases take precedence without changing the process-wide registry.
+// may be added and default aliases may change, but concrete bundled registrations
+// cannot be replaced. The process-wide registry is unchanged.
 func SourcesFromEnv() (*registry.Sources, error) {
 	directory := os.Getenv("HTTP_MANIFESTS_DIR")
 	if directory == "" {
@@ -19,5 +20,9 @@ func SourcesFromEnv() (*registry.Sources, error) {
 	if err != nil {
 		return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
 	}
-	return registry.DefaultSources.WithOverrides(private)
+	sources, err := registry.DefaultSources.WithOverrides(private)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
+	}
+	return sources, nil
 }

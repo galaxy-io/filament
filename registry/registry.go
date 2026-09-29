@@ -134,8 +134,10 @@ func NewSources() *Sources {
 
 var _ filament.SourceRegistry = (*Sources)(nil)
 
-// WithOverrides returns an independent registry where overrides take precedence
-// for matching concrete keys and aliases. Unmentioned registrations are retained.
+// WithOverrides returns an independent registry with additional concrete sources
+// and replacement default aliases. It rejects concrete registration collisions
+// and changes between concrete and alias registrations so existing pins retain
+// their implementations. Unmentioned registrations are retained.
 // Neither input is mutated, and source factories still produce fresh instances.
 func (r *Sources) WithOverrides(overrides *Sources) (*Sources, error) {
 	merged := NewSources()
@@ -146,11 +148,21 @@ func (r *Sources) WithOverrides(overrides *Sources) (*Sources, error) {
 		p := sources.providers
 		p.mu.RLock()
 		for name, registration := range p.factories {
-			delete(merged.providers.aliases, name)
+			if _, concrete := merged.providers.factories[name]; concrete {
+				p.mu.RUnlock()
+				return nil, fmt.Errorf("registry: cannot replace concrete source %q; use a distinct connector name", name)
+			}
+			if _, alias := merged.providers.aliases[name]; alias {
+				p.mu.RUnlock()
+				return nil, fmt.Errorf("registry: cannot replace source alias %q with a concrete registration", name)
+			}
 			merged.providers.factories[name] = registration
 		}
 		for name, target := range p.aliases {
-			delete(merged.providers.factories, name)
+			if _, concrete := merged.providers.factories[name]; concrete {
+				p.mu.RUnlock()
+				return nil, fmt.Errorf("registry: cannot replace concrete source %q with an alias", name)
+			}
 			merged.providers.aliases[name] = target
 		}
 		p.mu.RUnlock()

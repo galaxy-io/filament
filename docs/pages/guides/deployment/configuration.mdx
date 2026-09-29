@@ -19,7 +19,7 @@ The server, control plane, and worker read the variables in this section.
 
 | Variable | Default | Description |
 |---|---|---|
-| `HTTP_MANIFESTS_DIR` | unset | Directory containing private `<connector>/registry.json` files and API-version manifest folders. Private keys and default aliases override matching bundled entries. |
+| `HTTP_MANIFESTS_DIR` | unset | Directory containing private `<connector>/registry.json` files and API-version manifest folders. Adds private versions and can change default aliases; collisions with concrete bundled registrations fail startup. |
 
 Provide the same catalog to the server, control plane, and all workers. Files
 are loaded once at startup; missing, empty, or invalid configured directories
