@@ -1,0 +1,155 @@
+---
+title: "Instantly"
+description: "Read campaigns, leads, emails, accounts, and analytics from Instantly"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-instantly-dark.svg"
+---
+
+The Instantly source reads outreach and workspace data through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It targets
+API v2 and is **alpha**. The manifest has been checked against Instantly's official
+API schema, but has not been tested against a live workspace.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Instantly API v2 key with read scopes for the selected resources. |
+
+Create a v2 key in your workspace's API settings. Keys are scoped to a workspace;
+select the permissions needed for your resources. Requests use
+`https://api.instantly.ai/api/v2`. See the
+[Instantly quickstart](https://developer.instantly.ai/quickstart).
+Connection testing lists campaigns, so the key needs campaign-read access even
+when you select other resources.
+
+| Default resource | Read scope |
+|---|---|
+| `campaigns` | `campaigns:read` |
+| `accounts` | `accounts:read` |
+| `leads` | `leads:read` |
+| `lead_lists` | `lead_lists:read` |
+| `emails` | `emails:read` |
+
+Optional resources require their endpoint-specific scopes and any associated
+account features. For example, audit logs require `audit_logs:read`, billing
+requires `workspace_billing:read`, and workspace members require
+`workspace_members:read`. AI endpoints have distinct scopes: some accept
+`ai_agents:read`, while others require `ai_sdr:read`, `ai_sdr_replies:read`,
+`ai_inbox_manager_analytics:read`, or broader access. Consult the
+[endpoint reference](https://developer.instantly.ai/llms.txt) for each selected
+resource rather than granting administrative access for the core defaults.
+
+## Resources
+
+Campaigns, accounts, leads, lead lists, and emails are selected by default.
+All other resources are optional. Only selected resources are written, although
+child reads also fetch their parents to discover IDs.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `campaigns` | `GET /api/v2/campaigns` |  |
+| `accounts` | `GET /api/v2/accounts` |  |
+| `leads` | `POST /api/v2/leads/list` |  |
+| `lead_lists` | `GET /api/v2/lead-lists` |  |
+| `emails` | `GET /api/v2/emails` |  |
+| `lead_labels` | `GET /api/v2/lead-labels` |  |
+| `custom_tags` | `GET /api/v2/custom-tags` |  |
+| `custom_tag_mappings` | `GET /api/v2/custom-tag-mappings` |  |
+| `block_list_entries` | `GET /api/v2/block-lists-entries` |  |
+| `subsequences` | `GET /api/v2/subsequences` |  |
+| `audit_logs` | `GET /api/v2/audit-logs` |  |
+| `webhooks` | `GET /api/v2/webhooks` |  |
+| `webhook_events` | `GET /api/v2/webhook-events` |  |
+| `workspace_members` | `GET /api/v2/workspace-members` |  |
+| `workspace_group_members` | `GET /api/v2/workspace-group-members` |  |
+| `inbox_placement_tests` | `GET /api/v2/inbox-placement-tests` |  |
+| `agent_items` | `GET /api/v2/agent-items` |  |
+| `dfy_email_account_orders` | `GET /api/v2/dfy-email-account-orders` |  |
+| `workspace` | `GET /api/v2/workspaces/current` |  |
+| `workspace_plan` | `GET /api/v2/workspace-billing/plan-details` |  |
+| `workspace_subscription` | `GET /api/v2/workspace-billing/subscription-details` |  |
+| `phone_numbers` | `GET /api/v2/crm-actions/phone-numbers` |  |
+| `account_campaign_mappings` | `GET /api/v2/account-campaign-mappings/{email}` | `accounts` |
+| `account_warmup_analytics` | `POST /api/v2/accounts/warmup-analytics` | `accounts` |
+| `account_daily_analytics` | `GET /api/v2/accounts/analytics/daily` |  |
+| `campaign_analytics` | `GET /api/v2/campaigns/analytics` |  |
+| `campaign_analytics_overview` | `GET /api/v2/campaigns/analytics/overview` |  |
+| `campaign_daily_analytics` | `GET /api/v2/campaigns/analytics/daily` | `campaigns` |
+| `campaign_steps_analytics` | `GET /api/v2/campaigns/analytics/steps` | `campaigns` |
+| `campaign_sending_status` | `GET /api/v2/campaigns/{id}/sending-status` | `campaigns` |
+| `subsequence_analytics` | `GET /api/v2/subsequences/analytics` | `campaigns` |
+| `subsequence_steps_analytics` | `GET /api/v2/subsequences/{id}/analytics/steps` | `subsequences` |
+| `lead_list_verification_stats` | `GET /api/v2/lead-lists/{id}/verification-stats` | `lead_lists` |
+| `inbox_placement_analytics` | `GET /api/v2/inbox-placement-analytics` | `inbox_placement_tests` |
+| `inbox_placement_reports` | `GET /api/v2/inbox-placement-reports` | `inbox_placement_tests` |
+| `ai_sales_agents` | `GET /api/v2/ai-agents/sales` |  |
+| `ai_inbox_managers` | `GET /api/v2/ai-agents/inbox-manager` |  |
+| `ai_lead_finders` | `GET /api/v2/ai-agents/lead-finder` |  |
+| `ai_sales_activities` | `GET /api/v2/ai-agents/sales/{id}/activities` | `ai_sales_agents` |
+| `ai_sales_guidance_rules` | `GET /api/v2/ai-agents/sales/{id}/guidance-rules` | `ai_sales_agents` |
+| `ai_inbox_guidances` | `GET /api/v2/ai-agents/inbox-manager/{id}/guidances` | `ai_inbox_managers` |
+| `ai_inbox_replies` | `GET /api/v2/ai-agents/inbox-manager/{id}/replies` | `ai_inbox_managers` |
+| `ai_lead_finder_activities` | `GET /api/v2/ai-agents/lead-finder/{id}/activities` | `ai_lead_finders` |
+| `ai_sales_analytics` | `GET /api/v2/ai-agents/sales/{id}/analytics` | `ai_sales_agents` |
+| `ai_sales_opportunities` | `GET /api/v2/ai-agents/sales/{id}/opportunities/summary` | `ai_sales_agents` |
+| `ai_inbox_analytics` | `GET /api/v2/ai-agents/inbox-manager/{id}/analytics/summary` | `ai_inbox_managers` |
+| `ai_lead_finder_stats` | `GET /api/v2/ai-agents/lead-finder/{id}/stats` | `ai_lead_finders` |
+| `saved_searches` | `GET /api/v2/supersearch-enrichment/saved-searches` |  |
+
+Campaigns include schedules and sequences. Lead custom data is retained in
+`payload` and `raw`. Email reads request full bodies, all inbox modes, and all
+messages rather than only the latest message of each thread. Account reads
+include tags. No status, campaign, or lead-list filter is applied to core reads.
+AI Sales Agent campaigns are explicitly included in `campaigns`.
+
+Nested data stays in JSON columns, IDs are strings, and declared date-time fields
+use timestamps with time zones. Every resource includes a `raw` column for
+returned fields that are not projected separately. Warmup analytics retain the
+provider's maps of account and date metrics in a snapshot for each account.
+
+This version does not include API-key data, background-job tracking, DFY mailbox
+credentials, domain administration, OAuth connection flows, individual email
+verification lookups, AI Deliverability Agents, company-list builders and members,
+or SuperSearch enrichment execution/history. Some AI detail and additional
+analytics endpoints are also outside this version. It reads saved searches and
+the listed AI resources; it does not run agents, start tests, buy domains, send
+emails, create exports, or receive webhook events. Attachments remain metadata.
+
+## Modes
+
+All resources use full reads. Although several records contain update timestamps,
+their list endpoints do not expose a corresponding update-time filter. Email
+creation filters would miss later changes to read flags, status, and other fields.
+A pagination cursor is used only to walk the current result set; it is not an
+incremental watermark.
+
+Use full upsert for keyed resources, or full replace to remove rows no longer
+returned by Instantly. The following resources have no stable primary key declared
+and require full replace:
+
+`dfy_email_account_orders`, `workspace_plan`, `workspace_subscription`, `account_campaign_mappings`, `account_warmup_analytics`, `account_daily_analytics`, `campaign_analytics_overview`, `campaign_steps_analytics`, `subsequence_analytics`, `subsequence_steps_analytics`, `ai_sales_analytics`, `ai_sales_opportunities`, `ai_inbox_analytics`, `ai_lead_finder_stats`.
+
+## Behavior
+
+- **Auth**: every request uses the workspace's v2 API key as a Bearer token.
+  Missing scopes, unavailable features, and other upstream errors fail the read.
+- **Pagination**: list resources request up to 100 rows, respecting lower endpoint
+  maxima, and pass `next_starting_after` into the next request. Pagination ends
+  when that cursor is absent, empty, or null. For leads, the cursor and limit are
+  JSON body fields on the read-only `POST /leads/list` request.
+- **Rate limiting**: email listing is limited to 20 requests per minute. This
+  connector uses a shared limit of 0.3 requests per second (18 per minute), which
+  also slows other resources. The workspace-wide limits are 100 requests per
+  second and 6,000 per minute, shared with other clients. HTTP 429 responses are
+  retried; the limiter cannot reserve capacity against other integrations. See
+  [email listing](https://developer.instantly.ai/api-reference/email/list-email)
+  and [rate limits](https://developer.instantly.ai/getting-started/rate-limit).
+- **Analytics**: no date bounds are supplied, so endpoints use their provider
+  defaults. Campaign daily and step analytics are requested per campaign.
+  These are refreshed snapshots, not append-only events. Overview interest
+  metrics use the provider's first-occurrence behavior.
+- **Ordering**: lead results use the provider's cursor. Instantly notes that leads
+  created before October 15, 2025 may not appear chronologically when sorted by ID.
+- **Recovery**: top-level cursor reads can resume interrupted walks. Child reads
+  restart from their parent listings. Deletes are reconciled through full replace,
+  not emitted as deletion events.

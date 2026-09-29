@@ -1,0 +1,1126 @@
+version: 1
+name: instantly
+display_name: Instantly
+description: Campaigns, leads, emails, accounts, analytics, and workspace data from Instantly.
+api_version: v2
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-light.svg
+config:
+  api_key:
+    type: secret
+    required: true
+    help: Instantly API v2 key with read scopes for the selected resources.
+connection:
+  base_url: https://api.instantly.ai
+  auth: { bearer: config.api_key }
+  headers: { Accept: application/json }
+  timeout_seconds: 60
+  rate_limit:
+    # Email listing permits 20 requests/minute. The limiter is connection-wide.
+    requests_per_second: 0.3
+defaults:
+  method: GET
+resources:
+  - name: campaigns
+    path: /api/v2/campaigns
+    query: { limit: "100", include_ai_sales_agent_campaigns: "true" }
+    capture: { campaign_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      pl_value: float64?
+      status: float64?
+      is_evergreen: bool?
+      campaign_schedule: json?
+      sequences: json?
+      timestamp_created: string?
+      timestamp_updated: string?
+      email_gap: float64?
+      random_wait_max: float64?
+      text_only: bool?
+      first_email_text_only: bool?
+      email_list: json?
+      daily_limit: float64?
+      stop_on_reply: bool?
+      email_tag_list: json?
+      link_tracking: bool?
+      open_tracking: bool?
+      stop_on_auto_reply: bool?
+      daily_max_leads: int64?
+      prioritize_new_leads: bool?
+      auto_variant_select: json?
+      match_lead_esp: bool?
+      not_sending_status: float64?
+      stop_for_company: bool?
+      core_variables: json?
+      custom_variables: json?
+      insert_unsubscribe_header: bool?
+      allow_risky_contacts: bool?
+      disable_bounce_protect: bool?
+      limit_emails_per_company_override: json?
+      cc_list: json?
+      bcc_list: json?
+      organization: string?
+      owned_by: string?
+      created_by: string?
+      ai_sdr_id: string?
+      provider_routing_rules: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: accounts
+    path: /api/v2/accounts
+    query: { limit: "100", include_tags: "true" }
+    capture: { email: email }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [email]
+    fields:
+      email: string
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      first_name: string?
+      last_name: string?
+      warmup: json?
+      added_by: string?
+      daily_limit: float64?
+      daily_limit_max: float64?
+      warmup_limit_max: float64?
+      modified_by: string?
+      tracking_domain_name: string?
+      tracking_domain_status: string?
+      status: float64?
+      enable_slow_ramp: bool?
+      inbox_placement_test_limit: float64?
+      organization: string?
+      warmup_status: float64?
+      status_message: json?
+      timestamp_warmup_start: timestamptz?
+      provider_code: float64?
+      setup_pending: bool?
+      is_managed_account: bool?
+      stat_warmup_score: float64?
+      sending_gap: float64?
+      signature: string?
+      reply_to: string?
+      autofix_failed: bool?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: leads
+    path: /api/v2/leads/list
+    method: POST
+    body:
+      encoding: json
+      template: { limit: 100 }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: body.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      campaign: string?
+      list_id: string?
+      status: float64?
+      email: string?
+      first_name: string?
+      last_name: string?
+      company_name: string?
+      company_domain: string?
+      payload: json?
+      status_summary: json?
+      lt_interest_status: float64?
+      verification_status: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: lead_lists
+    path: /api/v2/lead-lists
+    query: { limit: "100" }
+    capture: { list_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      organization_id: string?
+      has_enrichment_task: bool?
+      owned_by: string?
+      name: string?
+      timestamp_created: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: emails
+    path: /api/v2/emails
+    query: { limit: "100", mode: emode_all, preview_only: "false", latest_of_thread: "false" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      timestamp_email: timestamptz?
+      message_id: string?
+      subject: string?
+      from_address_email: string?
+      to_address_email_list: string?
+      body: json?
+      campaign_id: string?
+      list_id: string?
+      lead_id: string?
+      eaccount: string?
+      ue_type: float64?
+      is_unread: float64?
+      i_status: float64?
+      thread_id: string?
+      attachment_json: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: lead_labels
+    path: /api/v2/lead-labels
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      created_by: string?
+      organization_id: string?
+      label: string?
+      interest_status_label: string?
+      interest_status: float64?
+      description: string?
+      use_with_ai: bool?
+      access_grants: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: custom_tags
+    path: /api/v2/custom-tags
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      organization_id: string?
+      label: string?
+      description: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: custom_tag_mappings
+    path: /api/v2/custom-tag-mappings
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      tag_id: string?
+      resource_id: string?
+      resource_type: float64?
+      timestamp_created: timestamptz?
+      organization_id: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: block_list_entries
+    path: /api/v2/block-lists-entries
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      organization_id: string?
+      bl_value: string?
+      is_domain: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subsequences
+    path: /api/v2/subsequences
+    query: { limit: "100" }
+    capture: { subsequence_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      parent_campaign: string?
+      workspace: string?
+      status: float64?
+      timestamp_leads_updated: timestamptz?
+      name: string?
+      conditions: json?
+      subsequence_schedule: json?
+      sequences: json?
+      auto_variant_select: json?
+      daily_limit_mode: string?
+      daily_limit: float64?
+      ignore_account_daily_limit: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: audit_logs
+    path: /api/v2/audit-logs
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp: timestamptz?
+      organization_id: string?
+      activity_type: float64?
+      user_agent: string?
+      user_id: string?
+      ip_address: string?
+      from_api: bool?
+      api_key_id: string?
+      affected_count: float64?
+      campaign_id: string?
+      webhook_id: string?
+      subsequence_id: string?
+      list_id: string?
+      audit_metadata: json?
+      user_name: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: webhooks
+    path: /api/v2/webhooks
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      organization: string?
+      campaign: string?
+      name: string?
+      target_hook_url: string?
+      event_type: string?
+      custom_interest_value: float64?
+      headers: json?
+      timestamp_created: timestamptz?
+      status: float64?
+      timestamp_error: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: webhook_events
+    path: /api/v2/webhook-events
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      timestamp_created_date: string?
+      organization_id: string?
+      payload: json?
+      success: bool?
+      retry_count: float64?
+      will_retry: bool?
+      webhook_url: string?
+      status_code: float64?
+      error_message: string?
+      timestamp_next_retry: timestamptz?
+      retry_group_id: string?
+      retry_successful: bool?
+      lead_email: string?
+      response_time_ms: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspace_members
+    path: /api/v2/workspace-members
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      email: string?
+      user_id: string?
+      user_email: string?
+      nickname: string?
+      name: json?
+      role: string?
+      timestamp_created: timestamptz?
+      workspace_id: string?
+      accepted: bool?
+      issuer_id: string?
+      permissions: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspace_group_members
+    path: /api/v2/workspace-group-members
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      admin_workspace_id: string?
+      sub_workspace_id: string?
+      status: string?
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      sub_workspace_name: string?
+      admin_workspace_name: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: inbox_placement_tests
+    path: /api/v2/inbox-placement-tests
+    query: { limit: "100" }
+    capture: { test_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      organization_id: string?
+      name: string?
+      delivery_mode: float64?
+      description: string?
+      schedule: json?
+      type: float64?
+      sending_method: float64?
+      campaign_id: string?
+      email_subject: string?
+      email_body: string?
+      emails: json?
+      test_code: string?
+      tags: json?
+      text_only: bool?
+      recipients: json?
+      recipients_labels: json?
+      timestamp_created: string?
+      timestamp_next_run: string?
+      automations: json?
+      status: float64?
+      not_sending_status: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: agent_items
+    path: /api/v2/agent-items
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [resource_id, type]
+    fields:
+      resource_id: string
+      type: string
+      workspace_id: string?
+      name: string?
+      status: string?
+      metadata: json?
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      tags: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: dfy_email_account_orders
+    path: /api/v2/dfy-email-account-orders
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: []
+    fields:
+      workspace_id: string?
+      domain: string?
+      forwarding_domain: string?
+      forwarding_mode: string?
+      is_pre_warmed_up: bool?
+      timestamp_cancelled: timestamptz?
+      timestamp_created: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspace
+    path: /api/v2/workspaces/current
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      scheduled_for_removal_at: timestamptz?
+      owner: string?
+      name: string?
+      plan_id: string?
+      plan_id_bundle: string?
+      add_unsub_to_block: bool?
+      default_opportunity_value: float64?
+      plan_id_leadfinder: string?
+      plan_id_verification: json?
+      org_logo_url: string?
+      org_client_domain: string?
+      plan_id_crm: string?
+      plan_id_website_visitor: string?
+      plan_id_inbox_placement: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspace_plan
+    path: /api/v2/workspace-billing/plan-details
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      organization_id: string?
+      organization_name: string?
+      subscriptions: json?
+      addons: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: workspace_subscription
+    path: /api/v2/workspace-billing/subscription-details
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      subscriptions: json?
+      all_subs_cancelled: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: phone_numbers
+    path: /api/v2/crm-actions/phone-numbers
+    response:
+      records: $
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      timestamp_created: timestamptz?
+      organization_id: string?
+      phone_number: string?
+      country: string?
+      locality: string?
+      subscription_id: string?
+      twilio_sid: string?
+      renewal_date: string?
+      price: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: account_campaign_mappings
+    path: /api/v2/account-campaign-mappings/{email}
+    for_each: accounts
+    params: { email: parent.email }
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: []
+    fields:
+      email: { path: parent.email, type: string }
+      campaign_id: string?
+      campaign_name: string?
+      timestamp_created: string?
+      status: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: account_warmup_analytics
+    path: /api/v2/accounts/warmup-analytics
+    method: POST
+    for_each: accounts
+    body:
+      encoding: json
+      template: { emails: ["{{ parent.email }}"] }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      email_date_data: json?
+      aggregate_data: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: account_daily_analytics
+    path: /api/v2/accounts/analytics/daily
+    response:
+      records: $
+      pagination: none
+    primary_key: []
+    fields:
+      date: string?
+      email_account: string?
+      sent: int64?
+      bounced: int64?
+      contacted: int64?
+      new_leads_contacted: int64?
+      opened: int64?
+      unique_opened: int64?
+      replies: int64?
+      unique_replies: int64?
+      replies_automatic: int64?
+      unique_replies_automatic: int64?
+      clicks: int64?
+      unique_clicks: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaign_analytics
+    path: /api/v2/campaigns/analytics
+    response:
+      records: $
+      pagination: none
+    primary_key: [campaign_id]
+    fields:
+      campaign_name: string?
+      campaign_id: string
+      campaign_status: float64?
+      campaign_is_evergreen: bool?
+      leads_count: int64?
+      contacted_count: int64?
+      emails_sent_count: int64?
+      new_leads_contacted_count: int64?
+      open_count: int64?
+      open_count_unique: int64?
+      open_count_unique_by_step: int64?
+      reply_count: int64?
+      reply_count_unique: int64?
+      reply_count_unique_by_step: int64?
+      reply_count_automatic: int64?
+      reply_count_automatic_unique: int64?
+      reply_count_automatic_unique_by_step: int64?
+      link_click_count: int64?
+      link_click_count_unique: int64?
+      link_click_count_unique_by_step: int64?
+      bounced_count: int64?
+      unsubscribed_count: int64?
+      completed_count: int64?
+      total_opportunities: int64?
+      total_opportunity_value: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaign_analytics_overview
+    path: /api/v2/campaigns/analytics/overview
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      open_count: int64?
+      open_count_unique: int64?
+      open_count_unique_by_step: int64?
+      link_click_count: int64?
+      link_click_count_unique: int64?
+      link_click_count_unique_by_step: int64?
+      reply_count: int64?
+      reply_count_unique: int64?
+      reply_count_unique_by_step: int64?
+      reply_count_automatic: int64?
+      reply_count_automatic_unique: int64?
+      reply_count_automatic_unique_by_step: int64?
+      bounced_count: int64?
+      unsubscribed_count: int64?
+      completed_count: int64?
+      emails_sent_count: int64?
+      contacted_count: int64?
+      new_leads_contacted_count: int64?
+      total_opportunities: int64?
+      total_opportunity_value: float64?
+      total_interested: int64?
+      total_meeting_booked: int64?
+      total_meeting_completed: int64?
+      total_closed: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaign_daily_analytics
+    path: /api/v2/campaigns/analytics/daily
+    for_each: campaigns
+    query: { campaign_id: "{{ parent.campaign_id }}" }
+    response:
+      records: $
+      pagination: none
+    primary_key: [campaign_id, date]
+    fields:
+      campaign_id: { path: parent.campaign_id, type: string }
+      date: string
+      sent: int64?
+      contacted: int64?
+      new_leads_contacted: int64?
+      opened: int64?
+      unique_opened: int64?
+      replies: int64?
+      unique_replies: int64?
+      replies_automatic: int64?
+      unique_replies_automatic: int64?
+      clicks: int64?
+      unique_clicks: int64?
+      opportunities: int64?
+      unique_opportunities: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaign_steps_analytics
+    path: /api/v2/campaigns/analytics/steps
+    for_each: campaigns
+    query: { campaign_id: "{{ parent.campaign_id }}" }
+    response:
+      records: $
+      pagination: none
+    primary_key: []
+    fields:
+      campaign_id: { path: parent.campaign_id, type: string }
+      step: string?
+      variant: string?
+      sent: int64?
+      opened: int64?
+      unique_opened: int64?
+      replies: int64?
+      unique_replies: int64?
+      replies_automatic: int64?
+      unique_replies_automatic: int64?
+      clicks: int64?
+      unique_clicks: int64?
+      opportunities: int64?
+      unique_opportunities: int64?
+      meetings_booked: int64?
+      won: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: campaign_sending_status
+    path: /api/v2/campaigns/{id}/sending-status
+    for_each: campaigns
+    params: { id: parent.campaign_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: [campaign_id]
+    fields:
+      campaign_id: { path: parent.campaign_id, type: string }
+      diagnostics: json?
+      summary: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subsequence_analytics
+    path: /api/v2/subsequences/analytics
+    for_each: campaigns
+    query: { campaign_id: "{{ parent.campaign_id }}" }
+    response:
+      records: $
+      pagination: none
+    primary_key: []
+    fields:
+      campaign_id: { path: parent.campaign_id, type: string }
+      subsequence_id: string?
+      emails_sent: float64?
+      unique_opens: float64?
+      unique_replies: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: subsequence_steps_analytics
+    path: /api/v2/subsequences/{id}/analytics/steps
+    for_each: subsequences
+    params: { id: parent.subsequence_id }
+    response:
+      records: $
+      pagination: none
+    primary_key: []
+    fields:
+      subsequence_id: { path: parent.subsequence_id, type: string }
+      step: string?
+      variant: string?
+      sent: int64?
+      opened: int64?
+      unique_opened: int64?
+      replies: int64?
+      unique_replies: int64?
+      replies_automatic: int64?
+      unique_replies_automatic: int64?
+      clicks: int64?
+      unique_clicks: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: lead_list_verification_stats
+    path: /api/v2/lead-lists/{id}/verification-stats
+    for_each: lead_lists
+    params: { id: parent.list_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: [list_id]
+    fields:
+      list_id: { path: parent.list_id, type: string }
+      stats: json?
+      total_leads: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: inbox_placement_analytics
+    path: /api/v2/inbox-placement-analytics
+    for_each: inbox_placement_tests
+    query: { test_id: "{{ parent.test_id }}", limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      test_id: { path: parent.test_id, type: string }
+      id: string
+      timestamp_created: string?
+      timestamp_created_date: string?
+      organization_id: string?
+      is_spam: bool?
+      has_category: bool?
+      sender_email: string?
+      sender_esp: float64?
+      recipient_email: string?
+      recipient_esp: float64?
+      recipient_geo: float64?
+      recipient_type: float64?
+      spf_pass: bool?
+      dkim_pass: bool?
+      dmarc_pass: bool?
+      smtp_ip_blacklist_report: json?
+      authentication_failure_results: json?
+      record_type: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: inbox_placement_reports
+    path: /api/v2/inbox-placement-reports
+    for_each: inbox_placement_tests
+    query: { test_id: "{{ parent.test_id }}", limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      test_id: { path: parent.test_id, type: string }
+      id: string
+      timestamp_created: string?
+      timestamp_created_date: string?
+      organization_id: string?
+      domain_blacklist_count: float64?
+      domain: string?
+      domain_ip: string?
+      domain_ip_blacklist_count: float64?
+      spam_assassin_score: float64?
+      spam_assassin_report: json?
+      blacklist_report: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_sales_agents
+    path: /api/v2/ai-agents/sales
+    query: { limit: "100" }
+    capture: { agent_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      workspace_id: string?
+      name: string?
+      description: string?
+      type: string?
+      input: string?
+      status: float64?
+      config: json?
+      created_by: string?
+      master_lead_list_id: string?
+      initial_scrape_ready: bool?
+      agent_type: float64?
+      self_improvement: bool?
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      timestamp_last_action: timestamptz?
+      timestamp_last_decision: timestamptz?
+      next_decision_time: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_inbox_managers
+    path: /api/v2/ai-agents/inbox-manager
+    query: { limit: "100" }
+    capture: { agent_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      organization_id: string?
+      name: string?
+      payload: json?
+      type: float64?
+      timestamp_created: string?
+      timestamp_updated: string?
+      status: float64?
+      is_auto_created: bool?
+      created_by: string?
+      description: string?
+      metadata: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_lead_finders
+    path: /api/v2/ai-agents/lead-finder
+    query: { limit: "100" }
+    capture: { agent_id: id }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      organization_id: string?
+      name: string?
+      payload: json?
+      type: float64?
+      timestamp_created: string?
+      timestamp_updated: string?
+      status: float64?
+      is_auto_created: bool?
+      created_by: string?
+      description: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_sales_activities
+    path: /api/v2/ai-agents/sales/{id}/activities
+    for_each: ai_sales_agents
+    params: { id: parent.agent_id }
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      id: string
+      ai_sdr_id: string?
+      workspace_id: string?
+      action_type: string?
+      action_status: string?
+      action_payload: json?
+      action_output: json?
+      email_id: string?
+      approved_by: string?
+      approved_at: timestamptz?
+      rejected_by: string?
+      rejected_at: timestamptz?
+      rejection_reason: string?
+      ai_reasoning: string?
+      ai_confidence: float64?
+      result: json?
+      error_message: string?
+      error_code: string?
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      timestamp_executed: timestamptz?
+      timestamp_completed: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_sales_guidance_rules
+    path: /api/v2/ai-agents/sales/{id}/guidance-rules
+    for_each: ai_sales_agents
+    params: { id: parent.agent_id }
+    response:
+      records: $.items
+      pagination: none
+    primary_key: [id]
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      id: string
+      title: string?
+      content: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_inbox_guidances
+    path: /api/v2/ai-agents/inbox-manager/{id}/guidances
+    for_each: ai_inbox_managers
+    params: { id: parent.agent_id }
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      id: string
+      organization_id: string?
+      label: string?
+      instruction: string?
+      status: float64?
+      category: float64?
+      basic_guidance_options: json?
+      timestamp_created: string?
+      timestamp_updated: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_inbox_replies
+    path: /api/v2/ai-agents/inbox-manager/{id}/replies
+    for_each: ai_inbox_managers
+    params: { id: parent.agent_id }
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      id: string
+      organization_id: string?
+      timestamp_created: string?
+      timestamp_updated: string?
+      thread_id: string?
+      lead: string?
+      feedback_positive: bool?
+      feedback_text: string?
+      html: string?
+      requires_hitl: bool?
+      requires_hitl_reason: string?
+      generation_lag_seconds: float64?
+      is_automatic_email: bool?
+      in_reply_to: string?
+      usage_metadata: json?
+      calendly_tool_used: bool?
+      confidence_score: float64?
+      information_requested: string?
+      estimated_time_saved_seconds: float64?
+      action_pending: bool?
+      sending_status: float64?
+      is_followup: bool?
+      error_code: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_lead_finder_activities
+    path: /api/v2/ai-agents/lead-finder/{id}/activities
+    for_each: ai_lead_finders
+    params: { id: parent.agent_id }
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      id: string
+      organization_id: string?
+      timestamp_created: timestamptz?
+      event_type: string?
+      payload: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_sales_analytics
+    path: /api/v2/ai-agents/sales/{id}/analytics
+    for_each: ai_sales_agents
+    params: { id: parent.agent_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      total_email_activity_per_day: json?
+      replies_per_day: json?
+      leads_found_per_day: json?
+      opportunities_per_day: json?
+      totals: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_sales_opportunities
+    path: /api/v2/ai-agents/sales/{id}/opportunities/summary
+    for_each: ai_sales_agents
+    params: { id: parent.agent_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      summary: json?
+      campaigns: json?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_inbox_analytics
+    path: /api/v2/ai-agents/inbox-manager/{id}/analytics/summary
+    for_each: ai_inbox_managers
+    params: { id: parent.agent_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      total_actions: float64?
+      replies_count: float64?
+      follow_ups_count: float64?
+      human_intervention: float64?
+      info_requested: float64?
+      unique_conversations: float64?
+      time_saved: float64?
+      average_confidence_score: float64?
+      involvement_rate: float64?
+      resolution_rate: float64?
+      no_show_follow_ups_generated: float64?
+      no_show_total_leads_recovered: float64?
+      no_show_total_revenue_recovered: float64?
+      no_show_time_saved: float64?
+      no_show_recovery_rate: float64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: ai_lead_finder_stats
+    path: /api/v2/ai-agents/lead-finder/{id}/stats
+    for_each: ai_lead_finders
+    params: { id: parent.agent_id }
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      agent_id: { path: parent.agent_id, type: string }
+      leads_added_total: int64?
+      top_ups_completed: int64?
+      top_ups_failed: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: saved_searches
+    path: /api/v2/supersearch-enrichment/saved-searches
+    query: { limit: "100" }
+    response:
+      records: $.items
+      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      search_filters: json?
+      organization_id: string?
+      timestamp_created: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
+discovery:
+  mode: static
+  default_resources: [campaigns, accounts, leads, lead_lists, emails]

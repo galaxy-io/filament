@@ -31,7 +31,9 @@ CDN assets, update both manifest variants and the docs icon, then check the URLs
 
 ## Embed and register
 
-Add the embed and constructor in `connectors/http/catalog.go`:
+In `connectors/http/catalog.go`, place the embed and manifest variable with the
+other embed declarations at the top, and the constructor with the other
+constructors. Do not append the embed after the functions:
 
 ```go
 //go:embed manifests/example.yaml
@@ -57,7 +59,8 @@ between registration, docs, and the source overview.
 ## Source page
 
 Create `docs/pages/connectors/sources/<name>.mdx`. Read the nearby source docs,
-especially Granola and Gong, for the current structure:
+especially Granola and Gong, and match their prose, formatting, and level of
+detail as well as their section structure:
 
 ```mdx
 ---
@@ -78,6 +81,12 @@ and live-validation status. Then use these sections:
 | Modes | Which resources support full or incremental reads, exact cursor semantics and limitations, keyless write-mode guidance, and deletion behavior. |
 | Behavior | Pagination, rate limits, parent dependencies, processing or visibility limits, and any special empty/error handling. |
 
+Use `Connection` in the scope column, leave absent defaults and parents blank,
+and include the method and full API path in endpoint cells. Write Behavior as
+short bullets with bold labels such as **Auth** and **Pagination**. Keep the
+introduction brief and put scope exclusions in concise prose. Avoid a research
+transcript or a live-validation checklist in the source page.
+
 Scale detail to the connector. A scopes table is useful when resource access
 differs, not mandatory for a one-key API. Describe what the user will receive
 and what they need to configure. Keep parser mechanics and test implementation
@@ -96,20 +105,16 @@ Update the current locations:
 1. `docs/docs.json`: add the source page among the alphabetical SaaS entries.
 2. `docs/pages/connectors/overview/introduction.mdx`: add a source row with the
    actual maturity and read modes.
-3. `docs/pages/connectors/building-a-connector/http-manifests.mdx`: add the name
-   to the existing manifest-source overview. If shared grammar/runtime behavior
-   changed, document it here too.
+
+Do not update `docs/pages/connectors/building-a-connector/http-manifests.mdx`
+for connector work. Source pages may link to it. Changes to that guide belong
+to an explicit documentation task.
 
 The former `sources/http.mdx` card list and `sources/overview.mdx` are not the
 current wiring points. Do not restore them or maintain an invented catalog count.
 
-## Tests and completion
+## Validation and completion
 
-Use the public constructor in metadata/discovery tests. For HTTP fixtures,
-`NewManifest(data)` takes the embedded manifest bytes. Set a configurable host
-through fake config, or replace a literal base URL with the mock server URL.
-Keep any higher test request rate local to the fixture.
-
-Place provider tests with the existing `source_test.go` examples, or use a
-dedicated provider test file when that is easier to maintain. Reuse `collectSink`.
-The required behavior checks and commands are in [validation.md](validation.md).
+Do not add provider-specific tests for manifest-based connectors. Run the
+existing checks described in [validation.md](validation.md). Shared runtime or
+grammar changes still need focused regression coverage.

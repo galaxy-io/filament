@@ -1,0 +1,312 @@
+---
+title: "Zoho CRM"
+description: "Read CRM and inventory records, custom modules, relationships, and administrative data from Zoho CRM"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-zoho-dark.svg"
+---
+
+The Zoho CRM source reads sales, activity, inventory, and scheduling records,
+module metadata, relationships, and optional administrative data. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It targets API version `v8`. The manifest has been checked against
+Zoho's API reference and exercised against a live account, including a synthetic
+lead created through the CRM UI. Resources without enabled features or populated
+parent records have not received the same level of live verification.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `access_token` | Connection | | Required. Secret. Zoho OAuth access token, without the authorization prefix. |
+| `host` | Connection | `https://www.zohoapis.com` | API domain returned with the token, without `/crm/v8`. |
+| `module_api_name` | Pipeline | `Leads` | Module API name used by the `module_*` resources. |
+| `related_list_api_name` | Pipeline | `Notes` | Related list used by `module_related_records`. |
+| `related_fields` | Pipeline | `id` | Comma-separated fields for related records, up to 50. The default returns membership IDs only. |
+| `report_from` | Pipeline | | Start date for `workflow_usage`, in `YYYY-MM-DD` format. |
+| `report_to` | Pipeline | | End date for `workflow_usage`, in `YYYY-MM-DD` format. |
+| `notification_channel_id` | Pipeline | | Existing channel ID required for `notification_subscriptions`. |
+| `wizard_id` | Pipeline | | Wizard ID required for `wizard_layout_details`. |
+| `wizard_layout_id` | Pipeline | | Associated layout ID required for `wizard_layout_details`; listed in wizard containers. |
+
+Create a Zoho OAuth client and obtain an access token using Zoho's
+[authorization flow](https://www.zoho.com/crm/developer/docs/api/v8/access-refresh.html).
+Use the returned `api_domain` as the host so requests reach the correct data
+center and environment. Access tokens
+[expire after one hour](https://www.zoho.com/crm/developer/docs/api/v8/oauth-overview.html).
+Filament does not acquire or refresh them. Replace the token before a run and
+finish within its lifetime.
+
+Use read scopes for the selected modules and settings. Broad read access uses
+`ZohoCRM.modules.READ`, `ZohoCRM.settings.READ`, `ZohoCRM.users.READ`, and
+`ZohoCRM.org.READ`; narrower scopes are listed on each endpoint in the
+[API reference](https://www.zoho.com/crm/developer/docs/api/v8/api-references.html).
+Connection testing calls the users endpoint and requires `ZohoCRM.users.READ`.
+Additional scope families apply to these optional resources:
+
+| Resources | Required scope |
+|---|---|
+| Email templates and details | `ZohoCRM.templates.email.READ` |
+| Inventory templates and details | `ZohoCRM.templates.inventory.READ` |
+| Currencies | `ZohoCRM.settings.currencies.READ` |
+| Fiscal year | `ZohoCRM.settings.fiscal_year.READ` |
+| Recycle bin | `ZohoCRM.settings.recycle_bin.READ` |
+| Audit export metadata | `ZohoCRM.settings.audit_logs.READ` |
+| Record sharing | `ZohoCRM.share.READ` and parent module access |
+| Enrichment configuration | `ZohoCRM.Zia.enrichment.READ` |
+| Backup metadata and URLs | `ZohoCRM.bulk.backup.READ` |
+| Notification subscriptions | `ZohoCRM.notifications.READ` |
+
+User permissions, edition, and enabled features still control visibility.
+Notes require administrator access. Portals, territories, multi-currency,
+scoring, enrichment, and automation resources may require additional features
+or administrative privileges. Errors remain visible when a selected resource
+is unavailable.
+
+## Resources
+
+Users, leads, accounts, contacts, deals, tasks, events, calls, campaigns, modules,
+and the four named field resources are selected by default. Everything else is
+optional. Selecting a child also reads its parents, but only selected resources
+are written. Internal record indexes are not selectable.
+
+Sales, activity, inventory, and scheduling record resources list IDs and then
+fetch each record individually. Notes use a paginated listing of note fields.
+This preserves returned custom fields, inventory line items, and nested values
+in `raw`, alongside typed columns where defined. `events` represents meetings.
+Leads include converted records. Detail reads cost one additional API call per
+record; they remain subject to the nested-data limits described below.
+
+**CRM records**
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `users` | `GET /crm/v8/users` |  |
+| `leads` | `GET /crm/v8/Leads → GET /crm/v8/Leads/{record_id}` |  |
+| `accounts` | `GET /crm/v8/Accounts → GET /crm/v8/Accounts/{record_id}` |  |
+| `contacts` | `GET /crm/v8/Contacts → GET /crm/v8/Contacts/{record_id}` |  |
+| `deals` | `GET /crm/v8/Deals → GET /crm/v8/Deals/{record_id}` |  |
+| `tasks` | `GET /crm/v8/Tasks → GET /crm/v8/Tasks/{record_id}` |  |
+| `events` | `GET /crm/v8/Events → GET /crm/v8/Events/{record_id}` |  |
+| `calls` | `GET /crm/v8/Calls → GET /crm/v8/Calls/{record_id}` |  |
+| `campaigns` | `GET /crm/v8/Campaigns → GET /crm/v8/Campaigns/{record_id}` |  |
+| `products` | `GET /crm/v8/Products → GET /crm/v8/Products/{record_id}` |  |
+| `cases` | `GET /crm/v8/Cases → GET /crm/v8/Cases/{record_id}` |  |
+| `solutions` | `GET /crm/v8/Solutions → GET /crm/v8/Solutions/{record_id}` |  |
+| `notes` | `GET /crm/v8/Notes` |  |
+| `vendors` | `GET /crm/v8/Vendors → GET /crm/v8/Vendors/{record_id}` |  |
+| `price_books` | `GET /crm/v8/Price_Books → GET /crm/v8/Price_Books/{record_id}` |  |
+| `quotes` | `GET /crm/v8/Quotes → GET /crm/v8/Quotes/{record_id}` |  |
+| `sales_orders` | `GET /crm/v8/Sales_Orders → GET /crm/v8/Sales_Orders/{record_id}` |  |
+| `purchase_orders` | `GET /crm/v8/Purchase_Orders → GET /crm/v8/Purchase_Orders/{record_id}` |  |
+| `invoices` | `GET /crm/v8/Invoices → GET /crm/v8/Invoices/{record_id}` |  |
+| `services` | `GET /crm/v8/Services__s → GET /crm/v8/Services__s/{record_id}` |  |
+| `appointments` | `GET /crm/v8/Appointments__s → GET /crm/v8/Appointments__s/{record_id}` |  |
+| `appointments_rescheduled_history` | `GET /crm/v8/Appointments_Rescheduled_History__s` |  |
+| `deal_contact_roles` | `GET /crm/v8/Deals → GET /crm/v8/Deals/{record_id}/Contact_Roles` |  |
+| `lead_conversion_options` | `GET /crm/v8/Leads → GET /crm/v8/Leads/{record_id}/__conversion_options` |  |
+
+**Configured module**
+
+Set `module_api_name` to a standard or custom module API name. These resources
+read one configured module per Pipeline; they do not automatically traverse all
+custom modules or related lists. Use separate destination tables when changing
+the module or relation. Select only endpoints supported by that module.
+
+`module_related_lists` identifies available relationships. Set
+`related_list_api_name` and `related_fields` for ordinary related-record lists;
+use the dedicated email, attachment, and timeline resources for those APIs.
+The generic related-record resource returns selected fields, not full details.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `module_records` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}` |  |
+| `module_fields` | `GET /crm/v8/settings/fields?module={module}` |  |
+| `module_layouts` | `GET /crm/v8/settings/layouts?module={module}` |  |
+| `module_related_lists` | `GET /crm/v8/settings/related_lists?module={module}` |  |
+| `module_custom_views` | `GET /crm/v8/settings/custom_views?module={module}` |  |
+| `module_tags` | `GET /crm/v8/settings/tags?module={module}` |  |
+| `module_record_locking` | `GET /crm/v8/settings/record_locking_configurations?module={module}` |  |
+| `module_metadata` | `GET /crm/v8/settings/modules/{module}` |  |
+| `module_deleted_records` | `GET /crm/v8/{module}/deleted` |  |
+| `module_attachments` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/Attachments` |  |
+| `module_rich_text` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/actions/fetch_full_data` |  |
+| `module_email_drafts` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/__email_drafts` |  |
+| `module_record_sharing` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/actions/share` |  |
+| `module_entity_scores` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/Entity_Scores__s` |  |
+| `module_related_records` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/{related_list}` |  |
+| `module_connected_workflow_rules` | `GET /crm/v8/settings/connected_workflows/{parent_id}/rules?module={module}` | `connected_workflows` |
+| `module_map_dependencies` | `GET /crm/v8/settings/layouts/{layout_id}/map_dependency?module={module}` | `module_layouts` |
+| `module_timeline` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/__timeline` |  |
+| `module_blueprints` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/actions/blueprint` |  |
+| `module_emails` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/Emails` |  |
+| `module_email_details` | `GET /crm/v8/{module}/{record_id}/Emails/{message_id}` | `module_emails` |
+| `module_email_sharing` | `GET /crm/v8/{module} → GET /crm/v8/{module}/{record_id}/__emails_sharing_details` |  |
+| `module_workflow_configuration` | `GET /crm/v8/workflow_configurations?module={module}` |  |
+| `module_threshold_unassigned_users` | `GET /crm/v8/settings/automation/assignment_thresholds/actions/unassigned_users?module={module}` |  |
+| `module_picklist_values` | `GET /crm/v8/settings/fields/{field_id}/pick_list_values?module={module}` | Picklist field listing |
+| `module_map_dependency_details` | `GET /crm/v8/settings/layouts/{layout_id}/map_dependency/{dependency_id}?module={module}` | `module_map_dependencies` |
+| `module_connected_workflow_rule_details` | `GET /crm/v8/settings/connected_workflows/{workflow_id}/rules/{rule_id}` | `module_connected_workflow_rules` |
+| `module_custom_view_details` | `GET /crm/v8/settings/custom_views/{id}?module={module}` | `module_custom_views` |
+
+**Reference data and templates**
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `modules` | `GET /crm/v8/settings/modules` |  |
+| `organization` | `GET /crm/v8/org` |  |
+| `roles` | `GET /crm/v8/settings/roles` |  |
+| `profiles` | `GET /crm/v8/settings/profiles` |  |
+| `profile_details` | `GET /crm/v8/settings/profiles/{parent_id}` | `profiles` |
+| `currencies` | `GET /crm/v8/org/currencies` |  |
+| `lead_fields` | `GET /crm/v8/settings/fields?module=Leads` |  |
+| `account_fields` | `GET /crm/v8/settings/fields?module=Accounts` |  |
+| `contact_fields` | `GET /crm/v8/settings/fields?module=Contacts` |  |
+| `deal_fields` | `GET /crm/v8/settings/fields?module=Deals` |  |
+| `deal_layouts` | `GET /crm/v8/settings/layouts?module=Deals` |  |
+| `pipelines` | `GET /crm/v8/settings/pipeline?layout_id={layout_id}` | `deal_layouts` |
+| `contact_roles` | `GET /crm/v8/Contacts/roles` |  |
+| `variables` | `GET /crm/v8/settings/variables` |  |
+| `variable_groups` | `GET /crm/v8/settings/variable_groups` |  |
+| `global_picklists` | `GET /crm/v8/settings/global_picklists` |  |
+| `global_picklist_associations` | `GET /crm/v8/settings/global_picklists/{parent_id}/actions/associations` | `global_picklists` |
+| `global_picklist_option_associations` | `GET /crm/v8/settings/global_picklists/{picklist_id}/actions/pick_list_values_associations` | `global_picklists` |
+| `wizards` | `GET /crm/v8/settings/wizards` |  |
+| `wizard_layout_details` | `GET /crm/v8/settings/wizards/{wizard_id}?layout_id={layout_id}` |  |
+| `unsubscribe_links` | `GET /crm/v8/settings/unsubscribe_links` |  |
+| `unsubscribe_link_associations` | `GET /crm/v8/settings/unsubscribe_link/actions/associations` |  |
+| `email_templates` | `GET /crm/v8/settings/email_templates` |  |
+| `email_template_details` | `GET /crm/v8/settings/email_templates/{template_id}` | `email_templates` |
+| `inventory_templates` | `GET /crm/v8/settings/inventory_templates` |  |
+| `inventory_template_details` | `GET /crm/v8/settings/inventory_templates/{parent_id}` | `inventory_templates` |
+| `call_preferences` | `GET /crm/v8/settings/call_preferences` |  |
+| `service_preferences` | `GET /crm/v8/settings/service_preferences` |  |
+| `appointment_preferences` | `GET /crm/v8/settings/appointment_preferences` |  |
+| `duplicate_check_preference` | `GET /crm/v8/settings/duplicate_check_preference?module=Leads` |  |
+| `from_addresses` | `GET /crm/v8/settings/emails/actions/from_addresses` |  |
+
+**Organization and access**
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `territories` | `GET /crm/v8/settings/territories` |  |
+| `territory_users` | `GET /crm/v8/settings/territories/{parent_id}/users` | `territories` |
+| `user_territories` | `GET /crm/v8/users/{parent_id}/territories` | `users` |
+| `user_groups` | `GET /crm/v8/settings/user_groups` |  |
+| `user_group_members` | `GET /crm/v8/settings/user_groups/{group_id}/sources` | `user_groups` |
+| `user_unavailability` | `GET /crm/v8/settings/users_unavailability` |  |
+| `data_sharing` | `GET /crm/v8/settings/data_sharing` |  |
+| `data_sharing_rules` | `GET /crm/v8/settings/data_sharing/rules` |  |
+| `data_sharing_rule_details` | `GET /crm/v8/settings/data_sharing/rules/{rule_id}` | `data_sharing_rules` |
+| `portals` | `GET /crm/v8/settings/portals` |  |
+| `portal_user_types` | `GET /crm/v8/settings/portals/{portal_name}/user_type` | `portals` |
+| `portal_users` | `GET /crm/v8/settings/portals/{portal_name}/user_type/{user_type_id}/users` | `portal_user_types` |
+| `business_hours` | `GET /crm/v8/settings/business_hours` | `organization` |
+| `shift_hours` | `GET /crm/v8/settings/business_hours/shift_hours` | `organization` |
+| `holidays` | `GET /crm/v8/settings/holidays` | `organization` |
+| `fiscal_year` | `GET /crm/v8/settings/fiscal_year` |  |
+
+**Automation, enrichment, and export metadata**
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `assignment_rules` | `GET /crm/v8/settings/automation/assignment_rules` |  |
+| `assignment_thresholds` | `GET /crm/v8/settings/automation/assignment_thresholds` |  |
+| `cadences` | `GET /crm/v8/settings/automation/cadences` |  |
+| `scoring_rules` | `GET /crm/v8/settings/automation/scoring_rules` |  |
+| `workflow_rules` | `GET /crm/v8/settings/automation/workflow_rules` |  |
+| `connected_workflows` | `GET /crm/v8/settings/connected_workflows` |  |
+| `field_updates` | `GET /crm/v8/settings/automation/field_updates` |  |
+| `email_notifications` | `GET /crm/v8/settings/automation/email_notifications` |  |
+| `automation_tasks` | `GET /crm/v8/settings/automation/tasks` |  |
+| `webhooks` | `GET /crm/v8/settings/automation/webhooks` |  |
+| `webhook_failures` | `GET /crm/v8/settings/automation/webhook_failures` |  |
+| `audit_log_exports` | `GET /crm/v8/settings/audit_log_export` |  |
+| `recycle_bin` | `GET /crm/v8/settings/recycle_bin` |  |
+| `enrichment_configuration` | `GET /crm/v8/settings/zia/data_enrichment` |  |
+| `organization_enrichment` | `GET /crm/v8/__zia_org_enrichment` |  |
+| `workflow_limits` | `GET /crm/v8/settings/automation/workflow_rules/actions/rules_count` |  |
+| `connected_workflow_configuration` | `GET /crm/v8/settings/connected_workflows/actions/configurations` |  |
+| `workflow_rule_details` | `GET /crm/v8/settings/automation/workflow_rules/{parent_id}` | `workflow_rules` |
+| `connected_workflow_details` | `GET /crm/v8/settings/connected_workflows/{parent_id}` | `connected_workflows` |
+| `webhook_details` | `GET /crm/v8/settings/automation/webhooks/{parent_id}` | `webhooks` |
+| `email_notification_details` | `GET /crm/v8/settings/automation/email_notifications/{parent_id}` | `email_notifications` |
+| `backup` | `GET /crm/bulk/v8/backup` |  |
+| `backup_history` | `GET /crm/bulk/v8/backup/history` |  |
+| `threshold_configured_users` | `GET /crm/v8/settings/automation/assignment_thresholds/{threshold_id}/restrict_to?module={module}` | `assignment_thresholds` |
+| `assignment_threshold_modules` | `GET /crm/v8/settings/automation/assignment_thresholds/actions/groups` |  |
+| `email_notification_usage` | `GET /crm/v8/settings/automation/email_notifications/actions/usage_reports` |  |
+| `webhook_usage` | `GET /crm/v8/settings/automation/webhooks/actions/usage_reports` |  |
+| `webhook_associated_modules` | `GET /crm/v8/settings/automation/webhooks/actions/associated_modules` |  |
+| `workflow_usage` | `GET /crm/v8/settings/automation/workflow_rules/{workflow_id}/actions/usage` | `workflow_rules` |
+| `notification_subscriptions` | `GET /crm/v8/actions/watch` |  |
+| `backup_download_urls` | `GET /crm/bulk/v8/backup/urls` |  |
+| `scoring_rule_details` | `GET /crm/v8/settings/automation/scoring_rules/{id}` | `scoring_rules` |
+| `assignment_rule_details` | `GET /crm/v8/settings/automation/assignment_rules/{id}?module={module}` | `assignment_rules` |
+| `field_update_details` | `GET /crm/v8/settings/automation/field_updates/{id}` | `field_updates` |
+| `automation_task_details` | `GET /crm/v8/settings/automation/tasks/{id}` | `automation_tasks` |
+
+IDs are strings. Rows retain additional returned fields in `raw`. Child tables
+include parent keys where IDs are scoped to a parent. Profile, template, workflow,
+custom-view, and automation detail resources include fields omitted from their
+corresponding listings. Nested definitions remain JSON rather than separate tables.
+
+## Modes
+
+All resources support full reads. Use **full upsert** for keyed resources or
+**full replace** to remove rows no longer returned within your visibility.
+Use **full replace** for resources without a primary key, including configuration
+snapshots, sharing entries, usage reports, notification subscriptions, and backup
+URLs. These resources do not invent IDs for rows without a stable upstream key.
+
+Incremental reads are not supported. Update timestamps do not establish that
+relationship changes or newly visible records can be captured incrementally.
+
+## Behavior
+
+- **Auth**: requests use `Zoho-oauthtoken` against the configured host. Refresh
+  is external; this is not an unattended OAuth integration.
+- **Pagination**: record indexes and ordinary related records follow
+  `info.next_page_token`. Email lists use `info.next_index`. Paged collections
+  use numbered pages and their documented completion signal. Most request 200
+  rows; scoring rules request 50 and organization enrichment requests 100.
+  Detail and unpaged settings endpoints use one request per parent.
+- **Record limit**: the [Get Records API](https://www.zoho.com/crm/developer/docs/api/v8/get-records.html)
+  permits at most 100,000 records per module in a page-token walk. Larger modules
+  require export or partitioning logic outside this connector.
+- **Nested data**: individual records can return partial subforms, multi-select
+  lookups, or multi-user lookups. Inspect `$has_more` in `raw`; this connector does
+  not automatically paginate those embedded arrays. Use separately supported
+  subform or linking-module APIs where available. Ordinary record reads truncate
+  rich text to 500 characters; `module_rich_text` fetches the separate full content.
+- **Relationships**: related records use the configured relation and selected
+  fields. Historical associations such as deal stage history need their own
+  related-list selection. Email details require visibility of the owner's mail.
+  Attachments contain metadata only; binary content is not downloaded.
+- **History windows**: deleted records cover Zoho's 60-day recycle-bin and
+  120-day permanent-deletion windows. Appointment rescheduling exposes only the
+  latest 20 changes per appointment. Webhook failures default to 30 days and
+  action usage reports to seven days. Backup history covers the past year.
+  `workflow_usage` requires both dates within Zoho's supported 90-day window.
+- **Recovery**: top-level paged reads can resume from saved cursors. Zoho page
+  tokens expire after 24 hours and are bound to the user and request parameters.
+  Parent-dependent reads restart from their parent listing.
+- **Rate limiting**: Zoho enforces [credit and concurrency limits](https://www.zoho.com/crm/developer/docs/api/v8/api-limits.html).
+  Detail reads increase credit usage. Filament retries HTTP 429 and transient
+  server errors; it does not track the organization's rolling credit budget.
+- **Empty results**: HTTP 204 produces no rows. Permission, feature, and token
+  errors fail the read. Blueprint reads select records whose `$process_flow`
+  flag is true. If a record leaves its process before the detail request, the
+  read fails visibly.
+
+This covers the listed JSON read resources, not a complete account backup.
+Bulk Read and audit export creation, polling, archive download, binary files,
+images, and attachment content require a driver or a separate export workflow.
+Backup and audit resources here expose existing job metadata only. Notification
+resources inspect an existing channel; they do not subscribe to or ingest events.
+
+Wizard details read one configured wizard and layout per Pipeline. Administrative
+counters are not separate resources.
+Alternate record lookups through external IDs, search, COQL, and Composite API are
+also not separate tables. Mutation APIs and mutation-job status APIs are outside
+this source connector. See the
+[complete API index](https://www.zoho.com/crm/developer/docs/api/v8/api-references.html)
+when deciding whether this coverage meets your export requirements.
