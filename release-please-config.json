@@ -6,7 +6,18 @@
     ".": {
       "release-type": "go",
       "include-component-in-tag": false,
-      "exclude-paths": ["charts", "sdks", "docs"]
+      "exclude-paths": [
+        "charts",
+        "sdks",
+        "docs"
+      ],
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "charts/filament/Chart.yaml",
+          "jsonpath": "$.appVersion"
+        }
+      ]
     },
     "charts/filament": {
       "release-type": "helm",

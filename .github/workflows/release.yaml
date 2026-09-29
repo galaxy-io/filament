@@ -43,35 +43,3 @@ jobs:
       tag: ${{ needs.release.outputs.tag }}
       prerelease: false
     secrets: inherit
-
-  # The chart tracks the platform through appVersion. Committing it as a fix
-  # lets Release Please open the chart's release PR.
-  chart-app-version:
-    needs: [release, images, cli]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        id: app-token
-        with:
-          app-id: ${{ secrets.GX_NULL_APP_ID }}
-          private-key: ${{ secrets.GX_NULL_PRIVATE_KEY }}
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          token: ${{ steps.app-token.outputs.token }}
-
-      - name: Set appVersion
-        env:
-          TAG: ${{ needs.release.outputs.tag }}
-        run: |
-          version="${TAG#v}" yq -i '.appVersion = strenv(version)' charts/filament/Chart.yaml
-          git config user.name "gx-null[bot]"
-          git config user.email "286761379+gx-null[bot]@users.noreply.github.com"
-          git add charts/filament/Chart.yaml
-          git diff --cached --quiet && exit 0
-          git commit -m "fix(charts): appVersion ${TAG}"
-          git push origin main
