@@ -1,23 +1,24 @@
 ---
 title: "Overview"
-description: "Connect to Filament's API and understand protocols, tenancy, errors, and pagination"
+description: "Use an SDK or call Filament's API directly, with authentication, tenancy, and pagination"
 ---
 
 Filament's API is [ConnectRPC](https://connectrpc.com), generated from the
-protobuf definitions in `protos/ingestion/v1/` and `protos/metrics/v1/`.
+protobuf definitions in `protos/ingestion/v1/`, `protos/metrics/v1/`, and
+`protos/auth/v1/`.
 `ingestion.v1.IngestionService` (connectors, connections, pipelines, runs) and
-`metrics.v1.MetricsService` (dashboard aggregations) share one listener. The
-built-in web app uses this same API; there is no separate
-internal API behind it.
+`metrics.v1.MetricsService` (dashboard aggregations) share one listener with
+`auth.v1.AuthService` (authentication and team management). The built-in web
+app and the SDKs use this same API.
 
-Every RPC is an HTTP POST to `/{package.Service}/{Method}`:
+Every RPC has a Connect HTTP POST route at `/{package.Service}/{Method}`:
 
 ```
 POST /ingestion.v1.IngestionService/CreatePipeline
 POST /metrics.v1.MetricsService/QueryTimeseries
 ```
 
-The `server` binary serves both services on `SERVER_ADDR` (default `:8080`).
+The `server` binary serves these services on `SERVER_ADDR` (default `:8080`).
 The `standalone` binary and the embeddable `app.Run` library serve the same API
 on `INGESTION_ADDR` (default `:8080`).
 
@@ -33,32 +34,63 @@ three ConnectRPC wire protocols work against a default deployment.
 | gRPC | No (needs HTTP/2) |
 
 Plain gRPC needs HTTP/2 end to end. The shipped binaries listen plaintext
-without h2c, so a stock gRPC client fails against them directly. If you need
-plain gRPC, terminate TLS with HTTP/2 at a proxy or load balancer in front of
-the server. Connect and gRPC-Web clients need nothing extra.
+without h2c, so a stock gRPC client fails against them directly. Serving
+native gRPC requires enabling HTTP/2 on the backend listener as well as on
+any proxy in front of it. TLS termination at a proxy alone does not enable
+HTTP/2 on the backend. Connect and gRPC-Web clients need nothing extra.
 
 The Connect protocol is ordinary JSON over POST, so any HTTP client works:
 
 ```sh
 curl -X POST http://localhost:8080/ingestion.v1.IngestionService/ListConnectors \
   -H "Content-Type: application/json" \
+  -H "Connect-Protocol-Version: 1" \
   -d '{"kind": "CONNECTOR_KIND_SOURCE"}'
 ```
 
+For authenticated deployments, also send `Authorization: Bearer <token>`.
+
+## OpenAPI
+
+Run `buf generate` (or `just proto`) from the repository root to regenerate
+the Go bindings and `api/openapi.json`. The pinned
+[protoc-gen-connect-openapi](https://github.com/sudorandom/protoc-gen-connect-openapi)
+plugin in `buf.gen.yaml` exports OpenAPI 3.1 for the existing unary Connect
+JSON endpoints. Buf runs this plugin remotely; generation requires network
+access to the Buf Schema Registry.
+
+The specification describes request and response types, Connect headers,
+and error responses. Fern uses it to generate the SDKs, with method
+names and authentication metadata configured in `fern/`. The SDK calls the
+existing Connect JSON endpoints directly.
+
+Run `just sdks` from the repository root to regenerate the OpenAPI
+specification and configured SDKs. This requires Buf and Fern login.
+Use `just proto-check` to check generated API files against their committed
+versions.
+
+## SDKs
+
+Generated clients wrap this API for [Python](/pages/guides/sdks/python) and
+[TypeScript](/pages/guides/sdks/typescript). Both cover the unary methods;
+streaming `TailRun` requires a client with Connect streaming support and is
+not included.
+
 ## Authentication
 
-There is none. The API ships with no authentication, no interceptors, and
-CORS open to any origin. Anyone who can reach the listener can read and write
-everything. Run Filament on a private network and control access at the
-network layer, whether through a VPN, a service mesh, or an authenticating
-reverse proxy in front of the port.
+When an identity provider is configured, the API accepts its bearer tokens
+or Filament's session cookie. Only the auth configuration, login, token
+minting, logout, registration, and invitation acceptance procedures are
+public.
+
+Without an identity provider, the API is unauthenticated. Keep such
+deployments private or protect them at the network layer.
 
 ## Tenancy
 
-Every request message carries a `tenant_id`. An empty string resolves to the
-default tenant, the zero UUID `00000000-0000-0000-0000-000000000000`, which
-the server creates at startup. Single-tenant deployments can omit the field
-everywhere and never think about it.
+Authenticated requests use the tenant resolved from the caller's identity.
+With authentication disabled, every request uses the server's configured
+default tenant. Request bodies and query parameters do not select a tenant.
 
 ## Errors
 
@@ -68,6 +100,8 @@ These are the codes you will actually see.
 | Code | When |
 |---|---|
 | `invalid_argument` | Malformed request |
+| `unauthenticated` | Missing, invalid, or expired credentials when authentication is enabled |
+| `permission_denied` | The caller lacks the required role |
 | `not_found` | No row for the id, or an unknown connector name on `GetConnector` |
 | `failed_precondition` | The operation is valid but the state refuses it |
 | `aborted` | Optimistic-lock conflict on `version` |

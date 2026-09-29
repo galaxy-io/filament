@@ -772,6 +772,8 @@ func (r *pgCDCRun) pastFloor(resource string, lsn pglogrepl.LSN) bool {
 // pushStreamMarks drains every resource's writer at the cycle's final position,
 // so the next cycle resumes from here even for resources that saw no change.
 func (r *pgCDCRun) pushStreamMarks(lsn pglogrepl.LSN) error {
+	// The final position must outrank every row even when checkpoint folds arrive out of order.
+	r.seq++
 	for _, resource := range r.resources {
 		w, err := r.writer(resource)
 		if err != nil {

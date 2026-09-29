@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	oidcclient "github.com/zitadel/oidc/v3/pkg/client"
 	"github.com/zitadel/zitadel-go/v3/pkg/authorization"
 	zitadeloauth "github.com/zitadel/zitadel-go/v3/pkg/authorization/oauth"
 	zclient "github.com/zitadel/zitadel-go/v3/pkg/client"
@@ -47,10 +48,12 @@ type Options struct {
 
 // Provider implements filament's identity port against Zitadel.
 type Provider struct {
-	issuer   string
-	api      *zclient.Client
-	verifier authorization.Verifier[*zitadeloauth.IntrospectionContext]
-	project  projectRef
+	issuer string
+	// tokenEndpoint is discovered once; GetToken runs every grant against it.
+	tokenEndpoint string
+	api           *zclient.Client
+	verifier      authorization.Verifier[*zitadeloauth.IntrospectionContext]
+	project       projectRef
 	// rolesClaim is precomputed; every token-authenticated request reads it.
 	rolesClaim string
 	// secureCookies marks the session cookie Secure when the UI is served
@@ -83,7 +86,12 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, fmt.Errorf("zitadel: connect %s: %w", issuer, err)
 	}
 
-	p := &Provider{issuer: issuer, api: api, secureCookies: strings.HasPrefix(opts.UIOrigin, "https://")}
+	discovered, err := oidcclient.Discover(ctx, issuer, http.DefaultClient)
+	if err != nil {
+		_ = api.Close()
+		return nil, fmt.Errorf("zitadel: discover %s: %w", issuer, err)
+	}
+	p := &Provider{issuer: issuer, tokenEndpoint: discovered.TokenEndpoint, api: api, secureCookies: strings.HasPrefix(opts.UIOrigin, "https://")}
 	if err := p.bootstrap(ctx); err != nil {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel bootstrap: %w", err)
@@ -169,14 +177,20 @@ func (p *Provider) authenticateToken(ctx context.Context, bearer string) (identi
 // what to request from the issuer.
 func (p *Provider) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{
-		Issuer: p.issuer,
-		ServiceAccountScopes: []string{
-			"openid",
-			"urn:zitadel:iam:user:resourceowner",
-			"urn:zitadel:iam:org:project:id:" + p.project.id + ":aud",
-			"urn:zitadel:iam:org:projects:roles",
-		},
+		Issuer:               p.issuer,
+		ServiceAccountScopes: p.serviceAccountScopes(),
 	}), nil
+}
+
+// serviceAccountScopes put the organization, filament's audience, and the
+// caller's roles on a client-credentials token.
+func (p *Provider) serviceAccountScopes() []string {
+	return []string{
+		"openid",
+		"urn:zitadel:iam:user:resourceowner",
+		"urn:zitadel:iam:org:project:id:" + p.project.id + ":aud",
+		"urn:zitadel:iam:org:projects:roles",
+	}
 }
 
 // adminCaller resolves the caller the interceptor stashed and requires

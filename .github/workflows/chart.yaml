@@ -2,9 +2,7 @@ name: "CD: Helm Chart"
 
 on:
   push:
-    branches: [main]
-    paths: [charts/filament/Chart.yaml]
-  workflow_dispatch:
+    tags: ["helm-chart-*"]
 
 permissions:
   attestations: write
@@ -18,7 +16,6 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,6 +37,11 @@ jobs:
           version=$(yq -r '.version' charts/filament/Chart.yaml)
           app_version=$(yq -r '.appVersion' charts/filament/Chart.yaml)
           owner="${GITHUB_REPOSITORY_OWNER,,}"
+
+          if [[ "helm-chart-${version}" != "$GITHUB_REF_NAME" ]]; then
+            echo "Chart.yaml is $version but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
 
           {
             echo "version=$version"
@@ -117,29 +119,3 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
           create-storage-record: false
-
-      - name: Tag release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APP_VERSION: ${{ steps.metadata.outputs.app_version }}
-          OWNER: ${{ steps.metadata.outputs.owner }}
-          REPOSITORY: ${{ steps.metadata.outputs.repository }}
-          TAG: ${{ steps.metadata.outputs.tag }}
-          VERSION: ${{ steps.metadata.outputs.version }}
-        run: |
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG already exists"
-            exit 0
-          fi
-
-          notes=$(cat <<NOTES
-          Helm chart ${VERSION} for Filament ${APP_VERSION}.
-
-          \`\`\`sh
-          helm install filament oci://${REPOSITORY} --version ${VERSION}
-          gh attestation verify --owner ${OWNER} oci://${REPOSITORY}:${VERSION}
-          \`\`\`
-          NOTES
-          )
-
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes "$notes" --latest=false

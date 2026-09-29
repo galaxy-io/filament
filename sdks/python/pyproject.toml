@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "filament-py"
+version = "0.3.0"
+description = "Generated Python client for the Filament API"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = [
+    "anyio>=4,<5",
+    "httpx>=0.28,<1",
+    "pydantic>=2.8,<3",
+    "typing-extensions>=4.10,<5",
+]
+
+[project.urls]
+Repository = "https://github.com/galaxy-io/filament"
+Issues = "https://github.com/galaxy-io/filament/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/filament"]
+exclude = ["src/filament/tests"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"py.typed" = "filament/py.typed"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/filament", "pyproject.toml", "README.md", "LICENSE", "py.typed"]
+exclude = ["src/filament/tests"]

@@ -1,0 +1,273 @@
+# SDK metadata only. Request/response schemas come from api/openapi.json.
+info:
+  title: Filament
+  description: Filament API over Connect JSON.
+# A default server makes the base URL optional; every client points it at
+# its own deployment.
+servers:
+  - url: http://localhost:8080
+components:
+  schemas:
+    connect-protocol-version:
+      type: string
+      const: "1"
+      examples: ["1"]
+    auth.v1.GetTokenRequest:
+      required: [clientId, clientSecret]
+    auth.v1.GetTokenResponse:
+      required: [accessToken, expiresIn]
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Access token from the configured identity provider.
+security:
+  - BearerAuth: []
+paths:
+  /auth.v1.AuthService/AcceptInvite:
+    post:
+      parameters: &connect_headers
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+          example: "1"
+        - name: Connect-Timeout-Ms
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: accept_invite
+      security: []
+  /auth.v1.AuthService/CreateServiceAccount:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "service_account"
+      x-fern-sdk-method-name: create
+  /auth.v1.AuthService/GetAuthConfig:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: get_config
+      security: []
+  /auth.v1.AuthService/GetSession:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: get_session
+  /auth.v1.AuthService/InviteMember:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "member"
+      x-fern-sdk-method-name: invite
+  /auth.v1.AuthService/ListMembers:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "member"
+      x-fern-sdk-method-name: list
+  /auth.v1.AuthService/ListServiceAccounts:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "service_account"
+      x-fern-sdk-method-name: list
+  /auth.v1.AuthService/Login:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: login
+      security: []
+  /auth.v1.AuthService/GetToken:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: get_token
+      security: []
+  /auth.v1.AuthService/Logout:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: logout
+      security: []
+  /auth.v1.AuthService/Register:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "auth"
+      x-fern-sdk-method-name: register
+      security: []
+  /auth.v1.AuthService/RemoveMember:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "member"
+      x-fern-sdk-method-name: remove
+  /auth.v1.AuthService/RemoveServiceAccount:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "service_account"
+      x-fern-sdk-method-name: remove
+  /auth.v1.AuthService/RotateServiceAccountSecret:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "service_account"
+      x-fern-sdk-method-name: rotate_secret
+  /auth.v1.AuthService/SetMemberRole:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "member"
+      x-fern-sdk-method-name: set_role
+  /ingestion.v1.IngestionService/CreateConnection:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connection"
+      x-fern-sdk-method-name: create
+  /ingestion.v1.IngestionService/CreatePipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: create
+  /ingestion.v1.IngestionService/CreatePipelineNotifier:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "notifier"]
+      x-fern-sdk-method-name: create
+  /ingestion.v1.IngestionService/CreatePipelineSchedule:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "schedule"]
+      x-fern-sdk-method-name: create
+  /ingestion.v1.IngestionService/CreatePipelineVersion:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "version"]
+      x-fern-sdk-method-name: create
+  /ingestion.v1.IngestionService/DeleteConnection:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connection"
+      x-fern-sdk-method-name: delete
+  /ingestion.v1.IngestionService/DeletePipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: delete
+  /ingestion.v1.IngestionService/DeletePipelineNotifier:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "notifier"]
+      x-fern-sdk-method-name: delete
+  /ingestion.v1.IngestionService/DiscoverResources:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connector"
+      x-fern-sdk-method-name: discover_resources
+  /ingestion.v1.IngestionService/GetConnection:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connection"
+      x-fern-sdk-method-name: get
+  /ingestion.v1.IngestionService/GetConnector:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connector"
+      x-fern-sdk-method-name: get
+  /ingestion.v1.IngestionService/GetPipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: get
+  /ingestion.v1.IngestionService/GetPipelineVersion:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "version"]
+      x-fern-sdk-method-name: get
+  /ingestion.v1.IngestionService/GetResourceColumns:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connector"
+      x-fern-sdk-method-name: get_resource_columns
+  /ingestion.v1.IngestionService/GetRun:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "run"
+      x-fern-sdk-method-name: get
+  /ingestion.v1.IngestionService/ListConnections:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connection"
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/ListConnectors:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connector"
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/ListPipelineNotifiers:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "notifier"]
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/ListPipelineVersions:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "version"]
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/ListPipelines:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/ListRuns:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "run"
+      x-fern-sdk-method-name: list
+  /ingestion.v1.IngestionService/RunPipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: run
+  /ingestion.v1.IngestionService/SignalRun:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "run"
+      x-fern-sdk-method-name: signal
+  /ingestion.v1.IngestionService/UpdateConnection:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connection"
+      x-fern-sdk-method-name: update
+  /ingestion.v1.IngestionService/UpdatePipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: update
+  /ingestion.v1.IngestionService/UpdatePipelineNotifier:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "notifier"]
+      x-fern-sdk-method-name: update
+  /ingestion.v1.IngestionService/UpdatePipelineSchedule:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: ["pipeline", "schedule"]
+      x-fern-sdk-method-name: update
+  /ingestion.v1.IngestionService/ValidateConfig:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "connector"
+      x-fern-sdk-method-name: validate_config
+  /ingestion.v1.IngestionService/ValidatePipeline:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "pipeline"
+      x-fern-sdk-method-name: validate
+  /metrics.v1.MetricsService/QueryAggregate:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "metrics"
+      x-fern-sdk-method-name: query_aggregate
+  /metrics.v1.MetricsService/QueryTimeseries:
+    post:
+      parameters: *connect_headers
+      x-fern-sdk-group-name: "metrics"
+      x-fern-sdk-method-name: query_timeseries

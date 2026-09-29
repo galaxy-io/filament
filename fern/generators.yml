@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
+api:
+  headers:
+    Connect-Protocol-Version: literal<"1">
+  # Service accounts hand the client their id and secret; the client mints
+  # through the server's GetToken and re-mints as the token nears expiry.
+  auth-schemes:
+    ServiceAccount:
+      scheme: oauth
+      type: client-credentials
+      get-token:
+        endpoint: "POST /auth.v1.AuthService/GetToken"
+        request-properties:
+          client-id: $request.clientId
+          client-secret: $request.clientSecret
+        response-properties:
+          access-token: $response.accessToken
+          expires-in: $response.expiresIn
+  auth: ServiceAccount
+  specs:
+    - openapi: ../api/openapi.json
+      overrides: ./openapi-overrides.yml
+default-group: python
+groups:
+  python:
+    generators:
+      - name: fern-python-sdk
+        version: 5.33.0
+        output:
+          location: local-file-system
+          path: ../sdks/python/src/filament
+        config:
+          package_name: filament
+          client:
+            class_name: Filament
+          inline_request_params: true
+          optional_auth: true
+          # Mutations are not generally idempotent; callers can opt in per call.
+          default_max_retries: 0
+  typescript:
+    generators:
+      - name: fern-typescript-sdk
+        version: 3.98.0
+        output:
+          location: local-file-system
+          path: ../sdks/typescript/src
+        config:
+          namespaceExport: Filament
+          noSerdeLayer: true
+          inlinePathParameters: true

@@ -18,11 +18,21 @@ case "$(uname -m)" in
   *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
-ARCHIVE="filament_${OS}_${ARCH}.tar.gz"
-BASE="https://github.com/${REPO}/releases/latest/download"
-if [ -n "${FILAMENT_VERSION:-}" ]; then
-  BASE="https://github.com/${REPO}/releases/download/${FILAMENT_VERSION}"
+# The chart and SDKs release from the same repository, so the newest release
+# is not always the platform's. Take the newest vX.Y.Z instead.
+VERSION="${FILAMENT_VERSION:-}"
+if [ -z "${VERSION}" ]; then
+  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=100" |
+    grep -o '"tag_name": *"v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"' |
+    head -n 1 | sed 's/.*"\(v[^"]*\)"/\1/')
 fi
+if [ -z "${VERSION}" ]; then
+  echo "Could not find a filament release; set FILAMENT_VERSION" >&2
+  exit 1
+fi
+
+ARCHIVE="filament_${OS}_${ARCH}.tar.gz"
+BASE="https://github.com/${REPO}/releases/download/${VERSION}"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "${TMP}"' EXIT

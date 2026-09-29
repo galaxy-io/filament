@@ -12,6 +12,8 @@ concurrency:
 
 jobs:
   changes:
+    # Release Please PRs only bump versions; skipped checks still satisfy the ruleset.
+    if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -12,3 +12,11 @@ plugins:
   - local: protoc-gen-connect-go
     out: api
     opt: paths=source_relative
+  - remote: buf.build/community/sudorandom-connect-openapi:v0.27.2
+    out: api
+    opt:
+      - features=connectrpc
+      - content-types=json
+      - format=json
+      - path=openapi.json
+      - trim-unused-types
