@@ -14,11 +14,11 @@ func TestSourcesFromEnvProtectsBundledRegistrations(t *testing.T) {
 		t.Run(version, func(t *testing.T) {
 			directory := t.TempDir()
 			provider := filepath.Join(directory, "github")
-			if err := os.MkdirAll(filepath.Join(provider, version), 0700); err != nil {
+			if err := os.MkdirAll(filepath.Join(provider, version), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			registration := strings.ReplaceAll(`{"schema_version":1,"name":"github","default_version":"2022-11-28","versions":{"2022-11-28":{"maturity":"alpha"}}}`, "2022-11-28", version)
-			if err := os.WriteFile(filepath.Join(provider, "registry.json"), []byte(registration), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(provider, "registry.json"), []byte(registration), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			manifest := strings.ReplaceAll(`version: 1
@@ -37,7 +37,7 @@ resources:
     fields:
       id: string
 `, "2022-11-28", version)
-			if err := os.WriteFile(filepath.Join(provider, version, "manifest.yaml"), []byte(manifest), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(provider, version, "manifest.yaml"), []byte(manifest), 0o600); err != nil {
 				t.Fatal(err)
 			}
 

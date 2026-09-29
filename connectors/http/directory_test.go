@@ -11,10 +11,10 @@ func TestLoadDirectorySnapshotsPrivateCatalog(t *testing.T) {
 	directory := t.TempDir()
 	for name, file := range testCatalog(t) {
 		destination := filepath.Join(directory, strings.TrimPrefix(name, "manifests/"))
-		if err := os.MkdirAll(filepath.Dir(destination), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(destination, file.Data, 0600); err != nil {
+		if err := os.WriteFile(destination, file.Data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -34,7 +34,7 @@ func TestLoadDirectorySnapshotsPrivateCatalog(t *testing.T) {
 	}
 	// A process keeps the validated startup contents even if mounted files change.
 	manifestPath := filepath.Join(directory, "example", "v2", "manifest.yaml")
-	if err := os.WriteFile(manifestPath, []byte("invalid"), 0600); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("invalid"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	second, err := sources.Resolve("example")
@@ -62,10 +62,10 @@ func TestLoadDirectoryFromProjectedVolume(t *testing.T) {
 	directory := t.TempDir()
 	for name, file := range testCatalog(t) {
 		destination := filepath.Join(directory, "..release", strings.TrimPrefix(name, "manifests/"))
-		if err := os.MkdirAll(filepath.Dir(destination), 0700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(destination, file.Data, 0600); err != nil {
+		if err := os.WriteFile(destination, file.Data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

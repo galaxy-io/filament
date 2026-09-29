@@ -120,5 +120,4 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 	if preserved.Type != updated.Type || preserved.Config["host"] != updated.Config["host"] || preserved.Metadata.Revision != updated.Metadata.Revision {
 		t.Fatalf("rejected connector change modified connection: %+v", preserved)
 	}
-
 }
