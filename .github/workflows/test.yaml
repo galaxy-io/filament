@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   build:
-    # Release Please PRs only bump versions; skipped checks still satisfy the ruleset.
     if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -126,8 +125,6 @@ jobs:
       - name: End-to-end test
         run: just test-e2e "${{ matrix.tags }}"
 
-  # The one check the ruleset requires. Skipped jobs pass; a skipped matrix
-  # job never reports its named checks, so those cannot be required directly.
   test-ok:
     needs: [build, unit, integration, e2e]
     if: always()
