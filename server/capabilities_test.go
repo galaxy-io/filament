@@ -381,3 +381,24 @@ func TestNormalizeEdgeModes(t *testing.T) {
 		t.Fatal("unknown read mode must be rejected")
 	}
 }
+
+type managedLeverSource struct{ leverSource }
+
+func (managedLeverSource) ManagedIncremental(resource string) bool { return resource == "orders" }
+func (managedLeverSource) CursorColumns(context.Context, string) ([]filament.CursorColumn, error) {
+	return nil, nil
+}
+
+func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
+	server := &Server{}
+	probes := &sourceProbes{sources: map[string]filament.Source{"src": managedLeverSource{}}}
+	ev := &ingestionv1.EdgeValidation{}
+	server.resourceBreakdown(context.Background(), &ingestionv1.PipelineEdge{Resource: "orders"}, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{}, filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
+	if len(ev.Resources) != 1 {
+		t.Fatal(ev)
+	}
+	resource := ev.Resources[0]
+	if len(resource.SupportedReadModes) != 2 || len(resource.Requirements) != 1 || !resource.Requirements[0].Satisfied || resource.Requirements[0].Blocking || len(resource.Requirements[0].Candidates) != 0 {
+		t.Fatalf("managed state validation = %v", resource)
+	}
+}

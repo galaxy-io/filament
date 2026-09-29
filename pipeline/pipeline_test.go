@@ -722,3 +722,39 @@ func assertMonotonicSeq(t *testing.T, evs []events.Fact) {
 func errContains(err error, sub string) bool {
 	return err != nil && strings.Contains(err.Error(), sub)
 }
+
+// Empty exports need a checkpoint marker even when no Arrow data batch exists.
+func TestPipelineDrainOpaqueToken(t *testing.T) {
+	sink := &fakeSink{}
+	c := &collector{}
+	policy := filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
+	policy.Resource = "users"
+	p := New(Config{Tenant: "t1", Run: "r1", Sink: sink, Emit: c.emit, WritePolicies: map[string]filament.WritePolicy{"users": policy}, FlushInterval: time.Hour})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Drain(filament.RowMeta{Key: []string{"opaque-terminal"}}); err != nil {
+		t.Fatal(err)
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.batches()) != 0 {
+		t.Fatal("marker was written as a row")
+	}
+	found := false
+	for _, fact := range c.events() {
+		if d, ok := fact.Data.(events.BatchWrittenEvent); ok && d.Checkpoint != nil {
+			if d.Records != 0 || d.Checkpoint.String("mode") != "keyset" {
+				t.Fatalf("marker=%+v", d)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("empty export checkpoint missing")
+	}
+}

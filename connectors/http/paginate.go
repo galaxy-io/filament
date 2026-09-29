@@ -60,6 +60,18 @@ func (c *Connector) paginate(
 		}
 	}
 
+	tokenMode := res.Incremental != nil && res.Incremental.ResponseCursor != "" && c.incrementalEnabled(res.Name, res.Name)
+	strictCursor := tokenMode || res.Pagination.Strict
+	seen := map[string]bool{}
+	if tokenMode {
+		state.Cursor = c.resumeWatermarks[res.Name][res.Incremental.DurableCheckpointKey()]
+		if state.Cursor == "" {
+			state.Cursor = res.Incremental.Initial
+		}
+		if state.Cursor != "" {
+			seen[state.Cursor] = true
+		}
+	}
 	var totalRecords, pageCount int
 	progressResource, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
@@ -71,7 +83,7 @@ func (c *Connector) paginate(
 		if err != nil {
 			// Stale-cursor fallback: if we resumed and the first request fails,
 			// retry from scratch.
-			if pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
+			if !strictCursor && pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
 				c.logger.Warn("stale cursor, falling back to full extraction",
 					"resource", res.Name, "error", err)
 				state = pag.Initial()
@@ -81,7 +93,7 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, err
 		}
 
-		if matchesEmptyResponse(resp, raw, res.Response.Empty) {
+		if !strictCursor && matchesEmptyResponse(resp, raw, res.Response.Empty) {
 			return totalRecords, pageCount + 1, nil
 		}
 
@@ -89,8 +101,22 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
 
-		if resp.StatusCode == http.StatusNoContent {
+		if !strictCursor && resp.StatusCode == http.StatusNoContent {
 			return totalRecords, pageCount + 1, nil
+		}
+		token, more := "", false
+		if strictCursor {
+			t := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.CursorPath, "$."))
+			m := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.HasMorePath, "$."))
+			data := gjson.GetBytes(raw, strings.TrimPrefix(res.Response.RecordsPath, "$."))
+			if !gjson.ValidBytes(raw) || t.Type != gjson.String || t.Str == "" || (m.Type != gjson.True && m.Type != gjson.False) || !data.IsArray() {
+				return totalRecords, pageCount, fmt.Errorf("invalid response cursor envelope for %s", res.Name)
+			}
+			token, more = t.Str, m.Bool()
+			if more && seen[token] {
+				return totalRecords, pageCount, fmt.Errorf("response cursor cycle for %s", res.Name)
+			}
+			seen[token] = true
 		}
 		records, err := extractor.Records(raw)
 		if err != nil {
@@ -98,7 +124,7 @@ func (c *Connector) paginate(
 		}
 
 		checkpointValue := ""
-		if pag != nil {
+		if pag != nil && !tokenMode {
 			checkpointValue = state.Checkpoint()
 		}
 		n, captured, err := c.sendRecords(res, records, sink, parent, checkpointValue, extractor, tracker)
@@ -116,6 +142,20 @@ func (c *Connector) paginate(
 			Bytes:    int64(len(raw)),
 		})
 
+		if strictCursor {
+			if !more {
+				if !tokenMode {
+					return totalRecords, pageCount, nil
+				}
+				target, ok := sink.(responseCheckpointSink)
+				if !ok {
+					return totalRecords, pageCount, fmt.Errorf("response cursor requires a checkpoint-capable sink")
+				}
+				return totalRecords, pageCount, target.Checkpoint(progressResource, token)
+			}
+			state = pagination.State{Cursor: token}
+			continue
+		}
 		if pag == nil {
 			// Single-request resource: we're done.
 			return totalRecords, pageCount, nil

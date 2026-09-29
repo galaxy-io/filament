@@ -238,10 +238,12 @@
         "pagination": { "$ref": "#/$defs/pagination" },
         "incremental": {
           "type": "object",
-          "required": ["cursor_field", "start_param", "inject_into"],
+          "required": ["start_param", "inject_into"],
+          "oneOf": [{"required": ["cursor_field"]}, {"required": ["response_cursor"]}],
           "additionalProperties": false,
           "properties": {
             "cursor_field": { "type": "string", "minLength": 1 },
+            "response_cursor": { "type": "string", "minLength": 1 },
             "start_param": { "type": "string", "minLength": 1 },
             "inject_into": { "type": "string", "enum": ["query", "body", "header"] },
             "initial": { "type": "string" },
@@ -350,7 +352,8 @@
                 "response": { "type": "string", "minLength": 1 },
                 "request": { "type": "string", "minLength": 3 },
                 "more": { "type": "string" },
-                "null_terminates": { "type": "boolean" }
+                "null_terminates": { "type": "boolean" },
+                "strict": { "type": "boolean" }
               }
             },
             "offset": {

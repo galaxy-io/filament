@@ -277,7 +277,22 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
-		if r.Incremental != nil {
+		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
+			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
+		}
+		if r.Incremental != nil && r.Incremental.ResponseCursor != "" {
+			spec := r.Incremental
+			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 {
+				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, or overlap")
+			}
+			if r.Parent != nil || r.Stream != nil || r.EmitAs != "" || r.CaptureOnly {
+				_ = agg.Addf(path+".incremental", "response_cursor requires a top-level, non-streaming resource")
+			}
+			if r.Pagination.Type != "cursor" || r.Pagination.CursorPath != spec.ResponseCursor || r.Pagination.CursorParam != spec.StartParam || r.Pagination.InjectInto != spec.InjectInto || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "" {
+				_ = agg.Addf(path+".incremental", "response_cursor requires matching cursor pagination with an explicit more path and records path")
+			}
+		}
+		if r.Incremental != nil && r.Incremental.ResponseCursor == "" {
 			if r.Incremental.CursorField == "" {
 				_ = agg.Addf(path+".incremental.cursor_field", "is required")
 			}

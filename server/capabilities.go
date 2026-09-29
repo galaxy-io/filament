@@ -352,8 +352,12 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 			edgeError(ev, "from_node", fmt.Sprintf("could not inspect primary key for %q: %v", resource, keyErr))
 		}
 		candidates, status := cursorCandidates(ctx, src, resource)
+		managed := false
+		if provider, ok := src.(filament.ManagedIncrementalSource); ok {
+			managed = provider.ManagedIncremental(resource)
+		}
 		// When candidates are unknowable stay optimistic; runtime decides.
-		cursorable := cursors[resource] || len(candidates) > 0 ||
+		cursorable := managed || cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
 		for _, mode := range supportedReadModes {
 			if mode == ingestionv1.ReadMode_READ_MODE_INCREMENTAL && !cursorable {
@@ -362,7 +366,11 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 			rv.SupportedReadModes = append(rv.SupportedReadModes, mode)
 		}
 		if needsCursor {
-			rv.Requirements = append(rv.Requirements, cursorRequirement(resource, candidates, status, cursors[resource]))
+			requirement := cursorRequirement(resource, candidates, status, managed || cursors[resource])
+			if managed {
+				requirement.Message = fmt.Sprintf("incremental state is managed by the source for resource %q", resource)
+			}
+			rv.Requirements = append(rv.Requirements, requirement)
 		}
 		if needsPK && keyErr == nil && len(keys) == 0 {
 			rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{

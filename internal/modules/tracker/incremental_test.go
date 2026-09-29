@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -228,5 +229,55 @@ func TestCompletedBackfillPromotesInitialWatermarkAfterRunCommit(t *testing.T) {
 	plan, ok := checkpoint.ParseKeyset(stored.Checkpoint)
 	if !ok || plan.Mode != checkpoint.ModeIncremental {
 		t.Fatalf("checkpoint was not promoted: %#v", stored.Checkpoint.Raw())
+	}
+}
+
+func TestOpaqueTerminalTokenRequiresSuccessfulCommit(t *testing.T) {
+	for _, commit := range []bool{false, true} {
+		t.Run(fmt.Sprint(commit), func(t *testing.T) {
+			ctx := context.Background()
+			store := sqlite.NewMemory()
+			request := filament.RunRequest{PipelineID: "pipe", PipelineVersionID: "version", CheckpointRoute: "route", IngestionTypes: map[string]filament.IngestionType{"jobs": filament.IngestionIncrementalUpsert}}
+			if err := store.SaveRun(ctx, filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunRunning, Request: request}); err != nil {
+				t.Fatal(err)
+			}
+			initial := checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: []string{"jobs_export_token"}, Types: []string{"string"}, Meta: map[string]string{"response_cursor": "identity"}, Shards: []checkpoint.KeysetShard{{Key: []string{"old"}}}}.ToCheckpoint("jobs")
+			key, _ := request.ResourceCheckpointKey("jobs")
+			if err := store.SaveResourceCheckpoint(ctx, "tenant", filament.ResourceCheckpointState{Key: key, Checkpoint: initial}); err != nil {
+				t.Fatal(err)
+			}
+			m := New()
+			m.ds = store
+			m.cp[ckKey{run: "run", resource: "jobs"}] = initial
+			if err := m.apply(ctx, events.NewFact(events.BatchWritten, events.Envelope{Tenant: "tenant", Run: "run", Resource: "jobs"}, events.BatchWrittenEvent{Checkpoint: checkpoint.NewShardDelta("jobs", 0, []string{"new"}), CheckpointPolicy: filament.CheckpointAfterCommit})); err != nil {
+				t.Fatal(err)
+			}
+			if err := m.flushRunFor(ctx, "tenant", "run", false, checkpointReason("flush")); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cp, _ := checkpoint.ParseKeyset(stored.Checkpoint)
+			if cp.Shards[0].Key[0] != "old" {
+				t.Fatal("checkpoint advanced before commit")
+			}
+			if err := m.flushRunFor(ctx, "tenant", "run", commit, checkpointReason("flush")); err != nil {
+				t.Fatal(err)
+			}
+			stored, err = store.LoadResourceCheckpoint(ctx, "tenant", key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cp, _ = checkpoint.ParseKeyset(stored.Checkpoint)
+			want := "old"
+			if commit {
+				want = "new"
+			}
+			if cp.Shards[0].Key[0] != want || cp.Meta["response_cursor"] != "identity" {
+				t.Fatalf("checkpoint=%+v", cp)
+			}
+		})
 	}
 }

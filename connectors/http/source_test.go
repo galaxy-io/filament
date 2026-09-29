@@ -1418,7 +1418,8 @@ type testRecord struct {
 // collectSink is an Arrow inlet that renders every flushed row back to
 // a testRecord.
 type collectSink struct {
-	records []testRecord
+	checkpoints map[string][]string
+	records     []testRecord
 }
 
 func (s *collectSink) Builder(resource string, _ int, schema rowmodel.Schema) (arrowbatch.RowWriter, error) {
@@ -1448,7 +1449,13 @@ func (c *collectChunks) Chunk(ch *arrowbatch.Batch) error {
 	return nil
 }
 
-func (c *collectChunks) Drained(rowmodel.Meta, int) error { return nil }
+func (c *collectChunks) Drained(meta rowmodel.Meta, _ int) error {
+	if c.sink.checkpoints == nil {
+		c.sink.checkpoints = map[string][]string{}
+	}
+	c.sink.checkpoints[c.resource] = meta.Key
+	return nil
+}
 
 func writeTestManifest(t *testing.T, baseURL string) string {
 	t.Helper()
