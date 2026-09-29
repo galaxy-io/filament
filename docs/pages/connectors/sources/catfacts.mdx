@@ -1,0 +1,55 @@
+---
+title: "Cat Facts"
+description: "Read facts and breeds from the Cat Facts API"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-catfacts-dark.svg"
+---
+
+The Cat Facts source reads facts and breeds through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It is **alpha**. The manifest was checked against the live Cat Facts API, but
+has not been exercised through a full Filament run.
+
+## Configuration
+
+No configuration is required. The Cat Facts API is public and needs no
+credentials. Requests go to `https://catfact.ninja`.
+
+## Resources
+
+Both resources are selected by default.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `facts` | `GET /facts` |  |
+| `breeds` | `GET /breeds` |  |
+
+`facts` emits one row per fact with the fact text and its character `length`.
+`breeds` emits one row per breed with `breed`, `country`, `origin`, `coat`, and
+`pattern`. Fact and breed records carry no stable identifier from the API, so
+neither resource has a primary key.
+
+The API's single random `/fact` endpoint is not included: it returns one
+non-deterministic record each call, which is not a stable dataset to sync.
+
+## Modes
+
+All resources support **full reads**. The API exposes no update timestamp or
+deletion signal, so the connector does not advertise incremental reads.
+
+Use full-replace writes for `facts` and `breeds`, which have no stable row key.
+Full reads do not emit deletion events; use full-replace writes when records
+removed upstream should disappear downstream.
+
+## Behavior
+
+- **Auth:** None. The API is open; every request is rate limited per IP.
+- **Pagination:** Both endpoints use page-based pagination. The connector
+  requests 100 records per page (the API honors `limit=100`) and stops when the
+  repository's `last_page` value is reached or a page returns fewer records than
+  requested.
+- **Rate limits:** The API reports a limit of 100 requests per minute. The
+  connector sends at most one request per second to stay within that budget.
+- **Errors:** Non-200 responses fail the read; the connector does not treat them
+  as empty datasets.
+- **Consistency:** Page reads are not snapshots. Concurrent inserts or removals
+  can affect page membership during a run.

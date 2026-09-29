@@ -1,0 +1,59 @@
+version: 1
+name: catfacts
+display_name: Cat Facts
+description: Read cat facts and breeds from the Cat Facts API.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-catfacts-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-catfacts-light.svg
+connection:
+  base_url: https://catfact.ninja
+  auth:
+    none: {}
+  headers:
+    Accept: application/json
+  rate_limit:
+    requests_per_second: 1
+defaults:
+  method: GET
+resources:
+  - name: facts
+    path: /facts
+    primary_key: []
+    fields:
+      fact: string?
+      length: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination:
+        page:
+          number: page
+          size: limit
+          page_size: 100
+          total_pages: $.last_page
+  - name: breeds
+    path: /breeds
+    primary_key: []
+    fields:
+      breed: string?
+      country: string?
+      origin: string?
+      coat: string?
+      pattern: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    response:
+      records: $.data
+      pagination:
+        page:
+          number: page
+          size: limit
+          page_size: 100
+          total_pages: $.last_page
+discovery:
+  mode: static
+  default_resources: [facts, breeds]
