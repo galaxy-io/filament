@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
@@ -23,6 +24,7 @@ import (
 )
 
 type cliApp struct {
+	sources        filament.SourceRegistry
 	stdin          io.Reader
 	stopEmbedded   func()
 	stdout         io.Writer
@@ -122,6 +124,7 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 			localtarget.Store{Path: a.configPath},
 			remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
 			secrets,
+			localtarget.WithSources(a.sources),
 		)
 		if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
 			return fmt.Errorf("apply %s: %w", a.configPath, err)

@@ -74,7 +74,7 @@ func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.
 		runnerDone <- runner.RunOne(runCtx, runner.Deps{
 			Bus:       bus,
 			DataStore: store,
-			Sources:   registry.DefaultSources,
+			Sources:   t.sources,
 			Sinks:     registry.DefaultSinks,
 		}, spec)
 	}()

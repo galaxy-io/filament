@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
@@ -23,8 +24,9 @@ import (
 
 // Deps are the providers every deployed binary resolves from the environment.
 type Deps struct {
-	Log   filament.Logger
-	Store filament.DataStore
+	Sources filament.SourceRegistry
+	Log     filament.Logger
+	Store   filament.DataStore
 	// StreamStore is the same underlying store exposed through its stream interface.
 	StreamStore filament.ContinuousRunStore
 	Secrets     filament.Secrets
@@ -32,12 +34,17 @@ type Deps struct {
 	Tracer      filament.Tracer
 }
 
-// FromEnv builds the logger, datastore, secrets, and otel providers. The
+// FromEnv loads the source catalog, then builds logger, datastore, secrets,
+// and otel providers. The
 // returned close flushes otel and closes the secrets provider and store; call
 // it on the way out.
 // The event bus is deliberately separate (Bus) so binaries can start health
 // listeners before the connect wait.
 func FromEnv(ctx context.Context) (Deps, func(), error) {
+	sources, err := connectors.SourcesFromEnv()
+	if err != nil {
+		return Deps{}, nil, err
+	}
 	lg, err := logger.New()
 	if err != nil {
 		return Deps{}, nil, err
@@ -79,7 +86,7 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 		closeSecrets()
 		closeStore()
 	}
-	return Deps{Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
+	return Deps{Sources: sources, Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
 }
 
 // Bus connects the event bus. The returned close closes it when closable.
@@ -102,7 +109,7 @@ func Mount(ctx context.Context, d Deps, b bus.Bus, mods ...module.Module) (*host
 		Bus:       b,
 		DataStore: d.Store,
 		Secrets:   d.Secrets,
-		Sources:   registry.DefaultSources,
+		Sources:   d.Sources,
 		Sinks:     registry.DefaultSinks,
 		Log:       d.Log,
 		Metrics:   d.Metrics,
