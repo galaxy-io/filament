@@ -84,6 +84,7 @@ jobs:
 
   e2e:
     name: E2E (${{ matrix.engine }})
+    if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -124,3 +125,16 @@ jobs:
 
       - name: End-to-end test
         run: just test-e2e "${{ matrix.tags }}"
+
+  # The one check the ruleset requires. Skipped jobs pass; a skipped matrix
+  # job never reports its named checks, so those cannot be required directly.
+  test-ok:
+    needs: [build, unit, integration, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Result
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            exit 1
+          fi
