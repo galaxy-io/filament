@@ -25,5 +25,18 @@ jobs:
           private-key: ${{ secrets.GX_NULL_PRIVATE_KEY }}
 
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
+
+      # SDK releases share the repository, and GitHub picks Latest among
+      # them unpredictably. It belongs to the newest platform release.
+      - name: Mark the platform release latest
+        if: steps.release.outputs.releases_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.draft or .prerelease | not) | .tag_name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort --version-sort | tail -n 1)
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --latest
