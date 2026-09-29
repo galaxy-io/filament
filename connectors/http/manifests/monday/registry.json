@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "monday",
+  "default_version": "2026-07",
+  "versions": {
+    "2026-07": {
+      "maturity": "alpha"
+    }
+  }
+}

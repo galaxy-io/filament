@@ -77,6 +77,17 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 	}
 	for _, name := range sortedNames(wanted) {
 		desired := wanted[name]
+		live, ok := current[name]
+		// An unversioned document may have created a pinned HTTP connection.
+		// Keep that pin on reapply, even if the catalog default has changed.
+		if kind == "source" && ok {
+			base, _, versioned := strings.Cut(live.Type, "@")
+			_, registered := catalog.Sources[live.Type]
+			alias := catalog.Sources[desired.Type].AliasTarget != ""
+			if versioned && registered && alias && desired.Type == base {
+				desired.Type = live.Type
+			}
+		}
 		schema := catalog.Sources[desired.Type].Config
 		if kind == "sink" {
 			schema = catalog.Sinks[desired.Type].Config
@@ -86,7 +97,6 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 			return fmt.Errorf("%s %q: %w", kind, name, err)
 		}
 		desired.SecretRefs = refs
-		live, ok := current[name]
 		if !ok {
 			if _, err := t.CreateConnection(ctx, kind, name, desired); err != nil {
 				return err

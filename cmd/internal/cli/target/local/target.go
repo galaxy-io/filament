@@ -18,6 +18,7 @@ import (
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
+	"github.com/galaxy-io/filament/registry"
 )
 
 var (
@@ -30,6 +31,7 @@ var (
 // an input applied into it; inline and override runs execute directly.
 type Target struct {
 	*remote.Target
+	sources filament.SourceRegistry
 	store   Store
 	secrets filament.Secrets
 	runMu   sync.Mutex
@@ -38,8 +40,20 @@ type Target struct {
 
 // NewTarget wraps the deployment. secrets receives plaintext secret values
 // the document carries, so the deployment resolves them by reference.
-func NewTarget(store Store, deployment *remote.Target, secrets filament.Secrets) *Target {
-	return &Target{Target: deployment, store: store, secrets: secrets, runs: map[string]*runSession{}}
+func NewTarget(store Store, deployment *remote.Target, secrets filament.Secrets, opts ...Option) *Target {
+	target := &Target{Target: deployment, store: store, secrets: secrets, sources: registry.DefaultSources, runs: map[string]*runSession{}}
+	for _, option := range opts {
+		option(target)
+	}
+	return target
+}
+
+// Option configures the local runner.
+type Option func(*Target)
+
+// WithSources uses the same startup catalog for direct runs as the deployment.
+func WithSources(sources filament.SourceRegistry) Option {
+	return func(target *Target) { target.sources = sources }
 }
 
 // SubmitRun sends saved pipelines to the deployment and everything else,

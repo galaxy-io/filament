@@ -21,6 +21,8 @@ message ConnectorSpec {
   string schema_field = 10;
   ConnectorMaturity maturity = 11;
   string api_version = 12;
+  // Concrete registration selected by a source catalog alias; empty otherwise.
+  string alias_target = 13;
 }
 
 enum ConnectorMaturity {

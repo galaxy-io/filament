@@ -1,0 +1,126 @@
+---
+title: "Apollo"
+description: "Read contacts, accounts, sequences, deals, and engagement data from Apollo"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-apollo-dark.svg"
+---
+
+The Apollo source reads saved CRM records, engagement data, and workspace reference
+data through an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It targets API v1 and is **alpha**. The manifest has been checked against Apollo's
+official API schema, but has not been tested against a live account.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Apollo API key with access to the selected read endpoints. |
+
+[Create an API key](https://docs.apollo.io/docs/create-api-key) with endpoint
+permissions for the resources you select. Requests use `https://api.apollo.io/api/v1`
+and send the key in the `x-api-key` header. Connection testing searches contacts,
+so contact-search access is required even when selecting other resources.
+
+| Default resource | API key endpoint access |
+|---|---|
+| `contacts` | `api/v1/contacts/search` |
+| `accounts` | `api/v1/accounts/search` |
+| `sequences` | `api/v1/emailer_campaigns/search` |
+
+The defaults use credit-free endpoints and do not require a Master API key.
+Optional resources need their own endpoint permissions and any associated plan
+features. `calls` and `email_stats` require a Master API key. Consult the
+[Apollo API reference](https://docs.apollo.io/reference/apollo-api) for the selected
+endpoints. `conversation_details` consumes one credit for each conversation with
+AI insights; conversations without AI insights cost no credits.
+
+## Resources
+
+Contacts, accounts, and sequences are selected by default. All other resources
+are optional. Selecting a child also reads its parent to discover IDs, but only
+selected resources are written.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `contacts` | `POST /api/v1/contacts/search` |  |
+| `accounts` | `POST /api/v1/accounts/search` |  |
+| `sequences` | `POST /api/v1/emailer_campaigns/search` |  |
+| `deals` | `GET /api/v1/opportunities/search` |  |
+| `tasks` | `POST /api/v1/tasks/search` |  |
+| `account_stages` | `GET /api/v1/account_stages` |  |
+| `contact_stages` | `GET /api/v1/contact_stages` |  |
+| `deal_stages` | `GET /api/v1/opportunity_stages` |  |
+| `lists` | `GET /api/v1/labels` |  |
+| `users` | `GET /api/v1/users/search` |  |
+| `email_schedules` | `GET /api/v1/emailer_schedules` |  |
+| `email_accounts` | `GET /api/v1/email_accounts` |  |
+| `fields` | `GET /api/v1/fields` |  |
+| `custom_fields` | `GET /api/v1/typed_custom_fields` |  |
+| `notes` | `GET /api/v1/notes` |  |
+| `calls` | `GET /api/v1/phone_calls/search` |  |
+| `emails` | `GET /api/v1/emailer_messages/search` |  |
+| `email_content` | `POST /api/v1/emailer_messages/get_content` | `emails` |
+| `email_stats` | `GET /api/v1/emailer_messages/{id}/activities` | `emails` |
+| `conversations` | `POST /api/v1/conversations/search` |  |
+| `current_user` | `GET /api/v1/users/api_profile` |  |
+| `credit_usage` | `POST /api/v1/usage_stats/credit_usage_stats` |  |
+| `api_usage` | `POST /api/v1/usage_stats/api_usage_stats` |  |
+| `contact_sequence_activity` | `POST /api/v1/emailer_campaigns/activity_feed` | `contacts` |
+| `conversation_details` | `GET /api/v1/conversations/{id}` | `conversations` |
+
+Each record resource emits one row per Apollo ID. Nested account data, custom
+field values, lists, recipients, and other structures remain JSON. Fields not
+projected into columns are retained in `raw`.
+
+`email_content` fetches stored HTML for sent messages; Apollo omits IDs that do
+not match a sent email. `email_stats` emits one row per email with its activities
+in a JSON array. `contact_sequence_activity` emits one row per contact containing
+at most the latest 50 events across its sequences. Apollo provides no pagination
+for older events. `conversation_details` includes transcript and recording
+metadata; it does not download recordings. Usage resources each emit one snapshot
+row, retaining the endpoint-keyed API usage object in `raw`.
+
+This connector reads your saved records rather than searching Apollo's global
+people and organization database. Global prospect searches, enrichment, company
+news and job postings, custom analytics report queries, asynchronous exports,
+webhook-result polling, and write operations are not included. Separate CRM
+record detail lookups and send-status polling are not exposed; list responses
+supply those records.
+
+## Modes
+
+All resources support **full reads**. The documented CRM searches lack an
+updated-since filter. Sorting by `updated_at` does not restrict a read to changed
+records. Notes filter by creation date, and call, email, and conversation date
+filters do not reliably capture later edits, so these resources also use full
+reads.
+
+`credit_usage` and `api_usage` have no stable row key. Use full-replace writes
+for their snapshots. Full reads do not emit deletion events; use full-replace
+writes when the destination must remove records no longer returned by Apollo.
+
+## Behavior
+
+- **Auth:** Static API key authentication. This connector does not implement
+  Apollo's partner OAuth authorization or token refresh flow. Permission and plan
+  errors fail the read.
+- **Pagination:** Contacts and accounts send page numbers and a page size of 100
+  in JSON bodies. Conversations use body pagination with 25 results per page.
+  Other paginated searches use query page numbers with 100 results per page.
+  Notes use `skip` and `limit`. Reference lists and snapshots use the endpoint's
+  unpaginated response.
+- **Search limits:** Apollo caps contact, account, and outreach-email searches at
+  50,000 records. The connector does not partition searches to bypass that cap.
+  Larger datasets cannot be treated as complete exports. See
+  [contact search](https://docs.apollo.io/reference/search-for-contacts),
+  [account search](https://docs.apollo.io/reference/search-for-accounts), and
+  [outreach email search](https://docs.apollo.io/reference/search-for-outreach-emails).
+- **Parent reads:** Optional email content, email statistics, contact activity,
+  and conversation details make one request per parent record. Their coverage
+  is limited to records discoverable through the parent search. Repeated full
+  reads of conversation details can consume credits again.
+- **Rate limits:** Apollo applies per-endpoint minute, hour, and day limits that
+  vary by plan. The shared HTTP retry policy handles retryable failures, but the
+  connector does not coordinate plan-specific quota budgets. `api_usage` exposes
+  current usage and limits when your key has access.
+- **Consistency:** Page-based searches are not point-in-time snapshots. Records
+  changing during a read can affect page membership and ordering.

@@ -13,7 +13,7 @@ import (
 // grammar schema, strict decode, normalization, and semantic validation. A
 // manifest added without a dedicated source test is still validated here.
 func TestManifests(t *testing.T) {
-	paths, err := filepath.Glob("manifests/*.yaml")
+	paths, err := filepath.Glob("manifests/*/*/manifest.yaml")
 	if err != nil {
 		t.Fatalf("glob manifests: %v", err)
 	}
@@ -21,7 +21,7 @@ func TestManifests(t *testing.T) {
 		t.Fatal("no manifests found under manifests/")
 	}
 	for _, path := range paths {
-		t.Run(filepath.Base(path), func(t *testing.T) {
+		t.Run(path, func(t *testing.T) {
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("read manifest: %v", err)
@@ -38,7 +38,7 @@ func TestManifests(t *testing.T) {
 }
 
 func TestLinearManifestUsesExclusiveIncrementalBoundary(t *testing.T) {
-	data, err := os.ReadFile("manifests/linear.yaml")
+	data, err := os.ReadFile("manifests/linear/unversioned/manifest.yaml")
 	if err != nil {
 		t.Fatalf("read Linear manifest: %v", err)
 	}

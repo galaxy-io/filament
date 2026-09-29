@@ -124,7 +124,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
-	api := server.New(registry.DefaultSources, registry.DefaultSinks, deps.Store, orch, eventBus, apiOpts...)
+	api := server.New(deps.Sources, registry.DefaultSinks, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err

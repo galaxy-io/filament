@@ -79,6 +79,7 @@ func (a *cliApp) up(ctx context.Context, addr string) error {
 		localtarget.Store{Path: a.configPath},
 		remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
 		secrets,
+		localtarget.WithSources(a.sources),
 	)
 	if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
 		stop()

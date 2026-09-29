@@ -5,19 +5,19 @@ Consult only examples relevant to the API, and verify their current contents.
 
 ## Choose the nearest working pattern
 
-All manifest filenames below are under `connectors/http/manifests/`.
+All manifest paths below are relative to `connectors/http/manifests/`.
 
 | Manifest | Useful patterns |
 |---|---|
-| `github.yaml` | Link pagination, shared fields, path parameters, nested reads, provider throttle signals |
-| `linear.yaml` | GraphQL bodies and variables, body cursors, shaped JSON projections |
-| `slack.yaml` | 200-wrapped errors, singleton responses, list config, child activity gating, numeric timestamps |
-| `attio.yaml` | POST query reads and body offset pagination |
-| `notion.yaml` | Nested content and parent/child reads |
-| `posthog.yaml` | Configurable host, project-scoped reads, provider-specific query behavior |
-| `stripe.yaml` | Basic auth with optional password, numeric event cursors |
-| `granola.yaml` | Separate paginated transcripts, keyless repeated items, update-based note reads |
-| `gong.yaml` | Account base URL, bulk POST reads, full-only data, exact empty-response rules, folder JSON arrays |
+| `github/2022-11-28/manifest.yaml` | Link pagination, shared fields, path parameters, nested reads, provider throttle signals |
+| `linear/unversioned/manifest.yaml` | GraphQL bodies and variables, body cursors, shaped JSON projections |
+| `slack/unversioned/manifest.yaml` | 200-wrapped errors, singleton responses, list config, child activity gating, numeric timestamps |
+| `attio/v2/manifest.yaml` | POST query reads and body offset pagination |
+| `notion/2022-06-28/manifest.yaml` | Nested content and parent/child reads |
+| `posthog/unversioned/manifest.yaml` | Configurable host, project-scoped reads, provider-specific query behavior |
+| `stripe/2026-07-29.dahlia/manifest.yaml` | Basic auth with optional password, numeric event cursors |
+| `granola/v1/manifest.yaml` | Separate paginated transcripts, keyless repeated items, update-based note reads |
+| `gong/v2/manifest.yaml` | Account base URL, bulk POST reads, full-only data, exact empty-response rules, folder JSON arrays |
 
 These are implementation examples, not evidence for another company's API.
 Do not copy endpoint limits, auth scopes, headers, or timing assumptions across

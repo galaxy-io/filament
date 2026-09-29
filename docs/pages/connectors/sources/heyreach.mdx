@@ -1,0 +1,115 @@
+---
+title: "HeyReach"
+description: "Read campaigns, leads, lists, conversations, and analytics from HeyReach"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-heyreach-dark.svg"
+---
+
+The HeyReach source reads workspace outreach data through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It is **alpha**. The manifest has been checked against HeyReach's published API
+collection, but has not been tested against a live workspace.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. HeyReach workspace API key. |
+| `stats_start_date` | Connection | | ISO 8601 start date. Required when selecting either statistics resource. |
+| `stats_end_date` | Connection | | ISO 8601 end date. Required when selecting either statistics resource. |
+
+Use your workspace API key from HeyReach's API settings. Requests send it in the
+`X-API-KEY` header to `https://api.heyreach.io/api/public`. Keys do not expire,
+but can be revoked. Connection testing lists campaigns. See the
+[official API reference](https://documenter.getpostman.com/view/23808049/2sA2xb5F75).
+
+Organization management uses a separate organization key and is outside this
+connector's scope. A workspace key is sufficient for the core defaults.
+
+## Resources
+
+Campaigns, LinkedIn accounts, lead lists, list leads, campaign leads, and
+conversations are selected by default. Other resources are optional. Selecting
+a child also reads its parent to discover IDs; only selected resources are written.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `campaigns` | `POST /api/public/campaign/GetAll` |  |
+| `linkedin_accounts` | `POST /api/public/li_account/GetAll` |  |
+| `lead_lists` | `POST /api/public/list/GetAll` |  |
+| `company_lists` | `POST /api/public/list/GetAll` |  |
+| `list_leads` | `POST /api/public/list/GetLeadsFromList` | `lead_lists` |
+| `list_companies` | `POST /api/public/list/GetCompaniesFromList` | `company_lists` |
+| `campaign_leads` | `POST /api/public/campaign/GetLeadsFromCampaign` | `campaigns` |
+| `conversations` | `POST /api/public/inbox/GetConversationsV3` |  |
+| `chatrooms` | `GET /api/public/inbox/GetChatroom/{accountId}/{conversationId}` | `conversations` |
+| `lead_details` | `POST /api/public/lead/GetLead` | `list_leads` |
+| `account_status` | `GET /api/public/li_account/GetAccountStatus/{accountId}` | `linkedin_accounts` |
+| `proxy_countries` | `GET /api/public/li_account/GetProxyCountries` |  |
+| `webhooks` | `POST /api/public/webhooks/GetAllWebhooks` |  |
+| `blacklisted_leads` | `POST /api/public/blacklist/GetLeads` |  |
+| `blacklisted_companies` | `POST /api/public/blacklist/GetCompanies` |  |
+| `overall_stats` | `POST /api/public/stats/GetOverallStats` |  |
+| `campaign_stats` | `POST /api/public/stats/GetOverallStatsByCampaign` |  |
+
+Lead and company lists are fetched separately by list type. `list_leads` emits
+one row per list and profile URL; `campaign_leads` emits one row per campaign and
+lead entry. `lead_details` fetches the richer lead profile for each list member,
+including existing enrichment data. It does not start an enrichment job.
+Company list entries have no documented stable identifier, so `list_companies`
+has no primary key.
+
+Conversations and chatrooms use the sender account and conversation ID as their
+key. Messages stay nested in JSON, along with sender and correspondent profiles.
+`chatrooms` fetches each conversation individually using the documented detail
+endpoint. The API reference does not specify a separate message paginator or
+promise unlimited history; the connector preserves the returned message array.
+The v3 conversation listing omits correspondent emails and custom fields.
+`lead_details` retrieves those fields for leads discovered in lead lists.
+
+Statistics resources each emit one snapshot for the configured date range,
+with daily and overall results retained as JSON. `campaign_stats` groups those
+results by campaign, including the API's deleted-campaign indicator. Unprojected
+fields are retained in each resource's `raw` column.
+
+Organization workspaces, users, and cross-workspace senders are not included.
+API-key inventories, proxy credentials, enrichment jobs, and write operations
+are also excluded. Reverse lead-to-list and lead-to-campaign lookup endpoints
+are not separate resources; membership is read from each list or campaign.
+Campaign sequences are excluded because the API can return a bodyless 200 for
+campaigns without a sequence. My Network is excluded because its documented
+zero-based page numbering does not fit the current page paginator.
+
+## Modes
+
+All resources support **full reads**. Lead list filters use creation time.
+Campaign lead filters use action or failure times, and conversation filters use
+last-message time. These do not reliably capture edits to older records, tags,
+read status, or other metadata, so the connector does not advertise incremental
+reads.
+
+Use full-replace writes for `list_companies`, `overall_stats`, and `campaign_stats`,
+which have no stable row key. Full reads do not emit deletion events; use
+full-replace writes when records removed upstream should disappear downstream.
+
+## Behavior
+
+- **Pagination:** Campaigns, accounts, lists, memberships, blacklists, and webhooks
+  use JSON-body offset pagination with 100 records per request. Conversations use
+  the v3 cursor endpoint with 100 records per request and its `hasNextPage` signal.
+  Details, reference data, and statistics use single responses.
+- **Rate limits:** HeyReach documents a shared limit of 300 requests per minute.
+  The connector limits requests to four per second to leave room below that
+  ceiling. Other clients using the same quota can still cause throttling.
+- **Coverage:** Campaign lead results include only pending leads already queued
+  for execution, not all pending members of the campaign's source list. Read
+  `list_leads` to obtain that list's membership separately.
+- **Parent reads:** Lead details, chatrooms, and account status make one request
+  per parent. List and campaign memberships are scoped by their parent IDs.
+  Live validation of these child requests remains pending, including the API's
+  acceptance of numeric parent IDs serialized as decimal strings.
+- **Errors:** Permission, invalid-ID, and not-found errors fail the read. The
+  connector does not treat them as empty datasets.
+- **Webhooks:** Reads webhook configuration with custom headers disabled. It does
+  not receive or replay webhook events.
+- **Consistency:** Offset reads are not snapshots. Concurrent inserts, removals,
+  or reordering can affect page membership during a run.

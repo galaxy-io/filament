@@ -33,17 +33,18 @@ type selectorToken struct {
 
 // Source adapts the manifest-driven HTTP connector to ingestion's source API.
 type Source struct {
-	connector        *Connector
-	name             string
-	displayName      string
-	description      string
-	darkLogoURL      string
-	lightLogoURL     string
-	apiVersion       string
-	config           filament.ConfigSchema
-	embeddedManifest *manifest.Manifest
-	manifestErr      error
-	dynamicResources map[string]string
+	connector            *Connector
+	name                 string
+	displayName          string
+	description          string
+	darkLogoURL          string
+	lightLogoURL         string
+	apiVersion           string
+	registeredAPIVersion string
+	config               filament.ConfigSchema
+	embeddedManifest     *manifest.Manifest
+	manifestErr          error
+	dynamicResources     map[string]string
 	// incrementalResources is populated by PlanIncremental for the resources in
 	// the current run. It keeps durable watermark extraction distinct from
 	// ordinary within-run pagination resume.
@@ -97,13 +98,17 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionIncrementalUpsert,
 		)
 	}
+	version := s.registeredAPIVersion
+	if version == "" {
+		version = "1"
+	}
 	return filament.ConnectorSpec{
 		Name:           s.name,
 		DisplayName:    s.displayName,
 		Description:    s.description,
 		DarkLogoURL:    s.darkLogoURL,
 		LightLogoURL:   s.lightLogoURL,
-		Version:        "1",
+		Version:        version,
 		APIVersion:     s.apiVersion,
 		Modes:          modes,
 		SourcePolicies: filament.SourcePolicies(policies...),

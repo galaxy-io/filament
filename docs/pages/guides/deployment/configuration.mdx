@@ -15,6 +15,18 @@ file.
 
 The server, control plane, and worker read the variables in this section.
 
+### Private HTTP manifests
+
+| Variable | Default | Description |
+|---|---|---|
+| `HTTP_MANIFESTS_DIR` | unset | Directory containing private `<connector>/registry.json` files and API-version manifest folders. Adds private versions and can change default aliases; collisions with concrete bundled registrations fail startup. |
+
+Provide the same catalog to the server, control plane, and all workers. Files
+are loaded once at startup; missing, empty, or invalid configured directories
+stop startup. The variable does not mount or distribute files. See
+[private catalog setup](/pages/connectors/building-a-connector/http-manifests#load-a-private-catalog-at-startup)
+for the directory structure and override behavior.
+
 ### Datastore
 
 | Variable | Default | Description |

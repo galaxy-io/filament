@@ -73,7 +73,7 @@ func run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: registry.DefaultSources, Sinks: registry.DefaultSinks, Log: deps.Log}, spec)
+		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: registry.DefaultSinks, Log: deps.Log}, spec)
 	}
 	if !runner.ShouldRun(state) {
 		workerLog.Info("worker run skipped",
@@ -108,7 +108,7 @@ func run(ctx context.Context) error {
 		DataStore: deps.Store,
 		Log:       deps.Log,
 		Secrets:   deps.Secrets,
-		Sources:   registry.DefaultSources,
+		Sources:   deps.Sources,
 		Sinks:     registry.DefaultSinks,
 		Tracer:    deps.Tracer,
 	}, runner.SpecFromState(state))

@@ -119,7 +119,7 @@ connection:
   base_url: "{{ config.host }}"
 ```
 
-See posthog.yaml. Literal base URLs are unaffected. Note that tests for such a
+See `connectors/http/manifests/posthog/unversioned/manifest.yaml`. Literal base URLs are unaffected. Note that tests for such a
 manifest set the host through config instead of the usual
 `strings.Replace(manifest, "https://api.example.com", api.URL, 1)` swap.
 
@@ -197,7 +197,7 @@ fields:
   raw: { path: $, type: json, mode: remainder }   # catch-all: everything not mapped above
 ```
 
-Types: `string bool int16 int32 int64 float32 float64 decimal date time timestamp timestamptz json uuid`. `mode: remainder` and `shape:` (sub-object projection, see linear.yaml) are json-only and mutually exclusive.
+Types: `string bool int16 int32 int64 float32 float64 decimal date time timestamp timestamptz json uuid`. `mode: remainder` and `shape:` (sub-object projection, see `connectors/http/manifests/linear/unversioned/manifest.yaml`) are json-only and mutually exclusive.
 
 Use strings for opaque IDs, including long numeric identifiers. Use typed
 numeric columns for quantities and `timestamptz` for timestamps with offsets.
@@ -334,7 +334,7 @@ response:
   error: { path: error, when_present: true, message_path: error }
 ```
 
-See slack.yaml (`ok: false` responses).
+See `connectors/http/manifests/slack/unversioned/manifest.yaml` (`ok: false` responses).
 
 ### Empty-result errors
 

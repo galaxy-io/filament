@@ -9,12 +9,17 @@ other connectors. Passing one does not establish the others.
 Run from the repository root after authoring the manifest:
 
 ```sh
-go test ./connectors/http -run TestManifests
+go test ./connectors/http -run 'Test(Manifests|EmbeddedCatalogRegistration|Catalog)'
+go test ./registry
 ```
 
-This loads every shipped YAML file through grammar validation, strict decoding,
-normalization, and semantic checks. Fix all reported errors. It does not test
-the upstream API, response paths, permissions, or whether reads are complete.
+These checks cover registry discovery, upstream API version/default selection, aliases, fresh
+source instances, and every shipped YAML manifest through grammar validation,
+strict decoding, normalization, and semantic checks. Invalid bundled catalog
+entries also fail package initialization before tests run. API version checks
+cover date/dotted identifiers, absent versions, unsafe paths, and mismatches
+between the registry and YAML `api_version`. Fix all reported errors.
+They do not test the upstream API, response paths, permissions, or completeness.
 
 ## Review the API contract
 
@@ -32,6 +37,11 @@ unaffected manifest. For pagination changes, check page transitions and
 termination. For decoder or projection changes, check lossless IDs and nested
 JSON. For error or throttling rules, check matching and nonmatching responses.
 Protect shared state in HTTP fixture handlers.
+
+For shared catalog, version resolution, or connection pinning changes, also run
+`go test ./registry ./server ./cmd/internal/cli/...`. Preserve coverage for old
+unversioned connections, remote catalog schema lookup, and local document
+reapply without silently changing a pinned version.
 
 ## Repository checks
 
