@@ -70,7 +70,7 @@ func TestHTTPAliasesSurviveRemoteCatalog(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing version %s@%s", name, apiVersion)
 		}
-		if alias.Version != apiVersion || alias.Maturity != version.Maturity || !reflect.DeepEqual(alias.Config, version.Config) {
+		if alias.AliasTarget != version.Name || version.AliasTarget != "" || alias.Version != apiVersion || alias.Maturity != version.Maturity || !reflect.DeepEqual(alias.Config, version.Config) {
 			t.Fatalf("alias metadata differs for %s", name)
 		}
 	}

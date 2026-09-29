@@ -3780,6 +3780,11 @@
           "apiVersion": {
             "type": "string",
             "title": "api_version"
+          },
+          "aliasTarget": {
+            "type": "string",
+            "title": "alias_target",
+            "description": "Concrete registration selected by a source catalog alias; empty otherwise."
           }
         },
         "title": "ConnectorSpec",

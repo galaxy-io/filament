@@ -83,7 +83,7 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 		if kind == "source" && ok {
 			base, _, versioned := strings.Cut(live.Type, "@")
 			_, registered := catalog.Sources[live.Type]
-			_, alias := catalog.Sources[desired.Type]
+			alias := catalog.Sources[desired.Type].AliasTarget != ""
 			if versioned && registered && alias && desired.Type == base {
 				desired.Type = live.Type
 			}

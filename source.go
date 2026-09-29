@@ -259,6 +259,9 @@ type ConfigValidatable interface {
 // ConnectorSpec is a source's self-description: identity, supported modes and
 // policies, config schema, and resource capabilities. It powers the catalog.
 type ConnectorSpec struct {
+	// AliasTarget is the concrete registration selected by a catalog alias.
+	// The registry sets it; concrete catalog entries leave it empty.
+	AliasTarget    string
 	Stream         *StreamCapabilities
 	Name           string
 	DisplayName    string

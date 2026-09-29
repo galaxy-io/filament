@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -23,7 +24,11 @@ type versionedTestSource struct {
 }
 
 func (s *versionedTestSource) Spec() filament.ConnectorSpec {
-	return filament.ConnectorSpec{Name: "example@" + s.version, Version: s.version, Config: filament.ConfigSchema{Fields: []filament.ConfigField{{Name: "host", Type: filament.FieldString, Scope: filament.ScopeConnection}}}}
+	name := "example"
+	if s.version != "" {
+		name += "@" + s.version
+	}
+	return filament.ConnectorSpec{Name: name, Version: s.version, Config: filament.ConfigSchema{Fields: []filament.ConfigField{{Name: "host", Type: filament.FieldString, Scope: filament.ScopeConnection}}}}
 }
 func (s *versionedTestSource) Validate(filament.Config) error { return nil }
 
@@ -44,7 +49,11 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 		for _, version := range []string{"v1", "v2"} {
 			sources.Register("example@"+version, func() filament.Source { return &versionedTestSource{version: version} })
 		}
-		sources.RegisterAlias("example", "example@"+defaultVersion)
+		if defaultVersion == "" {
+			sources.Register("example", func() filament.Source { return &versionedTestSource{} })
+		} else {
+			sources.RegisterAlias("example", "example@"+defaultVersion)
+		}
 		api := server.New(sources, registry.NewSinks(), db, nil, nil)
 		_, handler := ingestionv1connect.NewIngestionServiceHandler(api)
 		httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,4 +105,20 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 	if err := target.Apply(ctx); err == nil {
 		t.Fatal("explicit connector version change accepted")
 	}
+
+	// A concrete bare registration is a different connector, even when a
+	// versioned registration with the same base name is still available.
+	target = targetFor("")
+	writeDocument("rejected")
+	if err := target.Apply(ctx); err == nil || !strings.Contains(err.Error(), `connector cannot change from "example@v1" to "example"`) {
+		t.Fatalf("concrete connector change: %v", err)
+	}
+	preserved, err := target.GetConnection(ctx, "source", "input")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preserved.Type != updated.Type || preserved.Config["host"] != updated.Config["host"] || preserved.Metadata.Revision != updated.Metadata.Revision {
+		t.Fatalf("rejected connector change modified connection: %+v", preserved)
+	}
+
 }

@@ -22,6 +22,7 @@ func sourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
 		Version:      spec.Version,
 		ApiVersion:   spec.APIVersion,
+		AliasTarget:  spec.AliasTarget,
 		Maturity:     connectorMaturityToProto(spec.Maturity),
 		Modes:        modesToProto(spec.Modes),
 		ConfigSchema: configSchemaToProto(spec.Config),

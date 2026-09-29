@@ -76,19 +76,21 @@ func (ConnectorMaturity) EnumDescriptor() ([]byte, []int) {
 
 // ConnectorSpec describes one registered source or sink connector.
 type ConnectorSpec struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Kind          ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
-	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	Modes         []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
-	ConfigSchema  *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
-	Description   string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
-	DarkLogoUrl   string                 `protobuf:"bytes,8,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
-	LightLogoUrl  string                 `protobuf:"bytes,9,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
-	SchemaField   string                 `protobuf:"bytes,10,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
-	Maturity      ConnectorMaturity      `protobuf:"varint,11,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
-	ApiVersion    string                 `protobuf:"bytes,12,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName  string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Kind         ConnectorKind          `protobuf:"varint,3,opt,name=kind,proto3,enum=ingestion.v1.ConnectorKind" json:"kind,omitempty"`
+	Version      string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Modes        []ReplicationMode      `protobuf:"varint,5,rep,packed,name=modes,proto3,enum=ingestion.v1.ReplicationMode" json:"modes,omitempty"`
+	ConfigSchema *ConfigSchema          `protobuf:"bytes,6,opt,name=config_schema,json=configSchema,proto3" json:"config_schema,omitempty"`
+	Description  string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	DarkLogoUrl  string                 `protobuf:"bytes,8,opt,name=dark_logo_url,json=darkLogoUrl,proto3" json:"dark_logo_url,omitempty"`
+	LightLogoUrl string                 `protobuf:"bytes,9,opt,name=light_logo_url,json=lightLogoUrl,proto3" json:"light_logo_url,omitempty"`
+	SchemaField  string                 `protobuf:"bytes,10,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
+	Maturity     ConnectorMaturity      `protobuf:"varint,11,opt,name=maturity,proto3,enum=ingestion.v1.ConnectorMaturity" json:"maturity,omitempty"`
+	ApiVersion   string                 `protobuf:"bytes,12,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	// Concrete registration selected by a source catalog alias; empty otherwise.
+	AliasTarget   string `protobuf:"bytes,13,opt,name=alias_target,json=aliasTarget,proto3" json:"alias_target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -203,6 +205,13 @@ func (x *ConnectorSpec) GetMaturity() ConnectorMaturity {
 func (x *ConnectorSpec) GetApiVersion() string {
 	if x != nil {
 		return x.ApiVersion
+	}
+	return ""
+}
+
+func (x *ConnectorSpec) GetAliasTarget() string {
+	if x != nil {
+		return x.AliasTarget
 	}
 	return ""
 }
@@ -1083,7 +1092,7 @@ var File_ingestion_v1_connectors_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\xf4\x03\n" +
+	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\x97\x04\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1098,7 +1107,8 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	" \x01(\tR\vschemaField\x12;\n" +
 	"\bmaturity\x18\v \x01(\x0e2\x1f.ingestion.v1.ConnectorMaturityR\bmaturity\x12\x1f\n" +
 	"\vapi_version\x18\f \x01(\tR\n" +
-	"apiVersion\"\xd9\x01\n" +
+	"apiVersion\x12!\n" +
+	"\falias_target\x18\r \x01(\tR\valiasTarget\"\xd9\x01\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +

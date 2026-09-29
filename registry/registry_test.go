@@ -33,7 +33,7 @@ func TestSourceAliases(t *testing.T) {
 	if err != nil || spec.Maturity != filament.MaturityBeta {
 		t.Fatalf("alias spec: %+v, %v", spec, err)
 	}
-	if specs := sources.Specs(); len(specs) != 2 || specs[0].Name != "example" || specs[1].Name != "example@v1" {
+	if specs := sources.Specs(); len(specs) != 2 || specs[0].Name != "example" || specs[1].Name != "example@v1" || specs[0].AliasTarget != "example@v1" || specs[1].AliasTarget != "" {
 		t.Fatalf("specs=%+v", specs)
 	}
 	if _, err := sources.Resolve("unknown"); !errors.Is(err, ErrUnknownProvider) {

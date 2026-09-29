@@ -208,16 +208,19 @@ func (r *Sources) Spec(name string) (filament.ConnectorSpec, error) {
 }
 
 // Specs returns concrete sources and aliases, sorted by name. Alias specs keep
-// their lookup names so catalog consumers can validate saved unversioned refs.
+// their lookup names and expose AliasTarget so catalog consumers can distinguish
+// aliases from concrete registrations and validate saved unversioned refs.
 func (r *Sources) Specs() []filament.ConnectorSpec {
 	p := r.providers
 	p.mu.RLock()
 	registrations := make(map[string]registration[filament.Source], len(p.factories)+len(p.aliases))
+	aliases := make(map[string]string, len(p.aliases))
 	for name, registration := range p.factories {
 		registrations[name] = registration
 	}
 	for name, target := range p.aliases {
 		registrations[name] = p.factories[target]
+		aliases[name] = target
 	}
 	p.mu.RUnlock()
 
@@ -231,6 +234,7 @@ func (r *Sources) Specs() []filament.ConnectorSpec {
 		registration := registrations[name]
 		spec := registration.factory().Spec()
 		spec.Name = name
+		spec.AliasTarget = aliases[name]
 		spec.Maturity = registration.maturity
 		specs = append(specs, spec)
 	}
