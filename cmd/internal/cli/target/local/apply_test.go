@@ -34,7 +34,7 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 	store := Store{Path: filepath.Join(t.TempDir(), "filament.yaml")}
 	writeDocument := func(host string) {
 		t.Helper()
-		if err := os.WriteFile(store.Path, []byte("version: 1\nsources:\n  input:\n    type: example\n    config:\n      host: "+host+"\n"), 0600); err != nil {
+		if err := os.WriteFile(store.Path, []byte("version: 1\nsources:\n  input:\n    type: example\n    config:\n      host: "+host+"\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -90,7 +90,7 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 	}
 
 	// An explicit version change is still a connector change and must fail.
-	if err := os.WriteFile(store.Path, []byte("version: 1\nsources:\n  input:\n    type: example@v2\n    config:\n      host: after\n"), 0600); err != nil {
+	if err := os.WriteFile(store.Path, []byte("version: 1\nsources:\n  input:\n    type: example@v2\n    config:\n      host: after\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := target.Apply(ctx); err == nil {

@@ -88,38 +88,11 @@ func loadCatalog(files fs.FS) ([]catalogEntry, error) {
 		}
 		sort.Strings(versions)
 		for _, version := range versions {
-			if !catalogAPIVersion.MatchString(version) {
-				return nil, fmt.Errorf("%s: invalid API version %q (must be a safe directory name)", registryPath, version)
-			}
-			release := registration.Versions[version]
-			switch release.Maturity {
-			case filament.MaturityAlpha, filament.MaturityBeta, filament.MaturityStable:
-			default:
-				return nil, fmt.Errorf("%s: invalid maturity %q for %s", registryPath, release.Maturity, version)
-			}
-			manifestPath := path.Join(root, version, "manifest.yaml")
-			data, err := fs.ReadFile(files, manifestPath)
+			entry, err := loadCatalogEntry(files, root, registration, version)
 			if err != nil {
 				return nil, err
 			}
-			parsed, err := manifest.Parse(data)
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", manifestPath, err)
-			}
-			if parsed.Name != registration.Name {
-				return nil, fmt.Errorf("%s: name must match registry name %q", manifestPath, registration.Name)
-			}
-			if version == unversionedAPI {
-				if parsed.APIVersion != "" {
-					return nil, fmt.Errorf("%s: unversioned directory requires api_version to be omitted", manifestPath)
-				}
-			} else if parsed.APIVersion != version {
-				return nil, fmt.Errorf("%s: api_version %q must match registry API version %q (use unversioned when api_version is omitted)", manifestPath, parsed.APIVersion, version)
-			}
-			if parsed.DisplayName == "" || parsed.Description == "" || parsed.DarkLogoURL == "" || parsed.LightLogoURL == "" {
-				return nil, fmt.Errorf("%s: missing catalog presentation metadata", manifestPath)
-			}
-			entries = append(entries, catalogEntry{name: registration.Name, version: version, maturity: release.Maturity, isDefault: version == registration.DefaultVersion, data: data})
+			entries = append(entries, entry)
 		}
 		// Catch forgotten registry entries rather than silently omitting new versions.
 		children, err := fs.ReadDir(files, root)
@@ -138,6 +111,43 @@ func loadCatalog(files fs.FS) ([]catalogEntry, error) {
 		return nil, fmt.Errorf("manifests: catalog is empty")
 	}
 	return entries, nil
+}
+
+// loadCatalogEntry validates and loads one upstream API version.
+func loadCatalogEntry(files fs.FS, root string, registration catalogRegistry, version string) (catalogEntry, error) {
+	registryPath := path.Join(root, "registry.json")
+	if !catalogAPIVersion.MatchString(version) {
+		return catalogEntry{}, fmt.Errorf("%s: invalid API version %q (must be a safe directory name)", registryPath, version)
+	}
+	release := registration.Versions[version]
+	switch release.Maturity {
+	case filament.MaturityAlpha, filament.MaturityBeta, filament.MaturityStable:
+	default:
+		return catalogEntry{}, fmt.Errorf("%s: invalid maturity %q for %s", registryPath, release.Maturity, version)
+	}
+	manifestPath := path.Join(root, version, "manifest.yaml")
+	data, err := fs.ReadFile(files, manifestPath)
+	if err != nil {
+		return catalogEntry{}, err
+	}
+	parsed, err := manifest.Parse(data)
+	if err != nil {
+		return catalogEntry{}, fmt.Errorf("%s: %w", manifestPath, err)
+	}
+	if parsed.Name != registration.Name {
+		return catalogEntry{}, fmt.Errorf("%s: name must match registry name %q", manifestPath, registration.Name)
+	}
+	if version == unversionedAPI {
+		if parsed.APIVersion != "" {
+			return catalogEntry{}, fmt.Errorf("%s: unversioned directory requires api_version to be omitted", manifestPath)
+		}
+	} else if parsed.APIVersion != version {
+		return catalogEntry{}, fmt.Errorf("%s: api_version %q must match registry API version %q (use unversioned when api_version is omitted)", manifestPath, parsed.APIVersion, version)
+	}
+	if parsed.DisplayName == "" || parsed.Description == "" || parsed.DarkLogoURL == "" || parsed.LightLogoURL == "" {
+		return catalogEntry{}, fmt.Errorf("%s: missing catalog presentation metadata", manifestPath)
+	}
+	return catalogEntry{name: registration.Name, version: version, maturity: release.Maturity, isDefault: version == registration.DefaultVersion, data: data}, nil
 }
 
 func (entry catalogEntry) key() string { return entry.name + "@" + entry.version }
