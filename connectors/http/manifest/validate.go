@@ -221,6 +221,9 @@ func (m *Manifest) validateSemantics() error {
 			if f.Mode == "remainder" && f.Type != "json" {
 				_ = agg.Addf(fieldPath+".mode", "remainder is only supported for json fields")
 			}
+			if f.MaxString != "" && (f.Type != "string" || !f.Nullable || len(f.Shape) > 0 || f.Mode != "") {
+				_ = agg.Addf(path+".fields", "max_string requires a nullable string field without shape or mode")
+			}
 			if len(f.Shape) > 0 && f.Type != "json" {
 				_ = agg.Addf(fieldPath+".shape", "shape is only supported for json fields")
 			}
@@ -382,6 +385,9 @@ func (m *Manifest) validateSemantics() error {
 		seenKinds[kind] = struct{}{}
 	}
 
+	if m.Connection.RateLimit.Burst < 0 {
+		_ = agg.Addf("connection.rate_limit.burst", "must be non-negative")
+	}
 	if m.Connection.RateLimit.Dynamic != nil {
 		if err := checkEnum(m.Connection.RateLimit.Dynamic.ResetFormat, ValidRateLimitResetFormats); err != nil {
 			_ = agg.Addf("connection.rate_limit.dynamic.reset_format", "%v", err)

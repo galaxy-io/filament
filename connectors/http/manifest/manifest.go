@@ -237,6 +237,7 @@ func referenceTemplate(value string) string {
 
 // RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
+	Burst             int                 `yaml:"burst,omitempty"` // zero retains the default two-second burst
 	RequestsPerSecond float64             `yaml:"requests_per_second"`
 	Dynamic           *DynamicLimit       `yaml:"dynamic,omitempty"`
 	Responses         []RateLimitResponse `yaml:"responses,omitempty"`
@@ -294,12 +295,13 @@ type Resource struct {
 
 // FieldSpec maps a response path to a typed output field.
 type FieldSpec struct {
-	Name     string            `yaml:"name"`
-	Path     string            `yaml:"path"`
-	Type     string            `yaml:"type"`
-	Shape    map[string]string `yaml:"shape,omitempty"`
-	Mode     string            `yaml:"mode,omitempty"` // raw | remainder (json fields only)
-	Nullable bool              `yaml:"nullable,omitempty"`
+	MaxString string            `yaml:"max_string,omitempty"` // maximum nonempty string child of an array
+	Name      string            `yaml:"name"`
+	Path      string            `yaml:"path"`
+	Type      string            `yaml:"type"`
+	Shape     map[string]string `yaml:"shape,omitempty"`
+	Mode      string            `yaml:"mode,omitempty"` // raw | remainder (json fields only)
+	Nullable  bool              `yaml:"nullable,omitempty"`
 }
 
 // FieldList is the v1 map-based field declaration. YAML mapping order is
@@ -322,16 +324,18 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			field.Type = strings.TrimSuffix(value.Value, "?")
 		} else {
 			type valueSpec struct {
-				Path     string            `yaml:"path"`
-				Type     string            `yaml:"type"`
-				Shape    map[string]string `yaml:"shape,omitempty"`
-				Mode     string            `yaml:"mode,omitempty"`
-				Nullable bool              `yaml:"nullable,omitempty"`
+				MaxString string            `yaml:"max_string,omitempty"`
+				Path      string            `yaml:"path"`
+				Type      string            `yaml:"type"`
+				Shape     map[string]string `yaml:"shape,omitempty"`
+				Mode      string            `yaml:"mode,omitempty"`
+				Nullable  bool              `yaml:"nullable,omitempty"`
 			}
 			var spec valueSpec
 			if err := value.Decode(&spec); err != nil {
 				return fmt.Errorf("field %q: %w", name, err)
 			}
+			field.MaxString = spec.MaxString
 			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
 			if field.Path == "" && len(field.Shape) == 0 {
 				field.Path = name

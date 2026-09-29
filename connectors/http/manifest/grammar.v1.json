@@ -110,6 +110,7 @@
           "additionalProperties": false,
           "properties": {
             "requests_per_second": { "type": "number", "minimum": 0 },
+            "burst": { "type": "integer", "minimum": 1 },
             "responses": {
               "type": "array",
               "items": {
@@ -289,6 +290,7 @@
             "properties": {
               "path": { "type": "string" },
               "type": { "type": "string", "enum": ["string", "bool", "int16", "int32", "int64", "float32", "float64", "decimal", "date", "time", "timestamp", "timestamptz", "json", "uuid"] },
+              "max_string": { "type": "string", "minLength": 1 },
               "shape": { "type": "object", "additionalProperties": { "type": "string" } },
               "mode": { "type": "string", "enum": ["raw", "remainder", ""] },
               "nullable": { "type": "boolean" }
