@@ -24,6 +24,7 @@ type providerRegistry[P, S any] struct {
 	kind        string
 	mu          sync.RWMutex
 	factories   map[string]registration[P]
+	aliases     map[string]string
 	specOf      func(P) S
 	setMaturity func(*S, filament.ConnectorMaturity)
 }
@@ -36,6 +37,7 @@ func newProviderRegistry[P, S any](
 	return &providerRegistry[P, S]{
 		kind:        kind,
 		factories:   make(map[string]registration[P]),
+		aliases:     make(map[string]string),
 		specOf:      specOf,
 		setMaturity: setMaturity,
 	}
@@ -55,11 +57,17 @@ func (r *providerRegistry[P, S]) register(name string, maturity filament.Connect
 	if _, dup := r.factories[name]; dup {
 		panic("registry: " + r.kind + " already registered: " + name)
 	}
+	if _, dup := r.aliases[name]; dup {
+		panic("registry: " + r.kind + " already registered: " + name)
+	}
 	r.factories[name] = registration[P]{factory: factory, maturity: maturity}
 }
 
 func (r *providerRegistry[P, S]) resolve(name string) (P, error) {
 	r.mu.RLock()
+	if target, ok := r.aliases[name]; ok {
+		name = target
+	}
 	registration, ok := r.factories[name]
 	r.mu.RUnlock()
 	if !ok {
@@ -71,6 +79,9 @@ func (r *providerRegistry[P, S]) resolve(name string) (P, error) {
 
 func (r *providerRegistry[P, S]) spec(name string) (S, error) {
 	r.mu.RLock()
+	if target, ok := r.aliases[name]; ok {
+		name = target
+	}
 	registration, ok := r.factories[name]
 	r.mu.RUnlock()
 	if !ok {
@@ -134,6 +145,29 @@ func (r *Sources) RegisterWithMaturity(name string, maturity filament.ConnectorM
 	r.providers.register(name, maturity, factory)
 }
 
+// RegisterAlias adds a lookup name for an existing concrete source registration.
+// Aliases appear in Specs under their lookup names. Resolution preserves the
+// target's concrete identity so new connections can pin the selected version.
+// It panics on collisions or targets that are missing or themselves aliases.
+func (r *Sources) RegisterAlias(name, target string) {
+	p := r.providers
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if name == "" {
+		panic("registry: empty source alias")
+	}
+	if _, exists := p.factories[name]; exists {
+		panic("registry: source already registered: " + name)
+	}
+	if _, exists := p.aliases[name]; exists {
+		panic("registry: source already registered: " + name)
+	}
+	if _, exists := p.factories[target]; !exists {
+		panic("registry: source alias target is not registered: " + target)
+	}
+	p.aliases[name] = target
+}
+
 // Resolve constructs a fresh source instance for name.
 func (r *Sources) Resolve(name string) (filament.Source, error) {
 	return r.providers.resolve(name)
@@ -144,10 +178,34 @@ func (r *Sources) Spec(name string) (filament.ConnectorSpec, error) {
 	return r.providers.spec(name)
 }
 
-// Specs returns every registered source's spec, sorted by name. Powers the
-// DiscoveryService catalog.
+// Specs returns concrete sources and aliases, sorted by name. Alias specs keep
+// their lookup names so catalog consumers can validate saved unversioned refs.
 func (r *Sources) Specs() []filament.ConnectorSpec {
-	return r.providers.specs()
+	p := r.providers
+	p.mu.RLock()
+	registrations := make(map[string]registration[filament.Source], len(p.factories)+len(p.aliases))
+	for name, registration := range p.factories {
+		registrations[name] = registration
+	}
+	for name, target := range p.aliases {
+		registrations[name] = p.factories[target]
+	}
+	p.mu.RUnlock()
+
+	names := make([]string, 0, len(registrations))
+	for name := range registrations {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	specs := make([]filament.ConnectorSpec, 0, len(names))
+	for _, name := range names {
+		registration := registrations[name]
+		spec := registration.factory().Spec()
+		spec.Name = name
+		spec.Maturity = registration.maturity
+		specs = append(specs, spec)
+	}
+	return specs
 }
 
 // Sinks is the sink-provider registry.
