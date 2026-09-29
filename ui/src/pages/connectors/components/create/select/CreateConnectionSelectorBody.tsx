@@ -11,10 +11,10 @@ import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import { getConnectorFamily } from "@/pages/connectors/components/create/catalog";
 import CreateConnectionSelectorCard, {
   CreateConnectionSelectorEmptyCard,
 } from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
+import { getConnectorFamily } from "@/pages/connectors/components/create/utils";
 import {
   CREATE_CONNECTION_SELECTOR_GHOST_COUNT,
   CREATE_CONNECTION_SELECTOR_GRID_COLUMNS,

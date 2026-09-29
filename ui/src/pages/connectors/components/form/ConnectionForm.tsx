@@ -41,7 +41,7 @@ import PendingLayout from "@/layouts/PendingLayout";
 import {
   getConnectorFamily,
   getConnectorVersions,
-} from "@/pages/connectors/components/create/catalog";
+} from "@/pages/connectors/components/create/utils";
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
