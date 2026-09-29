@@ -77,6 +77,54 @@ Moving a pipeline between API versions may require checkpoint migration or reset
 registration does not migrate state. Upgrade workers before creating connections
 with versioned keys that older workers cannot resolve.
 
+## Load a private catalog at startup
+
+Set `HTTP_MANIFESTS_DIR` to a directory on the server's filesystem to load
+private manifests without rebuilding the binary:
+
+```sh
+HTTP_MANIFESTS_DIR=/etc/filament/manifests ./server
+```
+
+The directory contains connector folders directly, using the same registry and
+API-version layout as bundled manifests:
+
+```text
+/etc/filament/manifests/
+  internal_crm/
+    registry.json
+    v3/manifest.yaml
+```
+
+Use `name: internal_crm` and `api_version: v3` in the manifest, and list `v3` in
+its registry. It becomes available as `internal_crm@v3` and through the
+`internal_crm` default alias. The same setting works with local CLI deployments,
+including `filament up` and direct runs. When using a remote CLI context, configure
+the directory on the deployment rather than on the CLI machine.
+
+Private entries take precedence over matching bundled version keys and default
+aliases. Other bundled connectors and API versions remain available. For example,
+a private `github` registry selecting `2022-11-28` replaces `github@2022-11-28`
+and the `github` default alias. A pin to an overridden key uses the private
+implementation, so overrides need the same compatibility review as manifest edits.
+
+When unset, only the bundled catalog is used. An explicitly configured missing,
+empty, or invalid directory fails startup. Files are read and validated once;
+restart the process to pick up changes. A bad catalog is not partially registered.
+The process-wide bundled registry is left unchanged.
+
+In a split deployment, configure the directory on the server, control plane,
+and every worker. Each must receive the same files, including overrides. The
+setting does not copy files between machines or mount volumes into worker pods;
+provision the files in each container or filesystem before startup. Private here
+means deployment-local, not tenant-specific: registered sources appear in the
+normal connector catalog for that deployment. Keep credentials in connection
+configuration and secret references rather than embedding them in manifests.
+
+For a custom Go host, `httpapi.LoadDirectory(path)` returns a private source
+registry. Combine it with `registry.DefaultSources.WithOverrides(private)` and
+pass the result to `app.WithSources` (or the server and runner directly).
+
 ## Start with the basic structure
 
 A manifest has four main parts: connector metadata, user configuration, shared
