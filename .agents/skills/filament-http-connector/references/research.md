@@ -11,6 +11,11 @@ overview. Use an official OpenAPI specification or documentation index when it
 helps enumerate the API. Check versions and relevant deprecation notices, and
 record the version you build against as `api_version`.
 
+For a comprehensive audit, inspect the complete index rather than matching only
+titles beginning with “Get” or “List.” Read endpoints can be titled “Timeline,”
+“Email Templates,” or “View.” Classify alternate lookup methods, counters, mutation
+job status, and binary downloads separately from distinct source resources.
+
 Official SDK source can clarify serialization or paging. A sanitized live response
 can confirm what the service actually returns. Other connectors and community
 reports are corroboration, not substitutes for the API contract. A community post
@@ -87,7 +92,13 @@ valid paginator incomplete. Prefer an uncapped listing or export endpoint where
 it fits the engine. Flag required partitioning as a design gap.
 
 Prefer bulk listings that include the required fields. Add detail reads only
-for missing data. If an optional include can make a response too large, look
+for missing data. A trailing `raw` column preserves only returned fields; it does
+not recover unrequested fields, truncated rich text, omitted custom fields, or
+paginated nested relationships. Check list and detail responses independently,
+including their keys and any nested has-more flags. Do not claim an entire
+module is complete because its record IDs can be enumerated.
+
+If an optional include can make a response too large, look
 for a dedicated paginated endpoint. A `413` workaround that drops requested
 data is not complete extraction.
 
