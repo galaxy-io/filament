@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
@@ -28,11 +30,15 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 interface PipelineCanvasRoutesToolbarProps {
   search: string;
   onSearchChange: (search: string) => void;
+  canAddRoute: boolean;
+  onAddRoute: () => void;
 }
 
 const PipelineCanvasRoutesToolbar = ({
   search,
   onSearchChange,
+  canAddRoute,
+  onAddRoute,
 }: PipelineCanvasRoutesToolbarProps) => {
   const previewed = usePipelinePreviewVersion();
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
@@ -102,6 +108,16 @@ const PipelineCanvasRoutesToolbar = ({
           selected.length ? pluralize("sink", selected.length, true) : placeholder
         }
       />
+      <FlexItem grow={1} />
+      {canAddRoute && (
+        <Button
+          label="Add route"
+          icon={PlusIcon}
+          variant={ButtonVariant.SECONDARY}
+          size={ButtonSize.MEDIUM}
+          onClick={onAddRoute}
+        />
+      )}
     </FlexWrapper>
   );
 };

@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ExecutionMode, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
   DiscoverResourcesRequestSchema,
   GetResourceColumnsRequestSchema,
@@ -13,7 +14,7 @@ import {
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { getCursorOptions } from "@/pages/pipelines/components/create/rows";
+import { getCursorOptions, getDefaultCursor } from "@/pages/pipelines/components/resource/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
@@ -23,10 +24,24 @@ interface PipelineCanvasEdgeResourcesOptions {
   enabled?: boolean;
 }
 
+export interface PipelineCanvasEdgeResources {
+  isContinuous: boolean;
+  hasReadLevers: boolean;
+  isTransformable: boolean;
+  isLoadingColumns: boolean;
+  sourceConnectionId: Connection["id"];
+  edgeResource: Resource["name"];
+  coveredResources: Resource["name"][];
+  columnsByResource: Map<Resource["name"], ResourceColumn[]>;
+  cursorOptionsByResource: Record<Resource["name"], ResourceColumn[]>;
+  defaultCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
+  primaryKeyByResource: Record<Resource["name"], Resource["primaryKey"]>;
+}
+
 export const usePipelineCanvasEdgeResources = (
   edge: CanvasEdge,
   { enabled = true }: PipelineCanvasEdgeResourcesOptions = {},
-) => {
+): PipelineCanvasEdgeResources => {
   const executionMode = usePipelineExecutionMode();
   const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
   const connectionByNodeId = usePipelineCanvasConnections();
@@ -41,7 +56,7 @@ export const usePipelineCanvasEdgeResources = (
     input: create(DiscoverResourcesRequestSchema, { connectionId: sourceConnectionId }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: enabled && sourceConnectionId !== "" && edgeResource === "",
+      enabled: enabled && sourceConnectionId !== "",
     },
   });
 
@@ -70,6 +85,14 @@ export const usePipelineCanvasEdgeResources = (
     },
   });
 
+  const primaryKeyByResource = useMemo<Record<Resource["name"], Resource["primaryKey"]>>(
+    () =>
+      Object.fromEntries(
+        (discovered?.resources ?? []).map((resource) => [resource.name, resource.primaryKey]),
+      ),
+    [discovered?.resources],
+  );
+
   const columnsByResource = useMemo(
     () => new Map((columns?.resources ?? []).map((entry) => [entry.resource, entry.columns])),
     [columns?.resources],
@@ -86,13 +109,12 @@ export const usePipelineCanvasEdgeResources = (
     [coveredResources, columnsByResource],
   );
 
-  const recommendedCursorByResource = useMemo<Record<Resource["name"], ResourceColumn["name"]>>(
+  const defaultCursorByResource = useMemo<Record<Resource["name"], ResourceColumn["name"]>>(
     () =>
       Object.fromEntries(
         coveredResources.map((resource) => [
           resource,
-          (columnsByResource.get(resource) ?? []).find((column) => column.isCursorRecommended)
-            ?.name ?? "",
+          getDefaultCursor(columnsByResource.get(resource) ?? []),
         ]),
       ),
     [coveredResources, columnsByResource],
@@ -113,6 +135,7 @@ export const usePipelineCanvasEdgeResources = (
     coveredResources,
     columnsByResource,
     cursorOptionsByResource,
-    recommendedCursorByResource,
+    defaultCursorByResource,
+    primaryKeyByResource,
   };
 };

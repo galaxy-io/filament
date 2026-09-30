@@ -33,7 +33,9 @@ import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import {
   getCanvasEdgeResourceLabel,
   getDefaultDestinationResource,
+  getEdgeResourceStatuses,
 } from "@/pages/pipelines/canvas/utils";
+import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
@@ -48,6 +50,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
 
   const resource = getCanvasEdgeResource(edge);
 
+  const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
     isContinuous,
     hasReadLevers,
@@ -57,13 +60,14 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     sourceConnectionId,
     coveredResources,
     columnsByResource,
+    verdict,
     readModeOptions,
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
     cursorOptionsByResource,
-    recommendedCursorByResource,
-  } = usePipelineCanvasPanelResourceOptions(edge);
+    defaultCursorByResource,
+  } = options;
 
   const { label: resourceLabel, isNamedResource } = getCanvasEdgeResourceLabel(
     resource,
@@ -88,9 +92,20 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     effectiveReadMode,
     effectiveWriteMode,
     coveredResources,
-    recommendedCursorByResource,
+    defaultCursorByResource,
   });
   const destinationResource = edge.data?.destinationResource ?? "";
+  const statuses = getEdgeResourceStatuses(options, {
+    verdict,
+    readMode,
+    writeMode,
+    cursorsByResource,
+  });
+  const getFieldError = (field: PipelineResourceStatusField, resourceName?: string) =>
+    statuses.find(
+      (status) =>
+        status.field === field && (resourceName === undefined || status.resource === resourceName),
+    )?.message;
 
   const handleTransformChange = (transform: TransformDefinition | undefined) =>
     setEdgeConfig(edge.id, {
@@ -162,6 +177,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                 placeholder="Select a read mode..."
                 size={InputSize.LARGE}
                 isDisabled={isReadOnly || isLoading}
+                error={getFieldError(PipelineResourceStatusField.READ_MODE)}
                 fillWidth
               />
             )}
@@ -174,6 +190,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               placeholder="Select a write mode..."
               size={InputSize.LARGE}
               isDisabled={isReadOnly || isLoading}
+              error={getFieldError(PipelineResourceStatusField.WRITE_MODE)}
               fillWidth
             />
             {isContinuous && isNamedResource && (
@@ -196,6 +213,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   value={cursorsByResource.get(resourceName) ?? ""}
                   options={cursorOptionsByResource[resourceName] ?? []}
                   isDisabled={isReadOnly || isLoading}
+                  error={getFieldError(PipelineResourceStatusField.CURSOR, resourceName)}
                   onChange={(field) => handleCursorChange(resourceName, field)}
                 />
               ))}

@@ -6,6 +6,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { PIPELINE_CANVAS_ROUTES_ISLAND_HEIGHT } from "@/pages/pipelines/canvas/routes/constants";
+import { getPipelineCanvasRoutesActivateHandler } from "@/pages/pipelines/canvas/routes/utils";
 
 const Island = withTheme(styled.div<PropsWithTheme<{ $width: number; $isSelected: boolean }>>`
   width: ${({ $width }) => $width}px;
@@ -27,22 +28,49 @@ const Island = withTheme(styled.div<PropsWithTheme<{ $width: number; $isSelected
     $isSelected ? `1px solid ${theme.color.background.galaxy}` : "none"};
   outline-offset: -1px;
 
+  cursor: pointer;
   transition: border-color 100ms ease;
+
+  &:hover:not([data-selected="true"]) {
+    border-color: ${({ theme }) => theme.color.border.tertiary};
+  }
+
+  &:focus-visible {
+    border-color: ${({ theme }) => theme.color.background.galaxy};
+  }
 `);
 
 interface PipelineCanvasRoutesIslandProps extends PropsWithChildren {
   width: number;
   isSelected: boolean;
+  onSelect: () => void;
 }
 
 const PipelineCanvasRoutesIsland = ({
   width,
   isSelected,
+  onSelect,
   children,
-}: PipelineCanvasRoutesIslandProps) => (
-  <Island $width={width} $isSelected={isSelected} data-island data-selected={isSelected}>
-    {children}
-  </Island>
-);
+}: PipelineCanvasRoutesIslandProps) => {
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    onSelect();
+  };
+
+  return (
+    <Island
+      $width={width}
+      $isSelected={isSelected}
+      data-island
+      data-selected={isSelected}
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={getPipelineCanvasRoutesActivateHandler(onSelect)}
+    >
+      {children}
+    </Island>
+  );
+};
 
 export default PipelineCanvasRoutesIsland;

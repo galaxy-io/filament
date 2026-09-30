@@ -1,7 +1,5 @@
 import { create } from "@bufbuild/protobuf";
 
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
@@ -11,15 +9,19 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import type { PipelineCanvasEdgeModeOptions } from "@/pages/pipelines/canvas/utils";
 import {
-  READ_MODE_TO_LABEL_MAP,
-  WRITE_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+  hasSiblingIncrementalRead,
+  type PipelineCanvasEdgeModeOptions,
+} from "@/pages/pipelines/canvas/utils";
+import {
+  getCompatibleWriteModes,
+  getReadModeSelectOptions,
+  getWriteModeSelectOptions,
+} from "@/pages/pipelines/components/resource/utils";
 
 interface PipelineCanvasEdgeConfigOptions extends PipelineCanvasEdgeModeOptions {
   coveredResources: Resource["name"][];
-  recommendedCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
+  defaultCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
 }
 
 export const usePipelineCanvasEdgeConfig = (
@@ -30,7 +32,7 @@ export const usePipelineCanvasEdgeConfig = (
     effectiveReadMode,
     effectiveWriteMode,
     coveredResources,
-    recommendedCursorByResource,
+    defaultCursorByResource,
   }: PipelineCanvasEdgeConfigOptions,
 ) => {
   const { edges } = usePipelineCanvasState();
@@ -45,26 +47,20 @@ export const usePipelineCanvasEdgeConfig = (
   const cursors = edge.data?.cursors ?? [];
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
-  const buildRecommendedCursors = () =>
+  const buildDefaultCursors = () =>
     coveredResources
-      .filter((resourceName) => (recommendedCursorByResource[resourceName] ?? "") !== "")
+      .filter((resourceName) => (defaultCursorByResource[resourceName] ?? "") !== "")
       .map((resourceName) =>
         create(ResourceCursorConfigSchema, {
           resource: resourceName,
-          field: recommendedCursorByResource[resourceName],
+          field: defaultCursorByResource[resourceName],
           lookbackSeconds: 0n,
         }),
       );
 
-  const routeHasIncremental = edges.some(
-    (candidate) =>
-      candidate.source === edge.source &&
-      candidate.target === edge.target &&
-      (candidate.id === edge.id ? readMode : candidate.data?.readMode) === ReadMode.INCREMENTAL,
-  );
-  const compatibleWriteModes = writeModeOptions.filter(
-    (mode) => !routeHasIncremental || mode !== WriteMode.REPLACE,
-  );
+  const routeHasIncremental =
+    readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, edge, edge.id);
+  const compatibleWriteModes = getCompatibleWriteModes(writeModeOptions, routeHasIncremental);
 
   const handleReadModeChange = (mode: ReadMode) => {
     const nextWriteMode =
@@ -74,7 +70,7 @@ export const usePipelineCanvasEdgeConfig = (
     setEdgeConfig(edge.id, {
       readMode: mode,
       writeMode: nextWriteMode,
-      cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+      cursors: mode === ReadMode.INCREMENTAL ? buildDefaultCursors() : [],
       transform: edge.data?.transform,
     });
     if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
@@ -98,16 +94,8 @@ export const usePipelineCanvasEdgeConfig = (
       ],
     });
 
-  const readModeSelectOptions: SelectInputOption[] = readModeOptions.map((mode) => ({
-    id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
-  }));
-  const writeModeSelectOptions: SelectInputOption[] = compatibleWriteModes.map((mode) => ({
-    id: String(mode),
-    label: WRITE_MODE_TO_LABEL_MAP[mode],
-    value: mode,
-  }));
+  const readModeSelectOptions = getReadModeSelectOptions(readModeOptions);
+  const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes);
 
   return {
     configuredReadMode,

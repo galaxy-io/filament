@@ -4,7 +4,10 @@ import { ExecutionMode, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
-import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+import {
+  PipelineCanvasValidationIssueKind,
+  usePipelineCanvasValidation,
+} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
 import { getPipelineCanvasRouteGroupKey } from "@/pages/pipelines/canvas/routes/utils";
@@ -25,9 +28,9 @@ const compareGroups = (
   left: PipelineCanvasRouteDraft[],
   right: PipelineCanvasRouteDraft[],
 ): number => {
-  const leftHasIssue = left.some((route) => route.issues.length > 0);
-  const rightHasIssue = right.some((route) => route.issues.length > 0);
-  if (leftHasIssue !== rightHasIssue) return leftHasIssue ? -1 : 1;
+  const leftIsInvalid = left.some((route) => route.isInvalid);
+  const rightIsInvalid = right.some((route) => route.isInvalid);
+  if (leftIsInvalid !== rightIsInvalid) return leftIsInvalid ? -1 : 1;
   return left[0].resourceLabel.localeCompare(right[0].resourceLabel);
 };
 
@@ -39,13 +42,14 @@ const compareSinks = (left: PipelineCanvasRouteDraft, right: PipelineCanvasRoute
 export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoutesOptions) => {
   const { edges } = usePipelineCanvasState();
   const connectionByNodeId = usePipelineCanvasConnections();
-  const { issues, edgeValidationByEdgeId } = usePipelineCanvasValidation();
+  const { issues, invalidEdgeIds, edgeValidationByEdgeId } = usePipelineCanvasValidation();
   const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
 
   const routes = useMemo<PipelineCanvasRoute[]>(() => {
     const issuesByEdgeId = new Map<CanvasEdge["id"], string[]>();
     for (const issue of issues) {
-      if (issue.edgeId === undefined) continue;
+      if (issue.edgeId === undefined || issue.kind !== PipelineCanvasValidationIssueKind.TRANSFORM)
+        continue;
       issuesByEdgeId.set(issue.edgeId, [
         ...(issuesByEdgeId.get(issue.edgeId) ?? []),
         issue.message,
@@ -69,6 +73,7 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
           hasReadLevers: sourceConnection?.replication !== ReplicationMode.CDC && !isContinuous,
           transformStepCount: getTransformStepCount(edge.data?.transform, resource),
           issues: issuesByEdgeId.get(edge.id) ?? [],
+          isInvalid: invalidEdgeIds.has(edge.id),
           verdict: edgeValidationByEdgeId.get(edge.id),
         };
       })
@@ -92,7 +97,16 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
       .flatMap((group) =>
         group.map((draft, groupIndex) => ({ ...draft, groupIndex, groupSize: group.length })),
       );
-  }, [edges, connectionByNodeId, issues, edgeValidationByEdgeId, isContinuous, search, sinkIds]);
+  }, [
+    edges,
+    connectionByNodeId,
+    issues,
+    invalidEdgeIds,
+    edgeValidationByEdgeId,
+    isContinuous,
+    search,
+    sinkIds,
+  ]);
 
   return { routes, hasRoutes: edges.length > 0 };
 };

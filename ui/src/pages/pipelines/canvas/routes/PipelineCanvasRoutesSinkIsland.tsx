@@ -11,15 +11,18 @@ import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types"
 interface PipelineCanvasRoutesSinkIslandProps {
   route: PipelineCanvasRoute;
   isSelected: boolean;
+  onSelect: () => void;
 }
 
 const PipelineCanvasRoutesSinkIsland = ({
   route,
   isSelected,
+  onSelect,
 }: PipelineCanvasRoutesSinkIslandProps) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH}
     isSelected={isSelected}
+    onSelect={onSelect}
   >
     <ConnectorTile
       connector={route.sinkConnection?.connector ?? ""}

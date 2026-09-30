@@ -2,9 +2,6 @@ import { memo } from "react";
 
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-
 import {
   PIPELINE_CANVAS_ROUTES_LIST_PADDING_X,
   PIPELINE_CANVAS_ROUTES_ROW_HEIGHT,
@@ -16,25 +13,13 @@ import PipelineCanvasRoutesSourceIsland from "@/pages/pipelines/canvas/routes/Pi
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 
-const RowWrapper = withTheme(styled.div<PropsWithTheme>`
+const RowWrapper = styled.div`
   height: ${PIPELINE_CANVAS_ROUTES_ROW_HEIGHT}px;
   padding: 0 ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px;
 
   display: flex;
   align-items: center;
-
-  cursor: pointer;
-  outline: none;
-
-  &:hover [data-island]:not([data-selected="true"]) {
-    border-color: ${({ theme }) => theme.color.border.tertiary};
-  }
-
-  &:hover [data-edge]:not([data-selected="true"]) line,
-  &:hover [data-edge]:not([data-selected="true"]) path {
-    stroke: ${({ theme }) => theme.color.text.tertiary};
-  }
-`);
+`;
 
 const SourceSlot = styled.div`
   width: ${PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}px;
@@ -47,33 +32,42 @@ interface PipelineCanvasRoutesRowProps {
   isGroupSelected: boolean;
   isRunning: boolean;
   onSelect: (edgeId: CanvasEdge["id"]) => void;
+  onAddSink: ((resource: PipelineCanvasRoute["resource"]) => void) | undefined;
 }
 
 const PipelineCanvasRoutesRow = memo(
-  ({ route, isSelected, isGroupSelected, isRunning, onSelect }: PipelineCanvasRoutesRowProps) => {
-    const handleClick = (event: React.MouseEvent) => {
-      event.stopPropagation();
-      onSelect(route.edge.id);
-    };
-
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      onSelect(route.edge.id);
-    };
-
-    return (
-      <RowWrapper role="button" tabIndex={0} onClick={handleClick} onKeyDown={handleKeyDown}>
-        <SourceSlot>
-          {route.groupIndex === 0 && (
-            <PipelineCanvasRoutesSourceIsland route={route} isSelected={isGroupSelected} />
-          )}
-        </SourceSlot>
-        <PipelineCanvasRoutesRowEdge route={route} isSelected={isSelected} isRunning={isRunning} />
-        <PipelineCanvasRoutesSinkIsland route={route} isSelected={isSelected} />
-      </RowWrapper>
-    );
-  },
+  ({
+    route,
+    isSelected,
+    isGroupSelected,
+    isRunning,
+    onSelect,
+    onAddSink,
+  }: PipelineCanvasRoutesRowProps) => (
+    <RowWrapper>
+      <SourceSlot>
+        {route.groupIndex === 0 && (
+          <PipelineCanvasRoutesSourceIsland
+            route={route}
+            isSelected={isGroupSelected}
+            onSelect={() => onSelect(route.edge.id)}
+            onAddSink={onAddSink && (() => onAddSink(route.resource))}
+          />
+        )}
+      </SourceSlot>
+      <PipelineCanvasRoutesRowEdge
+        route={route}
+        isSelected={isSelected}
+        isRunning={isRunning}
+        onSelect={() => onSelect(route.edge.id)}
+      />
+      <PipelineCanvasRoutesSinkIsland
+        route={route}
+        isSelected={isSelected}
+        onSelect={() => onSelect(route.edge.id)}
+      />
+    </RowWrapper>
+  ),
 );
 
 PipelineCanvasRoutesRow.displayName = "PipelineCanvasRoutesRow";

@@ -5,7 +5,12 @@ import {
   PIPELINE_CANVAS_ROUTES_EDGE_FAN_END_X,
   PIPELINE_CANVAS_ROUTES_ROW_HEIGHT,
 } from "@/pages/pipelines/canvas/routes/constants";
-import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
+import {
+  type PipelineCanvasRoute,
+  type PipelineCanvasRoutesDraft,
+  type PipelineCanvasRoutesListItem,
+  PipelineCanvasRoutesListItemKind,
+} from "@/pages/pipelines/canvas/routes/types";
 
 export interface PipelineCanvasRouteEdgeGeometry {
   cy: number;
@@ -36,3 +41,36 @@ export const getPipelineCanvasRouteGroupKey = (
   source: PipelineCanvasRoute["edge"]["source"],
   resource: PipelineCanvasRoute["resource"],
 ): PipelineCanvasRoute["groupKey"] => `${source}|${resource}`;
+
+export const getPipelineCanvasRoutesActivateHandler =
+  (onActivate: () => void) => (event: React.KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onActivate();
+  };
+
+export const getPipelineCanvasRoutesListItems = (
+  routes: PipelineCanvasRoute[],
+  draft: PipelineCanvasRoutesDraft | undefined,
+  draftResource: PipelineCanvasRoute["resource"],
+): PipelineCanvasRoutesListItem[] => {
+  const routeItems: PipelineCanvasRoutesListItem[] = routes.map((route) => ({
+    kind: PipelineCanvasRoutesListItemKind.ROUTE,
+    route,
+  }));
+  if (!draft) return routeItems;
+
+  const groupEnd = draft.isResourceLocked
+    ? routes.reduce(
+        (last, route, index) =>
+          route.isNamedResource && route.resource === draftResource ? index : last,
+        -1,
+      )
+    : -1;
+  return [
+    ...routeItems.slice(0, groupEnd + 1),
+    { kind: PipelineCanvasRoutesListItemKind.DRAFT },
+    ...routeItems.slice(groupEnd + 1),
+  ];
+};

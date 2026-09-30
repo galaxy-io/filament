@@ -88,5 +88,10 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
     [verdict, hasReadLevers],
   );
 
-  return { ...resources, ...modeOptions, isLoading: isLoadingValidation || isLoadingColumns };
+  return {
+    ...resources,
+    ...modeOptions,
+    verdict,
+    isLoading: isLoadingValidation || isLoadingColumns,
+  };
 };

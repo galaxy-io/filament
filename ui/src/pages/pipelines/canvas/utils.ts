@@ -5,6 +5,7 @@ import type { Theme } from "@galaxy-io/dls/theme/types";
 
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { isJsonObject } from "@/components/fields/utils";
@@ -15,6 +16,7 @@ import {
   PIPELINE_CANVAS_FIT_INSET_Y,
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
 } from "@/pages/pipelines/canvas/constants";
+import type { PipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
 import {
   PIPELINE_CANVAS_PANEL_COLLAPSED_WIDTH,
   PIPELINE_CANVAS_PANEL_INSET,
@@ -25,6 +27,11 @@ import type {
   CanvasNode,
   PipelineCanvasEdgeTransform,
 } from "@/pages/pipelines/canvas/types";
+import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
+import {
+  getPipelineResourceStatus,
+  getRecommendedCursor,
+} from "@/pages/pipelines/components/resource/utils";
 
 const intersectModes = (sets: ReadMode[][]): ReadMode[] => {
   if (!sets.length) return [];
@@ -52,6 +59,66 @@ export const getEdgeModeOptions = (
   effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,
   effectiveWriteMode: verdict?.effectiveWriteMode ?? WriteMode.UNSPECIFIED,
 });
+
+type PipelineCanvasEdgeStatusResources = Pick<
+  PipelineCanvasEdgeResources,
+  | "hasReadLevers"
+  | "coveredResources"
+  | "columnsByResource"
+  | "cursorOptionsByResource"
+  | "primaryKeyByResource"
+>;
+
+interface PipelineCanvasEdgeStatusConfig {
+  verdict: EdgeValidation | undefined;
+  readMode: ReadMode;
+  writeMode: WriteMode;
+  cursorsByResource: Map<Resource["name"], ResourceColumn["name"]>;
+}
+
+export const getEdgeResourceStatuses = (
+  {
+    hasReadLevers,
+    coveredResources,
+    columnsByResource,
+    cursorOptionsByResource,
+    primaryKeyByResource,
+  }: PipelineCanvasEdgeStatusResources,
+  { verdict, readMode, writeMode, cursorsByResource }: PipelineCanvasEdgeStatusConfig,
+): PipelineResourceStatus[] => {
+  if (!hasReadLevers || verdict === undefined) return [];
+  const { readModeOptions } = getEdgeModeOptions(verdict, hasReadLevers);
+  const supportedReadModesByResource = new Map(
+    verdict.resources.map((resource) => [resource.resource, resource.supportedReadModes]),
+  );
+  return coveredResources.flatMap((resource) => {
+    const columns = columnsByResource.get(resource);
+    const status = getPipelineResourceStatus({
+      resource,
+      readMode,
+      readModeOptions: supportedReadModesByResource.get(resource) ?? readModeOptions,
+      cursorField: cursorsByResource.get(resource) ?? getRecommendedCursor(columns ?? []),
+      cursorOptions: cursorOptionsByResource[resource] ?? [],
+      isCursorKnown: columns !== undefined,
+      hasPrimaryKey: (primaryKeyByResource[resource]?.length ?? 0) > 0,
+      needsPrimaryKey: writeMode === WriteMode.UPSERT,
+    });
+    return status?.isBlocking ? [status] : [];
+  });
+};
+
+export const hasSiblingIncrementalRead = (
+  edges: CanvasEdge[],
+  { source, target }: Pick<CanvasEdge, "source" | "target">,
+  excludedEdgeId?: CanvasEdge["id"],
+): boolean =>
+  edges.some(
+    (edge) =>
+      edge.source === source &&
+      edge.target === target &&
+      edge.id !== excludedEdgeId &&
+      edge.data?.readMode === ReadMode.INCREMENTAL,
+  );
 
 const getTransformEntryStepCount = (entry: JsonValue | undefined): number =>
   entry !== undefined && isJsonObject(entry) && Array.isArray(entry.steps) ? entry.steps.length : 0;

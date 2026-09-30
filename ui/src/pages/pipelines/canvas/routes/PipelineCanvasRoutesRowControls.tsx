@@ -3,9 +3,10 @@ import type { PropsWithChildren } from "react";
 import { styled } from "@linaria/react";
 
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -19,7 +20,9 @@ import {
   PIPELINE_CANVAS_ROUTES_WRITE_MODE_SELECT_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
-import { getEdgeModeOptions } from "@/pages/pipelines/canvas/utils";
+import { getEdgeModeOptions, getEdgeResourceStatuses } from "@/pages/pipelines/canvas/utils";
+import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
+import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
 const ControlsGroup = withTheme(styled.div<PropsWithTheme>`
   position: relative;
@@ -57,12 +60,9 @@ const PipelineCanvasRoutesRowControls = ({
   children,
 }: PipelineCanvasRoutesRowControlsProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
-  const {
-    coveredResources,
-    cursorOptionsByResource,
-    recommendedCursorByResource,
-    isLoadingColumns,
-  } = usePipelineCanvasEdgeResources(route.edge, { enabled: route.hasReadLevers });
+  const resources = usePipelineCanvasEdgeResources(route.edge, { enabled: route.hasReadLevers });
+  const { coveredResources, cursorOptionsByResource, defaultCursorByResource, isLoadingColumns } =
+    resources;
 
   const {
     readMode,
@@ -76,15 +76,20 @@ const PipelineCanvasRoutesRowControls = ({
   } = usePipelineCanvasEdgeConfig(route.edge, {
     ...getEdgeModeOptions(route.verdict, route.hasReadLevers),
     coveredResources,
-    recommendedCursorByResource,
+    defaultCursorByResource,
   });
 
-  const cursorSelectOptions: SelectInputOption[] = (
-    cursorOptionsByResource[route.resource] ?? []
-  ).map((column) => ({ id: column.name, label: column.name, value: column.name }));
+  const cursorSelectOptions = getCursorSelectOptions(cursorOptionsByResource[route.resource] ?? []);
   const cursorValue = cursorsByResource.get(route.resource) ?? "";
   const hasCursorSelect =
     route.hasReadLevers && route.isNamedResource && readMode === ReadMode.INCREMENTAL;
+  const statuses = getEdgeResourceStatuses(resources, {
+    verdict: route.verdict,
+    readMode,
+    writeMode,
+    cursorsByResource,
+  });
+  const issues = [...route.issues, ...statuses.map((status) => status.message)];
 
   return (
     <>
@@ -118,7 +123,10 @@ const PipelineCanvasRoutesRowControls = ({
           />
         )}
       </ControlsGroup>
-      <CenterSlot>{children}</CenterSlot>
+      <CenterSlot>
+        {children}
+        <PipelineTransformFieldsIssuesChip issues={issues} position={TooltipPosition.TOP} />
+      </CenterSlot>
       <ControlsGroup
         onClick={stopPropagation}
         onMouseDown={stopPropagation}

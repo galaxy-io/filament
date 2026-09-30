@@ -1,10 +1,6 @@
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type {
-  GetResourceColumnsResponse,
-  Resource,
-  ResourceColumn,
-} from "@/gen/ingestion/v1/connectors_pb";
+import type { GetResourceColumnsResponse, Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
@@ -13,10 +9,15 @@ import {
 } from "@/pages/pipelines/components/create/constants";
 import type {
   CreatePipelineModalResourceRow,
-  CreatePipelineModalResourceStatus,
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
+import {
+  getCursorOptions,
+  getDefaultCursor,
+  getPipelineResourceStatus,
+  getRecommendedCursor,
+} from "@/pages/pipelines/components/resource/utils";
 
 export const getDefaultPipelineName = (
   source: Connection | null,
@@ -27,16 +28,6 @@ export const getDefaultPipelineName = (
   if (source) return source.name;
   return sinkNames;
 };
-
-export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
-  columns
-    .filter((column) => column.isCursorEligible)
-    .sort((left, right) => {
-      if (left.recommendationRank === right.recommendationRank) return 0;
-      if (left.recommendationRank === 0) return 1;
-      if (right.recommendationRank === 0) return -1;
-      return left.recommendationRank - right.recommendationRank;
-    });
 
 const writeModesForRead = (readMode: ReadMode): WriteMode[] => {
   if (readMode === ReadMode.INCREMENTAL) return [WriteMode.APPEND, WriteMode.UPSERT];
@@ -49,54 +40,6 @@ const getCompatibleWriteModes = (readModes: ReadMode[]): WriteMode[] =>
         .map(writeModesForRead)
         .reduce((left, right) => left.filter((mode) => right.includes(mode)))
     : [WriteMode.APPEND, WriteMode.REPLACE, WriteMode.UPSERT];
-
-const getResourceStatus = ({
-  readMode,
-  readModeOptions,
-  cursorField,
-  cursorOptions,
-  isCursorKnown,
-  hasPrimaryKey,
-  needsPrimaryKey,
-  resource,
-}: {
-  readMode: ReadMode;
-  readModeOptions: ReadMode[];
-  cursorField: ResourceColumn["name"];
-  cursorOptions: ResourceColumn[];
-  isCursorKnown: boolean;
-  hasPrimaryKey: boolean;
-  needsPrimaryKey: boolean;
-  resource: Resource["name"];
-}): CreatePipelineModalResourceStatus | undefined => {
-  if (!readModeOptions.includes(readMode)) {
-    return {
-      message: `${resource} does not support the selected read mode`,
-      isBlocking: true,
-    };
-  }
-  if (readMode === ReadMode.INCREMENTAL && !cursorField) {
-    if (cursorOptions.length) {
-      return {
-        message: `Incremental reads require a cursor column for ${resource}`,
-        isBlocking: true,
-      };
-    }
-    if (isCursorKnown) {
-      return {
-        message: `${resource} has no usable cursor column; read it in full instead`,
-        isBlocking: true,
-      };
-    }
-  }
-  if (needsPrimaryKey && !hasPrimaryKey) {
-    return {
-      message: `Upsert requires a primary key, but none was discovered for ${resource}`,
-      isBlocking: true,
-    };
-  }
-  return undefined;
-};
 
 export const isResourceSelected = (
   selection: Record<Resource["name"], boolean> | undefined,
@@ -130,8 +73,7 @@ const buildResourceRows = ({
     const resourceColumns = columnsByResource.get(resource.name);
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
-    const autoCursor =
-      (resourceColumns ?? []).find((column) => column.isCursorRecommended)?.name ?? "";
+    const autoCursor = getRecommendedCursor(resourceColumns ?? []);
     const readModeOptions = hasReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
     const defaultReadMode =
       autoCursor && readModeOptions.includes(ReadMode.INCREMENTAL)
@@ -139,7 +81,8 @@ const buildResourceRows = ({
         : CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
     const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected = isResourceSelected(state.resourceSelection[sinkId], resource);
-    const cursorField = state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor;
+    const cursorField =
+      state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []);
 
     return {
       name: resource.name,
@@ -153,7 +96,7 @@ const buildResourceRows = ({
       status:
         !hasReadLevers || !isSelected
           ? undefined
-          : getResourceStatus({
+          : getPipelineResourceStatus({
               readMode,
               readModeOptions,
               cursorField,

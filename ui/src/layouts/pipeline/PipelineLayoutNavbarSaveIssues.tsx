@@ -13,7 +13,10 @@ import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Tex
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import type { PipelineCanvasValidationIssue } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 
 const MAX_ISSUES_IN_TOOLTIP = 3;
 
@@ -74,13 +77,19 @@ const PipelineLayoutNavbarSaveIssues = ({
           >
             <FlexWrapper gap={8} alignItems={AlignItems.CENTER} overflow="hidden">
               <Icon
-                component={issue.resource === undefined ? WarningIcon : FunctionIcon}
+                component={
+                  issue.kind === PipelineCanvasValidationIssueKind.TRANSFORM
+                    ? FunctionIcon
+                    : WarningIcon
+                }
                 size={16}
                 variant={IconVariant.SECONDARY}
               />
               <FlexItem shrink={1} minWidth={0} overflow="hidden">
                 <Text size={TextSize.BODY_MD} isEllipsis>
-                  {issue.resource ?? issue.message}
+                  {issue.kind === PipelineCanvasValidationIssueKind.TRANSFORM
+                    ? issue.resource
+                    : issue.message}
                 </Text>
               </FlexItem>
             </FlexWrapper>

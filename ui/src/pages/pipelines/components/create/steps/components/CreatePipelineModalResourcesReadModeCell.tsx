@@ -1,7 +1,7 @@
 import { styled } from "@linaria/react";
 
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -10,11 +10,9 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import {
-  CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH,
-  READ_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+import { CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 const CellWrapper = styled.div`
   width: 100%;
@@ -28,11 +26,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
 }) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-  const options: SelectInputOption[] = row.readModeOptions.map((mode) => ({
-    id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
-  }));
+  const options = getReadModeSelectOptions(row.readModeOptions);
 
   return (
     <CellWrapper>

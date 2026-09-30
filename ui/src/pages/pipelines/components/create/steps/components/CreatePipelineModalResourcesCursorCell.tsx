@@ -1,7 +1,7 @@
 import { styled } from "@linaria/react";
 
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
@@ -13,6 +13,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 const CellWrapper = styled.div`
   width: 100%;
@@ -45,11 +46,7 @@ const CreatePipelineModalResourcesCursorCell = ({
     );
   }
 
-  const options: SelectInputOption[] = row.cursorOptions.map((column) => ({
-    id: column.name,
-    label: column.name,
-    value: column.name,
-  }));
+  const options = getCursorSelectOptions(row.cursorOptions);
 
   const selectedOption = options.find((option) => option.value === row.cursorField) ?? null;
 

@@ -1,3 +1,7 @@
+import { styled } from "@linaria/react";
+import { PlusIcon } from "@phosphor-icons/react";
+
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
@@ -8,18 +12,33 @@ import { PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH } from "@/pages/pipelines/ca
 import PipelineCanvasRoutesIsland from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesIsland";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
 
+const AddSinkSlot = styled.div`
+  flex-shrink: 0;
+  visibility: hidden;
+
+  [data-island]:hover &,
+  &:focus-within {
+    visibility: visible;
+  }
+`;
+
 interface PipelineCanvasRoutesSourceIslandProps {
   route: PipelineCanvasRoute;
   isSelected: boolean;
+  onSelect: () => void;
+  onAddSink: (() => void) | undefined;
 }
 
 const PipelineCanvasRoutesSourceIsland = ({
   route,
   isSelected,
+  onSelect,
+  onAddSink,
 }: PipelineCanvasRoutesSourceIslandProps) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
     isSelected={isSelected}
+    onSelect={onSelect}
   >
     <ConnectorTile
       connector={route.sourceConnection?.connector ?? ""}
@@ -33,7 +52,7 @@ const PipelineCanvasRoutesSourceIsland = ({
     <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
       /
     </Text>
-    <FlexItem minWidth={0}>
+    <FlexItem grow={1} minWidth={0}>
       <Text
         size={TextSize.BODY_SM}
         weight={TextWeight.MEDIUM}
@@ -43,6 +62,20 @@ const PipelineCanvasRoutesSourceIsland = ({
         {route.resourceLabel}
       </Text>
     </FlexItem>
+    {onAddSink && (
+      <AddSinkSlot>
+        <Button
+          icon={PlusIcon}
+          ariaLabel="Route to another sink"
+          variant={ButtonVariant.TERTIARY}
+          size={ButtonSize.SMALL}
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddSink();
+          }}
+        />
+      </AddSinkSlot>
+    )}
   </PipelineCanvasRoutesIsland>
 );
 
