@@ -291,6 +291,7 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 type managedColumnSource struct{ columnSource }
 
 func (s *managedColumnSource) ManagedIncremental(resource string) bool { return resource == "exports" }
+
 func (s *managedColumnSource) CursorColumns(ctx context.Context, resource string) ([]filament.CursorColumn, error) {
 	if resource == "exports" || resource == "full_only" {
 		return nil, nil

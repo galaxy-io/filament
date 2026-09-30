@@ -205,6 +205,7 @@ type mixedKeySource struct {
 func (s mixedKeySource) Spec() ConnectorSpec {
 	return ConnectorSpec{SourcePolicies: SourcePolicies(IngestionFullUpsert, IngestionIncrementalUpsert, IngestionCDCMerge)}
 }
+
 func (s mixedKeySource) Schema(_ context.Context, resource string) (RecordSchema, error) {
 	if s.schemaErr != nil {
 		return RecordSchema{}, s.schemaErr
