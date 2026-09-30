@@ -393,6 +393,7 @@ func (b *Builder) flush() error {
 		return b.err
 	}
 	if b.rows == 0 {
+		b.flushReq.Store(false)
 		return nil
 	}
 	arrs := make([]arrow.Array, len(b.cols))
@@ -414,5 +415,9 @@ func (b *Builder) flush() error {
 		b.err = err
 		return err
 	}
+	// Requests raised while handing off the previous batch refer to that
+	// batch. The next batch has no rows yet, even if the receiver blocked
+	// through several timer ticks. Do not flush its first row immediately.
+	b.flushReq.Store(false)
 	return nil
 }
