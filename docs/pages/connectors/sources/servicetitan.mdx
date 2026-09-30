@@ -83,7 +83,7 @@ cycles fail the run. Invalid saved tokens are not silently discarded.
 `job_types`, `campaigns`, and `technician_shifts` request `active=Any` on every
 page. Transactional full reads use 5,000-row pages; the two timestamp streams use
 1,000-row pages. `includeTotal=true` is sent on each transactional page.
-Exports do not send `pageSize`. Requests share a 30-per-second limiter across
+Exports do not send `pageSize`. Requests share a 45-per-second limiter across
 all resource readers in a run, with a burst of one. There is one reader per selected resource (up to
 48); adding readers does not multiply the request budget. Separate runs and
 pipelines have independent limiters. Requests use the HTTP engine's retry

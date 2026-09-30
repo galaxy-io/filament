@@ -40,7 +40,7 @@ connection:
     Accept: application/json
   timeout_seconds: 120
   rate_limit:
-    requests_per_second: 30
+    requests_per_second: 45
     burst: 1
 defaults:
   method: GET
