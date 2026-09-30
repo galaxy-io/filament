@@ -289,8 +289,8 @@ func (f *fakeBigQuery) AppendRows(stream storagepb.BigQueryWrite_AppendRowsServe
 		for i := 0; i < ordinal.Len(); i++ {
 			f.ordinals[request.WriteStream] = append(f.ordinals[request.WriteStream], ordinal.Value(i))
 		}
+		f.streams[request.WriteStream] += record.NumRows()
 		reader.Release()
-		f.streams[request.WriteStream] += rows.Rows.RowCount
 		lose := f.loseAppend || (f.disconnectAfter > 0 && f.appends == f.disconnectAfter)
 		f.loseAppend = false
 		f.mu.Unlock()
@@ -490,13 +490,13 @@ func TestPublicationSegmentRecovery(t *testing.T) {
 	identity := jobID(sink.run, state.definition.qualified, "publish_v3", 0, 0, sink.execution+"\x00"+string(filament.WriteAppend))
 	marker, _, _ := strings.Cut(fake.statements[0], "\n")
 	// Recovery with identical data/checkpoints can use another staging table.
-	if _, err := sink.runQuery(context.Background(), marker+"\nINSERT FROM ANOTHER STAGE", identity); err != nil {
+	if err := sink.runQuery(context.Background(), marker+"\nINSERT FROM ANOTHER STAGE", identity); err != nil {
 		t.Fatal(err)
 	}
 	if len(fake.statements) != 1 {
 		t.Fatal("recovery submitted another job")
 	}
-	if _, err := sink.runQuery(context.Background(), "-- filament-segment:different\nINSERT NEW DATA", identity); err == nil {
+	if err := sink.runQuery(context.Background(), "-- filament-segment:different\nINSERT NEW DATA", identity); err == nil {
 		t.Fatal("changed segment silently acknowledged")
 	}
 	// A continuation of the same run is a distinct publication even if rows match.

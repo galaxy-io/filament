@@ -21,16 +21,19 @@ func newUploadQueue() *uploadQueue {
 	q.ready = sync.NewCond(&q.mu)
 	return q
 }
+
 func (q *uploadQueue) push(batch uploadBatch) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.batches = append(q.batches, batch)
 	q.ready.Signal()
 }
+
 func (q *uploadQueue) pop() (uploadBatch, bool) {
 	batch, ok, _ := q.popContext(context.Background())
 	return batch, ok
 }
+
 func (q *uploadQueue) popContext(ctx context.Context) (uploadBatch, bool, error) {
 	stop := context.AfterFunc(ctx, func() { q.mu.Lock(); q.ready.Broadcast(); q.mu.Unlock() })
 	defer stop()
@@ -57,6 +60,7 @@ func (q *uploadQueue) popContext(ctx context.Context) (uploadBatch, bool, error)
 	}
 	return batch, true, nil
 }
+
 func (q *uploadQueue) close() {
 	q.mu.Lock()
 	q.closed = true

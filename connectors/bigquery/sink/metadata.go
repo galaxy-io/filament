@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -95,6 +96,7 @@ func (s *Sink) ensureDestination(ctx context.Context, state *tableState) error {
 	}
 	return fmt.Errorf("destination schema kept changing during update")
 }
+
 func (s *Sink) createStage(ctx context.Context, state *tableState) error {
 	schema := tableSchema(state.model, true)
 	schema = append(schema, &bigquery.FieldSchema{Name: state.definition.operation.name, Type: bigquery.IntegerFieldType}, &bigquery.FieldSchema{Name: state.definition.ordinal.name, Type: bigquery.IntegerFieldType})

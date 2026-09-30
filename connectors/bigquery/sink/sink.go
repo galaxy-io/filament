@@ -53,6 +53,7 @@ type Sink struct {
 	err                        error
 }
 
+// New returns an unopened BigQuery sink.
 func New() *Sink { return &Sink{} }
 
 var (
@@ -62,11 +63,16 @@ var (
 	_ filament.Schematized       = (*Sink)(nil)
 )
 
+// Name returns the connector name.
 func (*Sink) Name() string { return sinkName }
+
+// Validate checks the connection configuration.
 func (*Sink) Validate(cfg filament.Config) error {
 	_, err := bigqueryconnection.Resolve(cfg)
 	return err
 }
+
+// TestConnection verifies access using the supplied configuration.
 func (*Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 	resolved, err := bigqueryconnection.Resolve(cfg)
 	if err != nil {
@@ -75,6 +81,7 @@ func (*Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 	return bigqueryconnection.Test(ctx, resolved)
 }
 
+// Open initializes clients and prepares the destination dataset for a run.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if s.client != nil {
 		return fmt.Errorf("bigquery sink: already open")
@@ -170,6 +177,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	return nil
 }
 
+// Abort cancels uploads and releases the run resources without publishing.
 func (s *Sink) Abort(context.Context) error {
 	if s.client == nil {
 		return nil
@@ -201,6 +209,7 @@ func (s *Sink) fail(err error) {
 	}
 	s.errMu.Unlock()
 }
+
 func (s *Sink) modeFor(resource string) filament.WriteMode {
 	policy, ok := s.policies[resource]
 	if !ok {
@@ -208,6 +217,7 @@ func (s *Sink) modeFor(resource string) filament.WriteMode {
 	}
 	return policy.Capability.Mode
 }
+
 func (s *Sink) orderedTables() []*tableState {
 	names := make([]string, 0, len(s.tables))
 	for name := range s.tables {
@@ -220,6 +230,7 @@ func (s *Sink) orderedTables() []*tableState {
 	}
 	return states
 }
+
 func (s *Sink) cleanup() {
 	// An ambiguous query submission can still be reading its staging table.
 	// Preserve those tables for job recovery; their expiration bounds retention.
@@ -235,6 +246,7 @@ func (s *Sink) cleanup() {
 	}
 	_ = group.Wait()
 }
+
 func (s *Sink) release() {
 	if s.cancel != nil {
 		s.cancel()
@@ -248,6 +260,7 @@ func (s *Sink) release() {
 		s.client = nil
 	}
 }
+
 func isHTTPCode(err error, code int) bool {
 	var apiErr *googleapi.Error
 	return errors.As(err, &apiErr) && apiErr.Code == code
@@ -261,7 +274,8 @@ func (s *Sink) logTiming(phase, resource string, started time.Time, attrs ...any
 	if elapsed >= time.Second {
 		level = slog.LevelInfo
 	}
-	fields := []any{"component", "bigquery", "event.name", "bigquery.write.timing", "run_id", s.run, "resource", resource, "phase", phase, "duration_ms", elapsed.Milliseconds()}
+	fields := make([]any, 0, 12+len(attrs))
+	fields = append(fields, "component", "bigquery", "event.name", "bigquery.write.timing", "run_id", s.run, "resource", resource, "phase", phase, "duration_ms", elapsed.Milliseconds())
 	fields = append(fields, attrs...)
 	slog.Log(context.Background(), level, "BigQuery write timing", fields...)
 }

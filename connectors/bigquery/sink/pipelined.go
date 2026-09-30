@@ -22,8 +22,10 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-const streamInflightRequests = 4
-const maxAppendAttempts = 6
+const (
+	streamInflightRequests = 4
+	maxAppendAttempts      = 6
+)
 
 // pendingAppend owns its encoded buffers until acknowledged. Offsets are
 // assigned once and preserved, including across a connection replacement.
@@ -66,6 +68,7 @@ func (s *Sink) uploadTable(state *tableState) {
 		s.memory.Release(batch.size())
 	}
 }
+
 func (u *streamUploader) run() error {
 	first, ok, err := u.table.queue.popContext(u.sink.ctx)
 	if err != nil || !ok {
@@ -125,7 +128,8 @@ func (u *streamUploader) session() error {
 	if err != nil {
 		return err
 	}
-	defer connection.CloseSend()
+	// Stream errors are handled by Send/Recv; closing is best-effort cleanup.
+	defer func() { _ = connection.CloseSend() }()
 	window := semaphore.NewWeighted(streamInflightRequests)
 	issued := make(chan *appendAttempt, streamInflightRequests)
 	replay := append([]*pendingAppend(nil), u.pending...)
@@ -179,12 +183,8 @@ func (u *streamUploader) session() error {
 			case <-sessionCtx.Done():
 				return sessionCtx.Err()
 			}
-			data := &storagepb.AppendRowsRequest_ArrowData{Rows: &storagepb.ArrowRecordBatch{SerializedRecordBatch: pending.batch.data, RowCount: pending.batch.rows}}
-			if first {
-				data.WriterSchema = &storagepb.ArrowSchema{SerializedSchema: pending.batch.schema}
-				first = false
-			}
-			request := &storagepb.AppendRowsRequest{WriteStream: u.table.stream, Offset: wrapperspb.Int64(pending.offset), Rows: &storagepb.AppendRowsRequest_ArrowRows{ArrowRows: data}}
+			request := u.appendRequest(pending, first)
+			first = false
 			started := time.Now()
 			err := connection.Send(request)
 			attempt.sendTime = time.Since(started)
@@ -210,19 +210,8 @@ func (u *streamUploader) session() error {
 			case <-sessionCtx.Done():
 				return sessionCtx.Err()
 			}
-			u.mu.Lock()
-			if len(u.pending) == 0 || u.pending[0] != pending {
-				u.mu.Unlock()
-				return fmt.Errorf("append acknowledgement is out of order")
-			}
-			delete(reserved, attempt)
-			u.pending[0] = nil
-			u.pending = u.pending[1:]
-			u.table.rows += pending.batch.rows
-			u.mu.Unlock()
-			u.sink.memory.Release(pending.batch.size())
-			if attempt.slotHeld.Swap(false) {
-				u.sink.uploads.Release(1)
+			if err := u.acknowledge(attempt, reserved); err != nil {
+				return err
 			}
 			window.Release(1)
 			u.sink.logTiming("append", u.table.definition.name, attempt.started, "records", pending.batch.rows, "bytes", pending.batch.size(), "offset", pending.offset, "compression", gzip.Name, "send_ms", attempt.sendTime.Milliseconds(), "response_wait_ms", (time.Since(attempt.started) - attempt.sendTime).Milliseconds())
@@ -239,6 +228,34 @@ func (u *streamUploader) session() error {
 	}
 	return err
 }
+
+func (u *streamUploader) appendRequest(pending *pendingAppend, first bool) *storagepb.AppendRowsRequest {
+	data := &storagepb.AppendRowsRequest_ArrowData{Rows: &storagepb.ArrowRecordBatch{SerializedRecordBatch: pending.batch.data}}
+	if first {
+		data.WriterSchema = &storagepb.ArrowSchema{SerializedSchema: pending.batch.schema}
+	}
+	return &storagepb.AppendRowsRequest{WriteStream: u.table.stream, Offset: wrapperspb.Int64(pending.offset), Rows: &storagepb.AppendRowsRequest_ArrowRows{ArrowRows: data}}
+}
+
+func (u *streamUploader) acknowledge(attempt *appendAttempt, reserved map[*appendAttempt]struct{}) error {
+	pending := attempt.pending
+	u.mu.Lock()
+	if len(u.pending) == 0 || u.pending[0] != pending {
+		u.mu.Unlock()
+		return fmt.Errorf("append acknowledgement is out of order")
+	}
+	delete(reserved, attempt)
+	u.pending[0] = nil
+	u.pending = u.pending[1:]
+	u.table.rows += pending.batch.rows
+	u.mu.Unlock()
+	u.sink.memory.Release(pending.batch.size())
+	if attempt.slotHeld.Swap(false) {
+		u.sink.uploads.Release(1)
+	}
+	return nil
+}
+
 func validateAppendResponse(response *storagepb.AppendRowsResponse, offset int64, retried bool) error {
 	if failure := response.GetError(); failure != nil {
 		err := status.ErrorProto(failure)
@@ -256,6 +273,7 @@ func validateAppendResponse(response *storagepb.AppendRowsResponse, offset int64
 	}
 	return nil
 }
+
 func retryableAppend(err error) bool {
 	if err == io.EOF {
 		return true

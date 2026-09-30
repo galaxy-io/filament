@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"math"
 	"net/url"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/ipc"
 	"github.com/apache/arrow-go/v18/arrow/memory"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
@@ -55,31 +57,14 @@ func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament
 	if batch == nil || batch.Rows() == nil {
 		return receipt, fmt.Errorf("bigquery sink: write requires a record batch")
 	}
-	if err = s.failure(); err != nil {
+	if err := s.failure(); err != nil {
 		return receipt, err
 	}
 	state, ok := s.tables[batch.Resource]
 	if !ok {
 		return receipt, fmt.Errorf("bigquery sink: no schema ensured for %q", batch.Resource)
 	}
-	mode := opts.Policy.Capability.Mode
-	if expected := s.modeFor(batch.Resource); mode != expected {
-		return receipt, fmt.Errorf("bigquery sink: policy %q differs from planned policy %q", mode, expected)
-	}
-	switch mode {
-	case filament.WriteAppend, filament.WriteReplace:
-	case filament.WriteUpsert, filament.WriteMerge, filament.WriteDelete:
-		if len(state.definition.keys) == 0 {
-			return receipt, fmt.Errorf("bigquery sink: %s requires primary keys", mode)
-		}
-	default:
-		return receipt, fmt.Errorf("bigquery sink: unsupported policy %q", mode)
-	}
-	policy := opts.Policy
-	if mode == filament.WriteReplace {
-		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
-	}
-	if err = policy.ValidateBatch(batch.Resource, batch); err != nil {
+	if err := s.validateWrite(state, batch, opts.Policy); err != nil {
 		return receipt, err
 	}
 	state.mu.Lock()
@@ -129,12 +114,7 @@ func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament
 			return err
 		}
 		state.queue.push(part)
-		// Length framing makes the digest unambiguous. Include the exact staged
-		// schema, operations, ordinals and values, not a weak receipt checksum.
-		fmt.Fprintf(state.segment, "%d:", len(part.schema))
-		_, _ = state.segment.Write(part.schema)
-		fmt.Fprintf(state.segment, "%d:", len(part.data))
-		_, _ = state.segment.Write(part.data)
+		state.fingerprint(part)
 		_, _ = crc.Write(part.schema)
 		_, _ = crc.Write(part.data)
 		byteCount += part.size()
@@ -152,6 +132,35 @@ func (s *Sink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament
 	return filament.WriteReceipt{URI: destinationURI(s.project, s.dataset, batch.Resource), Rows: batch.NumRows(), Bytes: byteCount, WriteCRC: batch.IntegrityCRC(), EncodedCRC: &encodedCRC}, nil
 }
 
+func (s *Sink) validateWrite(state *tableState, batch *arrowbatch.Batch, policy filament.WritePolicy) error {
+	mode := policy.Capability.Mode
+	if expected := s.modeFor(batch.Resource); mode != expected {
+		return fmt.Errorf("bigquery sink: policy %q differs from planned policy %q", mode, expected)
+	}
+	switch mode {
+	case filament.WriteAppend, filament.WriteReplace:
+	case filament.WriteUpsert, filament.WriteMerge, filament.WriteDelete:
+		if len(state.definition.keys) == 0 {
+			return fmt.Errorf("bigquery sink: %s requires primary keys", mode)
+		}
+	default:
+		return fmt.Errorf("bigquery sink: unsupported policy %q", mode)
+	}
+	if mode == filament.WriteReplace {
+		policy.Capability.AcceptsOps = []filament.Operation{filament.OpInsert}
+	}
+	return policy.ValidateBatch(batch.Resource, batch)
+}
+
+// fingerprint includes the exact staged schema, operations, ordinals and values.
+func (state *tableState) fingerprint(part uploadBatch) {
+	// Length framing makes the digest unambiguous. Hash writes never fail.
+	_, _ = fmt.Fprintf(state.segment, "%d:", len(part.schema))
+	_, _ = state.segment.Write(part.schema)
+	_, _ = fmt.Fprintf(state.segment, "%d:", len(part.data))
+	_, _ = state.segment.Write(part.data)
+}
+
 func stageRecord(state *tableState, batch *arrowbatch.Batch) (arrow.RecordBatch, error) {
 	base := batch.Rows()
 	if int(base.NumCols()) != len(state.model.Fields) {
@@ -159,6 +168,12 @@ func stageRecord(state *tableState, batch *arrowbatch.Batch) (arrow.RecordBatch,
 	}
 	fields := base.Schema().Fields()
 	columns := append([]arrow.Array(nil), base.Columns()...)
+	convertedColumns := make([]arrow.Array, 0, len(state.model.Fields))
+	defer func() {
+		for _, column := range convertedColumns {
+			column.Release()
+		}
+	}()
 	for i, field := range state.model.Fields {
 		if fields[i].Name != field.Name {
 			return nil, fmt.Errorf("bigquery sink: batch field %q differs from ensured field %q", fields[i].Name, field.Name)
@@ -168,6 +183,9 @@ func stageRecord(state *tableState, batch *arrowbatch.Batch) (arrow.RecordBatch,
 		}
 		if columns[i].DataType().ID() == arrow.STRING {
 			continue
+		}
+		if field.Scale < math.MinInt32 || field.Scale > math.MaxInt32 {
+			return nil, fmt.Errorf("bigquery sink: decimal scale out of range for field %q", field.Name)
 		}
 		builder := array.NewStringBuilder(memory.DefaultAllocator)
 		for row := 0; row < batch.NumRows(); row++ {
@@ -183,7 +201,7 @@ func stageRecord(state *tableState, batch *arrowbatch.Batch) (arrow.RecordBatch,
 		}
 		converted := builder.NewArray()
 		builder.Release()
-		defer converted.Release()
+		convertedColumns = append(convertedColumns, converted)
 		columns[i] = converted
 		fields[i].Type = arrow.BinaryTypes.String
 	}
@@ -239,7 +257,7 @@ func encodeChunks(rows arrow.RecordBatch, schema []byte, limit int, emit func(up
 	return encodeChunks(right, schema, limit, emit)
 }
 
-func (s *Sink) runQuery(ctx context.Context, statement, id string) (*bigquery.JobStatus, error) {
+func (s *Sink) runQuery(ctx context.Context, statement, id string) error {
 	job, err := s.client.JobFromIDLocation(ctx, id, s.location)
 	if isHTTPCode(err, 404) {
 		query := s.client.Query(statement)
@@ -255,30 +273,32 @@ func (s *Sink) runQuery(ctx context.Context, statement, id string) (*bigquery.Jo
 		}
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Job lookup is recovery only when the staged data AND checkpoint evidence
 	// match. Re-extraction can change its extent or batching; fail closed rather
 	// than treating an older successful query as publication of those new rows.
 	config, err := job.Config()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	query, ok := config.(*bigquery.QueryConfig)
 	marker, _, _ := strings.Cut(statement, "\n")
 	if !ok || !strings.HasPrefix(marker, "-- filament-segment:") || !strings.HasPrefix(query.Q, marker+"\n") {
-		return nil, fmt.Errorf("bigquery sink: publication segment mismatch; refusing to acknowledge different rows or checkpoints")
+		return fmt.Errorf("bigquery sink: publication segment mismatch; refusing to acknowledge different rows or checkpoints")
 	}
 	status, err := job.Wait(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return status, status.Err()
+	return status.Err()
 }
+
 func jobID(run filament.RunID, destination, phase string, part int, seq uint64, identity string) string {
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s\x00%d\x00%d\x00%s", run, destination, phase, part, seq, identity)))
-	return fmt.Sprintf("filament_%s_%x", phase, hash[:16])
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s\x00%d\x00%d\x00%s", run, destination, phase, part, seq, identity)))
+	return fmt.Sprintf("filament_%s_%x", phase, digest[:16])
 }
+
 func destinationURI(project, dataset, resource string) string {
 	return "bigquery://" + url.PathEscape(project) + "/" + url.PathEscape(dataset) + "/" + url.PathEscape(resource)
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
+
 	"github.com/galaxy-io/filament"
 )
 
@@ -36,6 +37,7 @@ func (s *Sink) prepareUpload(ctx context.Context, state *tableState) error {
 	state.stream = stream.GetName()
 	return nil
 }
+
 func (s *Sink) tablePath(table string) string {
 	return fmt.Sprintf("projects/%s/datasets/%s/tables/%s", s.project, s.dataset, table)
 }
@@ -96,7 +98,7 @@ func (s *Sink) publish(ctx context.Context, state *tableState) error {
 	statement = fmt.Sprintf("-- filament-segment:%x\n%s", digest, statement)
 	// A resume has a new durable dispatch identity; redelivery retains it.
 	// Missing execution IDs intentionally fail closed on differing replays.
-	_, err := s.runQuery(ctx, statement, jobID(s.run, table.qualified, "publish_v3", 0, 0, s.execution+"\x00"+string(mode)))
+	err := s.runQuery(ctx, statement, jobID(s.run, table.qualified, "publish_v3", 0, 0, s.execution+"\x00"+string(mode)))
 	if err == nil {
 		state.published = true
 	}
