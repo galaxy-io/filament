@@ -579,9 +579,9 @@ resources:
       isChargeable: bool?
       membershipTypeId: int64?
       generalLedgerAccount: json?
-      assetAccount: string?
+      assetAccount: json?
       businessUnit: json?
-      costOfSaleAccount: string?
+      costOfSaleAccount: json?
       createdById: int64?
       displayInAmount: bool?
       displayName: string?
@@ -1540,7 +1540,7 @@ resources:
       description: string?
       type: string?
       applicableEmployeeType: string?
-      rateInfo: string?
+      rateInfo: json?
       createdOn: string?
       modifiedOn: string?
       active: bool?
