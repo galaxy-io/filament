@@ -99,7 +99,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const handleReadModeChange = (mode: ReadMode) => {
     const nextWriteMode =
       mode === ReadMode.INCREMENTAL && writeMode === WriteMode.REPLACE
-        ? (writeModeOptions.find((candidate) => candidate !== WriteMode.REPLACE) ?? writeMode)
+        ? writeModeOptions.includes(WriteMode.UPSERT)
+          ? WriteMode.UPSERT
+          : (writeModeOptions.find((candidate) => candidate !== WriteMode.REPLACE) ?? writeMode)
         : writeMode;
     setEdgeConfig(edge.id, {
       readMode: mode,

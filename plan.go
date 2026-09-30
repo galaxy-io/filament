@@ -3,6 +3,7 @@ package filament
 import (
 	"context"
 	"fmt"
+	"maps"
 )
 
 // ResolveIngestionPlan validates each of the run's ingestion types against
@@ -31,6 +32,10 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 	}
 
 	policies := map[string]WritePolicy{}
+	types := maps.Clone(spec.IngestionTypes)
+	if types == nil {
+		types = map[string]IngestionType{}
+	}
 	if len(spec.Resources) == 0 {
 		t := TypeFor(spec.IngestionTypes, "")
 		if err := validate(t); err != nil {
@@ -46,9 +51,22 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 	}
 	for _, resource := range spec.Resources {
 		t := TypeFor(spec.IngestionTypes, resource)
+		var keys []string
+		if t.WriteCapability().RequiresPK {
+			var err error
+			keys, err = PrimaryKeyForResource(ctx, src, resource)
+			if err != nil {
+				return IngestionPlan{}, err
+			}
+			t = IngestionForKeys(t, keys)
+			if t.WriteCapability().RequiresPK && len(keys) == 0 {
+				return IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", t, resource)
+			}
+		}
 		if err := validate(t); err != nil {
 			return IngestionPlan{}, err
 		}
+		types[resource] = t
 		policy := WritePolicyForIngestion(t)
 		sinkCapability, err := sinkCapabilityForIngestion(snk.Spec(), t)
 		if err != nil {
@@ -57,16 +75,8 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 		bindSinkDurability(&policy, sinkCapability)
 		policy.Resource = resource
 		policy.DestinationResource = spec.WritePolicies[resource].DestinationResource
-		if policy.Capability.RequiresPK {
-			keys, err := PrimaryKeyForResource(ctx, src, resource)
-			if err != nil {
-				return IngestionPlan{}, err
-			}
-			if len(keys) == 0 {
-				return IngestionPlan{}, fmt.Errorf("%s requested for resource %q but no primary key was discovered", t, resource)
-			}
-			policy.Keys = keys
-		}
+		policy.Keys = keys
+
 		version, err := ResolveWriteVersionPolicy(
 			ctx, src, resource, spec.CursorConfigs[resource], SourcePolicyForIngestion(t).Mode, policy.Capability.Mode,
 		)
@@ -78,8 +88,9 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 	}
 
 	return IngestionPlan{
-		WritePolicies: policies,
-		RequiresCDC:   IsCDC(spec.IngestionTypes),
+		WritePolicies:  policies,
+		IngestionTypes: types,
+		RequiresCDC:    IsCDC(spec.IngestionTypes),
 	}, nil
 }
 
@@ -179,4 +190,18 @@ func acceptsOperations(have, want []Operation) bool {
 		}
 	}
 	return true
+}
+
+// IngestionForKeys resolves bounded upsert to append when a resource has no key.
+// CDC and delete policies retain their key requirements.
+func IngestionForKeys(t IngestionType, keys []string) IngestionType {
+	if len(keys) == 0 {
+		switch t.OrDefault() {
+		case IngestionFullUpsert:
+			return IngestionFullAppend
+		case IngestionIncrementalUpsert:
+			return IngestionIncrementalAppend
+		}
+	}
+	return t.OrDefault()
 }

@@ -471,15 +471,10 @@ const (
 )
 
 // IngestionFor compiles the independent read and write levers into the
-// engine's internal ingestion type. Unspecified levers default to a full
-// replacement snapshot, except an incremental read defaults to upsert.
+// engine's internal ingestion type. An unspecified write mode defaults to upsert.
 func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 	if write == "" {
-		if read == ModeIncremental {
-			write = WriteUpsert
-		} else {
-			write = WriteReplace
-		}
+		write = WriteUpsert
 	}
 	switch read {
 	case ModeFull:
@@ -685,9 +680,11 @@ type SourcePolicy struct {
 // IngestionPlan is the resolved policy set for a run: per-resource write
 // policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
-	Ordering      Ordering
-	WritePolicies map[string]WritePolicy
-	RequiresCDC   bool
+	// IngestionTypes contains effective per-resource modes after keyless fallback.
+	IngestionTypes map[string]IngestionType
+	Ordering       Ordering
+	WritePolicies  map[string]WritePolicy
+	RequiresCDC    bool
 }
 
 // WritePolicyForIngestion derives the canonical sink-side policy for an

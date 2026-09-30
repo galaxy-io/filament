@@ -2,6 +2,7 @@ package filament
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestIngestionFor(t *testing.T) {
 		write WriteMode
 		want  IngestionType
 	}{
-		{"defaults to full replace", ModeFull, "", IngestionFullReplace},
+		{"defaults to full upsert", ModeFull, "", IngestionFullUpsert},
 		{"full replace", ModeFull, WriteReplace, IngestionFullReplace},
 		{"full append", ModeFull, WriteAppend, IngestionFullAppend},
 		{"full upsert", ModeFull, WriteUpsert, IngestionFullUpsert},
@@ -193,5 +194,83 @@ func TestBindSinkRecordAtomicity(t *testing.T) {
 	bindSinkDurability(&policy, WritePolicyCapability{Atomicity: AtomicityRecord, Durability: DurabilityAfterApply})
 	if policy.Capability.Atomicity != AtomicityRecord {
 		t.Fatal("planner retained batch atomicity for record-at-a-time sink")
+	}
+}
+
+type mixedKeySource struct {
+	Source
+	schemaErr error
+}
+
+func (s mixedKeySource) Spec() ConnectorSpec {
+	return ConnectorSpec{SourcePolicies: SourcePolicies(IngestionFullUpsert, IngestionIncrementalUpsert, IngestionCDCMerge)}
+}
+func (s mixedKeySource) Schema(_ context.Context, resource string) (RecordSchema, error) {
+	if s.schemaErr != nil {
+		return RecordSchema{}, s.schemaErr
+	}
+	if resource == "keyed" {
+		return RecordSchema{PrimaryKey: []string{"id"}}, nil
+	}
+	return RecordSchema{}, nil
+}
+
+type mixedKeySink struct {
+	Sink
+	types []IngestionType
+}
+
+func (s mixedKeySink) Spec() SinkSpec {
+	return SinkSpec{Capabilities: SinkCapabilities{WritePolicies: WriteCapabilities(s.types...)}}
+}
+
+func TestResolveIngestionPlanKeylessUpsertFallback(t *testing.T) {
+	for _, ingestion := range []IngestionType{IngestionFullUpsert, IngestionIncrementalUpsert} {
+		t.Run(string(ingestion), func(t *testing.T) {
+			fallback := IngestionFullAppend
+			if ingestion == IngestionIncrementalUpsert {
+				fallback = IngestionIncrementalAppend
+			}
+			spec := RunSpec{Resources: []string{"keyed", "keyless"}, IngestionTypes: map[string]IngestionType{"": ingestion}, WritePolicies: map[string]WritePolicy{"keyless": {DestinationResource: "events"}}}
+			plan, err := ResolveIngestionPlan(context.Background(), mixedKeySource{}, mixedKeySink{types: []IngestionType{ingestion, fallback}}, spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			keyed, keyless := plan.WritePolicies["keyed"], plan.WritePolicies["keyless"]
+			if keyed.Capability.Mode != WriteUpsert || len(keyed.Keys) != 1 {
+				t.Fatalf("keyed policy: %+v", keyed)
+			}
+			if keyless.Capability.Mode != WriteAppend || keyless.Capability.RequiresPK || len(keyless.Keys) != 0 || keyless.DestinationResource != "events" {
+				t.Fatalf("keyless policy: %+v", keyless)
+			}
+			if plan.IngestionTypes["keyed"] != ingestion || plan.IngestionTypes["keyless"] != fallback {
+				t.Fatalf("effective types: %v", plan.IngestionTypes)
+			}
+			if keyless.Checkpoint != WritePolicyForIngestion(fallback).Checkpoint {
+				t.Fatalf("wrong checkpoint: %s", keyless.Checkpoint)
+			}
+			if _, ok := spec.IngestionTypes["keyless"]; ok {
+				t.Fatal("input plan mutated")
+			}
+			if _, err := ResolveIngestionPlan(context.Background(), mixedKeySource{}, mixedKeySink{types: []IngestionType{ingestion}}, spec); err == nil {
+				t.Fatal("missing append capability accepted")
+			}
+		})
+	}
+}
+
+func TestIngestionForKeysPreservesExplicitModes(t *testing.T) {
+	for _, mode := range []IngestionType{IngestionFullReplace, IngestionFullAppend, IngestionIncrementalAppend, IngestionCDCMerge, IngestionCDCAppend, IngestionIncrementalDelete} {
+		if got := IngestionForKeys(mode, nil); got != mode {
+			t.Fatalf("%s changed to %s", mode, got)
+		}
+	}
+}
+
+func TestKeylessFallbackDoesNotHideSchemaErrors(t *testing.T) {
+	expected := errors.New("schema unavailable")
+	_, err := ResolveIngestionPlan(context.Background(), mixedKeySource{schemaErr: expected}, mixedKeySink{types: []IngestionType{IngestionFullUpsert, IngestionFullAppend}}, RunSpec{Resources: []string{"keyless"}, IngestionTypes: map[string]IngestionType{"": IngestionFullUpsert}})
+	if !errors.Is(err, expected) {
+		t.Fatalf("schema error was hidden: %v", err)
 	}
 }

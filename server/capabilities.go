@@ -229,7 +229,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 
-	a.resourceBreakdown(ctx, edge, from, *srcConn, chosen, supportedReadModes, probes, ev)
+	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
 	return nil
 }
 
@@ -299,7 +299,7 @@ func (a *Server) loadEdgeConnection(ctx context.Context, node *ingestionv1.Pipel
 
 // resourceBreakdown narrows read modes using each table's cursor reality, then
 // reports requirements for the selected read/write combination.
-func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, chosen filament.IngestionType, supportedReadModes []ingestionv1.ReadMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, snkSpec filament.SinkSpec, chosen filament.IngestionType, supportedReadModes []ingestionv1.ReadMode, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	needsCursor := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
 	needsPK := chosen.WriteCapability().RequiresPK
 
@@ -373,6 +373,21 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 			rv.Requirements = append(rv.Requirements, requirement)
 		}
 		if needsPK && keyErr == nil && len(keys) == 0 {
+			effective := filament.IngestionForKeys(chosen, keys)
+			if effective != chosen {
+				if err := filament.ValidateSinkIngestion(snkSpec, effective); err != nil {
+					edgeError(ev, "write_mode", fmt.Sprintf("append fallback for resource %q: %v", resource, err))
+				} else {
+					rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{
+						Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY,
+						Resource:        resource,
+						Satisfied:       true,
+						CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED,
+						Message:         fmt.Sprintf("resource %q has no primary key; upsert will use append, retaining repeated rows", resource),
+					})
+				}
+				continue
+			}
 			rv.Requirements = append(rv.Requirements, &ingestionv1.Requirement{
 				Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_PRIMARY_KEY,
 				Resource:        resource,

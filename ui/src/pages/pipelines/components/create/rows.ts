@@ -91,8 +91,8 @@ const getResourceStatus = ({
   }
   if (needsPrimaryKey && !hasPrimaryKey) {
     return {
-      message: `Upsert requires a primary key, but none was discovered for ${resource}`,
-      isBlocking: true,
+      message: `${resource} has no primary key and will use append; repeated rows are retained`,
+      isBlocking: false,
     };
   }
   return undefined;
