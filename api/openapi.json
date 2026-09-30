@@ -5632,6 +5632,11 @@
               "$ref": "#/components/schemas/ingestion.v1.ResourceColumn"
             },
             "title": "columns"
+          },
+          "managedIncremental": {
+            "type": "boolean",
+            "title": "managed_incremental",
+            "description": "Incremental state is owned by the source; no cursor column is required."
           }
         },
         "title": "ResourceColumns",

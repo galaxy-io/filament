@@ -56,6 +56,7 @@ const getResourceStatus = ({
   cursorField,
   cursorOptions,
   isCursorKnown,
+  managedIncremental,
   hasPrimaryKey,
   needsPrimaryKey,
   resource,
@@ -65,6 +66,7 @@ const getResourceStatus = ({
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   isCursorKnown: boolean;
+  managedIncremental: boolean;
   hasPrimaryKey: boolean;
   needsPrimaryKey: boolean;
   resource: Resource["name"];
@@ -75,7 +77,7 @@ const getResourceStatus = ({
       isBlocking: true,
     };
   }
-  if (readMode === ReadMode.INCREMENTAL && !cursorField) {
+  if (readMode === ReadMode.INCREMENTAL && !managedIncremental && !cursorField) {
     if (cursorOptions.length) {
       return {
         message: `Incremental reads require a cursor column for ${resource}`,
@@ -126,7 +128,13 @@ const buildResourceRows = ({
   const needsPrimaryKey =
     (state.sinkWriteModes[sinkId] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE) === WriteMode.UPSERT;
 
+  const managedResources = new Set(
+    (columns?.resources ?? [])
+      .filter((entry) => entry.managedIncremental)
+      .map((entry) => entry.resource),
+  );
   return resources.map((resource) => {
+    const managedIncremental = managedResources.has(resource.name);
     const resourceColumns = columnsByResource.get(resource.name);
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
@@ -134,12 +142,14 @@ const buildResourceRows = ({
       (resourceColumns ?? []).find((column) => column.isCursorRecommended)?.name ?? "";
     const readModeOptions = hasReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
     const defaultReadMode =
-      autoCursor && readModeOptions.includes(ReadMode.INCREMENTAL)
+      (managedIncremental || autoCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
         ? ReadMode.INCREMENTAL
         : CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
     const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected = isResourceSelected(state.resourceSelection[sinkId], resource);
-    const cursorField = state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor;
+    const cursorField = managedIncremental
+      ? ""
+      : (state.resourceCursors[sinkId]?.[resource.name] ?? autoCursor);
 
     return {
       name: resource.name,
@@ -150,6 +160,7 @@ const buildResourceRows = ({
       readModeOptions,
       cursorField,
       cursorOptions,
+      managedIncremental,
       status:
         !hasReadLevers || !isSelected
           ? undefined
@@ -159,6 +170,7 @@ const buildResourceRows = ({
               cursorField,
               cursorOptions,
               isCursorKnown,
+              managedIncremental,
               hasPrimaryKey: resource.primaryKey.length > 0,
               needsPrimaryKey,
               resource: resource.name,

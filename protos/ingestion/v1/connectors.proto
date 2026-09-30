@@ -114,6 +114,8 @@ message ResourceColumn {
 message ResourceColumns {
   string resource = 1;
   repeated ResourceColumn columns = 2;
+  // Incremental state is owned by the source; no cursor column is required.
+  bool managed_incremental = 3;
 }
 
 message GetResourceColumnsResponse {

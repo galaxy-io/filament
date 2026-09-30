@@ -287,3 +287,38 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 		t.Fatalf("cursor capabilities did not round trip: %#v", column)
 	}
 }
+
+type managedColumnSource struct{ columnSource }
+
+func (s *managedColumnSource) ManagedIncremental(resource string) bool { return resource == "exports" }
+func (s *managedColumnSource) CursorColumns(ctx context.Context, resource string) ([]filament.CursorColumn, error) {
+	if resource == "exports" || resource == "full_only" {
+		return nil, nil
+	}
+	return s.columnSource.CursorColumns(ctx, resource)
+}
+
+func TestResourceColumnsDistinguishesManagedIncrementalFromMissingCursor(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("managed-columns", func() filament.Source { return &managedColumnSource{columnSource{counts: &columnSourceCounts{}}} })
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
+		Connector: "managed-columns", Resources: []string{"exports", "orders", "full_only"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resources := response.Msg.GetResources()
+	if len(resources) != 3 {
+		t.Fatalf("resources: %v", resources)
+	}
+	if !resources[0].GetManagedIncremental() || len(resources[0].GetColumns()) != 0 {
+		t.Fatalf("managed export: %v", resources[0])
+	}
+	if resources[1].GetManagedIncremental() || len(resources[1].GetColumns()) != 1 {
+		t.Fatalf("timestamp cursor: %v", resources[1])
+	}
+	if resources[2].GetManagedIncremental() || len(resources[2].GetColumns()) != 0 {
+		t.Fatalf("full-only: %v", resources[2])
+	}
+}

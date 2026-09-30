@@ -60,6 +60,7 @@ export interface CreatePipelineModalResourceRow {
   readModeOptions: ReadMode[];
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
+  managedIncremental: boolean;
   status?: CreatePipelineModalResourceStatus;
 }
 
