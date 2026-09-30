@@ -21,9 +21,6 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/ipc"
 	"github.com/apache/arrow-go/v18/arrow/memory"
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/rowmodel"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -35,6 +32,10 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 type fakeBigQuery struct {
@@ -94,6 +95,7 @@ func newFixture(t *testing.T, mode filament.IngestionType, resources ...string) 
 	}
 	return sink, fake
 }
+
 func (f *fakeBigQuery) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -167,6 +169,7 @@ func (f *fakeBigQuery) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Error(w, "unexpected request", 500)
 }
+
 func (f *fakeBigQuery) CreateWriteStream(_ context.Context, r *storagepb.CreateWriteStreamRequest) (*storagepb.WriteStream, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -174,6 +177,7 @@ func (f *fakeBigQuery) CreateWriteStream(_ context.Context, r *storagepb.CreateW
 	f.streams[name] = 0
 	return &storagepb.WriteStream{Name: name, Type: storagepb.WriteStream_PENDING}, nil
 }
+
 func (f *fakeBigQuery) AppendRows(stream storagepb.BigQueryWrite_AppendRowsServer) error {
 	if md, ok := metadata.FromIncomingContext(stream.Context()); !ok || len(md.Get("x-goog-request-params")) == 0 {
 		return status.Error(codes.InvalidArgument, "missing stream routing metadata")
@@ -302,6 +306,7 @@ func (f *fakeBigQuery) AppendRows(stream storagepb.BigQueryWrite_AppendRowsServe
 		}
 	}
 }
+
 func (f *fakeBigQuery) FinalizeWriteStream(_ context.Context, r *storagepb.FinalizeWriteStreamRequest) (*storagepb.FinalizeWriteStreamResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -312,6 +317,7 @@ func (f *fakeBigQuery) FinalizeWriteStream(_ context.Context, r *storagepb.Final
 	}
 	return &storagepb.FinalizeWriteStreamResponse{RowCount: rows}, nil
 }
+
 func (f *fakeBigQuery) BatchCommitWriteStreams(_ context.Context, r *storagepb.BatchCommitWriteStreamsRequest) (*storagepb.BatchCommitWriteStreamsResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -321,6 +327,7 @@ func (f *fakeBigQuery) BatchCommitWriteStreams(_ context.Context, r *storagepb.B
 	}
 	return &storagepb.BatchCommitWriteStreamsResponse{CommitTime: timestamppb.Now()}, nil
 }
+
 func testBatch(resource string, n int) *arrowbatch.Batch {
 	id := array.NewInt64Builder(memory.DefaultAllocator)
 	value := array.NewStringBuilder(memory.DefaultAllocator)
@@ -338,6 +345,7 @@ func testBatch(resource string, n int) *arrowbatch.Batch {
 	batch.Resource = resource
 	return batch
 }
+
 func applyBatch(t *testing.T, sink *Sink, resource string, n int) {
 	t.Helper()
 	batch := testBatch(resource, n)
@@ -388,6 +396,7 @@ func TestManyBatchesUseOnePublicationPerTable(t *testing.T) {
 		t.Fatalf("staging tables remain: %v", fake.tables)
 	}
 }
+
 func TestLostAppendResponseRetriesSameOffset(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.loseAppend = true
@@ -407,6 +416,7 @@ func TestLostAppendResponseRetriesSameOffset(t *testing.T) {
 		}
 	}
 }
+
 func TestStreamValidationFailureDoesNotPublish(t *testing.T) {
 	for _, kind := range []string{"row count", "stream error"} {
 		t.Run(kind, func(t *testing.T) {
@@ -423,6 +433,7 @@ func TestStreamValidationFailureDoesNotPublish(t *testing.T) {
 		})
 	}
 }
+
 func TestEmptyReplacementTruncatesAndEmptyAppendDoesNot(t *testing.T) {
 	for _, mode := range []filament.IngestionType{filament.IngestionFullReplace, filament.IngestionFullAppend} {
 		t.Run(string(mode), func(t *testing.T) {
@@ -443,6 +454,7 @@ func TestEmptyReplacementTruncatesAndEmptyAppendDoesNot(t *testing.T) {
 		})
 	}
 }
+
 func TestAbortCancelsBlockedUploads(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.holdAppend = make(chan struct{})
@@ -465,6 +477,7 @@ func TestAbortCancelsBlockedUploads(t *testing.T) {
 	}
 	sink.memory.Release(queuedBytes)
 }
+
 func TestFailedPublicationRetainsStage(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.failPublish = true
@@ -477,6 +490,7 @@ func TestFailedPublicationRetainsStage(t *testing.T) {
 		t.Fatal("stage deleted before publication outcome was safe")
 	}
 }
+
 func TestPublicationSegmentRecovery(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	sink.execution = "first-dispatch"
@@ -570,6 +584,7 @@ func TestEncodeChunksSplitsAndRejectsOversizedRow(t *testing.T) {
 		t.Fatal("accepted oversized row")
 	}
 }
+
 func TestAllPoliciesCheckpointOnlyAfterCommit(t *testing.T) {
 	for _, policy := range New().Spec().Capabilities.WritePolicies {
 		if policy.Durability != filament.DurabilityAfterCommit {
@@ -612,6 +627,7 @@ func TestIndependentResourcesUploadConcurrently(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 func TestQueuePressureIsBoundedAndCancellable(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	// An encoded request is larger than half this budget. A second request
@@ -653,6 +669,7 @@ func TestQueuePressureIsBoundedAndCancellable(t *testing.T) {
 	}
 	sink.memory.Release(2000)
 }
+
 func TestCommitCancellationStopsUploads(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.holdAppend = make(chan struct{})
@@ -672,6 +689,7 @@ func TestCommitCancellationStopsUploads(t *testing.T) {
 		t.Fatal("canceled commit published rows")
 	}
 }
+
 func TestMetadataAddsNullableColumnsWithoutQueryJobs(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.tables["one"] = json.RawMessage(`{"tableReference":{"projectId":"project","datasetId":"dataset","tableId":"one"},"schema":{"fields":[{"name":"id","type":"INTEGER","mode":"REQUIRED"}]}}`)
@@ -705,6 +723,7 @@ func TestMetadataAddsNullableColumnsWithoutQueryJobs(t *testing.T) {
 		t.Fatal("stage missing expiration")
 	}
 }
+
 func TestIncompatibleDestinationFailsBeforePublication(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	fake.tables["one"] = json.RawMessage(`{"tableReference":{"projectId":"project","datasetId":"dataset","tableId":"one"},"schema":{"fields":[{"name":"id","type":"STRING"}]}}`)
@@ -750,6 +769,7 @@ func TestPreparingResourcesDoesNotHoldUploadSlots(t *testing.T) {
 type appendWireStats struct{ fake *fakeBigQuery }
 
 func (*appendWireStats) TagRPC(ctx context.Context, _ *stats.RPCTagInfo) context.Context { return ctx }
+
 func (*appendWireStats) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
 	return ctx
 }
@@ -767,6 +787,7 @@ func (s *appendWireStats) HandleRPC(_ context.Context, event stats.RPCStats) {
 	s.fake.appendCompressedBytes += int64(payload.CompressedLength)
 	s.fake.mu.Unlock()
 }
+
 func TestAppendCompressionReducesWireBytes(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	applyBatch(t, sink, "one", 1000)

@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
-	"github.com/galaxy-io/filament"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+
+	"github.com/galaxy-io/filament"
 )
 
 func receiveOffset(t *testing.T, requests <-chan int64) int64 {
@@ -22,6 +23,7 @@ func receiveOffset(t *testing.T, requests <-chan int64) int64 {
 		return -1
 	}
 }
+
 func assertNoRequest(t *testing.T, requests <-chan int64) {
 	t.Helper()
 	select {
@@ -30,6 +32,7 @@ func assertNoRequest(t *testing.T, requests <-chan int64) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
+
 func TestSlidingWindowRefillsBeforeAllAcknowledgements(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	permits := make(chan struct{}, 1)
@@ -65,6 +68,7 @@ func TestSlidingWindowRefillsBeforeAllAcknowledgements(t *testing.T) {
 	}
 	sink.uploads.Release(uploadConcurrency)
 }
+
 func TestPipelinedRetryReplaysOnlyUnacknowledgedSuffix(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one")
 	permits := make(chan struct{}, 1)
@@ -118,6 +122,7 @@ func TestPipelinedRetryReplaysOnlyUnacknowledgedSuffix(t *testing.T) {
 	}
 	sink.memory.Release(queuedBytes)
 }
+
 func TestGlobalInflightLimitAndAbortReleasePendingRequests(t *testing.T) {
 	sink, fake := newFixture(t, filament.IngestionFullAppend, "one", "two", "three")
 	fake.ackPermits = make(chan struct{})
@@ -147,6 +152,7 @@ func TestGlobalInflightLimitAndAbortReleasePendingRequests(t *testing.T) {
 	}
 	sink.uploads.Release(uploadConcurrency)
 }
+
 func TestAppendAcknowledgementValidation(t *testing.T) {
 	duplicate := &storagepb.AppendRowsResponse{Response: &storagepb.AppendRowsResponse_Error{Error: status.New(codes.AlreadyExists, "duplicate").Proto()}}
 	if err := validateAppendResponse(duplicate, 3, false); err == nil {

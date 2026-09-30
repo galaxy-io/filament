@@ -9,6 +9,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/apache/arrow-go/v18/arrow/memory"
+
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -68,6 +69,7 @@ func TestStageTypeNormalizationIsLossless(t *testing.T) {
 		t.Fatal(sql)
 	}
 }
+
 func TestDeleteRowsRetainOperationAndGlobalOrder(t *testing.T) {
 	model := rowmodel.Schema{Fields: []rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalInt64}, {Name: "value", Logical: rowmodel.LogicalString}}, PrimaryKey: []string{"id"}}
 	definition, err := defineTable("p", "d", "t", model)
