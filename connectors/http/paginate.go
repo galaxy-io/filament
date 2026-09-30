@@ -48,30 +48,9 @@ func (c *Connector) paginate(
 	tracker *incremental.Tracker,
 	resumeState pagination.State,
 ) (int, int, error) {
-	// pag == nil means the resource declares no pagination — issue one
-	// request, process it, return. No Apply/Next calls happen because there
-	// is no strategy object to invoke; the fetchPage path nil-guards Apply.
-	var state pagination.State
-	if pag != nil {
-		state = pag.Initial()
-		if resumeState != (pagination.State{}) {
-			state = resumeState
-			c.logger.Info("resuming from pagination checkpoint", "resource", res.Name)
-		}
-	}
-
 	tokenMode := res.Incremental != nil && res.Incremental.ResponseCursor != "" && c.incrementalEnabled(res.Name, res.Name)
 	strictCursor := tokenMode || res.Pagination.Strict
-	seen := map[string]bool{}
-	if tokenMode {
-		state.Cursor = c.resumeWatermarks[res.Name][res.Incremental.DurableCheckpointKey()]
-		if state.Cursor == "" {
-			state.Cursor = res.Incremental.Initial
-		}
-		if state.Cursor != "" {
-			seen[state.Cursor] = true
-		}
-	}
+	state, seen := c.initialPaginationState(res, pag, resumeState, tokenMode)
 	var totalRecords, pageCount int
 	progressResource, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
@@ -106,17 +85,10 @@ func (c *Connector) paginate(
 		}
 		token, more := "", false
 		if strictCursor {
-			t := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.CursorPath, "$."))
-			m := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.HasMorePath, "$."))
-			data := gjson.GetBytes(raw, strings.TrimPrefix(res.Response.RecordsPath, "$."))
-			if !gjson.ValidBytes(raw) || t.Type != gjson.String || t.Str == "" || (m.Type != gjson.True && m.Type != gjson.False) || !data.IsArray() {
-				return totalRecords, pageCount, fmt.Errorf("invalid response cursor envelope for %s", res.Name)
+			token, more, err = responseCursor(res, raw, seen)
+			if err != nil {
+				return totalRecords, pageCount, err
 			}
-			token, more = t.Str, m.Bool()
-			if more && seen[token] {
-				return totalRecords, pageCount, fmt.Errorf("response cursor cycle for %s", res.Name)
-			}
-			seen[token] = true
 		}
 		records, err := extractor.Records(raw)
 		if err != nil {
@@ -147,11 +119,7 @@ func (c *Connector) paginate(
 				if !tokenMode {
 					return totalRecords, pageCount, nil
 				}
-				target, ok := sink.(responseCheckpointSink)
-				if !ok {
-					return totalRecords, pageCount, fmt.Errorf("response cursor requires a checkpoint-capable sink")
-				}
-				return totalRecords, pageCount, target.Checkpoint(progressResource, token)
+				return totalRecords, pageCount, checkpointResponseCursor(sink, progressResource, token)
 			}
 			state = pagination.State{Cursor: token}
 			continue
@@ -175,6 +143,61 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, nil
 		}
 	}
+}
+
+func (c *Connector) initialPaginationState(
+	res manifest.Resource,
+	pag pagination.Paginator,
+	resumeState pagination.State,
+	tokenMode bool,
+) (pagination.State, map[string]bool) {
+	// pag == nil means the resource declares no pagination — issue one
+	// request, process it, return. No Apply/Next calls happen because there
+	// is no strategy object to invoke; the fetchPage path nil-guards Apply.
+	var state pagination.State
+	if pag != nil {
+		state = pag.Initial()
+		if resumeState != (pagination.State{}) {
+			state = resumeState
+			c.logger.Info("resuming from pagination checkpoint", "resource", res.Name)
+		}
+	}
+
+	seen := map[string]bool{}
+	if tokenMode {
+		state.Cursor = c.resumeWatermarks[res.Name][res.Incremental.DurableCheckpointKey()]
+		if state.Cursor == "" {
+			state.Cursor = res.Incremental.Initial
+		}
+		if state.Cursor != "" {
+			seen[state.Cursor] = true
+		}
+	}
+	return state, seen
+}
+
+// responseCursor validates the strict cursor envelope and tracks continuation tokens.
+func responseCursor(res manifest.Resource, raw []byte, seen map[string]bool) (string, bool, error) {
+	t := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.CursorPath, "$."))
+	m := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.HasMorePath, "$."))
+	data := gjson.GetBytes(raw, strings.TrimPrefix(res.Response.RecordsPath, "$."))
+	if !gjson.ValidBytes(raw) || t.Type != gjson.String || t.Str == "" || (m.Type != gjson.True && m.Type != gjson.False) || !data.IsArray() {
+		return "", false, fmt.Errorf("invalid response cursor envelope for %s", res.Name)
+	}
+	token, more := t.Str, m.Bool()
+	if more && seen[token] {
+		return "", false, fmt.Errorf("response cursor cycle for %s", res.Name)
+	}
+	seen[token] = true
+	return token, more, nil
+}
+
+func checkpointResponseCursor(sink recordSink, resource, token string) error {
+	target, ok := sink.(responseCheckpointSink)
+	if !ok {
+		return fmt.Errorf("response cursor requires a checkpoint-capable sink")
+	}
+	return target.Checkpoint(resource, token)
 }
 
 // fetchPage builds and sends one page request, applying pagination + watermark

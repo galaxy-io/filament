@@ -3,14 +3,15 @@ package httpapi
 import (
 	"context"
 	"fmt"
-	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/checkpoint"
-	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
+	"github.com/galaxy-io/filament/connectors/http/manifest"
 )
 
 const responseTokenManifest = `
@@ -55,6 +56,7 @@ func responseTokenTestSource(t *testing.T, handler http.HandlerFunc) *Source {
 	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
 	return src
 }
+
 func TestResponseTokenExportContinuation(t *testing.T) {
 	ctx := context.Background()
 	calls := 0

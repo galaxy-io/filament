@@ -442,6 +442,7 @@ func (s *mixedUpsertSink) Open(_ context.Context, spec filament.RunSpec) error {
 	s.policies = map[string]filament.WritePolicy{}
 	return nil
 }
+
 func (s *mixedUpsertSink) Apply(_ context.Context, batch *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.policies[batch.Resource] = opts.Policy
 	return filament.WriteReceipt{Rows: batch.NumRows(), WriteCRC: batch.IntegrityCRC()}, nil

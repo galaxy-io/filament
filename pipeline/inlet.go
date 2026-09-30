@@ -147,11 +147,12 @@ func (s *slot) Chunk(b *arrowbatch.Batch) error {
 // against acked rows before flagging the part complete.
 func (s *slot) Drained(meta filament.RowMeta, total int) error {
 	var cursor *filament.CheckpointData
-	if meta.LSN != "" {
+	switch {
+	case meta.LSN != "":
 		cursor = checkpoint.NewStreamDelta(s.resource, meta.LSN, meta.Seq)
-	} else if len(meta.Key) > 0 {
+	case len(meta.Key) > 0:
 		cursor = checkpoint.NewShardDelta(s.resource, s.part, meta.Key)
-	} else {
+	default:
 		cursor = checkpoint.NewCoarseDone(s.resource, s.part, total)
 	}
 	b := arrowbatch.NewMarker()
