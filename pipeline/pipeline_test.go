@@ -758,3 +758,30 @@ func TestPipelineDrainOpaqueToken(t *testing.T) {
 		t.Fatal("empty export checkpoint missing")
 	}
 }
+
+type preferredBatchSink struct {
+	fakeSink
+	capabilities filament.SinkCapabilities
+}
+
+func (s *preferredBatchSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Capabilities: s.capabilities}
+}
+
+func TestSinkBatchingPreferences(t *testing.T) {
+	sink := &preferredBatchSink{capabilities: filament.SinkCapabilities{
+		PreferredBatchRows: 100_000, PreferredBatchBytes: 256 << 20, PreferredFlushInterval: 30 * time.Second,
+	}}
+	p := New(Config{Sink: sink})
+	if p.opts.MaxRows != 100_000 || p.opts.MaxBytes != 256<<20 || p.flushIvl != 30*time.Second {
+		t.Fatalf("sink preferences not used: %+v interval=%s", p.opts, p.flushIvl)
+	}
+	p = New(Config{Sink: sink, Options: filament.RunOptions{BatchMaxRows: 500, BatchMaxBytes: 1024}, FlushInterval: 2 * time.Second})
+	if p.opts.MaxRows != 500 || p.opts.MaxBytes != 1024 || p.flushIvl != 2*time.Second {
+		t.Fatalf("explicit settings not used: %+v interval=%s", p.opts, p.flushIvl)
+	}
+	p = New(Config{Sink: &fakeSink{}})
+	if p.flushIvl != time.Second {
+		t.Fatalf("default flush interval changed: %s", p.flushIvl)
+	}
+}
