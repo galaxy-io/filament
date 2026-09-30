@@ -232,6 +232,8 @@ func notifierTypeToRow(kind ingestionv1.NotificationType) (sqlcgen.NotificationT
 	switch kind {
 	case ingestionv1.NotificationType_NOTIFICATION_TYPE_WEBHOOK:
 		return sqlcgen.NotificationTypeWebhook, nil
+	case ingestionv1.NotificationType_NOTIFICATION_TYPE_SLACK:
+		return sqlcgen.NotificationTypeSlack, nil
 	default:
 		return "", fmt.Errorf("invalid notification type %d", kind)
 	}
@@ -241,6 +243,8 @@ func notifierTypeFromRow(kind sqlcgen.NotificationType) (ingestionv1.Notificatio
 	switch kind {
 	case sqlcgen.NotificationTypeWebhook:
 		return ingestionv1.NotificationType_NOTIFICATION_TYPE_WEBHOOK, nil
+	case sqlcgen.NotificationTypeSlack:
+		return ingestionv1.NotificationType_NOTIFICATION_TYPE_SLACK, nil
 	default:
 		return ingestionv1.NotificationType_NOTIFICATION_TYPE_UNSPECIFIED, fmt.Errorf("invalid notification type %q", kind)
 	}

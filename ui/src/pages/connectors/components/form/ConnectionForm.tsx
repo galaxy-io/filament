@@ -11,6 +11,7 @@ import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
@@ -27,6 +28,7 @@ import {
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
+import FieldWrapper from "@/components/fields/FieldWrapper";
 import {
   getConnectionScopedFields,
   getFieldDefaults,
@@ -36,6 +38,10 @@ import {
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
 
+import {
+  getConnectorFamily,
+  getConnectorVersions,
+} from "@/pages/connectors/components/create/utils";
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
@@ -51,7 +57,11 @@ import {
   CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH,
 } from "@/pages/connectors/constants";
 
-import { useGetConnectorQuery, useValidateConfigMutation } from "@/api/queries/connectors";
+import {
+  useGetConnectorQuery,
+  useListConnectorsQuery,
+  useValidateConfigMutation,
+} from "@/api/queries/connectors";
 
 import { NOOP } from "@/constants";
 
@@ -82,6 +92,7 @@ interface ConnectionFormProps {
   onSubmit: () => void;
   onClose: () => void;
   onBack?: () => void;
+  onConnectorChange?: (connectorName: string) => void;
 }
 
 const ConnectionForm = ({
@@ -92,6 +103,7 @@ const ConnectionForm = ({
   onSubmit,
   onClose,
   onBack,
+  onConnectorChange,
 }: ConnectionFormProps) => {
   const { state, dispatch } = useConnectionFormContext();
   const { showToast } = useToast();
@@ -101,6 +113,17 @@ const ConnectionForm = ({
     options: { retry: false },
   });
   const connector = data?.connector;
+  const { data: catalogData } = useListConnectorsQuery({
+    options: { enabled: !!onConnectorChange },
+  });
+  const catalog = catalogData?.connectors ?? [];
+  const family = connector ? getConnectorFamily(connector, catalog) : undefined;
+  const versions = family ? getConnectorVersions(family, catalog) : [];
+  const versionOptions = versions.map((version) => ({
+    id: version.name,
+    value: version.name,
+    label: `${version.apiVersion || version.version}${version.name === family?.aliasTarget ? " (default)" : ""}`,
+  }));
 
   const submitLabel = connectionId ? "Save" : "Create";
   const submittingLabel = connectionId ? "Saving..." : "Creating...";
@@ -254,6 +277,18 @@ const ConnectionForm = ({
           fillWidth
           autoFocus
         />
+        {onConnectorChange && versionOptions.length > 0 && (
+          <FieldWrapper label="API version">
+            <SelectInput
+              options={versionOptions}
+              value={versionOptions.find((option) => option.value === connector?.name) ?? null}
+              onChange={(option) => onConnectorChange(option.value as string)}
+              isDisabled={isDisabled || versionOptions.length === 1}
+              size={InputSize.LARGE}
+              fillWidth
+            />
+          </FieldWrapper>
+        )}
         {fields
           .filter((field) => isFieldVisible(field, fieldValues))
           .map((field) => (

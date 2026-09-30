@@ -22,7 +22,7 @@ func TestNotificationTypeRejectsInvalidValues(t *testing.T) {
 	for _, value := range []ingestionv1.NotificationType{
 		ingestionv1.NotificationType_NOTIFICATION_TYPE_UNSPECIFIED,
 		-1,
-		2,
+		3,
 		999,
 	} {
 		if _, err := notifier.NotificationTypeLabel(value); err == nil {

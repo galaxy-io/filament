@@ -13,6 +13,7 @@ import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import { getConnectorFamilyName } from "@/pages/connectors/components/create/utils";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 import ConnectorMaturityIcon from "../ConnectorMaturityIcon";
@@ -28,7 +29,7 @@ interface ConnectionFormHeaderProps {
 
 const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: ConnectorKind) => {
   const kindSegment = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind]).toLowerCase();
-  return `/pages/connectors/${kindSegment}/${connectorName.toLowerCase()}`;
+  return `/pages/connectors/${kindSegment}/${getConnectorFamilyName(connectorName).toLowerCase()}`;
 };
 
 const ConnectionFormHeader = ({

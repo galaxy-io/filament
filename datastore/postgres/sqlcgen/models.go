@@ -57,6 +57,7 @@ type NotificationType string
 
 const (
 	NotificationTypeWebhook NotificationType = "webhook"
+	NotificationTypeSlack   NotificationType = "slack"
 )
 
 func (e *NotificationType) Scan(src interface{}) error {

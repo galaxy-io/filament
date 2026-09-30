@@ -4,6 +4,7 @@ import pluralize from "pluralize";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
+  NotificationType,
   type Notifier,
   type NotifierInput,
   NotifierInputSchema,
@@ -13,6 +14,8 @@ import { isNameValid } from "@/pages/connectors/components/form/validation";
 import {
   PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
   PIPELINE_NOTIFIER_EVENTS,
+  PIPELINE_NOTIFIER_SLACK_URL_PREFIXES,
+  PIPELINE_NOTIFIER_URL_SECRET_REF_KEY,
 } from "@/pages/pipelines/components/notifier/constants";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
@@ -37,6 +40,16 @@ export const isPipelineNotifierUrlValid = (url: string): boolean => {
   }
 };
 
+export const isPipelineNotifierSlackUrlValid = (url: string): boolean => {
+  const trimmed = url.trim();
+  return PIPELINE_NOTIFIER_SLACK_URL_PREFIXES.some(
+    (prefix) => trimmed.startsWith(prefix) && trimmed.length > prefix.length,
+  );
+};
+
+export const hasPipelineNotifierStoredUrl = (state: PipelineNotifierState): boolean =>
+  PIPELINE_NOTIFIER_URL_SECRET_REF_KEY in state.secretRefs;
+
 export const parsePipelineNotifierHeaders = (text: string): Record<string, string> | null => {
   if (text.trim() === "") return {};
   try {
@@ -51,26 +64,43 @@ export const parsePipelineNotifierHeaders = (text: string): Record<string, strin
   }
 };
 
+const isPipelineNotifierSlackValid = (state: PipelineNotifierState): boolean =>
+  state.url.trim() === ""
+    ? hasPipelineNotifierStoredUrl(state)
+    : isPipelineNotifierSlackUrlValid(state.url);
+
+const isPipelineNotifierWebhookValid = (state: PipelineNotifierState): boolean =>
+  isPipelineNotifierUrlValid(state.url) && parsePipelineNotifierHeaders(state.headers) !== null;
+
 export const isPipelineNotifierValid = (state: PipelineNotifierState): boolean =>
   isNameValid(state.name) &&
   state.events.length > 0 &&
-  isPipelineNotifierUrlValid(state.url) &&
-  parsePipelineNotifierHeaders(state.headers) !== null;
+  (state.notificationType === NotificationType.SLACK
+    ? isPipelineNotifierSlackValid(state)
+    : isPipelineNotifierWebhookValid(state));
 
-export const mapPipelineNotifierStateToInput = (state: PipelineNotifierState): NotifierInput => {
+const mapPipelineNotifierStateToConfig = (
+  state: PipelineNotifierState,
+): NotifierInput["config"] => {
+  const url = state.url.trim();
+  if (state.notificationType === NotificationType.SLACK) return url === "" ? {} : { url };
+
   const headers = parsePipelineNotifierHeaders(state.headers);
-  return create(NotifierInputSchema, {
+  return {
+    url,
+    ...(state.headers.trim() !== "" && headers ? { headers } : {}),
+  };
+};
+
+export const mapPipelineNotifierStateToInput = (state: PipelineNotifierState): NotifierInput =>
+  create(NotifierInputSchema, {
     name: state.name.trim(),
     notificationType: state.notificationType,
     isEnabled: state.isEnabled,
     events: state.events,
-    config: {
-      url: state.url.trim(),
-      ...(state.headers.trim() !== "" && headers ? { headers } : {}),
-    },
+    config: mapPipelineNotifierStateToConfig(state),
     secretRefs: state.secretRefs,
   });
-};
 
 export const mapNotifierToPipelineNotifierState = (notifier: Notifier): PipelineNotifierState => ({
   name: notifier.name,

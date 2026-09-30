@@ -14,7 +14,8 @@ func notifierFromInput(in *ingestionv1.NotifierInput, tenant string) (*ingestion
 		return nil, nil, nil, fmt.Errorf("notifier is required")
 	}
 	switch in.GetNotificationType() {
-	case ingestionv1.NotificationType_NOTIFICATION_TYPE_WEBHOOK:
+	case ingestionv1.NotificationType_NOTIFICATION_TYPE_WEBHOOK,
+		ingestionv1.NotificationType_NOTIFICATION_TYPE_SLACK:
 	default:
 		return nil, nil, nil, fmt.Errorf("unsupported notification type")
 	}
