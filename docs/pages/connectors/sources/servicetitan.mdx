@@ -64,11 +64,18 @@ complete export. A preceding full run does not seed its incremental token.
 Subsequent successful runs resume at the saved token. Append writes can retain
 replayed records after failures; they do not produce a deduplicated current view.
 
-`gross_pay_items` matches the Depot Airbyte connector: incremental export tokens
-with `payrollId` as its primary key. Airbyte labels this state `modifiedOn`, but
-the saved value is an opaque export token, not a timestamp. Multiple items can
-share `payrollId`, so upsert can collapse distinct earnings items with that key.
-Use full replace if every individual item must be preserved.
+`gross_pay_items` uses the gross pay item `id` as its primary key and saves the
+export's `continueFrom` token for incremental reads. `payrollId` identifies the
+parent payroll and must not be used to deduplicate its earnings items.
+ServiceTitan permits null item IDs; keyed writes reject such records without
+advancing the run's checkpoint. Use full read with replace for accounts containing
+items without IDs. See the [official payroll schema](https://developer.servicetitan.io/api/docs/apis/tenant-payroll-v2).
+
+For existing pipelines, select incremental read and upsert write explicitly.
+The first incremental run establishes the export checkpoint with a complete read.
+Changing the key does not repair rows already overwritten by payroll-level
+upserts or remove duplicate rows left by previous append runs; rebuild affected
+destination data from a complete export before relying on incremental updates.
 
 Use **full replace** for `technician_shifts`.
 Technician shifts can be hard-deleted upstream, requiring

@@ -1476,7 +1476,7 @@ resources:
       checkpoint_key: payroll_adjustments_export_token
   - name: gross_pay_items
     path: /payroll/v2/tenant/{{ config.tenant_id }}/export/gross-pay-items
-    primary_key: [payrollId]
+    primary_key: [id]
     fields:
       id: int64?
       date: string?
