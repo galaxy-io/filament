@@ -49,14 +49,14 @@ the current resource set.
 
 ## Modes
 
-All resources support full reads. Incremental reads are available for 41:
-39 export resources use ServiceTitan's opaque `continueFrom` token;
+All resources support full reads. Incremental reads are available for 42:
+40 export resources use ServiceTitan's opaque `continueFrom` token;
 `non_job_timesheets` and `payrolls` use `modifiedOnOrAfter` with a fixed lower
 bound throughout pagination and `sort=+ModifiedOn`.
 
-These seven resources support full reads only: `job_types`, `campaigns`,
+These six resources support full reads only: `job_types`, `campaigns`,
 `campaign_costs`, `campaign_categories`, `technician_shifts`,
-`membership_status_changes`, and `gross_pay_items`.
+and `membership_status_changes`.
 
 Use incremental upsert for mutable export records. No cursor-column selection
 or lookback is supported for export tokens. The first incremental run walks the
@@ -64,10 +64,14 @@ complete export. A preceding full run does not seed its incremental token.
 Subsequent successful runs resume at the saved token. Append writes can retain
 replayed records after failures; they do not produce a deduplicated current view.
 
-Use **full replace** for `gross_pay_items` and `technician_shifts`.
-Gross pay items have no documented stable item key: `id` can be null, and
-multiple items can share `payrollId`. The connector preserves every item with
-an empty primary key. Technician shifts can be hard-deleted upstream, requiring
+`gross_pay_items` matches the Depot Airbyte connector: incremental export tokens
+with `payrollId` as its primary key. Airbyte labels this state `modifiedOn`, but
+the saved value is an opaque export token, not a timestamp. Multiple items can
+share `payrollId`, so upsert can collapse distinct earnings items with that key.
+Use full replace if every individual item must be preserved.
+
+Use **full replace** for `technician_shifts`.
+Technician shifts can be hard-deleted upstream, requiring
 replacement to remove missing rows. Ordinary export upserts do not infer deletes
 from records absent in a delta.
 

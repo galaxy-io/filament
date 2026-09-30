@@ -1476,7 +1476,7 @@ resources:
       checkpoint_key: payroll_adjustments_export_token
   - name: gross_pay_items
     path: /payroll/v2/tenant/{{ config.tenant_id }}/export/gross-pay-items
-    primary_key: []
+    primary_key: [payrollId]
     fields:
       id: int64?
       date: string?
@@ -1484,7 +1484,7 @@ resources:
       amount: decimal?
       activity: string?
       createdOn: string?
-      payrollId: int64?
+      payrollId: int64
       employeeId: int64?
       modifiedOn: string?
       activityCode: string?
@@ -1531,6 +1531,11 @@ resources:
           response: continueFrom
           request: query.from
           more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: gross_pay_items_export_token
   - name: timesheet_codes
     path: /payroll/v2/tenant/{{ config.tenant_id }}/export/timesheet-codes
     primary_key: [id]
