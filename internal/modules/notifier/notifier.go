@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
 	notification "github.com/galaxy-io/filament/internal/notifier"
+	"github.com/galaxy-io/filament/internal/notifier/slack"
 	"github.com/galaxy-io/filament/internal/notifier/webhook"
 	"github.com/galaxy-io/filament/module"
 )
@@ -49,6 +50,7 @@ var _ module.Module = (*Module)(nil)
 func New() *Module {
 	return &Module{senders: map[ingestionv1.NotificationType]notification.Sender{
 		ingestionv1.NotificationType_NOTIFICATION_TYPE_WEBHOOK: webhook.New(nil),
+		ingestionv1.NotificationType_NOTIFICATION_TYPE_SLACK:   slack.New(nil),
 	}}
 }
 
@@ -105,7 +107,7 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	stop := m.keepAlive(ctx, cancel, msg)
 	defer stop()
 	lookupCtx, cancelLookup := context.WithTimeout(ctx, operationTimeout)
-	rules, request, err := m.rulesFor(lookupCtx, f, event)
+	rules, request, name, err := m.rulesFor(lookupCtx, f, event)
 	cancelLookup()
 	if err != nil || len(rules) == 0 {
 		return err
@@ -116,47 +118,47 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	}
 	trigger := notification.Notification{
 		Tenant: f.Tenant, Run: f.Run, Resource: f.Resource,
-		PipelineID: request.PipelineID, PipelineVersionID: request.PipelineVersionID,
+		PipelineID: request.PipelineID, PipelineName: name, PipelineVersionID: request.PipelineVersionID,
 		TriggerType: f.Name, TriggerEvent: event, TriggerSubject: msg.Subject(), TriggerStreamSequence: msg.Seq(), Event: frame,
 	}
 	return m.deliverAll(ctx, trigger, rules)
 }
 
-func (m *Module) rulesFor(ctx context.Context, f events.Fact, event ingestionv1.NotifierEvent) ([]*ingestionv1.Notifier, filament.RunRequest, error) {
+func (m *Module) rulesFor(ctx context.Context, f events.Fact, event ingestionv1.NotifierEvent) ([]*ingestionv1.Notifier, filament.RunRequest, string, error) {
 	run, err := m.ds.LoadRun(ctx, f.Tenant, f.Run)
 	if errors.Is(err, filament.ErrNotFound) {
-		return nil, filament.RunRequest{}, nil
+		return nil, filament.RunRequest{}, "", nil
 	}
 	if err != nil {
-		return nil, filament.RunRequest{}, fmt.Errorf("notifier: load run: %w", err)
+		return nil, filament.RunRequest{}, "", fmt.Errorf("notifier: load run: %w", err)
 	}
 	if run.Request.PipelineID == "" {
-		return nil, run.Request, nil
+		return nil, run.Request, "", nil
 	}
 	pipeline, err := m.ds.LoadPipeline(ctx, f.Tenant, run.Request.PipelineID)
 	if errors.Is(err, filament.ErrNotFound) {
-		return nil, run.Request, nil
+		return nil, run.Request, "", nil
 	}
 	if err != nil {
-		return nil, run.Request, fmt.Errorf("notifier: load pipeline: %w", err)
+		return nil, run.Request, "", fmt.Errorf("notifier: load pipeline: %w", err)
 	}
 	if pipeline.GetDeletedAt() != 0 {
-		return nil, run.Request, nil
+		return nil, run.Request, "", nil
 	}
 	rules, err := m.ds.ListNotifiers(ctx, f.Tenant, run.Request.PipelineID, false)
 	if err != nil {
-		return nil, run.Request, fmt.Errorf("notifier: list pipeline rules: %w", err)
+		return nil, run.Request, "", fmt.Errorf("notifier: list pipeline rules: %w", err)
 	}
 	selected := make([]*ingestionv1.Notifier, 0, len(rules))
 	for _, n := range rules {
 		if filament.TenantID(n.GetTenantId()) != f.Tenant || n.GetPipelineId() != run.Request.PipelineID {
-			return nil, run.Request, errors.New("notifier: rule does not belong to this pipeline")
+			return nil, run.Request, "", errors.New("notifier: rule does not belong to this pipeline")
 		}
 		if notification.Matches(n, event, f.Resource) {
 			selected = append(selected, n)
 		}
 	}
-	return selected, run.Request, nil
+	return selected, run.Request, pipeline.GetName(), nil
 }
 
 func (m *Module) ignored(reason string, sequence uint64) {

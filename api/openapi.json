@@ -4869,7 +4869,8 @@
         "title": "NotificationType",
         "enum": [
           "NOTIFICATION_TYPE_UNSPECIFIED",
-          "NOTIFICATION_TYPE_WEBHOOK"
+          "NOTIFICATION_TYPE_WEBHOOK",
+          "NOTIFICATION_TYPE_SLACK"
         ],
         "description": "NotificationType identifies how a pipeline notification is delivered.\n Unspecified is an input sentinel and cannot be persisted."
       },
@@ -4964,7 +4965,7 @@
         },
         "title": "Notifier",
         "additionalProperties": false,
-        "description": "Notifier holds settings, plain config, and secret references, never secret\n values. Webhook config carries url; secret_refs carries headers."
+        "description": "Notifier holds settings, plain config, and secret references, never secret\n values. Webhook config carries url; secret_refs carries headers. Slack\n config is empty; secret_refs carries url."
       },
       "ingestion.v1.NotifierEvent": {
         "type": "string",

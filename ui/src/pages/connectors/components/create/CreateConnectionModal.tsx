@@ -20,7 +20,7 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
         to: ".",
         search: (prev) => ({
           ...prev,
-          connector: connector.name,
+          connector: connector.aliasTarget || connector.name,
           connectorKind: connector.kind,
           connectorSearch: undefined,
         }),
@@ -40,7 +40,13 @@ const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
   }, [navigate]);
 
   if (connector && connectorKind) {
-    return <CreateConnectionConfigure onClose={onClose} onBack={handleBack} />;
+    return (
+      <CreateConnectionConfigure
+        key={`${connectorKind}:${connector}`}
+        onClose={onClose}
+        onBack={handleBack}
+      />
+    );
   }
 
   return <CreateConnectionSelector onClose={onClose} onConnectorSelect={handleConnectorSelect} />;

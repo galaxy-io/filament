@@ -84,10 +84,21 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
     );
   }, [state.name, state.config, connector, kind, createConnection, showToast, navigate, dispatch]);
 
+  const handleConnectionChange = useCallback(
+    (version: string) => {
+      void navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, connector: version }),
+      });
+    },
+    [navigate],
+  );
+
   return (
     <ConnectionForm
       connectorName={connector ?? ""}
       connectorKind={kind}
+      onConnectorChange={handleConnectionChange}
       onSubmit={handleCreateConnection}
       onClose={onClose}
       onBack={onBack}

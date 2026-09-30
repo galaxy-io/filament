@@ -27,7 +27,7 @@ func TestPipelineExecutionMigrationAndReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		if file.Name() == "00005_stream_runtime.sql" {
+		if file.Name() >= "00005_stream_runtime.sql" {
 			continue
 		}
 		data, err := migrations.ReadFile("migrations/" + file.Name())

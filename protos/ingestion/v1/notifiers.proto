@@ -9,6 +9,7 @@ import "google/protobuf/struct.proto";
 enum NotificationType {
   NOTIFICATION_TYPE_UNSPECIFIED = 0;
   NOTIFICATION_TYPE_WEBHOOK = 1;
+  NOTIFICATION_TYPE_SLACK = 2;
 }
 
 // NotifierEvent identifies an event kind a notifier can deliver. Unspecified is
@@ -24,7 +25,8 @@ enum NotifierEvent {
 }
 
 // Notifier holds settings, plain config, and secret references, never secret
-// values. Webhook config carries url; secret_refs carries headers.
+// values. Webhook config carries url; secret_refs carries headers. Slack
+// config is empty; secret_refs carries url.
 message Notifier {
   string id = 1;
   string tenant_id = 2;

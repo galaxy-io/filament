@@ -59,21 +59,31 @@ func (s *Sender) Send(ctx context.Context, n notifier.Notification) (result noti
 		result.ErrorCode = notifier.ErrorInternal
 		return result
 	}
+	headers := make(map[string]string, len(destination.Headers)+3)
+	for name, value := range destination.Headers {
+		headers[name] = value
+	}
+	headers["X-Filament-Delivery-ID"] = n.DeliveryID
+	headers["X-Filament-Attempt-ID"] = n.AttemptID
+	headers["X-Filament-Event-Type"] = n.TriggerType
+	return s.Post(ctx, destination.URL, headers, body)
+}
+
+// Post sends one JSON body and classifies the response. The caller owns Duration.
+func (s *Sender) Post(ctx context.Context, url string, headers map[string]string, body []byte) notifier.DeliveryResult {
+	result := notifier.DeliveryResult{Outcome: notifier.OutcomeFailed}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, destination.URL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		result.Retryable = true
 		result.ErrorCode = notifier.ErrorInvalidConfiguration
 		return result
 	}
-	for name, value := range destination.Headers {
+	for name, value := range headers {
 		req.Header.Set(name, value)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Filament-Delivery-ID", n.DeliveryID)
-	req.Header.Set("X-Filament-Attempt-ID", n.AttemptID)
-	req.Header.Set("X-Filament-Event-Type", n.TriggerType)
 	result.RequestAttempted = true
 	response, err := s.client.Do(req)
 	if errors.Is(err, errPrivateAddress) {
