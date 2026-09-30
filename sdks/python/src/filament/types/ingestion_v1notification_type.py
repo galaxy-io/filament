@@ -3,5 +3,5 @@
 import typing
 
 IngestionV1NotificationType = typing.Union[
-    typing.Literal["NOTIFICATION_TYPE_UNSPECIFIED", "NOTIFICATION_TYPE_WEBHOOK"], typing.Any
+    typing.Literal["NOTIFICATION_TYPE_UNSPECIFIED", "NOTIFICATION_TYPE_WEBHOOK", "NOTIFICATION_TYPE_SLACK"], typing.Any
 ]
