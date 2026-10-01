@@ -41,7 +41,7 @@ certificate chain and private key. PEM inputs preserve multiline pastes and use
 Filament's secret storage. Certificate fields require `tls_enabled=true`.
 
 Selecting a SASL mechanism shows required username/password fields. Use TLS with
-PLAIN authentication. The local test broker needs neither TLS nor authentication.
+PLAIN authentication. The integration test brokers use neither TLS nor authentication.
 Existing `tls_ca_file`, `tls_cert_file`, and `tls_key_file` settings are rejected:
 replace them with the corresponding `_pem` fields containing the actual contents.
 
@@ -50,43 +50,11 @@ requests metadata without joining a consumer group or publishing records.
 Workers need topic metadata and read access; consumer-group permissions are not
 required for this direct-assignment profile.
 
-## Local test data
+## Integration tests
 
-From the repository root, start a local Kafka broker and a continuous publisher:
-
-```bash
-bash scripts/kafka-dev.sh
-```
-
-Requires Docker with Compose, or the repository's Podman Compose setup with
-`CONTAINER_ENGINE=podman`. The script waits for Kafka, creates `orders` with three
-partitions, seeds 100 keyed JSON records, then adds 10 records every five seconds.
-Records include an event ID, sequence, customer ID, amount, timestamp, and a
-`phase` of `seed` or `live`. Each invocation adds new records to the existing topic.
-
-```bash
-SEED_COUNT=50 BATCH_SIZE=5 INTERVAL_SECONDS=2 KAFKA_TOPIC=orders bash scripts/kafka-dev.sh
-# Seed only, or restart publishing without another seed batch:
-bash scripts/kafka-dev.sh seed
-SEED_COUNT=0 bash scripts/kafka-dev.sh
-```
-
-For a worker running on the host, use `brokers: ["localhost:9092"]`,
-`topics: ["orders"]`, and `start_position: "earliest"` to read seed and live data.
-Set `KAFKA_PORT` to change the host port. The external listener is advertised as
-`localhost`; this configuration is intended for host-based workers.
-`KAFKA_PARTITIONS` applies only when creating a new topic.
-
-Ctrl-C stops the publisher and leaves Kafka running. Data survives `down`:
-
-```bash
-bash scripts/kafka-dev.sh down
-# Delete the fixture's data as well:
-bash scripts/kafka-dev.sh reset
-```
-
-After `reset`, use a fresh Filament source connection because existing checkpoints
-refer to the previous Kafka cluster and topic IDs.
+Run `just test-integration` from the repository root. The Kafka tests provision
+Kafka and Redpanda through Testcontainers, create topics, publish test records,
+and clean up their containers. No separately running broker or publisher is needed.
 
 ## Bounded reads
 
