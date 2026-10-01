@@ -18,20 +18,27 @@ import (
 // The delayed entrypoint installs the host's advertised address before startup.
 func KafkaContainer(t testing.TB, redpanda bool) []string {
 	t.Helper()
-	ctx := context.Background()
+	// Wait strategies only bound readiness after the image has been pulled.
+	// Bound the entire setup so a stalled registry request cannot consume the
+	// package's test timeout before reporting which image failed.
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
+	defer cancel()
 	imageKey, name := "KAFKA_IMAGE", "kafka"
 	if redpanda {
 		imageKey, name = "REDPANDA_IMAGE", "redpanda"
 	}
+	image := Image(t, imageKey)
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{ProviderType: providerType(t), ContainerRequest: tc.ContainerRequest{
-		Image: Image(t, imageKey), ExposedPorts: []string{"9092/tcp"},
+		Image: image, ExposedPorts: []string{"9092/tcp"},
 		Entrypoint: []string{"/bin/sh", "-c", "while [ ! -f /tmp/filament-start.ready ]; do sleep 0.1; done; exec /bin/sh /tmp/filament-start.sh"},
 		WaitingFor: wait.ForExec([]string{"/bin/sh", "-c", "test -d /tmp"}).WithStartupTimeout(time.Minute),
 	}, Started: true})
-	if err != nil {
-		t.Fatalf("start %s: %v", name, err)
+	if ctr != nil {
+		cleanupContainer(t, name, ctr)
 	}
-	cleanupContainer(t, name, ctr)
+	if err != nil {
+		t.Fatalf("start %s (image %s): %v", name, image, err)
+	}
 	host, err := ctr.Host(ctx)
 	if err != nil {
 		t.Fatal(err)
