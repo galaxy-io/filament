@@ -16,3 +16,13 @@ func TestRedshiftSinkIsRegistered(t *testing.T) {
 		t.Fatalf("Redshift sink spec = %#v", spec)
 	}
 }
+
+func TestKafkaSourceIsRegistered(t *testing.T) {
+	spec, err := registry.DefaultSources.Spec("kafka")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.Name != "kafka" || spec.DisplayName != "Kafka" || spec.Stream == nil || spec.Stream.Input != filament.InputMessages {
+		t.Fatalf("Kafka source spec = %#v", spec)
+	}
+}

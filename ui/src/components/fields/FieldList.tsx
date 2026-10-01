@@ -1,6 +1,7 @@
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -27,6 +28,24 @@ const FieldList = ({
   const handleReset = () => {
     onChange([]);
   };
+
+  if (field.name === "brokers" && field.enum.length === 0) {
+    return (
+      <TextInput
+        value={typeof selected[0] === "string" ? selected[0] : ""}
+        onChange={(address) => onChange(address ? [address] : [])}
+        size={InputSize.LARGE}
+        variant={variant}
+        label="Instance address"
+        placeholder="localhost:9092"
+        labelTooltip="Kafka bootstrap instance address (host:port)."
+        isRequired={field.required}
+        error={error}
+        isDisabled={isDisabled}
+        fillWidth
+      />
+    );
+  }
 
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>
