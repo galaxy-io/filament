@@ -48,18 +48,9 @@ func (c *Connector) paginate(
 	tracker *incremental.Tracker,
 	resumeState pagination.State,
 ) (int, int, error) {
-	// pag == nil means the resource declares no pagination — issue one
-	// request, process it, return. No Apply/Next calls happen because there
-	// is no strategy object to invoke; the fetchPage path nil-guards Apply.
-	var state pagination.State
-	if pag != nil {
-		state = pag.Initial()
-		if resumeState != (pagination.State{}) {
-			state = resumeState
-			c.logger.Info("resuming from pagination checkpoint", "resource", res.Name)
-		}
-	}
-
+	tokenMode := res.Incremental != nil && res.Incremental.ResponseCursor != "" && c.incrementalEnabled(res.Name, res.Name)
+	strictCursor := tokenMode || res.Pagination.Strict
+	state, seen := c.initialPaginationState(res, pag, resumeState, tokenMode)
 	var totalRecords, pageCount int
 	progressResource, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
@@ -71,7 +62,7 @@ func (c *Connector) paginate(
 		if err != nil {
 			// Stale-cursor fallback: if we resumed and the first request fails,
 			// retry from scratch.
-			if pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
+			if !strictCursor && pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
 				c.logger.Warn("stale cursor, falling back to full extraction",
 					"resource", res.Name, "error", err)
 				state = pag.Initial()
@@ -81,7 +72,7 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, err
 		}
 
-		if matchesEmptyResponse(resp, raw, res.Response.Empty) {
+		if !strictCursor && matchesEmptyResponse(resp, raw, res.Response.Empty) {
 			return totalRecords, pageCount + 1, nil
 		}
 
@@ -89,8 +80,15 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, fmt.Errorf("response error on %s: %w", res.Name, err)
 		}
 
-		if resp.StatusCode == http.StatusNoContent {
+		if !strictCursor && resp.StatusCode == http.StatusNoContent {
 			return totalRecords, pageCount + 1, nil
+		}
+		token, more := "", false
+		if strictCursor {
+			token, more, err = responseCursor(res, raw, seen)
+			if err != nil {
+				return totalRecords, pageCount, err
+			}
 		}
 		records, err := extractor.Records(raw)
 		if err != nil {
@@ -98,7 +96,7 @@ func (c *Connector) paginate(
 		}
 
 		checkpointValue := ""
-		if pag != nil {
+		if pag != nil && !tokenMode {
 			checkpointValue = state.Checkpoint()
 		}
 		n, captured, err := c.sendRecords(res, records, sink, parent, checkpointValue, extractor, tracker)
@@ -116,6 +114,16 @@ func (c *Connector) paginate(
 			Bytes:    int64(len(raw)),
 		})
 
+		if strictCursor {
+			if !more {
+				if !tokenMode {
+					return totalRecords, pageCount, nil
+				}
+				return totalRecords, pageCount, checkpointResponseCursor(sink, progressResource, token)
+			}
+			state = pagination.State{Cursor: token}
+			continue
+		}
 		if pag == nil {
 			// Single-request resource: we're done.
 			return totalRecords, pageCount, nil
@@ -135,6 +143,61 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, nil
 		}
 	}
+}
+
+func (c *Connector) initialPaginationState(
+	res manifest.Resource,
+	pag pagination.Paginator,
+	resumeState pagination.State,
+	tokenMode bool,
+) (pagination.State, map[string]bool) {
+	// pag == nil means the resource declares no pagination — issue one
+	// request, process it, return. No Apply/Next calls happen because there
+	// is no strategy object to invoke; the fetchPage path nil-guards Apply.
+	var state pagination.State
+	if pag != nil {
+		state = pag.Initial()
+		if resumeState != (pagination.State{}) {
+			state = resumeState
+			c.logger.Info("resuming from pagination checkpoint", "resource", res.Name)
+		}
+	}
+
+	seen := map[string]bool{}
+	if tokenMode {
+		state.Cursor = c.resumeWatermarks[res.Name][res.Incremental.DurableCheckpointKey()]
+		if state.Cursor == "" {
+			state.Cursor = res.Incremental.Initial
+		}
+		if state.Cursor != "" {
+			seen[state.Cursor] = true
+		}
+	}
+	return state, seen
+}
+
+// responseCursor validates the strict cursor envelope and tracks continuation tokens.
+func responseCursor(res manifest.Resource, raw []byte, seen map[string]bool) (string, bool, error) {
+	t := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.CursorPath, "$."))
+	m := gjson.GetBytes(raw, strings.TrimPrefix(res.Pagination.HasMorePath, "$."))
+	data := gjson.GetBytes(raw, strings.TrimPrefix(res.Response.RecordsPath, "$."))
+	if !gjson.ValidBytes(raw) || t.Type != gjson.String || t.Str == "" || (m.Type != gjson.True && m.Type != gjson.False) || !data.IsArray() {
+		return "", false, fmt.Errorf("invalid response cursor envelope for %s", res.Name)
+	}
+	token, more := t.Str, m.Bool()
+	if more && seen[token] {
+		return "", false, fmt.Errorf("response cursor cycle for %s", res.Name)
+	}
+	seen[token] = true
+	return token, more, nil
+}
+
+func checkpointResponseCursor(sink recordSink, resource, token string) error {
+	target, ok := sink.(responseCheckpointSink)
+	if !ok {
+		return fmt.Errorf("response cursor requires a checkpoint-capable sink")
+	}
+	return target.Checkpoint(resource, token)
 }
 
 // fetchPage builds and sends one page request, applying pagination + watermark
@@ -241,10 +304,14 @@ func (c *Connector) doRequest(
 			return nil, nil, fmt.Errorf("http: %w", err)
 		}
 
-		body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize+1))
 		_ = resp.Body.Close()
 		if err != nil {
 			return resp, nil, fmt.Errorf("read response body: %w", err)
+		}
+
+		if len(body) > maxResponseSize {
+			return resp, nil, fmt.Errorf("response exceeds %d bytes", maxResponseSize)
 		}
 
 		c.limiter.Observe(resp)

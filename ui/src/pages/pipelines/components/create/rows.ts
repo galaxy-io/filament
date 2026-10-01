@@ -69,20 +69,27 @@ const buildResourceRows = ({
   const needsPrimaryKey =
     (state.sinkWriteModes[sinkId] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE) === WriteMode.UPSERT;
 
+  const managedResources = new Set(
+    (columns?.resources ?? [])
+      .filter((entry) => entry.managedIncremental)
+      .map((entry) => entry.resource),
+  );
   return resources.map((resource) => {
+    const managedIncremental = managedResources.has(resource.name);
     const resourceColumns = columnsByResource.get(resource.name);
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
     const autoCursor = getRecommendedCursor(resourceColumns ?? []);
     const readModeOptions = hasReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
     const defaultReadMode =
-      autoCursor && readModeOptions.includes(ReadMode.INCREMENTAL)
+      (managedIncremental || autoCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
         ? ReadMode.INCREMENTAL
         : CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
     const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected = isResourceSelected(state.resourceSelection[sinkId], resource);
-    const cursorField =
-      state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []);
+    const cursorField = managedIncremental
+      ? ""
+      : (state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []));
 
     return {
       name: resource.name,
@@ -93,6 +100,7 @@ const buildResourceRows = ({
       readModeOptions,
       cursorField,
       cursorOptions,
+      managedIncremental,
       status:
         !hasReadLevers || !isSelected
           ? undefined
@@ -102,6 +110,7 @@ const buildResourceRows = ({
               cursorField,
               cursorOptions,
               isCursorKnown,
+              managedIncremental,
               hasPrimaryKey: resource.primaryKey.length > 0,
               needsPrimaryKey,
               resource: resource.name,

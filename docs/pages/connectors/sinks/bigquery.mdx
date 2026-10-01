@@ -5,8 +5,9 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-bigquery-dark.svg"
 ---
 
 The BigQuery sink (**alpha**) writes each resource to a typed BigQuery table.
-It supports snapshot, incremental, and CDC pipelines using Parquet load jobs
-staged through short-lived tables in the destination dataset.
+It supports bounded snapshot, incremental, and CDC runs using the BigQuery
+Storage Write API. Arrow batches stream into temporary tables, then one query
+per resource publishes the results at run commit.
 
 ## BigQuery setup
 
@@ -16,8 +17,10 @@ credential fields. On GKE, use Workload Identity. For local development, run
 
 Grant the credential `roles/bigquery.jobUser` on the project and
 `roles/bigquery.dataEditor` on the project or on a pre-existing destination
-dataset. Filament runs `CREATE SCHEMA IF NOT EXISTS` for the pipeline dataset,
-so creating a new dataset requires the project-level grant.
+dataset. Creating a new dataset requires the project-level grant. Enable the
+BigQuery API and BigQuery Storage API (`bigquerystorage.googleapis.com`) in the
+project. Storage writes require `bigquery.tables.updateData`, included in the
+data editor role.
 
 `TestConnection` authenticates and executes `SELECT 1`.
 
@@ -29,8 +32,10 @@ so creating a new dataset requires the project-level grant.
 | `location` | Connection | — | Optional dataset and job location, such as `us-central1`. Applied when Filament creates the dataset. Afterwards the dataset's own location wins. |
 | `dataset` | Pipeline | — | Destination dataset. Empty defaults to the normalized source connection name. |
 
-The sink prefers batches no larger than 100,000 rows or approximately 256 MiB,
-whichever limit is reached first.
+The sink prefers batches of 20,000 rows or approximately 8 MiB, whichever limit
+is reached first, with a ten-second flush interval. Run-level overrides take
+precedence. Remaining rows flush when extraction finishes or at source checkpoint
+boundaries.
 
 ## Supported write modes
 
@@ -39,27 +44,23 @@ The sink advertises `full_replace`, `full_append`, `full_upsert`,
 and `cdc_merge`. See
 [replication modes](/pages/guides/concepts/replication-modes).
 
-- Replace loads the snapshot into a run-scoped replacement table and promotes
-  it at commit.
-- Append inserts each batch directly into the destination.
-- Upsert, delete, and merge apply each batch with one BigQuery `MERGE`. These
-  modes require a primary key.
+- Replace publishes the entire resource with a transactional truncate and insert.
+- Append publishes all of the resource's staged rows with one insert query.
+- Upsert, delete, and merge publish with one `MERGE`, folding repeated keys
+  across all batches to their last operation. These modes require a primary key.
 
 ## Table management
 
-When a run opens, the sink creates the destination dataset if it does not
-exist. Before extraction, `EnsureSchema` then runs per resource.
+The sink creates the destination dataset if needed. Resource workers create
+missing destination tables and add missing columns through metadata API calls.
+These operations do not submit DDL query jobs. New columns on existing tables
+are nullable; existing columns are not dropped, renamed, or altered. Incompatible
+existing types fail the run.
 
-1. Create the typed table if it does not exist.
-2. Add missing columns with `ADD COLUMN IF NOT EXISTS`.
-3. For replace, create a run-scoped replacement table with a seven-day
-   expiration.
-
-Schema evolution is add-only. Existing columns are not dropped, renamed, or
-altered. Primary keys are declared `NOT ENFORCED`, and Filament uses the key
-columns to build deterministic merge conditions. BigQuery allows at most 16
-key columns of key-eligible types, and schemas beyond either limit are
-rejected before extraction.
+Filament uses primary-key columns for merge conditions without adding BigQuery
+key constraints. Schemas remain limited to 16 key columns of key-eligible types.
+Each populated resource gets an isolated staging table with a seven-day
+expiration, normally deleted when publication completes.
 
 ### Type mapping
 
@@ -79,37 +80,70 @@ rejected before extraction.
 
 ## Write mechanics and atomicity
 
-Each Arrow batch is encoded as a Snappy-compressed Parquet file in memory and
-loaded into a short-lived `_filament_load_*` table in the destination dataset.
-A typed query then moves the rows onward. Append and replace run one
-`INSERT INTO ... SELECT`, and keyed modes run one `MERGE` that folds repeated
-keys to their final operation. The staging table is deleted after the typed
-write, with a seven-day expiration as a fallback. No external storage bucket
-is required.
+Arrow IPC messages stream over reusable gRPC connections with gzip transport
+compression. Request size limits and the memory budget apply to the uncompressed
+messages; compression reduces network traffic without changing integrity checks. Each resource has an ordered
+stream with a sliding window of up to four outstanding append requests. Up to
+eight append requests can be in flight across the sink, including multiple
+requests for the same table. Table metadata
+and stream creation have a separate eight-resource limit so new table setup can
+overlap with established uploads. The sink bounds
+queued and in-flight encoded payloads to 64 MiB, plus active encoding and transport buffers.
+Per-resource queues share this byte budget without a separate batch-count cap,
+so a few small batches for a slow table do not block all other tables.
+Encoded batches split below an 8 MiB request budget; a single row that exceeds
+that budget fails with an explicit error.
 
-Load and query jobs use deterministic job IDs derived from the run, batch, and
-payload, so an exact retry reuses the completed BigQuery job instead of
-loading the data twice.
+Uploads use pending streams with explicit row offsets. Transient append failures
+retry at the same offset, including when BigQuery accepted a request but its
+response was lost. A connection failure stops both sending and receiving before
+replaying the unacknowledged suffix. Already-acknowledged requests are retired,
+and their memory is released immediately. The four-request window refills after
+each acknowledgement; it does not wait for all four requests to finish. At commit, the sink waits for uploads, finalizes each stream,
+checks its row count, and commits it to the staging table. Up to eight independent
+tables then publish concurrently, using one query job per table. Empty append or
+upsert resources require no query; an empty replacement truncates its destination.
 
-Append and keyed writes become visible per batch, and no transaction covers an
-entire pipeline run. Replace batches accumulate in the replacement table, and
-`Commit` promotes each one by truncating the destination and inserting the
-replacement rows in a single transaction.
+Destination rows become visible at publication. Write receipts and batch progress
+reported during extraction describe encoded, queued batches; they do not mean the
+rows are already queryable in the destination. All policies defer durable
+checkpoints until the entire run commits successfully. Receipts include an Arrow
+IPC checksum; the sink does not read destination rows back for verification.
 
-The sink verifies each load job's row count and records the encoded Parquet
-checksum in the write receipt. This validates the load boundary but does not
-query the committed table back from BigQuery.
+Publication is atomic per table, not across the dataset. No external storage
+bucket is required. TIME and decimal values use lossless strings in staging and
+cast to their destination types during publication.
 
 ## Failure behavior
 
-An append run can leave successfully loaded batches in the destination after a
-later failure. Upsert, delete, and merge runs can also leave completed batch
-merges, but retries converge through the primary key. A failed replace leaves
-the destination untouched, because the replacement is staged separately and
-promoted only at commit. `Abort` deletes the run's staging tables and retains
-additive schema changes.
+A failure before publication leaves destination rows unchanged. A failure during
+publication can leave some tables updated while others retain their previous
+contents. Additive schema changes can remain after either kind of failure.
+
+Publication job IDs include the run, dispatch execution, destination, and write
+mode. Resuming a paused run creates a new execution and publishes a new segment.
+Redelivery of the same execution can reuse its job only when a persisted SHA-256
+fingerprint matches the staged rows, schema, operations, and batch checkpoints.
+Changed replay contents or batch boundaries fail instead of acknowledging rows
+that the earlier job did not publish. A new run ID is a new operation: replaying an append run can
+produce duplicates, while keyed writes converge through their keys. Failed runs
+replay extraction because their pending-stream progress is not durably resumable.
+
+Pausing extraction leaves accepted uploads running so Commit can drain them.
+Commit cancellation and Abort cancel uploads. Abort removes staging tables that are safe to delete. If a
+publication might still be running, its staging table remains available for job
+recovery until expiration. A recorded failed publication job is surfaced as a
+failure on retries of that execution; a corrected attempt needs a new execution ID.
+
+Pending streams must be committed within 24 hours. This path is intended for
+bounded runs, not indefinite continuous ingestion. See Google's
+[pending-stream lifecycle](https://docs.cloud.google.com/bigquery/docs/write-api-batch)
+for buffer limits and transaction behavior.
 
 ## Troubleshooting
+
+- `SERVICE_DISABLED` for the Storage API means `bigquerystorage.googleapis.com`
+  must be enabled in the project.
 
 - `could not find default credentials` means Application Default Credentials
   are missing from Filament's environment. Attach a service account, configure
@@ -122,3 +156,17 @@ additive schema changes.
   connection to the dataset or leave `location` empty.
 - Dataset IDs allow only letters, numbers, and underscores, so hyphens or dots
   in the pipeline's `dataset` value are rejected.
+
+### Diagnosing slow writes
+
+`bigquery.write.ready` confirms the worker is using the Storage Write API path
+and reports compression, the global request limit, and `inflight_per_stream`.
+`bigquery.write.prepare.started` and `bigquery.write.publish.started` identify
+resource setup and final publication. Operations lasting at least one second
+emit `bigquery.write.timing` at INFO with their resource, phase, and duration.
+Queue timings include `backpressure_ms`; append timings include rows, uncompressed
+bytes, `send_ms`, and `response_wait_ms`. Sending includes compression and handing
+data to gRPC; response wait includes remaining network transfer and service
+processing, so it is not a measurement of BigQuery processing alone.
+DEBUG includes fast operations too. `bigquery.write.retry` reports failed append
+attempts and whether they can be retried. These events contain no row payloads.

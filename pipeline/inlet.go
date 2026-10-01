@@ -158,15 +158,19 @@ func (s *slot) Chunk(b *arrowbatch.Batch) error {
 	return nil
 }
 
-// Drained queues the part's completion marker (no rows): a change stream's final
+// Drained queues the part's completion marker (no rows): an opaque incremental
+// key (promoted only at run commit), a change stream's final
 // position, persisted even when the run wrote nothing so the next run resumes from
 // here, or a coarse (bitmap/ctid) part's total row count, which the tracker matches
 // against acked rows before flagging the part complete.
 func (s *slot) Drained(meta filament.RowMeta, total int) error {
 	var cursor *filament.CheckpointData
-	if meta.LSN != "" {
+	switch {
+	case meta.LSN != "":
 		cursor = checkpoint.NewStreamDelta(s.resource, meta.LSN, meta.Seq)
-	} else {
+	case len(meta.Key) > 0:
+		cursor = checkpoint.NewShardDelta(s.resource, s.part, meta.Key)
+	default:
 		cursor = checkpoint.NewCoarseDone(s.resource, s.part, total)
 	}
 	b := arrowbatch.NewMarker()

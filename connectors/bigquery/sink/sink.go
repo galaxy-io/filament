@@ -3,34 +3,57 @@ package bigquery
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"cloud.google.com/go/bigquery"
+	storage "cloud.google.com/go/bigquery/storage/apiv1"
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
+	"google.golang.org/api/googleapi"
 
 	"github.com/galaxy-io/filament"
 	bigqueryconnection "github.com/galaxy-io/filament/connectors/bigquery/internal/connection"
 )
 
-const sinkName = "bigquery"
+const (
+	sinkName          = "bigquery"
+	uploadConcurrency = 8
+	setupConcurrency  = 8
+	queuedBytes       = 64 << 20
+	stageLifetime     = 7 * 24 * time.Hour
+)
 
-// Sink owns the BigQuery client and the typed tables prepared for a run.
+// Sink streams Arrow batches into isolated pending streams. Only Commit makes
+// rows visible in destination tables; its per-table jobs run concurrently.
 type Sink struct {
-	client   *bigquery.Client
-	run      filament.RunID
-	project  string
-	dataset  string
-	location string
-	policies map[string]filament.WritePolicy
-	tables   map[string]tableDefinition
-
-	stageMu sync.Mutex
-	stages  map[string]struct{}
+	client                     *bigquery.Client
+	storage                    *storage.BigQueryWriteClient
+	run                        filament.RunID
+	execution                  string
+	attempt                    string
+	project, dataset, location string
+	policies                   map[string]filament.WritePolicy
+	tables                     map[string]*tableState
+	ctx                        context.Context
+	cancel                     context.CancelFunc
+	memory                     *semaphore.Weighted
+	uploads                    *semaphore.Weighted
+	setups                     *semaphore.Weighted
+	workers                    sync.WaitGroup
+	sealed                     atomic.Bool
+	errMu                      sync.Mutex
+	err                        error
 }
 
-// New returns an unconfigured BigQuery sink.
+// New returns an unopened BigQuery sink.
 func New() *Sink { return &Sink{} }
 
 var (
@@ -40,31 +63,25 @@ var (
 	_ filament.Schematized       = (*Sink)(nil)
 )
 
-// Name identifies this sink implementation.
+// Name returns the connector name.
 func (*Sink) Name() string { return sinkName }
 
-// Validate checks connection syntax without accessing the network.
+// Validate checks the connection configuration.
 func (*Sink) Validate(cfg filament.Config) error {
-	if _, err := bigqueryconnection.Resolve(cfg); err != nil {
-		return fmt.Errorf("bigquery sink: connection config: %w", err)
-	}
-	return nil
+	_, err := bigqueryconnection.Resolve(cfg)
+	return err
 }
 
-// TestConnection authenticates with BigQuery and executes a trivial query.
+// TestConnection verifies access using the supplied configuration.
 func (*Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 	resolved, err := bigqueryconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("bigquery sink: connection config: %w", err)
+		return err
 	}
-	if err := bigqueryconnection.Test(ctx, resolved); err != nil {
-		return fmt.Errorf("bigquery sink: %w", err)
-	}
-	return nil
+	return bigqueryconnection.Test(ctx, resolved)
 }
 
-// Open establishes the run's BigQuery client and ensures its destination
-// dataset exists. Resource tables are created later by EnsureSchema.
+// Open initializes clients and prepares the destination dataset for a run.
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if s.client != nil {
 		return fmt.Errorf("bigquery sink: already open")
@@ -72,108 +89,125 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
 	resolved, err := bigqueryconnection.Resolve(cfg)
 	if err != nil {
-		return fmt.Errorf("bigquery sink: connection config: %w", err)
+		return err
 	}
 	dataset := strings.TrimSpace(cfg.String("dataset"))
-	ddl, err := createDatasetDDL(resolved.ProjectID, dataset, resolved.Location)
+	if !validDataset(dataset) {
+		return fmt.Errorf("bigquery sink: invalid dataset")
+	}
+	if run.Run == "" {
+		return fmt.Errorf("bigquery sink: run ID is required for retry-safe publication")
+	}
+	s.client, err = bigqueryconnection.Open(ctx, resolved)
 	if err != nil {
-		return fmt.Errorf("bigquery sink: dataset: %w", err)
+		return err
 	}
-	client, err := bigqueryconnection.Open(ctx, resolved)
-	if err != nil {
-		return fmt.Errorf("bigquery sink: open: %w", err)
-	}
-	s.client = client
-	s.run = run.Run
-	s.project = resolved.ProjectID
-	s.dataset = dataset
-	s.location = resolved.Location
-	s.policies = run.WritePolicies
-	s.tables = make(map[string]tableDefinition)
-	s.stages = make(map[string]struct{})
-	if err := s.execute(ctx, ddl); err != nil {
-		s.release()
-		return fmt.Errorf("bigquery sink: create dataset %s: %w", qualified(s.project, s.dataset), err)
-	}
-	metadata, err := client.DatasetInProject(s.project, s.dataset).Metadata(ctx)
+	s.storage, err = storage.NewBigQueryWriteClient(ctx)
 	if err != nil {
 		s.release()
-		return fmt.Errorf("bigquery sink: inspect dataset %s: %w", qualified(s.project, s.dataset), err)
+		return fmt.Errorf("bigquery sink: storage client: %w", err)
+	}
+	s.project, s.dataset, s.location = resolved.ProjectID, dataset, resolved.Location
+	s.initialize(ctx, run)
+	ds := s.client.DatasetInProject(s.project, s.dataset)
+	metadata, err := ds.Metadata(ctx)
+	if isHTTPCode(err, 404) {
+		err = ds.Create(ctx, &bigquery.DatasetMetadata{Location: s.location})
+		if err == nil || isHTTPCode(err, 409) {
+			metadata, err = ds.Metadata(ctx)
+		}
+	}
+	if err != nil {
+		s.release()
+		return fmt.Errorf("bigquery sink: ensure dataset: %w", err)
 	}
 	s.location = metadata.Location
 	s.client.Location = metadata.Location
+	slog.InfoContext(ctx, "BigQuery Storage Write API ready", "component", "bigquery", "event.name", "bigquery.write.ready", "run_id", s.run, "transport", "storage_write_arrow", "compression", "gzip", "upload_concurrency", uploadConcurrency, "inflight_per_stream", streamInflightRequests, "setup_concurrency", setupConcurrency, "flush_interval_ms", s.Spec().Capabilities.PreferredFlushInterval.Milliseconds(), "queue_bytes", queuedBytes, "location", s.location)
 	return nil
 }
 
-// Commit atomically promotes each staged full replacement, then closes the
-// client. Append and keyed writes are durable when their Apply jobs complete.
+func (s *Sink) initialize(ctx context.Context, run filament.RunSpec) {
+	s.run, s.policies = run.Run, run.WritePolicies
+	s.execution = run.ExecutionID
+	s.attempt = uuid.NewString()
+	s.tables = make(map[string]*tableState)
+	s.memory = semaphore.NewWeighted(queuedBytes)
+	s.uploads = semaphore.NewWeighted(uploadConcurrency)
+	s.setups = semaphore.NewWeighted(setupConcurrency)
+	// Extraction cancellation requests a pause, not an upload abort. Commit
+	// drains accepted writes with its own context; Abort explicitly cancels them.
+	s.ctx, s.cancel = context.WithCancel(context.WithoutCancel(ctx))
+	s.sealed.Store(false)
+	s.err = nil
+}
+
+// Commit joins all uploads before publishing any table. Checkpoints must stay
+// pending until every publication succeeds. Publication is atomic per table,
+// not across the whole dataset.
 func (s *Sink) Commit(ctx context.Context) error {
 	if s.client == nil {
 		return fmt.Errorf("bigquery sink: commit before open")
 	}
-	resources := make([]string, 0, len(s.tables))
-	for resource := range s.tables {
-		resources = append(resources, resource)
+	stop := context.AfterFunc(ctx, s.cancel)
+	defer stop()
+	s.seal()
+	s.workers.Wait()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	sort.Strings(resources)
-	for _, resource := range resources {
-		table := s.tables[resource]
-		if table.replacement == "" {
-			continue
-		}
-		if err := s.promoteReplacement(ctx, table); err != nil {
-			return fmt.Errorf("bigquery sink: promote replacement for %q: %w", resource, err)
-		}
-		s.deleteStage(context.WithoutCancel(ctx), table.replacement)
+	if err := s.failure(); err != nil {
+		return err
 	}
+	group, commitCtx := errgroup.WithContext(ctx)
+	group.SetLimit(uploadConcurrency)
+	for _, state := range s.orderedTables() {
+		group.Go(func() error {
+			if err := s.publish(commitCtx, state); err != nil {
+				return fmt.Errorf("bigquery sink: publish %s: %w", state.definition.name, err)
+			}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return err
+	}
+	s.cleanup()
 	s.release()
 	return nil
 }
 
-// Abort removes run-scoped staging tables and closes the client. Additive
-// destination schema changes are intentionally retained.
-func (s *Sink) Abort(ctx context.Context) error {
+// Abort cancels uploads and releases the run resources without publishing.
+func (s *Sink) Abort(context.Context) error {
 	if s.client == nil {
 		return nil
 	}
-	cleanup := context.WithoutCancel(ctx)
-	for _, stage := range s.stageIDs() {
-		s.deleteStage(cleanup, stage)
-	}
+	s.cancel()
+	s.seal()
+	s.workers.Wait()
+	s.cleanup()
 	s.release()
 	return nil
 }
 
-func (s *Sink) execute(ctx context.Context, statement string) error {
-	query := s.client.Query(statement)
-	if s.location != "" {
-		query.Location = s.location
+func (s *Sink) seal() {
+	if s.sealed.Swap(true) {
+		return
 	}
-	job, err := query.Run(ctx)
-	if err != nil {
-		return err
+	for _, state := range s.tables {
+		if state.queue != nil {
+			state.queue.close()
+		}
 	}
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return err
-	}
-	return status.Err()
 }
-
-func (s *Sink) release() {
-	if s.client != nil {
-		_ = s.client.Close()
-		s.client = nil
+func (s *Sink) failure() error { s.errMu.Lock(); defer s.errMu.Unlock(); return s.err }
+func (s *Sink) fail(err error) {
+	s.errMu.Lock()
+	if s.err == nil {
+		s.err = err
+		s.cancel()
 	}
-	s.run = ""
-	s.project = ""
-	s.dataset = ""
-	s.location = ""
-	s.policies = nil
-	s.tables = nil
-	s.stageMu.Lock()
-	s.stages = nil
-	s.stageMu.Unlock()
+	s.errMu.Unlock()
 }
 
 func (s *Sink) modeFor(resource string) filament.WriteMode {
@@ -184,33 +218,64 @@ func (s *Sink) modeFor(resource string) filament.WriteMode {
 	return policy.Capability.Mode
 }
 
-func (s *Sink) trackStage(stage string) {
-	s.stageMu.Lock()
-	defer s.stageMu.Unlock()
-	s.stages[stage] = struct{}{}
+func (s *Sink) orderedTables() []*tableState {
+	names := make([]string, 0, len(s.tables))
+	for name := range s.tables {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	states := make([]*tableState, 0, len(names))
+	for _, name := range names {
+		states = append(states, s.tables[name])
+	}
+	return states
 }
 
-func (s *Sink) untrackStage(stage string) {
-	s.stageMu.Lock()
-	defer s.stageMu.Unlock()
-	delete(s.stages, stage)
+func (s *Sink) cleanup() {
+	// An ambiguous query submission can still be reading its staging table.
+	// Preserve those tables for job recovery; their expiration bounds retention.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	group := new(errgroup.Group)
+	group.SetLimit(uploadConcurrency)
+	for _, state := range s.tables {
+		if !state.stageCreated || (state.publishing && !state.published) {
+			continue
+		}
+		group.Go(func() error { return s.client.DatasetInProject(s.project, s.dataset).Table(state.stage).Delete(ctx) })
+	}
+	_ = group.Wait()
 }
 
-func (s *Sink) stageIDs() []string {
-	s.stageMu.Lock()
-	defer s.stageMu.Unlock()
-	stages := make([]string, 0, len(s.stages))
-	for stage := range s.stages {
-		stages = append(stages, stage)
+func (s *Sink) release() {
+	if s.cancel != nil {
+		s.cancel()
 	}
-	return stages
+	if s.storage != nil {
+		_ = s.storage.Close()
+		s.storage = nil
+	}
+	if s.client != nil {
+		_ = s.client.Close()
+		s.client = nil
+	}
 }
 
-func (s *Sink) deleteStage(ctx context.Context, stage string) {
-	if s.client == nil {
-		return
+func isHTTPCode(err error, code int) bool {
+	var apiErr *googleapi.Error
+	return errors.As(err, &apiErr) && apiErr.Code == code
+}
+
+// Slow operations are visible at INFO without logging payloads or credentials.
+// DEBUG provides all per-batch timings for throughput diagnosis.
+func (s *Sink) logTiming(phase, resource string, started time.Time, attrs ...any) {
+	elapsed := time.Since(started)
+	level := slog.LevelDebug
+	if elapsed >= time.Second {
+		level = slog.LevelInfo
 	}
-	if err := s.client.DatasetInProject(s.project, s.dataset).Table(stage).Delete(ctx); err == nil {
-		s.untrackStage(stage)
-	}
+	fields := make([]any, 0, 12+len(attrs))
+	fields = append(fields, "component", "bigquery", "event.name", "bigquery.write.timing", "run_id", s.run, "resource", resource, "phase", phase, "duration_ms", elapsed.Milliseconds())
+	fields = append(fields, attrs...)
+	slog.Log(context.Background(), level, "BigQuery write timing", fields...)
 }

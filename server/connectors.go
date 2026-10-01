@@ -305,7 +305,11 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", resource, err))
 		}
 		out := cursorColumnsToProto(columns)
-		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{Resource: resource, Columns: out})
+		entry := &ingestionv1.ResourceColumns{Resource: resource, Columns: out}
+		if managed, ok := source.(filament.ManagedIncrementalSource); ok {
+			entry.ManagedIncremental = managed.ManagedIncremental(resource)
+		}
+		response.Resources = append(response.Resources, entry)
 	}
 	return connect.NewResponse(response), nil
 }

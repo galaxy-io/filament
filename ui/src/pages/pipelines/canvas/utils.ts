@@ -66,6 +66,7 @@ type PipelineCanvasEdgeStatusResources = Pick<
   | "coveredResources"
   | "columnsByResource"
   | "cursorOptionsByResource"
+  | "managedIncrementalResources"
   | "primaryKeyByResource"
 >;
 
@@ -82,6 +83,7 @@ export const getEdgeResourceStatuses = (
     coveredResources,
     columnsByResource,
     cursorOptionsByResource,
+    managedIncrementalResources,
     primaryKeyByResource,
   }: PipelineCanvasEdgeStatusResources,
   { verdict, readMode, writeMode, cursorsByResource }: PipelineCanvasEdgeStatusConfig,
@@ -100,10 +102,11 @@ export const getEdgeResourceStatuses = (
       cursorField: cursorsByResource.get(resource) ?? getRecommendedCursor(columns ?? []),
       cursorOptions: cursorOptionsByResource[resource] ?? [],
       isCursorKnown: columns !== undefined,
+      managedIncremental: managedIncrementalResources.has(resource),
       hasPrimaryKey: (primaryKeyByResource[resource]?.length ?? 0) > 0,
       needsPrimaryKey: writeMode === WriteMode.UPSERT,
     });
-    return status?.isBlocking ? [status] : [];
+    return status ? [status] : [];
   });
 };
 

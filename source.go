@@ -89,11 +89,22 @@ type CursorColumn struct {
 	Warning          string
 }
 
+// ManagedIncrementalSource uses source-owned state rather than a row column.
+type ManagedIncrementalSource interface {
+	ManagedIncremental(resource string) bool
+}
+
 // ResolveCursorVersionPolicy binds a resource's configured or recommended
 // incremental cursor into the generic version contract used by sinks. A zero
 // policy means the source does not expose cursor metadata and callers should
 // retain their insertion-order fallback.
 func ResolveCursorVersionPolicy(ctx context.Context, src Source, resource string, config ResourceCursorConfig) (VersionPolicy, error) {
+	if managed, ok := src.(ManagedIncrementalSource); ok && managed.ManagedIncremental(resource) {
+		if config.Field != "" || config.LookbackSeconds != 0 {
+			return VersionPolicy{}, fmt.Errorf("incremental %q uses source-managed state", resource)
+		}
+		return VersionPolicy{}, nil
+	}
 	provider, ok := src.(CursorColumnProvider)
 	if !ok {
 		return VersionPolicy{}, nil

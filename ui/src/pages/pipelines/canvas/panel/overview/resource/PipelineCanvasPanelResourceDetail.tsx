@@ -67,6 +67,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
     effectiveWriteMode,
     cursorOptionsByResource,
     defaultCursorByResource,
+    managedIncrementalResources,
   } = options;
 
   const { label: resourceLabel, isNamedResource } = getCanvasEdgeResourceLabel(
@@ -104,7 +105,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const getFieldError = (field: PipelineResourceStatusField, resourceName?: string) =>
     statuses.find(
       (status) =>
-        status.field === field && (resourceName === undefined || status.resource === resourceName),
+        status.isBlocking &&
+        status.field === field &&
+        (resourceName === undefined || status.resource === resourceName),
     )?.message;
 
   const handleTransformChange = (transform: TransformDefinition | undefined) =>
@@ -207,16 +210,22 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
             )}
             {hasReadLevers &&
               readMode === ReadMode.INCREMENTAL &&
-              coveredResources.map((resourceName) => (
-                <PipelineCanvasPanelResourceCursorField
-                  key={resourceName}
-                  value={cursorsByResource.get(resourceName) ?? ""}
-                  options={cursorOptionsByResource[resourceName] ?? []}
-                  isDisabled={isReadOnly || isLoading}
-                  error={getFieldError(PipelineResourceStatusField.CURSOR, resourceName)}
-                  onChange={(field) => handleCursorChange(resourceName, field)}
-                />
-              ))}
+              coveredResources.map((resourceName) =>
+                managedIncrementalResources.has(resourceName) ? (
+                  <Text key={resourceName} size={TextSize.BODY_SM}>
+                    {resourceName}: incremental state is managed by the source.
+                  </Text>
+                ) : (
+                  <PipelineCanvasPanelResourceCursorField
+                    key={resourceName}
+                    value={cursorsByResource.get(resourceName) ?? ""}
+                    options={cursorOptionsByResource[resourceName] ?? []}
+                    isDisabled={isReadOnly || isLoading}
+                    error={getFieldError(PipelineResourceStatusField.CURSOR, resourceName)}
+                    onChange={(field) => handleCursorChange(resourceName, field)}
+                  />
+                ),
+              )}
           </FlexWrapper>
         </PipelineCanvasPanelSection>
         {isTransformable &&

@@ -141,6 +141,7 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
     columnsByResource,
     cursorOptionsByResource,
     defaultCursorByResource,
+    managedIncrementalResources,
     isLoading,
   } = options;
 
@@ -171,9 +172,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
   const siblingEdges = edges.filter(
     (edge) => edge.source === draftEdge.source && edge.target === draftEdge.target,
   );
+  const isManagedIncremental = managedIncrementalResources.has(resource);
   const hasRecommendedCursor = getRecommendedCursor(columnsByResource.get(resource) ?? []) !== "";
   const defaultReadMode =
-    hasRecommendedCursor && readModeOptions.includes(ReadMode.INCREMENTAL)
+    (isManagedIncremental || hasRecommendedCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
       ? ReadMode.INCREMENTAL
       : effectiveReadMode;
   const readMode = draft.readMode ?? defaultReadMode;
@@ -188,7 +190,8 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
     ? preferredWriteMode
     : (compatibleWriteModes[0] ?? WriteMode.UNSPECIFIED);
   const cursor = draft.cursor ?? defaultCursorByResource[resource] ?? "";
-  const hasCursorSelect = hasReadLevers && readMode === ReadMode.INCREMENTAL;
+  const hasCursorSelect =
+    hasReadLevers && readMode === ReadMode.INCREMENTAL && !isManagedIncremental;
   const statuses = getEdgeResourceStatuses(options, {
     verdict,
     readMode,
@@ -196,6 +199,7 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
     cursorsByResource: new Map(cursor !== "" ? [[resource, cursor]] : []),
   });
 
+  const blockingStatuses = statuses.filter((status) => status.isBlocking);
   const readModeSelectOptions = getReadModeSelectOptions(readModeOptions);
   const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes);
   const cursorSelectOptions = getCursorSelectOptions(cursorOptionsByResource[resource] ?? []);
@@ -307,7 +311,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
             </ControlsGroup>
             <CenterSlot>
               <PipelineTransformFieldsIssuesChip
-                issues={statuses.map((status) => status.message)}
+                issues={blockingStatuses.map((status) => status.message)}
+                warnings={statuses
+                  .filter((status) => !status.isBlocking)
+                  .map((status) => status.message)}
                 position={TooltipPosition.TOP}
               />
             </CenterSlot>
@@ -348,7 +355,7 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
             variant={ButtonVariant.PRIMARY_ALT}
             size={ButtonSize.SMALL}
             onClick={handleAdd}
-            isDisabled={!draftState.canAdd || isLoading || statuses.length > 0}
+            isDisabled={!draftState.canAdd || isLoading || blockingStatuses.length > 0}
           />
         </FlexWrapper>
       </Widget>

@@ -49,7 +49,7 @@ type Config struct {
 	Emit          func(events.Fact) // nil → facts discarded
 	WritePolicies map[string]filament.WritePolicy
 	Options       filament.RunOptions
-	FlushInterval time.Duration   // default 1s
+	FlushInterval time.Duration   // sink preference, otherwise 1s
 	Log           filament.Logger // optional
 	NextSeq       func() uint64
 	Allocator     memory.Allocator // optional; defaults to Arrow's allocator
@@ -125,6 +125,9 @@ func New(cfg Config) *Pipeline {
 		bytes = sinkCapabilities.PreferredBatchBytes
 	}
 	ivl := cfg.FlushInterval
+	if ivl <= 0 {
+		ivl = sinkCapabilities.PreferredFlushInterval
+	}
 	if ivl <= 0 {
 		ivl = defaultFlushInterval
 	}

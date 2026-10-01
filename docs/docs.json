@@ -161,6 +161,7 @@
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
               "pages/connectors/sources/resend",
+              "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
               "pages/connectors/sources/zoho",

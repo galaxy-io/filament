@@ -35,6 +35,7 @@ export interface PipelineCanvasEdgeResources {
   columnsByResource: Map<Resource["name"], ResourceColumn[]>;
   cursorOptionsByResource: Record<Resource["name"], ResourceColumn[]>;
   defaultCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
+  managedIncrementalResources: Set<Resource["name"]>;
   primaryKeyByResource: Record<Resource["name"], Resource["primaryKey"]>;
 }
 
@@ -109,15 +110,27 @@ export const usePipelineCanvasEdgeResources = (
     [coveredResources, columnsByResource],
   );
 
+  const managedIncrementalResources = useMemo(
+    () =>
+      new Set(
+        (columns?.resources ?? [])
+          .filter((entry) => entry.managedIncremental)
+          .map((entry) => entry.resource),
+      ),
+    [columns?.resources],
+  );
+
   const defaultCursorByResource = useMemo<Record<Resource["name"], ResourceColumn["name"]>>(
     () =>
       Object.fromEntries(
         coveredResources.map((resource) => [
           resource,
-          getDefaultCursor(columnsByResource.get(resource) ?? []),
+          managedIncrementalResources.has(resource)
+            ? ""
+            : getDefaultCursor(columnsByResource.get(resource) ?? []),
         ]),
       ),
-    [coveredResources, columnsByResource],
+    [coveredResources, columnsByResource, managedIncrementalResources],
   );
 
   const isLoadingColumns =
@@ -136,6 +149,7 @@ export const usePipelineCanvasEdgeResources = (
     columnsByResource,
     cursorOptionsByResource,
     defaultCursorByResource,
+    managedIncrementalResources,
     primaryKeyByResource,
   };
 };

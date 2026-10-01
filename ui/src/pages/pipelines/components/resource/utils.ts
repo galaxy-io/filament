@@ -53,6 +53,7 @@ interface PipelineResourceStatusInput {
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   isCursorKnown: boolean;
+  managedIncremental: boolean;
   hasPrimaryKey: boolean;
   needsPrimaryKey: boolean;
 }
@@ -64,6 +65,7 @@ export const getPipelineResourceStatus = ({
   cursorField,
   cursorOptions,
   isCursorKnown,
+  managedIncremental,
   hasPrimaryKey,
   needsPrimaryKey,
 }: PipelineResourceStatusInput): PipelineResourceStatus | undefined => {
@@ -75,7 +77,7 @@ export const getPipelineResourceStatus = ({
       isBlocking: true,
     };
   }
-  if (readMode === ReadMode.INCREMENTAL && !cursorField) {
+  if (readMode === ReadMode.INCREMENTAL && !managedIncremental && !cursorField) {
     if (cursorOptions.length) {
       return {
         resource,
@@ -97,8 +99,8 @@ export const getPipelineResourceStatus = ({
     return {
       resource,
       field: PipelineResourceStatusField.WRITE_MODE,
-      message: `Upsert requires a primary key, but none was discovered for ${resource}`,
-      isBlocking: true,
+      message: `${resource} has no primary key and will use append; repeated rows are retained`,
+      isBlocking: false,
     };
   }
   return undefined;

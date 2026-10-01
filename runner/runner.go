@@ -147,6 +147,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	spec.WritePolicies = plan.WritePolicies
+	spec.IngestionTypes = plan.IngestionTypes
 	if plan.RequiresCDC && spec.ReplicationStream != nil && spec.ReplicationStream.ID != "" {
 		replicationStreamStore, ok := deps.DataStore.(filament.ReplicationStreamStore)
 		if !ok {

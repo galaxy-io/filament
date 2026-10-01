@@ -67,8 +67,13 @@ const PipelineCanvasRoutesRowControls = ({
 }: PipelineCanvasRoutesRowControlsProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const resources = usePipelineCanvasEdgeResources(route.edge, { enabled: route.hasReadLevers });
-  const { coveredResources, cursorOptionsByResource, defaultCursorByResource, isLoadingColumns } =
-    resources;
+  const {
+    coveredResources,
+    cursorOptionsByResource,
+    defaultCursorByResource,
+    managedIncrementalResources,
+    isLoadingColumns,
+  } = resources;
 
   const {
     readMode,
@@ -88,14 +93,21 @@ const PipelineCanvasRoutesRowControls = ({
   const cursorSelectOptions = getCursorSelectOptions(cursorOptionsByResource[route.resource] ?? []);
   const cursorValue = cursorsByResource.get(route.resource) ?? "";
   const hasCursorSelect =
-    route.hasReadLevers && route.isNamedResource && readMode === ReadMode.INCREMENTAL;
+    route.hasReadLevers &&
+    route.isNamedResource &&
+    readMode === ReadMode.INCREMENTAL &&
+    !managedIncrementalResources.has(route.resource);
   const statuses = getEdgeResourceStatuses(resources, {
     verdict: route.verdict,
     readMode,
     writeMode,
     cursorsByResource,
   });
-  const issues = [...route.issues, ...statuses.map((status) => status.message)];
+  const issues = [
+    ...route.issues,
+    ...statuses.filter((status) => status.isBlocking).map((status) => status.message),
+  ];
+  const warnings = statuses.filter((status) => !status.isBlocking).map((status) => status.message);
 
   return (
     <>
@@ -131,7 +143,11 @@ const PipelineCanvasRoutesRowControls = ({
       </ControlsGroup>
       <CenterSlot>
         {children}
-        <PipelineTransformFieldsIssuesChip issues={issues} position={TooltipPosition.TOP} />
+        <PipelineTransformFieldsIssuesChip
+          issues={issues}
+          warnings={warnings}
+          position={TooltipPosition.TOP}
+        />
       </CenterSlot>
       <ControlsGroup
         onClick={stopPropagation}

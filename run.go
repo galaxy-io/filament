@@ -476,15 +476,10 @@ const (
 )
 
 // IngestionFor compiles the independent read and write levers into the
-// engine's internal ingestion type. Unspecified levers default to a full
-// replacement snapshot, except an incremental read defaults to upsert.
+// engine's internal ingestion type. An unspecified write mode defaults to upsert.
 func IngestionFor(read ReadMode, write WriteMode) (IngestionType, error) {
 	if write == "" {
-		if read == ModeIncremental {
-			write = WriteUpsert
-		} else {
-			write = WriteReplace
-		}
+		write = WriteUpsert
 	}
 	switch read {
 	case ModeFull:
@@ -649,9 +644,20 @@ func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
 	return nil
 }
 
-// ValidateBatch rejects the first row whose immutable batch operation the
-// policy does not accept.
+// ValidateBatch checks keyed writes have non-null identity and rejects operations
+// the policy does not accept. Nullable source IDs remain valid for unkeyed writes.
 func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) error {
+	if p.Capability.RequiresPK && batch.NumRows() > 0 {
+		for _, key := range p.Keys {
+			indices := batch.Rows().Schema().FieldIndices(key)
+			if len(indices) != 1 {
+				return fmt.Errorf("write policy %q requires key %q in resource %q", p.Capability.Mode, key, resource)
+			}
+			if batch.Rows().Column(indices[0]).NullN() > 0 {
+				return fmt.Errorf("write policy %q: resource %q contains null primary key %q; cannot safely reconcile these records", p.Capability.Mode, resource, key)
+			}
+		}
+	}
 	if len(p.Capability.AcceptsOps) == 0 {
 		return nil
 	}
@@ -690,9 +696,11 @@ type SourcePolicy struct {
 // IngestionPlan is the resolved policy set for a run: per-resource write
 // policies, each bound from its resource's own ingestion type.
 type IngestionPlan struct {
-	Ordering      Ordering
-	WritePolicies map[string]WritePolicy
-	RequiresCDC   bool
+	// IngestionTypes contains effective per-resource modes after keyless fallback.
+	IngestionTypes map[string]IngestionType
+	Ordering       Ordering
+	WritePolicies  map[string]WritePolicy
+	RequiresCDC    bool
 }
 
 // WritePolicyForIngestion derives the canonical sink-side policy for an

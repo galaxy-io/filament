@@ -205,14 +205,18 @@ func TestValidatePipelineLevers(t *testing.T) {
 		return nil
 	}
 
-	t.Run("default edge is Full Replace with independent options", func(t *testing.T) {
+	t.Run("default edge is Full Upsert with keyless append", func(t *testing.T) {
 		resp := validate(ids["standard"], &ingestionv1.PipelineEdge{})
 		if !resp.GetValid() {
 			t.Fatalf("valid = false: %v", resp)
 		}
 		ev := resp.GetEdges()[0]
-		if ev.GetEffectiveReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || ev.GetEffectiveWriteMode() != ingestionv1.WriteMode_WRITE_MODE_REPLACE {
+		if ev.GetEffectiveReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || ev.GetEffectiveWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UPSERT {
 			t.Fatalf("effective modes = %v/%v", ev.GetEffectiveReadMode(), ev.GetEffectiveWriteMode())
+		}
+		requirements := byResource(ev, "audit").GetRequirements()
+		if len(requirements) != 1 || requirements[0].GetBlocking() || !requirements[0].GetSatisfied() {
+			t.Fatalf("keyless append fallback not reported: %v", requirements)
 		}
 		if got := ev.GetSupportedWriteModes(); len(got) != 3 {
 			t.Fatalf("write modes = %v", got)
@@ -249,8 +253,8 @@ func TestValidatePipelineLevers(t *testing.T) {
 				blocking++
 			}
 		}
-		if blocking != 2 {
-			t.Fatalf("audit blocking requirements = %d, want cursor + primary key", blocking)
+		if blocking != 1 {
+			t.Fatalf("audit blocking requirements = %d, want cursor only", blocking)
 		}
 	})
 
@@ -345,7 +349,7 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["standard"]), []*ingestionv1.PipelineEdge{edge}); err != nil {
 		t.Fatal(err)
 	}
-	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_REPLACE {
+	if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_FULL || edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_UPSERT {
 		t.Fatalf("default modes = %v/%v", edge.GetReadMode(), edge.GetWriteMode())
 	}
 
@@ -424,5 +428,26 @@ func TestValidatePipelineCompilesTransforms(t *testing.T) {
 	errs := resp.GetEdges()[0].GetErrors()
 	if len(errs) != 1 || errs[0].GetField() != `resources["orders"].steps[0].compute["shout"].upper[0]` {
 		t.Fatalf("errors = %v", errs)
+	}
+}
+
+type managedLeverSource struct{ leverSource }
+
+func (managedLeverSource) ManagedIncremental(resource string) bool { return resource == "orders" }
+func (managedLeverSource) CursorColumns(context.Context, string) ([]filament.CursorColumn, error) {
+	return nil, nil
+}
+
+func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
+	server := &Server{}
+	probes := &sourceProbes{sources: map[string]filament.Source{"src": managedLeverSource{}}}
+	ev := &ingestionv1.EdgeValidation{}
+	server.resourceBreakdown(context.Background(), &ingestionv1.PipelineEdge{Resource: "orders"}, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{}, leverSink{}.Spec(), filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
+	if len(ev.Resources) != 1 {
+		t.Fatal(ev)
+	}
+	resource := ev.Resources[0]
+	if len(resource.SupportedReadModes) != 2 || len(resource.Requirements) != 1 || !resource.Requirements[0].Satisfied || resource.Requirements[0].Blocking || len(resource.Requirements[0].Candidates) != 0 {
+		t.Fatalf("managed state validation = %v", resource)
 	}
 }
