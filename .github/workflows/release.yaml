@@ -48,3 +48,46 @@ jobs:
   chart:
     needs: [release, images]
     uses: ./.github/workflows/chart.yaml
+
+  # Last, so the announcement never names a version that cannot be installed.
+  announce:
+    needs: [release, images, cli, chart]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce to the community Slack
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+          WEBHOOK_URL: ${{ secrets.SLACK_COMMUNITY_WEBHOOK_URL }}
+        run: |
+          if [[ -z "$WEBHOOK_URL" ]]; then
+            echo "SLACK_COMMUNITY_WEBHOOK_URL is not set"
+            exit 1
+          fi
+
+          version="${TAG#v}"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+
+          # Release Please emits GitHub Markdown; Slack wants mrkdwn.
+          notes=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' | sed -E \
+            -e 's/^#{2,} +(.*)$/*\1*/' \
+            -e 's/^\* /• /' \
+            -e 's/\[([^][]*)\]\(([^()]*)\)/<\2|\1>/g' \
+            -e 's/\*\*([^*]+)\*\*/*\1*/g' | cat -s)
+
+          text=$(cat <<MESSAGE
+          :rocket: *Filament ${TAG}* is out.
+
+          ${notes}
+
+          \`\`\`
+          brew upgrade galaxy-io/tap/filament
+          helm upgrade filament oci://ghcr.io/galaxy-io/charts/filament --version ${version}
+          \`\`\`
+          <${url}|Full release notes>
+          MESSAGE
+          )
+
+          jq -n --arg text "$text" '{text: $text}' \
+            | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$WEBHOOK_URL"
