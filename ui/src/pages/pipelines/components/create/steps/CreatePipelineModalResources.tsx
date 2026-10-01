@@ -9,7 +9,7 @@ import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -18,6 +18,7 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
+import CreatePipelineModalNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalNodeConfig";
 import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
 import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
 import PipelineResourceCreateForm, {
@@ -29,8 +30,26 @@ import { isSearchMatch } from "@/utils/search";
 const ResourcesWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+
+  > * {
+    flex-shrink: 0;
+  }
+`;
+
+const ConfigurationWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+
+  > * {
+    flex-shrink: 0;
+  }
+
+  &:empty {
+    display: none;
+  }
 `;
 
 interface CreatePipelineModalResourcesState {
@@ -44,7 +63,7 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
 };
 
 const CreatePipelineModalResources = () => {
-  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
+  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode, sourceConnection } =
     useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
@@ -99,6 +118,24 @@ const CreatePipelineModalResources = () => {
           <HorizontalDivider />
         </>
       )}
+      <ConfigurationWrapper>
+        {sourceConnection && (
+          <CreatePipelineModalNodeConfig
+            key={sourceConnection.id}
+            header={`Source settings: ${sourceConnection.name}`}
+            connection={sourceConnection}
+            kind={ConnectorKind.SOURCE}
+          />
+        )}
+        {activeSink && (
+          <CreatePipelineModalNodeConfig
+            key={activeSink.connection.id}
+            header={`Destination settings: ${activeSink.connection.name}`}
+            connection={activeSink.connection}
+            kind={ConnectorKind.SINK}
+          />
+        )}
+      </ConfigurationWrapper>
       <FlexWrapper gap={8} padding="8px" alignItems={AlignItems.CENTER} fillWidth>
         <TextInput
           value={localState.search}
