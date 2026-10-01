@@ -5,19 +5,21 @@ package kafka_test
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"testing"
+	"time"
+
 	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/google/uuid"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	kafkasource "github.com/galaxy-io/filament/connectors/kafka/source"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/rowmodel"
 	tc "github.com/galaxy-io/filament/tests/testcontainers"
-	"github.com/google/uuid"
-	"github.com/twmb/franz-go/pkg/kgo"
-	"github.com/twmb/franz-go/pkg/kmsg"
-	"reflect"
-	"testing"
-	"time"
 )
 
 type boundedSink struct {
@@ -41,6 +43,7 @@ func (s *boundedSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filament.A
 	}
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
+
 func extractBounded(ctx context.Context, src *kafkasource.Source, resources []string, limit int) ([]string, error) {
 	sink := &boundedSink{schemas: map[string]rowmodel.Schema{}}
 	policies := map[string]filament.WritePolicy{}
@@ -65,6 +68,7 @@ func extractBounded(ctx context.Context, src *kafkasource.Source, resources []st
 	}
 	return sink.values, err
 }
+
 func TestKafkaBoundedSource(t *testing.T) {
 	for _, profile := range []string{"kafka", "redpanda"} {
 		t.Run(profile, func(t *testing.T) {

@@ -85,12 +85,15 @@ func TestInlineTLSCredentials(t *testing.T) {
 	}
 	_, wrongKey := pemPair(t)
 	for _, invalid := range []map[string]any{
-		{"tls_cert_pem": cert}, {"tls_key_pem": key},
+		{"tls_cert_pem": cert},
+		{"tls_key_pem": key},
 		{"tls_enabled": false, "tls_ca_pem": cert},
 		{"tls_ca_pem": "not PEM"},
 		{"tls_cert_pem": cert, "tls_key_pem": wrongKey},
 		{"tls_cert_pem": "not PEM", "tls_key_pem": key},
-		{"tls_ca_file": "/tmp/ca.pem"}, {"tls_cert_file": "/tmp/cert.pem"}, {"tls_key_file": "/tmp/key.pem"},
+		{"tls_ca_file": "/tmp/ca.pem"},
+		{"tls_cert_file": "/tmp/cert.pem"},
+		{"tls_key_file": "/tmp/key.pem"},
 		{"sasl_mechanism": "none", "sasl_username": "user", "sasl_password": "password"},
 	} {
 		values := map[string]any{"brokers": []string{"localhost:9092"}, "tls_enabled": true}

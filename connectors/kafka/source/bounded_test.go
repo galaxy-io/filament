@@ -7,9 +7,10 @@ import (
 	"hash/crc32"
 	"testing"
 
-	"github.com/galaxy-io/filament"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
+
+	"github.com/galaxy-io/filament"
 )
 
 func TestBoundedCompactedTail(t *testing.T) {
