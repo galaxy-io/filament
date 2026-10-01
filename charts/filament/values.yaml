@@ -201,10 +201,10 @@ secrets:
   # the ConfigMap as `SECRET_PROVIDER`.
   type: datastore
 
-  # -- Name prefix external secret stores apply to every secret, stored in the
-  # ConfigMap as `SECRETS_PREFIX`. AWS prepends it to references, which are
-  # already namespaced under `filament/`. GCP secret IDs default to
-  # `filament-<hash>` and a prefix replaces `filament-`. Unused by datastore.
+  # -- Root name external secret stores give every secret, stored in the
+  # ConfigMap as `SECRETS_PREFIX`. Defaults to `filament`: AWS names secrets
+  # `filament/<tenant>/...` and GCP `filament-<hash>`, and a prefix replaces
+  # that word. The separator is added for you. Unused by datastore.
   prefix: ""
 
   datastore:
