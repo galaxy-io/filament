@@ -72,6 +72,11 @@ func resolve(cfg filament.Config) (config, error) {
 		return c, err
 	}
 	c.createStream = !cfg.Has("create_stream") || cfg.Bool("create_stream")
+	if c.createStream && !c.stream.perResource() {
+		if err := validCaptureFilter(c.captureFilter("resource")); err != nil {
+			return c, err
+		}
+	}
 	if cfg.Has("publish_timeout") {
 		var err error
 		c.timeout, err = time.ParseDuration(cfg.String("publish_timeout"))
@@ -101,6 +106,15 @@ func validSubject(name string) error {
 	for _, token := range strings.Split(name, ".") {
 		if token == "" {
 			return fmt.Errorf("nats sink: empty subject token in %q", name)
+		}
+	}
+	return nil
+}
+
+func validCaptureFilter(filter string) error {
+	for _, api := range []string{"$JS.API.>", "$JS.*.API.>"} {
+		if _, overlaps := subject.Intersect(filter, api); overlaps {
+			return fmt.Errorf("nats sink: subject filter %q overlaps JetStream API subjects; use a literal prefix such as filament.{resource} for the publish subject", filter)
 		}
 	}
 	return nil
