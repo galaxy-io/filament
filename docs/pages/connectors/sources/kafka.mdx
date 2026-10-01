@@ -53,7 +53,7 @@ required for this direct-assignment profile.
 ## Integration tests
 
 Run `just test-integration` from the repository root. The Kafka tests provision
-Kafka and Redpanda through Testcontainers, create topics, publish test records,
+Kafka through Testcontainers, create topics, publish test records,
 and clean up their containers. No separately running broker or publisher is needed.
 
 ## Bounded reads
@@ -125,10 +125,6 @@ rejects topic recreation and partition membership changes during a session.
 These checks cannot reconstruct records lost through broker log corruption or
 unclean election followed by regrowth; configure broker durability accordingly.
 
-Redpanda source compatibility requires topic identifiers, introduced in
-[Redpanda 25.3](https://docs.redpanda.com/25.3/get-started/release-notes/redpanda/#topic-identifiers).
-Older versions are rejected rather than sharing checkpoints across recreated topics.
-
 ## Initial release limits
 
 The source supports bounded full reads and continuous execution. Consumer groups,
@@ -143,8 +139,7 @@ and restarting the stream; saved domains must remain present.
 
 ## Tested profiles
 
-The connector integration suite passes against Kafka **4.0.2** and Redpanda
-**25.3.13** using single-broker plaintext fixtures. It checks tombstones, source resume, retention loss, topic
+The connector integration suite tests Kafka **4.0.2** using single-broker plaintext fixtures. It checks tombstones, source resume, retention loss, topic
 recreation, and live partition changes. Bounded tests cover fixed windows, JSON
 schemas, limits, empty partitions, transactions, and retention loss. TLS/SASL configuration has unit coverage;
 secured-cluster and multi-broker fault tests remain follow-up work.

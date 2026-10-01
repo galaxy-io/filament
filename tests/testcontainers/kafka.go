@@ -14,20 +14,17 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-// KafkaContainer starts either Kafka or Redpanda on a random mapped port.
+// KafkaContainer starts Kafka on a random mapped port.
 // The delayed entrypoint installs the host's advertised address before startup.
-func KafkaContainer(t testing.TB, redpanda bool) []string {
+func KafkaContainer(t testing.TB) []string {
 	t.Helper()
 	// Wait strategies only bound readiness after the image has been pulled.
 	// Bound the entire setup so a stalled registry request cannot consume the
 	// package's test timeout before reporting which image failed.
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Minute)
 	defer cancel()
-	imageKey, name := "KAFKA_IMAGE", "kafka"
-	if redpanda {
-		imageKey, name = "REDPANDA_IMAGE", "redpanda"
-	}
-	image := Image(t, imageKey)
+	const name = "kafka"
+	image := Image(t, "KAFKA_IMAGE")
 	ctr, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{ProviderType: providerType(t), ContainerRequest: tc.ContainerRequest{
 		Image: image, ExposedPorts: []string{"9092/tcp"},
 		Entrypoint: []string{"/bin/sh", "-c", "while [ ! -f /tmp/filament-start.ready ]; do sleep 0.1; done; exec /bin/sh /tmp/filament-start.sh"},
@@ -64,9 +61,7 @@ export KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
 export KAFKA_AUTO_CREATE_TOPICS_ENABLE=false
 exec /etc/kafka/docker/run
 `, address)
-	if redpanda {
-		script = fmt.Sprintf("#!/bin/sh\nexec /usr/bin/rpk redpanda start --mode dev-container --smp 1 --memory 512M --reserve-memory 0M --overprovisioned --node-id 0 --check=false --kafka-addr 0.0.0.0:9092 --advertise-kafka-addr %s --set redpanda.auto_create_topics_enabled=false\n", address)
-	}
+
 	if err = ctr.CopyToContainer(ctx, []byte(script), "/tmp/filament-start.sh", 0o755); err != nil {
 		t.Fatal(err)
 	}

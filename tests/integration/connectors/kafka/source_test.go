@@ -20,28 +20,24 @@ import (
 )
 
 func TestKafkaSource(t *testing.T) {
-	for _, profile := range []string{"kafka", "redpanda"} {
-		t.Run(profile, func(t *testing.T) {
-			brokers := tc.KafkaContainer(t, profile == "redpanda")
-			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-			defer cancel()
-			producer, err := kgo.NewClient(kgo.SeedBrokers(brokers...), kgo.RecordPartitioner(kgo.ManualPartitioner()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer producer.Close()
-			topic := "source_" + uuid.NewString()
-			createTopic(t, producer, topic)
-			for _, value := range [][]byte{[]byte(`{"value":"first"}`), []byte(`{"value":"second"}`), nil} {
-				if err := producer.ProduceSync(ctx, &kgo.Record{Topic: topic, Partition: 1, Key: []byte("key"), Value: value}).FirstErr(); err != nil {
-					t.Fatal(err)
-				}
-			}
-			attempt := filament.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: uuid.NewString(), Generation: 1, Token: 1}
-			saved := testSource(t, brokers, topic, attempt)
-			testSourceGuardrails(t, producer, brokers, topic, attempt, saved)
-		})
+	brokers := tc.KafkaContainer(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	producer, err := kgo.NewClient(kgo.SeedBrokers(brokers...), kgo.RecordPartitioner(kgo.ManualPartitioner()))
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer producer.Close()
+	topic := "source_" + uuid.NewString()
+	createTopic(t, producer, topic)
+	for _, value := range [][]byte{[]byte(`{"value":"first"}`), []byte(`{"value":"second"}`), nil} {
+		if err := producer.ProduceSync(ctx, &kgo.Record{Topic: topic, Partition: 1, Key: []byte("key"), Value: value}).FirstErr(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	attempt := filament.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: uuid.NewString(), Generation: 1, Token: 1}
+	saved := testSource(t, brokers, topic, attempt)
+	testSourceGuardrails(t, producer, brokers, topic, attempt, saved)
 }
 
 func createTopic(t *testing.T, c *kgo.Client, topic string) {
