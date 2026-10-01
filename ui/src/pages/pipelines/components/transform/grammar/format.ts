@@ -79,6 +79,11 @@ const formatLiteral = (literalKind: TransformLiteralKind, value: string): string
 const isInfix = (fn: TransformFunction | undefined): boolean =>
   Boolean(fn?.operatorSymbol || fn?.conditionJoin);
 
+// A function whose only argument repeats, such as md5 or concat, treats every
+// operand alike, so none of them reads as a setting applied to the first.
+const isVariadicOnly = (fn: TransformFunction | undefined): boolean =>
+  fn?.args.length === 1 && fn.args[0].isVariadic;
+
 const needsParentheses = (
   expr: TransformExpr,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
@@ -117,6 +122,9 @@ export const formatTransformExpr = (
         return [...head, text(` ${fn.operatorSymbol} `), ...(args[0] ?? [ELLIPSIS])];
       }
       const name = verb(fn ? fn.displayName || fn.name : call.fn || "…");
+      if (isVariadicOnly(fn)) {
+        return [name, text(" ("), ...withSeparator([head, ...args], ", "), text(")")];
+      }
       const callArgs = args.length > 0 ? [text(" ("), ...withSeparator(args, ", "), text(")")] : [];
       if (input?.kind === TransformExprKind.CALL) {
         return [...formatTransformExpr(input, functionsByName), text(", then "), name, ...callArgs];

@@ -136,7 +136,10 @@ func TestFunctionCatalogCarriesBuilderMetadata(t *testing.T) {
 		"regex_match": true, "is_null": true,
 	}
 	conditionJoins := map[string]string{"and": "and", "or": "or"}
-	variadicLabels := map[string]string{"concat": "Add part", "coalesce": "Add value"}
+	variadicLabels := map[string]string{
+		"concat": "Add part", "coalesce": "Add value",
+		"md5": "Add column", "sha1": "Add column", "sha256": "Add column", "sha512": "Add column",
+	}
 	for _, spec := range Functions() {
 		if spec.DisplayName == "" {
 			t.Errorf("function %q has no display name", spec.Name)

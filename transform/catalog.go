@@ -87,6 +87,7 @@ var (
 	stringTypes    = []rowmodel.LogicalType{rowmodel.LogicalString}
 	boolTypes      = []rowmodel.LogicalType{rowmodel.LogicalBool}
 	int64Types     = []rowmodel.LogicalType{rowmodel.LogicalInt64}
+	hashTypes      = []rowmodel.LogicalType{rowmodel.LogicalString, rowmodel.LogicalUUID, rowmodel.LogicalInt16, rowmodel.LogicalInt32, rowmodel.LogicalInt64}
 	floatTypes     = []rowmodel.LogicalType{rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
 	numericTypes   = []rowmodel.LogicalType{rowmodel.LogicalInt16, rowmodel.LogicalInt32, rowmodel.LogicalInt64, rowmodel.LogicalFloat32, rowmodel.LogicalFloat64}
 	temporalTypes  = []rowmodel.LogicalType{rowmodel.LogicalDate, rowmodel.LogicalTimestamp, rowmodel.LogicalTimestampTZ}
@@ -171,6 +172,40 @@ var catalog = []function{
 		},
 		validate: validPattern("regex_replace", 1),
 		exec:     kernel.RegexReplace,
+	},
+
+	// digests
+	{
+		spec: FunctionSpec{
+			Name: "md5", DisplayName: "MD5", Description: "The MD5 of one or more columns' text, joined with \"-\", as lowercase hex.",
+			Args:    []ArgSpec{{Name: "column", DisplayName: "Column", Types: hashTypes, Column: true, Variadic: true}},
+			Returns: rowmodel.LogicalString, VariadicAddLabel: "Add column",
+		},
+		exec: kernel.Md5,
+	},
+	{
+		spec: FunctionSpec{
+			Name: "sha1", DisplayName: "SHA-1", Description: "The SHA-1 of one or more columns' text, joined with \"-\", as lowercase hex.",
+			Args:    []ArgSpec{{Name: "column", DisplayName: "Column", Types: hashTypes, Column: true, Variadic: true}},
+			Returns: rowmodel.LogicalString, VariadicAddLabel: "Add column",
+		},
+		exec: kernel.Sha1,
+	},
+	{
+		spec: FunctionSpec{
+			Name: "sha256", DisplayName: "SHA-256", Description: "The SHA-256 of one or more columns' text, joined with \"-\", as lowercase hex.",
+			Args:    []ArgSpec{{Name: "column", DisplayName: "Column", Types: hashTypes, Column: true, Variadic: true}},
+			Returns: rowmodel.LogicalString, VariadicAddLabel: "Add column",
+		},
+		exec: kernel.Sha256,
+	},
+	{
+		spec: FunctionSpec{
+			Name: "sha512", DisplayName: "SHA-512", Description: "The SHA-512 of one or more columns' text, joined with \"-\", as lowercase hex.",
+			Args:    []ArgSpec{{Name: "column", DisplayName: "Column", Types: hashTypes, Column: true, Variadic: true}},
+			Returns: rowmodel.LogicalString, VariadicAddLabel: "Add column",
+		},
+		exec: kernel.Sha512,
 	},
 
 	// numbers
