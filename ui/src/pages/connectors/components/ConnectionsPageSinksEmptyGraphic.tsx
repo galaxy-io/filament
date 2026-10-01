@@ -12,11 +12,10 @@ import EmptyGraphic, {
   EmptyGraphicGhostBar,
   EmptyGraphicGhostTile,
   EmptyGraphicGhostTileFallback,
+  useEmptyGraphicConnectors,
 } from "@/components/EmptyGraphic";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-
-import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 interface SinkEmptyCard {
   nameWidth: number;
@@ -89,10 +88,7 @@ const GhostChip = withTheme(styled.div<PropsWithTheme>`
 `);
 
 const ConnectionsPageSinksEmptyGraphic = () => {
-  const { data } = useListConnectorsQuery();
-  const sinkSpecs = (data?.connectors ?? []).filter(
-    (connector) => connector.kind === ConnectorKind.SINK,
-  );
+  const sinkSpecs = useEmptyGraphicConnectors(ConnectorKind.SINK);
 
   return (
     <EmptyGraphic>
@@ -101,7 +97,7 @@ const ConnectionsPageSinksEmptyGraphic = () => {
           <Icon component={PlusIcon} size={16} variant={IconVariant.SECONDARY} />
         </LiveCard>
         {SINK_EMPTY_CARDS.map((card, index) => {
-          const spec = sinkSpecs.length ? sinkSpecs[index % sinkSpecs.length] : undefined;
+          const spec = sinkSpecs[index];
 
           return (
             <GhostCard key={card.nameWidth}>
