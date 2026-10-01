@@ -157,7 +157,7 @@ helm upgrade --install filament \
 | secrets.datastore.encryptionKeyId | string | `""` | Encryption key identifier stored with each secret row. Change this when rotating keys. |
 | secrets.gcp.projectId | string | `""` | GCP project containing Secret Manager secrets, stored as `GCP_PROJECT_ID`. Required when `secrets.type` is `gcp-secret-manager`. |
 | secrets.gcp.region | string | `""` | GCP region containing Secret Manager secrets, stored as `GCP_REGION`. Required when `secrets.type` is `gcp-secret-manager`. |
-| secrets.prefix | string | `""` | Extra name prefix external secret stores apply to every secret reference, stored in the ConfigMap as `SECRETS_PREFIX`. Filament-minted references are already namespaced under `filament/`. Unused by datastore. |
+| secrets.prefix | string | `""` | Name prefix external secret stores apply to every secret, stored in the ConfigMap as `SECRETS_PREFIX`. AWS prepends it to references, which are already namespaced under `filament/`. GCP secret IDs default to `filament-<hash>` and a prefix replaces `filament-`. Unused by datastore. |
 | secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; external provider names are stored in the ConfigMap as `SECRET_PROVIDER`. |
 
 ## Event bus parameters

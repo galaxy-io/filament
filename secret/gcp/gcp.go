@@ -2,6 +2,7 @@
 package gcp
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -25,7 +26,7 @@ const (
 	managedLabel  = "managed-by"
 	managedValue  = "filament"
 	refAnnotation = "filament-ref"
-	namePrefix    = "filament-"
+	defaultPrefix = "filament-"
 	maxSecretID   = 255
 )
 
@@ -55,7 +56,7 @@ type Provider struct {
 // Option configures a Provider.
 type Option func(*Provider)
 
-// WithPrefix prepends a deployment-specific prefix to each GCP secret ID.
+// WithPrefix replaces the default "filament-" prefix on each GCP secret ID.
 func WithPrefix(prefix string) Option { return func(p *Provider) { p.prefix = prefix } }
 
 // New constructs a provider from an explicit Secret Manager API.
@@ -76,8 +77,8 @@ func New(client API, projectID, region string, opts ...Option) (*Provider, error
 	if !prefixPattern.MatchString(p.prefix) {
 		return nil, errors.New("secret/gcp: SECRETS_PREFIX may contain only letters, digits, hyphens, and underscores")
 	}
-	if len(p.prefix)+len(namePrefix)+sha256.Size*2 > maxSecretID {
-		return nil, fmt.Errorf("secret/gcp: SECRETS_PREFIX is too long (maximum %d characters)", maxSecretID-len(namePrefix)-sha256.Size*2)
+	if len(p.prefix)+sha256.Size*2 > maxSecretID {
+		return nil, fmt.Errorf("secret/gcp: SECRETS_PREFIX is too long (maximum %d characters)", maxSecretID-sha256.Size*2)
 	}
 	return p, nil
 }
@@ -118,7 +119,7 @@ type envelope struct {
 
 func (p *Provider) secretID(ref string) string {
 	sum := sha256.Sum256([]byte(ref))
-	return p.prefix + namePrefix + hex.EncodeToString(sum[:])
+	return cmp.Or(p.prefix, defaultPrefix) + hex.EncodeToString(sum[:])
 }
 
 func (p *Provider) secretName(ref string) string {
