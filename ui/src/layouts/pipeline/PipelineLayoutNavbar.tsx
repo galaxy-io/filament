@@ -371,13 +371,16 @@ const PipelineLayoutNavbar = () => {
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
         {isPreview && (
-          <Button
-            label="Back to latest"
-            icon={ArrowUUpLeftIcon}
-            variant={ButtonVariant.TERTIARY}
-            size={ButtonSize.SMALL}
-            onClick={() => handlePreviewVersionChange(null)}
-          />
+          <>
+            <Button
+              label="Back to latest"
+              icon={ArrowUUpLeftIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.SMALL}
+              onClick={() => handlePreviewVersionChange(null)}
+            />
+            <Chip label={`Version ${previewVersion}`} variant={ChipVariant.ERROR} />
+          </>
         )}
         {!isPreview && hasUnsavedChanges && (
           <Text size={TextSize.BODY_SM} variant={TextVariant.WARNING}>

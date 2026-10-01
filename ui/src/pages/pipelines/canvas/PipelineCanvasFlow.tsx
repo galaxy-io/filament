@@ -24,7 +24,6 @@ import {
   PIPELINE_CANVAS_PAN_ON_DRAG,
   PIPELINE_CANVAS_SNAP_GRID,
   PIPELINE_CANVAS_VIEW_SWITCHER_INSET,
-  PIPELINE_CANVAS_VIEW_SWITCHER_PREVIEW_TOP,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
@@ -52,7 +51,6 @@ import {
   mapEdgesToStyledEdges,
   mapElementsToSelected,
 } from "@/pages/pipelines/canvas/utils";
-import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
 const filterSelectionChanges = <T extends { type: string }>(changes: T[]): T[] =>
   changes.filter((change) => change.type !== "select");
@@ -101,11 +99,10 @@ const FlowWrapper = withTheme(styled.div<PropsWithTheme>`
   }
 `);
 
-const ViewSwitcherOverlay = styled.div<{ $isPreview: boolean }>`
+const ViewSwitcherOverlay = styled.div`
   position: absolute;
   left: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
-  top: ${({ $isPreview }) =>
-    $isPreview ? PIPELINE_CANVAS_VIEW_SWITCHER_PREVIEW_TOP : PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
+  top: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 `;
 
@@ -114,7 +111,6 @@ const PipelineCanvasFlow = () => {
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
-  const isPreview = usePipelinePreviewVersion() !== undefined;
   const {
     selectedNodeId,
     selectedResourceId,
@@ -243,7 +239,7 @@ const PipelineCanvasFlow = () => {
           zoomable
         />
       </ReactFlow>
-      <ViewSwitcherOverlay $isPreview={isPreview}>
+      <ViewSwitcherOverlay>
         <PipelineCanvasViewSwitcher />
       </ViewSwitcherOverlay>
       {!isReadOnly && <PipelineCanvasEditWidget />}

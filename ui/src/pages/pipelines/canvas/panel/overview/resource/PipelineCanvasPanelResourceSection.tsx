@@ -177,7 +177,7 @@ const PipelineCanvasPanelResourceSection = ({
                 </FlexItem>
                 <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} shrink={0}>
                   {edge.data?.transform && (
-                    <Icon component={FunctionIcon} variant={IconVariant.SECONDARY} size={14} />
+                    <Icon component={FunctionIcon} variant={IconVariant.BLUE} size={14} />
                   )}
                   <ConnectorTile
                     connector={sourceConnection?.connector ?? ""}

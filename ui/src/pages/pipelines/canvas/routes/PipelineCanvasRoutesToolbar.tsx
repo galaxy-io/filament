@@ -4,7 +4,6 @@ import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -25,7 +24,6 @@ import {
 } from "@/pages/pipelines/canvas/routes/constants";
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
-import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
 interface PipelineCanvasRoutesToolbarProps {
   search: string;
@@ -40,7 +38,6 @@ const PipelineCanvasRoutesToolbar = ({
   canAddRoute,
   onAddRoute,
 }: PipelineCanvasRoutesToolbarProps) => {
-  const previewed = usePipelinePreviewVersion();
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
   const sinks = usePipelineCanvasRoutesSinks();
 
@@ -85,7 +82,6 @@ const PipelineCanvasRoutesToolbar = ({
       shrink={0}
       fillWidth
     >
-      {previewed && <Chip label={`Version ${previewed.version}`} variant={ChipVariant.ERROR} />}
       <PipelineCanvasViewSwitcher />
       <TextInput
         value={search}

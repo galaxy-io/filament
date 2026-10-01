@@ -47,6 +47,12 @@ const CenterSlot = styled.div`
   align-items: center;
   justify-content: center;
   gap: ${PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_GAP}px;
+
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
 `;
 
 const stopPropagation = (event: React.SyntheticEvent) => event.stopPropagation();

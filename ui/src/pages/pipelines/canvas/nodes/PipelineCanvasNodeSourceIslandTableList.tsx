@@ -47,8 +47,8 @@ const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
     {table.hasTransform && (
       <Icon
         component={FunctionIcon}
-        size={12}
-        variant={table.isInvalid ? IconVariant.ERROR : IconVariant.SECONDARY}
+        size={14}
+        variant={table.isInvalid ? IconVariant.ERROR : IconVariant.BLUE}
       />
     )}
     <PipelineCanvasNodeHandle

@@ -107,4 +107,3 @@ export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, Phosph
 };
 
 export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET = 12;
-export const PIPELINE_CANVAS_VIEW_SWITCHER_PREVIEW_TOP = 48;

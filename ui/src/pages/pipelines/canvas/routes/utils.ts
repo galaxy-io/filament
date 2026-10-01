@@ -29,7 +29,7 @@ export const getPipelineCanvasRouteEdgeGeometry = (
   return {
     cy,
     lineStartX: endX,
-    fanPath: `M0 ${yc} C ${controlX} ${yc}, ${controlX} ${cy}, ${endX} ${cy}`,
+    fanPath: `M0 ${yc} C ${controlX} ${yc}, ${endX - controlX} ${cy}, ${endX} ${cy}`,
   };
 };
 
