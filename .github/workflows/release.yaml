@@ -52,6 +52,9 @@ jobs:
   announce:
     needs: [release, images, cli, chart]
     runs-on: ubuntu-latest
+    # Reading the notes is all this job needs; it publishes nothing.
+    permissions:
+      contents: read
     steps:
       - name: Build the announcement
         shell: bash
@@ -97,6 +100,7 @@ jobs:
                  ]
                }' > "${RUNNER_TEMP}/slack-payload.json"
 
+      # A file, so nothing in the notes has to survive YAML escaping.
       - uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
         with:
           webhook: ${{ secrets.SLACK_COMMUNITY_WEBHOOK_URL }}
