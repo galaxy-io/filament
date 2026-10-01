@@ -31,7 +31,7 @@ const (
 func Fields() []filament.ConfigField {
 	sasl := &filament.FieldCondition{Field: "sasl_mechanism", Values: []string{"PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"}}
 	return []filament.ConfigField{
-		{Name: "brokers", Type: filament.FieldList, Required: true, Scope: filament.ScopeConnection, Help: "Kafka bootstrap host:port addresses"},
+		{Name: "brokers", Type: filament.FieldList, Required: true, Scope: filament.ScopeConnection, Help: "Kafka bootstrap broker addresses as host:port, e.g. localhost:9092"},
 		{Name: "client_id", Type: filament.FieldString, Default: "filament", Scope: filament.ScopeConnection},
 		{Name: "tls_enabled", Type: filament.FieldBool, Scope: filament.ScopeConnection, Help: "Enable TLS with system-trusted certificates; no files required"},
 		{Name: "tls_ca_pem", Type: filament.FieldSecret, Scope: filament.ScopeConnection, Help: "Optional PEM CA certificates for a private CA; paste the full contents"},

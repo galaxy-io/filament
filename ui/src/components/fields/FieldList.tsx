@@ -29,19 +29,16 @@ const FieldList = ({
     onChange([]);
   };
 
-  if (field.name === "brokers" && field.enum.length === 0) {
+  // No enum means there is nothing to select from; the user types the values.
+  if (field.enum.length === 0) {
     return (
-      <FieldWrapper
-        label={label}
-        help="Kafka bootstrap broker addresses (host:port). Press Enter or comma to add an address."
-        isRequired={field.required}
-      >
+      <FieldWrapper label={label} help={field.help} isRequired={field.required}>
         <MultiTextInput
-          value={selected.filter((address): address is string => typeof address === "string")}
+          value={selected.filter((item): item is string => typeof item === "string")}
           onChange={onChange}
           size={InputSize.LARGE}
           variant={variant}
-          placeholder="localhost:9092"
+          placeholder="Press Enter or comma to add a value"
           error={error}
           isDisabled={isDisabled}
           fillWidth
