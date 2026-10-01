@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/identity/keycloak"
 	"github.com/galaxy-io/filament/identity/zitadel"
@@ -19,9 +18,9 @@ import (
 // served from; an https origin marks the session cookie Secure.
 //
 // AUTH_BOOTSTRAP_TENANT is converged on every boot. AUTH_BOOTSTRAP_ADMIN_EMAIL
-// is invited to administer it, with the link logged until it is redeemed,
-// and closes sign-up: registration is refused.
-func FromEnv(ctx context.Context, log filament.Logger) (identity.Provider, error) {
+// and AUTH_BOOTSTRAP_ADMIN_PASSWORD administer it and close sign-up:
+// registration is refused.
+func FromEnv(ctx context.Context) (identity.Provider, error) {
 	switch provider := os.Getenv("AUTH_PROVIDER"); provider {
 	case "":
 		return nil, nil
@@ -36,10 +35,10 @@ func FromEnv(ctx context.Context, log filament.Logger) (identity.Provider, error
 			PAT:      pat,
 			UIOrigin: uiOrigin(),
 			Bootstrap: zitadel.Bootstrap{
-				Tenant:     os.Getenv("AUTH_BOOTSTRAP_TENANT"),
-				AdminEmail: os.Getenv("AUTH_BOOTSTRAP_ADMIN_EMAIL"),
+				Tenant:        os.Getenv("AUTH_BOOTSTRAP_TENANT"),
+				AdminEmail:    os.Getenv("AUTH_BOOTSTRAP_ADMIN_EMAIL"),
+				AdminPassword: os.Getenv("AUTH_BOOTSTRAP_ADMIN_PASSWORD"),
 			},
-			Log: log,
 		})
 	// AUTH_ISSUER is the realm URL and filament's client is AUTH_CLIENT_ID and
 	// AUTH_CLIENT_SECRET. With the admin in AUTH_ADMIN_USERNAME and
@@ -59,12 +58,12 @@ func FromEnv(ctx context.Context, log filament.Logger) (identity.Provider, error
 			AdminUsername: os.Getenv("AUTH_ADMIN_USERNAME"),
 			AdminPassword: os.Getenv("AUTH_ADMIN_PASSWORD"),
 			Bootstrap: keycloak.Bootstrap{
-				Tenant:       os.Getenv("AUTH_BOOTSTRAP_TENANT"),
-				ClientID:     os.Getenv("AUTH_BOOTSTRAP_CLIENT_ID"),
-				ClientSecret: os.Getenv("AUTH_BOOTSTRAP_CLIENT_SECRET"),
-				AdminEmail:   os.Getenv("AUTH_BOOTSTRAP_ADMIN_EMAIL"),
+				Tenant:        os.Getenv("AUTH_BOOTSTRAP_TENANT"),
+				ClientID:      os.Getenv("AUTH_BOOTSTRAP_CLIENT_ID"),
+				ClientSecret:  os.Getenv("AUTH_BOOTSTRAP_CLIENT_SECRET"),
+				AdminEmail:    os.Getenv("AUTH_BOOTSTRAP_ADMIN_EMAIL"),
+				AdminPassword: os.Getenv("AUTH_BOOTSTRAP_ADMIN_PASSWORD"),
 			},
-			Log: log,
 		})
 	default:
 		return nil, fmt.Errorf("identity: unknown AUTH_PROVIDER %q (zitadel, keycloak)", provider)

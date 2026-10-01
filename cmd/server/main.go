@@ -64,7 +64,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 	// A nil provider means auth is disabled: the API stays unauthenticated
 	// and the UI renders without a session.
-	identityProvider, err := identity.FromEnv(ctx, serverLog)
+	identityProvider, err := identity.FromEnv(ctx)
 	if err != nil {
 		return err
 	}

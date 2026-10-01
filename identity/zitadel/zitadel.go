@@ -4,9 +4,9 @@
 // accounts use. The server is Zitadel's only client: browsers hold a session
 // cookie and never learn the issuer.
 //
-// A bootstrap tenant is converged on boot with a person invited to
-// administer it, which closes sign-up: registration is refused and everyone
-// else is invited.
+// A bootstrap tenant is converged on boot with a person who administers it
+// with a password the deployer chose, which closes sign-up: registration is
+// refused and everyone else is invited.
 //
 // It is a separate module so its gRPC and SDK dependencies stay out of the
 // core module every connector builds against.
@@ -28,7 +28,6 @@ import (
 	zclient "github.com/zitadel/zitadel-go/v3/pkg/client"
 	"github.com/zitadel/zitadel-go/v3/pkg/zitadel"
 
-	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
@@ -50,23 +49,23 @@ type Options struct {
 	// cookie Secure.
 	UIOrigin string
 	// Bootstrap, when set, is a tenant converged on every boot with the
-	// person invited to administer it.
+	// person who administers it.
 	Bootstrap Bootstrap
-	// Log receives the bootstrap admin's invitation link; required with
-	// Bootstrap.
-	Log filament.Logger
 }
 
-// Bootstrap names a tenant and the person invited to administer it. The
-// link is logged on every boot until it is redeemed. Both fields or none.
+// Bootstrap names a tenant and the person who administers it, with the
+// password the deployer chose. All fields or none.
 type Bootstrap struct {
-	Tenant     string
-	AdminEmail string
+	Tenant        string
+	AdminEmail    string
+	AdminPassword string
 }
 
-func (b Bootstrap) set() bool { return b.Tenant != "" || b.AdminEmail != "" }
+func (b Bootstrap) set() bool { return b.Tenant != "" || b.AdminEmail != "" || b.AdminPassword != "" }
 
-func (b Bootstrap) complete() bool { return b.Tenant != "" && b.AdminEmail != "" }
+func (b Bootstrap) complete() bool {
+	return b.Tenant != "" && b.AdminEmail != "" && b.AdminPassword != ""
+}
 
 // Provider implements filament's identity port against Zitadel.
 type Provider struct {
@@ -81,12 +80,9 @@ type Provider struct {
 	// secureCookies marks the session cookie Secure when the UI is served
 	// over https.
 	secureCookies bool
-	// uiOrigin is where invitation links point.
-	uiOrigin string
 	// inviteOnly refuses registration: an admin was bootstrapped and people
 	// join by invitation.
 	inviteOnly bool
-	log        filament.Logger
 	// callers caches sessionRef -> cachedCaller so a browser's requests do
 	// not each round-trip to Zitadel.
 	callers sync.Map
@@ -105,10 +101,7 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, errors.New("zitadel: personal access token is required")
 	}
 	if opts.Bootstrap.set() && !opts.Bootstrap.complete() {
-		return nil, errors.New("zitadel: bootstrap needs a tenant and an admin email")
-	}
-	if opts.Bootstrap.set() && opts.Log == nil {
-		return nil, errors.New("zitadel: a logger is required to deliver the bootstrap admin's invitation")
+		return nil, errors.New("zitadel: bootstrap needs a tenant, an admin email, and an admin password")
 	}
 	issuer := strings.TrimRight(opts.Issuer, "/")
 	target, err := dialTarget(issuer)
@@ -130,9 +123,7 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		tokenEndpoint: discovered.TokenEndpoint,
 		api:           api,
 		secureCookies: strings.HasPrefix(opts.UIOrigin, "https://"),
-		uiOrigin:      opts.UIOrigin,
 		inviteOnly:    opts.Bootstrap.AdminEmail != "",
-		log:           opts.Log,
 	}
 	if err := p.bootstrap(ctx); err != nil {
 		_ = api.Close()

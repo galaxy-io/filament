@@ -10,7 +10,6 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
@@ -280,7 +279,7 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 		}
 	}
 	if b.AdminEmail != "" {
-		return p.bootstrapAdmin(ctx, org, b.Tenant, b.AdminEmail)
+		return p.bootstrapAdmin(ctx, org, b)
 	}
 	return nil
 }
@@ -343,70 +342,38 @@ func (p *Provider) bootstrapServiceAccount(ctx context.Context, org organization
 	return nil
 }
 
-// bootstrapAdmin converges the person invited to administer the tenant. A
-// new user is invited with the Admin role and the link is logged. An
-// unredeemed invitation is reissued, so a lost link is one restart away. A
-// redeemed one is left alone: a restart never logs a way into an account
-// someone already holds, and the members page owns the role from then on.
+// bootstrapAdmin converges the person who administers the tenant with the
+// password the deployer chose. A missing user is created signed-in-ready
+// with the Admin role. An existing one is left alone: the members page owns
+// the role from then on, and a password changed since is kept.
 //
 // The realm's user profile requires a name before anyone can sign in; the
 // tenant supplies one until the admin is known by a better one.
-func (p *Provider) bootstrapAdmin(ctx context.Context, org organizationRep, tenant, email string) error {
-	user, err := p.admin.userByEmail(ctx, email)
-	if isStatus(err, http.StatusNotFound) {
-		code, attributes, err := newInvite()
-		if err != nil {
-			return err
-		}
-		id, err := p.admin.createUser(ctx, userRep{
-			Username:   email,
-			Email:      email,
-			FirstName:  tenant,
-			LastName:   "Admin",
-			Enabled:    true,
-			Attributes: attributes,
-		})
-		if err != nil {
-			return fmt.Errorf("create admin: %w", err)
-		}
-		if err := p.admin.addMember(ctx, org.ID, id); err != nil {
-			return fmt.Errorf("add member: %w", p.discardUser(ctx, id, err))
-		}
-		if err := p.grantRole(ctx, id, identity.RoleKey(authv1.Role_ROLE_ADMIN)); err != nil {
-			return fmt.Errorf("grant admin: %w", p.discardUser(ctx, id, err))
-		}
-		p.logInvite(email, id, code)
+func (p *Provider) bootstrapAdmin(ctx context.Context, org organizationRep, b Bootstrap) error {
+	_, err := p.admin.userByEmail(ctx, b.AdminEmail)
+	if err == nil {
 		return nil
-	} else if err != nil {
+	}
+	if !isStatus(err, http.StatusNotFound) {
 		return fmt.Errorf("resolve admin: %w", err)
 	}
-	raw, err := p.admin.getUserRaw(ctx, user.ID)
+	id, err := p.admin.createUser(ctx, userRep{
+		Username:      b.AdminEmail,
+		Email:         b.AdminEmail,
+		FirstName:     b.Tenant,
+		LastName:      "Admin",
+		Enabled:       true,
+		EmailVerified: true,
+		Credentials:   []credentialRep{{Type: "password", Value: b.AdminPassword}},
+	})
 	if err != nil {
-		return fmt.Errorf("read admin: %w", err)
+		return fmt.Errorf("create admin: %w", err)
 	}
-	attributes, _ := raw["attributes"].(map[string]any)
-	if attribute(attributes, inviteHashKey) == "" {
-		return nil
+	if err := p.admin.addMember(ctx, org.ID, id); err != nil {
+		return fmt.Errorf("add member: %w", p.discardUser(ctx, id, err))
 	}
-	code, fresh, err := newInvite()
-	if err != nil {
-		return err
+	if err := p.grantRole(ctx, id, identity.RoleKey(authv1.Role_ROLE_ADMIN)); err != nil {
+		return fmt.Errorf("grant admin: %w", p.discardUser(ctx, id, err))
 	}
-	for key, values := range fresh {
-		attributes[key] = values
-	}
-	raw["attributes"] = attributes
-	if err := p.admin.putUser(ctx, user.ID, raw); err != nil {
-		return fmt.Errorf("reissue invitation: %w", err)
-	}
-	p.logInvite(email, user.ID, code)
 	return nil
-}
-
-// logInvite hands the deployer the link that redeems the admin's invitation.
-func (p *Provider) logInvite(email, userID, code string) {
-	p.log.Info("bootstrap admin invited; open the link to set a password",
-		filament.Field{Key: "email", Value: email},
-		filament.Field{Key: "url", Value: identity.InviteURL(p.uiOrigin, userID, code)},
-	)
 }

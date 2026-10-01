@@ -125,7 +125,11 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	code, err := p.invite(ctx, created.GetId())
+	// returnCode hands the invitation back instead of mailing it.
+	invite, err := p.api.UserServiceV2().CreateInviteCode(ctx, &userv2.CreateInviteCodeRequest{
+		UserId:       created.GetId(),
+		Verification: &userv2.CreateInviteCodeRequest_ReturnCode{ReturnCode: &userv2.ReturnInviteCode{}},
+	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, p.discardUser(ctx, created.GetId(), err))
 	}
@@ -134,7 +138,7 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 	}
 	return connect.NewResponse(&authv1.InviteMemberResponse{
 		UserId: created.GetId(),
-		Code:   code,
+		Code:   invite.GetInviteCode(),
 	}), nil
 }
 

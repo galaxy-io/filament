@@ -166,10 +166,12 @@ with an existing Secret, supply `AUTH_BOOTSTRAP_CLIENT_SECRET` there instead.
 
 ### Bootstrap admin
 
-Set `auth.bootstrap.tenant` and `auth.bootstrap.adminEmail` with either
-provider. The server converges the tenant on every boot, closes sign-up, and
-logs an invitation link for the admin until they redeem it. Everyone else
-joins through the members page.
+Set `auth.bootstrap.tenant`, `auth.bootstrap.adminEmail`, and
+`auth.bootstrap.adminPassword` with either provider. The server converges the
+tenant on every boot, creates the admin with that password the first time, and
+closes sign-up. Everyone else joins through the members page. The password
+lives in the provider Secret as `AUTH_BOOTSTRAP_ADMIN_PASSWORD`; with an
+existing provider Secret, supply that key there instead.
 
 Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the
 provider Secret on upgrade. Updating the

@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
@@ -177,83 +176,53 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 		}
 		orgID = created.GetOrganizationId()
 	}
-	return p.bootstrapAdmin(ctx, orgID, b.Tenant, b.AdminEmail)
+	return p.bootstrapAdmin(ctx, orgID, b)
 }
 
-// bootstrapAdmin converges the person invited to administer the tenant. A
-// new user is invited with the Admin role and the link is logged. An
-// unredeemed invitation is reissued, so a lost link is one restart away. A
-// redeemed one is left alone: a restart never logs a way into an account
-// someone already holds, and the members page owns the role from then on.
+// bootstrapAdmin converges the person who administers the tenant with the
+// password the deployer chose. A missing user is created signed-in-ready
+// with the Admin role. An existing one is left alone: the members page owns
+// the role from then on, and a password changed since is kept.
 //
 // Zitadel requires a name on every human; the tenant supplies one until the
 // admin is known by a better one.
-func (p *Provider) bootstrapAdmin(ctx context.Context, orgID, tenant, email string) error {
+func (p *Provider) bootstrapAdmin(ctx context.Context, orgID string, b Bootstrap) error {
 	users, err := p.api.UserServiceV2().ListUsers(ctx, &userv2.ListUsersRequest{
 		Queries: []*userv2.SearchQuery{
 			{Query: &userv2.SearchQuery_OrganizationIdQuery{
 				OrganizationIdQuery: &userv2.OrganizationIdQuery{OrganizationId: orgID},
 			}},
 			{Query: &userv2.SearchQuery_EmailQuery{
-				EmailQuery: &userv2.EmailQuery{EmailAddress: email, Method: objectv2.TextQueryMethod_TEXT_QUERY_METHOD_EQUALS},
+				EmailQuery: &userv2.EmailQuery{EmailAddress: b.AdminEmail, Method: objectv2.TextQueryMethod_TEXT_QUERY_METHOD_EQUALS},
 			}},
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("resolve admin: %w", err)
 	}
-	if result := users.GetResult(); len(result) > 0 {
-		user := result[0]
-		if user.GetState() != userv2.UserState_USER_STATE_INITIAL {
-			return nil
-		}
-		invite, err := p.invite(ctx, user.GetUserId())
-		if err != nil {
-			return fmt.Errorf("reissue invitation: %w", err)
-		}
-		p.logInvite(email, user.GetUserId(), invite)
+	if len(users.GetResult()) > 0 {
 		return nil
 	}
 	created, err := p.api.UserServiceV2().CreateUser(ctx, &userv2.CreateUserRequest{
 		OrganizationId: orgID,
 		UserType: &userv2.CreateUserRequest_Human_{
 			Human: &userv2.CreateUserRequest_Human{
-				Profile: &userv2.SetHumanProfile{GivenName: tenant, FamilyName: "Admin"},
-				Email:   &userv2.SetHumanEmail{Email: email},
+				Profile: &userv2.SetHumanProfile{GivenName: b.Tenant, FamilyName: "Admin"},
+				Email: &userv2.SetHumanEmail{
+					Email:        b.AdminEmail,
+					Verification: &userv2.SetHumanEmail_IsVerified{IsVerified: true},
+				},
+				PasswordType: &userv2.CreateUserRequest_Human_Password{
+					Password: &userv2.Password{Password: b.AdminPassword},
+				},
 			},
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("create admin: %w", err)
 	}
-	invite, err := p.invite(ctx, created.GetId())
-	if err != nil {
-		return fmt.Errorf("invite admin: %w", p.discardUser(ctx, created.GetId(), err))
-	}
 	if err := p.grantRole(ctx, orgID, created.GetId(), identity.RoleKey(authv1.Role_ROLE_ADMIN)); err != nil {
 		return fmt.Errorf("grant admin: %w", p.discardUser(ctx, created.GetId(), err))
 	}
-	p.logInvite(email, created.GetId(), invite)
 	return nil
-}
-
-// invite mints the code that redeems a user's invitation, handed back
-// instead of mailed. A fresh code replaces any earlier one.
-func (p *Provider) invite(ctx context.Context, userID string) (string, error) {
-	invite, err := p.api.UserServiceV2().CreateInviteCode(ctx, &userv2.CreateInviteCodeRequest{
-		UserId:       userID,
-		Verification: &userv2.CreateInviteCodeRequest_ReturnCode{ReturnCode: &userv2.ReturnInviteCode{}},
-	})
-	if err != nil {
-		return "", err
-	}
-	return invite.GetInviteCode(), nil
-}
-
-// logInvite hands the deployer the link that redeems the admin's invitation.
-func (p *Provider) logInvite(email, userID, code string) {
-	p.log.Info("bootstrap admin invited; open the link to set a password",
-		filament.Field{Key: "email", Value: email},
-		filament.Field{Key: "url", Value: identity.InviteURL(p.uiOrigin, userID, code)},
-	)
 }

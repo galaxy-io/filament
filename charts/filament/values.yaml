@@ -263,12 +263,15 @@ auth:
   bootstrap:
     # -- Tenant converged on every boot, stored as `AUTH_BOOTSTRAP_TENANT`.
     tenant: ""
-    # -- Person invited to administer the tenant, stored as
-    # `AUTH_BOOTSTRAP_ADMIN_EMAIL`. The server logs the invitation link on
-    # every boot until it is redeemed. Closes sign-up: people join by
-    # invitation. Required with
-    # `tenant` unless a Keycloak service account is set.
+    # -- Person who administers the tenant, stored as
+    # `AUTH_BOOTSTRAP_ADMIN_EMAIL`. Created on boot with `adminPassword` and
+    # left alone once it exists. Closes sign-up: people join by invitation.
+    # Required with `tenant` unless a Keycloak service account is set.
     adminEmail: ""
+    # -- That person's initial password, stored as
+    # `AUTH_BOOTSTRAP_ADMIN_PASSWORD` in the provider Secret. With an existing
+    # provider Secret, supply that key there instead.
+    adminPassword: ""
 
   # -- Origin the UI is served from, stored in the ConfigMap as
   # `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the
@@ -276,9 +279,11 @@ auth:
   uiOrigin: ""
 
   zitadel:
-    # -- Server-only Secret containing `AUTH_PAT` for external Zitadel.
-    # Kept apart from `existingSecret`, which every worker receives. Unset,
-    # the chart creates a dedicated Secret from `auth.zitadel.pat`. Vendored Zitadel mints its own.
+    # -- Server-only Secret containing `AUTH_PAT` for external Zitadel, plus
+    # `AUTH_BOOTSTRAP_ADMIN_PASSWORD` when bootstrapping an admin. Kept apart
+    # from `existingSecret`, which every worker receives. Unset, the chart
+    # creates a dedicated Secret from `auth.zitadel.pat` and
+    # `auth.bootstrap.adminPassword`. Vendored Zitadel mints its own PAT.
     existingSecret: ""
     # -- Issuer URL Filament reaches the provider at, stored in the ConfigMap
     # as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name
@@ -502,8 +507,9 @@ keycloak:
   # -- Master-realm admin the server creates Filament's realm with.
   adminUser: admin
   # -- Dedicated Secret containing `AUTH_CLIENT_SECRET`, plus
-  # `AUTH_ADMIN_PASSWORD` when bootstrapping a realm and
-  # `AUTH_BOOTSTRAP_CLIENT_SECRET` when bootstrapping a tenant. Used for
+  # `AUTH_ADMIN_PASSWORD` when bootstrapping a realm,
+  # `AUTH_BOOTSTRAP_CLIENT_SECRET` when bootstrapping a service account, and
+  # `AUTH_BOOTSTRAP_ADMIN_PASSWORD` when bootstrapping an admin. Used for
   # external and vendored Keycloak. Kept apart from `existingSecret`, which every worker receives.
   # Unset, the chart creates `<release>-keycloak-auth` from `auth.keycloak`.
   existingSecret: ""

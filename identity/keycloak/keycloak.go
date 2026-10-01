@@ -18,9 +18,9 @@
 // policy invitations rely on. Keycloak 26 or newer.
 //
 // A bootstrap tenant is converged on boot with whoever gets in first: an
-// admin service account for an SDK, a person invited as admin, or both. An
-// invited admin closes sign-up: registration is refused and everyone else
-// is invited.
+// admin service account for an SDK, a person with a password the deployer
+// chose, or both. A bootstrap admin closes sign-up: registration is refused
+// and everyone else is invited.
 //
 // It is a separate module so its OIDC dependencies stay out of the core
 // module every connector builds against.
@@ -40,7 +40,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
-	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 	"github.com/galaxy-io/filament/identity"
@@ -66,32 +65,30 @@ type Options struct {
 	// Bootstrap, when set, is a tenant converged on every boot with whoever
 	// gets in first.
 	Bootstrap Bootstrap
-	// Log receives the bootstrap admin's invitation link; required with
-	// Bootstrap.AdminEmail.
-	Log filament.Logger
 }
 
 // Bootstrap names a tenant and who gets in first: a service account that
 // administers it, so an SDK can act before any person has signed in, a
-// person invited as admin, or both.
+// person who administers it with a password the deployer chose, or both.
 type Bootstrap struct {
 	Tenant string
 	// ClientID and ClientSecret are the service account's; both or neither.
 	ClientID     string
 	ClientSecret string
-	// AdminEmail is invited as admin. The link is logged on every boot until
-	// it is redeemed. Setting it closes sign-up.
-	AdminEmail string
+	// AdminEmail and AdminPassword are the admin's; both or neither. Setting
+	// them closes sign-up.
+	AdminEmail    string
+	AdminPassword string
 }
 
 func (b Bootstrap) set() bool {
-	return b.Tenant != "" || b.ClientID != "" || b.ClientSecret != "" || b.AdminEmail != ""
+	return b.Tenant != "" || b.ClientID != "" || b.ClientSecret != "" || b.AdminEmail != "" || b.AdminPassword != ""
 }
 
 // complete reports whether the bootstrap names a tenant and at least one way
 // into it.
 func (b Bootstrap) complete() bool {
-	if b.Tenant == "" || (b.ClientID == "") != (b.ClientSecret == "") {
+	if b.Tenant == "" || (b.ClientID == "") != (b.ClientSecret == "") || (b.AdminEmail == "") != (b.AdminPassword == "") {
 		return false
 	}
 	return b.ClientID != "" || b.AdminEmail != ""
@@ -115,12 +112,9 @@ type Provider struct {
 	// secureCookies marks the session cookie Secure when the UI is served
 	// over https.
 	secureCookies bool
-	// uiOrigin is where invitation links point.
-	uiOrigin string
 	// inviteOnly refuses registration: an admin was bootstrapped and people
 	// join by invitation.
 	inviteOnly bool
-	log        filament.Logger
 	// callers caches session cookie -> cachedCaller so a browser's requests
 	// do not each round-trip to Keycloak.
 	callers sync.Map
@@ -136,10 +130,7 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, errors.New("keycloak: client id and secret are required")
 	}
 	if opts.Bootstrap.set() && !opts.Bootstrap.complete() {
-		return nil, errors.New("keycloak: bootstrap needs a tenant and an admin email, a service account client id and secret, or both")
-	}
-	if opts.Bootstrap.AdminEmail != "" && opts.Log == nil {
-		return nil, errors.New("keycloak: a logger is required to deliver the bootstrap admin's invitation")
+		return nil, errors.New("keycloak: bootstrap needs a tenant and an admin email and password, a service account client id and secret, or both")
 	}
 	if (opts.AdminUsername == "") != (opts.AdminPassword == "") {
 		return nil, errors.New("keycloak: admin username and password go together")
@@ -179,9 +170,7 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		// The token source outlives boot and refreshes on this context.
 		admin:         &admin{base: adminBase, client: credentials.Client(context.WithoutCancel(ctx))},
 		secureCookies: strings.HasPrefix(opts.UIOrigin, "https://"),
-		uiOrigin:      opts.UIOrigin,
 		inviteOnly:    opts.Bootstrap.AdminEmail != "",
-		log:           opts.Log,
 	}
 	if err := p.bootstrap(ctx); err != nil {
 		return nil, fmt.Errorf("keycloak bootstrap: %w", err)

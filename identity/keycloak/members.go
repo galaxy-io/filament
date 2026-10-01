@@ -129,17 +129,21 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, err
 	}
-	code, attributes, err := newInvite()
-	if err != nil {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	code := hex.EncodeToString(raw[:])
 	userID, err := p.admin.createUser(ctx, userRep{
-		Username:   m.GetEmail(),
-		Email:      m.GetEmail(),
-		FirstName:  m.GetGivenName(),
-		LastName:   m.GetFamilyName(),
-		Enabled:    true,
-		Attributes: attributes,
+		Username:  m.GetEmail(),
+		Email:     m.GetEmail(),
+		FirstName: m.GetGivenName(),
+		LastName:  m.GetFamilyName(),
+		Enabled:   true,
+		Attributes: map[string][]string{
+			inviteHashKey:    {inviteHash(code)},
+			inviteExpiresKey: {strconv.FormatInt(time.Now().Add(inviteLifetime).Unix(), 10)},
+		},
 	})
 	if err != nil {
 		return nil, rpcError(err)
@@ -154,20 +158,6 @@ func (p *Provider) InviteMember(ctx context.Context, req *connect.Request[authv1
 		UserId: userID,
 		Code:   code,
 	}), nil
-}
-
-// newInvite mints an invitation code and the attributes that hold its hash
-// and expiry on the invited user.
-func newInvite() (code string, attributes map[string][]string, err error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", nil, err
-	}
-	code = hex.EncodeToString(raw[:])
-	return code, map[string][]string{
-		inviteHashKey:    {inviteHash(code)},
-		inviteExpiresKey: {strconv.FormatInt(time.Now().Add(inviteLifetime).Unix(), 10)},
-	}, nil
 }
 
 func inviteHash(code string) string {
