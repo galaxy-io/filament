@@ -3,7 +3,7 @@ title: "Kafka"
 description: "Consume Kafka message envelopes with certified partition checkpoints"
 ---
 
-`connectors/kafka` registers an **alpha** continuous message source. Topics are
+`connectors/kafka` registers an **alpha** bounded and continuous message source. Topics are
 resources, and topic partitions have independent next-offset checkpoints. The
 first implementation uses direct partition assignment to one Filament owner.
 It does not join a consumer group or write Kafka group offsets.
@@ -88,6 +88,29 @@ bash scripts/kafka-dev.sh reset
 After `reset`, use a fresh Filament source connection because existing checkpoints
 refer to the previous Kafka cluster and topic IDs.
 
+## Bounded reads
+
+Choose bounded execution with **Full** reads and an append or replace destination
+write policy. Each run captures the retained beginning and the read-committed end
+(last stable offset) of every selected partition before extraction. It reads that
+fixed window and finishes, even if producers keep publishing. Transactions still
+open when the window is captured and messages appended afterward are excluded.
+This is a set of partition windows, not an atomic snapshot across topics.
+
+Bounded full reads always begin at the retained start; `start_position` applies
+only to continuous execution. Each new run rereads the retained log, so append
+runs can duplicate earlier output. Bounded runs do not advance continuous
+checkpoints or Kafka consumer-group offsets and do not support incremental or
+checkpointed resume. A retry captures a new window. Compaction may remove records
+within the window; the run reads the records still retained when fetched.
+
+Resource planning infers payload columns before typed destination tables are
+prepared. The first retained message fixes each topic's schema, including the
+same tombstone/raw-payload behavior described below. Empty topics finish without
+waiting for new records. Retention loss or topic recreation affecting unread
+partitions fails the run instead of silently resetting offsets. Partitions added
+after planning are outside the captured window.
+
 ## Schema and checkpoints
 
 Kafka and NATS sources decode JSON object payloads into top-level, source-owned
@@ -140,11 +163,11 @@ Older versions are rejected rather than sharing checkpoints across recreated top
 
 ## Initial release limits
 
-Only continuous execution is supported by the source. Bounded source catch-up,
-consumer groups, distributed partition handoff, and Schema Registry decoding
-remain follow-up work.
+The source supports bounded full reads and continuous execution. Consumer groups,
+bounded incremental/resumable reads, distributed partition handoff, and Schema
+Registry decoding remain follow-up work.
 
-The source processes one record per epoch initially and advertises no end-to-end
+The continuous source processes one record per epoch initially and advertises no end-to-end
 ordering guarantee. Normal fetches use a 4 MiB request limit, 1 MiB partition
 limit, and one concurrent fetch. Kafka may return an oversized first record, so
 these are not hard total-memory limits. Topic membership changes require stopping
@@ -154,5 +177,6 @@ and restarting the stream; saved domains must remain present.
 
 The connector integration suite passes against Kafka **4.0.2** and Redpanda
 **25.3.13** using single-broker plaintext fixtures. It checks tombstones, source resume, retention loss, topic
-recreation, and live partition changes. TLS/SASL configuration has unit coverage;
+recreation, and live partition changes. Bounded tests cover fixed windows, JSON
+schemas, limits, empty partitions, transactions, and retention loss. TLS/SASL configuration has unit coverage;
 secured-cluster and multi-broker fault tests remain follow-up work.

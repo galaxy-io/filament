@@ -22,7 +22,7 @@ func TestKafkaSourceIsRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if spec.Name != "kafka" || spec.DisplayName != "Kafka" || spec.Stream == nil || spec.Stream.Input != filament.InputMessages {
+	if spec.Name != "kafka" || spec.DisplayName != "Kafka" || spec.Stream == nil || spec.Stream.Input != filament.InputMessages || len(spec.SourcePolicies) == 0 || len(spec.Modes) != 1 || spec.Modes[0] != filament.ModeFull {
 		t.Fatalf("Kafka source spec = %#v", spec)
 	}
 }

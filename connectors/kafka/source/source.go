@@ -19,15 +19,18 @@ import (
 // Source uses direct partition assignment. It never joins a Kafka consumer group
 // or mutates broker offsets; Filament certificates own durable progress.
 type Source struct {
-	client  *kgo.Client
-	options []kgo.Opt
-	start   string
+	client        *kgo.Client
+	options       []kgo.Opt
+	start         string
+	defaultTopics []string
+	bounded       map[string]*boundedTopic
 }
 
 // New returns a fresh connector instance.
 func New() *Source { return &Source{} }
 
 var (
+	_ filament.ResourcePlanner          = (*Source)(nil)
 	_ filament.Source                   = (*Source)(nil)
 	_ filament.StreamSource             = (*Source)(nil)
 	_ filament.Discoverable             = (*Source)(nil)
@@ -55,7 +58,7 @@ func (*Source) Validate(cfg filament.Config) error {
 	return nil
 }
 
-// Configure creates the metadata client and saves options for stream sessions.
+// Configure creates the metadata client and saves options for extraction.
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if s.client != nil {
 		return errors.New("kafka: already configured")
@@ -75,12 +78,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		return err
 	}
 	s.client, s.options, s.start = c, opts, cfg.String("start_position")
+	s.defaultTopics, _ = client.Strings(cfg, "topics")
+	s.bounded = nil
 	return nil
-}
-
-// Extract rejects bounded execution; this source uses the continuous stream loop.
-func (*Source) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
-	return filament.ErrContinuousDisabled
 }
 
 // Teardown releases the metadata client after stream sessions have closed.
@@ -99,8 +99,18 @@ func (*Source) TestConnection(ctx context.Context, cfg filament.Config) error {
 
 // Spec describes configuration and supported execution capabilities.
 func (*Source) Spec() filament.ConnectorSpec {
-	fields := append(client.Fields(), filament.ConfigField{Name: "topics", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "Default topic resources"}, filament.ConfigField{Name: "start_position", Type: filament.FieldString, Default: "earliest", Scope: filament.ScopePipeline, Help: "earliest or latest for partitions without certified progress"})
-	return filament.ConnectorSpec{Name: "kafka", DisplayName: client.DisplayName, DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL, Description: "Read Kafka message envelopes with Filament-owned partition checkpoints.", Version: "1", Config: filament.ConfigSchema{Fields: fields}, Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce}}
+	fields := append(client.Fields(), filament.ConfigField{Name: "topics", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "Default topic resources"}, filament.ConfigField{Name: "start_position", Type: filament.FieldString, Default: "earliest", Scope: filament.ScopePipeline, Help: "Continuous only: earliest or latest for partitions without certified progress"})
+	return filament.ConnectorSpec{
+		Name: "kafka", DisplayName: client.DisplayName,
+		DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL,
+		Description:    "Read retained Kafka messages in bounded runs or continuously with Filament-owned partition checkpoints.",
+		Version:        "1",
+		Modes:          []filament.ReadMode{filament.ModeFull},
+		SourcePolicies: filament.SourcePolicies(filament.IngestionFullAppend),
+		Resources:      filament.ResourceCapabilities{Discoverable: true},
+		Config:         filament.ConfigSchema{Fields: fields},
+		Stream:         &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce},
+	}
 }
 
 func messageBaseSchema(resource string) rowmodel.Schema {
@@ -112,10 +122,14 @@ func Schema(resource string) (rowmodel.Schema, error) {
 	return rowmodel.WithEventMetadataFields(messageBaseSchema(resource))
 }
 
-// Schema returns transport and event metadata. Payload columns are inferred on the first read.
-func (*Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
+// Schema includes inferred payload columns after bounded resource planning.
+// Continuous sessions infer payload columns on their first read.
+func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	if err := client.ValidateTopic(resource); err != nil {
 		return rowmodel.Schema{}, err
+	}
+	if plan := s.bounded[resource]; plan != nil {
+		return plan.schema.Clone(), nil
 	}
 	return Schema(resource)
 }
