@@ -260,6 +260,16 @@ auth:
   # -- Identity provider. Valid values are `zitadel` and `keycloak`.
   type: zitadel
 
+  bootstrap:
+    # -- Tenant converged on every boot, stored as `AUTH_BOOTSTRAP_TENANT`.
+    tenant: ""
+    # -- Person invited to administer the tenant, stored as
+    # `AUTH_BOOTSTRAP_ADMIN_EMAIL`. The server logs the invitation link on
+    # every boot until it is redeemed. Closes sign-up: people join by
+    # invitation. Required with
+    # `tenant` unless a Keycloak service account is set.
+    adminEmail: ""
+
   # -- Origin the UI is served from, stored in the ConfigMap as
   # `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the
   # session cookie Secure.
@@ -306,11 +316,9 @@ auth:
     # password stored in Keycloak; rotate there first.
     adminPassword: ""
     bootstrap:
-      # -- Tenant created on boot with an admin service account, so an SDK
-      # works before anyone registers. Stored as `AUTH_BOOTSTRAP_TENANT`. Set
-      # all three or none.
-      tenant: ""
-      # -- The service account's client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`.
+      # -- Admin service account on the `auth.bootstrap.tenant`, so an SDK
+      # works before anyone signs in. Its client id, stored as
+      # `AUTH_BOOTSTRAP_CLIENT_ID`. Set with `clientSecret` or not at all.
       clientId: ""
       # -- Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`. With
       # `keycloak.existingSecret`, supply that key in the Secret instead.

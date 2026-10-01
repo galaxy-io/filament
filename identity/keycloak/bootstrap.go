@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
@@ -259,11 +260,8 @@ func (p *Provider) grantRole(ctx context.Context, userID, roleKey string) error 
 	return p.admin.addUserClientRoles(ctx, userID, p.client, []roleRep{role})
 }
 
-// bootstrapTenant converges a tenant and the admin service account that
-// drives it, with the secret the deployer chose. An SDK can then act on the
-// deployment before any person has registered. Nothing changes when it is
-// all already there; a secret rotated elsewhere is set back on the next
-// boot, since the configured value is the one the deployer holds.
+// bootstrapTenant converges the tenant and whoever gets in first. Nothing
+// changes when it is all already there.
 func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 	tenant := alias(b.Tenant)
 	org, err := p.admin.organizationByAlias(ctx, tenant)
@@ -276,7 +274,24 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 	} else if err != nil {
 		return fmt.Errorf("resolve organization: %w", err)
 	}
+	if b.ClientID != "" {
+		if err := p.bootstrapServiceAccount(ctx, org, b); err != nil {
+			return err
+		}
+	}
+	if b.AdminEmail != "" {
+		return p.bootstrapAdmin(ctx, org, b.AdminEmail)
+	}
+	return nil
+}
 
+// bootstrapServiceAccount converges the admin service account that drives
+// the tenant, with the secret the deployer chose. An SDK can then act on the
+// deployment before any person has signed in. A secret rotated elsewhere is
+// set back on the next boot, since the configured value is the one the
+// deployer holds.
+func (p *Provider) bootstrapServiceAccount(ctx context.Context, org organizationRep, b Bootstrap) error {
+	attributes := map[string]string{managedKey: "true", tenantKey: org.Alias}
 	client, err := p.admin.clientByClientID(ctx, b.ClientID)
 	if isStatus(err, http.StatusNotFound) {
 		id, err := p.admin.createClient(ctx, clientRep{
@@ -284,18 +299,18 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 			Secret:                 b.ClientSecret,
 			Name:                   b.ClientID,
 			ServiceAccountsEnabled: true,
-			Attributes:             map[string]string{managedKey: "true", tenantKey: tenant},
+			Attributes:             attributes,
 		})
 		if err != nil {
 			return fmt.Errorf("create client: %w", err)
 		}
-		client = clientRep{ID: id, ClientID: b.ClientID, Attributes: map[string]string{managedKey: "true", tenantKey: tenant}}
+		client = clientRep{ID: id, ClientID: b.ClientID, Attributes: attributes}
 	} else if err != nil {
 		return fmt.Errorf("resolve client: %w", err)
 	}
 	// A client filament did not create, or one that belongs to another
 	// tenant, is never taken over.
-	if client.Attributes[managedKey] != "true" || client.Attributes[tenantKey] != tenant {
+	if client.Attributes[managedKey] != "true" || client.Attributes[tenantKey] != org.Alias {
 		return fmt.Errorf("client %q exists and is not this tenant's service account", b.ClientID)
 	}
 	current, err := p.admin.clientSecret(ctx, client.ID)
@@ -326,4 +341,73 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 		return fmt.Errorf("grant admin: %w", err)
 	}
 	return nil
+}
+
+// bootstrapAdmin converges the person invited to administer the tenant. A
+// new user is invited with the Admin role and the link is logged. An
+// unredeemed invitation is reissued, so a lost link is one restart away. A
+// redeemed one is left alone: a restart never logs a way into an account
+// someone already holds, and the members page owns the role from then on.
+//
+// The realm's user profile requires a name before anyone can sign in; the
+// address supplies one until the admin is known by a better one.
+func (p *Provider) bootstrapAdmin(ctx context.Context, org organizationRep, email string) error {
+	user, err := p.admin.userByEmail(ctx, email)
+	if isStatus(err, http.StatusNotFound) {
+		code, attributes, err := newInvite()
+		if err != nil {
+			return err
+		}
+		local, _, _ := strings.Cut(email, "@")
+		id, err := p.admin.createUser(ctx, userRep{
+			Username:   email,
+			Email:      email,
+			FirstName:  local,
+			LastName:   local,
+			Enabled:    true,
+			Attributes: attributes,
+		})
+		if err != nil {
+			return fmt.Errorf("create admin: %w", err)
+		}
+		if err := p.admin.addMember(ctx, org.ID, id); err != nil {
+			return fmt.Errorf("add member: %w", p.discardUser(ctx, id, err))
+		}
+		if err := p.grantRole(ctx, id, identity.RoleKey(authv1.Role_ROLE_ADMIN)); err != nil {
+			return fmt.Errorf("grant admin: %w", p.discardUser(ctx, id, err))
+		}
+		p.logInvite(email, id, code)
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("resolve admin: %w", err)
+	}
+	raw, err := p.admin.getUserRaw(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("read admin: %w", err)
+	}
+	attributes, _ := raw["attributes"].(map[string]any)
+	if attribute(attributes, inviteHashKey) == "" {
+		return nil
+	}
+	code, fresh, err := newInvite()
+	if err != nil {
+		return err
+	}
+	for key, values := range fresh {
+		attributes[key] = values
+	}
+	raw["attributes"] = attributes
+	if err := p.admin.putUser(ctx, user.ID, raw); err != nil {
+		return fmt.Errorf("reissue invitation: %w", err)
+	}
+	p.logInvite(email, user.ID, code)
+	return nil
+}
+
+// logInvite hands the deployer the link that redeems the admin's invitation.
+func (p *Provider) logInvite(email, userID, code string) {
+	p.log.Info("bootstrap admin invited; open the link to set a password",
+		filament.Field{Key: "email", Value: email},
+		filament.Field{Key: "url", Value: identity.InviteURL(p.uiOrigin, userID, code)},
+	)
 }

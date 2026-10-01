@@ -178,12 +178,13 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| auth.bootstrap.adminEmail | string | `""` | Person invited to administer the tenant, stored as `AUTH_BOOTSTRAP_ADMIN_EMAIL`. The server logs the invitation link on every boot until it is redeemed. Closes sign-up: people join by invitation. Required with `tenant` unless a Keycloak service account is set. |
+| auth.bootstrap.tenant | string | `""` | Tenant converged on every boot, stored as `AUTH_BOOTSTRAP_TENANT`. |
 | auth.enabled | bool | `false` | Enable authentication. Disabled leaves the API unauthenticated and every request scoped to the default tenant. |
 | auth.keycloak.adminPassword | string | `""` | Master-realm admin password, stored as `AUTH_ADMIN_PASSWORD` in the dedicated Keycloak Secret. Required when vendored unless `keycloak.existingSecret` is set. Changing it does not rotate the password stored in Keycloak; rotate there first. |
 | auth.keycloak.adminUser | string | `""` | Master-realm admin, stored as `AUTH_ADMIN_USERNAME`. With `adminPassword` the server creates the realm and client on boot. For vendored Keycloak use `keycloak.adminUser`; this value is ignored. |
-| auth.keycloak.bootstrap.clientId | string | `""` | The service account's client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`. |
+| auth.keycloak.bootstrap.clientId | string | `""` | Admin service account on the `auth.bootstrap.tenant`, so an SDK works before anyone signs in. Its client id, stored as `AUTH_BOOTSTRAP_CLIENT_ID`. Set with `clientSecret` or not at all. |
 | auth.keycloak.bootstrap.clientSecret | string | `""` | Its secret, stored as `AUTH_BOOTSTRAP_CLIENT_SECRET`. With `keycloak.existingSecret`, supply that key in the Secret instead. |
-| auth.keycloak.bootstrap.tenant | string | `""` | Tenant created on boot with an admin service account, so an SDK works before anyone registers. Stored as `AUTH_BOOTSTRAP_TENANT`. Set all three or none. |
 | auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
 | auth.keycloak.clientSecret | string | required unless `keycloak.existingSecret` is set | The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated Keycloak Secret. Supply a stable value; the chart never generates it. |
 | auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |

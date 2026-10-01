@@ -17,6 +17,11 @@
 // organizations, its roles on the client, the token shape, and the attribute
 // policy invitations rely on. Keycloak 26 or newer.
 //
+// A bootstrap tenant is converged on boot with whoever gets in first: an
+// admin service account for an SDK, a person invited as admin, or both. An
+// invited admin closes sign-up: registration is refused and everyone else
+// is invited.
+//
 // It is a separate module so its OIDC dependencies stay out of the core
 // module every connector builds against.
 package keycloak
@@ -35,6 +40,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 
+	"github.com/galaxy-io/filament"
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 	"github.com/galaxy-io/filament/identity"
@@ -57,22 +63,39 @@ type Options struct {
 	// create its realm and client when they are missing. Both or neither.
 	AdminUsername string
 	AdminPassword string
-	// Bootstrap, when set, is a tenant and an admin service account the
-	// provider converges on every boot, so a deployment can be driven by an
-	// SDK before any person has registered. All three fields or none.
+	// Bootstrap, when set, is a tenant converged on every boot with whoever
+	// gets in first.
 	Bootstrap Bootstrap
+	// Log receives the bootstrap admin's invitation link; required with
+	// Bootstrap.AdminEmail.
+	Log filament.Logger
 }
 
-// Bootstrap names a tenant and the service account that administers it.
+// Bootstrap names a tenant and who gets in first: a service account that
+// administers it, so an SDK can act before any person has signed in, a
+// person invited as admin, or both.
 type Bootstrap struct {
-	Tenant       string
+	Tenant string
+	// ClientID and ClientSecret are the service account's; both or neither.
 	ClientID     string
 	ClientSecret string
+	// AdminEmail is invited as admin. The link is logged on every boot until
+	// it is redeemed. Setting it closes sign-up.
+	AdminEmail string
 }
 
-func (b Bootstrap) set() bool { return b.Tenant != "" || b.ClientID != "" || b.ClientSecret != "" }
+func (b Bootstrap) set() bool {
+	return b.Tenant != "" || b.ClientID != "" || b.ClientSecret != "" || b.AdminEmail != ""
+}
 
-func (b Bootstrap) complete() bool { return b.Tenant != "" && b.ClientID != "" && b.ClientSecret != "" }
+// complete reports whether the bootstrap names a tenant and at least one way
+// into it.
+func (b Bootstrap) complete() bool {
+	if b.Tenant == "" || (b.ClientID == "") != (b.ClientSecret == "") {
+		return false
+	}
+	return b.ClientID != "" || b.AdminEmail != ""
+}
 
 // Provider implements filament's identity port against Keycloak.
 type Provider struct {
@@ -92,6 +115,12 @@ type Provider struct {
 	// secureCookies marks the session cookie Secure when the UI is served
 	// over https.
 	secureCookies bool
+	// uiOrigin is where invitation links point.
+	uiOrigin string
+	// inviteOnly refuses registration: an admin was bootstrapped and people
+	// join by invitation.
+	inviteOnly bool
+	log        filament.Logger
 	// callers caches session cookie -> cachedCaller so a browser's requests
 	// do not each round-trip to Keycloak.
 	callers sync.Map
@@ -107,7 +136,10 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		return nil, errors.New("keycloak: client id and secret are required")
 	}
 	if opts.Bootstrap.set() && !opts.Bootstrap.complete() {
-		return nil, errors.New("keycloak: bootstrap needs a tenant, a client id, and a client secret")
+		return nil, errors.New("keycloak: bootstrap needs a tenant and an admin email, a service account client id and secret, or both")
+	}
+	if opts.Bootstrap.AdminEmail != "" && opts.Log == nil {
+		return nil, errors.New("keycloak: a logger is required to deliver the bootstrap admin's invitation")
 	}
 	if (opts.AdminUsername == "") != (opts.AdminPassword == "") {
 		return nil, errors.New("keycloak: admin username and password go together")
@@ -147,6 +179,9 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		// The token source outlives boot and refreshes on this context.
 		admin:         &admin{base: adminBase, client: credentials.Client(context.WithoutCancel(ctx))},
 		secureCookies: strings.HasPrefix(opts.UIOrigin, "https://"),
+		uiOrigin:      opts.UIOrigin,
+		inviteOnly:    opts.Bootstrap.AdminEmail != "",
+		log:           opts.Log,
 	}
 	if err := p.bootstrap(ctx); err != nil {
 		return nil, fmt.Errorf("keycloak bootstrap: %w", err)
@@ -239,6 +274,7 @@ func (p *Provider) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.Ge
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{
 		Issuer:               p.issuer,
 		ServiceAccountScopes: []string{"openid", "organization"},
+		InviteOnly:           p.inviteOnly,
 	}), nil
 }
 
