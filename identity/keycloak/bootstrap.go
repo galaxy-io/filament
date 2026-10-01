@@ -280,7 +280,7 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 		}
 	}
 	if b.AdminEmail != "" {
-		return p.bootstrapAdmin(ctx, org, b.AdminEmail)
+		return p.bootstrapAdmin(ctx, org, b.Tenant, b.AdminEmail)
 	}
 	return nil
 }
@@ -350,20 +350,19 @@ func (p *Provider) bootstrapServiceAccount(ctx context.Context, org organization
 // someone already holds, and the members page owns the role from then on.
 //
 // The realm's user profile requires a name before anyone can sign in; the
-// address supplies one until the admin is known by a better one.
-func (p *Provider) bootstrapAdmin(ctx context.Context, org organizationRep, email string) error {
+// tenant supplies one until the admin is known by a better one.
+func (p *Provider) bootstrapAdmin(ctx context.Context, org organizationRep, tenant, email string) error {
 	user, err := p.admin.userByEmail(ctx, email)
 	if isStatus(err, http.StatusNotFound) {
 		code, attributes, err := newInvite()
 		if err != nil {
 			return err
 		}
-		local, _, _ := strings.Cut(email, "@")
 		id, err := p.admin.createUser(ctx, userRep{
 			Username:   email,
 			Email:      email,
-			FirstName:  local,
-			LastName:   local,
+			FirstName:  tenant,
+			LastName:   "Admin",
 			Enabled:    true,
 			Attributes: attributes,
 		})

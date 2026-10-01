@@ -3,7 +3,6 @@ package zitadel
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/auth"
 	authorizationv2 "github.com/zitadel/zitadel-go/v3/pkg/client/zitadel/authorization/v2"
@@ -178,7 +177,7 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 		}
 		orgID = created.GetOrganizationId()
 	}
-	return p.bootstrapAdmin(ctx, orgID, b.AdminEmail)
+	return p.bootstrapAdmin(ctx, orgID, b.Tenant, b.AdminEmail)
 }
 
 // bootstrapAdmin converges the person invited to administer the tenant. A
@@ -187,9 +186,9 @@ func (p *Provider) bootstrapTenant(ctx context.Context, b Bootstrap) error {
 // redeemed one is left alone: a restart never logs a way into an account
 // someone already holds, and the members page owns the role from then on.
 //
-// Zitadel requires a name on every human; the address supplies one until
-// the admin is known by a better one.
-func (p *Provider) bootstrapAdmin(ctx context.Context, orgID, email string) error {
+// Zitadel requires a name on every human; the tenant supplies one until the
+// admin is known by a better one.
+func (p *Provider) bootstrapAdmin(ctx context.Context, orgID, tenant, email string) error {
 	users, err := p.api.UserServiceV2().ListUsers(ctx, &userv2.ListUsersRequest{
 		Queries: []*userv2.SearchQuery{
 			{Query: &userv2.SearchQuery_OrganizationIdQuery{
@@ -215,12 +214,11 @@ func (p *Provider) bootstrapAdmin(ctx context.Context, orgID, email string) erro
 		p.logInvite(email, user.GetUserId(), invite)
 		return nil
 	}
-	local, _, _ := strings.Cut(email, "@")
 	created, err := p.api.UserServiceV2().CreateUser(ctx, &userv2.CreateUserRequest{
 		OrganizationId: orgID,
 		UserType: &userv2.CreateUserRequest_Human_{
 			Human: &userv2.CreateUserRequest_Human{
-				Profile: &userv2.SetHumanProfile{GivenName: local, FamilyName: local},
+				Profile: &userv2.SetHumanProfile{GivenName: tenant, FamilyName: "Admin"},
 				Email:   &userv2.SetHumanEmail{Email: email},
 			},
 		},
