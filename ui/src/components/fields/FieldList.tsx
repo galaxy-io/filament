@@ -1,7 +1,7 @@
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiTextInput from "@galaxy-io/dls/inputs/MultiTextInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -31,19 +31,22 @@ const FieldList = ({
 
   if (field.name === "brokers" && field.enum.length === 0) {
     return (
-      <TextInput
-        value={typeof selected[0] === "string" ? selected[0] : ""}
-        onChange={(address) => onChange(address ? [address] : [])}
-        size={InputSize.LARGE}
-        variant={variant}
-        label="Instance address"
-        placeholder="localhost:9092"
-        labelTooltip="Kafka bootstrap instance address (host:port)."
+      <FieldWrapper
+        label={label}
+        help="Kafka bootstrap broker addresses (host:port). Press Enter or comma to add an address."
         isRequired={field.required}
-        error={error}
-        isDisabled={isDisabled}
-        fillWidth
-      />
+      >
+        <MultiTextInput
+          value={selected.filter((address): address is string => typeof address === "string")}
+          onChange={onChange}
+          size={InputSize.LARGE}
+          variant={variant}
+          placeholder="localhost:9092"
+          error={error}
+          isDisabled={isDisabled}
+          fillWidth
+        />
+      </FieldWrapper>
     );
   }
 
