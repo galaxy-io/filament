@@ -98,23 +98,9 @@ func (s *Source) PlanResources(ctx context.Context, resources, selectors []strin
 	for _, topic := range missing {
 		plan := plans[topic]
 		slices.SortFunc(plan.partitions, func(a, b boundedPartition) int { return int(a.key.partition - b.key.partition) })
-		var payload []byte
-		found := false
-		for _, part := range plan.partitions {
-			for next := part.start; next < part.end; {
-				records, advanced, err := s.fetchBounded(ctx, part, next)
-				if err != nil {
-					return nil, err
-				}
-				next = advanced
-				if len(records) > 0 {
-					payload, found = records[0].Value, true
-					break
-				}
-			}
-			if found {
-				break
-			}
+		payload, err := plan.schemaPayload(ctx, s.fetchBounded)
+		if err != nil {
+			return nil, err
 		}
 		plan.columns, plan.schema, err = streamkit.NewMessageColumns(messageBaseSchema(topic), payload)
 		if err != nil {
@@ -125,6 +111,26 @@ func (s *Source) PlanResources(ctx context.Context, resources, selectors []strin
 		s.bounded[topic] = plan
 	}
 	return selected, nil
+}
+
+// schemaPayload searches the entire captured window before falling back to a
+// raw schema for an empty topic or a window containing only tombstones.
+func (p *boundedTopic) schemaPayload(ctx context.Context, fetch func(context.Context, boundedPartition, int64) ([]*kgo.Record, int64, error)) ([]byte, error) {
+	for _, part := range p.partitions {
+		for next := part.start; next < part.end; {
+			records, advanced, err := fetch(ctx, part, next)
+			if err != nil {
+				return nil, err
+			}
+			for _, record := range records {
+				if record.Value != nil {
+					return record.Value, nil
+				}
+			}
+			next = advanced
+		}
+	}
+	return nil, nil
 }
 
 // fetchBounded uses the client's record parser so control batches, aborted

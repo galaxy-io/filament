@@ -1,11 +1,14 @@
 package source
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"hash/crc32"
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
@@ -55,5 +58,49 @@ func TestBoundedConfigurationAndCapabilities(t *testing.T) {
 	spec := s.Spec()
 	if len(spec.Modes) != 1 || spec.Modes[0] != filament.ModeFull || len(spec.SourcePolicies) == 0 || spec.Stream == nil {
 		t.Fatalf("missing bounded/continuous capabilities: %+v", spec)
+	}
+}
+
+func TestBoundedSchemaSkipsTombstones(t *testing.T) {
+	json := []byte(`{"value":"first"}`)
+	for _, tc := range []struct {
+		name    string
+		batches [][][]byte
+		want    []byte
+		calls   int
+	}{
+		{"same fetch", [][][]byte{{nil, json}}, json, 1},
+		{"later fetch", [][][]byte{{nil}, {nil, json}}, json, 2},
+		{"later partition", [][][]byte{{nil}, {nil}, {json}}, json, 3},
+		{"only tombstones", [][][]byte{{nil}, {nil}, {nil}}, nil, 3},
+		{"empty window", [][][]byte{nil, nil, nil}, nil, 3},
+		{"empty payload is not a tombstone", [][][]byte{{nil, {}}, {json}}, []byte{}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := boundedTopic{partitions: []boundedPartition{
+				{key: partitionKey{"events", 0}, end: 2},
+				{key: partitionKey{"events", 1}, end: 1},
+			}}
+			calls := 0
+			got, err := plan.schemaPayload(t.Context(), func(_ context.Context, part boundedPartition, next int64) ([]*kgo.Record, int64, error) {
+				index := int(next) + int(part.key.partition)*2
+				var records []*kgo.Record
+				for _, value := range tc.batches[index] {
+					records = append(records, &kgo.Record{Value: value})
+				}
+				calls++
+				return records, next + 1, nil
+			})
+			if err != nil || !bytes.Equal(got, tc.want) || (got == nil) != (tc.want == nil) || calls != tc.calls {
+				t.Fatalf("payload=%q calls=%d err=%v", got, calls, err)
+			}
+		})
+	}
+	plan := boundedTopic{partitions: []boundedPartition{{end: 1}}}
+	want := errors.New("fetch failed")
+	if _, err := plan.schemaPayload(t.Context(), func(context.Context, boundedPartition, int64) ([]*kgo.Record, int64, error) {
+		return nil, 0, want
+	}); !errors.Is(err, want) {
+		t.Fatalf("fetch error: %v", err)
 	}
 }

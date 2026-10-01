@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"sync"
@@ -20,22 +21,29 @@ type consumer interface {
 	PollRecords(context.Context, int) kgo.Fetches
 	Close()
 }
+
+// Bound the number of records retained while waiting for a schema payload.
+const maxPendingTombstones = 10000
+
 type session struct {
-	consumer   consumer
-	metadata   *kgo.Client
-	lifecycle  stream.SourceLifecycle
-	topics     []string
-	identity   string
-	partitions map[partitionKey]*partitionState
-	writers    map[string]arrowbatch.RowWriter
-	columns    map[string]*streamkit.MessageColumns
-	projectors map[string]*streamkit.Projector
-	codecs     filament.CodecResolver
-	validate   func(context.Context) error
-	closeOnce  sync.Once
-	closeDone  chan struct{}
-	closed     bool
-	closeErr   error
+	pending      map[string][]*kgo.Record
+	pendingCount int
+	ready        []*kgo.Record
+	consumer     consumer
+	metadata     *kgo.Client
+	lifecycle    stream.SourceLifecycle
+	topics       []string
+	identity     string
+	partitions   map[partitionKey]*partitionState
+	writers      map[string]arrowbatch.RowWriter
+	columns      map[string]*streamkit.MessageColumns
+	projectors   map[string]*streamkit.Projector
+	codecs       filament.CodecResolver
+	validate     func(context.Context) error
+	closeOnce    sync.Once
+	closeDone    chan struct{}
+	closed       bool
+	closeErr     error
 }
 
 // OpenStream opens a fixed set of partitions from certified progress.
@@ -159,6 +167,15 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		coverage.Positions = initial
 		return coverage, s.lifecycle.MarkRead(coverage)
 	}
+	if len(s.ready) > 0 {
+		if err := s.lifecycle.CheckAuthority(ctx); err != nil {
+			return coverage, err
+		}
+		r := s.ready[0]
+		s.ready[0] = nil
+		s.ready = s.ready[1:]
+		return s.readRecord(ctx, out, r)
+	}
 	readCtx, cancel := context.WithTimeout(ctx, b.MaxWait)
 	defer cancel()
 	fetched := s.consumer.PollRecords(readCtx, 1)
@@ -189,6 +206,18 @@ func (s *session) readRecord(ctx context.Context, out filament.StreamRecordSink,
 	}
 	writer := s.writers[r.Topic]
 	if writer == nil {
+		if r.Value == nil {
+			if s.pendingCount >= maxPendingTombstones {
+				return coverage, fmt.Errorf("kafka: schema lookahead exceeded %d tombstones without a payload", maxPendingTombstones)
+			}
+			if s.pending == nil {
+				s.pending = map[string][]*kgo.Record{}
+			}
+			s.pending[r.Topic] = append(s.pending[r.Topic], r)
+			s.pendingCount++
+			// Do not certify these offsets until their rows can be emitted.
+			return coverage, nil
+		}
 		columns, schema, err := streamkit.NewMessageColumns(messageBaseSchema(r.Topic), r.Value)
 		if err != nil {
 			return coverage, err
@@ -203,6 +232,16 @@ func (s *session) readRecord(ctx context.Context, out filament.StreamRecordSink,
 			s.columns = map[string]*streamkit.MessageColumns{}
 		}
 		s.columns[r.Topic] = columns
+		if pending := s.pending[r.Topic]; len(pending) > 0 {
+			s.ready = pending
+			s.ready = append(s.ready, r)
+			s.pendingCount -= len(pending)
+			delete(s.pending, r.Topic)
+			first := s.ready[0]
+			s.ready[0] = nil
+			s.ready = s.ready[1:]
+			return s.readRecord(ctx, out, first)
+		}
 	}
 	if err := appendRecord(writer, s.projectors[r.Topic], s.columns[r.Topic], p.domain, r); err != nil {
 		return coverage, err

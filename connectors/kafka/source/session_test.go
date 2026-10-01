@@ -51,7 +51,7 @@ func (s *collectingSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filamen
 func testSession(t *testing.T, initial bool) (*session, *fakeConsumer, filament.StreamRecordSink, *collectingSink) {
 	t.Helper()
 	d := filament.DomainKey{Domain: "topic/0", Incarnation: "cluster/topic-id"}
-	f := &fakeConsumer{records: []*kgo.Record{{Topic: "events", Partition: 0, Offset: 4, Key: []byte{}, Value: nil, Timestamp: time.Now()}}}
+	f := &fakeConsumer{records: []*kgo.Record{{Topic: "events", Partition: 0, Offset: 4, Key: []byte{}, Value: []byte("message"), Timestamp: time.Now()}}}
 	s := &session{consumer: f, partitions: map[partitionKey]*partitionState{{"events", 0}: {domain: d, next: 0, initial: initial}}, writers: map[string]arrowbatch.RowWriter{}, projectors: nil, codecs: New()}
 	s.projectors = map[string]*streamkit.Projector{}
 	var err error
@@ -268,5 +268,74 @@ func TestAuthorityLossPreventsAcknowledgment(t *testing.T) {
 	}
 	if !s.partitions[partitionKey{"events", 0}].initial {
 		t.Fatal("acknowledged without authority")
+	}
+}
+
+func TestLeadingTombstonesWaitForSchema(t *testing.T) {
+	s, f, out, sink := testSession(t, false)
+	f.records = []*kgo.Record{
+		{Topic: "events", Offset: 0},
+		{Topic: "events", Offset: 1},
+	}
+	boundary := filament.Boundary{MaxWait: time.Second, MaxRecords: 1}
+	for range 3 { // Includes an idle poll while the payload has not arrived.
+		coverage, err := s.Read(t.Context(), out, boundary)
+		if err != nil || len(coverage.Positions) != 0 || sink.rows != 0 || s.writers["events"] != nil || s.columns["events"] != nil {
+			t.Fatalf("tombstone initialized schema or advanced progress: %+v %v", coverage, err)
+		}
+	}
+	f.records = []*kgo.Record{
+		{Topic: "events", Offset: 2, Value: []byte(`{"value":"first"}`)},
+		{Topic: "events", Offset: 3},
+	}
+	sink.inspect = func(b *arrowbatch.Batch) {
+		schema := b.Rows().Schema()
+		indices := schema.FieldIndices("value")
+		if len(indices) != 1 {
+			t.Error("leading tombstone selected raw schema")
+			return
+		}
+		values := b.Rows().Column(indices[0]).(*array.String)
+		offsets := b.Rows().Column(schema.FieldIndices("offset")[0]).(*array.Int64)
+		tombstones := b.Rows().Column(schema.FieldIndices("tombstone")[0]).(*array.Boolean)
+		for i := 0; i < b.NumRows(); i++ {
+			wantOffset := int64(sink.rows - b.NumRows() + i)
+			if offsets.Value(i) != wantOffset || tombstones.Value(i) != (wantOffset != 2) || values.IsNull(i) != (wantOffset != 2) {
+				t.Errorf("wrong row at offset %d", wantOffset)
+			}
+			if wantOffset == 2 && values.Value(i) != "first" {
+				t.Error("lost JSON payload")
+			}
+		}
+	}
+	for next := int64(1); next <= 4; next++ {
+		coverage, err := s.Read(t.Context(), out, boundary)
+		if err != nil || len(coverage.Positions) != 1 {
+			t.Fatalf("read: %+v %v", coverage, err)
+		}
+		p := s.partitions[partitionKey{"events", 0}]
+		got, err := offset(coverage.Positions[p.domain])
+		if err != nil || got != next || p.next != next-1 || sink.rows != int(next) {
+			t.Fatalf("out of order progress: offset=%d committed=%d rows=%d err=%v", got, p.next, sink.rows, err)
+		}
+		if err := s.Acknowledge(t.Context(), coverage); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.pendingCount != 0 || len(s.pending) != 0 || len(s.ready) != 0 {
+		t.Fatal("retained emitted records")
+	}
+}
+
+func TestTombstoneLookaheadLimitDoesNotAdvanceProgress(t *testing.T) {
+	s, f, out, sink := testSession(t, false)
+	s.pendingCount = maxPendingTombstones
+	f.records[0].Value = nil
+	coverage, err := s.Read(t.Context(), out, filament.Boundary{MaxWait: time.Second})
+	if err == nil || len(coverage.Positions) != 0 || sink.rows != 0 || s.partitions[partitionKey{"events", 0}].next != 0 {
+		t.Fatalf("lookahead limit advanced progress: %+v %v", coverage, err)
+	}
+	if err := s.Acknowledge(t.Context(), coverage); err == nil {
+		t.Fatal("acknowledged failed lookahead")
 	}
 }
