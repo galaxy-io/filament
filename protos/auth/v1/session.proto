@@ -13,6 +13,9 @@ message GetAuthConfigResponse {
   // provider owns these values so clients do not need provider-specific
   // project IDs or reserved scope knowledge.
   repeated string service_account_scopes = 2;
+  // invite_only means sign-up is closed: Register is refused and the UI
+  // offers no way to create an organization. People join by invitation.
+  bool invite_only = 3;
 }
 
 // LoginRequest carries the credentials filament's own login page collected.

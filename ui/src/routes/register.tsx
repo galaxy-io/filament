@@ -4,7 +4,7 @@ import RegisterPage from "@/pages/auth/RegisterPage";
 
 export const Route = createFileRoute("/register")({
   beforeLoad: ({ context }) => {
-    if (!context.authConfig.issuer) {
+    if (!context.authConfig.issuer || context.authConfig.inviteOnly) {
       throw redirect({ to: "/" });
     }
   },

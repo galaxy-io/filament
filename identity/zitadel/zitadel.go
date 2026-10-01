@@ -4,6 +4,10 @@
 // accounts use. The server is Zitadel's only client: browsers hold a session
 // cookie and never learn the issuer.
 //
+// A bootstrap tenant is converged on boot with a person who administers it
+// with a password the deployer chose, which closes sign-up: registration is
+// refused and everyone else is invited.
+//
 // It is a separate module so its gRPC and SDK dependencies stay out of the
 // core module every connector builds against.
 package zitadel
@@ -44,6 +48,23 @@ type Options struct {
 	// UIOrigin is the origin the UI is served from; https marks the session
 	// cookie Secure.
 	UIOrigin string
+	// Bootstrap, when set, is a tenant converged on every boot with the
+	// person who administers it.
+	Bootstrap Bootstrap
+}
+
+// Bootstrap names a tenant and the person who administers it, with the
+// password the deployer chose. All fields or none.
+type Bootstrap struct {
+	Tenant        string
+	AdminEmail    string
+	AdminPassword string
+}
+
+func (b Bootstrap) set() bool { return b.Tenant != "" || b.AdminEmail != "" || b.AdminPassword != "" }
+
+func (b Bootstrap) complete() bool {
+	return b.Tenant != "" && b.AdminEmail != "" && b.AdminPassword != ""
 }
 
 // Provider implements filament's identity port against Zitadel.
@@ -59,6 +80,9 @@ type Provider struct {
 	// secureCookies marks the session cookie Secure when the UI is served
 	// over https.
 	secureCookies bool
+	// inviteOnly refuses registration: an admin was bootstrapped and people
+	// join by invitation.
+	inviteOnly bool
 	// callers caches sessionRef -> cachedCaller so a browser's requests do
 	// not each round-trip to Zitadel.
 	callers sync.Map
@@ -76,6 +100,9 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 	if opts.PAT == "" {
 		return nil, errors.New("zitadel: personal access token is required")
 	}
+	if opts.Bootstrap.set() && !opts.Bootstrap.complete() {
+		return nil, errors.New("zitadel: bootstrap needs a tenant, an admin email, and an admin password")
+	}
 	issuer := strings.TrimRight(opts.Issuer, "/")
 	target, err := dialTarget(issuer)
 	if err != nil {
@@ -91,10 +118,22 @@ func New(ctx context.Context, opts Options) (*Provider, error) {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel: discover %s: %w", issuer, err)
 	}
-	p := &Provider{issuer: issuer, tokenEndpoint: discovered.TokenEndpoint, api: api, secureCookies: strings.HasPrefix(opts.UIOrigin, "https://")}
+	p := &Provider{
+		issuer:        issuer,
+		tokenEndpoint: discovered.TokenEndpoint,
+		api:           api,
+		secureCookies: strings.HasPrefix(opts.UIOrigin, "https://"),
+		inviteOnly:    opts.Bootstrap.AdminEmail != "",
+	}
 	if err := p.bootstrap(ctx); err != nil {
 		_ = api.Close()
 		return nil, fmt.Errorf("zitadel bootstrap: %w", err)
+	}
+	if opts.Bootstrap.set() {
+		if err := p.bootstrapTenant(ctx, opts.Bootstrap); err != nil {
+			_ = api.Close()
+			return nil, fmt.Errorf("zitadel bootstrap tenant %q: %w", opts.Bootstrap.Tenant, err)
+		}
 	}
 	verifier, err := zitadeloauth.WithJWT(p.project.id, http.DefaultClient)(ctx, target)
 	if err != nil {
@@ -179,6 +218,7 @@ func (p *Provider) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.Ge
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{
 		Issuer:               p.issuer,
 		ServiceAccountScopes: p.serviceAccountScopes(),
+		InviteOnly:           p.inviteOnly,
 	}), nil
 }
 

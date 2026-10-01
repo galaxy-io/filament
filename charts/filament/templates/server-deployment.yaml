@@ -86,6 +86,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "filament.auth.mintedPatSecret" . | default (.Values.auth.zitadel.existingSecret | default (printf "%s-zitadel-auth" .Release.Name)) }}
                   key: {{ ternary "pat" "AUTH_PAT" .Values.zitadel.enabled }}
+            {{- if .Values.auth.bootstrap.adminEmail }}
+            - name: AUTH_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.zitadel.existingSecret | default (printf "%s-zitadel-auth" .Release.Name) }}
+                  key: AUTH_BOOTSTRAP_ADMIN_PASSWORD
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
