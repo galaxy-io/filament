@@ -37,12 +37,15 @@ data:
   {{- with ternary .Values.keycloak.adminUser .Values.auth.keycloak.adminUser .Values.keycloak.enabled }}
   AUTH_ADMIN_USERNAME: {{ . | quote }}
   {{- end }}
-  {{- with .Values.auth.keycloak.bootstrap }}
-  {{- if .tenant }}
-  AUTH_BOOTSTRAP_TENANT: {{ .tenant | quote }}
-  AUTH_BOOTSTRAP_CLIENT_ID: {{ .clientId | quote }}
+  {{- with .Values.auth.keycloak.bootstrap.clientId }}
+  AUTH_BOOTSTRAP_CLIENT_ID: {{ . | quote }}
   {{- end }}
   {{- end }}
+  {{- with .Values.auth.bootstrap.tenant }}
+  AUTH_BOOTSTRAP_TENANT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.auth.bootstrap.adminEmail }}
+  AUTH_BOOTSTRAP_ADMIN_EMAIL: {{ . | quote }}
   {{- end }}
   AUTH_UI_ORIGIN: {{ .Values.auth.uiOrigin | quote }}
   {{- end }}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
@@ -30,6 +30,7 @@ const DEFAULT_STATE: LoginPageState = {
 
 const LoginPage = () => {
   const { returnTo } = useSearch({ from: "/login" });
+  const { authConfig } = useRouteContext({ from: "/login" });
   const navigate = useNavigate();
   const [state, setState] = useState<LoginPageState>(DEFAULT_STATE);
   const { mutate: login, isPending } = useLoginMutation();
@@ -68,7 +69,9 @@ const LoginPage = () => {
       isPending={isPending}
       onSubmit={handleSubmit}
       footer={
-        <AuthFormFooter prompt="New to Filament?" to="/register" label="Create an organization" />
+        authConfig.inviteOnly ? undefined : (
+          <AuthFormFooter prompt="New to Filament?" to="/register" label="Create an organization" />
+        )
       }
     >
       <TextInput

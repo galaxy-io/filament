@@ -219,8 +219,12 @@ func (p *Provider) GetSession(ctx context.Context, _ *connect.Request[authv1.Get
 }
 
 // Register creates an organization and its first admin: filament's
-// self-service signup. The organization becomes the tenant.
+// self-service signup. The organization becomes the tenant. An invite-only
+// deployment refuses.
 func (p *Provider) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
+	if p.inviteOnly {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("sign-up is closed on this deployment; ask an admin for an invitation"))
+	}
 	m := req.Msg
 	if m.GetOrgName() == "" || m.GetGivenName() == "" || m.GetFamilyName() == "" || m.GetEmail() == "" || m.GetPassword() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("org_name, given_name, family_name, email, and password are required"))
