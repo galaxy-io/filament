@@ -61,7 +61,7 @@ event bus.
 | `SECRET_PROVIDER` | unset | Unset uses the configured datastore. External values are `aws-secrets-manager` and `gcp-secret-manager` |
 | `ENCRYPTION_KEY` | — | Base64-encoded AES key. Required when `SECRET_PROVIDER` is unset; it must decode to 16, 24, or 32 bytes |
 | `ENCRYPTION_KEY_ID` | `default` | Identifier stored with secrets written by the datastore-backed provider |
-| `SECRETS_PREFIX` | empty | Prefix added to external secret IDs; GCP prefixes may contain letters, digits, `_`, and `-` |
+| `SECRETS_PREFIX` | empty | Root name for external secrets, default `filament`. AWS names secrets `<prefix>/<tenant>/...` and GCP `<prefix>-<hash>`; GCP allows only letters, digits, `_`, and `-` |
 | `AWS_REGION` | AWS SDK chain | AWS region. Startup fails if the SDK cannot resolve one |
 | `GCP_PROJECT_ID` | — | GCP project containing Secret Manager secrets. Required for `gcp-secret-manager` |
 | `GCP_REGION` | — | GCP region containing Secret Manager secrets. Required for `gcp-secret-manager` |

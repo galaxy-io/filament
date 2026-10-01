@@ -19,7 +19,7 @@ import (
 // FromEnv selects the provider per SECRET_PROVIDER. Unset, secrets live in
 // the datastore: the provider is chosen by the store's native handle, so it
 // follows PERSISTENCE_PROVIDER. External providers use their SDK's default
-// credential chain and prefix refs with SECRETS_PREFIX when set.
+// credential chain and root secret names at SECRETS_PREFIX when set.
 func FromEnv(ctx context.Context, store filament.DataStore) (filament.Secrets, error) {
 	switch provider := os.Getenv("SECRET_PROVIDER"); provider {
 	case "":
