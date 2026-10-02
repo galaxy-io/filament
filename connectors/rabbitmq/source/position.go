@@ -55,3 +55,10 @@ func (*Source) Lookup(name string, version int) (rowmodel.PositionCodec, error) 
 func position(n int64) rowmodel.Position {
 	return rowmodel.Position{Codec: PositionCodec, Version: 0, Value: []byte(strconv.FormatInt(n, 10))}
 }
+
+func offset(p rowmodel.Position) (int64, error) {
+	if err := (OffsetCodec{}).Validate(p); err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(string(p.Value), 10, 64)
+}
