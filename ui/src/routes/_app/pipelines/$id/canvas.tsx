@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
+import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 import PipelineCanvasPage from "@/pages/pipelines/PipelineCanvasPage";
 
 const searchParams = z.object({
@@ -9,6 +10,8 @@ const searchParams = z.object({
   resource: z.string().optional().catch(undefined),
   showPanel: z.boolean().optional().catch(undefined),
   tab: z.enum(PipelineCanvasPanelTab).optional().catch(undefined),
+  view: z.enum(PipelineCanvasView).optional().catch(undefined),
+  sinks: z.array(z.string()).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_app/pipelines/$id/canvas")({

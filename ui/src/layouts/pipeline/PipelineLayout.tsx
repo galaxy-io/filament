@@ -3,14 +3,10 @@ import type { PropsWithChildren } from "react";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import {
-  PIPELINE_PREVIEW_CHIP_Z_INDEX,
-  PIPELINE_SIDEBAR_WIDTH,
-} from "@/layouts/pipeline/constants";
+import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutNavbarBackButton from "@/layouts/pipeline/PipelineLayoutNavbarBackButton";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
@@ -79,19 +75,11 @@ const ContentIsland = withTheme(styled.div<PropsWithTheme<{ $isPreview?: boolean
   overflow: hidden;
 `);
 
-const PreviewChipOverlay = styled.div`
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: ${PIPELINE_PREVIEW_CHIP_Z_INDEX};
-`;
-
 const PipelineLayout = ({ children }: PropsWithChildren) => {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
-  const previewed = usePipelinePreviewVersion();
-  const isPreview = previewed !== undefined;
+  const isPreview = usePipelinePreviewVersion() !== undefined;
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -123,14 +111,7 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
       <RightColumn>
         <PipelineLayoutNavbar />
         <ContentWrapper>
-          <ContentIsland $isPreview={isPreview}>
-            {isPreview && (
-              <PreviewChipOverlay>
-                <Chip label={`Version ${previewed.version}`} variant={ChipVariant.ERROR} />
-              </PreviewChipOverlay>
-            )}
-            {children}
-          </ContentIsland>
+          <ContentIsland $isPreview={isPreview}>{children}</ContentIsland>
         </ContentWrapper>
       </RightColumn>
     </LayoutWrapper>

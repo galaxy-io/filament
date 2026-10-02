@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, FunctionIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import FlexItem from "@galaxy-io/dls/containers/FlexItem";
@@ -176,6 +176,9 @@ const PipelineCanvasPanelResourceSection = ({
                   </Text>
                 </FlexItem>
                 <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} shrink={0}>
+                  {edge.data?.transform && (
+                    <Icon component={FunctionIcon} variant={IconVariant.BLUE} size={14} />
+                  )}
                   <ConnectorTile
                     connector={sourceConnection?.connector ?? ""}
                     kind={ConnectorKind.SOURCE}

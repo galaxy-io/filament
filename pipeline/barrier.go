@@ -59,8 +59,14 @@ func (p *Pipeline) Barrier(ctx context.Context, control rowmodel.Control) (Barri
 	in.sequence++
 	b.Seq = in.sequence
 	complete := make(chan BarrierReceipt, 1)
+	// With a transform, the control enters behind the batches the flush just
+	// queued for the transformer, so it cannot overtake them.
+	ch := p.batchCh
+	if p.transform != nil {
+		ch = p.transformCh
+	}
 	select {
-	case p.batchCh <- queuedBatch{batch: b, complete: complete}:
+	case ch <- queuedBatch{batch: b, complete: complete}:
 	case <-p.done:
 		b.Release()
 		return BarrierReceipt{}, in.failure()

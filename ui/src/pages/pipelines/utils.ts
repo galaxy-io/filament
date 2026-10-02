@@ -36,15 +36,14 @@ export const getRunPauseSignal = (run: RunInfo) => {
 export const getRunStopSignal = (run: RunInfo) =>
   isContinuousRun(run) ? RunSignal.STOP : RunSignal.CANCEL;
 
-const getBlockingRequirementMessages = (requirements: Requirement[]): string[] =>
-  requirements
-    .filter((requirement) => requirement.blocking)
-    .map((requirement) => requirement.message);
+export const getEdgeBlockingRequirements = (edge: EdgeValidation): Requirement[] =>
+  [...edge.requirements, ...edge.resources.flatMap((resource) => resource.requirements)].filter(
+    (requirement) => requirement.blocking,
+  );
 
 export const getEdgeValidationErrors = (edge: EdgeValidation): string[] => [
   ...edge.errors.map((error) => error.message),
-  ...getBlockingRequirementMessages(edge.requirements),
-  ...edge.resources.flatMap((resource) => getBlockingRequirementMessages(resource.requirements)),
+  ...getEdgeBlockingRequirements(edge).map((requirement) => requirement.message),
 ];
 
 export const getPipelineValidationErrors = (

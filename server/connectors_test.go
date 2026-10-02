@@ -44,6 +44,18 @@ func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]fila
 	}}, nil
 }
 
+// cursorOnlySource reports a full schema but names only its cursor, as a
+// source with a declared watermark does.
+type cursorOnlySource struct{ columnSource }
+
+func (s *cursorOnlySource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+	return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{
+		{Name: "id", Logical: filament.LogicalString},
+		{Name: "email", Logical: filament.LogicalString, Nullable: true},
+		{Name: resource + "_updated_at", Logical: filament.LogicalTimestamp},
+	}}, nil
+}
+
 type catalogSource struct{ name, displayName, description string }
 
 func (s *catalogSource) Spec() filament.ConnectorSpec {
@@ -285,6 +297,36 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	column := response.Msg.GetResources()[0].GetColumns()[0]
 	if !column.GetIsConfigurable() || !column.GetSupportsLookback() {
 		t.Fatalf("cursor capabilities did not round trip: %#v", column)
+	}
+}
+
+func TestGetResourceColumnsListsSchemaColumnsBesideTheCursor(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("columns", func() filament.Source {
+		return &cursorOnlySource{columnSource{counts: &columnSourceCounts{}}}
+	})
+	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+
+	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
+		Connector: "columns",
+		Resources: []string{"orders"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	columns := response.Msg.GetResources()[0].GetColumns()
+	if len(columns) != 3 {
+		t.Fatalf("columns = %d, want 3: %#v", len(columns), columns)
+	}
+	id, email, cursor := columns[0], columns[1], columns[2]
+	if id.GetName() != "id" || !id.GetIsPrimaryKey() || id.GetIsCursorEligible() {
+		t.Fatalf("id = %#v", id)
+	}
+	if email.GetName() != "email" || email.GetIsPrimaryKey() || email.GetIsCursorEligible() {
+		t.Fatalf("email = %#v", email)
+	}
+	if cursor.GetName() != "orders_updated_at" || !cursor.GetIsCursorEligible() || !cursor.GetSupportsLookback() {
+		t.Fatalf("cursor = %#v", cursor)
 	}
 }
 

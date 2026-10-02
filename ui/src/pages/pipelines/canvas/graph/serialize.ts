@@ -40,6 +40,7 @@ export const getCanvasEdgeConfig = (
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
+  transform: edge.data && "transform" in edge.data ? edge.data.transform : baseEdge?.transform,
 });
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
@@ -119,7 +120,7 @@ export const mapCanvasStateToVersionRequest = (
       selector: baseEdge?.selector ?? "",
       ...getCanvasEdgeConfig(edge, baseEdge),
       ...(executionMode === ExecutionMode.CONTINUOUS
-        ? { readMode: ReadMode.UNSPECIFIED, cursors: [] }
+        ? { readMode: ReadMode.UNSPECIFIED, cursors: [], transform: undefined }
         : {}),
     };
   });

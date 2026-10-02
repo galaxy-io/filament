@@ -8,6 +8,7 @@ import {
   PauseIcon,
   PlayIcon,
   StopIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
@@ -22,7 +23,7 @@ import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Tooltip, { TooltipPosition, TooltipVariant } from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
@@ -45,6 +46,7 @@ import {
   PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
 } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
+import PipelineLayoutNavbarSaveIssues from "@/layouts/pipeline/PipelineLayoutNavbarSaveIssues";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
@@ -53,6 +55,11 @@ import {
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+  usePipelineCanvasValidation,
+} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import {
   usePipelineCanvasActions,
@@ -133,6 +140,18 @@ const PipelineLayoutNavbar = () => {
         tab: PipelineCanvasPanelTab.ACTIVITY,
       }),
     });
+  const showResource = (edgeId: string) =>
+    void navigate({
+      to: "/pipelines/$id/canvas",
+      params: { id },
+      search: (prev) => ({
+        ...prev,
+        node: undefined,
+        resource: edgeId,
+        showPanel: true,
+        tab: undefined,
+      }),
+    });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
@@ -176,6 +195,25 @@ const PipelineLayoutNavbar = () => {
   const graphConflicts = useMemo(
     () => getPipelineGraphConflicts(state.edges, connectionByNodeId),
     [state.edges, connectionByNodeId],
+  );
+  const { issues, isPending: isValidatingCanvas, isError } = usePipelineCanvasValidation();
+  const saveIssues = useMemo(
+    () => [
+      ...graphConflicts.map<PipelineCanvasValidationIssue>((message) => ({
+        kind: PipelineCanvasValidationIssueKind.GRAPH,
+        message,
+      })),
+      ...issues,
+      ...(isError
+        ? [
+            {
+              kind: PipelineCanvasValidationIssueKind.GRAPH,
+              message: "Unable to validate this pipeline.",
+            },
+          ]
+        : []),
+    ],
+    [graphConflicts, issues, isError],
   );
 
   const runErrors = useMemo(
@@ -333,16 +371,21 @@ const PipelineLayoutNavbar = () => {
 
       <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
         {isPreview && (
-          <Button
-            label="Back to latest"
-            icon={ArrowUUpLeftIcon}
-            variant={ButtonVariant.TERTIARY}
-            size={ButtonSize.SMALL}
-            onClick={() => handlePreviewVersionChange(null)}
-          />
+          <>
+            <Button
+              label="Back to latest"
+              icon={ArrowUUpLeftIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.SMALL}
+              onClick={() => handlePreviewVersionChange(null)}
+            />
+            <Chip label={`Version ${previewVersion}`} variant={ChipVariant.ERROR} />
+          </>
         )}
         {!isPreview && hasUnsavedChanges && (
-          <Chip label="Unsaved changes" variant={ChipVariant.ERROR} />
+          <Text size={TextSize.BODY_SM} variant={TextVariant.WARNING}>
+            Unsaved changes
+          </Text>
         )}
         {!isPreview &&
           (hasUnsavedChanges ? (
@@ -354,21 +397,34 @@ const PipelineLayoutNavbar = () => {
                 size={ButtonSize.SMALL}
                 onClick={handleUndo}
               />
-              <Tooltip
-                body={graphConflicts.join("\n")}
-                position={TooltipPosition.BOTTOM}
-                isDisabled={graphConflicts.length === 0}
-              >
-                <Button
-                  label="Save"
-                  icon={FloppyDiskIcon}
-                  variant={ButtonVariant.PRIMARY_ALT}
-                  size={ButtonSize.SMALL}
-                  isLoading={isSaving}
-                  isDisabled={graphConflicts.length > 0}
-                  onClick={handleSave}
-                />
-              </Tooltip>
+              {saveIssues.length > 0 && (
+                <Tooltip
+                  variant={TooltipVariant.PRIMARY}
+                  position={TooltipPosition.BOTTOM_END}
+                  body={
+                    <PipelineLayoutNavbarSaveIssues
+                      issues={saveIssues}
+                      onSelectResource={showResource}
+                    />
+                  }
+                  isInteractive
+                >
+                  <Chip
+                    label={saveIssues.length.toString()}
+                    icon={WarningIcon}
+                    variant={ChipVariant.ERROR}
+                  />
+                </Tooltip>
+              )}
+              <Button
+                label="Save"
+                icon={FloppyDiskIcon}
+                variant={ButtonVariant.PRIMARY_ALT}
+                size={ButtonSize.SMALL}
+                isLoading={isSaving || isValidatingCanvas}
+                isDisabled={saveIssues.length > 0}
+                onClick={handleSave}
+              />
             </>
           ) : (
             <>

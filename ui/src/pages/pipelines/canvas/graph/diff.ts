@@ -43,12 +43,13 @@ const serializeEdgeConfig = ({
   readMode,
   writeMode,
   cursors,
+  transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
   `${JSON.stringify(destinationResource ?? "")}|${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
-    .join(";")}`;
+    .join(";")}|${transform ? JSON.stringify(canonicalize(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },

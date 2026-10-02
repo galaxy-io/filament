@@ -70,6 +70,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
+		if len(group.transforms) > 0 {
+			return nil, fmt.Errorf("%w: continuous execution does not apply transforms", ErrInvalid)
+		}
 		resources, _ := routeResources(group)
 		streamID := uuid.NewString()
 		plan, err := planContinuousSource(source, sourceRef, resources, streamID, group.source.ConnectionId)

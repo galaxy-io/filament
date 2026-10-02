@@ -283,30 +283,9 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
-	connector := req.Msg.GetConnector()
-	config := structMap(req.Msg.GetConfig())
-	if id := req.Msg.GetConnectionId(); id != "" {
-		conn, err := a.store.LoadConnection(ctx, tenant, id)
-		if err != nil {
-			if errors.Is(err, filament.ErrNotFound) {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		if connector == "" {
-			connector = conn.Connector
-		}
-		config = compile.MergeConfig(conn.Config, config)
-		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-		}
-	}
-	source, err := a.sources.Resolve(connector)
+	connector, source, err := a.openSource(ctx, tenant, req.Msg.GetConnector(), req.Msg.GetConnectionId(), structMap(req.Msg.GetConfig()))
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		return nil, err
 	}
 	defer func() { _ = source.Teardown(ctx) }()
 
@@ -314,23 +293,14 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	if len(resources) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at least one resource is required"))
 	}
-	cursorProvider, cursorOK := source.(filament.CursorColumnProvider)
-	schemaProvider, schemaOK := source.(filament.SchemaProvider)
+	_, cursorOK := source.(filament.CursorColumnProvider)
+	_, schemaOK := source.(filament.SchemaProvider)
 	if !cursorOK && !schemaOK {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource columns", connector))
 	}
 	response := &ingestionv1.GetResourceColumnsResponse{}
 	for _, resource := range resources {
-		var columns []filament.CursorColumn
-		if cursorOK {
-			columns, err = cursorProvider.CursorColumns(ctx, resource)
-		} else {
-			var schema filament.RecordSchema
-			schema, err = schemaProvider.Schema(ctx, resource)
-			for _, field := range schema.Fields {
-				columns = append(columns, filament.CursorColumn{SchemaField: field})
-			}
-		}
+		columns, err := resourceColumns(ctx, source, resource)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", resource, err))
 		}
@@ -342,6 +312,70 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 		response.Resources = append(response.Resources, entry)
 	}
 	return connect.NewResponse(response), nil
+}
+
+// resourceColumns lists a resource's columns with their cursor capabilities.
+// The schema supplies the columns, because a source may report only the
+// cursor it supports. A cursor column the schema lacks follows them, and a
+// source without a schema lists its cursor columns alone.
+func resourceColumns(ctx context.Context, source filament.Source, resource string) ([]filament.CursorColumn, error) {
+	var cursors []filament.CursorColumn
+	if provider, ok := source.(filament.CursorColumnProvider); ok {
+		var err error
+		if cursors, err = provider.CursorColumns(ctx, resource); err != nil {
+			return nil, err
+		}
+	}
+	provider, ok := source.(filament.SchemaProvider)
+	if !ok {
+		return cursors, nil
+	}
+	schema, err := provider.Schema(ctx, resource)
+	if err != nil {
+		return nil, err
+	}
+	columns := make([]filament.CursorColumn, 0, len(schema.Fields))
+	for _, field := range schema.Fields {
+		column := filament.CursorColumn{SchemaField: field}
+		if i := slices.IndexFunc(cursors, func(c filament.CursorColumn) bool { return c.Name == field.Name }); i >= 0 {
+			column = cursors[i]
+			cursors = slices.Delete(cursors, i, i+1)
+		}
+		column.PrimaryKey = column.PrimaryKey || slices.Contains(schema.PrimaryKey, field.Name)
+		columns = append(columns, column)
+	}
+	return append(columns, cursors...), nil
+}
+
+// openSource resolves and configures a source from a connector name and
+// inline config, a saved connection, or both, with the connection's secrets
+// resolved and the inline config layered over its stored one. The caller
+// tears the source down. Errors are already connect errors.
+func (a *Server) openSource(ctx context.Context, tenant filament.TenantID, connector, connectionID string, config map[string]any) (string, filament.Source, error) {
+	if connectionID != "" {
+		conn, err := a.store.LoadConnection(ctx, tenant, connectionID)
+		if err != nil {
+			if errors.Is(err, filament.ErrNotFound) {
+				return "", nil, connect.NewError(connect.CodeNotFound, err)
+			}
+			return "", nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if connector == "" {
+			connector = conn.Connector
+		}
+		config = compile.MergeConfig(conn.Config, config)
+		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+			return "", nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
+	source, err := a.sources.Resolve(connector)
+	if err != nil {
+		return "", nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
+		return "", nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connector, source, nil
 }
 
 func cursorColumnsToProto(columns []filament.CursorColumn) []*ingestionv1.ResourceColumn {
