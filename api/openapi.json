@@ -2961,6 +2961,11 @@
             },
             "title": "service_account_scopes",
             "description": "service_account_scopes are requested by non-interactive clients. The\n provider owns these values so clients do not need provider-specific\n project IDs or reserved scope knowledge."
+          },
+          "inviteOnly": {
+            "type": "boolean",
+            "title": "invite_only",
+            "description": "invite_only means sign-up is closed: Register is refused and the UI\n offers no way to create an organization. People join by invitation."
           }
         },
         "title": "GetAuthConfigResponse",

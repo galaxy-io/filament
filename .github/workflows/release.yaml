@@ -48,3 +48,62 @@ jobs:
   chart:
     needs: [release, images]
     uses: ./.github/workflows/chart.yaml
+
+  announce:
+    needs: [release, images, cli, chart]
+    runs-on: ubuntu-latest
+    # Reading the notes is all this job needs; it publishes nothing.
+    permissions:
+      contents: read
+    steps:
+      - name: Build the announcement
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+
+          # Release Please emits GitHub Markdown; Slack wants mrkdwn.
+          notes=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' | sed -E \
+            -e 's/^#{2,} +(.*)$/*\1*/' \
+            -e 's/^\* /• /' \
+            -e 's/\[([^][]*)\]\(([^()]*)\)/<\2|\1>/g' \
+            -e 's/\*\*([^*]+)\*\*/*\1*/g' | cat -s)
+
+          install=$(cat <<INSTALL
+          \`\`\`
+          brew upgrade galaxy-io/tap/filament
+          helm upgrade filament oci://ghcr.io/galaxy-io/charts/filament --version ${version}
+          \`\`\`
+          INSTALL
+          )
+
+          # A section caps at 3000 characters, so long notes defer to the button.
+          jq -n \
+            --arg tag "$TAG" \
+            --arg notes "$notes" \
+            --arg install "$install" \
+            --arg url "$url" \
+            --arg docs "https://filament.getgalaxy.io" \
+            '($notes | if length > 2800 then (.[:2800] | split("\n") | (if length > 1 then .[:-1] else . end) | join("\n")) + "\n\n_Truncated. Read the full notes below._" else . end) as $body
+             | {
+                 text: "Filament \($tag) is out",
+                 blocks: [
+                   {type: "section", text: {type: "mrkdwn", text: ":gx-null: *Filament \($tag)* is out.\n\n\($body)"}},
+                   {type: "section", text: {type: "mrkdwn", text: $install}},
+                   {type: "actions", elements: [
+                     {type: "button", style: "primary", text: {type: "plain_text", text: "Read the docs"}, url: $docs},
+                     {type: "button", text: {type: "plain_text", text: "Release notes"}, url: $url}
+                   ]}
+                 ]
+               }' > "${RUNNER_TEMP}/slack-payload.json"
+
+      # A file, so nothing in the notes has to survive YAML escaping.
+      - uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_COMMUNITY_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ runner.temp }}/slack-payload.json
+          errors: true

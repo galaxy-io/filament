@@ -8,7 +8,7 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import CreatePipelineModalDeliveryNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNodeConfig";
+import CreatePipelineModalNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalNodeConfig";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 
 const CreatePipelineModalDeliveryAdvanced = () => {
@@ -19,14 +19,14 @@ const CreatePipelineModalDeliveryAdvanced = () => {
   return (
     <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
       {sourceConnection && (
-        <CreatePipelineModalDeliveryNodeConfig
+        <CreatePipelineModalNodeConfig
           header="Source configuration"
           connection={sourceConnection}
           kind={ConnectorKind.SOURCE}
         />
       )}
       {sinks.map((sink) => (
-        <CreatePipelineModalDeliveryNodeConfig
+        <CreatePipelineModalNodeConfig
           key={sink.connection.id}
           header="Sink configuration"
           connection={sink.connection}

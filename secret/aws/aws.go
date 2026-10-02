@@ -7,6 +7,7 @@
 package aws
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,10 @@ import (
 
 	"github.com/galaxy-io/filament"
 )
+
+// defaultPrefix is the root segment of connection-minted refs, replaced by
+// WithPrefix.
+const defaultPrefix = "filament"
 
 var _ filament.Secrets = (*Provider)(nil)
 
@@ -42,9 +47,9 @@ type Provider struct {
 // Option configures a Provider.
 type Option func(*Provider)
 
-// WithPrefix namespaces every ref under the given Secrets Manager name prefix,
-// e.g. "filament/" turns the ref "tenant-a/pg-dsn" into the secret name
-// "filament/tenant-a/pg-dsn".
+// WithPrefix replaces the default "filament" segment at the root of every
+// Secrets Manager name. A slash always separates the prefix from the rest of
+// the name, so a trailing one is trimmed.
 func WithPrefix(prefix string) Option { return func(p *Provider) { p.prefix = prefix } }
 
 // New constructs a provider from an explicit Secrets Manager API. Use this to
@@ -54,6 +59,7 @@ func New(client API, opts ...Option) *Provider {
 	for _, opt := range opts {
 		opt(p)
 	}
+	p.prefix = strings.TrimRight(p.prefix, "/")
 	return p
 }
 
@@ -81,7 +87,19 @@ type envelope struct {
 	Meta  map[string]string `json:"meta,omitempty"`
 }
 
-func (p *Provider) name(ref string) string { return p.prefix + ref }
+// name maps a ref to its Secrets Manager name. Connection-minted refs swap
+// their leading "filament" segment for the prefix; any other ref is nested
+// under the prefix when one is set and used verbatim otherwise.
+func (p *Provider) name(ref string) string {
+	rest, minted := strings.CutPrefix(ref, filament.ConnectionSecretPrefix)
+	switch {
+	case minted:
+		return cmp.Or(p.prefix, defaultPrefix) + "/" + rest
+	case p.prefix != "":
+		return p.prefix + "/" + ref
+	}
+	return ref
+}
 
 // Read fetches and decodes the secret at ref.
 func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {

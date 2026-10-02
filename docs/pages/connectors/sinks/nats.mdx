@@ -68,7 +68,12 @@ With `create_stream` enabled, a missing stream is created with file storage,
 server defaults for retention and limits, and one subject filter derived from
 the subject template: `events.{resource}` yields `events.>`, `{resource}.events`
 yields `*.events`, a fixed subject yields itself, and a per-resource stream
-captures that resource's exact subject. Anything beyond that, such as retention
+captures that resource's exact subject. A shared stream with the bare subject
+`{resource}` would create `>`, overlapping JetStream API traffic, so automatic
+creation rejects it. Use a literal prefix such as `filament.{resource}`. Do not
+enable `no_ack`: this sink requires publish acknowledgments.
+
+Anything beyond that, such as retention
 or replicas, belongs in server-side stream management. Disable creation on
 production pipelines where streams are provisioned deliberately.
 

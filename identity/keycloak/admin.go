@@ -205,6 +205,18 @@ func (a *admin) createUser(ctx context.Context, user userRep) (string, error) {
 	return created(location), nil
 }
 
+// userByEmail resolves a user by their exact address.
+func (a *admin) userByEmail(ctx context.Context, email string) (userRep, error) {
+	var found []userRep
+	if _, err := a.do(ctx, http.MethodGet, "/users?exact=true&email="+url.QueryEscape(email), nil, &found); err != nil {
+		return userRep{}, err
+	}
+	if len(found) == 0 {
+		return userRep{}, &apiError{status: http.StatusNotFound, message: fmt.Sprintf("user %q not found", email)}
+	}
+	return found[0], nil
+}
+
 func (a *admin) deleteUser(ctx context.Context, id string) error {
 	_, err := a.do(ctx, http.MethodDelete, "/users/"+url.PathEscape(id), nil, nil)
 	return err

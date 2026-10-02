@@ -144,6 +144,7 @@
             "pages": [
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
+              "pages/connectors/sources/kafka",
               "pages/connectors/sources/nats",
               "pages/connectors/sources/apollo",
               "pages/connectors/sources/attio",
