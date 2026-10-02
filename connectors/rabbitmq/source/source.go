@@ -44,7 +44,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		return err
 	}
 	s.env, s.uri = env, cfg.String("uri")
-	s.defaultStreams = slices.Clone(cfg.Strings("streams"))
+	s.defaultStreams = configStrings(cfg, "streams")
 	return nil
 }
 
@@ -72,6 +72,24 @@ func (*Source) Spec() filament.ConnectorSpec {
 			{Name: "streams", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "RabbitMQ stream resources to consume"},
 		}},
 		Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce},
+	}
+}
+
+func configStrings(cfg filament.Config, key string) []string {
+	raw := cfg.Raw()[key]
+	switch v := raw.(type) {
+	case []string:
+		return slices.Clone(v)
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if text, ok := item.(string); ok {
+				out = append(out, text)
+			}
+		}
+		return out
+	default:
+		return nil
 	}
 }
 
