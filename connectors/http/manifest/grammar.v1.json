@@ -250,7 +250,8 @@
             "initial": { "type": "string" },
             "checkpoint_key": { "type": "string" },
             "comparator": { "type": "string", "enum": ["lex", "numeric", "time"] },
-            "overlap_seconds": { "type": "integer", "minimum": 0 }
+            "overlap_seconds": { "type": "integer", "minimum": 0 },
+            "value_prefix": { "type": "string" }
           }
         },
         "parent": {

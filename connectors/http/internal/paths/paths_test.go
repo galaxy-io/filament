@@ -3,6 +3,7 @@ package paths
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
@@ -92,5 +93,81 @@ func TestSplitHonoursEscapedDotsAndNegativeSegments(t *testing.T) {
 				t.Fatalf("Split(%q) = %#v, want %#v", tc.path, got, tc.want)
 			}
 		}
+	}
+}
+
+// A FHIR R4 searchset Bundle carries its page links as an array of
+// {"relation","url"} objects. The [key=value] selector picks the next link
+// without hardcoding an array position, which the server is free to reorder.
+func TestAsStringElementSelector(t *testing.T) {
+	doc := decode(t, `{"link":[
+		{"relation":"self","url":"https://hapi.fhir.org/baseR4/Patient?_count=100"},
+		{"relation":"next","url":"https://hapi.fhir.org/baseR4/Patient?_count=100&searchId=abc"}
+	]}`)
+
+	got, ok, err := AsString(doc, "link[relation=next].url")
+	if err != nil || !ok {
+		t.Fatalf("selector = (%q, ok=%v, err=%v), want the next URL", got, ok, err)
+	}
+	if want := "https://hapi.fhir.org/baseR4/Patient?_count=100&searchId=abc"; got != want {
+		t.Fatalf("selector = %q, want %q", got, want)
+	}
+
+	// The first element matches too; selection is positional only as a tiebreak.
+	got, _, err = AsString(doc, "link[relation=self].url")
+	if err != nil || !strings.HasSuffix(got, "_count=100") {
+		t.Fatalf("self selector = (%q, err=%v)", got, err)
+	}
+}
+
+// A bare [k=v] segment applies to the current node, which must be an array.
+func TestAsStringBareElementSelector(t *testing.T) {
+	doc := decode(t, `[{"relation":"next","url":"u1"},{"relation":"self","url":"u2"}]`)
+	got, ok, err := AsString(doc, "[relation=self].url")
+	if err != nil || !ok || got != "u2" {
+		t.Fatalf("bare selector = (%q, ok=%v, err=%v), want u2", got, ok, err)
+	}
+}
+
+// No matching element is ErrPathMissing, which next_url pagination reads as
+// a clean terminator on the final page (no "next" link present).
+func TestAsStringElementSelectorNoMatchIsMissing(t *testing.T) {
+	doc := decode(t, `{"link":[{"relation":"self","url":"u1"}]}`)
+	_, ok, err := AsStringStrict(doc, "link[relation=next].url")
+	if ok || !errors.Is(err, errs.ErrPathMissing) {
+		t.Fatalf("no-match selector = (ok=%v, err=%v), want ErrPathMissing", ok, err)
+	}
+}
+
+// Selecting from a non-array is a loud type error, not a silent terminator.
+func TestAsStringElementSelectorOnNonArray(t *testing.T) {
+	doc := decode(t, `{"link":{"relation":"next","url":"u1"}}`)
+	_, _, err := AsString(doc, "link[relation=next].url")
+	if !errors.Is(err, errs.ErrPathType) {
+		t.Fatalf("selector on object = %v, want ErrPathType", err)
+	}
+}
+
+// Segments that merely contain brackets without the key=value shape keep
+// their old meaning: literal key lookup on objects, index error on arrays.
+func TestAsStringBracketSegmentWithoutSelectorShape(t *testing.T) {
+	doc := decode(t, `{"data":[{"id":"a"}],"weird[0]":"literal"}`)
+	got, ok, err := AsString(doc, `weird[0]`)
+	if err != nil || !ok || got != "literal" {
+		t.Fatalf("bracket literal = (%q, ok=%v, err=%v), want literal", got, ok, err)
+	}
+	_, ok, err = AsStringStrict(doc, "data[0].id")
+	if ok || !errors.Is(err, errs.ErrPathMissing) {
+		t.Fatalf("data[0] on a map = (ok=%v, err=%v), want ErrPathMissing (literal key, not a selector)", ok, err)
+	}
+}
+
+// The selector compares the key's string rendering, so numeric and boolean
+// element fields match their textual form.
+func TestAsStringElementSelectorCoercesScalars(t *testing.T) {
+	doc := decode(t, `{"items":[{"n":2,"v":"two"},{"n":10,"v":"ten"}]}`)
+	got, _, err := AsString(doc, "items[n=10].v")
+	if err != nil || got != "ten" {
+		t.Fatalf("numeric selector = (%q, err=%v), want ten", got, err)
 	}
 }

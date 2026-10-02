@@ -541,6 +541,12 @@ type IncrementalSpec struct {
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
+	// ValuePrefix is prepended to the watermark value when it is injected
+	// into the request (query, header, or body). The stored checkpoint and
+	// all comparisons keep the raw value; only the wire representation is
+	// prefixed. FHIR search needs `_lastUpdated=ge<ts>` — a bare timestamp
+	// carries `eq` semantics and would silently return the wrong result set.
+	ValuePrefix string `yaml:"value_prefix,omitempty"`
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.
