@@ -3,9 +3,14 @@ title: "Architecture"
 description: "How data, progress, and control move through a Filament run"
 ---
 
-Filament has one execution path whether a run starts in-process, from the
+Filament uses the same connector data path whether a run starts in-process, from the
 standalone binary, or in a Kubernetes worker. Deployment changes where the work
 runs, not how connectors exchange data.
+
+The lifecycle depends on execution mode. Bounded runs finish with one final
+commit. Continuous runs keep their sessions open and commit successive epochs,
+each with its own durable progress record. Both use the Arrow handoff and
+integrity checks described below.
 
 ## Follow one batch
 
@@ -39,7 +44,7 @@ rows. The source still decides how many parts to create. Filament forces the
 writer count to one when a route contains CDC, incremental, or other
 checkpointed work so progress and ordering stay unambiguous.
 
-## Commit, abort, and checkpoints
+## Bounded commits, aborts, and checkpoints
 
 The runner opens the sink before data moves and ends with one of two outcomes:
 
@@ -53,11 +58,26 @@ aborting it. Whether a route qualifies depends on every resource in that route,
 not merely on one incremental table. The recovery rules are described in
 [Runs and recovery](/pages/guides/concepts/runs-and-recovery).
 
+## Continuous commits
+
+The continuous coordinator starts an epoch and asks the source to read through
+a safe boundary. It waits for the pipeline to finish those writes, commits the
+destination, and saves an epoch certificate before acknowledging the source.
+It then begins the next epoch using the same open sessions.
+
+The source establishes which input is covered; the pipeline establishes that
+the corresponding writes and integrity checks finished; the sink establishes
+durability. The coordinator checks that those accounts agree before saving
+progress. See [Streaming](/pages/guides/concepts/streaming) for a worked example
+and the consequences of an interruption between those steps.
+
 ## Facts and stored state
 
 The runner publishes events such as `run.started`, `batch.written`, and
-`resource.completed`. The tracker uses those events to update stored progress,
-totals, and checkpoints.
+`resource.completed`. For bounded runs, the tracker uses those events to update
+stored progress, totals, and checkpoints. Continuous progress is saved directly
+through the streaming runtime's epoch commits. Its activity events report that
+certified progress; replaying events is not what makes it durable.
 
 The control plane writes request, pause, resume, and cancellation state directly.
 Worker events record what actually happened during execution. Keeping those
@@ -77,7 +97,9 @@ flowchart LR
 ## Where the pieces live
 
 The root `filament` package defines connector and run contracts. `runner`
-coordinates one run, while `pipeline` owns the bounded Arrow handoff and writer
-pool. Control-plane modules handle scheduling, dispatch, tracking, and stale
-worker detection. Connectors register independently and implement only the
-capabilities they advertise.
+coordinates bounded runs and continuous epochs, while `pipeline` owns the
+bounded Arrow handoff and writer pool. Control-plane modules handle scheduling,
+dispatch, tracking, and stale worker detection. The stream supervisor admits
+continuous worker attempts and reconciles them with the requested execution
+state. Connectors register independently and implement only the capabilities
+they advertise.

@@ -22,6 +22,12 @@ A source connection is configured as either standard or CDC. Standard routes
 choose full or incremental per resource. CDC applies to the whole route and
 cannot be mixed with standard resources in the same run.
 
+Read mode is separate from execution mode. A bounded run finishes after its
+planned work; a continuous run keeps listening and commits progress repeatedly.
+CDC support alone does not imply continuous support. See
+[Streaming](/pages/guides/concepts/streaming) for the connector requirements
+and recovery behavior of continuous runs.
+
 ## Choose destination behavior
 
 - `append` keeps each emitted row version.

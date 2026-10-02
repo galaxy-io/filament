@@ -116,6 +116,7 @@
           "pages/guides/concepts/overview",
           "pages/guides/concepts/architecture",
           "pages/guides/concepts/replication-modes",
+          "pages/guides/concepts/streaming",
           "pages/guides/concepts/integrity-and-checkpoints",
           "pages/guides/concepts/runs-and-recovery"
         ]
@@ -193,6 +194,7 @@
               "pages/connectors/building-a-connector/writing-a-source",
               "pages/connectors/building-a-connector/writing-a-sink",
               "pages/connectors/building-a-connector/optional-interfaces",
+              "pages/connectors/building-a-connector/streaming",
               "pages/connectors/building-a-connector/http-manifests"
             ]
           }
