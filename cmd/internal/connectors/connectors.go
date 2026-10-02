@@ -16,6 +16,7 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/nats"
 	_ "github.com/galaxy-io/filament/connectors/object"
 	_ "github.com/galaxy-io/filament/connectors/postgres"
+	_ "github.com/galaxy-io/filament/connectors/rabbitmq"
 	_ "github.com/galaxy-io/filament/connectors/redshift"
 	_ "github.com/galaxy-io/filament/connectors/sample"
 	_ "github.com/galaxy-io/filament/connectors/snowflake"
