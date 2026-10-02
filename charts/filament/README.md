@@ -97,6 +97,17 @@ helm upgrade --install filament \
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
 
+## Catalog parameters
+
+The catalog answers every connector call for the server and control plane, so neither image carries a driver. It runs the worker image and ServiceAccount set under `controlPlane.dispatch.worker`, receives no runtime Secret, and is reached over plain HTTP inside the cluster.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| catalog.logLevel | string | `"INFO"` | Minimum catalog log level. Valid values: INFO, DEBUG, TRACE. |
+| catalog.replicas | int | `1` | Number of catalog replicas. The catalog is stateless. |
+| catalog.resources | object | `{}` (See [values.yaml]) | Catalog resource requests and limits. |
+| catalog.service.port | int | `8080` | Catalog service and container port. |
+
 ## Control plane parameters
 
 | Key | Type | Default | Description |
@@ -108,17 +119,17 @@ helm upgrade --install filament \
 | controlPlane.dispatch.job.backoffLimit | int | `1` | Kubernetes Job backoff limit for dispatched workers. |
 | controlPlane.dispatch.job.namePrefix | string | `"filament"` | Prefix used when naming dispatched worker Jobs. |
 | controlPlane.dispatch.job.ttlSecondsAfterFinished | int | `3600` | Seconds to retain completed dispatched worker Jobs. |
-| controlPlane.dispatch.mode | string | `"kubernetes"` | Worker dispatch backend. |
+| controlPlane.dispatch.mode | string | `"kubernetes"` | Where runs execute. `kubernetes` creates one worker Job per run. `worker` dispatches nothing and leaves execution to a long-lived worker started with `-execute`. |
 | controlPlane.dispatch.worker.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
 | controlPlane.dispatch.worker.heartbeatSeconds | int | `30` | Interval in seconds between worker heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
 | controlPlane.dispatch.worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
-| controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
+| controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs and the catalog. |
 | controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
 | controlPlane.dispatch.worker.logLevel | string | `"INFO"` | Minimum worker log level. Valid values: INFO, DEBUG, TRACE. |
 | controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
 | controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
-| controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
+| controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs and the catalog. When set, the chart does not create one. |
 | controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
 | controlPlane.health.port | int | `8081` | Port the control plane serves `/livez`, `/startupz`, and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |

@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -156,7 +157,7 @@ func Serve(ctx context.Context, ln net.Listener, opts ...Option) error {
 // bus, and store.
 func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []string, cleanup func(), err error) {
 	orch := orchestrator.New()
-	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
+	api := server.New(catalog.Local(cfg.Sources, cfg.Sinks), cfg.Store, orch, cfg.Bus,
 		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {

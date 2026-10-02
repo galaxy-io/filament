@@ -14,6 +14,7 @@ import (
 
 	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
@@ -33,7 +34,7 @@ func TestPythonSDK(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	mux := http.NewServeMux()
-	server.New(registry.NewSources(), registry.NewSinks(), store, nil, nil,
+	server.New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil,
 		server.WithIdentity(testIdentity{})).Mount(mux)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Connect-Protocol-Version"); got != "1" {

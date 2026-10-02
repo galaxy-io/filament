@@ -14,6 +14,8 @@ plugins:
     opt: paths=source_relative
   - remote: buf.build/community/sudorandom-connect-openapi:v0.27.2
     out: api
+    exclude_types:
+      - catalog.v1
     opt:
       - features=connectrpc
       - content-types=json

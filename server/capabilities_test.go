@@ -10,6 +10,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
@@ -41,13 +42,6 @@ func (leverSource) Teardown(context.Context) error                   { return ni
 
 func (leverSource) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
 	return nil
-}
-
-func (leverSource) Replication(cfg filament.Config) filament.ReplicationMode {
-	if cfg.String("replication") == string(filament.ReplicationCDC) {
-		return filament.ReplicationCDC
-	}
-	return filament.ReplicationStandard
 }
 
 func (leverSource) Discover(context.Context, filament.DiscoverOpts) (filament.DiscoverResult, error) {
@@ -109,14 +103,16 @@ func testCtx() context.Context {
 }
 
 // leverAPI builds a server with one standard source connection, one CDC
-// source connection, and one sink connection.
+// source connection, and one sink connection. strictsink is registered for
+// the tests that need a sink with required pipeline-scoped fields.
 func leverAPI(t *testing.T) (*Server, map[string]string) {
 	t.Helper()
 	sources := registry.NewSources()
 	sources.Register("leversource", func() filament.Source { return leverSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
-	api := New(sources, sinks, sqlite.NewMemory(), nil, nil)
+	sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
+	api := New(catalog.Local(sources, sinks), sqlite.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
 		var cfg *structpb.Struct
@@ -394,10 +390,13 @@ func (managedLeverSource) CursorColumns(context.Context, string) ([]filament.Cur
 }
 
 func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
-	server := &Server{}
-	probes := &sourceProbes{sources: map[string]filament.Source{"src": managedLeverSource{}}}
+	sources := registry.NewSources()
+	sources.Register("managed", func() filament.Source { return managedLeverSource{} })
+	server := &Server{catalog: catalog.Local(sources, registry.NewSinks())}
+	edge := &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders"}
+	probes := newSourceProbes(server, []*ingestionv1.PipelineEdge{edge})
 	ev := &ingestionv1.EdgeValidation{}
-	server.resourceBreakdown(context.Background(), &ingestionv1.PipelineEdge{Resource: "orders"}, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{}, leverSink{}.Spec(), filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
+	server.resourceBreakdown(context.Background(), edge, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{Connector: "managed"}, leverSink{}.Spec(), filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
 	if len(ev.Resources) != 1 {
 		t.Fatal(ev)
 	}

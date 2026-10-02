@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/internal/compile"
 )
 
@@ -23,7 +24,7 @@ const (
 
 // ListConnectors returns the registered source and sink specs, optionally
 // filtered by kind.
-func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestionv1.ListConnectorsRequest]) (*connect.Response[ingestionv1.ListConnectorsResponse], error) {
+func (a *Server) ListConnectors(ctx context.Context, req *connect.Request[ingestionv1.ListConnectorsRequest]) (*connect.Response[ingestionv1.ListConnectorsResponse], error) {
 	options, err := listOptionsOf(req.Msg.GetPagination(), req.Msg.GetSearch(), req.Msg.GetSorting(), map[ingestionv1.SortBy]string{
 		ingestionv1.SortBy_SORT_BY_NAME: "name",
 	}, "registry", false)
@@ -32,12 +33,20 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 	}
 	var connectors []*ingestionv1.ConnectorSpec
 	if req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED || req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE {
-		for _, spec := range a.sources.Specs() {
+		specs, err := a.catalog.SourceSpecs(ctx)
+		if err != nil {
+			return nil, catalog.ConnectError(err)
+		}
+		for _, spec := range specs {
 			connectors = append(connectors, sourceSpecToProto(spec))
 		}
 	}
 	if req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED || req.Msg.GetKind() == ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK {
-		for _, spec := range a.sinks.Specs() {
+		specs, err := a.catalog.SinkSpecs(ctx)
+		if err != nil {
+			return nil, catalog.ConnectError(err)
+		}
+		for _, spec := range specs {
 			connectors = append(connectors, sinkSpecToProto(spec))
 		}
 	}
@@ -85,41 +94,21 @@ func (a *Server) ListConnectors(_ context.Context, req *connect.Request[ingestio
 }
 
 // GetConnector returns the spec for one registered connector.
-func (a *Server) GetConnector(_ context.Context, req *connect.Request[ingestionv1.GetConnectorRequest]) (*connect.Response[ingestionv1.GetConnectorResponse], error) {
+func (a *Server) GetConnector(ctx context.Context, req *connect.Request[ingestionv1.GetConnectorRequest]) (*connect.Response[ingestionv1.GetConnectorResponse], error) {
 	var spec *ingestionv1.ConnectorSpec
 	switch req.Msg.GetKind() {
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-		if catalog, ok := a.sources.(interface {
-			Spec(string) (filament.ConnectorSpec, error)
-		}); ok {
-			sourceSpec, err := catalog.Spec(req.Msg.GetConnector())
-			if err != nil {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			spec = sourceSpecToProto(sourceSpec)
-		} else {
-			source, err := a.sources.Resolve(req.Msg.GetConnector())
-			if err != nil {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			spec = sourceSpecToProto(source.Spec())
+		sourceSpec, err := a.catalog.SourceSpec(ctx, req.Msg.GetConnector())
+		if err != nil {
+			return nil, catalog.ConnectError(err)
 		}
+		spec = sourceSpecToProto(sourceSpec)
 	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-		if catalog, ok := a.sinks.(interface {
-			Spec(string) (filament.SinkSpec, error)
-		}); ok {
-			sinkSpec, err := catalog.Spec(req.Msg.GetConnector())
-			if err != nil {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			spec = sinkSpecToProto(sinkSpec)
-		} else {
-			sink, err := a.sinks.Resolve(req.Msg.GetConnector())
-			if err != nil {
-				return nil, connect.NewError(connect.CodeNotFound, err)
-			}
-			spec = sinkSpecToProto(sink.Spec())
+		sinkSpec, err := a.catalog.SinkSpec(ctx, req.Msg.GetConnector())
+		if err != nil {
+			return nil, catalog.ConnectError(err)
 		}
+		spec = sinkSpecToProto(sinkSpec)
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("connector kind is required"))
 	}
@@ -151,77 +140,34 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		}
 		config = overlayConfig(conn.Config, config)
 	}
-	switch req.Msg.GetKind() {
-	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-		source, err := a.sources.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		}
-		canonicalizeConnectionConfig(source.Spec().Config, config, nil)
-		cfg := filament.NewConfig(config)
-		if err := validateConfigSchema(source.Spec().Config, cfg); err != nil {
-			return connect.NewResponse(schemaValidationError(err)), nil
-		}
-		if err := source.Validate(cfg); err != nil {
-			return connect.NewResponse(validationError(err.Error())), nil
-		}
-		if err := liveProbe(ctx, source, cfg); err != nil {
-			return connect.NewResponse(validationError(err.Error())), nil
-		}
-	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-		sink, err := a.sinks.Resolve(req.Msg.GetConnector())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		}
-		canonicalizeConnectionConfig(sink.Spec().Config, config, nil)
-		cfg := filament.NewConfig(config)
-		if err := validateConfigSchema(sink.Spec().Config, cfg); err != nil {
-			return connect.NewResponse(schemaValidationError(err)), nil
-		}
-		if validator, ok := sink.(filament.ConfigValidatable); ok {
-			if err := validator.Validate(cfg); err != nil {
-				return connect.NewResponse(validationError(err.Error())), nil
-			}
-		}
-		if err := liveProbe(ctx, sink, cfg); err != nil {
-			return connect.NewResponse(validationError(err.Error())), nil
-		}
-	default:
+	kind := connectionKindFromProto(req.Msg.GetKind())
+	if kind == filament.ConnectorKindUnspecified {
 		return connect.NewResponse(validationError("connector kind is required")), nil
+	}
+	schema, err := a.schemaFor(ctx, req.Msg.GetKind(), req.Msg.GetConnector())
+	if err != nil {
+		return nil, catalog.ConnectError(err)
+	}
+	canonicalizeConnectionConfig(schema, config, nil)
+	cfg := filament.NewConfig(config)
+	if err := validateConfigSchema(schema, cfg); err != nil {
+		return connect.NewResponse(schemaValidationError(err)), nil
+	}
+	if err := a.catalog.Validate(ctx, kind, req.Msg.GetConnector(), cfg); err != nil {
+		return connect.NewResponse(validationError(err.Error())), nil
+	}
+	if err := a.catalog.TestConnection(ctx, kind, req.Msg.GetConnector(), cfg); err != nil {
+		return connect.NewResponse(validationError(err.Error())), nil
 	}
 	return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
 }
 
-// liveProbe runs the connector's connectivity check when it offers one.
-// Connectors without a probe pass on structural validation alone.
-func liveProbe(ctx context.Context, connector any, cfg filament.Config) error {
-	live, ok := connector.(filament.LiveValidatable)
-	if !ok {
-		return nil
-	}
-	return live.TestConnection(ctx, cfg)
-}
-
-func (a *Server) validateConnectionConnectorConfig(kind ingestionv1.ConnectorKind, connector string, cfg filament.Config) error {
-	switch kind {
-	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE:
-		source, err := a.sources.Resolve(connector)
-		if err != nil {
-			return err
-		}
-		return source.Validate(cfg)
-	case ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK:
-		sink, err := a.sinks.Resolve(connector)
-		if err != nil {
-			return err
-		}
-		if validator, ok := sink.(filament.ConfigValidatable); ok {
-			return validator.Validate(cfg)
-		}
-		return nil
-	default:
+func (a *Server) validateConnectionConnectorConfig(ctx context.Context, kind ingestionv1.ConnectorKind, connector string, cfg filament.Config) error {
+	k := connectionKindFromProto(kind)
+	if k == filament.ConnectorKindUnspecified {
 		return fmt.Errorf("connector kind is required")
 	}
+	return a.catalog.Validate(ctx, k, connector, cfg)
 }
 
 // DiscoverResources configures the source and lists its selectable resources.
@@ -252,23 +198,9 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 		config = overlayConfig(conn.Config, config)
 	}
 
-	source, err := a.sources.Resolve(connector)
+	result, err := a.catalog.Discover(ctx, connector, filament.NewConfig(config), filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	cfg := filament.NewConfig(config)
-	if err := source.Configure(ctx, cfg); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	defer func() { _ = source.Teardown(ctx) }()
-
-	discoverable, ok := source.(filament.Discoverable)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not support discovery", connector))
-	}
-	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, catalog.ConnectError(err)
 	}
 	return connect.NewResponse(resourcesToProto(result.Resources)), nil
 }
@@ -301,45 +233,25 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
 	}
-	source, err := a.sources.Resolve(connector)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	defer func() { _ = source.Teardown(ctx) }()
-
 	resources := append([]string(nil), req.Msg.GetResources()...)
 	if len(resources) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("at least one resource is required"))
 	}
-	cursorProvider, cursorOK := source.(filament.CursorColumnProvider)
-	schemaProvider, schemaOK := source.(filament.SchemaProvider)
-	if !cursorOK && !schemaOK {
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource columns", connector))
+	inspections, err := a.catalog.Inspect(ctx, connector, filament.NewConfig(config), resources)
+	if err != nil {
+		return nil, catalog.ConnectError(err)
 	}
 	response := &ingestionv1.GetResourceColumnsResponse{}
-	for _, resource := range resources {
-		var columns []filament.CursorColumn
-		if cursorOK {
-			columns, err = cursorProvider.CursorColumns(ctx, resource)
-		} else {
-			var schema filament.RecordSchema
-			schema, err = schemaProvider.Schema(ctx, resource)
-			for _, field := range schema.Fields {
-				columns = append(columns, filament.CursorColumn{SchemaField: field})
+	for _, inspection := range inspections {
+		if err := inspection.ColumnsErr; err != nil {
+			if errors.Is(err, filament.ErrUnsupported) {
+				return nil, connect.NewError(connect.CodeUnimplemented, err)
 			}
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", inspection.Name, err))
 		}
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource columns %q: %w", resource, err))
-		}
-		out := cursorColumnsToProto(columns)
-		entry := &ingestionv1.ResourceColumns{Resource: resource, Columns: out}
-		if managed, ok := source.(filament.ManagedIncrementalSource); ok {
-			entry.ManagedIncremental = managed.ManagedIncremental(resource)
-		}
-		response.Resources = append(response.Resources, entry)
+		response.Resources = append(response.Resources, &ingestionv1.ResourceColumns{
+			Resource: inspection.Name, Columns: cursorColumnsToProto(inspection.Columns), ManagedIncremental: inspection.ManagedIncremental,
+		})
 	}
 	return connect.NewResponse(response), nil
 }

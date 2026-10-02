@@ -203,12 +203,6 @@ const (
 	SnapshotNone    SnapshotMode = "none"
 )
 
-// ReplicationAware lets a source report which replication mode a connection
-// config selects. Sources without the contract are always standard.
-type ReplicationAware interface {
-	Replication(cfg Config) ReplicationMode
-}
-
 // ReplicationStreamPlanningRequest is the connector-owned input for planning
 // an independently advancing source consumer.
 type ReplicationStreamPlanningRequest struct {
@@ -246,12 +240,28 @@ type ReplicationStreamCleaner interface {
 	CleanupReplicationStream(ctx context.Context, stream ReplicationStream) error
 }
 
-// ReplicationOf resolves a connection's replication mode from its source.
-func ReplicationOf(src Source, cfg Config) ReplicationMode {
-	if aware, ok := src.(ReplicationAware); ok {
-		return aware.Replication(cfg)
+// ReplicationField is the config field a CDC-capable source declares so a
+// connection can choose its change stream over query reads.
+const ReplicationField = "replication"
+
+// ReplicationFor reports the mode a connection's config selects: CDC when
+// the config sets ReplicationField to cdc and the source declares a CDC read
+// policy. A source without that capability is always standard.
+func ReplicationFor(spec ConnectorSpec, cfg Config) ReplicationMode {
+	if cfg.String(ReplicationField) != string(ReplicationCDC) {
+		return ReplicationStandard
+	}
+	for _, policy := range spec.SourcePolicies {
+		if policy.Mode == ModeCDC {
+			return ReplicationCDC
+		}
 	}
 	return ReplicationStandard
+}
+
+// ReplicationOf is ReplicationFor over a live source.
+func ReplicationOf(src Source, cfg Config) ReplicationMode {
+	return ReplicationFor(src.Spec(), cfg)
 }
 
 // LiveValidatable is the optional contract for probing connectivity with a

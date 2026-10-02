@@ -1,0 +1,73 @@
+{{/* The catalog is the worker image answering connector calls. It carries
+     every driver so the server carries none, and it receives no runtime
+     Secret: each call brings its own config. */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filament.catalog.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.catalog.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.catalog.replicas }}
+  selector:
+    matchLabels:
+      {{- include "filament.catalog.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/catalog-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "filament.catalog.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "filament.worker.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.controlPlane.dispatch.worker.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: catalog
+          image: {{ .Values.controlPlane.dispatch.worker.image.repository }}:{{ .Values.controlPlane.dispatch.worker.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.controlPlane.dispatch.worker.image.pullPolicy }}
+          args: ["-catalog"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.catalog.service.port }}
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 3
+          envFrom:
+            - configMapRef:
+                name: {{ include "filament.catalog.fullname" . }}
+          resources:
+            {{- toYaml .Values.catalog.resources | nindent 12 }}

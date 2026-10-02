@@ -25,7 +25,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
-			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
+			{Name: filament.ReplicationField, Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
 				{Value: replicationStandard, Label: "Standard"},
 				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},
 			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the write-ahead log"},

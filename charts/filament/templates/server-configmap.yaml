@@ -21,6 +21,9 @@ data:
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"
 
+  # Connectors
+  CATALOG_URL: "http://{{ include "filament.catalog.fullname" . }}:{{ .Values.catalog.service.port }}"
+
   # Auth
   {{- if .Values.auth.enabled }}
   AUTH_PROVIDER: {{ .Values.auth.type | quote }}

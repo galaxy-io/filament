@@ -35,8 +35,7 @@ var ErrInvalid = errors.New("invalid pipeline")
 // requests.
 type Compiler struct {
 	Store   filament.DataStore
-	Sources filament.SourceRegistry
-	Sinks   filament.SinkRegistry
+	Catalog filament.Catalog
 }
 
 // CompiledRun is one route's ready-to-submit admission, keyed by its canvas edge.
@@ -99,25 +98,25 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	for _, group := range groups {
 		key := group.key
 		resources, selectors := routeResources(group)
-		sourceRef, err := c.resolveNodeRef(group.source, connections)
+		sourceRef, err := c.resolveNodeRef(ctx, group.source, connections)
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(group.sink, connections)
+		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
 		if err != nil {
 			return nil, err
 		}
-		source, err := c.Sources.Resolve(sourceRef.Connector)
+		sourceSpec, err := c.Catalog.SourceSpec(ctx, sourceRef.Connector)
 		if err != nil {
 			return nil, err
 		}
-		cdc := filament.ReplicationOf(source, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
+		cdc := filament.ReplicationFor(sourceSpec, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
 		ingestionTypes, err := compileIngestionTypes(group, cdc)
 		if err != nil {
 			return nil, err
 		}
 		replicationStream, err := c.planRouteReplicationStream(
-			cdc, source, pipeline.GetId(), version.GetId(), tenant,
+			ctx, cdc, pipeline.GetId(), version.GetId(), tenant,
 			key, group, connections, sourceRef, sinkRef,
 		)
 		if err != nil {
@@ -164,9 +163,11 @@ func routeResources(group *routeGroup) (resources, selectors []string) {
 	return resources, selectors
 }
 
+// planRouteReplicationStream plans the route's consumer for a CDC source that
+// plans streams; other routes carry none.
 func (c *Compiler) planRouteReplicationStream(
+	ctx context.Context,
 	cdc bool,
-	source filament.Source,
 	pipelineID, pipelineVersionID string,
 	tenant filament.TenantID,
 	route string,
@@ -174,49 +175,32 @@ func (c *Compiler) planRouteReplicationStream(
 	connections map[string]filament.Connection,
 	sourceRef, sinkRef filament.Ref,
 ) (*filament.ReplicationStream, error) {
-	planner, plansStreams := source.(filament.ReplicationStreamPlanner)
-	if !cdc || !plansStreams {
+	if !cdc {
 		return nil, nil
+	}
+	id := uuid.NewString()
+	plan, err := c.Catalog.PlanReplicationStream(ctx, sourceRef.Connector, filament.ReplicationStreamPlanningRequest{
+		ReplicationStreamID: id, SourceConnectionID: group.source.GetConnectionId(), Config: filament.NewConfig(sourceRef.Config),
+	})
+	if errors.Is(err, filament.ErrUnsupported) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("plan replication stream %q: %w", route, err)
 	}
 	if _, ok := c.Store.(durableReplicationStreamStore); !ok {
 		return nil, fmt.Errorf("%w: datastore %q cannot durably admit replication streams", ErrPrecondition, c.Store.Name())
 	}
-	planned, err := c.planReplicationStream(
-		planner, pipelineID, pipelineVersionID, tenant, route, group, connections, sourceRef, sinkRef,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &planned, nil
-}
-
-func (c *Compiler) planReplicationStream(
-	planner filament.ReplicationStreamPlanner,
-	pipelineID, pipelineVersionID string,
-	tenant filament.TenantID,
-	route string,
-	group *routeGroup,
-	connections map[string]filament.Connection,
-	sourceRef, sinkRef filament.Ref,
-) (filament.ReplicationStream, error) {
-	id := uuid.NewString()
-	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
-		ReplicationStreamID: id, SourceConnectionID: group.source.ConnectionId, Config: filament.NewConfig(sourceRef.Config),
-	})
-	if err != nil {
-		return filament.ReplicationStream{}, fmt.Errorf("plan replication stream %q: %w", route, err)
-	}
 	fingerprint, err := replicationStreamContinuityFingerprint(group, connections, sourceRef.Connector, plan.ContinuityConfig, sinkRef)
 	if err != nil {
-		return filament.ReplicationStream{}, fmt.Errorf("fingerprint replication stream %q: %w", route, err)
+		return nil, fmt.Errorf("fingerprint replication stream %q: %w", route, err)
 	}
-	desired := filament.ReplicationStream{
+	return &filament.ReplicationStream{
 		ID: id, Tenant: tenant, PipelineID: pipelineID, Route: route,
 		SourceConnectionID: group.source.GetConnectionId(), SinkConnectionID: group.sink.GetConnectionId(),
 		ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig,
 		ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: pipelineVersionID,
-	}
-	return desired, nil
+	}, nil
 }
 
 // replicationStreamContinuityFingerprint excludes the selected resource set;
@@ -281,13 +265,13 @@ func compileIngestionTypes(group *routeGroup, cdc bool) (map[string]filament.Ing
 // Connection it references, with the node's config/secret_refs shallow-merged
 // on top as the PIPELINE overlay (node keys win). connection_id is required.
 // It rejects an overlay that tries to set a CONNECTION-scoped field.
-func (c *Compiler) resolveNodeRef(node *ingestionv1.PipelineNode, connections map[string]filament.Connection) (filament.Ref, error) {
+func (c *Compiler) resolveNodeRef(ctx context.Context, node *ingestionv1.PipelineNode, connections map[string]filament.Connection) (filament.Ref, error) {
 	conn, ok := connections[node.GetConnectionId()]
 	if !ok {
 		return filament.Ref{}, fmt.Errorf("%w: node %q references missing connection %q", ErrInvalid, node.GetId(), node.GetConnectionId())
 	}
 	overlay := structMap(node.GetConfig())
-	if schema, err := c.schemaFor(conn.Kind, conn.Connector); err == nil {
+	if schema, err := c.schemaFor(ctx, conn.Kind, conn.Connector); err == nil {
 		if err := ValidateOverlayConfig(schema, overlay); err != nil {
 			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
 		}
@@ -301,20 +285,20 @@ func (c *Compiler) resolveNodeRef(node *ingestionv1.PipelineNode, connections ma
 
 // schemaFor resolves a connector's config schema by kind + name from the
 // source and sink registries.
-func (c *Compiler) schemaFor(kind filament.ConnectorKind, connector string) (filament.ConfigSchema, error) {
+func (c *Compiler) schemaFor(ctx context.Context, kind filament.ConnectorKind, connector string) (filament.ConfigSchema, error) {
 	switch kind {
 	case filament.ConnectorKindSource:
-		src, err := c.Sources.Resolve(connector)
+		spec, err := c.Catalog.SourceSpec(ctx, connector)
 		if err != nil {
 			return filament.ConfigSchema{}, err
 		}
-		return src.Spec().Config, nil
+		return spec.Config, nil
 	case filament.ConnectorKindSink:
-		sink, err := c.Sinks.Resolve(connector)
+		spec, err := c.Catalog.SinkSpec(ctx, connector)
 		if err != nil {
 			return filament.ConfigSchema{}, err
 		}
-		return sink.Spec().Config, nil
+		return spec.Config, nil
 	default:
 		return filament.ConfigSchema{}, fmt.Errorf("connector kind is required")
 	}

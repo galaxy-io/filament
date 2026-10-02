@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
@@ -70,7 +71,11 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "scheduler"})
 	}
 	m.mx = d.Metrics
-	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks}
+	connectors := d.Catalog
+	if connectors == nil {
+		connectors = catalog.Local(d.Sources, d.Sinks)
+	}
+	m.compiler = &compile.Compiler{Store: d.DataStore, Catalog: connectors}
 	return nil
 }
 

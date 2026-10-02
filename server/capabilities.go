@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -48,13 +49,7 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 
 	resp := &ingestionv1.ValidatePipelineResponse{}
-	probes := &sourceProbes{
-		server:     a,
-		sources:    map[string]filament.Source{},
-		errs:       map[string]error{},
-		discovered: map[string][]filament.Resource{},
-	}
-	defer probes.teardown(ctx)
+	probes := newSourceProbes(a, edges)
 
 	if err := compile.ValidateDestinations(edges); err != nil {
 		resp.Errors = append(resp.Errors, graphError(err.Error()))
@@ -154,23 +149,17 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		return nil
 	}
 
-	source, err := a.sources.Resolve(srcConn.Connector)
-	if err != nil {
-		edgeError(ev, "from_node", err.Error())
+	pair, ok := a.edgePair(ctx, srcConn.Connector, snkConn.Connector, ev)
+	if !ok {
 		return nil
 	}
-	sink, err := a.sinks.Resolve(snkConn.Connector)
-	if err != nil {
-		edgeError(ev, "to_node", err.Error())
-		return nil
-	}
-	runtimeSupported := a.edgeExecutionModes(source, sink, mode, ev)
+	srcSpec, snkSpec := pair.Source, pair.Sink
+	runtimeSupported := a.edgeExecutionModes(pair, mode, ev)
 	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		validateContinuousEdge(ctx, edge, from, srcConn, source, sink, runtimeSupported, probes, ev)
+		validateContinuousEdge(ctx, edge, from, srcConn, pair, runtimeSupported, probes, ev)
 		return nil
 	}
-	srcSpec, snkSpec := source.Spec(), sink.Spec()
-	replication := filament.ReplicationOf(source, filament.NewConfig(srcConn.Config))
+	replication := filament.ReplicationFor(pair.Source, filament.NewConfig(srcConn.Config))
 	ev.Replication = replicationToProto(replication)
 
 	// CDC connections fix the read side to the change stream and expose append
@@ -310,52 +299,34 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 		}
 	}
 
-	src, err := probes.get(ctx, from, srcConn)
+	inspections, err := probes.inspect(ctx, from, srcConn, edge.GetResource())
+	if errors.Is(err, filament.ErrUnsupported) {
+		if needsCursor {
+			ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{
+				Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
+				Satisfied:       len(cursors) > 0,
+				CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE,
+				Message:         "incremental reads need a cursor column for each resource, but the source cannot list its resources",
+			})
+		}
+		return
+	}
 	if err != nil {
 		edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
 		return
 	}
 
-	var resources []string
-	if edge.GetResource() != "" {
-		resources = []string{edge.GetResource()}
-	} else {
-		discovered, ok, err := probes.discover(ctx, from.GetId(), src)
-		if err != nil {
-			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
-			return
-		}
-		if !ok {
-			if needsCursor {
-				ev.Requirements = append(ev.Requirements, &ingestionv1.Requirement{
-					Kind:            ingestionv1.RequirementKind_REQUIREMENT_KIND_CURSOR_COLUMN,
-					Satisfied:       len(cursors) > 0,
-					CandidateStatus: ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE,
-					Message:         "incremental reads need a cursor column for each resource, but the source cannot list its resources",
-				})
-			}
-			return
-		}
-		for _, resource := range discovered {
-			if resource.Selectable {
-				resources = append(resources, resource.Name)
-			}
-		}
-	}
-
-	for _, resource := range resources {
+	for _, inspection := range inspections {
+		resource := inspection.Name
 		rv := &ingestionv1.ResourceValidation{Resource: resource}
 		ev.Resources = append(ev.Resources, rv)
 
-		keys, keyErr := filament.PrimaryKeyForResource(ctx, src, resource)
+		keys, keyErr := inspection.PrimaryKey, inspection.PrimaryKeyErr
 		if keyErr != nil && needsPK {
 			edgeError(ev, "from_node", fmt.Sprintf("could not inspect primary key for %q: %v", resource, keyErr))
 		}
-		candidates, status := cursorCandidates(ctx, src, resource)
-		managed := false
-		if provider, ok := src.(filament.ManagedIncrementalSource); ok {
-			managed = provider.ManagedIncremental(resource)
-		}
+		candidates, status := cursorCandidates(inspection)
+		managed := inspection.ManagedIncremental
 		// When candidates are unknowable stay optimistic; runtime decides.
 		cursorable := managed || cursors[resource] || len(candidates) > 0 ||
 			status != ingestionv1.CandidateStatus_CANDIDATE_STATUS_ENUMERATED
@@ -401,17 +372,15 @@ func (a *Server) resourceBreakdown(ctx context.Context, edge *ingestionv1.Pipeli
 
 // cursorCandidates enumerates a resource's eligible cursor columns, reporting
 // how an empty list should be read.
-func cursorCandidates(ctx context.Context, src filament.Source, resource string) ([]*ingestionv1.CandidateValue, ingestionv1.CandidateStatus) {
-	provider, ok := src.(filament.CursorColumnProvider)
-	if !ok {
+func cursorCandidates(inspection filament.ResourceInspection) ([]*ingestionv1.CandidateValue, ingestionv1.CandidateStatus) {
+	if !inspection.Ranked {
 		return nil, ingestionv1.CandidateStatus_CANDIDATE_STATUS_NOT_SUPPORTED
 	}
-	columns, err := provider.CursorColumns(ctx, resource)
-	if err != nil {
+	if inspection.ColumnsErr != nil {
 		return nil, ingestionv1.CandidateStatus_CANDIDATE_STATUS_UNAVAILABLE
 	}
 	var out []*ingestionv1.CandidateValue
-	for _, column := range columns {
+	for _, column := range inspection.Columns {
 		if !column.Eligible {
 			continue
 		}
@@ -474,21 +443,8 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		}
 		return err
 	}
-	var schema filament.ConfigSchema
-	switch conn.Kind {
-	case filament.ConnectorKindSource:
-		source, err := a.sources.Resolve(conn.Connector)
-		if err != nil {
-			return nil
-		}
-		schema = source.Spec().Config
-	case filament.ConnectorKindSink:
-		sink, err := a.sinks.Resolve(conn.Connector)
-		if err != nil {
-			return nil
-		}
-		schema = sink.Spec().Config
-	default:
+	schema, err := a.schemaFor(ctx, connectionKindToProto(conn.Kind), conn.Connector)
+	if err != nil {
 		return nil
 	}
 	cfg := filament.NewConfig(overlayConfig(conn.Config, structMap(node.GetConfig())))
@@ -510,82 +466,94 @@ func graphError(message string) *ingestionv1.ValidationError {
 	return &ingestionv1.ValidationError{Message: message}
 }
 
-// sourceProbes lazily configures at most one live source per node for cursor
-// and primary-key inspection, memoizes discovery, and tears everything down
-// together after validation.
+// sourceProbes inspects each source node once for every resource its edges
+// name, or once for all when any edge leaves the resource open, so a node
+// costs one connector pool per validation however many edges share it.
 type sourceProbes struct {
-	server     *Server
-	sources    map[string]filament.Source
-	errs       map[string]error
-	discovered map[string][]filament.Resource
+	server *Server
+	// demand is the resource set each node's edges need; nil means all.
+	demand  map[string][]string
+	results map[string]probeResult
 }
 
-func (p *sourceProbes) get(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection) (filament.Source, error) {
+type probeResult struct {
+	inspections []filament.ResourceInspection
+	err         error
+}
+
+func newSourceProbes(server *Server, edges []*ingestionv1.PipelineEdge) *sourceProbes {
+	demand := map[string][]string{}
+	open := map[string]bool{}
+	for _, edge := range edges {
+		node := edge.GetFromNode()
+		if edge.GetResource() == "" {
+			open[node] = true
+			continue
+		}
+		demand[node] = append(demand[node], edge.GetResource())
+	}
+	for node := range open {
+		demand[node] = nil
+	}
+	return &sourceProbes{server: server, demand: demand, results: map[string]probeResult{}}
+}
+
+// inspect returns the node's inspections for one resource, or for every
+// selectable resource when resource is empty. The node-wide answer is
+// memoized; a resource missing from it, or unreachable through it, is
+// inspected on its own.
+func (p *sourceProbes) inspect(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resource string) ([]filament.ResourceInspection, error) {
 	id := node.GetId()
-	if src, ok := p.sources[id]; ok {
-		return src, nil
+	all, err := p.memo(ctx, id, node, conn, p.demand[id])
+	if resource == "" {
+		return all, err
 	}
-	if err, ok := p.errs[id]; ok {
-		return nil, err
-	}
-	src, err := p.configure(ctx, node, conn)
 	if err != nil {
-		p.errs[id] = err
-		return nil, err
+		// A source that cannot list its resources can still answer for a
+		// named one, so a named edge keeps its own key and cursor checks.
+		return p.memo(ctx, id+"\x00"+resource, node, conn, []string{resource})
 	}
-	p.sources[id] = src
-	return src, nil
+	for _, inspection := range all {
+		if inspection.Name == resource {
+			return []filament.ResourceInspection{inspection}, nil
+		}
+	}
+	return p.memo(ctx, id+"\x00"+resource, node, conn, []string{resource})
 }
 
-// discover lists a node's resources once; ok is false when the source does
-// not support discovery.
-func (p *sourceProbes) discover(ctx context.Context, nodeID string, src filament.Source) ([]filament.Resource, bool, error) {
-	discoverable, ok := src.(filament.Discoverable)
-	if !ok {
-		return nil, false, nil
-	}
-	if resources, ok := p.discovered[nodeID]; ok {
-		return resources, true, nil
-	}
-	result, err := discoverable.Discover(ctx, filament.DiscoverOpts{})
-	if err != nil {
-		return nil, true, err
-	}
-	p.discovered[nodeID] = result.Resources
-	return result.Resources, true, nil
+// inspectResources inspects an explicit resource list in one call, for
+// callers whose resources are only known after planning.
+func (p *sourceProbes) inspectResources(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.ResourceInspection, error) {
+	return p.memo(ctx, node.GetId()+"\x00"+strings.Join(resources, "\x00"), node, conn, resources)
 }
 
-func (p *sourceProbes) configure(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection) (filament.Source, error) {
+func (p *sourceProbes) memo(ctx context.Context, key string, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.ResourceInspection, error) {
+	if result, ok := p.results[key]; ok {
+		return result.inspections, result.err
+	}
+	inspections, err := p.run(ctx, node, conn, resources)
+	p.results[key] = probeResult{inspections: inspections, err: err}
+	return inspections, err
+}
+
+func (p *sourceProbes) run(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.ResourceInspection, error) {
 	config := compile.MergeConfig(conn.Config, structMap(node.GetConfig()))
 	if err := p.server.resolveConnectionSecrets(ctx, conn, config); err != nil {
 		return nil, err
 	}
-	source, err := p.server.sources.Resolve(conn.Connector)
-	if err != nil {
-		return nil, err
-	}
-	if err := source.Configure(ctx, filament.NewConfig(config)); err != nil {
-		return nil, err
-	}
-	return source, nil
+	return p.server.catalog.Inspect(ctx, conn.Connector, filament.NewConfig(config), resources)
 }
 
-func (p *sourceProbes) teardown(ctx context.Context) {
-	for _, src := range p.sources {
-		_ = src.Teardown(ctx)
-	}
-}
-
-func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn *filament.Connection, source filament.Source, sink filament.Sink, runtimeSupported bool, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
+func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn *filament.Connection, pair filament.ConnectorPair, runtimeSupported bool, probes *sourceProbes, ev *ingestionv1.EdgeValidation) {
 	selected := edge.GetWriteMode()
 	if selected == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
 		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
 	}
 	ev.EffectiveWriteMode = selected
-	if caps := sink.Spec().Capabilities.Stream; caps != nil {
+	if caps := pair.Sink.Capabilities.Stream; caps != nil {
 		seen := map[filament.WriteMode]bool{}
 		for _, candidate := range caps.WritePolicies {
-			if _, err := filament.PlanContinuousWrite(source.Spec(), sink.Spec(), candidate.Mode); err == nil && !seen[candidate.Mode] && writeModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			if _, err := filament.PlanContinuousWrite(pair.Source, pair.Sink, candidate.Mode); err == nil && !seen[candidate.Mode] && writeModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
 				ev.SupportedWriteModes = append(ev.SupportedWriteModes, writeModeToProto(candidate.Mode))
 				seen[candidate.Mode] = true
 			}
@@ -594,13 +562,13 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 	if !runtimeSupported {
 		edgeError(ev, "execution_mode", filament.ErrContinuousDisabled.Error())
 	}
-	if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
+	if err := pair.ValidateContinuous(); err != nil {
 		edgeError(ev, "execution_mode", err.Error())
 	}
 	writeMode, err := writeModeFromProto(selected)
 	var writePlan filament.ContinuousWritePlan
 	if err == nil {
-		writePlan, err = filament.PlanContinuousWrite(source.Spec(), sink.Spec(), writeMode)
+		writePlan, err = filament.PlanContinuousWrite(pair.Source, pair.Sink, writeMode)
 	}
 	if err != nil {
 		edgeError(ev, "write_mode", err.Error())
@@ -616,18 +584,18 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 		resources = []string{edge.Resource}
 	}
 	ref := filament.Ref{Connector: srcConn.Connector, Config: compile.MergeConfig(srcConn.Config, structMap(from.Config))}
-	sourcePlan, planErr := compile.PlanContinuousSource(source, ref, resources, srcConn.ID)
+	sourcePlan, planErr := compile.PlanContinuousSource(ctx, probes.server.catalog, ref, resources, srcConn.ID)
 	if planErr != nil {
 		edgeError(ev, "from_node", planErr.Error())
 	}
 	if err == nil && planErr == nil && writePlan.Policy.Capability.RequiresPK {
-		src, probeErr := probes.get(ctx, from, *srcConn)
+		inspections, probeErr := probes.inspectResources(ctx, from, *srcConn, sourcePlan.Resources)
 		if probeErr != nil {
 			edgeError(ev, "from_node", probeErr.Error())
 		} else {
-			for _, resource := range sourcePlan.Resources {
-				keys, keyErr := filament.PrimaryKeyForResource(ctx, src, resource)
-				if keyErr != nil {
+			for _, inspection := range inspections {
+				resource, keys := inspection.Name, inspection.PrimaryKey
+				if keyErr := inspection.PrimaryKeyErr; keyErr != nil {
 					edgeError(ev, "from_node", keyErr.Error())
 					continue
 				}
@@ -637,16 +605,38 @@ func validateContinuousEdge(ctx context.Context, edge *ingestionv1.PipelineEdge,
 	}
 }
 
-func (a *Server) edgeExecutionModes(source filament.Source, sink filament.Sink, mode ingestionv1.ExecutionMode, ev *ingestionv1.EdgeValidation) bool {
+// edgePair loads both ends of an edge from the catalog, recording a lookup
+// failure against the node it belongs to.
+func (a *Server) edgePair(ctx context.Context, source, sink string, ev *ingestionv1.EdgeValidation) (filament.ConnectorPair, bool) {
+	var pair filament.ConnectorPair
+	var err error
+	if pair.Source, err = a.catalog.SourceSpec(ctx, source); err == nil {
+		pair.SourceContracts, err = a.catalog.SourceContracts(ctx, source)
+	}
+	if err != nil {
+		edgeError(ev, "from_node", err.Error())
+		return pair, false
+	}
+	if pair.Sink, err = a.catalog.SinkSpec(ctx, sink); err == nil {
+		pair.SinkContracts, err = a.catalog.SinkContracts(ctx, sink)
+	}
+	if err != nil {
+		edgeError(ev, "to_node", err.Error())
+		return pair, false
+	}
+	return pair, true
+}
+
+func (a *Server) edgeExecutionModes(pair filament.ConnectorPair, mode ingestionv1.ExecutionMode, ev *ingestionv1.EdgeValidation) bool {
 	ev.EffectiveExecutionMode = mode
-	for _, candidate := range a.sourceExecutionModes(source) {
-		if !slices.Contains(a.sinkExecutionModes(sink), candidate) {
+	for _, candidate := range a.sourceExecutionModes(pair.Source, pair.SourceContracts) {
+		if !slices.Contains(a.sinkExecutionModes(pair.Sink, pair.SinkContracts), candidate) {
 			continue
 		}
-		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED && !boundedPairSupported(source.Spec(), sink.Spec()) {
+		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED && !boundedPairSupported(pair.Source, pair.Sink) {
 			continue
 		}
-		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && filament.ValidateContinuousConnectors(source, sink) != nil {
+		if candidate == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && pair.ValidateContinuous() != nil {
 			continue
 		}
 		ev.SupportedExecutionModes = append(ev.SupportedExecutionModes, candidate)

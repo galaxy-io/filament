@@ -7,6 +7,7 @@
 export const IngestionV1NotificationType = {
     NotificationTypeUnspecified: "NOTIFICATION_TYPE_UNSPECIFIED",
     NotificationTypeWebhook: "NOTIFICATION_TYPE_WEBHOOK",
+    NotificationTypeSlack: "NOTIFICATION_TYPE_SLACK",
 } as const;
 export type IngestionV1NotificationType =
     (typeof IngestionV1NotificationType)[keyof typeof IngestionV1NotificationType];

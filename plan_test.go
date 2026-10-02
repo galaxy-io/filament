@@ -91,26 +91,16 @@ func TestCheckpointCoverageFor(t *testing.T) {
 	}
 }
 
-type replicationSource struct{ Source }
-
-func (replicationSource) Replication(cfg Config) ReplicationMode {
-	if cfg.String("replication") == string(ReplicationCDC) {
-		return ReplicationCDC
-	}
-	return ReplicationStandard
-}
-
-func TestReplicationOf(t *testing.T) {
-	aware := replicationSource{}
-	if got := ReplicationOf(aware, NewConfig(map[string]any{"replication": "cdc"})); got != ReplicationCDC {
+func TestReplicationFor(t *testing.T) {
+	aware := ConnectorSpec{SourcePolicies: SourcePolicies(IngestionCDCAppend)}
+	if got := ReplicationFor(aware, NewConfig(map[string]any{"replication": "cdc"})); got != ReplicationCDC {
 		t.Fatalf("got %q, want cdc", got)
 	}
-	if got := ReplicationOf(aware, NewConfig(nil)); got != ReplicationStandard {
+	if got := ReplicationFor(aware, NewConfig(nil)); got != ReplicationStandard {
 		t.Fatalf("got %q, want standard", got)
 	}
-	var unaware Source
-	if got := ReplicationOf(unaware, NewConfig(nil)); got != ReplicationStandard {
-		t.Fatalf("unaware source: got %q, want standard", got)
+	if got := ReplicationFor(ConnectorSpec{}, NewConfig(map[string]any{"replication": "cdc"})); got != ReplicationStandard {
+		t.Fatalf("source without a CDC policy: got %q, want standard", got)
 	}
 }
 

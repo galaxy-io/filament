@@ -91,6 +91,18 @@ helm upgrade --install filament \
   {{- end }}
 {{- end }}
 
+## Catalog parameters
+
+The catalog answers every connector call for the server and control plane, so neither image carries a driver. It runs the worker image and ServiceAccount set under `controlPlane.dispatch.worker`, receives no runtime Secret, and is reached over plain HTTP inside the cluster.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "catalog." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 ## Control plane parameters
 
 | Key | Type | Default | Description |

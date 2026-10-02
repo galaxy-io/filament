@@ -1,9 +1,14 @@
-// Command worker executes one already-persisted Filament run.
+// Command worker executes one already-persisted Filament run. It is the one
+// binary that links every connector driver. With -catalog or -execute it
+// runs long-lived instead: -catalog answers connector calls for the control
+// binaries, -execute consumes requested runs from the event bus for
+// deployments without Kubernetes.
 package main
 
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,15 +17,22 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
+	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
-
-	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
+	hostCatalog := flag.Bool("catalog", false, "run as a long-lived worker answering connector catalog calls")
+	execute := flag.Bool("execute", false, "run as a long-lived host executing requested runs from the event bus")
+	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	err := run(ctx)
+	var err error
+	if *hostCatalog || *execute {
+		err = serve(ctx, *hostCatalog, *execute)
+	} else {
+		err = run(ctx)
+	}
 	stop()
 	if err != nil {
 		slog.Error("worker exited",
@@ -49,6 +61,9 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer closeDeps()
+	if deps.Sources, err = connectors.SourcesFromEnv(); err != nil {
+		return err
+	}
 	workerLog := deps.Log.With(
 		filament.Field{Key: "component", Value: "worker"},
 		filament.Field{Key: "run_id", Value: string(runID)},

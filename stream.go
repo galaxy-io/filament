@@ -129,18 +129,27 @@ type StreamSource interface {
 // ValidateContinuousConnectors checks native lifecycle support and whether at least
 // one declared streaming write policy is compatible with the source.
 func ValidateContinuousConnectors(source Source, sink Sink) error {
-	if _, ok := source.(StreamSource); !ok {
+	return ConnectorPair{
+		Source: source.Spec(), SourceContracts: SourceContractsOf(source),
+		Sink: sink.Spec(), SinkContracts: SinkContractsOf(sink),
+	}.ValidateContinuous()
+}
+
+// ValidateContinuous is ValidateContinuousConnectors for callers that hold
+// the catalog's description of the pair instead of the drivers.
+func (p ConnectorPair) ValidateContinuous() error {
+	if !p.SourceContracts.Streams {
 		return errors.New("continuous execution requires a native stream source with position codecs")
 	}
-	if _, ok := sink.(StreamingSink); !ok {
+	if !p.SinkContracts.Streams {
 		return errors.New("continuous execution requires a native epoch sink")
 	}
-	caps := sink.Spec().Capabilities.Stream
+	caps := p.Sink.Capabilities.Stream
 	if caps == nil {
 		return errors.New("sink does not advertise streaming support")
 	}
 	for _, policy := range caps.WritePolicies {
-		if _, err := PlanContinuousWrite(source.Spec(), sink.Spec(), policy.Mode); err == nil {
+		if _, err := PlanContinuousWrite(p.Source, p.Sink, policy.Mode); err == nil {
 			return nil
 		}
 	}

@@ -29,6 +29,7 @@ server mode="": migrate
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
+      CATALOG_URL="${CATALOG_URL:-http://localhost:8082}" \
       AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
       AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \
       AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
@@ -39,30 +40,44 @@ server mode="": migrate
       AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
       GOWORK=off go run .
 
-# run the control plane locally (defaults match docker-compose.yaml; env overrides)
+# run the worker long-lived: it answers the API server's connector calls and executes runs (defaults match docker-compose.yaml; env overrides)
+worker:
+    cd cmd/worker && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      NATS_URL="${NATS_URL:-nats://localhost:4222}" \
+      NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
+      NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
+      WORKER_ADDR="${WORKER_ADDR:-:8082}" \
+      GOWORK=off go run . -catalog -execute
+
+# run the control plane locally; runs execute in `just worker` (defaults match docker-compose.yaml; env overrides)
 control-plane:
     cd cmd/control-plane && \
       PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
-      DISPATCH_MODE="${DISPATCH_MODE:-inproc}" \
+      DISPATCH_MODE="${DISPATCH_MODE:-worker}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
+      CATALOG_URL="${CATALOG_URL:-http://localhost:8082}" \
       GOWORK=off go run .
 
 # run the web UI dev server (vite, proxies API to :8080)
 ui:
     cd ui && pnpm install && pnpm dev
 
-# run the full app: control plane, API server, UI; `just dev zitadel|keycloak` turns auth on
+# run the full app: worker, control plane, API server, UI; `just dev zitadel|keycloak` turns auth on
 dev mode="": migrate
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
+    just worker &
     just control-plane &
     just server {{ mode }} &
     until curl -sf http://localhost:8080/startupz > /dev/null 2>&1; do sleep 0.2; done
     until curl -sf http://localhost:8081/startupz > /dev/null 2>&1; do sleep 0.2; done
+    until curl -sf http://localhost:8082/startupz > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
 

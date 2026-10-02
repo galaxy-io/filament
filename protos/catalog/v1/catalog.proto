@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+// CatalogService is the internal surface a connector host serves so the
+// control binaries never link a driver. It mirrors the filament.Catalog
+// interface and is not part of the public API.
+//
+// Fields named *_json carry the JSON encoding of the matching Go value. Both
+// ends are always the same build, so the Go types are the schema.
+service CatalogService {
+  // Describe returns connector specs and driver contracts. They are fixed for
+  // the life of the host process.
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+  // PlanReplicationStream asks a streaming source to plan its consumer.
+  rpc PlanReplicationStream(PlanReplicationStreamRequest) returns (PlanReplicationStreamResponse);
+  // Validate runs the connector's pure config validation.
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+  // TestConnection runs the connector's live probe.
+  rpc TestConnection(TestConnectionRequest) returns (TestConnectionResponse);
+  // Discover configures the source and lists its resources.
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+  // Inspect configures the source once and reports each resource's primary
+  // key and columns.
+  rpc Inspect(InspectRequest) returns (InspectResponse);
+}
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_SOURCE = 1;
+  KIND_SINK = 2;
+}
+
+// Connector is one registered connector as the catalog describes it.
+message Connector {
+  Kind kind = 1;
+  // name is the name the connector was asked for, which may be an alias.
+  string name = 2;
+  // spec_json is a filament.ConnectorSpec for a source, a filament.SinkSpec
+  // for a sink.
+  bytes spec_json = 3;
+  // plans_streams is set when a source implements ReplicationStreamPlanner.
+  bool plans_streams = 4;
+  // streams is set when a source implements StreamSource or a sink implements
+  // StreamingSink.
+  bool streams = 5;
+}
+
+message DescribeRequest {
+  // kind narrows the listing. It is required when name is set.
+  Kind kind = 1;
+  // name selects one connector and resolves aliases. Empty lists every
+  // registered connector.
+  string name = 2;
+}
+
+message DescribeResponse {
+  repeated Connector connectors = 1;
+}
+
+message PlanReplicationStreamRequest {
+  string source = 1;
+  string replication_stream_id = 2;
+  string source_connection_id = 3;
+  bytes config_json = 4;
+  repeated string resources = 5;
+}
+
+message PlanReplicationStreamResponse {
+  // plan_json is a filament.ReplicationStreamPlan.
+  bytes plan_json = 1;
+}
+
+message ValidateRequest {
+  Kind kind = 1;
+  string name = 2;
+  bytes config_json = 3;
+}
+
+message ValidateResponse {
+  // failure is the connector's verdict. Empty means the config is valid.
+  string failure = 1;
+}
+
+message TestConnectionRequest {
+  Kind kind = 1;
+  string name = 2;
+  bytes config_json = 3;
+}
+
+message TestConnectionResponse {
+  // failure is the probe's verdict. Empty means the connection works.
+  string failure = 1;
+}
+
+message DiscoverRequest {
+  string source = 1;
+  bytes config_json = 2;
+  bool refresh = 3;
+}
+
+message DiscoverResponse {
+  // result_json is a filament.DiscoverResult.
+  bytes result_json = 1;
+}
+
+message InspectRequest {
+  string source = 1;
+  bytes config_json = 2;
+  // resources to inspect. Empty inspects every selectable discovered resource.
+  repeated string resources = 3;
+}
+
+message ResourceInspection {
+  string name = 1;
+  repeated string primary_key = 2;
+  // primary_key_error is a failed schema read. The key is then unknown.
+  string primary_key_error = 3;
+  // columns_json is a []filament.CursorColumn.
+  bytes columns_json = 4;
+  // ranked marks the columns as annotated with cursor eligibility.
+  bool ranked = 5;
+  string columns_error = 6;
+  // columns_unsupported is set when the source exposes neither cursor columns
+  // nor a schema.
+  bool columns_unsupported = 7;
+  // managed_incremental marks a resource whose incremental state the source
+  // owns, so it needs no cursor column.
+  bool managed_incremental = 8;
+}
+
+message InspectResponse {
+  repeated ResourceInspection resources = 1;
+}

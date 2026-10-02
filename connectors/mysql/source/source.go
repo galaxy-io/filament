@@ -92,14 +92,6 @@ var (
 	_ filament.ResumePlanner        = (*Source)(nil)
 )
 
-// Replication reports the mode the connection's config selects.
-func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
-	if cfg.String("replication") == string(filament.ReplicationCDC) {
-		return filament.ReplicationCDC
-	}
-	return filament.ReplicationStandard
-}
-
 // Validate rejects an invalid DSN or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
 	resolved, err := mysqlconnection.Resolve(cfg)
@@ -172,7 +164,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 			return fmt.Errorf("mysql source: replication address: %w", err)
 		}
 		s.binlogHost, s.binlogPort = host, port
-	} else if s.Replication(cfg) == filament.ReplicationCDC {
+	} else if filament.ReplicationOf(s, cfg) == filament.ReplicationCDC {
 		return fmt.Errorf("mysql source: CDC requires a TCP connection, got network %q", mc.Net)
 	}
 	s.binlogUser, s.binlogPass = mc.User, mc.Passwd

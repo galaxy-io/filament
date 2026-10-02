@@ -1,9 +1,12 @@
 // Command control-plane runs Filament's orchestration loop: it fires due
-// schedules, executes or dispatches requested runs per DISPATCH_MODE, and
-// folds worker-emitted facts back into Postgres through tracker.
+// schedules, dispatches requested runs to workers per DISPATCH_MODE, and folds
+// worker-emitted facts back into Postgres through tracker. It links no
+// connector driver; the scheduler's connector questions go to the catalog
+// host at CATALOG_URL.
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -25,10 +28,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
-
-	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -46,11 +46,16 @@ func main() {
 func run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	connectorCatalog, err := boot.RemoteCatalog()
+	if err != nil {
+		return err
+	}
 	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
 		return err
 	}
 	defer closeDeps()
+	deps.Catalog = connectorCatalog
 	log := deps.Log.With(
 		filament.Field{Key: "component", Value: "control-plane"},
 	)
@@ -92,11 +97,14 @@ func run(ctx context.Context) error {
 	}
 	sched := scheduler.New(scheduleStore)
 	notify := notifier.New()
-	mods := []module.Module{tracker.New(), dispatcher, sched, notify}
+	mods := []module.Module{tracker.New(), sched, notify}
+	if dispatcher != nil {
+		mods = append(mods, dispatcher)
+	}
 	// The reaper mounts only under kubernetes dispatch: staleness means death
-	// only where heartbeats exist, and inproc runs don't emit them. The
-	// workload probe holds kills for workers that are up but silent and for
-	// Requested runs that were never dispatched.
+	// only where heartbeats exist, and a long-lived worker's runs don't emit
+	// them. The workload probe holds kills for workers that are up but silent
+	// and for Requested runs that were never dispatched.
 	var reap *reaper.Module
 	if prober, ok := dispatcher.(interface {
 		Workload(context.Context, filament.RunID) (filament.Workload, error)
@@ -116,22 +124,15 @@ func run(ctx context.Context) error {
 				filament.Field{Key: "error", Value: err.Error()})
 		}
 	}()
-	remote, _ := dispatcher.(filament.Dispatcher)
-	streams := streamsupervisor.New(runner.Deps{Bus: eventBus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: registry.DefaultSinks, Log: deps.Log}, remote)
-	streams.Start(ctx)
-	defer streams.Close()
+	defer superviseStreams(ctx, dispatcher, deps, eventBus)()
 	sched.Start(ctx)
 	if reap != nil {
 		reap.Start(ctx)
 	}
 	healthState.MarkStarted()
-	mode := os.Getenv("DISPATCH_MODE")
-	if mode == "" {
-		mode = "kubernetes"
-	}
 	log.Info("control-plane started",
 		filament.Field{Key: "event.name", Value: "control_plane.started"},
-		filament.Field{Key: "dispatch_mode", Value: mode},
+		filament.Field{Key: "dispatch_mode", Value: cmp.Or(os.Getenv("DISPATCH_MODE"), "kubernetes")},
 		filament.Field{Key: "health_address", Value: healthAddr},
 		filament.Field{Key: "modules", Value: h.Mounted()},
 	)
@@ -147,6 +148,19 @@ func run(ctx context.Context) error {
 		}
 		return fmt.Errorf("control-plane health server: %w", err)
 	}
+}
+
+// superviseStreams runs the continuous supervisor when attempts are
+// dispatched to Jobs; a long-lived worker supervises the ones it executes
+// itself. The returned close is a no-op otherwise.
+func superviseStreams(ctx context.Context, dispatcher module.Module, deps boot.Deps, bus eventbus.Bus) func() {
+	remote, ok := dispatcher.(filament.Dispatcher)
+	if !ok {
+		return func() {}
+	}
+	streams := streamsupervisor.New(runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Log: deps.Log}, remote)
+	streams.Start(ctx)
+	return streams.Close
 }
 
 func shutdownHealth(srv *http.Server, state *health.State, log filament.Logger) {

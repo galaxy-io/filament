@@ -48,11 +48,11 @@ func (a *Server) sinkSchemaField(ctx context.Context, tenant filament.TenantID, 
 	if err != nil {
 		return ""
 	}
-	snk, err := a.sinks.Resolve(conn.Connector)
+	spec, err := a.catalog.SinkSpec(ctx, conn.Connector)
 	if err != nil {
 		return ""
 	}
-	return snk.Spec().SchemaField
+	return spec.SchemaField
 }
 
 // upstreamSourceName returns the name of the single source connection feeding

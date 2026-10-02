@@ -34,6 +34,9 @@ type Deps struct {
 
 	Sources filament.SourceRegistry
 	Sinks   filament.SinkRegistry
+	// Catalog answers connector questions for modules that plan rather than
+	// run. Unset, those modules answer from the registries.
+	Catalog filament.Catalog
 
 	Log     filament.Logger
 	Metrics filament.Metrics

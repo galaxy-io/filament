@@ -18,4 +18,6 @@ export interface IngestionV1ConnectorSpec {
     schemaField?: string | undefined;
     maturity?: Filament.IngestionV1ConnectorMaturity | undefined;
     apiVersion?: string | undefined;
+    /** Concrete registration selected by a source catalog alias; empty otherwise. */
+    aliasTarget?: string | undefined;
 }

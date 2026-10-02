@@ -1,7 +1,8 @@
-// Command server runs the Filament API: it migrates the datastore and ensures
-// the default tenant, serves the ConnectRPC surface and the embedded web UI,
-// persists pipeline and run submissions, and publishes run.requested facts for
-// the control plane to dispatch.
+// Command server runs the Filament API: it ensures the default tenant, serves
+// the ConnectRPC surface and the embedded web UI, persists pipeline and run
+// submissions, and publishes run.requested facts for the control plane to
+// dispatch. With -migrate it runs datastore migrations and exits. It links no
+// connector driver; connector calls go to the catalog at CATALOG_URL.
 package main
 
 import (
@@ -29,11 +30,8 @@ import (
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
-
-	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -53,6 +51,10 @@ func main() {
 func run(ctx context.Context, migrateOnly bool) error {
 	if migrateOnly {
 		return persistence.MigrateFromEnv(ctx)
+	}
+	connectors, err := boot.RemoteCatalog()
+	if err != nil {
+		return err
 	}
 
 	deps, closeDeps, err := boot.FromEnv(ctx)
@@ -124,7 +126,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
-	api := server.New(deps.Sources, registry.DefaultSinks, deps.Store, orch, eventBus, apiOpts...)
+	api := server.New(connectors, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err

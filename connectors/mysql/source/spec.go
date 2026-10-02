@@ -25,7 +25,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionCDCMerge,
 		),
 		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
-			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
+			{Name: filament.ReplicationField, Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
 				{Value: string(filament.ReplicationStandard), Label: "Standard"},
 				{Value: string(filament.ReplicationCDC), Label: "Change Data Capture (CDC)"},
 			}, Scope: filament.ScopeConnection, Help: "Standard reads tables with queries; CDC streams changes from the binary log"},

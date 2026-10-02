@@ -14,6 +14,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/catalog"
 	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	pgsource "github.com/galaxy-io/filament/connectors/postgres/source"
 	"github.com/galaxy-io/filament/datastore/sqlite"
@@ -81,7 +82,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	}
 	defer func() { _ = h.Close() }()
 
-	api := server.New(sources, sinks, store, orch, bus, server.WithSecrets(secrets))
+	api := server.New(catalog.Local(sources, sinks), store, orch, bus, server.WithSecrets(secrets))
 
 	// 1. Create the source and sink Connections through the API. dsn is
 	//    CONNECTION-scoped, so it belongs in the connection config.

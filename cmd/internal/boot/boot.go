@@ -4,12 +4,14 @@ package boot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/cmd/internal/connectors"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
@@ -24,7 +26,12 @@ import (
 
 // Deps are the providers every deployed binary resolves from the environment.
 type Deps struct {
+	// Sources is set by the binaries that carry drivers. FromEnv leaves it
+	// nil so a binary that imports boot links none.
 	Sources filament.SourceRegistry
+	// Catalog answers the scheduler's connector questions. Unset, modules
+	// fall back to the registries.
+	Catalog filament.Catalog
 	Log     filament.Logger
 	Store   filament.DataStore
 	// StreamStore is the same underlying store exposed through its stream interface.
@@ -34,23 +41,19 @@ type Deps struct {
 	Tracer      filament.Tracer
 }
 
-// FromEnv loads the source catalog, then builds logger, datastore, secrets,
-// and otel providers. The
+// FromEnv builds the logger, datastore, secrets, and otel providers. The
 // returned close flushes otel and closes the secrets provider and store; call
 // it on the way out.
 // The event bus is deliberately separate (Bus) so binaries can start health
 // listeners before the connect wait.
 func FromEnv(ctx context.Context) (Deps, func(), error) {
-	sources, err := connectors.SourcesFromEnv()
-	if err != nil {
-		return Deps{}, nil, err
-	}
-	lg, err := logger.New()
+	lg, metrics, tracer, closeTelemetry, err := Telemetry(ctx)
 	if err != nil {
 		return Deps{}, nil, err
 	}
 	store, err := persistence.FromEnv(ctx)
 	if err != nil {
+		closeTelemetry()
 		return Deps{}, nil, err
 	}
 	var streamStore filament.ContinuousRunStore
@@ -66,27 +69,46 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 	secrets, err := secret.FromEnv(ctx, store)
 	if err != nil {
 		closeStore()
-		return Deps{}, nil, err
-	}
-	closeSecrets := func() {
-		if c, ok := secrets.(io.Closer); ok {
-			_ = c.Close()
-		}
-	}
-	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
-	if err != nil {
-		closeSecrets()
-		closeStore()
+		closeTelemetry()
 		return Deps{}, nil, err
 	}
 	shutdown := func() {
+		closeTelemetry()
+		if c, ok := secrets.(io.Closer); ok {
+			_ = c.Close()
+		}
+		closeStore()
+	}
+	return Deps{Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
+}
+
+// Telemetry builds the logger and otel providers alone, for a process that
+// needs no datastore. The returned close flushes otel.
+func Telemetry(ctx context.Context) (filament.Logger, filament.Metrics, filament.Tracer, func(), error) {
+	lg, err := logger.New()
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	flush := func() {
 		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = otelShutdown(flushCtx)
-		closeSecrets()
-		closeStore()
 	}
-	return Deps{Sources: sources, Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
+	return lg, metrics, tracer, flush, nil
+}
+
+// RemoteCatalog reaches the catalog at CATALOG_URL, for binaries that
+// link no driver.
+func RemoteCatalog() (filament.Catalog, error) {
+	url := os.Getenv("CATALOG_URL")
+	if url == "" {
+		return nil, errors.New("CATALOG_URL is required")
+	}
+	return catalog.Remote(url), nil
 }
 
 // Bus connects the event bus. The returned close closes it when closable.
@@ -111,6 +133,7 @@ func Mount(ctx context.Context, d Deps, b bus.Bus, mods ...module.Module) (*host
 		Secrets:   d.Secrets,
 		Sources:   d.Sources,
 		Sinks:     registry.DefaultSinks,
+		Catalog:   d.Catalog,
 		Log:       d.Log,
 		Metrics:   d.Metrics,
 		Tracer:    d.Tracer,

@@ -58,6 +58,21 @@ app.kubernetes.io/component: control-plane
 {{- end -}}
 
 
+{{- define "filament.catalog.fullname" -}}
+{{- printf "%s-catalog" (include "filament.fullname" . | trunc 52 | trimSuffix "-") | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "filament.catalog.labels" -}}
+{{ include "filament.labels" . }}
+app.kubernetes.io/component: catalog
+{{- end -}}
+
+{{- define "filament.catalog.selectorLabels" -}}
+{{ include "filament.selectorLabels" . }}
+app.kubernetes.io/component: catalog
+{{- end -}}
+
+
 {{- define "filament.worker.fullname" -}}
 {{- printf "%s-worker" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}

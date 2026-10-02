@@ -2,6 +2,8 @@ version: v2
 clean: true
 inputs:
   - directory: ../protos
+    exclude_paths:
+      - ../protos/catalog
 plugins:
   - local: protoc-gen-es
     out: src/gen

@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/catalog"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
@@ -20,7 +21,7 @@ import (
 func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 	ctx := testCtx()
 	store := sqlite.NewMemory()
-	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	api := New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "defaults"}))
 	if err != nil {
@@ -45,7 +46,7 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 	ctx := testCtx()
 	store := sqlite.NewMemory()
-	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	api := New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil)
 
 	res, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{
 		Name: "partial worker configuration",
@@ -81,7 +82,7 @@ func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 func TestGetPipelineIncludesDeleted(t *testing.T) {
 	ctx := testCtx()
 	store := sqlite.NewMemory()
-	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	api := New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil)
 
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "doomed"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
@@ -127,7 +128,7 @@ func TestGetPipelineIncludesDeleted(t *testing.T) {
 func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 	ctx := testCtx()
 	store := sqlite.NewMemory()
-	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	api := New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil)
 
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "scheduled"}); err != nil {
 		t.Fatalf("CreatePipeline: %v", err)
@@ -161,7 +162,7 @@ func TestDeletePipelineDropsScheduledRuns(t *testing.T) {
 func TestUpdatePipelineUsesExplicitMutableFields(t *testing.T) {
 	ctx := testCtx()
 	store := sqlite.NewMemory()
-	api := New(registry.NewSources(), registry.NewSinks(), store, nil, nil)
+	api := New(catalog.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil)
 	if _, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{
 		Id: "pipe-1", TenantId: string(filament.DefaultTenantID), Name: "old", Description: "old description",
 		WorkerConfiguration: &ingestionv1.WorkerConfiguration{Resources: &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "250m"}}},
@@ -283,7 +284,6 @@ func (strictSink) Spec() filament.SinkSpec {
 func TestCreatePipelineVersionRequiresPipelineScopedFields(t *testing.T) {
 	ctx := testCtx()
 	api, ids := leverAPI(t)
-	api.sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
 	created, err := api.CreateConnection(ctx, connect.NewRequest(&ingestionv1.CreateConnectionRequest{Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, Name: "strict", Connector: "strictsink"}))
 	if err != nil {
 		t.Fatal(err)
