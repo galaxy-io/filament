@@ -55,8 +55,12 @@ server:
     targetCpu: 80
 
   service:
+    # -- Service type.
+    type: ClusterIP
     # -- Server service and container port.
     port: 8080
+    # -- Annotations for the Service, e.g. cloud load balancer settings.
+    annotations: {}
 
   ingress:
     # -- Enable an Ingress for the server API and UI.
