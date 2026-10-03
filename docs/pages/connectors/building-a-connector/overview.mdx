@@ -39,6 +39,11 @@ or rate limits, and advertise only behavior the connector implements. See
 [Optional interfaces](/pages/connectors/building-a-connector/optional-interfaces)
 for what each one unlocks.
 
+For continuous execution, read
+[Streaming connectors](/pages/connectors/building-a-connector/streaming).
+It explains how a source establishes safe progress, how a sink commits epochs,
+and what each connector must guarantee before a worker can be replaced.
+
 ## Maturity
 
 Registration includes a maturity level, which the API and web app show to users.

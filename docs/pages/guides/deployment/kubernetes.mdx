@@ -160,9 +160,18 @@ and client on boot using `keycloak.adminUser`.
 Keycloak credentials live in `<release>-keycloak-auth`, separately from the
 shared runtime Secret. To manage them outside Helm, put `AUTH_CLIENT_SECRET`
 and `AUTH_ADMIN_PASSWORD` in a dedicated Secret and set
-`keycloak.existingSecret` to its name. Set `auth.keycloak.bootstrap.tenant`,
-`clientId`, and `clientSecret` to create an SDK admin service account; with an
-existing Secret, supply `AUTH_BOOTSTRAP_CLIENT_SECRET` there instead.
+`keycloak.existingSecret` to its name. Set `auth.keycloak.bootstrap.clientId`
+and `clientSecret` to add an SDK admin service account to the bootstrap tenant;
+with an existing Secret, supply `AUTH_BOOTSTRAP_CLIENT_SECRET` there instead.
+
+### Bootstrap admin
+
+Set `auth.bootstrap.tenant`, `auth.bootstrap.adminEmail`, and
+`auth.bootstrap.adminPassword` with either provider. The server converges the
+tenant on every boot, creates the admin with that password the first time, and
+closes sign-up. Everyone else joins through the members page. The password
+lives in the provider Secret as `AUTH_BOOTSTRAP_ADMIN_PASSWORD`; with an
+existing provider Secret, supply that key there instead.
 
 Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the
 provider Secret on upgrade. Updating the

@@ -7,6 +7,11 @@ A run is one execution of one pipeline route. The useful question after an
 interruption is not simply “was there a checkpoint?” It is “can every resource
 in this route continue without losing or duplicating accepted work?”
 
+This page describes bounded runs. Continuous runs save progress in successive
+epochs and have separate desired and observed execution states. Their pause,
+stop, retry, and ownership rules are covered in
+[Streaming](/pages/guides/concepts/streaming).
+
 ## Run states
 
 | State | What it means | What can happen next |

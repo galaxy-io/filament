@@ -40,7 +40,7 @@ const CreatePipelineModalResourcesCursorCell = ({
   if (!row.cursorOptions.length) {
     return (
       <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-        Auto
+        {row.managedIncremental ? "Source-managed" : "Auto"}
       </Text>
     );
   }

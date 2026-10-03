@@ -64,7 +64,7 @@ current checkpoint.
 source position → batch.written → tracker → durable checkpoint
 ```
 
-Filament keeps two checkpoint scopes:
+For bounded runs, Filament keeps two checkpoint scopes:
 
 - **Run-scoped checkpoints** allow the same logical run to resume a
   checkpointed snapshot.
@@ -76,6 +76,14 @@ That freezes source decisions such as shard boundaries so a resumed attempt
 does not silently read a different plan.
 
 ## When progress becomes durable
+
+The rules below describe bounded runs. Continuous runs use the same batch
+integrity checks, but save progress through an epoch certificate after the
+destination commits. The certificate connects completed pipeline work to
+source positions and destination receipts. Only then can the source
+acknowledge upstream progress. See
+[Streaming](/pages/guides/concepts/streaming) for that sequence and its replay
+boundaries.
 
 When a checkpoint can be saved depends on when the sink's work is recoverable:
 

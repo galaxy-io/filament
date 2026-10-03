@@ -59,6 +59,31 @@ func projectRecord(res manifest.Resource, record map[string]any, parent Capture)
 			out[field.Name] = remainder
 			continue
 		}
+		if field.MaxString != "" {
+			value, err := projectedPathValue(field.Path, record, parent)
+			if err != nil && !errors.Is(err, errs.ErrPathMissing) && !errors.Is(err, errs.ErrPathNull) {
+				return nil, false, err
+			}
+			var maximum string
+			if items, ok := value.([]any); ok {
+				for _, item := range items {
+					if obj, ok := item.(map[string]any); ok {
+						v, _ := obj[field.MaxString].(string)
+						if v > maximum {
+							maximum = v
+						}
+					}
+				}
+			} else if value != nil {
+				return nil, false, fmt.Errorf("project field %q: max_string requires an array", field.Name)
+			}
+			if maximum == "" {
+				out[field.Name] = nil
+			} else {
+				out[field.Name] = maximum
+			}
+			continue
+		}
 		if len(field.Shape) > 0 {
 			value, ok, err := shapedValue(field, record, parent)
 			if err != nil {
@@ -87,7 +112,7 @@ func projectRecord(res manifest.Resource, record map[string]any, parent Capture)
 func recordRemainder(record map[string]any, fields manifest.FieldList) map[string]any {
 	out := deepCopyMap(record)
 	for _, field := range fields {
-		if field.Mode == "remainder" || strings.HasPrefix(field.Path, "parent.") {
+		if field.MaxString != "" || field.Mode == "remainder" || strings.HasPrefix(field.Path, "parent.") {
 			continue
 		}
 		if len(field.Shape) > 0 {

@@ -1,5 +1,6 @@
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiTextInput from "@galaxy-io/dls/inputs/MultiTextInput";
 import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
@@ -27,6 +28,24 @@ const FieldList = ({
   const handleReset = () => {
     onChange([]);
   };
+
+  // No enum means there is nothing to select from; the user types the values.
+  if (field.enum.length === 0) {
+    return (
+      <FieldWrapper label={label} help={field.help} isRequired={field.required}>
+        <MultiTextInput
+          value={selected.filter((item): item is string => typeof item === "string")}
+          onChange={onChange}
+          size={InputSize.LARGE}
+          variant={variant}
+          placeholder="Press Enter or comma to add a value"
+          error={error}
+          isDisabled={isDisabled}
+          fillWidth
+        />
+      </FieldWrapper>
+    );
+  }
 
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>

@@ -263,9 +263,10 @@ func processEnvironment() map[string]string {
 // when Dynamic is nil, dynamic-from-headers otherwise.
 func buildLimiter(rl manifest.RateLimit) request.Limiter {
 	if rl.Dynamic == nil {
-		return request.NewStaticLimiter(rl.RequestsPerSecond)
+		return request.NewStaticLimiterWithBurst(rl.RequestsPerSecond, rl.Burst)
 	}
 	return request.NewDynamicLimiter(rl.RequestsPerSecond, request.DynamicConfig{
+		Burst:           rl.Burst,
 		RemainingHeader: rl.Dynamic.RemainingHeader,
 		ResetHeader:     rl.Dynamic.ResetHeader,
 		ResetFormat:     rl.Dynamic.ResetFormat,

@@ -17,6 +17,7 @@ fails planning or the run; it does not always degrade to a simpler mode.
 | Resume a checkpointed snapshot | `Resumable` and `ResumePlanner` |
 | Read incrementally across runs | `Resumable`, `IncrementalPlanner`, and usually `CursorColumnProvider` |
 | Read a database change stream | `ChangeSource` and a CDC `ReplicationAware` configuration |
+| Keep a source session open across continuous commits | `StreamSource`, `StreamSession`, and registered position codecs |
 | Release upstream CDC retention after durability | `ChangeAcknowledger` |
 | Resolve selectors into concrete resources | `ResourcePlanner` |
 | Declare a source-side request ceiling | `RateLimited` |
@@ -71,6 +72,12 @@ release. A source must never acknowledge beyond those positions.
 
 CDC support therefore requires agreement between connection mode, advertised
 source policies, emitted ordered operations, and the extraction interface.
+
+Continuous execution uses a reusable source session and repeated sink epochs.
+Those contracts are described in
+[Streaming connectors](/pages/connectors/building-a-connector/streaming),
+including how to report complete source boundaries and acknowledge certified
+progress.
 
 ## Validation and rate limits
 

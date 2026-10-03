@@ -2,6 +2,7 @@ package filament
 
 import (
 	"context"
+	"time"
 
 	"github.com/galaxy-io/filament/arrowbatch"
 )
@@ -79,4 +80,7 @@ type SinkCapabilities struct {
 	// bytes per Apply, used when the run does not set Options.BatchMaxBytes.
 	// 0 leaves batches unbounded by bytes.
 	PreferredBatchBytes int64
+	// PreferredFlushInterval is used when the pipeline does not explicitly
+	// choose a flush interval. Zero uses the engine default.
+	PreferredFlushInterval time.Duration
 }

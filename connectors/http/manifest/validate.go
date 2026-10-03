@@ -221,6 +221,9 @@ func (m *Manifest) validateSemantics() error {
 			if f.Mode == "remainder" && f.Type != "json" {
 				_ = agg.Addf(fieldPath+".mode", "remainder is only supported for json fields")
 			}
+			if f.MaxString != "" && (f.Type != "string" || !f.Nullable || len(f.Shape) > 0 || f.Mode != "") {
+				_ = agg.Addf(path+".fields", "max_string requires a nullable string field without shape or mode")
+			}
 			if len(f.Shape) > 0 && f.Type != "json" {
 				_ = agg.Addf(fieldPath+".shape", "shape is only supported for json fields")
 			}
@@ -277,7 +280,22 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
-		if r.Incremental != nil {
+		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
+			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
+		}
+		if r.Incremental != nil && r.Incremental.ResponseCursor != "" {
+			spec := r.Incremental
+			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 {
+				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, or overlap")
+			}
+			if r.Parent != nil || r.Stream != nil || r.EmitAs != "" || r.CaptureOnly {
+				_ = agg.Addf(path+".incremental", "response_cursor requires a top-level, non-streaming resource")
+			}
+			if r.Pagination.Type != "cursor" || r.Pagination.CursorPath != spec.ResponseCursor || r.Pagination.CursorParam != spec.StartParam || r.Pagination.InjectInto != spec.InjectInto || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "" {
+				_ = agg.Addf(path+".incremental", "response_cursor requires matching cursor pagination with an explicit more path and records path")
+			}
+		}
+		if r.Incremental != nil && r.Incremental.ResponseCursor == "" {
 			if r.Incremental.CursorField == "" {
 				_ = agg.Addf(path+".incremental.cursor_field", "is required")
 			}
@@ -367,6 +385,9 @@ func (m *Manifest) validateSemantics() error {
 		seenKinds[kind] = struct{}{}
 	}
 
+	if m.Connection.RateLimit.Burst < 0 {
+		_ = agg.Addf("connection.rate_limit.burst", "must be non-negative")
+	}
 	if m.Connection.RateLimit.Dynamic != nil {
 		if err := checkEnum(m.Connection.RateLimit.Dynamic.ResetFormat, ValidRateLimitResetFormats); err != nil {
 			_ = agg.Addf("connection.rate_limit.dynamic.reset_format", "%v", err)

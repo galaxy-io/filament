@@ -237,6 +237,7 @@ func referenceTemplate(value string) string {
 
 // RateLimit configures the request rate ceiling, optionally header-driven.
 type RateLimit struct {
+	Burst             int                 `yaml:"burst,omitempty"` // zero retains the default two-second burst
 	RequestsPerSecond float64             `yaml:"requests_per_second"`
 	Dynamic           *DynamicLimit       `yaml:"dynamic,omitempty"`
 	Responses         []RateLimitResponse `yaml:"responses,omitempty"`
@@ -294,12 +295,13 @@ type Resource struct {
 
 // FieldSpec maps a response path to a typed output field.
 type FieldSpec struct {
-	Name     string            `yaml:"name"`
-	Path     string            `yaml:"path"`
-	Type     string            `yaml:"type"`
-	Shape    map[string]string `yaml:"shape,omitempty"`
-	Mode     string            `yaml:"mode,omitempty"` // raw | remainder (json fields only)
-	Nullable bool              `yaml:"nullable,omitempty"`
+	MaxString string            `yaml:"max_string,omitempty"` // maximum nonempty string child of an array
+	Name      string            `yaml:"name"`
+	Path      string            `yaml:"path"`
+	Type      string            `yaml:"type"`
+	Shape     map[string]string `yaml:"shape,omitempty"`
+	Mode      string            `yaml:"mode,omitempty"` // raw | remainder (json fields only)
+	Nullable  bool              `yaml:"nullable,omitempty"`
 }
 
 // FieldList is the v1 map-based field declaration. YAML mapping order is
@@ -322,16 +324,18 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			field.Type = strings.TrimSuffix(value.Value, "?")
 		} else {
 			type valueSpec struct {
-				Path     string            `yaml:"path"`
-				Type     string            `yaml:"type"`
-				Shape    map[string]string `yaml:"shape,omitempty"`
-				Mode     string            `yaml:"mode,omitempty"`
-				Nullable bool              `yaml:"nullable,omitempty"`
+				MaxString string            `yaml:"max_string,omitempty"`
+				Path      string            `yaml:"path"`
+				Type      string            `yaml:"type"`
+				Shape     map[string]string `yaml:"shape,omitempty"`
+				Mode      string            `yaml:"mode,omitempty"`
+				Nullable  bool              `yaml:"nullable,omitempty"`
 			}
 			var spec valueSpec
 			if err := value.Decode(&spec); err != nil {
 				return fmt.Errorf("field %q: %w", name, err)
 			}
+			field.MaxString = spec.MaxString
 			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
 			if field.Path == "" && len(field.Shape) == 0 {
 				field.Path = name
@@ -379,7 +383,8 @@ type ErrorSpec struct {
 
 // PaginationSpec configures how list endpoints are paged.
 type PaginationSpec struct {
-	Type string `yaml:"type"` // cursor | offset | page | link_header | next_url | none
+	Strict bool   `yaml:"strict,omitempty"` // require an explicit cursor envelope, including terminal pages
+	Type   string `yaml:"type"`             // cursor | offset | page | link_header | next_url | none
 
 	// Shared by cursor and page pagination.
 	InjectInto  string `yaml:"inject_into,omitempty"` // body | query | header (cursor only)
@@ -456,6 +461,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 			Request        string `yaml:"request"`
 			More           string `yaml:"more"`
 			NullTerminates bool   `yaml:"null_terminates"`
+			Strict         bool   `yaml:"strict"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
@@ -464,6 +470,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if !ok || (target != "query" && target != "body" && target != "header") {
 			return fmt.Errorf("cursor.request must be query.<name>, body.<path>, or header.<name>")
 		}
+		p.Strict = spec.Strict
 		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	case "offset":
 		var spec struct {
@@ -518,7 +525,9 @@ func paginationTarget(field string) (string, string) {
 
 // IncrementalSpec configures watermark-based incremental extraction.
 type IncrementalSpec struct {
-	CursorField string `yaml:"cursor_field"`
+	// ResponseCursor persists an opaque terminal response token across runs.
+	ResponseCursor string `yaml:"response_cursor,omitempty"`
+	CursorField    string `yaml:"cursor_field"`
 	// CursorPath is resolved from the projected field declaration after parsing.
 	// It is runtime-only; manifests continue to name the output cursor field.
 	CursorPath    string `yaml:"-"`
@@ -538,6 +547,9 @@ type IncrementalSpec struct {
 func (s IncrementalSpec) DurableCheckpointKey() string {
 	if s.CheckpointKey != "" {
 		return s.CheckpointKey
+	}
+	if s.ResponseCursor != "" {
+		return "response_token:" + s.ResponseCursor
 	}
 	return s.CursorField
 }

@@ -2961,6 +2961,11 @@
             },
             "title": "service_account_scopes",
             "description": "service_account_scopes are requested by non-interactive clients. The\n provider owns these values so clients do not need provider-specific\n project IDs or reserved scope knowledge."
+          },
+          "inviteOnly": {
+            "type": "boolean",
+            "title": "invite_only",
+            "description": "invite_only means sign-up is closed: Register is refused and the UI\n offers no way to create an organization. People join by invitation."
           }
         },
         "title": "GetAuthConfigResponse",
@@ -5633,6 +5638,11 @@
               "$ref": "#/components/schemas/ingestion.v1.ResourceColumn"
             },
             "title": "columns"
+          },
+          "managedIncremental": {
+            "type": "boolean",
+            "title": "managed_incremental",
+            "description": "Incremental state is owned by the source; no cursor column is required."
           }
         },
         "title": "ResourceColumns",

@@ -722,3 +722,66 @@ func assertMonotonicSeq(t *testing.T, evs []events.Fact) {
 func errContains(err error, sub string) bool {
 	return err != nil && strings.Contains(err.Error(), sub)
 }
+
+// Empty exports need a checkpoint marker even when no Arrow data batch exists.
+func TestPipelineDrainOpaqueToken(t *testing.T) {
+	sink := &fakeSink{}
+	c := &collector{}
+	policy := filament.WritePolicyForIngestion(filament.IngestionIncrementalUpsert)
+	policy.Resource = "users"
+	p := New(Config{Tenant: "t1", Run: "r1", Sink: sink, Emit: c.emit, WritePolicies: map[string]filament.WritePolicy{"users": policy}, FlushInterval: time.Hour})
+	p.Start(context.Background())
+	w, err := p.Records().Builder("users", 0, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Drain(filament.RowMeta{Key: []string{"opaque-terminal"}}); err != nil {
+		t.Fatal(err)
+	}
+	p.CloseIngest(nil)
+	if err := p.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.batches()) != 0 {
+		t.Fatal("marker was written as a row")
+	}
+	found := false
+	for _, fact := range c.events() {
+		if d, ok := fact.Data.(events.BatchWrittenEvent); ok && d.Checkpoint != nil {
+			if d.Records != 0 || d.Checkpoint.String("mode") != "keyset" {
+				t.Fatalf("marker=%+v", d)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("empty export checkpoint missing")
+	}
+}
+
+type preferredBatchSink struct {
+	fakeSink
+	capabilities filament.SinkCapabilities
+}
+
+func (s *preferredBatchSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Capabilities: s.capabilities}
+}
+
+func TestSinkBatchingPreferences(t *testing.T) {
+	sink := &preferredBatchSink{capabilities: filament.SinkCapabilities{
+		PreferredBatchRows: 100_000, PreferredBatchBytes: 256 << 20, PreferredFlushInterval: 30 * time.Second,
+	}}
+	p := New(Config{Sink: sink})
+	if p.opts.MaxRows != 100_000 || p.opts.MaxBytes != 256<<20 || p.flushIvl != 30*time.Second {
+		t.Fatalf("sink preferences not used: %+v interval=%s", p.opts, p.flushIvl)
+	}
+	p = New(Config{Sink: sink, Options: filament.RunOptions{BatchMaxRows: 500, BatchMaxBytes: 1024}, FlushInterval: 2 * time.Second})
+	if p.opts.MaxRows != 500 || p.opts.MaxBytes != 1024 || p.flushIvl != 2*time.Second {
+		t.Fatalf("explicit settings not used: %+v interval=%s", p.opts, p.flushIvl)
+	}
+	p = New(Config{Sink: &fakeSink{}})
+	if p.flushIvl != time.Second {
+		t.Fatalf("default flush interval changed: %s", p.flushIvl)
+	}
+}

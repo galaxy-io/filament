@@ -189,7 +189,11 @@ func (s *Sink) createStream(ctx context.Context, name, resource string) (jetstre
 		// Open's shared-stream probe: the filter must cover real resources.
 		resource = "resource"
 	}
-	cfg := jetstream.StreamConfig{Name: name, Subjects: []string{s.cfg.captureFilter(resource)}, Storage: jetstream.FileStorage}
+	filter := s.cfg.captureFilter(resource)
+	if err := validCaptureFilter(filter); err != nil {
+		return nil, err
+	}
+	cfg := jetstream.StreamConfig{Name: name, Subjects: []string{filter}, Storage: jetstream.FileStorage}
 	jsStream, err := s.js.CreateStream(ctx, cfg)
 	if errors.Is(err, jetstream.ErrStreamNameAlreadyInUse) {
 		return s.js.Stream(ctx, name)

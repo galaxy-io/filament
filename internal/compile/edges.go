@@ -116,7 +116,9 @@ func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {
 
 func writeModeFromProto(mode ingestionv1.WriteMode) (filament.WriteMode, error) {
 	switch mode {
-	case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED, ingestionv1.WriteMode_WRITE_MODE_REPLACE:
+	case ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED:
+		return filament.WriteUpsert, nil
+	case ingestionv1.WriteMode_WRITE_MODE_REPLACE:
 		return filament.WriteReplace, nil
 	case ingestionv1.WriteMode_WRITE_MODE_APPEND:
 		return filament.WriteAppend, nil

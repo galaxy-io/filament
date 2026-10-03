@@ -22,6 +22,12 @@ A source connection is configured as either standard or CDC. Standard routes
 choose full or incremental per resource. CDC applies to the whole route and
 cannot be mixed with standard resources in the same run.
 
+Read mode is separate from execution mode. A bounded run finishes after its
+planned work; a continuous run keeps listening and commits progress repeatedly.
+CDC support alone does not imply continuous support. See
+[Streaming](/pages/guides/concepts/streaming) for the connector requirements
+and recovery behavior of continuous runs.
+
 ## Choose destination behavior
 
 - `append` keeps each emitted row version.
@@ -29,10 +35,12 @@ cannot be mixed with standard resources in the same run.
 - `upsert` keeps the current row for each primary key.
 - `merge` applies ordered CDC inserts, updates, and deletes.
 
-Full reads default to replace. Incremental reads default to upsert. CDC routes
-default to append but may be configured to merge; the choice is route-wide.
-Upsert and merge need primary-key information, and Filament rejects the plan
-when the source cannot supply it.
+New pipelines default to upsert for full and incremental reads. Resources with
+primary keys use upsert; resources without keys use append within the same route.
+The sink must support append for those resources. Repeated keyless rows accumulate,
+including when a full read runs again. Select replace when you need a fresh snapshot.
+CDC routes default to append but may be configured to merge; their key requirements
+are unchanged.
 
 Common combinations look like this:
 

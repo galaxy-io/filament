@@ -66,7 +66,7 @@ const buildCursors = (
 ): ResourceCursorConfig[] => {
   if (readMode !== ReadMode.INCREMENTAL) return [];
   return rows
-    .filter((row) => !!row.cursorField)
+    .filter((row) => !row.managedIncremental && !!row.cursorField)
     .map((row) =>
       create(ResourceCursorConfigSchema, {
         resource: row.name,

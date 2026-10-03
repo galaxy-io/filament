@@ -110,6 +110,7 @@
           "additionalProperties": false,
           "properties": {
             "requests_per_second": { "type": "number", "minimum": 0 },
+            "burst": { "type": "integer", "minimum": 1 },
             "responses": {
               "type": "array",
               "items": {
@@ -238,10 +239,12 @@
         "pagination": { "$ref": "#/$defs/pagination" },
         "incremental": {
           "type": "object",
-          "required": ["cursor_field", "start_param", "inject_into"],
+          "required": ["start_param", "inject_into"],
+          "oneOf": [{"required": ["cursor_field"]}, {"required": ["response_cursor"]}],
           "additionalProperties": false,
           "properties": {
             "cursor_field": { "type": "string", "minLength": 1 },
+            "response_cursor": { "type": "string", "minLength": 1 },
             "start_param": { "type": "string", "minLength": 1 },
             "inject_into": { "type": "string", "enum": ["query", "body", "header"] },
             "initial": { "type": "string" },
@@ -287,6 +290,7 @@
             "properties": {
               "path": { "type": "string" },
               "type": { "type": "string", "enum": ["string", "bool", "int16", "int32", "int64", "float32", "float64", "decimal", "date", "time", "timestamp", "timestamptz", "json", "uuid"] },
+              "max_string": { "type": "string", "minLength": 1 },
               "shape": { "type": "object", "additionalProperties": { "type": "string" } },
               "mode": { "type": "string", "enum": ["raw", "remainder", ""] },
               "nullable": { "type": "boolean" }
@@ -350,7 +354,8 @@
                 "response": { "type": "string", "minLength": 1 },
                 "request": { "type": "string", "minLength": 3 },
                 "more": { "type": "string" },
-                "null_terminates": { "type": "boolean" }
+                "null_terminates": { "type": "boolean" },
+                "strict": { "type": "boolean" }
               }
             },
             "offset": {

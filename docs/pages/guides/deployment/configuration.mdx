@@ -61,7 +61,7 @@ event bus.
 | `SECRET_PROVIDER` | unset | Unset uses the configured datastore. External values are `aws-secrets-manager` and `gcp-secret-manager` |
 | `ENCRYPTION_KEY` | — | Base64-encoded AES key. Required when `SECRET_PROVIDER` is unset; it must decode to 16, 24, or 32 bytes |
 | `ENCRYPTION_KEY_ID` | `default` | Identifier stored with secrets written by the datastore-backed provider |
-| `SECRETS_PREFIX` | empty | Prefix added to external secret IDs; GCP prefixes may contain letters, digits, `_`, and `-` |
+| `SECRETS_PREFIX` | empty | Root name for external secrets, default `filament`. AWS names secrets `<prefix>/<tenant>/...` and GCP `<prefix>-<hash>`; GCP allows only letters, digits, `_`, and `-` |
 | `AWS_REGION` | AWS SDK chain | AWS region. Startup fails if the SDK cannot resolve one |
 | `GCP_PROJECT_ID` | — | GCP project containing Secret Manager secrets. Required for `gcp-secret-manager` |
 | `GCP_REGION` | — | GCP region containing Secret Manager secrets. Required for `gcp-secret-manager` |
@@ -120,8 +120,10 @@ Filament does not export logs through OTLP.
 | `AUTH_CLIENT_SECRET` | — | That client's secret. Required when `AUTH_PROVIDER=keycloak` |
 | `AUTH_ADMIN_USERNAME` | unset | Keycloak admin on the master realm. With `AUTH_ADMIN_PASSWORD`, the server creates the realm and client on boot when they are missing; unset, the realm's owners provision both |
 | `AUTH_ADMIN_PASSWORD` | unset | That admin's password |
-| `AUTH_BOOTSTRAP_TENANT` | unset | Tenant converged on every boot with an admin service account, so an SDK can act before any person registers. Keycloak only; set all three bootstrap variables or none |
-| `AUTH_BOOTSTRAP_CLIENT_ID` | unset | Client id of that service account |
+| `AUTH_BOOTSTRAP_TENANT` | unset | Tenant converged on every boot |
+| `AUTH_BOOTSTRAP_ADMIN_EMAIL` | unset | Person who administers the bootstrap tenant, created on boot and left alone once it exists. Closes sign-up: people join by invitation |
+| `AUTH_BOOTSTRAP_ADMIN_PASSWORD` | unset | That person's initial password, chosen by you. Required with `AUTH_BOOTSTRAP_ADMIN_EMAIL` |
+| `AUTH_BOOTSTRAP_CLIENT_ID` | unset | Admin service account on the bootstrap tenant, so an SDK can act before any person signs in. Keycloak only; set with `AUTH_BOOTSTRAP_CLIENT_SECRET` or not at all |
 | `AUTH_BOOTSTRAP_CLIENT_SECRET` | unset | Secret that service account authenticates with, chosen by you |
 | `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies |
 

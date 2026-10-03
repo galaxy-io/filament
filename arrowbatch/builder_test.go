@@ -182,3 +182,72 @@ func TestBuilderErrors(t *testing.T) {
 		t.Fatalf("receiver error not surfaced: %v", err)
 	}
 }
+
+type blockedHandoff struct {
+	collect
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (r *blockedHandoff) Chunk(batch *Batch) error {
+	if len(r.chunks) == 0 {
+		close(r.entered)
+		<-r.release
+	}
+	return r.collect.Chunk(batch)
+}
+
+func TestFlushRequestDuringBackpressureDoesNotSplitNextBatch(t *testing.T) {
+	receiver := &blockedHandoff{entered: make(chan struct{}), release: make(chan struct{})}
+	allocator := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer allocator.AssertSize(t, 0)
+	builder := NewBuilder(Schema(testSchema()), allocator, Options{MaxRows: 2}, receiver)
+	defer func() {
+		_ = builder.Close()
+		for _, batch := range receiver.chunks {
+			batch.Release()
+		}
+	}()
+	appendRow := func(id int64) error {
+		builder.Int64(id)
+		builder.Null()
+		builder.Null()
+		builder.Null()
+		return builder.EndRow(rowmodel.Meta{})
+	}
+	done := make(chan error, 1)
+	go func() {
+		if err := appendRow(1); err != nil {
+			done <- err
+			return
+		}
+		done <- appendRow(2)
+	}()
+	<-receiver.entered
+	// The timer ticks while the full writer queue blocks the completed batch.
+	builder.RequestFlush()
+	close(receiver.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if err := appendRow(3); err != nil {
+		t.Fatal(err)
+	}
+	if len(receiver.chunks) != 1 {
+		t.Fatal("stale timer request flushed the next batch after one row")
+	}
+	if err := appendRow(4); err != nil {
+		t.Fatal(err)
+	}
+	if len(receiver.chunks) != 2 || receiver.chunks[1].NumRows() != 2 {
+		t.Fatal("next batch did not reach its row limit")
+	}
+	// A new timer request after the handoff must still be honored.
+	builder.RequestFlush()
+	if err := appendRow(5); err != nil {
+		t.Fatal(err)
+	}
+	if len(receiver.chunks) != 3 || receiver.chunks[2].NumRows() != 1 {
+		t.Fatal("new flush request was lost")
+	}
+}

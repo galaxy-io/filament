@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -152,6 +153,18 @@ func (s *Source) Validate(cfg filament.Config) error {
 		return fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
 	for _, field := range s.config.Fields {
+		if field.Type == filament.FieldEnum && cfg.Has(field.Name) {
+			found := false
+			for _, option := range field.Enum {
+				if cfg.String(field.Name) == option.Value {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("%s source: invalid value for %s", s.name, field.Name)
+			}
+		}
 		if field.Required && !cfg.Has(field.Name) {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
@@ -834,7 +847,7 @@ func (s *Source) CursorColumns(_ context.Context, resource string) ([]filament.C
 	if !ok {
 		return nil, fmt.Errorf("httpapi source: unknown resource %q", resource)
 	}
-	if res.Incremental == nil {
+	if res.Incremental == nil || res.Incremental.ResponseCursor != "" {
 		return nil, nil
 	}
 	field, ok := manifest.IncrementalCursorField(res)
@@ -856,10 +869,8 @@ func (s *Source) CursorColumns(_ context.Context, resource string) ([]filament.C
 	}}, nil
 }
 
-// PlanIncremental creates a watermark-only checkpoint. Pagination cursors are
-// deliberately excluded: they are valid for resuming a failed page walk, but
-// carrying one into the next scheduled run alongside a newer watermark can
-// skip records.
+// PlanIncremental creates either a row watermark or an opaque export-token
+// checkpoint. Ordinary pagination state is never carried between scheduled runs.
 func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map[string]filament.Checkpoint, cursors map[string]filament.ResourceCursorConfig) (map[string]filament.Checkpoint, error) {
 	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan incremental before configure")
@@ -879,6 +890,23 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		}
 		if res.Incremental == nil {
 			return nil, fmt.Errorf("httpapi source: resource %q has no incremental watermark in its manifest", resource)
+		}
+		if res.Incremental.ResponseCursor != "" {
+			config := cursors[resource]
+			if config.Field != "" || config.LookbackSeconds != 0 {
+				return nil, fmt.Errorf("incremental %q uses source-managed state", resource)
+			}
+			spec := *res.Incremental
+			s.incrementalResources[resource] = spec
+			cols := []string{spec.DurableCheckpointKey()}
+			// Bind saved tokens to the exact request and continuation contract.
+			identity := s.responseCursorIdentity(res)
+			cp := checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: cols, Types: []string{"string"}, Meta: map[string]string{"response_cursor": identity}, Shards: []checkpoint.KeysetShard{{Key: watermarkKey(spec.Initial)}}}
+			if old, ok := checkpoint.ParseKeyset(prev[resource]); ok && old.Mode == checkpoint.ModeIncremental && slices.Equal(old.Cols, cols) && len(old.Shards) == 1 && old.Meta["response_cursor"] == identity {
+				cp.Shards = old.Shards
+			}
+			plan[resource] = cp.ToCheckpoint(resource)
+			continue
 		}
 		field, ok := manifest.IncrementalCursorField(res)
 		if !ok {
@@ -965,7 +993,7 @@ func (r *incrementalRecordReducer) record(rec record) (record, error) {
 		base := r.source.baseResourceName(rec.Resource)
 		spec, ok = r.source.incrementalResources[base]
 	}
-	if !ok {
+	if !ok || spec.ResponseCursor != "" {
 		return rec, nil
 	}
 	checkpointKey := spec.DurableCheckpointKey()
@@ -1024,4 +1052,52 @@ func (s *incrementalRecordSink) PushBatch(records []record) error {
 		}
 	}
 	return nil
+}
+
+// ManagedIncremental reports resources whose continuation is not a row value.
+func (s *Source) ManagedIncremental(resource string) bool {
+	if s.connector == nil || s.connector.manifest == nil {
+		return false
+	}
+	res, ok := s.manifestResource(s.baseResourceName(resource))
+	return ok && res.Incremental != nil && res.Incremental.ResponseCursor != ""
+}
+
+type responseCheckpointSink interface {
+	Checkpoint(resource, token string) error
+}
+
+func (r *rowSink) Checkpoint(resource, token string) error {
+	rw, err := r.writer(resource)
+	if err != nil {
+		return err
+	}
+	return rw.w.Drain(rowmodel.Meta{Key: []string{token}})
+}
+
+func (s *incrementalRecordSink) Checkpoint(resource, token string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	target, ok := s.sink.(responseCheckpointSink)
+	if !ok {
+		return fmt.Errorf("response cursor requires a checkpoint-capable sink")
+	}
+	return target.Checkpoint(resource, token)
+}
+
+// Bind opaque state to the manifest and non-secret connection identity. Token
+// credentials may rotate without invalidating a tenant's export continuation.
+func (s *Source) responseCursorIdentity(res manifest.Resource) string {
+	config := map[string]string{}
+	for key, value := range s.connector.creds {
+		if s.connector.manifest.Config[key].Type != "secret" {
+			config[key] = value
+		}
+	}
+	data, _ := json.Marshal(struct {
+		Resource manifest.Resource
+		BaseURL  string
+		Config   map[string]string
+	}{res, s.connector.manifest.Connection.BaseURL, config})
+	return fmt.Sprintf("%x", sha256.Sum256(data))
 }

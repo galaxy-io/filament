@@ -26,11 +26,16 @@ type Limiter interface {
 
 // NewStaticLimiter returns a Limiter that allows rps requests/sec with
 // a small burst. rps <= 0 means unlimited.
-func NewStaticLimiter(rps float64) Limiter {
+func NewStaticLimiter(rps float64) Limiter { return NewStaticLimiterWithBurst(rps, 0) }
+
+// NewStaticLimiterWithBurst bounds bursts; zero retains the default burst.
+func NewStaticLimiterWithBurst(rps float64, burst int) Limiter {
 	if rps <= 0 {
 		return &staticLimiter{rl: rate.NewLimiter(rate.Inf, 0)}
 	}
-	burst := max(int(rps)*2, 1)
+	if burst <= 0 {
+		burst = max(int(rps)*2, 1)
+	}
 	return &staticLimiter{rl: rate.NewLimiter(rate.Limit(rps), burst)}
 }
 
@@ -48,6 +53,7 @@ func (s *staticLimiter) Observe(_ *http.Response)       {}
 //	ResetFormat     — unix_seconds | seconds_from_now | http_date
 //	MinFloorRPS     — floor for the dynamic limiter so we never starve completely
 type DynamicConfig struct {
+	Burst           int
 	RemainingHeader string
 	ResetHeader     string
 	ResetFormat     string
@@ -74,7 +80,7 @@ func NewDynamicLimiter(rps float64, cfg DynamicConfig, opts ...DynamicOption) Li
 		floor = 0.5
 	}
 	d := &dynamicLimiter{
-		base:   NewStaticLimiter(rps),
+		base:   NewStaticLimiterWithBurst(rps, cfg.Burst),
 		cfg:    cfg,
 		floor:  floor,
 		logger: obs.Logger(nil),

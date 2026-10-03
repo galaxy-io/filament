@@ -14,7 +14,7 @@ version. Its messages are defined in `protos/ingestion/v1/runs.proto`.
 | `ListRuns` | List runs with status and time-window filters |
 | `GetRun` | Read one run and its per-resource progress |
 | `TailRun` | Stream current and live run events |
-| `SignalRun` | Pause, resume, or cancel a run |
+| `SignalRun` | Pause or resume a run; cancel bounded work or stop continuous execution |
 
 ## RunPipeline
 
@@ -58,6 +58,13 @@ A zero value asks the engine or sink to choose its normal default:
 the route must meet the safe-resume rules. See
 [Runs and recovery](/pages/guides/concepts/runs-and-recovery) for those boundaries.
 
+Continuous runs also expose `execution_mode` and `execution_status`. The latter
+separates the requested state from what the worker is doing: an execution can
+be draining toward a pause, retrying, or blocked even while the logical run
+remains active. Its record and byte totals reflect certified epochs, and
+`last_committed_at` records the latest saved commit. See
+[Streaming](/pages/guides/concepts/streaming) for how to interpret these states.
+
 ## ListRuns
 
 Filter by `pipeline_id`, optional `pipeline_version_id`, repeated `status`, and
@@ -91,7 +98,7 @@ without one the RPC returns `failed_precondition`.
 
 ## SignalRun
 
-Send `PAUSE`, `RESUME`, or `CANCEL` with a `run_id`. An optional `tenant_id` is
+For bounded runs, send `PAUSE`, `RESUME`, or `CANCEL` with a `run_id`. An optional `tenant_id` is
 checked against the run when present.
 
 The allowed transition depends on current state:
@@ -106,3 +113,9 @@ The allowed transition depends on current state:
 Running signals require both an event bus and datastore support for atomic run
 transitions. A request may also end with `deadline_exceeded` or `canceled` while
 waiting for worker acknowledgement.
+
+Continuous runs accept `PAUSE`, `RESUME`, and `STOP`. These update the desired
+state and return the current execution status while the worker responds.
+An optional `expected_revision` detects a conflicting control change; a stale
+revision returns `aborted`. A stopped execution cannot be resumed and requires
+a new start.

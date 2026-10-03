@@ -282,6 +282,47 @@ The lower bound remains fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping
 that value could cause later runs to miss records.
 
+For export feeds whose continuation survives between runs, use
+`response_cursor` instead of `cursor_field`:
+
+```yaml
+response:
+  records: $.data
+  pagination:
+    cursor:
+      response: continueFrom
+      request: query.from
+      more: hasMore
+      strict: true
+incremental:
+  response_cursor: continueFrom
+  start_param: from
+  inject_into: query
+  checkpoint_key: jobs_export_token
+```
+
+The response cursor must match cursor pagination's response path and request
+target. This mode requires a top-level resource and explicit records and `more`
+paths. Every page must contain an array of records, a Boolean `more` value, and
+a nonempty string token, including the terminal page. `strict: true` applies
+these checks to full reads too. Repeated continuation cycles fail extraction.
+The terminal token is committed after the complete run succeeds, even when no
+rows were returned. Failed runs replay from the previous committed token.
+Tokens are opaque: row comparators, cursor-column selection, and lookback windows
+are unavailable. Full reads do not seed incremental state. A change to the
+resource contract or non-secret connection configuration starts a fresh export.
+
+A nullable string field can derive a lexical maximum from an array:
+
+```yaml
+lastEventDate: { path: history, type: string, nullable: true, max_string: date }
+```
+
+`max_string` names an immediate child property on each array object. Missing,
+null, empty, non-string dates and non-object elements are ignored; an empty or
+missing array produces null. A non-array value fails projection. The original
+array is retained if projected separately, otherwise it remains in `raw`.
+
 ### Discovery and streaming
 
 `discovery` supports `mode: static | dynamic`, though every shipped manifest
@@ -293,6 +334,12 @@ selection when creating a pipeline. All resources remain listed and selectable.
 Omit it to select all by default, or use `[]` to select none by default.
 
 ## Runtime behavior
+
+The optional `connection.rate_limit.burst` bounds how many requests can start
+immediately when rate-limit capacity is available. Omit it to retain the
+default burst of twice `requests_per_second` (at least one). Set it to `1`
+for steady pacing. The limiter is shared by readers within one connector
+instance, including retries; separate runs do not share a budget.
 
 **Available modes.** Every manifest can run a full read. Incremental reads are
 available only when at least one resource has an `incremental` block, so a

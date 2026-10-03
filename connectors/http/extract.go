@@ -176,7 +176,7 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 // newTracker builds the incremental tracker for one extraction of res under
 // stateResource, or nil when the resource is not running incrementally.
 func (c *Connector) newTracker(res manifest.Resource, stateResource string) (*incremental.Tracker, error) {
-	if res.Incremental == nil || !c.incrementalEnabled(stateResource, res.Name) {
+	if res.Incremental == nil || res.Incremental.ResponseCursor != "" || !c.incrementalEnabled(stateResource, res.Name) {
 		return nil, nil
 	}
 	spec := *res.Incremental

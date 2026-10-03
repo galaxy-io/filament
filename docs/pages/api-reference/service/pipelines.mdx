@@ -28,6 +28,10 @@ per-resource route. On standard (query-based) connections an edge carries:
 - optional `cursors`: per-resource cursor column and lookback overrides, with
   omitted resources falling back to connector auto-detection
 
+Standard edges default to full reads and upsert writes. Upsert uses append for
+resources without a primary key, while keyed resources still use upsert. The
+sink must support append for this fallback. Repeated keyless rows are retained.
+
 Two invariants:
 
 - Every edge on the same source-to-destination route must use the same write
@@ -63,7 +67,8 @@ connections), and one `EdgeValidation` per edge with its errors, the
 
 Each edge also reports `requirements`, the configuration its mode combination
 involves, such as a cursor column for incremental reads or a primary key for
-upserts. A requirement carries candidate values with recommendations,
+keyed writes. Keyless upsert resources report a non-blocking append fallback.
+A requirement carries candidate values with recommendations,
 `satisfied` (a value is configured), and `blocking` (the run would fail
 as-is). Unsatisfied but non-blocking means connector auto-detection covers
 it. Validation runs under a 30-second timeout.
@@ -81,7 +86,7 @@ The only way to change what a pipeline does. The server:
 
 1. Runs full `ValidatePipeline` semantics on the submitted graph. An invalid
    graph is rejected with `invalid_argument` and nothing is written.
-2. Normalizes edge modes, making the `FULL`/`REPLACE` defaults explicit on
+2. Normalizes edge modes, making the `FULL`/`UPSERT` defaults explicit on
    standard edges while CDC edges stay bare.
 3. Defaults each sink node's declared schema field (the connector's
    `schema_field`) to the normalized name of its upstream source connection,
