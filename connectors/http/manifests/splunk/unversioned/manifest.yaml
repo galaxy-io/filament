@@ -1,0 +1,67 @@
+version: 1
+name: splunk
+display_name: Splunk
+description: Ingest log events and search results from Splunk Enterprise and Splunk Cloud.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-splunk-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-splunk-light.svg
+
+config:
+  host:
+    type: string
+    required: true
+    help: Splunk Server Base URL (e.g., http://localhost:8089)
+  token:
+    type: secret
+    required: true
+    help: Splunk API Token
+  search_query:
+    type: string
+    required: true
+    help: "SPL Search Query (e.g., search index=_internal)"
+
+connection:
+  base_url: "{{ config.host }}"
+  auth:
+    header:
+      name: Authorization
+      value: config.token
+
+defaults:
+  response:
+    error:
+      path: messages
+      when_present: true
+      message_path: messages.0.text
+
+resources:
+  - name: events
+    path: /services/search/v2/jobs/export
+    method: POST
+    primary_key: [_cd, _time]
+    fields:
+      _cd: { path: _cd, type: string, nullable: true }
+      _time: { path: _time, type: timestamptz }
+      _raw: string
+      host: string?
+      source: string?
+      sourcetype: string?
+      index: string?
+      raw: { path: $, type: json, mode: remainder }
+    body:
+      encoding: form
+      template:
+        search: config.search_query
+        output_mode: json
+        earliest_time: "1970-01-01T00:00:00Z"
+    response:
+      records: $
+    incremental:
+      cursor_field: _time
+      start_param: earliest_time
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: splunk_events_time
+      comparator: time
+
+discovery:
+  mode: static
