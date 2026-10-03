@@ -64,8 +64,10 @@ func (s *Source) Teardown(context.Context) error {
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:        "rabbitmq",
-		DisplayName: "RabbitMQ Streams",
+		DisplayName: "RabbitMQ",
 		Description: "Consume RabbitMQ Streams with Filament-owned durable offsets.",
+		DarkLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-light.svg",
 		Version:     "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "uri", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "RabbitMQ Stream URI, for example rabbitmq-stream://user:password@host:5552/%2f"},
