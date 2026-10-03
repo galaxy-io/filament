@@ -1,0 +1,146 @@
+---
+title: "WooCommerce"
+description: "Read products, orders, customers, coupons, taxes, shipping, webhooks and reports from a self-hosted WooCommerce store"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-woocommerce-dark.svg"
+---
+
+The WooCommerce source reads storefront data — products, catalog metadata,
+customers, orders, refunds, coupons, taxes, shipping zones, webhooks, reports,
+and settings — from a self-hosted WooCommerce store via its REST API. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It has been written against WooCommerce's REST API documentation and
+validated by the connector catalog, but has not yet been tested against a live
+store. It targets REST API version `v3` (the `wc/v3` namespace).
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `store_url` | Connection | | Required. The storefront URL, e.g. `https://your-store.example.com` with no trailing slash or `/wp-json` suffix. |
+| `consumer_key` | Connection | | Required. Secret. REST API consumer key. |
+| `consumer_secret` | Connection | | Required. Secret. REST API consumer secret. |
+
+Create credentials under **WooCommerce → Settings → Advanced → REST API**.
+WooCommerce serves the REST API over HTTP Basic auth with the consumer key as
+the username and the consumer secret as its password; this requires the store to
+be served over **HTTPS** (WooCommerce refuses Basic auth on plain HTTP for
+security). Connection testing makes a request to the products endpoint, so the
+key needs product read access.
+
+OAuth 1.0a signing (WooCommerce's fallback auth for non-SSL stores) is not yet
+supported.
+
+## Resources
+
+The connector mirrors the WooCommerce REST API v3 collection endpoints.
+
+### Catalog
+
+| Resource | Endpoint | Incremental |
+|---|---|---|
+| `products` | `GET /products` | Yes |
+| `product_variations` | `GET /products/{id}/variations` | |
+| `product_categories` | `GET /products/categories` | |
+| `product_tags` | `GET /products/tags` | |
+| `product_attributes` | `GET /products/attributes` | |
+| `product_attribute_terms` | `GET /products/attributes/{id}/terms` | |
+| `product_shipping_classes` | `GET /products/shipping_classes` | |
+| `product_reviews` | `GET /products/reviews` | |
+
+### Commerce
+
+| Resource | Endpoint | Incremental |
+|---|---|---|
+| `customers` | `GET /customers` | |
+| `customer_downloads` | `GET /customers/{id}/downloads` | |
+| `orders` | `GET /orders` | Yes |
+| `order_notes` | `GET /orders/{id}/notes` | |
+| `order_refunds` | `GET /orders/{id}/refunds` | |
+| `coupons` | `GET /coupons` | |
+
+### Tax & shipping
+
+| Resource | Endpoint |
+|---|---|
+| `tax_classes` | `GET /taxes/classes` |
+| `tax_rates` | `GET /taxes` |
+| `shipping_zones` | `GET /shipping/zones` |
+| `shipping_zone_methods` | `GET /shipping/zones/{id}/methods` |
+| `shipping_zone_locations` | `GET /shipping/zones/{id}/locations` |
+
+### Webhooks & gateways
+
+| Resource | Endpoint |
+|---|---|
+| `payment_gateways` | `GET /payment_gateways` |
+| `webhooks` | `GET /webhooks` |
+| `webhook_deliveries` | `GET /webhooks/{id}/deliveries` |
+
+### Reports
+
+| Resource | Endpoint |
+|---|---|
+| `reports` | `GET /reports` |
+| `report_sales` | `GET /reports/sales` |
+| `report_top_sellers` | `GET /reports/top_sellers` |
+| `report_orders_totals` | `GET /reports/orders/totals` |
+| `report_products_totals` | `GET /reports/products/totals` |
+| `report_customers_totals` | `GET /reports/customers/totals` |
+| `report_coupons_totals` | `GET /reports/coupons/totals` |
+| `report_reviews_totals` | `GET /reports/reviews/totals` |
+| `report_stock` | `GET /reports/stock` |
+
+### Settings
+
+| Resource | Endpoint |
+|---|---|
+| `settings_general` | `GET /settings/general` |
+| `settings_products` | `GET /settings/products` |
+| `settings_tax` | `GET /settings/tax` |
+| `settings_shipping` | `GET /settings/shipping` |
+| `settings_advanced` | `GET /settings/advanced` |
+
+Products and orders advance a watermark on `date_modified`, which WooCommerce
+updates whenever a record changes. WooCommerce returns these timestamps as
+naive, site-timezone datetimes (`YYYY-MM-DDTHH:MM:SS` with no UTC offset), so
+the connector orders them as fixed-width strings (`lex`) rather than parsing
+them as RFC3339. The `modified_after` filter is exclusive at second
+granularity, so a record whose `date_modified` equals the saved watermark is
+omitted on the next incremental read; run a periodic full read to recover any
+same-second boundary records. The remaining resources are full reads; their
+endpoints don't expose a reliable modification cursor that maps cleanly onto
+the connector's incremental model yet.
+
+Parent-scoped resources (`product_variations`, `product_attribute_terms`,
+`customer_downloads`, `order_notes`, `order_refunds`, `shipping_zone_methods`,
+`shipping_zone_locations`, and `webhook_deliveries`) fan out one request per
+parent record (product, attribute, customer, order, zone, or webhook).
+
+`line_items`, `shipping_lines`, `fee_lines`, `tax_lines`, `coupon_lines`,
+`billing`, `shipping`, `categories`, `tags`, `images`, `attributes`, and
+`settings` are kept as JSON columns, so nested order/product detail stays
+together. IDs are integers; optional fields are nullable; date fields are naive
+site timestamps (no offset); the `raw` column keeps unmapped fields.
+
+## Modes
+
+All resources support full reads (**full upsert** to refresh, **full replace**
+to also drop rows no longer returned). Products and orders additionally support
+incremental reads on `date_modified`.
+
+## Behavior
+
+- **Auth**: every request uses HTTP Basic auth with the consumer key and secret,
+  against your store's `wp-json/wc/v3` base.
+- **Pagination**: each collection endpoint is paged with `page`/`per_page` (page
+  size 100). A page shorter than the page size terminates the walk — the same
+  rule WooCommerce clients use, since the API exposes only the
+  `X-WP-TotalPages` header and no body next-page token.
+- **Rate limiting**: none configured; WooCommerce doesn't impose a documented
+  per-key ceiling. Stores behind a WAF may still throttle.
+- **Recovery**: interrupted incremental reads resume from their saved watermark;
+  interrupted full reads retry the resource from the beginning.
+
+The connector covers the full set of WooCommerce REST API v3 read endpoints that
+expose store data. Persistent `GET /settings`-style configuration is mirrored as
+read-only resources. Nested address/line detail is preserved as JSON columns.
