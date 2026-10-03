@@ -1,0 +1,194 @@
+version: 1
+name: woocommerce
+display_name: WooCommerce
+description: Catalogs, customers, orders, and products from a self-hosted WooCommerce store via its REST API (wp-json/wc/v3).
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-woocommerce-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-woocommerce-light.svg
+api_version: "v3"
+# WooCommerce is self-hosted, so the store URL is user-supplied per connection
+# (unlike the fixed base_url of SaaS manifests). The REST API base is always
+# <store_url>/wp-json/wc/v3. Auth is HTTP Basic with the store's consumer
+# key:secret pair, which WooCommerce requires to be served over HTTPS.
+config:
+  store_url:
+    type: string
+    required: true
+    help: The storefront URL, e.g. https://your-store.example.com (no trailing slash or /wp-json suffix).
+  consumer_key:
+    type: secret
+    required: true
+    help: WooCommerce REST API consumer key (WooCommerce > Settings > Advanced > REST API).
+  consumer_secret:
+    type: secret
+    required: true
+    help: WooCommerce REST API consumer secret paired with the consumer key.
+defaults:
+  method: GET
+  response:
+    # Every WooCommerce collection endpoint returns a bare JSON array; the root
+    # path selects it. page/per_page is the documented pagination mechanism and
+    # a page short of per_page terminates the walk (WooCommerce does not emit a
+    # next-page body token, and X-WP-TotalPages is the only header signal — the
+    # short-page rule is the same termination WooCommerce clients rely on).
+    records: $
+    pagination:
+      page:
+        number: page
+        size: per_page
+        page_size: 100
+connection:
+  base_url: "{{ config.store_url }}/wp-json/wc/v3"
+  auth:
+    basic:
+      username: config.consumer_key
+      password: config.consumer_secret
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+resources:
+  # First resource, so it doubles as the TestConnection probe: authenticated
+  # and needs no parent scope.
+  - name: products
+    path: /products
+    primary_key: [id]
+    # products supports a modified_after filter on date_modified_gmt; the
+    # cursor field projects the non-GMT ISO string which WooCommerce writes for
+    # the same instant, so time comparison stays consistent.
+    incremental:
+      cursor_field: date_modified
+      start_param: modified_after
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      comparator: time
+    fields:
+      id: int64
+      name: string?
+      slug: string?
+      permalink: string?
+      date_created: timestamptz?
+      date_modified: timestamptz
+      type: string?
+      status: string?
+      featured: bool?
+      catalog_visibility: string?
+      sku: string?
+      price: string?
+      regular_price: string?
+      sale_price: string?
+      manage_stock: bool?
+      stock_quantity: int64?
+      stock_status: string?
+      categories: json?
+      tags: json?
+      images: json?
+      average_rating: string?
+      rating_count: int64?
+      total_sales: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: product_categories
+    path: /products/categories
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      slug: string?
+      parent: int64?
+      description: string?
+      display: string?
+      image: json?
+      count: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: product_tags
+    path: /products/tags
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      slug: string?
+      description: string?
+      count: int64?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: customers
+    path: /customers
+    primary_key: [id]
+    fields:
+      id: int64
+      date_created: timestamptz?
+      date_modified: timestamptz?
+      email: string?
+      first_name: string?
+      last_name: string?
+      role: string?
+      username: string?
+      billing: json?
+      shipping: json?
+      is_paying_customer: bool?
+      orders_count: int64?
+      total_spent: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: orders
+    path: /orders
+    primary_key: [id]
+    incremental:
+      cursor_field: date_modified
+      start_param: modified_after
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      comparator: time
+      checkpoint_key: orders_date_modified
+    fields:
+      id: int64
+      parent_id: int64?
+      number: string?
+      order_key: string?
+      status: string?
+      currency: string?
+      date_created: timestamptz?
+      date_modified: timestamptz
+      customer_id: int64?
+      payment_method: string?
+      payment_method_title: string?
+      transaction_id: string?
+      customer_note: string?
+      billing: json?
+      shipping: json?
+      line_items: json?
+      shipping_lines: json?
+      total: string?
+      total_tax: string?
+      shipping_total: string?
+      discount_total: string?
+      created_via: string?
+      raw: { path: $, type: json, mode: remainder }
+
+  - name: coupons
+    path: /coupons
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      amount: string?
+      date_created: timestamptz?
+      date_modified: timestamptz?
+      discount_type: string?
+      description: string?
+      date_expires: string?
+      usage_count: int64?
+      individual_use: bool?
+      usage_limit: int64?
+      free_shipping: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+discovery:
+  mode: static
+  include:
+    - products
+    - product_categories
+    - product_tags
+    - customers
+    - orders
+    - coupons

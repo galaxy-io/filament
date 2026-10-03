@@ -1,0 +1,75 @@
+---
+title: "WooCommerce"
+description: "Read products, categories, customers, orders, and coupons from a self-hosted WooCommerce store"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-woocommerce-dark.svg"
+---
+
+The WooCommerce source reads storefront data — products, categories, tags,
+customers, orders, and coupons — from a self-hosted WooCommerce store via its
+REST API. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It has been written against WooCommerce's REST API documentation and
+validated by the connector catalog, but has not yet been tested against a live
+store. It targets REST API version `v3` (the `wc/v3` namespace).
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `store_url` | Connection | | Required. The storefront URL, e.g. `https://your-store.example.com` with no trailing slash or `/wp-json` suffix. |
+| `consumer_key` | Connection | | Required. Secret. REST API consumer key. |
+| `consumer_secret` | Connection | | Required. Secret. REST API consumer secret. |
+
+Create credentials under **WooCommerce → Settings → Advanced → REST API**.
+WooCommerce serves the REST API over HTTP Basic auth with the consumer key as
+the username and the consumer secret as its password; this requires the store to
+be served over **HTTPS** (WooCommerce refuses Basic auth on plain HTTP for
+security). Connection testing makes a request to the products endpoint, so the
+key needs product read access.
+
+OAuth 1.0a signing (WooCommerce's fallback auth for non-SSL stores) is not yet
+supported.
+
+## Resources
+
+| Resource | Endpoint | Incremental |
+|---|---|---|
+| `products` | `GET /products` | Yes |
+| `product_categories` | `GET /products/categories` | |
+| `product_tags` | `GET /products/tags` | |
+| `customers` | `GET /customers` | |
+| `orders` | `GET /orders` | Yes |
+| `coupons` | `GET /coupons` | |
+
+Products and orders advance a watermark on `date_modified`, which WooCommerce
+updates whenever a record changes. Categories, tags, customers, and coupons are
+full reads; their endpoints don't expose a reliable modification cursor that maps
+cleanly onto the connector's incremental model yet.
+
+`line_items`, `shipping_lines`, `billing`, `shipping`, `categories`, `tags`, and
+`images` are kept as JSON columns, so nested order/product detail stays together.
+IDs are integers; optional fields are nullable; timestamps include time zones;
+the `raw` column keeps unmapped fields.
+
+## Modes
+
+All resources support full reads (**full upsert** to refresh, **full replace**
+to also drop rows no longer returned). Products and orders additionally support
+incremental reads on `date_modified`.
+
+## Behavior
+
+- **Auth**: every request uses HTTP Basic auth with the consumer key and secret,
+  against your store's `wp-json/wc/v3` base.
+- **Pagination**: each collection endpoint is paged with `page`/`per_page` (page
+  size 100). A page shorter than the page size terminates the walk — the same
+  rule WooCommerce clients use, since the API exposes only the
+  `X-WP-TotalPages` header and no body next-page token.
+- **Rate limiting**: none configured; WooCommerce doesn't impose a documented
+  per-key ceiling. Stores behind a WAF may still throttle.
+- **Recovery**: interrupted incremental reads resume from their saved watermark;
+  interrupted full reads retry the resource from the beginning.
+
+This version covers the core commerce objects. Reports, refunds, shipping
+classes/zones, tax classes/rates, attributes, webhooks, and settings are outside
+its scope for now.
