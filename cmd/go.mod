@@ -8,6 +8,7 @@ require (
 	github.com/atterpac/dado v0.2.13
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
+	github.com/galaxy-io/filament/connectors/databricks v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/redshift v0.0.0
@@ -120,6 +121,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/creasty/defaults v1.8.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/databricks/zerobus-sdk/go v1.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
@@ -302,6 +304,8 @@ require (
 replace github.com/galaxy-io/filament => ..
 
 replace github.com/galaxy-io/filament/connectors/bigquery => ../connectors/bigquery
+
+replace github.com/galaxy-io/filament/connectors/databricks => ../connectors/databricks
 
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
 
