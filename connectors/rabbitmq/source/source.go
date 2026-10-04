@@ -65,7 +65,7 @@ func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:        "rabbitmq",
 		DisplayName: "RabbitMQ",
-		Description: "Consume RabbitMQ Streams with Filament-owned durable offsets.",
+		Description: "Read RabbitMQ queues continuously with deliveries acknowledged only after Filament commits each batch.",
 		DarkLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-light.svg",
 		Version:     "1",
