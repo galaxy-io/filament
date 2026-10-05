@@ -401,3 +401,14 @@ func anyToInt(v any) int {
 		return 0
 	}
 }
+
+// ReplayOnResume marks job-state checkpoints that are safe to persist before
+// sink commit only because the source replays their data on every retry.
+const ReplayOnResume = "replay_on_resume"
+
+// RequiresReplay identifies opt-in attempt state; it never makes a watermark
+// durable across runs before the sink commits.
+func RequiresReplay(cp filament.Checkpoint) bool {
+	state, ok := ParseKeyset(cp)
+	return ok && state.Meta[ReplayOnResume] == "true"
+}

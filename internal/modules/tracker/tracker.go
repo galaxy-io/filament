@@ -434,7 +434,7 @@ func (m *Module) foldCursor(ctx context.Context, env events.Envelope, cp *filame
 	}
 	m.cp[key] = merged
 	m.since[key]++
-	persist := m.since[key] >= m.cadence(ctx, env.Tenant, env.Run)
+	persist := checkpoint.RequiresReplay(merged) || m.since[key] >= m.cadence(ctx, env.Tenant, env.Run)
 	if persist {
 		m.since[key] = 0
 	}
@@ -611,6 +611,14 @@ func (m *Module) persistCheckpoint(
 	promoteCommitGated bool,
 	reason checkpointReason,
 ) (bool, error) {
+	// These markers retain upstream job identities, not permission to skip rows.
+	// Sources opting in replay artifacts after failure, including rolled-back data.
+	if !promoteCommitGated && checkpoint.RequiresReplay(cp) {
+		if err := m.ds.SaveCheckpoint(ctx, tenant, run, cp); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
 	m.mu.Lock()
 	boundary := m.boundary[ckKey{run: run, resource: cp.Resource()}]
 	m.mu.Unlock()
@@ -670,6 +678,10 @@ func (m *Module) logCheckpointPersisted(
 
 // loadCheckpoint returns the persisted cursor for (run, resource) or nil.
 func (m *Module) loadCheckpoint(ctx context.Context, tenant filament.TenantID, run filament.RunID, resource string) filament.Checkpoint {
+	if cp, err := m.ds.LoadCheckpoint(ctx, tenant, run, resource); err == nil && checkpoint.RequiresReplay(cp) {
+		return cp
+	}
+
 	if state, err := m.ds.LoadRun(ctx, tenant, run); err == nil {
 		mode := filament.SourcePolicyForIngestion(filament.TypeFor(state.Request.IngestionTypes, resource)).Mode
 		if mode == filament.ModeIncremental || mode == filament.ModeCDC {

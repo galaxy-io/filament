@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
 )
 
 type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOpts) error
@@ -86,6 +87,10 @@ func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.S
 			}
 			resumePlan[resource] = cp
 		}
+		if err := restoreIncrementalAttempts(ctx, ds, src, spec, resumePlan); err != nil {
+			return nil, err
+		}
+
 	}
 	if len(checkpointed) > 0 {
 		planner, ok := src.(filament.ResumePlanner)
@@ -257,4 +262,45 @@ func safeCall(fn func() error) (err error) {
 		}
 	}()
 	return fn()
+}
+
+// Durable seeds are saved before this step. Attempt state is loaded and saved
+// only under the current run, never into the cross-run resource checkpoint.
+func restoreIncrementalAttempts(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, planned map[string]filament.Checkpoint) error {
+	selected := map[string]filament.Checkpoint{}
+	attempts := map[string]filament.Checkpoint{}
+	for resource, cp := range planned {
+		if !checkpoint.RequiresReplay(cp) {
+			continue
+		}
+		selected[resource] = cp
+		old, err := ds.LoadCheckpoint(ctx, spec.Tenant, spec.Run, resource)
+		if err == nil {
+			attempts[resource] = old
+		} else if !errors.Is(err, filament.ErrNotFound) {
+			return fmt.Errorf("load attempt checkpoint %q: %w", resource, err)
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	planner, ok := src.(filament.IncrementalResumePlanner)
+	if !ok {
+		return fmt.Errorf("source %q declares replay state without an incremental resume planner", spec.Source.Connector)
+	}
+	restored, err := planner.PlanIncrementalResume(ctx, selected, attempts)
+	if err != nil {
+		return fmt.Errorf("restore incremental attempt: %w", err)
+	}
+	for resource := range selected {
+		cp := restored[resource]
+		if cp == nil || !checkpoint.RequiresReplay(cp) {
+			return fmt.Errorf("invalid attempt checkpoint for %q", resource)
+		}
+		if err := ds.SaveCheckpoint(ctx, spec.Tenant, spec.Run, cp); err != nil {
+			return fmt.Errorf("seed attempt checkpoint %q: %w", resource, err)
+		}
+		planned[resource] = cp
+	}
+	return nil
 }

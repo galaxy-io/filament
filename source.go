@@ -70,6 +70,14 @@ type IncrementalPlanner interface {
 	PlanIncremental(ctx context.Context, resources []string, prev map[string]Checkpoint, cursors map[string]ResourceCursorConfig) (map[string]Checkpoint, error)
 }
 
+// IncrementalResumePlanner restores source job state from the current run without
+// promoting it to a cross-run watermark. Opt-in plans carry replay_on_resume
+// metadata; their rows must be replayed after interruption, even for completed
+// jobs, because the previous sink transaction may not have committed.
+type IncrementalResumePlanner interface {
+	PlanIncrementalResume(ctx context.Context, planned, attempt map[string]Checkpoint) (map[string]Checkpoint, error)
+}
+
 // CursorColumnProvider describes which resource columns can safely serve as
 // durable incremental cursors and which one the connector recommends.
 type CursorColumnProvider interface {
