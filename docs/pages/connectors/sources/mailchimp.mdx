@@ -13,14 +13,26 @@ but has not been tested against a live account.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
-| `api_key` | Connection | | Required. Secret. Mailchimp Marketing API key. |
+| `auth_method` | Connection | `api_key` | Choose **API Key** or **OAuth Access Token**. Only the selected method's credential field is shown. |
+| `api_key` | Connection | | Secret. Required for API Key authentication. |
+| `access_token` | Connection | | Secret. Required for OAuth Access Token authentication; omit the Bearer prefix. |
 | `server` | Connection | | Required. Account data center prefix, such as `us6`. |
 
-Create a key in your Mailchimp account's **Extras → API keys** settings. The
-server is the suffix after the last hyphen in the key. Requests use
-`https://<server>.api.mailchimp.com/3.0`. Access depends on the key owner's role
-and the account's plan. See [Mailchimp's authentication guide](https://mailchimp.com/developer/marketing/docs/fundamentals/#connecting-to-the-api).
-Connection testing reads the API root account endpoint.
+For **API Key**, create a key in your Mailchimp account's **Extras → API keys**
+settings. Set `server` to the suffix after the last hyphen in the key.
+
+For **OAuth Access Token**, complete Mailchimp's
+[authorization-code flow](https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/)
+externally and provide the resulting access token. Retrieve the account's server
+prefix from the `dc` field returned by `GET https://login.mailchimp.com/oauth2/metadata`
+using that token. Mailchimp OAuth access tokens do not expire; they remain valid
+until revoked. Filament does not host the authorization redirect or exchange codes.
+
+Both methods send a Bearer credential to `https://<server>.api.mailchimp.com/3.0`.
+Access follows the authorizing user's permissions and the account's plan.
+See [Mailchimp's authentication guide](https://mailchimp.com/developer/marketing/docs/fundamentals/#connecting-to-the-api).
+Connection testing reads the API root account endpoint. Existing connections
+continue to use API Key authentication by default.
 
 ## Resources
 
