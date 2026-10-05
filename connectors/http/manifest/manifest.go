@@ -92,13 +92,14 @@ type DiscoverySpec struct {
 	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 }
 
-// ConfigSpec declares one user-facing connector configuration field. Enum is
-// the ordered set of choices for enum and list fields.
+// ConfigCondition controls field visibility based on another field's selected value.
 type ConfigCondition struct {
 	Field  string   `yaml:"field"`
 	Values []string `yaml:"values"`
 }
 
+// ConfigSpec declares one user-facing connector configuration field. Enum is
+// the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
 	VisibleWhen *ConfigCondition  `yaml:"visible_when,omitempty"`
 	Type        string            `yaml:"type"`

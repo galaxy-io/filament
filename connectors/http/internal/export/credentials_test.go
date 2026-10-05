@@ -20,13 +20,14 @@ type snapshotSink struct {
 	rows   int
 }
 
-func (s *snapshotSink) Checkpoint(_ string, token string) error {
+func (s *snapshotSink) Checkpoint(_, token string) error {
 	if s.err != nil {
 		return s.err
 	}
 	s.tokens = append(s.tokens, token)
 	return nil
 }
+
 func (s *snapshotSink) Emit(map[string]any, map[string]string, string) (int, error) {
 	s.rows++
 	return 1, nil
@@ -36,8 +37,10 @@ func recoveryResource() manifest.Resource {
 	return manifest.Resource{Name: "items", Parent: &manifest.ParentRef{Concurrency: 1}, Export: &manifest.ExportSpec{
 		ParentKey: []string{"id"},
 		Start:     manifest.ExportStart{ExportRequest: manifest.ExportRequest{Method: "POST", Path: "/exports"}, Capture: map[string]string{"id": "$.id"}},
-		Wait: manifest.ExportWait{Type: "job", TimeoutSeconds: 30, Request: &manifest.ExportRequest{Method: "GET", Path: "/status"},
-			State: &manifest.ExportJobState{Path: "$.status", Ready: []string{"ready"}, Pending: []string{"pending"}}, Capture: map[string]string{"url": "$.url"}},
+		Wait: manifest.ExportWait{
+			Type: "job", TimeoutSeconds: 30, Request: &manifest.ExportRequest{Method: "GET", Path: "/status"},
+			State: &manifest.ExportJobState{Path: "$.status", Ready: []string{"ready"}, Pending: []string{"pending"}}, Capture: map[string]string{"url": "$.url"},
+		},
 		Result: manifest.ExportResult{URL: "{{ job.url }}", AllowedHosts: []string{"127.0.0.1"}, Format: "json"},
 	}}
 }
@@ -68,6 +71,7 @@ func (c *recoveryControl) Start(context.Context, manifest.Resource, template.Sco
 	}
 	return []byte(`{"id":"sensitive-created-job"}`), nil
 }
+
 func (c *recoveryControl) Poll(ctx context.Context, _ string, _ manifest.ExportRequest, _ template.Scope) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

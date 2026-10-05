@@ -19,8 +19,10 @@ func deadlineFixture(t *testing.T, phases ...string) (*Runtime, manifest.Resourc
 	res := manifest.Resource{Name: "items", Parent: &manifest.ParentRef{Concurrency: 1}, Export: &manifest.ExportSpec{
 		ParentKey: []string{"id"},
 		Start:     manifest.ExportStart{ExportRequest: manifest.ExportRequest{Method: "POST", Path: "/exports"}, Capture: map[string]string{"id": "$.id"}},
-		Wait: manifest.ExportWait{Type: "job", TimeoutSeconds: 30, Request: &manifest.ExportRequest{Method: "GET", Path: "/status"},
-			State: &manifest.ExportJobState{Path: "$.status", Ready: []string{"ready"}, Pending: []string{"pending"}}},
+		Wait: manifest.ExportWait{
+			Type: "job", TimeoutSeconds: 30, Request: &manifest.ExportRequest{Method: "GET", Path: "/status"},
+			State: &manifest.ExportJobState{Path: "$.status", Ready: []string{"ready"}, Pending: []string{"pending"}},
+		},
 	}}
 	state := c.emptyExportRun(res, false)
 	parents := make([]map[string]string, len(phases))

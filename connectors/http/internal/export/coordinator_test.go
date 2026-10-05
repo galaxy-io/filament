@@ -12,7 +12,7 @@ type coordinatorSink struct {
 	err    error
 }
 
-func (s *coordinatorSink) Checkpoint(_ string, token string) error {
+func (s *coordinatorSink) Checkpoint(_, token string) error {
 	if s.err != nil {
 		return s.err
 	}

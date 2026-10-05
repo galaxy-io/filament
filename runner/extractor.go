@@ -22,24 +22,7 @@ type extractorFunc func(context.Context, filament.RecordSink, filament.ExtractOp
 // folded from facts by the tracker.
 func resolveExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, plan filament.IngestionPlan, log filament.Logger) (extractorFunc, error) {
 	if plan.RequiresCDC {
-		changes, ok := src.(filament.ChangeSource)
-		if !ok {
-			return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Connector)
-		}
-		checkpoints, err := loadChangeCheckpoints(ctx, ds, spec)
-		if err != nil {
-			return nil, err
-		}
-		logLoadedCheckpoints(log, spec, checkpoints)
-		return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
-			logExtractionStart(log, spec, "cdc", len(checkpoints), len(checkpoints))
-			return changes.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{
-				Resources:   opts.Resources,
-				Checkpoints: checkpoints,
-				Limit:       opts.Limit,
-				Observe:     opts.Observe,
-			})
-		}, nil
+		return resolveChangeExtractor(ctx, ds, src, spec, log)
 	}
 	incremental, checkpointed := partitionCheckpointing(spec)
 	if len(incremental) == 0 && len(checkpointed) == 0 {
@@ -303,4 +286,25 @@ func restoreIncrementalAttempts(ctx context.Context, ds filament.DataStore, src 
 		planned[resource] = cp
 	}
 	return nil
+}
+
+func resolveChangeExtractor(ctx context.Context, ds filament.DataStore, src filament.Source, spec filament.RunSpec, log filament.Logger) (extractorFunc, error) {
+	changes, ok := src.(filament.ChangeSource)
+	if !ok {
+		return nil, fmt.Errorf("source %q does not support CDC extraction", spec.Source.Connector)
+	}
+	checkpoints, err := loadChangeCheckpoints(ctx, ds, spec)
+	if err != nil {
+		return nil, err
+	}
+	logLoadedCheckpoints(log, spec, checkpoints)
+	return func(ctx context.Context, sink filament.RecordSink, opts filament.ExtractOpts) error {
+		logExtractionStart(log, spec, "cdc", len(checkpoints), len(checkpoints))
+		return changes.ExtractChanges(ctx, sink, filament.ChangeExtractOpts{
+			Resources:   opts.Resources,
+			Checkpoints: checkpoints,
+			Limit:       opts.Limit,
+			Observe:     opts.Observe,
+		})
+	}, nil
 }

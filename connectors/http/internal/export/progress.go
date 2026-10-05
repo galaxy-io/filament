@@ -19,8 +19,10 @@ type jobProgress struct {
 }
 
 func (c *Runtime) jobProgress(resource string, resumed bool) *jobProgress {
-	return &jobProgress{observe: c.Observe, resource: resource, started: time.Now(),
-		data: filament.ExportJobProgress{CorrelationID: rand.Text(), Resumed: resumed}}
+	return &jobProgress{
+		observe: c.Observe, resource: resource, started: time.Now(),
+		data: filament.ExportJobProgress{CorrelationID: rand.Text(), Resumed: resumed},
+	}
 }
 
 func (p *jobProgress) report(kind filament.SourceProgressKind) {

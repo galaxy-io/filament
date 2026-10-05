@@ -970,20 +970,11 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 			return nil, fmt.Errorf("httpapi source: resource %q has no incremental watermark in its manifest", resource)
 		}
 		if res.Incremental.ResponseCursor != "" {
-			config := cursors[resource]
-			if config.Field != "" || config.LookbackSeconds != 0 {
-				return nil, fmt.Errorf("incremental %q uses source-managed state", resource)
+			cp, err := s.planResponseCursor(resource, res, prev[resource], cursors[resource])
+			if err != nil {
+				return nil, err
 			}
-			spec := *res.Incremental
-			s.incrementalResources[resource] = spec
-			cols := []string{spec.DurableCheckpointKey()}
-			// Bind saved tokens to the exact request and continuation contract.
-			identity := s.responseCursorIdentity(res)
-			cp := checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: cols, Types: []string{"string"}, Meta: map[string]string{"response_cursor": identity}, Shards: []checkpoint.KeysetShard{{Key: watermarkKey(spec.Initial)}}}
-			if old, ok := checkpoint.ParseKeyset(prev[resource]); ok && old.Mode == checkpoint.ModeIncremental && slices.Equal(old.Cols, cols) && len(old.Shards) == 1 && old.Meta["response_cursor"] == identity {
-				cp.Shards = old.Shards
-			}
-			plan[resource] = cp.ToCheckpoint(resource)
+			plan[resource] = cp
 			continue
 		}
 		field, ok := manifest.IncrementalCursorField(res)
@@ -1193,4 +1184,20 @@ func (s *Source) responseCursorIdentity(res manifest.Resource) string {
 		Config   map[string]string
 	}{res, s.connector.manifest.Connection.BaseURL, config})
 	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func (s *Source) planResponseCursor(resource string, res manifest.Resource, previous filament.Checkpoint, config filament.ResourceCursorConfig) (filament.Checkpoint, error) {
+	if config.Field != "" || config.LookbackSeconds != 0 {
+		return nil, fmt.Errorf("incremental %q uses source-managed state", resource)
+	}
+	spec := *res.Incremental
+	s.incrementalResources[resource] = spec
+	cols := []string{spec.DurableCheckpointKey()}
+	// Bind saved tokens to the exact request and continuation contract.
+	identity := s.responseCursorIdentity(res)
+	cp := checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: cols, Types: []string{"string"}, Meta: map[string]string{"response_cursor": identity}, Shards: []checkpoint.KeysetShard{{Key: watermarkKey(spec.Initial)}}}
+	if old, ok := checkpoint.ParseKeyset(previous); ok && old.Mode == checkpoint.ModeIncremental && slices.Equal(old.Cols, cols) && len(old.Shards) == 1 && old.Meta["response_cursor"] == identity {
+		cp.Shards = old.Shards
+	}
+	return cp.ToCheckpoint(resource), nil
 }

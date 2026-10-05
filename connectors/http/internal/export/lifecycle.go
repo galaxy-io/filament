@@ -99,28 +99,8 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 				return err
 			}
 		}
-		location, err := template.Render(spec.Result.URL, scope)
+		count, downloadBytes, err := c.consumeFullExport(ctx, res, sink, scope, state.Token(), progress)
 		if err != nil {
-			return fmt.Errorf("export result URL: %w", err)
-		}
-		resp, err := c.downloadExport(ctx, res, location, scope, progress)
-		if err != nil {
-			return err
-		}
-
-		checkpointToken := state.Token()
-		var count int
-		artifact := &artifactReader{Reader: resp.Body}
-		err = decodeExport(ctx, artifact, spec.Result, func(row map[string]any) error {
-			n, err := sink.Emit(row, nil, checkpointToken)
-			count += n
-			return err
-		})
-		_ = resp.Body.Close()
-		if err != nil {
-			return fmt.Errorf("export %s decode: %w", res.Name, err)
-		}
-		if err := ctx.Err(); err != nil {
 			return err
 		}
 		state.Phase = "done"
@@ -134,7 +114,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 			return err
 		}
-		sink.Completed(count, artifact.bytes)
+		sink.Completed(count, downloadBytes)
 	}
 	return nil
 }
@@ -238,4 +218,31 @@ func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope t
 			return err
 		}
 	}
+}
+
+func (c *Runtime) consumeFullExport(ctx context.Context, res manifest.Resource, sink Sink, scope template.Scope, checkpointToken string, progress *jobProgress) (int, int64, error) {
+	location, err := template.Render(res.Export.Result.URL, scope)
+	if err != nil {
+		return 0, 0, fmt.Errorf("export result URL: %w", err)
+	}
+	resp, err := c.downloadExport(ctx, res, location, scope, progress)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var count int
+	artifact := &artifactReader{Reader: resp.Body}
+	err = decodeExport(ctx, artifact, res.Export.Result, func(row map[string]any) error {
+		n, err := sink.Emit(row, nil, checkpointToken)
+		count += n
+		return err
+	})
+	_ = resp.Body.Close()
+	if err != nil {
+		return 0, 0, fmt.Errorf("export %s decode: %w", res.Name, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	return count, artifact.bytes, nil
 }
