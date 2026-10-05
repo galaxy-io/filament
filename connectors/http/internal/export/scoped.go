@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/request"
@@ -241,6 +242,7 @@ func (c *Runtime) scopedExportStart(res manifest.Resource, parent map[string]str
 func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, sink Sink, group *exportCoordinator, key string, entry exportParentState) error {
 	job := *entry.Job
 	job.Captures = maps.Clone(job.Captures)
+	progress := c.jobProgress(res.Name, job.Phase == "waiting")
 	tracker, err := exportTracker(res, group.state.Incremental, job.Seed, job.Overlap)
 	if err != nil {
 		return err
@@ -280,20 +282,21 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 			return err
 		}
 		job.Phase = "waiting"
+		progress.report(filament.SourceProgressExportJobCreated)
 		if err := group.update(key, job); err != nil {
 			return err
 		}
 	}
 	scope.Job = job.Captures
 	if res.Export.Wait.Type == "job" {
-		if err := c.waitExport(ctx, res, scope); err != nil {
+		if err := c.waitExport(ctx, res, scope, progress); err != nil {
 			return err
 		}
 		if err := group.update(key, job); err != nil {
 			return err
 		}
 	}
-	count, err := c.consumeScopedExport(ctx, res, sink, entry.Parent, scope, tracker)
+	count, err := c.consumeScopedExport(ctx, res, sink, entry.Parent, scope, tracker, progress)
 	if err != nil {
 		return err
 	}
@@ -308,12 +311,12 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 	return nil
 }
 
-func (c *Runtime) consumeScopedExport(ctx context.Context, res manifest.Resource, sink Sink, parent map[string]string, scope template.Scope, tracker *incremental.Tracker) (int, error) {
+func (c *Runtime) consumeScopedExport(ctx context.Context, res manifest.Resource, sink Sink, parent map[string]string, scope template.Scope, tracker *incremental.Tracker, progress *jobProgress) (int, error) {
 	location, err := template.Render(res.Export.Result.URL, scope)
 	if err != nil {
 		return 0, err
 	}
-	resp, err := c.downloadExport(ctx, res, location, scope)
+	resp, err := c.downloadExport(ctx, res, location, scope, progress)
 	if err != nil {
 		return 0, err
 	}

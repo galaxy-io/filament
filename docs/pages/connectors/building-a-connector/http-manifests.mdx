@@ -545,6 +545,22 @@ Snapshots still contain the full parent set, so identity writes can remain
 quadratic in the number of parents. Batching reduces write volume while
 preserving the replay contract.
 
+Exports also report typed observational events through the source observer and
+runner: `export.job_created`, `export.job_polled`, and `export.job_ready`.
+Creation is reported only after the required captures validate. Poll reports
+count completed status requests (or artifact availability requests for download
+waiting), with the first report immediate and subsequent reports at most once
+every 30 seconds per job execution. Ready means the artifact is available;
+it does not mean rows have been decoded or the sink has committed. Direct
+downloads do not emit a creation event.
+
+Payloads include `correlationId`, cumulative `polls`, `elapsed` (nanoseconds),
+and `resumed`. Correlation IDs are randomly generated for each job execution
+and change on resume; counts and elapsed time restart for that execution.
+Events contain no upstream job IDs, parent values, captures, or signed URLs.
+Readiness is reported once per execution, even if an expired URL requires
+another status request. Events do not replace checkpoints or advance watermarks.
+
 Creation is attempted once, including when the API returns 202. A creation
 intent is queued before the request, then replaced with the captured job state.
 These pipeline checkpoint markers are asynchronous, so creation and checkpoint

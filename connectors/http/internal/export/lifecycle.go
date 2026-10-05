@@ -11,6 +11,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -57,6 +58,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		}
 	}
 	for state.Phase != "done" {
+		progress := c.jobProgress(res.Name, state.Phase == "waiting" && c.ResumeToken != "")
 		if state.Phase == "next" {
 			scope.Job = state.Captures
 			start, err = request.RenderResource(spec.Next.Request.Resource(res.Name), scope)
@@ -82,6 +84,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 				return fmt.Errorf("export %s start: %w", res.Name, err)
 			}
 			state.Phase = "waiting"
+			progress.report(filament.SourceProgressExportJobCreated)
 			if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 				return err
 			}
@@ -89,7 +92,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		scope.Job = state.Captures
 		// Always retrieve job status again on resume, refreshing ephemeral URLs.
 		if spec.Wait.Type == "job" {
-			if err := c.waitExport(ctx, res, scope); err != nil {
+			if err := c.waitExport(ctx, res, scope, progress); err != nil {
 				return err
 			}
 			if err := target.Checkpoint(res.Name, state.Token()); err != nil {
@@ -100,7 +103,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		if err != nil {
 			return fmt.Errorf("export result URL: %w", err)
 		}
-		resp, err := c.downloadExport(ctx, res, location, scope)
+		resp, err := c.downloadExport(ctx, res, location, scope, progress)
 		if err != nil {
 			return err
 		}
@@ -192,13 +195,14 @@ func captureExport(raw []byte, captures, job map[string]string) error {
 	return nil
 }
 
-func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope template.Scope) error {
+func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope template.Scope, progress *jobProgress) error {
 	wait := res.Export.Wait
 	for {
 		raw, err := c.Control.Poll(ctx, res.Name, *wait.Request, scope)
 		if err != nil {
 			return err
 		}
+		progress.polled()
 		v := gjson.GetBytes(raw, exportPath(wait.State.Path))
 		if v.Type != gjson.String {
 			return fmt.Errorf("export %s: missing or invalid job status", res.Name)
@@ -221,6 +225,7 @@ func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope t
 					}
 				}
 			}
+			progress.ready()
 			return nil
 		case slices.Contains(wait.State.Failed, v.Str):
 			return fmt.Errorf("export %s: job failed with status %q", res.Name, v.Str)

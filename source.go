@@ -434,7 +434,21 @@ const (
 	SourceProgressWatermarkAdvanced
 	SourceProgressRateLimited
 	SourceProgressRetryExhausted
+	SourceProgressExportJobCreated
+	SourceProgressExportJobPolled
+	SourceProgressExportJobReady
 )
+
+// ExportJobProgress describes one job execution within an extraction attempt.
+// CorrelationID is opaque and changes on resume; it is never an upstream job ID,
+// parent key, or URL. Polls and Elapsed are local to this execution, including
+// when Resumed is true. Ready means an artifact is available, not sink commit.
+type ExportJobProgress struct {
+	CorrelationID string        `json:"correlationId"`
+	Polls         int           `json:"polls"`
+	Elapsed       time.Duration `json:"elapsed"`
+	Resumed       bool          `json:"resumed"`
+}
 
 // SourceProgress carries source-local extraction progress to the runner. Fields
 // are populated according to Kind. Checkpoint on WatermarkAdvanced describes an
@@ -449,6 +463,7 @@ type SourceProgress struct {
 	RetryAfter   time.Duration
 	Checkpoint   *CheckpointData
 	Error        string
+	ExportJob    ExportJobProgress
 }
 
 // SourceObserver receives progress concurrently when a source extracts more

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -34,6 +35,7 @@ type Sink interface {
 // IdentityConfig excludes secrets; Config and Env are used to render requests.
 // Transport is used without API headers, auth, cookies, or client timeouts.
 type Runtime struct {
+	Observe filament.SourceObserver
 	// WaitDownload applies the API limiter to authenticated artifact requests.
 	WaitDownload                func(context.Context) error
 	Authenticate                func(context.Context, *http.Request, template.Scope) error
