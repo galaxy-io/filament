@@ -110,7 +110,8 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 
 		checkpointToken := state.Token()
 		var count int
-		err = decodeExport(ctx, resp.Body, spec.Result, func(row map[string]any) error {
+		artifact := &artifactReader{Reader: resp.Body}
+		err = decodeExport(ctx, artifact, spec.Result, func(row map[string]any) error {
 			n, err := sink.Emit(row, nil, checkpointToken)
 			count += n
 			return err
@@ -133,7 +134,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 			return err
 		}
-		sink.Completed(count)
+		sink.Completed(count, artifact.bytes)
 	}
 	return nil
 }

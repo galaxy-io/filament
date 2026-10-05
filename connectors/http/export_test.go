@@ -126,14 +126,26 @@ func TestExportLifecycleResumeAndCredentialIsolation(t *testing.T) {
 		}
 	}, nil)
 	base = api.URL
+	var progress []filament.SourceProgress
+	opts := filament.ExtractOpts{Observe: func(p filament.SourceProgress) { progress = append(progress, p) }}
 	plan, err := src.PlanResume(t.Context(), []string{"items"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var first collectSink
-	if err := src.Extract(t.Context(), &first, filament.ExtractOpts{}); err == nil || strings.Contains(err.Error(), "private") {
+	if err := src.Extract(t.Context(), &first, opts); err == nil || strings.Contains(err.Error(), "private") {
 		t.Fatalf("expected sanitized download failure: %v", err)
 	}
+	if len(progress) != 3 || progress[0].Kind != filament.SourceProgressExportJobCreated || progress[1].Kind != filament.SourceProgressExportJobPolled || progress[2].Kind != filament.SourceProgressExportJobReady {
+		t.Fatalf("initial export progress = %#v", progress)
+	}
+	firstCorrelation := progress[0].ExportJob.CorrelationID
+	for _, p := range progress {
+		if p.ExportJob.CorrelationID != firstCorrelation || p.ExportJob.Resumed {
+			t.Fatal("incorrect initial job correlation")
+		}
+	}
+	progress = nil
 	token := first.checkpoints["items"]
 	if len(token) != 1 {
 		t.Fatal("job checkpoint not published")
@@ -147,8 +159,17 @@ func TestExportLifecycleResumeAndCredentialIsolation(t *testing.T) {
 	plan["items"] = cp.ToCheckpoint("items")
 	fail.Store(false)
 	var resumed collectSink
-	if err := src.ExtractFrom(t.Context(), &resumed, filament.ExtractOpts{}, plan); err != nil {
+	if err := src.ExtractFrom(t.Context(), &resumed, opts, plan); err != nil {
 		t.Fatal(err)
+	}
+	if len(progress) != 3 || progress[0].Kind != filament.SourceProgressExportJobPolled || progress[1].Kind != filament.SourceProgressExportJobReady || progress[2].Kind != filament.SourceProgressPageFetched {
+		t.Fatalf("resumed export progress = %#v", progress)
+	}
+	if progress[2].Bytes != int64(len(data)) {
+		t.Fatalf("gzip download bytes = %d, want %d", progress[2].Bytes, len(data))
+	}
+	if !progress[0].ExportJob.Resumed || progress[0].ExportJob.CorrelationID == firstCorrelation || progress[0].ExportJob.CorrelationID != progress[1].ExportJob.CorrelationID {
+		t.Fatal("resume did not receive a distinct execution correlation")
 	}
 	if starts.Load() != 1 || polls.Load() != 2 || downloads.Load() != 2 || len(resumed.records) != 1 {
 		t.Fatalf("starts=%d polls=%d downloads=%d records=%d", starts.Load(), polls.Load(), downloads.Load(), len(resumed.records))

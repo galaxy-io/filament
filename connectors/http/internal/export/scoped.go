@@ -296,7 +296,7 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 			return err
 		}
 	}
-	count, err := c.consumeScopedExport(ctx, res, sink, entry.Parent, scope, tracker, progress)
+	count, downloadBytes, err := c.consumeScopedExport(ctx, res, sink, entry.Parent, scope, tracker, progress)
 	if err != nil {
 		return err
 	}
@@ -307,22 +307,23 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 	if err := group.update(key, job); err != nil {
 		return err
 	}
-	sink.Completed(count)
+	sink.Completed(count, downloadBytes)
 	return nil
 }
 
-func (c *Runtime) consumeScopedExport(ctx context.Context, res manifest.Resource, sink Sink, parent map[string]string, scope template.Scope, tracker *incremental.Tracker, progress *jobProgress) (int, error) {
+func (c *Runtime) consumeScopedExport(ctx context.Context, res manifest.Resource, sink Sink, parent map[string]string, scope template.Scope, tracker *incremental.Tracker, progress *jobProgress) (int, int64, error) {
 	location, err := template.Render(res.Export.Result.URL, scope)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	resp, err := c.downloadExport(ctx, res, location, scope, progress)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	count := 0
-	err = decodeExport(ctx, resp.Body, res.Export.Result, func(row map[string]any) error {
+	artifact := &artifactReader{Reader: resp.Body}
+	err = decodeExport(ctx, artifact, res.Export.Result, func(row map[string]any) error {
 		if tracker != nil {
 			if _, err := tracker.ObserveChecked(row); err != nil {
 				return err
@@ -335,5 +336,5 @@ func (c *Runtime) consumeScopedExport(ctx context.Context, res manifest.Resource
 	if err == nil {
 		err = ctx.Err()
 	}
-	return count, err
+	return count, artifact.bytes, err
 }

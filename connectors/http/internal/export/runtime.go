@@ -28,7 +28,9 @@ type Control interface {
 type Sink interface {
 	Emit(row map[string]any, parent map[string]string, token string) (int, error)
 	Checkpoint(resource, token string) error
-	Completed(records int)
+	// Completed reports a validated artifact's records and response-body bytes
+	// actually read, before manifest decompression or archive extraction.
+	Completed(records int, downloadBytes int64)
 }
 
 // Runtime contains one extraction's immutable dependencies and resume options.

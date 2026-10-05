@@ -68,7 +68,8 @@ func TestExportDecoders(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			count := 0
-			err := decodeExport(t.Context(), bytes.NewReader(tc.data), tc.spec, func(row map[string]any) error {
+			artifact := &artifactReader{Reader: bytes.NewReader(tc.data)}
+			err := decodeExport(t.Context(), artifact, tc.spec, func(row map[string]any) error {
 				count++
 				if fmt.Sprint(row["id"]) != "9007199254740993" {
 					t.Fatalf("ID corrupted: %v", row)
@@ -77,6 +78,9 @@ func TestExportDecoders(t *testing.T) {
 			})
 			if err != nil || count != tc.rows {
 				t.Fatalf("rows=%d err=%v", count, err)
+			}
+			if artifact.bytes != int64(len(tc.data)) {
+				t.Fatalf("download bytes = %d, want %d", artifact.bytes, len(tc.data))
 			}
 		})
 	}

@@ -561,6 +561,13 @@ Events contain no upstream job IDs, parent values, captures, or signed URLs.
 Readiness is reported once per execution, even if an expired URL requires
 another status request. Events do not replace checkpoints or advance watermarks.
 
+After an artifact validates, `resource.page_fetched` reports both delivered
+records and downloaded artifact-body bytes actually read, before decompression
+or archive extraction. This works for chunked responses without `Content-Length`
+and counts nonzero artifact bytes even when there are no records. Counts are
+per artifact and exclude status requests and failed downloads. They describe
+source progress; authoritative sink byte totals still come from `batch.written`.
+
 Creation is attempted once, including when the API returns 202. A creation
 intent is queued before the request, then replaced with the captured job state.
 These pipeline checkpoint markers are asynchronous, so creation and checkpoint
