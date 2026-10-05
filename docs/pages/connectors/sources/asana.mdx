@@ -1,0 +1,59 @@
+---
+title: "Asana"
+description: "Read workspaces, users, teams, projects, portfolios, tags, and tasks from Asana's REST API"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-asana-dark.svg"
+---
+
+The Asana source reads workspaces, users, teams, projects, portfolios, tags,
+and tasks through Asana's REST API (`https://app.asana.com/api/1.0`). It is
+built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**, derived from Asana's published API reference. Schema validation and
+mocked tests prove internal consistency; it has not yet been run end-to-end
+against a live workspace.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required. Secret. Asana personal access token (Profile settings > Apps & tokens). |
+| `workspace` | Connection | | Required. GID of the Asana workspace or organization to read from. |
+
+## Resources
+
+| Resource | Endpoint | Notes |
+|---|---|---|
+| `workspaces` | `GET /workspaces` | All workspaces visible to the token. |
+| `users` | `GET /users` | Users in the configured workspace. |
+| `teams` | `GET /teams` | Teams in the configured workspace. |
+| `projects` | `GET /projects` | Projects in the workspace. Incremental on `modified_at` via `modified_since`. |
+| `portfolios` | `GET /portfolios` | Portfolios in the workspace. |
+| `tags` | `GET /tags` | Tags in the workspace. |
+| `tasks` | `GET /projects/{project}/tasks` | Fan-out over `projects`; all tasks per project. |
+
+Every resource carries a `raw` remainder column preserving fields the manifest
+does not project, and requests `opt_fields` for the projected columns.
+
+## Modes
+
+All resources support full reads. If interrupted, a top-level full read
+resumes after the last completed page. The `projects` resource is also
+incremental:
+
+| Resource | Cursor field | Request parameter | Checkpoint key |
+|---|---|---|---|
+| `projects` | `modified_at` | `modified_since` (query) | `projects_modified_at` |
+
+The first incremental run uses `1970-01-01T00:00:00Z`, so it also backfills
+existing records. Later runs send the saved `modified_at` value as
+`modified_since`. The manifest fixes the cursor field, but the pipeline can
+add a lookback window if needed.
+
+## Behavior
+
+- **Auth**: the token is sent as a `Bearer` authorization header.
+- **Pagination**: offset-style. `next_page.offset` from each response feeds
+  `offset` in the next request's query string, terminating when `next_page` is
+  `null`.
+- **Rate limiting**: a shared client-side limiter allows 10 requests per
+  second, and the engine backs off on 429 responses using `Retry-After`.

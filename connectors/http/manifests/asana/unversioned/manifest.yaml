@@ -1,0 +1,171 @@
+version: 1
+name: asana
+display_name: Asana
+description: Read Asana workspaces, users, teams, projects, portfolios, tags, and tasks from a workspace.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-asana-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-asana-light.svg
+config:
+  api_token:
+    type: secret
+    required: true
+    help: Asana personal access token from your profile under My profile settings > Apps & tokens.
+  workspace:
+    type: string
+    required: true
+    help: The GID of the Asana workspace or organization to read from. Found in the URL of any project or in the workspace settings.
+connection:
+  base_url: https://app.asana.com/api/1.0
+  auth:
+    bearer: config.api_token
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 10
+defaults:
+  method: GET
+  query:
+    limit: "100"
+  response:
+    records: $.data
+    # Asana returns a next_page object on every page except the last, and null
+    # on the terminal page. next_page.offset is the opaque continuation cursor.
+    pagination:
+      cursor:
+        response: next_page.offset
+        request: query.offset
+        null_terminates: true
+resources:
+  - name: workspaces
+    path: /workspaces
+    query:
+      opt_fields: gid,name,created_at,modified_at,is_organization,email_domains
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      created_at: timestamptz?
+      modified_at: timestamptz?
+      is_organization: bool?
+      email_domains: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: users
+    path: /users
+    query:
+      workspace: config.workspace
+      opt_fields: gid,name,email,photo,is_active,workspaces,teams
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      email: string?
+      photo: json?
+      is_active: bool?
+      workspaces: json?
+      teams: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: teams
+    path: /teams
+    query:
+      workspace: config.workspace
+      opt_fields: gid,name,description,organization,visibility
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      description: string?
+      organization: json?
+      visibility: string?
+      raw: { path: $, type: json, mode: remainder }
+  - name: projects
+    path: /projects
+    query:
+      workspace: config.workspace
+      opt_fields: gid,name,notes,description,created_at,modified_at,archived,completed,completed_at,due_on,due_at,start_on,start_at,workspace,team,owner
+    primary_key: [gid]
+    capture:
+      project_gid: gid
+    fields:
+      gid: string
+      name: string?
+      notes: string?
+      description: string?
+      created_at: timestamptz?
+      modified_at: timestamptz
+      archived: bool?
+      completed: bool?
+      completed_at: timestamptz?
+      due_on: date?
+      due_at: timestamptz?
+      start_on: date?
+      start_at: timestamptz?
+      workspace: json?
+      team: json?
+      owner: json?
+      raw: { path: $, type: json, mode: remainder }
+    incremental:
+      cursor_field: modified_at
+      start_param: modified_since
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: projects_modified_at
+      comparator: time
+      # Re-read a small window so projects edited while the scan runs do not
+      # fall behind the advancing watermark.
+      overlap_seconds: 300
+  - name: portfolios
+    path: /portfolios
+    query:
+      workspace: config.workspace
+      opt_fields: gid,name,description,created_at,modified_at,workspace,owner
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      description: string?
+      created_at: timestamptz?
+      modified_at: timestamptz?
+      workspace: json?
+      owner: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: tags
+    path: /tags
+    query:
+      workspace: config.workspace
+      opt_fields: gid,name,color,created_at,workspace
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      color: string?
+      created_at: timestamptz?
+      workspace: json?
+      raw: { path: $, type: json, mode: remainder }
+  - name: tasks
+    path: /projects/{project}/tasks
+    params:
+      project: "{{ parent.project_gid }}"
+    for_each: projects
+    query:
+      opt_fields: gid,name,notes,created_at,modified_at,completed,completed_at,due_on,due_at,assignee,assignee_status,workspace,projects,memberships
+    primary_key: [gid]
+    fields:
+      project_gid: { path: parent.project_gid, type: string }
+      gid: string
+      name: string?
+      notes: string?
+      created_at: timestamptz?
+      modified_at: timestamptz?
+      completed: bool?
+      completed_at: timestamptz?
+      due_on: date?
+      due_at: timestamptz?
+      assignee: json?
+      assignee_status: string?
+      workspace: json?
+      projects: json?
+      memberships: json?
+      raw: { path: $, type: json, mode: remainder }
+discovery:
+  mode: static
+  default_resources: [users, projects, tasks]

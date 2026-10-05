@@ -15,6 +15,9 @@ html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-mysql-dark
 html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg"] {
   content: url("https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg");
 }
+html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-asana-dark.svg"] {
+  content: url("https://cdn.getgalaxy.io/sources/source-icon-asana-light.svg");
+}
 html:not(.dark) img[src="https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"] {
   content: url("https://cdn.getgalaxy.io/sources/source-icon-github-light.svg");
 }
