@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	scopedCheckpointVersion  = 1
 	maxExportParents         = 10000
 	maxExportCheckpointBytes = 16 << 20
 )
@@ -35,13 +36,12 @@ type exportParentState struct {
 }
 
 type exportScopedJob struct {
-	Phase     string                 `json:"phase"`
-	Deadline  time.Time              `json:"deadline"`
-	Seed      string                 `json:"seed,omitempty"`
-	Overlap   int                    `json:"overlap,omitempty"`
-	Start     manifest.ExportRequest `json:"start"`
-	Captures  map[string]string      `json:"captures,omitempty"`
-	Candidate string                 `json:"candidate,omitempty"`
+	Phase     string            `json:"phase"`
+	Deadline  time.Time         `json:"deadline"`
+	Seed      string            `json:"seed,omitempty"`
+	Overlap   int               `json:"overlap,omitempty"`
+	Captures  map[string]string `json:"captures,omitempty"`
+	Candidate string            `json:"candidate,omitempty"`
 }
 
 // Scoped reports whether a resource needs per-parent or incremental job state.
@@ -60,7 +60,7 @@ func (c *Runtime) exportDefinitionIdentity(res manifest.Resource) string {
 }
 
 func (c *Runtime) emptyExportRun(res manifest.Resource, inc bool) RunState {
-	return RunState{Version: 2, Identity: c.exportDefinitionIdentity(res), Incremental: inc, Parents: map[string]exportParentState{}}
+	return RunState{Version: scopedCheckpointVersion, Identity: c.exportDefinitionIdentity(res), Incremental: inc, Parents: map[string]exportParentState{}}
 }
 
 func (s RunState) token() (string, error) {
@@ -89,7 +89,7 @@ func (c *Runtime) decodeExportRun(res manifest.Resource, token string, inc bool)
 	decoder := json.NewDecoder(strings.NewReader(token))
 	decoder.UseNumber()
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&saved); err != nil || saved.Version != 2 || saved.Identity != state.Identity || saved.Incremental != inc || saved.Parents == nil {
+	if err := decoder.Decode(&saved); err != nil || saved.Version != scopedCheckpointVersion || saved.Identity != state.Identity || saved.Incremental != inc || saved.Parents == nil {
 		return state, fmt.Errorf("export %s: incompatible scoped checkpoint", res.Name)
 	}
 	if err := saved.validate(); err != nil {
@@ -124,9 +124,6 @@ func (s RunState) validate() error {
 		}
 		if (job.Phase == "waiting" || job.Phase == "done") && len(job.Captures) == 0 {
 			return fmt.Errorf("missing job captures")
-		}
-		if job.Start.Method == "" || job.Start.Path == "" {
-			return fmt.Errorf("missing frozen request")
 		}
 	}
 	for key, parent := range s.Parents {

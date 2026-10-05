@@ -489,8 +489,8 @@ fields:
 
 Each parent has its own watermark. The runtime injects the lower bound into
 the start request's query, header, or body using the ordinary `incremental`
-settings. The selected parents, captured values, rendered start requests, and
-lookback are frozen before creation. Downloads may be unordered: the candidate
+settings. The selected parents, captured values, incremental seed, and lookback
+are frozen before creation. Downloads may be unordered: the candidate
 watermark is the maximum observed cursor, and becomes eligible for the next run
 only after the entire artifact validates and the sink commits. An empty export
 retains its seed. There is no automatically generated upper time bound; verify
@@ -520,8 +520,17 @@ an individual parent's completion does not advance durable progress after a
 failed run. Existing sink and ingestion-mode recovery policies still apply.
 Plain top-level full exports skip completed jobs on same-run resume. A fresh full
 read creates new jobs. Checkpoint identity binds the export to its manifest,
-base URL, and non-secret configuration; scoped jobs retain their rendered start
-request for recovery.
+base URL, and non-secret configuration. Planned scoped jobs rebuild their start
+request when it is sent, using the validated manifest, saved parent values,
+incremental seed, and lookback together with current runtime credentials and
+environment values. Checkpoints contain neither rendered start requests nor
+deferred request templates. Changes to the manifest or non-secret configuration
+invalidate checkpoint identity; environment values come from the current
+connector context. Rendered values are never evaluated as another template.
+Jobs with captured identities resume without rebuilding their creation request.
+
+Scoped checkpoints use a single version 1 format. Captured URLs and parent
+values still make checkpoint storage sensitive.
 
 For scoped recovery, expired waiting deadlines receive a new
 `wait.timeout_seconds` budget, including completed jobs replayed from a mixed
@@ -543,7 +552,7 @@ persistence are not an atomic transaction. A process crash before persistence
 can still lead to duplicate creation; provider idempotency or reconciliation is
 needed to eliminate that window. If recovery finds a creation intent without a
 job ID, extraction fails and requires upstream reconciliation before a fresh
-read. Signed URLs, captured parent values, and rendered requests are sensitive
+read. Signed URLs and captured parent values are sensitive
 checkpoint data. Signed URLs are omitted from transport errors.
 
 Include an ordinary top-level resource for connection testing. Export resources

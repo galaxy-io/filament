@@ -161,15 +161,11 @@ func (c *Runtime) initializeExportParents(res manifest.Resource, state *RunState
 		if err != nil {
 			return err
 		}
-		start, err := c.scopedExportStart(res, parent, tracker)
-		if err != nil {
-			return err
-		}
 		seed := ""
 		if tracker != nil {
 			seed = tracker.Current()
 		}
-		entry.Job = &exportScopedJob{Phase: "planned", Seed: seed, Overlap: overlap, Start: start}
+		entry.Job = &exportScopedJob{Phase: "planned", Seed: seed, Overlap: overlap}
 		state.Parents[key] = entry
 		state.Selected = append(state.Selected, key)
 	}
@@ -210,17 +206,18 @@ func exportTracker(res manifest.Resource, enabled bool, seed string, overlap int
 	return incremental.New(spec, res.Name, seed)
 }
 
-func (c *Runtime) scopedExportStart(res manifest.Resource, parent map[string]string, tracker *incremental.Tracker) (manifest.ExportRequest, error) {
-	scope := c.scopeFor(parent, tracker)
-	rendered, err := request.RenderResource(res.Export.Start.Resource(res.Name), scope)
+// scopedExportStart builds a send-time request from the validated manifest and
+// frozen recovery inputs. The rendered request is never checkpointed.
+func (c *Runtime) scopedExportStart(res manifest.Resource, parent map[string]string, tracker *incremental.Tracker) (manifest.Resource, error) {
+	rendered, err := request.RenderResource(res.Export.Start.Resource(res.Name), c.scopeFor(parent, tracker))
 	if err != nil {
-		return manifest.ExportRequest{}, err
+		return manifest.Resource{}, err
 	}
 	if tracker != nil {
 		req := &http.Request{URL: &url.URL{}, Header: make(http.Header)}
 		body, err := tracker.Apply(req)
 		if err != nil {
-			return manifest.ExportRequest{}, err
+			return manifest.Resource{}, err
 		}
 		if len(body) > 0 {
 			rendered.Body.Template = request.MergeOverrides(rendered.Body.Template, nil, body)
@@ -238,7 +235,7 @@ func (c *Runtime) scopedExportStart(res manifest.Resource, parent map[string]str
 			rendered.Headers[key] = values[0]
 		}
 	}
-	return manifest.ExportRequest{Method: rendered.Method, Path: rendered.Path, Query: rendered.Query, Headers: rendered.Headers, Body: rendered.Body}, nil
+	return rendered, nil
 }
 
 func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, sink Sink, group *exportCoordinator, key string, entry exportParentState) error {
@@ -267,10 +264,14 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 		return err
 	}
 	if job.Phase == "creating" {
+		start, err := c.scopedExportStart(res, entry.Parent, tracker)
+		if err != nil {
+			return err
+		}
 		if err := group.update(key, job); err != nil {
 			return err
 		}
-		raw, err := c.Control.Start(ctx, job.Start.Resource(res.Name), scope)
+		raw, err := c.Control.Start(ctx, start, scope)
 		if err != nil {
 			return fmt.Errorf("export %s creation outcome requires reconciliation: %w", res.Name, err)
 		}
