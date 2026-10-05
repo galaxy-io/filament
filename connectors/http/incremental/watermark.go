@@ -172,9 +172,10 @@ func (t *Tracker) Below(v string) (bool, error) {
 
 // Scope returns a {start_param: effective_start} pair suitable for merging
 // into a template scope's State map. The lower bound is fixed for the entire
-// extraction so paginated requests all scan the same result set.
+// extraction so paginated requests all scan the same result set. The value
+// carries the configured value prefix, matching what Apply injects.
 func (t *Tracker) Scope() map[string]string {
-	v := t.effective()
+	v := t.injectedValue()
 	if v == "" {
 		return nil
 	}
@@ -215,9 +216,10 @@ func (t *Tracker) effective() string {
 
 // Apply injects the extraction's fixed starting watermark into a request. For
 // body-injection, returns a body overrides map to be merged before encoding.
-// Returns nil overrides for query/header strategies.
+// Returns nil overrides for query/header strategies. The injected value
+// carries the configured value prefix; the checkpoint keeps the raw value.
 func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
-	v := t.effective()
+	v := t.injectedValue()
 	if v == "" {
 		return nil, nil
 	}
@@ -232,4 +234,15 @@ func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
 		return map[string]any{t.spec.StartParam: v}, nil
 	}
 	return nil, nil
+}
+
+// injectedValue returns the watermark as it must appear on the wire: the
+// effective start with the configured value prefix prepended. The checkpoint
+// stores the raw value so ordering comparisons stay prefix-free.
+func (t *Tracker) injectedValue() string {
+	v := t.effective()
+	if v == "" {
+		return ""
+	}
+	return t.spec.ValuePrefix + v
 }

@@ -1,0 +1,64 @@
+---
+title: "FHIR"
+description: "Read clinical resources from a FHIR R4 server"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-fhir-dark.svg"
+---
+
+The FHIR source reads clinical resources from any FHIR R4 server: patients,
+observations, conditions, encounters, medication requests, allergy
+intolerances, immunizations, and procedures. It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
+**alpha**. It targets FHIR R4.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `base_url` | Connection | `https://hapi.fhir.org/baseR4` | FHIR server base URL. Point it at your own server for real data. |
+
+## Resources
+
+Each resource runs a FHIR search (`GET /<ResourceType>`) and returns one row
+per Bundle entry. Every row carries `id` (the resource ID), `last_updated`
+(`meta.lastUpdated`, when the server provides it), and the full `resource` as
+JSON so no clinical detail is lost in projection.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `patients` | `GET /Patient` | |
+| `observations` | `GET /Observation` | |
+| `conditions` | `GET /Condition` | |
+| `encounters` | `GET /Encounter` | |
+| `medication_requests` | `GET /MedicationRequest` | |
+| `allergy_intolerance` | `GET /AllergyIntolerance` | |
+| `immunizations` | `GET /Immunization` | |
+| `procedures` | `GET /Procedure` | |
+
+The picker defaults to patients, observations, conditions, encounters, and
+medication requests. The other three resources are opt-in.
+
+## Modes
+
+All resources support full reads and incremental reads. Incremental sync
+tracks `last_updated` (`meta.lastUpdated`) per resource and re-requests with
+`_lastUpdated=ge<timestamp>` — the `ge` prefix carries "greater or equal"
+semantics; a bare timestamp would mean "equal" and silently return the wrong
+result set. A 5-minute overlap window re-fetches recently updated records so
+retroactive updates are not missed. If interrupted, a full read of a
+top-level resource resumes after its last completed page.
+
+## Behavior
+
+- **Auth**: none. v1 targets unauthenticated servers such as the public HAPI
+  test server. Authenticated servers (OAuth2 client credentials, SMART
+  Backend Services) are a planned follow-up.
+- **Pagination**: each resource walks every page (`_count=100` per request)
+  by following the Bundle `link` entry whose `relation` is `"next"`. The walk
+  ends on the page with no `next` link.
+- **Rate limiting**: five requests per second, a polite default for the shared
+  public HAPI server. Lower it further for smoke tests; do not backfill
+  against the public server.
+- **Response shape**: FHIR search returns a Bundle; rows come from
+  `Bundle.entry[].resource`. Empty result sets emit no rows.
+- The public HAPI server holds synthetic test data only. Point `base_url` at
+  your own FHIR server for real records.
