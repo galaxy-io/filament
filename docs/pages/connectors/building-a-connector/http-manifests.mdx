@@ -205,7 +205,13 @@ are referenced elsewhere in the manifest as `config.<name>`.
   resolved once when the connector is configured, not separately for every
   request.
 - `auth` supports no auth, bearer tokens, a custom header, basic auth, and
-  OAuth 2 client credentials. OAuth tokens are cached. Query, HMAC, and chained
+  OAuth 2 client credentials or a supplied refresh token. OAuth tokens are
+  cached. Token URLs must resolve to HTTPS without userinfo or a fragment;
+  token requests never follow redirects. Replacement refresh tokens are kept
+  as opaque credentials for the authenticator's lifetime. They are not written
+  back to connection secrets, so providers that revoke old refresh tokens
+  require an updated configured secret before a new authenticator is created.
+  Query, HMAC, and chained
   authentication exist in the Go runtime but cannot currently be declared in
   YAML.
 - `rate_limit.requests_per_second` sets a shared limit for the connection. A

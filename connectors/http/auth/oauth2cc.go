@@ -35,8 +35,11 @@ type oauth2CC struct {
 	scope        string
 	grantType    string
 	refreshToken string
-	headerPrefix string
-	params       map[string]string
+	// rotatedRefreshToken is an opaque credential, never a template. Only the
+	// singleflight winner reads or writes it; it lives for this authenticator.
+	rotatedRefreshToken string
+	headerPrefix        string
+	params              map[string]string
 
 	httpClient *http.Client
 	retry      RetryPolicy
@@ -63,9 +66,10 @@ type cachedToken struct {
 }
 
 type oauth2TokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 func newOAuth2CC(params map[string]any) (Authenticator, error) {
@@ -186,6 +190,10 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	if err != nil {
 		return "", fmt.Errorf("%w: render token_url: %v", errs.ErrAuthRefresh, err)
 	}
+	u, err := url.Parse(tokenURL)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
+		return "", fmt.Errorf("%w: token_url requires HTTPS without userinfo or fragment", errs.ErrAuthRefresh)
+	}
 	clientID, err := template.Render(a.clientID, scope)
 	if err != nil {
 		return "", fmt.Errorf("%w: render client_id: %v", errs.ErrAuthRefresh, err)
@@ -208,9 +216,12 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	}
 
 	if a.grantType == "refresh_token" {
-		value, err := template.Render(a.refreshToken, scope)
-		if err != nil {
-			return "", fmt.Errorf("%w: render refresh_token", errs.ErrAuthRefresh)
+		value := a.rotatedRefreshToken
+		if value == "" {
+			value, err = template.Render(a.refreshToken, scope)
+			if err != nil {
+				return "", fmt.Errorf("%w: render refresh_token", errs.ErrAuthRefresh)
+			}
 		}
 		form.Set("refresh_token", value)
 	}
@@ -232,14 +243,18 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := a.httpClient.Do(req)
+	// Copy the configured client so custom transports still cannot forward
+	// credentials in a replayable POST body to a redirect target.
+	client := *a.httpClient
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("%w: token request failed", errs.ErrAuthRefresh)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("%w: token endpoint HTTP %d", errs.ErrAuthRefresh, resp.StatusCode)
 	}
 
@@ -249,6 +264,9 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	}
 	if tr.AccessToken == "" {
 		return "", fmt.Errorf("%w: empty access_token in response", errs.ErrAuthRefresh)
+	}
+	if a.grantType == "refresh_token" && tr.RefreshToken != "" {
+		a.rotatedRefreshToken = tr.RefreshToken
 	}
 
 	ttl := time.Duration(tr.ExpiresIn) * time.Second
