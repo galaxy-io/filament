@@ -24,7 +24,7 @@ connection:
   auth:
     header:
       name: Authorization
-      value: config.token
+      value: "Splunk {{ config.token }}"
 
 defaults:
   response:
@@ -35,9 +35,42 @@ defaults:
 
 resources:
   - name: events
-    path: /services/search/v2/jobs/export
-    method: POST
+    mode: export
     primary_key: [_cd, _time]
+
+    export:
+      start:
+        method: POST
+        path: /services/search/jobs
+        body:
+          encoding: form
+          template:
+            search: "{{ config.search_query }}"
+            output_mode: json
+            earliest_time: "1970-01-01T00:00:00Z"
+        capture:
+          sid: $.sid
+
+      wait:
+        type: job
+        request:
+          method: GET
+          path: /services/search/jobs/{{ job.sid }}
+          query:
+            output_mode: json
+        state:
+          path: $.entry[0].content.dispatchState
+          pending: [QUEUED, PARSING, RUNNING]
+          ready: [DONE]
+          failed: [FAILED, FAILED_PARSING]
+        interval_seconds: 5
+        timeout_seconds: 600
+
+      result:
+        url: "{{ config.host }}/services/search/jobs/{{ job.sid }}/results?output_mode=json"
+        auth: connection
+        format: json
+
     fields:
       _cd: { path: _cd, type: string, nullable: true }
       _time: { path: _time, type: timestamptz }
@@ -47,21 +80,6 @@ resources:
       sourcetype: string?
       index: string?
       raw: { path: $, type: json, mode: remainder }
-    body:
-      encoding: form
-      template:
-        search: config.search_query
-        output_mode: json
-        earliest_time: "1970-01-01T00:00:00Z"
-    response:
-      records: $
-    incremental:
-      cursor_field: _time
-      start_param: earliest_time
-      inject_into: body
-      initial: "1970-01-01T00:00:00Z"
-      checkpoint_key: splunk_events_time
-      comparator: time
 
 discovery:
   mode: static
