@@ -48,6 +48,7 @@ child reads also fetch their parents to discover IDs.
 | Resource | Endpoint | Parent |
 |---|---|---|
 | `campaigns` | `GET /api/v2/campaigns` |  |
+| `campaign_exports` | `POST /api/v2/campaigns/{id}/export` | `campaigns` |
 | `accounts` | `GET /api/v2/accounts` |  |
 | `leads` | `POST /api/v2/leads/list` |  |
 | `lead_lists` | `GET /api/v2/lead-lists` |  |
@@ -56,6 +57,7 @@ child reads also fetch their parents to discover IDs.
 | `custom_tags` | `GET /api/v2/custom-tags` |  |
 | `custom_tag_mappings` | `GET /api/v2/custom-tag-mappings` |  |
 | `block_list_entries` | `GET /api/v2/block-lists-entries` |  |
+| `block_list_entries_export` | `GET /api/v2/block-lists-entries/download` |  |
 | `subsequences` | `GET /api/v2/subsequences` |  |
 | `audit_logs` | `GET /api/v2/audit-logs` |  |
 | `webhooks` | `GET /api/v2/webhooks` |  |
@@ -107,13 +109,28 @@ use timestamps with time zones. Every resource includes a `raw` column for
 returned fields that are not projected separately. Warmup analytics retain the
 provider's maps of account and date metrics in a snapshot for each account.
 
+The optional `block_list_entries_export` resource downloads all blocked emails
+and domains in one CSV response using the bulk export reader. Each row contains
+`bl_value` and `timestamp_created`, mapped from the CSV's `Blocked Email` and
+`Date` columns. It requires `block_list_entries:read` (or a broader accepted
+scope). The export omits record IDs and organization metadata, so use full replace;
+`block_list_entries` remains available for the richer paginated records. See
+[block-list CSV download](https://developer.instantly.ai/api-reference/blocklistentry/download-all-block-list-entries-as-csv).
+
+The optional `campaign_exports` resource reads one campaign configuration object
+per campaign, including schedules and sequences, using `campaigns:read`.
+[Campaign export](https://developer.instantly.ai/api-reference/campaign/export-campaign-to-json-format)
+returns JSON immediately. It does not export campaign leads. The documented
+[lead read endpoint](https://developer.instantly.ai/api-reference/lead/list-leads)
+uses pagination; this connector does not use undocumented bulk lead endpoints.
+
 This version does not include API-key data, background-job tracking, DFY mailbox
 credentials, domain administration, OAuth connection flows, individual email
 verification lookups, AI Deliverability Agents, company-list builders and members,
 or SuperSearch enrichment execution/history. Some AI detail and additional
 analytics endpoints are also outside this version. It reads saved searches and
 the listed AI resources; it does not run agents, start tests, buy domains, send
-emails, create exports, or receive webhook events. Attachments remain metadata.
+emails, or receive webhook events. Attachments remain metadata.
 
 ## Modes
 
@@ -127,7 +144,7 @@ Use full upsert for keyed resources, or full replace to remove rows no longer
 returned by Instantly. The following resources have no stable primary key declared
 and require full replace:
 
-`dfy_email_account_orders`, `workspace_plan`, `workspace_subscription`, `account_campaign_mappings`, `account_warmup_analytics`, `account_daily_analytics`, `campaign_analytics_overview`, `campaign_steps_analytics`, `subsequence_analytics`, `subsequence_steps_analytics`, `ai_sales_analytics`, `ai_sales_opportunities`, `ai_inbox_analytics`, `ai_lead_finder_stats`.
+`block_list_entries_export`, `dfy_email_account_orders`, `workspace_plan`, `workspace_subscription`, `account_campaign_mappings`, `account_warmup_analytics`, `account_daily_analytics`, `campaign_analytics_overview`, `campaign_steps_analytics`, `subsequence_analytics`, `subsequence_steps_analytics`, `ai_sales_analytics`, `ai_sales_opportunities`, `ai_inbox_analytics`, `ai_lead_finder_stats`.
 
 ## Behavior
 
@@ -153,3 +170,8 @@ and require full replace:
 - **Recovery**: top-level cursor reads can resume interrupted walks. Child reads
   restart from their parent listings. Deletes are reconciled through full replace,
   not emitted as deletion events.
+- **Bulk download**: the CSV download uses authenticated HTTPS on the API origin
+  with a ten-minute deadline. It creates no background job and does not paginate.
+  Interrupted downloads replay from the beginning and can reflect changes since
+  the first attempt; there is no immutable snapshot token. Missing permissions
+  and HTTP 404 responses fail the read rather than becoming empty exports.

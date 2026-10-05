@@ -6,17 +6,40 @@ api_version: "3.0"
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-light.svg
 config:
+  auth_method:
+    type: enum
+    enum: [api_key, oauth_access_token]
+    enum_labels:
+      api_key: API Key
+      oauth_access_token: OAuth Access Token
+    default: api_key
+    help: Choose an API key or an OAuth access token obtained through external authorization.
+  access_token:
+    type: secret
+    required: true
+    visible_when: {field: auth_method, values: [oauth_access_token]}
+    help: Mailchimp OAuth access token, without the Bearer prefix. Valid until revoked; no refresh token is required.
   api_key:
+    visible_when: {field: auth_method, values: [api_key]}
     type: secret
     required: true
     help: Mailchimp Marketing API key. Access follows the user who created the key.
   server:
     type: string
     required: true
-    help: Account data center prefix, such as us6. Found after the last hyphen in your API key.
+    help: Account data center prefix, such as us6. Use the API key suffix or the dc value from OAuth metadata.
 connection:
   base_url: "https://{{ config.server }}.api.mailchimp.com"
-  auth: { bearer: config.api_key }
+  auth:
+    select:
+      field: auth_method
+      cases:
+        api_key:
+          required: [api_key]
+          auth: {bearer: config.api_key}
+        oauth_access_token:
+          required: [access_token]
+          auth: {bearer: config.access_token}
   headers: { Accept: application/json }
   timeout_seconds: 120
 defaults:
@@ -1374,6 +1397,651 @@ resources:
       source: json?
       properties: json?
       raw: { path: $, type: json, mode: remainder }
+
+  # Optional Marketing API read families. Defaults remain unchanged.
+  - name: account_activity
+    path: "/3.0/activity-feed/chimp-chatter"
+    response: {"records": "$.chimp_chatter", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: []
+    fields:
+      title: "string?"
+      message: "string?"
+      type: "string?"
+      update_time: "string?"
+      url: "string?"
+      list_id: "string?"
+      campaign_id: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: audiences
+    path: "/3.0/audiences"
+    capture: {"audience_id": "id"}
+    response: {"records": "$.audiences", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      stats: "json?"
+      enabled_channels: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: audience_contacts
+    path: "/3.0/audiences/{audience_id}/contacts"
+    for_each: "audiences"
+    parent: {"concurrency": 2}
+    params: {"audience_id": "parent.audience_id"}
+    query: {"count": "100"}
+    response: {"records": "$.contacts", "pagination": {"cursor": {"response": "next_cursor", "request": "query.cursor", "null_terminates": true}}}
+    primary_key: ["audience_id", "id"]
+    fields:
+      audience_id: {"path": "parent.audience_id", "type": "string"}
+      id: "string"
+      language: "string?"
+      status: "string?"
+      email_channel: "json?"
+      sms_channel: "json?"
+      merge_fields: "json?"
+      tags: "json?"
+      source: "json?"
+      created_at: "string?"
+      last_updated_at: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: batch_jobs
+    path: "/3.0/batches"
+    response: {"records": "$.batches", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      status: "string?"
+      total_operations: "int64?"
+      finished_operations: "int64?"
+      errored_operations: "int64?"
+      submitted_at: "string?"
+      completed_at: "string?"
+      response_body_url: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: conversations
+    path: "/3.0/conversations"
+    capture: {"conversation_id": "id"}
+    response: {"records": "$.conversations", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      message_count: "int64?"
+      campaign_id: "string?"
+      list_id: "string?"
+      unread_messages: "int64?"
+      from_label: "string?"
+      from_email: "string?"
+      subject: "string?"
+      last_message: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: conversation_messages
+    path: "/3.0/conversations/{conversation_id}/messages"
+    for_each: "conversations"
+    parent: {"concurrency": 2}
+    params: {"conversation_id": "parent.conversation_id"}
+    response: {"records": "$.conversation_messages", "pagination": "none"}
+    primary_key: ["conversation_id", "id"]
+    fields:
+      conversation_id: {"path": "parent.conversation_id", "type": "string"}
+      id: "string"
+      list_id: "string?"
+      from_label: "string?"
+      from_email: "string?"
+      subject: "string?"
+      message: "string?"
+      read: "bool?"
+      timestamp: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: campaign_send_checklist
+    path: "/3.0/campaigns/{campaign_id}/send-checklist"
+    for_each: "campaigns"
+    parent: {"concurrency": 2}
+    params: {"campaign_id": "parent.campaign_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["campaign_id"]
+    fields:
+      campaign_id: {"path": "parent.campaign_id", "type": "string"}
+      is_ready: "bool?"
+      items: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: member_goals
+    path: "/3.0/lists/{list_id}/members/{subscriber_hash}/goals"
+    for_each: "member_index"
+    parent: {"concurrency": 2}
+    params: {"list_id": "parent.list_id", "subscriber_hash": "parent.subscriber_hash"}
+    response: {"records": "$.goals", "pagination": "none"}
+    primary_key: []
+    fields:
+      list_id: {"path": "parent.list_id", "type": "string"}
+      subscriber_hash: {"path": "parent.subscriber_hash", "type": "string"}
+      goal_id: "string?"
+      event: "string?"
+      last_visited_at: "string?"
+      data: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: list_tags
+    path: "/3.0/lists/{list_id}/tag-search"
+    for_each: "lists"
+    parent: {"concurrency": 2}
+    params: {"list_id": "parent.list_id"}
+    response: {"records": "$.tags", "pagination": "none"}
+    primary_key: ["list_id", "id"]
+    fields:
+      list_id: {"path": "parent.list_id", "type": "string"}
+      id: "string"
+      name: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: list_surveys
+    path: "/3.0/lists/{list_id}/surveys"
+    for_each: "lists"
+    parent: {"concurrency": 2}
+    params: {"list_id": "parent.list_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["list_id"]
+    fields:
+      list_id: {"path": "parent.list_id", "type": "string"}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: landing_pages
+    path: "/3.0/landing-pages"
+    capture: {"page_id": "id"}
+    query: {"count": "1000"}
+    response: {"records": "$.landing_pages", "pagination": "none"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      title: "string?"
+      description: "string?"
+      template_id: "string?"
+      status: "string?"
+      list_id: "string?"
+      store_id: "string?"
+      web_id: "string?"
+      created_by_source: "string?"
+      url: "string?"
+      created_at: "string?"
+      published_at: "string?"
+      unpublished_at: "string?"
+      updated_at: "string?"
+      tracking: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: landing_page_content
+    path: "/3.0/landing-pages/{page_id}/content"
+    for_each: "landing_pages"
+    parent: {"concurrency": 2}
+    params: {"page_id": "parent.page_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["page_id"]
+    fields:
+      page_id: {"path": "parent.page_id", "type": "string"}
+      html: "string?"
+      json: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: report_advice
+    path: "/3.0/reports/{campaign_id}/advice"
+    for_each: "reports"
+    parent: {"concurrency": 2}
+    params: {"campaign_id": "parent.campaign_id"}
+    response: {"records": "$.advice", "pagination": "none"}
+    primary_key: []
+    fields:
+      campaign_id: {"path": "parent.campaign_id", "type": "string"}
+      type: "string?"
+      message: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: report_eepurl
+    path: "/3.0/reports/{campaign_id}/eepurl"
+    for_each: "reports"
+    parent: {"concurrency": 2}
+    params: {"campaign_id": "parent.campaign_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["campaign_id"]
+    fields:
+      campaign_id: {"path": "parent.campaign_id", "type": "string"}
+      twitter: "json?"
+      clicks: "json?"
+      referrers: "json?"
+      eepurl: "string?"
+      total_items: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: facebook_ads
+    path: "/3.0/facebook-ads"
+    capture: {"outreach_id": "id"}
+    response: {"records": "$.facebook_ads", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      web_id: "string?"
+      name: "string?"
+      type: "string?"
+      status: "string?"
+      show_report: "bool?"
+      create_time: "string?"
+      start_time: "string?"
+      updated_at: "string?"
+      canceled_at: "string?"
+      published_time: "string?"
+      has_segment: "bool?"
+      report_summary: "json?"
+      recipients: "json?"
+      email_source_name: "string?"
+      paused_at: "string?"
+      end_time: "string?"
+      needs_attention: "bool?"
+      was_canceled_by_facebook: "bool?"
+      thumbnail: "string?"
+      is_connected: "bool?"
+      has_audience: "bool?"
+      has_content: "bool?"
+      channel: "json?"
+      feedback: "json?"
+      site: "json?"
+      audience: "json?"
+      budget: "json?"
+      content: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: facebook_ad_reports
+    path: "/3.0/reporting/facebook-ads"
+    capture: {"outreach_id": "id"}
+    response: {"records": "$.facebook_ads", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      web_id: "string?"
+      name: "string?"
+      type: "string?"
+      status: "string?"
+      show_report: "bool?"
+      create_time: "string?"
+      start_time: "string?"
+      updated_at: "string?"
+      canceled_at: "string?"
+      published_time: "string?"
+      has_segment: "bool?"
+      report_summary: "json?"
+      recipients: "json?"
+      email_source_name: "string?"
+      paused_at: "string?"
+      end_time: "string?"
+      needs_attention: "bool?"
+      was_canceled_by_facebook: "bool?"
+      thumbnail: "string?"
+      channel: "json?"
+      audience: "json?"
+      budget: "json?"
+      audience_activity: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: facebook_ad_product_activity
+    path: "/3.0/reporting/facebook-ads/{outreach_id}/ecommerce-product-activity"
+    for_each: "facebook_ad_reports"
+    parent: {"concurrency": 2}
+    params: {"outreach_id": "parent.outreach_id"}
+    response: {"records": "$.products", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: []
+    fields:
+      outreach_id: {"path": "parent.outreach_id", "type": "string"}
+      title: "string?"
+      sku: "string?"
+      image_url: "string?"
+      total_revenue: "float64?"
+      total_purchased: "float64?"
+      currency_code: "string?"
+      recommendation_total: "int64?"
+      recommendation_purchased: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: landing_page_reports
+    path: "/3.0/reporting/landing-pages"
+    capture: {"outreach_id": "id"}
+    response: {"records": "$.landing_pages", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      title: "string?"
+      url: "string?"
+      published_at: "string?"
+      unpublished_at: "string?"
+      status: "string?"
+      list_id: "string?"
+      visits: "int64?"
+      unique_visits: "int64?"
+      subscribes: "int64?"
+      clicks: "int64?"
+      conversion_rate: "float64?"
+      timeseries: "json?"
+      ecommerce: "json?"
+      web_id: "string?"
+      list_name: "string?"
+      signup_tags: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_reports
+    path: "/3.0/reporting/surveys"
+    capture: {"survey_id": "id", "list_id": "list_id"}
+    response: {"records": "$.surveys", "pagination": {"offset": {"offset": "query.offset", "limit": "query.count", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      web_id: "string?"
+      list_id: "string?"
+      list_name: "string?"
+      title: "string?"
+      url: "string?"
+      status: "string?"
+      published_at: "string?"
+      created_at: "string?"
+      updated_at: "string?"
+      total_responses: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_details
+    path: "/3.0/lists/{list_id}/surveys/{survey_id}"
+    for_each: "survey_reports"
+    parent: {"concurrency": 2}
+    params: {"list_id": "parent.list_id", "survey_id": "parent.survey_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["list_id", "survey_id"]
+    fields:
+      list_id: {"path": "parent.list_id", "type": "string"}
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_questions
+    path: "/3.0/reporting/surveys/{survey_id}/questions"
+    for_each: "survey_reports"
+    parent: {"concurrency": 2}
+    params: {"survey_id": "parent.survey_id"}
+    capture: {"survey_id": "parent.survey_id", "question_id": "id"}
+    response: {"records": "$.questions", "pagination": "none"}
+    primary_key: ["survey_id", "id"]
+    fields:
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      id: "string"
+      query: "string?"
+      type: "string?"
+      total_responses: "int64?"
+      is_required: "bool?"
+      has_other: "bool?"
+      other_label: "string?"
+      average_rating: "float64?"
+      range_low_label: "string?"
+      range_high_label: "string?"
+      placeholder_label: "string?"
+      subscribe_checkbox_enabled: "bool?"
+      subscribe_checkbox_label: "string?"
+      merge_field: "json?"
+      options: "json?"
+      contact_counts: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_answers
+    path: "/3.0/reporting/surveys/{survey_id}/questions/{question_id}/answers"
+    for_each: "survey_questions"
+    parent: {"concurrency": 2}
+    params: {"survey_id": "parent.survey_id", "question_id": "parent.question_id"}
+    response: {"records": "$.answers", "pagination": "none"}
+    primary_key: ["survey_id", "question_id", "id"]
+    fields:
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      question_id: {"path": "parent.question_id", "type": "string"}
+      id: "string"
+      value: "string?"
+      response_id: "string?"
+      submitted_at: "string?"
+      contact: "json?"
+      is_new_contact: "bool?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_responses
+    path: "/3.0/reporting/surveys/{survey_id}/responses"
+    for_each: "survey_reports"
+    parent: {"concurrency": 2}
+    params: {"survey_id": "parent.survey_id"}
+    capture: {"survey_id": "parent.survey_id", "response_id": "response_id"}
+    response: {"records": "$.responses", "pagination": "none"}
+    primary_key: ["survey_id", "response_id"]
+    fields:
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      response_id: "string"
+      submitted_at: "string?"
+      contact: "json?"
+      is_new_contact: "bool?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: survey_response_details
+    path: "/3.0/reporting/surveys/{survey_id}/responses/{response_id}"
+    for_each: "survey_responses"
+    parent: {"concurrency": 2}
+    params: {"survey_id": "parent.survey_id", "response_id": "parent.response_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["survey_id", "response_id"]
+    fields:
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      response_id: {"path": "parent.response_id", "type": "string"}
+      submitted_at: "string?"
+      contact: "json?"
+      is_new_contact: "bool?"
+      results: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: list_details
+    path: "/3.0/lists/{list_id}"
+    for_each: "lists"
+    parent: {"concurrency": 2}
+    params: {"list_id": "parent.list_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      list_id: {"path": "parent.list_id", "type": "string"}
+      id: "string"
+      web_id: "string?"
+      name: "string?"
+      contact: "json?"
+      permission_reminder: "string?"
+      use_archive_bar: "bool?"
+      campaign_defaults: "json?"
+      notify_on_subscribe: "string?"
+      notify_on_unsubscribe: "string?"
+      date_created: "string?"
+      list_rating: "int64?"
+      email_type_option: "bool?"
+      subscribe_url_short: "string?"
+      subscribe_url_long: "string?"
+      beamer_address: "string?"
+      visibility: "string?"
+      double_optin: "bool?"
+      has_welcome: "bool?"
+      marketing_permissions: "bool?"
+      modules: "json?"
+      stats: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: campaign_details
+    path: "/3.0/campaigns/{campaign_id}"
+    for_each: "campaigns"
+    parent: {"concurrency": 2}
+    params: {"campaign_id": "parent.campaign_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      campaign_id: {"path": "parent.campaign_id", "type": "string"}
+      id: "string"
+      web_id: "string?"
+      parent_campaign_id: "string?"
+      type: "string?"
+      create_time: "string?"
+      archive_url: "string?"
+      long_archive_url: "string?"
+      status: "string?"
+      emails_sent: "int64?"
+      send_time: "string?"
+      content_type: "string?"
+      needs_block_refresh: "bool?"
+      resendable: "bool?"
+      recipients: "json?"
+      settings: "json?"
+      variate_settings: "json?"
+      tracking: "json?"
+      rss_opts: "json?"
+      ab_split_opts: "json?"
+      social_card: "json?"
+      report_summary: "json?"
+      delivery_status: "json?"
+      resend_shortcut_eligibility: "json?"
+      resend_shortcut_usage: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: automation_email_details
+    path: "/3.0/automations/{workflow_id}/emails/{workflow_email_id}"
+    for_each: "automation_emails"
+    parent: {"concurrency": 2}
+    params: {"workflow_id": "parent.workflow_id", "workflow_email_id": "parent.workflow_email_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      workflow_id: {"path": "parent.workflow_id", "type": "string"}
+      workflow_email_id: {"path": "parent.workflow_email_id", "type": "string"}
+      id: "string"
+      web_id: "string?"
+      position: "int64?"
+      delay: "json?"
+      create_time: "string?"
+      start_time: "string?"
+      archive_url: "string?"
+      status: "string?"
+      emails_sent: "int64?"
+      send_time: "string?"
+      content_type: "string?"
+      needs_block_refresh: "bool?"
+      has_logo_merge_tag: "bool?"
+      recipients: "json?"
+      settings: "json?"
+      tracking: "json?"
+      social_card: "json?"
+      trigger_settings: "json?"
+      report_summary: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: landing_page_report_details
+    path: "/3.0/reporting/landing-pages/{outreach_id}"
+    for_each: "landing_page_reports"
+    parent: {"concurrency": 2}
+    params: {"outreach_id": "parent.outreach_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      outreach_id: {"path": "parent.outreach_id", "type": "string"}
+      id: "string"
+      name: "string?"
+      title: "string?"
+      url: "string?"
+      published_at: "string?"
+      unpublished_at: "string?"
+      status: "string?"
+      list_id: "string?"
+      visits: "int64?"
+      unique_visits: "int64?"
+      subscribes: "int64?"
+      clicks: "int64?"
+      conversion_rate: "float64?"
+      timeseries: "json?"
+      ecommerce: "json?"
+      web_id: "string?"
+      list_name: "string?"
+      signup_tags: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: facebook_ad_details
+    path: "/3.0/facebook-ads/{outreach_id}"
+    for_each: "facebook_ads"
+    parent: {"concurrency": 2}
+    params: {"outreach_id": "parent.outreach_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      outreach_id: {"path": "parent.outreach_id", "type": "string"}
+      id: "string"
+      web_id: "string?"
+      name: "string?"
+      type: "string?"
+      status: "string?"
+      show_report: "bool?"
+      create_time: "string?"
+      start_time: "string?"
+      updated_at: "string?"
+      canceled_at: "string?"
+      published_time: "string?"
+      has_segment: "bool?"
+      report_summary: "json?"
+      recipients: "json?"
+      email_source_name: "string?"
+      paused_at: "string?"
+      end_time: "string?"
+      needs_attention: "bool?"
+      was_canceled_by_facebook: "bool?"
+      thumbnail: "string?"
+      is_connected: "bool?"
+      has_audience: "bool?"
+      has_content: "bool?"
+      channel: "json?"
+      feedback: "json?"
+      site: "json?"
+      audience: "json?"
+      budget: "json?"
+      content: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: facebook_ad_report_details
+    path: "/3.0/reporting/facebook-ads/{outreach_id}"
+    for_each: "facebook_ad_reports"
+    parent: {"concurrency": 2}
+    params: {"outreach_id": "parent.outreach_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      outreach_id: {"path": "parent.outreach_id", "type": "string"}
+      id: "string"
+      web_id: "string?"
+      name: "string?"
+      type: "string?"
+      status: "string?"
+      show_report: "bool?"
+      create_time: "string?"
+      start_time: "string?"
+      updated_at: "string?"
+      canceled_at: "string?"
+      published_time: "string?"
+      has_segment: "bool?"
+      report_summary: "json?"
+      recipients: "json?"
+      email_source_name: "string?"
+      paused_at: "string?"
+      end_time: "string?"
+      needs_attention: "bool?"
+      was_canceled_by_facebook: "bool?"
+      thumbnail: "string?"
+      channel: "json?"
+      audience: "json?"
+      budget: "json?"
+      audience_activity: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
 
 discovery:
   mode: static
