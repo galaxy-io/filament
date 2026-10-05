@@ -13,12 +13,28 @@ official API schema, but has not been tested against a live account.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
-| `api_key` | Connection | | Required. Secret. Apollo API key with access to the selected read endpoints. |
+| `auth_method` | Connection | `api_key` | Choose **API Key** or **OAuth Access Token**. Only the selected method's credential field is shown. |
+| `api_key` | Connection | | Secret. Required for API Key authentication; needs access to the selected read endpoints. |
+| `access_token` | Connection | | Secret. Required for OAuth Access Token authentication; omit the Bearer prefix. |
 
-[Create an API key](https://docs.apollo.io/docs/create-api-key) with endpoint
-permissions for the resources you select. Requests use `https://api.apollo.io/api/v1`
-and send the key in the `x-api-key` header. Connection testing searches contacts,
-so contact-search access is required even when selecting other resources.
+For **API Key**, [create a key](https://docs.apollo.io/docs/create-api-key) with
+endpoint permissions for the resources you select. Normal and master keys use
+the same field and are sent in the `x-api-key` header.
+
+For **OAuth Access Token**, register an Apollo partner app and complete the
+[authorization-code flow](https://docs.apollo.io/docs/use-oauth-20-authorization-flow-to-access-apollo-user-information-partners)
+externally. Provide the resulting access token; requests send it as an
+`Authorization: Bearer` credential. Tokens expire after 30 days. Renew them
+externally and update the connection before expiration. Apollo rotates refresh
+tokens and revokes the previous tokens when refreshing, so your external token
+manager must persist each replacement. Filament does not perform the browser
+flow, token exchange, or automatic refresh for this connector.
+
+Both methods use `https://api.apollo.io/api/v1`. Connection testing searches
+contacts, so contact-search permission is required even when selecting other
+resources. OAuth apps need the scopes for their selected endpoints and access
+is limited by the authorizing user's permissions. Existing connections continue
+to use API Key authentication by default.
 
 | Default resource | API key endpoint access |
 |---|---|
@@ -28,7 +44,7 @@ so contact-search access is required even when selecting other resources.
 
 The defaults use credit-free endpoints and do not require a Master API key.
 Optional resources need their own endpoint permissions and any associated plan
-features. `calls` and `email_stats` require a Master API key. Consult the
+features. When using API Key authentication, `calls` and `email_stats` require a Master API key. Consult the
 [Apollo API reference](https://docs.apollo.io/reference/apollo-api) for the selected
 endpoints. `conversation_details` consumes one credit for each conversation with
 AI insights; conversations without AI insights cost no credits.

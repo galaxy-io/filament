@@ -6,16 +6,45 @@ api_version: v1
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-light.svg
 config:
+  auth_method:
+    type: enum
+    enum: [api_key, oauth_access_token]
+    enum_labels:
+      api_key: API Key
+      oauth_access_token: OAuth Access Token
+    default: api_key
+    help: Choose an API key or an OAuth access token obtained through external authorization.
+  access_token:
+    type: secret
+    required: true
+    visible_when: {field: auth_method, values: [oauth_access_token]}
+    help: Apollo partner OAuth access token, without the Bearer prefix. Expires after 30 days; obtain and renew externally. Automatic refresh is not supported.
   api_key:
+    visible_when: {field: auth_method, values: [api_key]}
     type: secret
     required: true
     help: Apollo API key with access to the selected read endpoints
+  people_keywords: {"type": "string", "scope": "pipeline", "default": "", "help": "Keywords for optional global people search. Narrow searches to stay below Apollo's 50,000-result ceiling."}
+  organization_name: {"type": "string", "scope": "pipeline", "default": "", "help": "Company name filter for optional global organization searches. Search consumes credits per page."}
+  organization_domain: {"type": "string", "scope": "pipeline", "help": "Domain required for organization_enrichment. This optional read consumes credits."}
+  analytics_query: {"type": "string", "scope": "pipeline", "help": "Complete JSON request for analytics_report, including metrics, groups, filters, sorts, totals flags, and date_ranges. See Apollo's query analytics report reference."}
+  webhook_request_id: {"type": "string", "scope": "pipeline", "help": "Existing Apollo request ID for webhook_result. Does not start enrichment or deliver webhooks."}
+  conversation_export_id: {"type": "string", "scope": "pipeline", "help": "Existing conversations export ID for conversation_export_status. Returns the signed download URL when available."}
 connection:
   base_url: https://api.apollo.io
   auth:
-    header:
-      name: x-api-key
-      value: config.api_key
+    select:
+      field: auth_method
+      cases:
+        api_key:
+          required: [api_key]
+          auth:
+            header:
+              name: x-api-key
+              value: config.api_key
+        oauth_access_token:
+          required: [access_token]
+          auth: {bearer: config.access_token}
   headers:
     Accept: application/json
 defaults:
@@ -60,6 +89,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: accounts
+    capture: { record_id: id }
     path: /api/v1/accounts/search
     method: POST
     primary_key: ["id"]
@@ -117,6 +147,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: deals
+    capture: { record_id: id }
     path: /api/v1/opportunities/search
     method: GET
     primary_key: ["id"]
@@ -146,6 +177,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: tasks
+    capture: { record_id: id }
     path: /api/v1/tasks/search
     method: POST
     primary_key: ["id"]
@@ -597,6 +629,207 @@ resources:
       records: $
       cardinality: one
       pagination: none
+  # Optional read endpoints; paid/global searches are never selected by default.
+  - name: contact_details
+    path: "/api/v1/contacts/{contact_id}"
+    method: "GET"
+    for_each: "contacts"
+    params: {"contact_id": "parent.record_id"}
+    response: {"records": "$.contact", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: account_details
+    path: "/api/v1/accounts/{id}"
+    method: "GET"
+    for_each: "accounts"
+    params: {"id": "parent.record_id"}
+    response: {"records": "$.account", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: deal_details
+    path: "/api/v1/opportunities/{opportunity_id}"
+    method: "GET"
+    for_each: "deals"
+    params: {"opportunity_id": "parent.record_id"}
+    response: {"records": "$.opportunity", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: task_details
+    path: "/api/v1/tasks/{id}"
+    method: "GET"
+    for_each: "tasks"
+    params: {"id": "parent.record_id"}
+    response: {"records": "$.task", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: contact_deals
+    path: "/api/v1/contacts/{contact_id}/opportunities"
+    method: "POST"
+    for_each: "contacts"
+    params: {"contact_id": "parent.record_id"}
+    response: {"records": "$.opportunities", "pagination": "none"}
+    primary_key: ["contact_id", "id"]
+    fields:
+      contact_id: {"path": "parent.record_id", "type": "string"}
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: people
+    path: "/api/v1/mixed_people/api_search"
+    method: "POST"
+    query: {"q_keywords": "{{ config.people_keywords }}"}
+    capture: {"person_id": "id"}
+    response: {"records": "$.people", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 100}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      first_name: "string?"
+      last_name_obfuscated: "string?"
+      title: "string?"
+      organization: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: person_details
+    path: "/api/v1/people/{id}"
+    method: "GET"
+    for_each: "people"
+    params: {"id": "parent.person_id"}
+    response: {"records": "$.person", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: person_enrichment
+    path: "/api/v1/people/match"
+    method: "POST"
+    for_each: "people"
+    query: {"id": "{{ parent.person_id }}", "reveal_personal_emails": "false", "reveal_phone_number": "false"}
+    response: {"records": "$.person", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: organizations
+    path: "/api/v1/mixed_companies/search"
+    method: "POST"
+    query: {"q_organization_name": "{{ config.organization_name }}"}
+    capture: {"organization_id": "id"}
+    response: {"records": "$.organizations", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 100, "total_pages": "pagination.total_pages"}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      primary_domain: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: organization_details
+    path: "/api/v1/organizations/{id}"
+    method: "GET"
+    for_each: "organizations"
+    params: {"id": "parent.organization_id"}
+    response: {"records": "$.organization", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: organization_enrichment
+    path: "/api/v1/organizations/enrich"
+    method: "GET"
+    query: {"domain": "{{ config.organization_domain }}"}
+    response: {"records": "$.organization", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: organization_jobs
+    path: "/api/v1/organizations/{organization_id}/job_postings"
+    method: "GET"
+    for_each: "organizations"
+    params: {"organization_id": "parent.organization_id"}
+    response: {"records": "$.organization_job_postings", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 100}}}
+    primary_key: ["organization_id", "id"]
+    fields:
+      organization_id: {"path": "parent.organization_id", "type": "string"}
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: organization_news
+    path: "/api/v1/news_articles/search"
+    method: "POST"
+    for_each: "organizations"
+    query: {"organization_ids[]": "{{ parent.organization_id }}"}
+    response: {"records": "$.news_articles", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 25, "total_pages": "pagination.total_pages"}}}
+    primary_key: ["organization_id", "id"]
+    fields:
+      organization_id: {"path": "parent.organization_id", "type": "string"}
+      id: "string"
+      title: "string?"
+      url: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: analytics_report
+    path: "/api/v1/reports/sync_report"
+    method: "POST"
+    body: {"encoding": "raw", "template": {"content_type": "application/json", "body": "{{ config.analytics_query }}"}}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: []
+    fields:
+      response: "json?"
+      incompatible_filters: "json?"
+      goals: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: webhook_result
+    path: "/api/v1/webhook_result/{request_id}"
+    method: "GET"
+    params: {"request_id": "config.webhook_request_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["request_id"]
+    fields:
+      request_id: "string"
+      webhook_status: "string?"
+      webhook_result: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: conversation_export_status
+    path: "/api/v1/conversations/export/{id}"
+    method: "GET"
+    params: {"id": "config.conversation_export_id"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: []
+    fields:
+      redirect_url: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: email_send_status
+    path: "/api/v1/emailer_messages/email_send_status"
+    method: "POST"
+    for_each: "emails"
+    body: {"encoding": "json", "template": {"id": "{{ parent.record_id }}"}}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      status: "string?"
+      message: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
 discovery:
   mode: static
   default_resources: [contacts, accounts, sequences]
