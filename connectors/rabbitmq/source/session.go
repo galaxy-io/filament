@@ -36,6 +36,7 @@ type streamState struct {
 type session struct {
 	lifecycle istream.SourceLifecycle
 	streams map[string]*streamState
+	deliveries chan delivery
 	writers map[string]arrowbatch.RowWriter
 	columns map[string]*streamkit.MessageColumns
 	projectors map[string]*streamkit.Projector
@@ -87,7 +88,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err != nil {
 		return nil, err
 	}
-	ss := &session{streams: map[string]*streamState{}, writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
+	ss := &session{streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
 	known := map[filament.DomainKey]bool{}
 	for _, name := range names {
 		domain := streamDomain(opts.SourceConnectionID, name)
@@ -101,7 +102,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 			}
 			initial = false
 		}
-		state := &streamState{domain: domain, next: next, initial: initial, deliveries: make(chan delivery, 16)}
+		state := &streamState{domain: domain, next: next, initial: initial, deliveries: ss.deliveries}
 		handler := func(cc rmq.ConsumerContext, msg *amqp.Message) {
 			d := delivery{stream: name, offset: cc.Consumer.GetOffset(), msg: msg}
 			select {
@@ -172,21 +173,13 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 	}
 	timer := time.NewTimer(b.MaxWait)
 	defer timer.Stop()
-	for {
-		for _, name := range names {
-			select {
-			case d := <-s.streams[name].deliveries:
-				return s.readDelivery(ctx, out, d)
-			default:
-			}
-		}
-		select {
-		case <-ctx.Done():
-			return coverage, ctx.Err()
-		case <-timer.C:
-			return coverage, nil
-		case <-time.After(time.Millisecond):
-		}
+	select {
+	case <-ctx.Done():
+		return coverage, ctx.Err()
+	case <-timer.C:
+		return coverage, nil
+	case d := <-s.deliveries:
+		return s.readDelivery(ctx, out, d)
 	}
 }
 
