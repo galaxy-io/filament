@@ -223,6 +223,14 @@ func (c *Runtime) runScopedExport(ctx context.Context, res manifest.Resource, si
 		job.Phase = "creating"
 		job.Deadline = time.Now().Add(time.Duration(res.Export.Wait.TimeoutSeconds) * time.Second)
 	}
+	// Renew an expired waiting budget only at a new execution boundary. A
+	// completed job converted to waiting for replay needs the same treatment.
+	if job.Phase == "waiting" && !time.Now().Before(job.Deadline) {
+		job.Deadline = time.Now().Add(time.Duration(res.Export.Wait.TimeoutSeconds) * time.Second)
+		if err := group.update(key, job); err != nil {
+			return err
+		}
+	}
 	ctx, cancel := context.WithDeadline(ctx, job.Deadline)
 	defer cancel()
 	if err := ctx.Err(); err != nil {

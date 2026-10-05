@@ -3,6 +3,7 @@ package export
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/checkpoint"
@@ -36,6 +37,15 @@ func (s *Runtime) PlanIncremental(res manifest.Resource, previous filament.Check
 	}
 	for _, key := range state.Selected {
 		if state.Parents[key].Job.Phase != "done" {
+			// Retain frozen inputs, captures, candidates, and committed marks.
+			// Done jobs are also replayed when this mixed generation resumes.
+			now := time.Now()
+			for _, selected := range state.Selected {
+				job := state.Parents[selected].Job
+				if (job.Phase == "waiting" || job.Phase == "done") && !now.Before(job.Deadline) {
+					job.Deadline = now.Add(time.Duration(res.Export.Wait.TimeoutSeconds) * time.Second)
+				}
+			}
 			return Checkpoint(res.Name, state)
 		}
 	}
