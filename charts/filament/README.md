@@ -93,7 +93,9 @@ helm upgrade --install filament \
 | server.logLevel | string | `"INFO"` | Minimum server log level. Valid values: INFO, DEBUG, TRACE. |
 | server.replicas | int | `1` | Number of server replicas. Ignored when `server.autoscaling.enabled` is true. |
 | server.resources | object | `{}` (See [values.yaml]) | Server resource requests and limits. |
+| server.service.annotations | object | `{}` | Annotations for the Service, e.g. cloud load balancer settings. |
 | server.service.port | int | `8080` | Server service and container port. |
+| server.service.type | string | `"ClusterIP"` | Service type. |
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
 

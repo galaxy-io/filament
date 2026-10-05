@@ -32,7 +32,7 @@ import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/component
 
 const TableWrapper = styled.div`
   width: 100%;
-  flex: 1 0 auto;
+  flex: 1;
   min-height: 0;
 `;
 
@@ -132,6 +132,7 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
         enableSelectAll
         enableSelectionRange
         fillWidth
+        fillHeight
       />
     </TableWrapper>
   );
