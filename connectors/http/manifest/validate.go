@@ -138,6 +138,28 @@ func (m *Manifest) validateSemantics() error {
 		_ = agg.Addf("defaults.response.empty", "must be declared on individual resources")
 	}
 
+	for name, spec := range m.Config {
+		for value := range spec.EnumLabels {
+			if (spec.Type != "enum" && spec.Type != "list") || !slices.Contains(spec.Enum, value) {
+				_ = agg.Addf("config."+name+".enum_labels", "label references unknown enum option %q", value)
+			}
+		}
+		if spec.VisibleWhen == nil {
+			continue
+		}
+		condition := spec.VisibleWhen
+		controller, ok := m.Config[condition.Field]
+		if !ok || condition.Field == name || controller.Type != "enum" || controller.VisibleWhen != nil || (controller.Scope == "pipeline") != (spec.Scope == "pipeline") {
+			_ = agg.Addf("config."+name+".visible_when", "must reference an unconditional enum field in the same scope")
+			continue
+		}
+		for _, value := range condition.Values {
+			if !slices.Contains(controller.Enum, value) {
+				_ = agg.Addf("config."+name+".visible_when", "unknown option %q", value)
+			}
+		}
+	}
+
 	if m.Name == "" {
 		_ = agg.Addf("name", "is required")
 	}

@@ -19,7 +19,7 @@ import (
 
 func init() { Register("oauth2_cc", newOAuth2CC) }
 
-// oauth2CC implements the OAuth 2.0 Client Credentials grant.
+// oauth2CC obtains access tokens using client credentials or a supplied refresh token.
 //
 // Cached tokens live in an atomic.Pointer so the hot path (token still fresh)
 // is lock-free. Refreshes are coordinated by singleflight: any number of
@@ -33,6 +33,10 @@ type oauth2CC struct {
 	clientID     string
 	clientSecret string
 	scope        string
+	grantType    string
+	refreshToken string
+	headerPrefix string
+	params       map[string]string
 
 	httpClient *http.Client
 	retry      RetryPolicy
@@ -77,8 +81,39 @@ func newOAuth2CC(params map[string]any) (Authenticator, error) {
 	if err != nil {
 		return nil, err
 	}
+	grant := strParam(params, "grant_type")
+	if grant == "" {
+		grant = "client_credentials"
+	}
+	if grant != "client_credentials" && grant != "refresh_token" {
+		return nil, fmt.Errorf("oauth2: unsupported grant_type")
+	}
+	if grant == "refresh_token" && strParam(params, "refresh_token") == "" {
+		return nil, fmt.Errorf("oauth2: refresh_token is required")
+	}
+	prefix := strParam(params, "header_prefix")
+	if prefix == "" {
+		prefix = "Bearer"
+	}
+	rawExtra, _ := params["params"].(map[string]any)
+	extra := make(map[string]string, len(rawExtra))
+	for key, raw := range rawExtra {
+		value, ok := raw.(string)
+		if !ok {
+			return nil, fmt.Errorf("oauth2: parameter %s must be a string", key)
+		}
+		extra[key] = value
+		switch key {
+		case "grant_type", "client_id", "client_secret", "refresh_token", "scope":
+			return nil, fmt.Errorf("oauth2: reserved parameter %s", key)
+		}
+	}
 	return &oauth2CC{
 		tokenURL:     tokenURL,
+		grantType:    grant,
+		refreshToken: strParam(params, "refresh_token"),
+		headerPrefix: prefix,
+		params:       extra,
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		scope:        strParam(params, "scope"),
@@ -92,7 +127,7 @@ func (a *oauth2CC) Apply(ctx context.Context, req *http.Request, scope template.
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Authorization", a.headerPrefix+" "+tok)
 	return nil
 }
 
@@ -161,11 +196,33 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 	}
 
 	form := url.Values{}
-	form.Set("grant_type", "client_credentials")
+	form.Set("grant_type", a.grantType)
 	form.Set("client_id", clientID)
 	form.Set("client_secret", clientSecret)
 	if a.scope != "" {
-		form.Set("scope", a.scope)
+		rendered, err := template.Render(a.scope, scope)
+		if err != nil {
+			return "", fmt.Errorf("%w: render scope", errs.ErrAuthRefresh)
+		}
+		form.Set("scope", rendered)
+	}
+
+	if a.grantType == "refresh_token" {
+		value, err := template.Render(a.refreshToken, scope)
+		if err != nil {
+			return "", fmt.Errorf("%w: render refresh_token", errs.ErrAuthRefresh)
+		}
+		form.Set("refresh_token", value)
+	}
+	for key, raw := range a.params {
+		value, err := template.Render(raw, scope)
+		if err != nil {
+			return "", fmt.Errorf("%w: render token parameter %s", errs.ErrAuthRefresh, key)
+		}
+		form.Set(key, value)
+	}
+	if clientID == "" || clientSecret == "" || (a.grantType == "refresh_token" && form.Get("refresh_token") == "") {
+		return "", fmt.Errorf("%w: missing OAuth credentials", errs.ErrAuthRefresh)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
@@ -177,14 +234,13 @@ func (a *oauth2CC) fetch(ctx context.Context, scope template.Scope) (string, err
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("%w: token request: %v", errs.ErrAuthRefresh, err)
+		return "", fmt.Errorf("%w: token request failed", errs.ErrAuthRefresh)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("%w: token endpoint HTTP %d: %s",
-			errs.ErrAuthRefresh, resp.StatusCode, errs.FormatTruncatedN(string(body), 300))
+		return "", fmt.Errorf("%w: token endpoint HTTP %d", errs.ErrAuthRefresh, resp.StatusCode)
 	}
 
 	var tr oauth2TokenResponse

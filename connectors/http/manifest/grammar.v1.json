@@ -2,41 +2,146 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "HTTP Connector Manifest v1",
   "type": "object",
-  "required": ["version", "name", "display_name", "description", "dark_logo_url", "light_logo_url", "connection", "resources"],
+  "required": [
+    "version",
+    "name",
+    "display_name",
+    "description",
+    "dark_logo_url",
+    "light_logo_url",
+    "connection",
+    "resources"
+  ],
   "additionalProperties": false,
   "properties": {
-    "version": { "const": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "display_name": { "type": "string", "minLength": 1 },
-    "description": { "type": "string", "minLength": 1 },
-    "dark_logo_url": { "type": "string", "format": "uri" },
-    "light_logo_url": { "type": "string", "format": "uri" },
-    "api_version": { "type": "string", "minLength": 1 },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dark_logo_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "light_logo_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "api_version": {
+      "type": "string",
+      "minLength": 1
+    },
     "config": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["type"],
+        "required": [
+          "type"
+        ],
         "additionalProperties": false,
         "properties": {
-          "type": { "type": "string", "enum": ["string", "int", "bool", "duration", "enum", "object", "secret", "list"] },
-          "required": { "type": "boolean" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "int",
+              "bool",
+              "duration",
+              "enum",
+              "object",
+              "secret",
+              "list"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
           "default": {},
-          "enum": { "type": "array", "items": { "type": "string" } },
-          "help": { "type": "string" },
-          "scope": { "type": "string", "enum": ["connection", "pipeline", ""] }
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "help": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "connection",
+              "pipeline",
+              ""
+            ]
+          },
+          "visible_when": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "field",
+              "values"
+            ],
+            "properties": {
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "enum_labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         },
         "allOf": [
           {
             "if": {
-              "properties": { "type": { "const": "list" } },
-              "required": ["type"]
+              "properties": {
+                "type": {
+                  "const": "list"
+                }
+              },
+              "required": [
+                "type"
+              ]
             },
             "then": {
-              "required": ["enum"],
+              "required": [
+                "enum"
+              ],
               "properties": {
-                "enum": { "minItems": 1, "uniqueItems": true },
-                "default": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+                "enum": {
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "default": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "uniqueItems": true
+                }
               }
             }
           }
@@ -47,11 +152,37 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", ""] },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
-        "query": { "type": "object", "additionalProperties": { "type": "string" } },
-        "response": { "$ref": "#/$defs/response" },
-        "pagination": { "$ref": "#/$defs/pagination" }
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS",
+            ""
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "response": {
+          "$ref": "#/$defs/response"
+        },
+        "pagination": {
+          "$ref": "#/$defs/pagination"
+        }
       }
     },
     "field_sets": {
@@ -62,73 +193,75 @@
     },
     "connection": {
       "type": "object",
-      "required": ["base_url"],
+      "required": [
+        "base_url"
+      ],
       "additionalProperties": false,
       "properties": {
-        "base_url": { "type": "string", "format": "uri" },
+        "base_url": {
+          "type": "string",
+          "format": "uri"
+        },
         "auth": {
-          "type": "object",
-          "minProperties": 1,
-          "maxProperties": 1,
-          "additionalProperties": false,
-          "properties": {
-            "none": {},
-            "bearer": { "type": "string", "minLength": 1 },
-            "header": {
-              "type": "object",
-              "required": ["name", "value"],
-              "additionalProperties": false,
-              "properties": {
-                "name": { "type": "string", "minLength": 1 },
-                "value": { "type": "string", "minLength": 1 }
-              }
-            },
-            "basic": {
-              "type": "object",
-              "required": ["username"],
-              "additionalProperties": false,
-              "properties": {
-                "username": { "type": "string", "minLength": 1 },
-                "password": { "type": "string" }
-              }
-            },
-            "oauth2": {
-              "type": "object",
-              "required": ["token_url", "client_id", "client_secret"],
-              "additionalProperties": false,
-              "properties": {
-                "token_url": { "type": "string", "minLength": 1 },
-                "client_id": { "type": "string", "minLength": 1 },
-                "client_secret": { "type": "string", "minLength": 1 },
-                "scope": { "type": "string" }
-              }
-            }
-          }
+          "$ref": "#/$defs/auth"
         },
         "rate_limit": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "requests_per_second": { "type": "number", "minimum": 0 },
-            "burst": { "type": "integer", "minimum": 1 },
+            "requests_per_second": {
+              "type": "number",
+              "minimum": 0
+            },
+            "burst": {
+              "type": "integer",
+              "minimum": 1
+            },
             "responses": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["status"],
+                "required": [
+                  "status"
+                ],
                 "dependentRequired": {
-                  "header_value": ["header"],
-                  "body_path": ["body_contains"],
-                  "body_contains": ["body_path"]
+                  "header_value": [
+                    "header"
+                  ],
+                  "body_path": [
+                    "body_contains"
+                  ],
+                  "body_contains": [
+                    "body_path"
+                  ]
                 },
                 "properties": {
-                  "status": { "type": "integer", "minimum": 100, "maximum": 599 },
-                  "header": { "type": "string", "minLength": 1 },
-                  "header_value": { "type": "string", "minLength": 1 },
-                  "body_path": { "type": "string", "minLength": 1 },
-                  "body_contains": { "type": "string", "minLength": 1 },
-                  "backoff_seconds": { "type": "integer", "minimum": 0 }
+                  "status": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599
+                  },
+                  "header": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "header_value": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "body_path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "body_contains": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "backoff_seconds": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               }
             },
@@ -136,65 +269,156 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "remaining_header": { "type": "string" },
-                "reset_header": { "type": "string" },
-                "reset_format": { "type": "string", "enum": ["unix_seconds", "seconds_from_now", "http_date"] },
-                "min_floor_rps": { "type": "number", "minimum": 0 }
+                "remaining_header": {
+                  "type": "string"
+                },
+                "reset_header": {
+                  "type": "string"
+                },
+                "reset_format": {
+                  "type": "string",
+                  "enum": [
+                    "unix_seconds",
+                    "seconds_from_now",
+                    "http_date"
+                  ]
+                },
+                "min_floor_rps": {
+                  "type": "number",
+                  "minimum": 0
+                }
               }
             }
           }
         },
         "headers": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
-        "timeout_seconds": { "type": "integer", "minimum": 0 }
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "resources": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/resource" }
+      "items": {
+        "$ref": "#/$defs/resource"
+      }
     },
     "discovery": {
       "type": "object",
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "additionalProperties": false,
       "properties": {
-        "mode": { "type": "string", "enum": ["static", "dynamic"] },
-        "include": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "default_resources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "static",
+            "dynamic"
+          ]
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "default_resources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "resources": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["from", "map"],
+            "required": [
+              "from",
+              "map"
+            ],
             "additionalProperties": false,
             "properties": {
-              "from": { "type": "string", "minLength": 1 },
+              "from": {
+                "type": "string",
+                "minLength": 1
+              },
               "map": {
                 "type": "object",
-                "required": ["kind", "id"],
+                "required": [
+                  "kind",
+                  "id"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "kind": { "type": "string", "minLength": 1 },
-                  "id": { "type": "string", "minLength": 1 },
-                  "name": { "type": "string" },
-                  "name_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-                  "parent_id": { "type": "string" },
-                  "default_enabled": { "type": "string" },
-                  "group_path": { "type": "string" },
-                  "metadata": { "type": "object", "additionalProperties": { "type": "string" } }
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "name_paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "parent_id": {
+                    "type": "string"
+                  },
+                  "default_enabled": {
+                    "type": "string"
+                  },
+                  "group_path": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
                 }
               },
               "scope": {
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "field": { "type": "string" },
-                  "inject_into": { "type": "string", "enum": ["query", "body", "header"] },
-                  "applies_to": { "type": "array", "items": { "type": "string" } },
-                  "fan_out": { "type": "boolean" }
+                  "field": {
+                    "type": "string"
+                  },
+                  "inject_into": {
+                    "type": "string",
+                    "enum": [
+                      "query",
+                      "body",
+                      "header"
+                    ]
+                  },
+                  "applies_to": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "fan_out": {
+                    "type": "boolean"
+                  }
                 }
               }
             }
@@ -206,71 +430,230 @@
   "$defs": {
     "resource": {
       "type": "object",
-      "required": ["name", "path"],
+      "required": [
+        "name",
+        "path"
+      ],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "emit_as": { "type": "string", "minLength": 1 },
-        "path": { "type": "string", "minLength": 1 },
-        "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", ""] },
-        "mode": { "type": "string", "enum": ["paginated", "stream", ""] },
-        "primary_key": { "type": "array", "items": { "type": "string" } },
-        "records": { "type": "string", "minLength": 1 },
-        "for_each": { "type": "string", "minLength": 1 },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "emit_as": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS",
+            ""
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "paginated",
+            "stream",
+            ""
+          ]
+        },
+        "primary_key": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "records": {
+          "type": "string",
+          "minLength": 1
+        },
+        "for_each": {
+          "type": "string",
+          "minLength": 1
+        },
         "fields": {
           "$ref": "#/$defs/fields"
         },
-        "use_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "exclude_fields": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "params": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
-        "capture": { "type": "object", "additionalProperties": { "type": "string" } },
-        "capture_only": { "type": "boolean" },
-        "query": { "type": "object", "additionalProperties": { "type": "string" } },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "use_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "exclude_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "capture": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "capture_only": {
+          "type": "boolean"
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "body": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "encoding": { "type": "string", "enum": ["json", "form", "multipart", "raw", "none", ""] },
+            "encoding": {
+              "type": "string",
+              "enum": [
+                "json",
+                "form",
+                "multipart",
+                "raw",
+                "none",
+                ""
+              ]
+            },
             "template": {}
           }
         },
-        "response": { "$ref": "#/$defs/response" },
-        "pagination": { "$ref": "#/$defs/pagination" },
+        "response": {
+          "$ref": "#/$defs/response"
+        },
+        "pagination": {
+          "$ref": "#/$defs/pagination"
+        },
         "incremental": {
           "type": "object",
-          "required": ["start_param", "inject_into"],
-          "oneOf": [{"required": ["cursor_field"]}, {"required": ["response_cursor"]}],
+          "required": [
+            "start_param",
+            "inject_into"
+          ],
+          "oneOf": [
+            {
+              "required": [
+                "cursor_field"
+              ]
+            },
+            {
+              "required": [
+                "response_cursor"
+              ]
+            }
+          ],
           "additionalProperties": false,
           "properties": {
-            "cursor_field": { "type": "string", "minLength": 1 },
-            "response_cursor": { "type": "string", "minLength": 1 },
-            "start_param": { "type": "string", "minLength": 1 },
-            "inject_into": { "type": "string", "enum": ["query", "body", "header"] },
-            "initial": { "type": "string" },
-            "checkpoint_key": { "type": "string" },
-            "comparator": { "type": "string", "enum": ["lex", "numeric", "time"] },
-            "overlap_seconds": { "type": "integer", "minimum": 0 }
+            "cursor_field": {
+              "type": "string",
+              "minLength": 1
+            },
+            "response_cursor": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start_param": {
+              "type": "string",
+              "minLength": 1
+            },
+            "inject_into": {
+              "type": "string",
+              "enum": [
+                "query",
+                "body",
+                "header"
+              ]
+            },
+            "initial": {
+              "type": "string"
+            },
+            "checkpoint_key": {
+              "type": "string"
+            },
+            "comparator": {
+              "type": "string",
+              "enum": [
+                "lex",
+                "numeric",
+                "time"
+              ]
+            },
+            "overlap_seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "parent": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "resource": { "type": "string" },
-            "concurrency": { "type": "integer", "minimum": 1 },
-            "since": { "type": "string", "minLength": 1 }
+            "resource": {
+              "type": "string"
+            },
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "since": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "stream": {
           "type": "object",
-          "required": ["type"],
+          "required": [
+            "type"
+          ],
           "additionalProperties": false,
           "properties": {
-            "type": { "type": "string", "enum": ["ndjson", "sse", "chunked_array"] },
-            "event_filter": { "type": "string" },
-            "array_path": { "type": "string" },
-            "max_element_bytes": { "type": "integer", "minimum": 0 }
+            "type": {
+              "type": "string",
+              "enum": [
+                "ndjson",
+                "sse",
+                "chunked_array"
+              ]
+            },
+            "event_filter": {
+              "type": "string"
+            },
+            "array_path": {
+              "type": "string"
+            },
+            "max_element_bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         }
       }
@@ -285,15 +668,54 @@
           },
           {
             "type": "object",
-            "required": ["type"],
+            "required": [
+              "type"
+            ],
             "additionalProperties": false,
             "properties": {
-              "path": { "type": "string" },
-              "type": { "type": "string", "enum": ["string", "bool", "int16", "int32", "int64", "float32", "float64", "decimal", "date", "time", "timestamp", "timestamptz", "json", "uuid"] },
-              "max_string": { "type": "string", "minLength": 1 },
-              "shape": { "type": "object", "additionalProperties": { "type": "string" } },
-              "mode": { "type": "string", "enum": ["raw", "remainder", ""] },
-              "nullable": { "type": "boolean" }
+              "path": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "bool",
+                  "int16",
+                  "int32",
+                  "int64",
+                  "float32",
+                  "float64",
+                  "decimal",
+                  "date",
+                  "time",
+                  "timestamp",
+                  "timestamptz",
+                  "json",
+                  "uuid"
+                ]
+              },
+              "max_string": {
+                "type": "string",
+                "minLength": 1
+              },
+              "shape": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "raw",
+                  "remainder",
+                  ""
+                ]
+              },
+              "nullable": {
+                "type": "boolean"
+              }
             }
           }
         ]
@@ -303,23 +725,60 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "root": { "type": "string", "enum": ["array", "object", ""] },
-        "records_path": { "type": "string" },
-        "records": { "type": "string", "minLength": 1 },
-        "pagination": { "$ref": "#/$defs/pagination" },
-        "cardinality": { "type": "string", "enum": ["many", "one", ""] },
-        "poll_pending": { "type": "boolean" },
+        "root": {
+          "type": "string",
+          "enum": [
+            "array",
+            "object",
+            ""
+          ]
+        },
+        "records_path": {
+          "type": "string"
+        },
+        "records": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pagination": {
+          "$ref": "#/$defs/pagination"
+        },
+        "cardinality": {
+          "type": "string",
+          "enum": [
+            "many",
+            "one",
+            ""
+          ]
+        },
+        "poll_pending": {
+          "type": "boolean"
+        },
         "empty": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "body_path", "body_equals"],
+          "required": [
+            "status",
+            "body_path",
+            "body_equals"
+          ],
           "properties": {
-            "status": { "type": "integer", "minimum": 400, "maximum": 499 },
-            "body_path": { "type": "string", "minLength": 1 },
+            "status": {
+              "type": "integer",
+              "minimum": 400,
+              "maximum": 499
+            },
+            "body_path": {
+              "type": "string",
+              "minLength": 1
+            },
             "body_equals": {
               "type": "array",
               "minItems": 1,
-              "items": { "type": "string", "minLength": 1 }
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         },
@@ -327,62 +786,269 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "path": { "type": "string" },
-            "when_present": { "type": "boolean" },
-            "message_path": { "type": "string" },
-            "code_path": { "type": "string" }
+            "path": {
+              "type": "string"
+            },
+            "when_present": {
+              "type": "boolean"
+            },
+            "message_path": {
+              "type": "string"
+            },
+            "code_path": {
+              "type": "string"
+            }
           }
         }
       }
     },
     "pagination": {
       "oneOf": [
-        { "const": "none" },
+        {
+          "const": "none"
+        },
         {
           "type": "object",
           "minProperties": 1,
           "maxProperties": 1,
           "additionalProperties": false,
           "properties": {
-            "link": { "type": "string", "minLength": 1 },
-            "next_url": { "type": "string", "minLength": 1 },
+            "link": {
+              "type": "string",
+              "minLength": 1
+            },
+            "next_url": {
+              "type": "string",
+              "minLength": 1
+            },
             "cursor": {
               "type": "object",
-              "required": ["response", "request"],
+              "required": [
+                "response",
+                "request"
+              ],
               "additionalProperties": false,
               "properties": {
-                "response": { "type": "string", "minLength": 1 },
-                "request": { "type": "string", "minLength": 3 },
-                "more": { "type": "string" },
-                "null_terminates": { "type": "boolean" },
-                "strict": { "type": "boolean" }
+                "response": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "request": {
+                  "type": "string",
+                  "minLength": 3
+                },
+                "more": {
+                  "type": "string"
+                },
+                "null_terminates": {
+                  "type": "boolean"
+                },
+                "strict": {
+                  "type": "boolean"
+                }
               }
             },
             "offset": {
               "type": "object",
-              "required": ["offset", "limit", "page_size"],
+              "required": [
+                "offset",
+                "limit",
+                "page_size"
+              ],
               "additionalProperties": false,
               "properties": {
-                "offset": { "type": "string" },
-                "limit": { "type": "string" },
-                "page_size": { "type": "integer", "minimum": 1 }
+                "offset": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "string"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1
+                }
               }
             },
             "page": {
               "type": "object",
-              "required": ["number", "size", "page_size"],
+              "required": [
+                "number",
+                "size",
+                "page_size"
+              ],
               "additionalProperties": false,
               "properties": {
-                "number": { "type": "string" },
-                "size": { "type": "string" },
-                "page_size": { "type": "integer", "minimum": 1 },
-                "total_pages": { "type": "string" },
-                "more": { "type": "string", "minLength": 1 }
+                "number": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "total_pages": {
+                  "type": "string"
+                },
+                "more": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
         }
       ]
+    },
+    "auth": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "none": {},
+        "bearer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "header": {
+          "type": "object",
+          "required": [
+            "name",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "basic": {
+          "type": "object",
+          "required": [
+            "username"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "username": {
+              "type": "string",
+              "minLength": 1
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "oauth2": {
+          "type": "object",
+          "required": [
+            "token_url",
+            "client_id",
+            "client_secret"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "token_url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "client_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "client_secret": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope": {
+              "type": "string"
+            },
+            "grant_type": {
+              "enum": [
+                "client_credentials",
+                "refresh_token"
+              ]
+            },
+            "refresh_token": {
+              "type": "string",
+              "minLength": 1
+            },
+            "header_prefix": {
+              "type": "string",
+              "minLength": 1
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "grant_type": {
+                    "const": "refresh_token"
+                  }
+                },
+                "required": [
+                  "grant_type"
+                ]
+              },
+              "then": {
+                "required": [
+                  "refresh_token"
+                ]
+              }
+            }
+          ]
+        },
+        "select": {
+          "type": "object",
+          "required": [
+            "field",
+            "cases"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cases": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "auth"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "auth": {
+                    "$ref": "#/$defs/auth"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

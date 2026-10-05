@@ -153,6 +153,20 @@ func (s *Source) Validate(cfg filament.Config) error {
 		return fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
 	for _, field := range s.config.Fields {
+		if condition := field.VisibleWhen; condition != nil {
+			value := cfg.String(condition.Field)
+			if !cfg.Has(condition.Field) {
+				for _, controller := range s.config.Fields {
+					if controller.Name == condition.Field {
+						value, _ = controller.Default.(string)
+						break
+					}
+				}
+			}
+			if !slices.Contains(condition.Values, value) {
+				continue
+			}
+		}
 		if field.Type == filament.FieldEnum && cfg.Has(field.Name) {
 			found := false
 			for _, option := range field.Enum {
@@ -177,6 +191,10 @@ func (s *Source) Validate(cfg filament.Config) error {
 		if field.Required && field.Type == filament.FieldList && listLen(cfg.Raw()[field.Name]) == 0 {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
+	}
+	if s.embeddedManifest != nil && s.embeddedManifest.Connection.Auth.Type == "select" {
+		_, err := buildAuth(s.embeddedManifest.Connection.Auth, credentialsFromConfig(cfg, s.embeddedManifest.Config), processEnvironment())
+		return err
 	}
 	return nil
 }
@@ -206,6 +224,15 @@ func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	controllers := map[string]bool{}
+	for _, spec := range m.Config {
+		if spec.VisibleWhen != nil {
+			controllers[spec.VisibleWhen.Field] = true
+		}
+	}
+	// Put selectors before their dependents so form defaults and visibility
+	// resolve in one pass, as they do for native connectors.
+	sort.SliceStable(names, func(i, j int) bool { return controllers[names[i]] && !controllers[names[j]] })
 	fields := make([]filament.ConfigField, 0, len(names))
 	for _, name := range names {
 		spec := m.Config[name]
@@ -232,11 +259,19 @@ func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 		}
 		options := make([]filament.EnumOption, len(spec.Enum))
 		for i, value := range spec.Enum {
-			options[i] = filament.EnumOption{Value: value, Label: value}
+			label := spec.EnumLabels[value]
+			if label == "" {
+				label = value
+			}
+			options[i] = filament.EnumOption{Value: value, Label: label}
+		}
+		var visibleWhen *filament.FieldCondition
+		if spec.VisibleWhen != nil {
+			visibleWhen = &filament.FieldCondition{Field: spec.VisibleWhen.Field, Values: append([]string(nil), spec.VisibleWhen.Values...)}
 		}
 		fields = append(fields, filament.ConfigField{
 			Name: name, Type: fieldType, Required: spec.Required, Default: spec.Default,
-			Enum: options, Help: spec.Help, Scope: scope, Secret: spec.Type == "secret",
+			Enum: options, Help: spec.Help, Scope: scope, Secret: spec.Type == "secret", VisibleWhen: visibleWhen,
 		})
 	}
 	return filament.ConfigSchema{Fields: fields}
