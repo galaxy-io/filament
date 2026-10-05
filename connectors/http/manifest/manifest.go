@@ -331,6 +331,7 @@ type Resource struct {
 	Incremental *IncrementalSpec  `yaml:"incremental,omitempty"`
 	Parent      *ParentRef        `yaml:"parent,omitempty"`
 	Stream      *StreamSpec       `yaml:"stream,omitempty"`
+	Export      *ExportSpec       `yaml:"export,omitempty"`
 }
 
 // FieldSpec maps a response path to a typed output field.

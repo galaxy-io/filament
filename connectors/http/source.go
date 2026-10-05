@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
+	"github.com/galaxy-io/filament/connectors/http/internal/export"
 	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
@@ -383,20 +384,38 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts) error {
 	s.incrementalResources = nil
 	s.incrementalLookbacks = nil
-	return s.extract(ctx, sink, opts, nil, nil)
+	return s.extract(ctx, sink, opts, nil, nil, nil)
 }
 
 // ExtractFrom resumes extraction from per-resource keyset checkpoints,
 // decoding them into resume cursors and watermarks.
 func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
+	resumeExports := make(map[string]string)
 	resumeStates := make(map[string]pagination.State, len(prev))
 	resumeWatermarks := make(map[string]map[string]string, len(prev))
 	for resource, cp := range prev {
 		ks, ok := checkpoint.ParseKeyset(cp)
+		if res, found := s.manifestResource(resource); found && res.Mode == "export" {
+			if export.Scoped(res) {
+				inc := ks.Mode == checkpoint.ModeIncremental
+				if _, err := s.exportPlanState(res, cp, inc); err != nil {
+					return err
+				}
+				if inc && (res.Incremental == nil || s.incrementalResources[resource].CursorField == "") {
+					return fmt.Errorf("export %s requires incremental planning before extraction", resource)
+				}
+			} else if !ok || ks.Mode != checkpoint.ModeKeyset || !slices.Equal(ks.Cols, []string{"export_state"}) || len(ks.Shards) != 1 {
+				return fmt.Errorf("export %s: incompatible checkpoint", resource)
+			}
+		}
 		if !ok || len(ks.Shards) == 0 || len(ks.Shards[0].Key) == 0 {
 			continue
 		}
 		key := ks.Shards[0].Key
+		if res, ok := s.manifestResource(resource); ok && res.Mode == "export" {
+			resumeExports[resource] = key[0]
+			continue
+		}
 		if ks.Mode == checkpoint.ModeIncremental {
 			for i, checkpointKey := range ks.Cols {
 				if i >= len(key) || key[i] == "" {
@@ -424,7 +443,7 @@ func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts fi
 			resumeWatermarks[resource][checkpointKey] = key[i+1]
 		}
 	}
-	return s.extract(ctx, sink, opts, resumeStates, resumeWatermarks)
+	return s.extract(ctx, sink, opts, resumeStates, resumeWatermarks, resumeExports)
 }
 
 // PlanResources resolves requested resources and selectors to manifest resource names.
@@ -447,7 +466,30 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
+		if res, ok := s.manifestResource(resource); ok && export.Scoped(res) {
+			state, err := s.exportPlanState(res, prev[resource], false)
+			if err != nil {
+				return nil, err
+			}
+			cp, err := export.Checkpoint(resource, state)
+			if err != nil {
+				return nil, err
+			}
+			plan[resource] = cp
+			continue
+		}
 		cols := []string{"pagination_state"}
+		if res, ok := s.manifestResource(resource); ok && res.Mode == "export" {
+			cols = []string{"export_state"}
+		}
+		if cols[0] == "export_state" {
+			if previous, exists := prev[resource]; exists {
+				previousState, valid := checkpoint.ParseKeyset(previous)
+				if !valid || previousState.Mode == checkpoint.ModeIncremental || !slices.Equal(previousState.Cols, cols) || len(previousState.Shards) != 1 {
+					return nil, fmt.Errorf("export %s: incompatible checkpoint", resource)
+				}
+			}
+		}
 		types := make([]string, len(cols))
 		for i := range types {
 			types[i] = "string"
@@ -497,7 +539,7 @@ func listableResources(resources []manifest.Resource) []manifest.Resource {
 	return out
 }
 
-func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string) error {
+func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string, resumeExports map[string]string) error {
 	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
@@ -510,6 +552,7 @@ func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
+		ResumeExports:        resumeExports,
 		ResumeStates:         resumeStates,
 		ResumeWatermarks:     resumeWatermarks,
 		IncrementalLookbacks: s.incrementalLookbacks,
@@ -970,6 +1013,15 @@ func (s *Source) PlanIncremental(_ context.Context, resources []string, prev map
 		s.incrementalResources[resource] = spec
 		lookbacks[resource] = spec.OverlapSeconds
 
+		if res.Mode == "export" {
+			cp, err := s.planExportIncremental(res, prev[resource])
+			if err != nil {
+				return nil, err
+			}
+			plan[resource] = cp
+			continue
+		}
+
 		checkpointKey := spec.DurableCheckpointKey()
 		cols := []string{checkpointKey}
 		types := []string{field.Type}
@@ -1002,7 +1054,7 @@ func incrementalCursorWarning(resource manifest.Resource) string {
 	if resource.Incremental.Comparator == "lex" || resource.Incremental.Comparator == "" {
 		warnings = append(warnings, "Lexical cursors must have a representation whose byte ordering matches source ordering")
 	}
-	if resource.Parent != nil {
+	if resource.Parent != nil && resource.Mode != "export" {
 		warnings = append(warnings, "Fan-out resources use one aggregate watermark; configure a lookback large enough to cover late arrivals during extraction")
 	}
 	return strings.Join(warnings, "; ")
@@ -1023,6 +1075,12 @@ func newIncrementalRecordReducer(source *Source, seeds map[string]map[string]str
 }
 
 func (r *incrementalRecordReducer) record(rec record) (record, error) {
+	if r.source.connector != nil && r.source.connector.manifest != nil {
+		if res, ok := r.source.manifestResource(r.source.baseResourceName(rec.Resource)); ok && res.Mode == "export" {
+			return rec, nil
+		}
+	}
+
 	spec, ok := r.source.incrementalResources[rec.Resource]
 	if !ok {
 		base := r.source.baseResourceName(rec.Resource)

@@ -43,6 +43,19 @@ func (m *Manifest) Normalize() {
 			}
 			r.Fields = fields
 		}
+		// Export requests have their own HTTP and decoding settings. Resource
+		// defaults must not accidentally paginate a job or change its payload.
+		if r.Mode == "export" {
+			if r.ForEach != "" {
+				if r.Parent == nil {
+					r.Parent = &ParentRef{}
+				}
+				if r.Parent.Resource == "" {
+					r.Parent.Resource = r.ForEach
+				}
+			}
+			continue
+		}
 		for name, ref := range r.Params {
 			r.Path = strings.ReplaceAll(r.Path, "{"+name+"}", referenceTemplate(ref))
 		}
@@ -201,7 +214,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
-		if r.Path == "" {
+		if r.Path == "" && r.Mode != "export" {
 			_ = agg.Addf(path+".path", "is required")
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
@@ -221,6 +234,7 @@ func (m *Manifest) validateSemantics() error {
 
 		validateTemplate(&agg, path+".emit_as", r.EmitAs)
 		validateTemplate(&agg, path+".path", r.Path)
+		validateExport(&agg, path, *r)
 		fieldNames := make(map[string]struct{}, len(r.Fields))
 		for j, f := range r.Fields {
 			fieldPath := fmt.Sprintf("%s.fields[%d]", path, j)
@@ -397,6 +411,15 @@ func (m *Manifest) validateSemantics() error {
 	for i := range m.Discovery.Resources {
 		path := fmt.Sprintf("discovery[%d]", i)
 		validateDiscovery(&agg, path, &m.Discovery.Resources[i], names)
+		d := m.Discovery.Resources[i]
+		if byName[d.From] != nil && byName[d.From].Mode == "export" {
+			_ = agg.Addf(path+".from", "exports cannot be used for dynamic discovery")
+		}
+		for _, target := range d.Scope.AppliesTo {
+			if byName[target] != nil && byName[target].Mode == "export" {
+				_ = agg.Addf(path+".scope", "export scope injection is not supported")
+			}
+		}
 		kind := m.Discovery.Resources[i].Map.Kind
 		if kind == "" {
 			continue
@@ -426,6 +449,31 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.resource", r.Name),
 				"unknown parent %q", r.Parent.Resource)
 			continue
+		}
+		if r.Export != nil {
+			for _, key := range r.Export.ParentKey {
+				if _, ok := parent.Capture[key]; !ok {
+					_ = agg.Addf(fmt.Sprintf("resources[%q].export.parent_key", r.Name), "%q is not captured by the parent", key)
+				}
+			}
+		}
+		if r.Export != nil {
+			visited := map[string]bool{}
+			for ancestor := parent; ancestor != nil && !visited[ancestor.Name]; {
+				visited[ancestor.Name] = true
+				if ancestor.Incremental != nil || ancestor.Mode == "stream" {
+					_ = agg.Addf(fmt.Sprintf("resources[%q].parent", r.Name), "export ancestors must be finite full-read indexes without incremental filters")
+					break
+				}
+				if ancestor.Parent == nil {
+					break
+				}
+				// Cycles are checked below; bound this walk independently.
+				ancestor = byName[ancestor.Parent.Resource]
+			}
+		}
+		if parent.Mode == "export" {
+			_ = agg.Addf(fmt.Sprintf("resources[%q].parent", r.Name), "export resources cannot supply parent captures")
 		}
 		if r.Parent.Since == "" {
 			continue

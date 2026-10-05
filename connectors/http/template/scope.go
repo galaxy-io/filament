@@ -49,10 +49,14 @@ type Scope struct {
 	State  map[string]string
 	Env    map[string]string
 	Cursor string
+	Job    map[string]string
 }
 
 func (s Scope) lookup(scope, key string) (string, bool) {
 	switch scope {
+	case "job":
+		v, ok := s.Job[key]
+		return v, ok
 	case "config":
 		v, ok := s.Config[key]
 		return v, ok

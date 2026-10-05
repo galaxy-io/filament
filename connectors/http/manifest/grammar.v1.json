@@ -428,17 +428,443 @@
     }
   },
   "$defs": {
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wait",
+        "result"
+      ],
+      "oneOf": [
+        { "required": ["start"], "properties": { "direct": { "const": false } } },
+        { "required": ["direct"], "properties": { "direct": { "const": true } }, "not": { "required": ["start"] } }
+      ],
+      "properties": {
+        "direct": { "type": "boolean" },
+        "parent_key": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "start": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "path",
+            "capture"
+          ],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "HEAD",
+                "OPTIONS",
+                ""
+              ]
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "headers": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "query": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "body": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "encoding": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "form",
+                    "multipart",
+                    "raw",
+                    "none",
+                    ""
+                  ]
+                },
+                "template": {}
+              }
+            },
+            "capture": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "wait": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "interval_seconds",
+            "timeout_seconds"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "job",
+                "download"
+              ]
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "path"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE",
+                    "HEAD",
+                    "OPTIONS",
+                    ""
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "query": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "body": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "json",
+                        "form",
+                        "multipart",
+                        "raw",
+                        "none",
+                        ""
+                      ]
+                    },
+                    "template": {}
+                  }
+                }
+              }
+            },
+            "state": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "pending",
+                "ready"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pending": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "ready": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "failed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              }
+            },
+            "capture": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "pending_statuses": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "interval_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 604800
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "format"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "auth": {
+              "type": "string",
+              "enum": [
+                "none",
+                "connection"
+              ]
+            },
+            "allowed_hosts": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "compression": {
+              "type": "string",
+              "enum": [
+                "none",
+                "gzip"
+              ]
+            },
+            "archive": {
+              "type": "string",
+              "enum": [
+                "none",
+                "zip",
+                "tar"
+              ]
+            },
+            "files": {
+              "type": "string",
+              "minLength": 1
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "ndjson",
+                "csv"
+              ]
+            },
+            "records_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "envelope": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "status_path",
+                "body_path",
+                "success"
+              ],
+              "properties": {
+                "status_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "body_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "records_path": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "max_download_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_uncompressed_bytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "next": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "more_path",
+            "cursor_path",
+            "request"
+          ],
+          "properties": {
+            "more_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cursor_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "path"
+              ],
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE",
+                    "HEAD",
+                    "OPTIONS",
+                    ""
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "query": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "body": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "encoding": {
+                      "type": "string",
+                      "enum": [
+                        "json",
+                        "form",
+                        "multipart",
+                        "raw",
+                        "none",
+                        ""
+                      ]
+                    },
+                    "template": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "resource": {
       "type": "object",
       "required": [
-        "name",
-        "path"
+        "name"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "export"
+          ],
+          "properties": {
+            "mode": {
+              "const": "export"
+            }
+          }
+        }
       ],
       "additionalProperties": false,
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1
+        },
+        "export": {
+          "$ref": "#/$defs/export"
         },
         "emit_as": {
           "type": "string",
@@ -466,6 +892,7 @@
           "enum": [
             "paginated",
             "stream",
+            "export",
             ""
           ]
         },
