@@ -3,6 +3,8 @@ package source
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/url"
 	"slices"
 
 	rmq "github.com/rabbitmq/rabbitmq-stream-go-client/pkg/stream"
@@ -23,8 +25,16 @@ type Source struct {
 func New() *Source { return &Source{} }
 
 func (*Source) Validate(cfg filament.Config) error {
-	if cfg.String("uri") == "" {
+	raw := cfg.String("uri")
+	if raw == "" {
 		return errors.New("rabbitmq: uri is required")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("rabbitmq: invalid uri: %w", err)
+	}
+	if u.Scheme != "rabbitmq-stream" && u.Scheme != "rabbitmq-stream+tls" {
+		return fmt.Errorf("rabbitmq: unsupported uri scheme %q", u.Scheme)
 	}
 	return nil
 }
@@ -52,6 +62,17 @@ func (*Source) Extract(context.Context, filament.RecordSink, filament.ExtractOpt
 	return filament.ErrContinuousDisabled
 }
 
+// TestConnection opens a temporary RabbitMQ Streams environment and verifies the configured streams.
+func (*Source) TestConnection(ctx context.Context, cfg filament.Config) (err error) {
+	temp := New()
+	if err := temp.Configure(ctx, cfg); err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, temp.Teardown(ctx)) }()
+	_, err = temp.Discover(ctx, filament.DiscoverOpts{})
+	return err
+}
+
 func (s *Source) Teardown(context.Context) error {
 	if s.env == nil {
 		return nil
@@ -70,7 +91,7 @@ func (*Source) Spec() filament.ConnectorSpec {
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-light.svg",
 		Version:     "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
-			{Name: "uri", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "RabbitMQ Stream URI, for example rabbitmq-stream://user:password@host:5552/%2f"},
+			{Name: "uri", Type: filament.FieldSecret, Secret: true, Required: true, Scope: filament.ScopeConnection, Help: "RabbitMQ Stream URI, for example rabbitmq-stream://user:password@host:5552/%2f"},
 			{Name: "streams", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "RabbitMQ stream resources to consume"},
 		}},
 		Stream: &filament.StreamCapabilities{Input: filament.InputMessages, Ordering: []filament.Ordering{filament.OrderingNone}, Delivery: filament.DeliveryReplayableAtLeastOnce},
@@ -104,5 +125,9 @@ func messageBaseSchema(resource string) rowmodel.Schema {
 
 var (
 	_ filament.Source       = (*Source)(nil)
-	_ filament.StreamSource = (*Source)(nil)
+	_ filament.StreamSource             = (*Source)(nil)
+	_ filament.SchemaProvider           = (*Source)(nil)
+	_ filament.Discoverable             = (*Source)(nil)
+	_ filament.ReplicationStreamPlanner = (*Source)(nil)
+	_ filament.LiveValidatable          = (*Source)(nil)
 )
