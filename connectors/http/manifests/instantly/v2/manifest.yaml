@@ -71,6 +71,27 @@ resources:
       provider_routing_rules: json?
       raw: { path: $, type: json, mode: remainder }
 
+  # The export endpoint returns a campaign object directly, not a lead export job.
+  - name: campaign_exports
+    for_each: campaigns
+    path: /api/v2/campaigns/{id}/export
+    params: { id: parent.campaign_id }
+    method: POST
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      status: float64?
+      campaign_schedule: json?
+      sequences: json?
+      timestamp_created: timestamptz?
+      timestamp_updated: timestamptz?
+      raw: { path: $, type: json, mode: remainder }
+
   - name: accounts
     path: /api/v2/accounts
     query: { limit: "100", include_tags: "true" }
@@ -248,6 +269,25 @@ resources:
       organization_id: string?
       bl_value: string?
       is_domain: bool?
+      raw: { path: $, type: json, mode: remainder }
+
+  # CSV omits IDs and organization metadata; keep the richer list resource too.
+  - name: block_list_entries_export
+    mode: export
+    primary_key: []
+    export:
+      direct: true
+      wait:
+        type: download
+        interval_seconds: 1
+        timeout_seconds: 600
+      result:
+        url: /api/v2/block-lists-entries/download
+        auth: connection
+        format: csv
+    fields:
+      bl_value: { path: 'Blocked Email', type: string }
+      timestamp_created: { path: Date, type: timestamptz, nullable: true }
       raw: { path: $, type: json, mode: remainder }
 
   - name: subsequences
