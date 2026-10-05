@@ -16,7 +16,14 @@ parent records have not received the same level of live verification.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
-| `access_token` | Connection | | Required. Secret. Zoho OAuth access token, without the authorization prefix. |
+| `auth_method` | Connection | `access_token` | Choose `access_token`, `client_credentials`, or `refresh_token`. |
+| `access_token` | Connection | | Secret. Required for `access_token`; omit the authorization prefix. |
+| `client_id` | Connection | | Required for `client_credentials` and `refresh_token`. |
+| `client_secret` | Connection | | Secret. Required for `client_credentials` and `refresh_token`. |
+| `refresh_token` | Connection | | Secret. Required for `refresh_token`; obtain through Zoho authorization first. |
+| `accounts_url` | Connection | `https://accounts.zoho.com` | Accounts origin matching your data center, such as `https://accounts.zoho.eu`. |
+| `oauth_scope` | Connection | | Multi-select read scopes required for `client_credentials`. Include `ZohoCRM.users.READ` for the connection probe. Select all for broad resource testing. |
+| `soid` | Connection | | Required for `client_credentials`, formatted as `ZohoCRM.<organization ID>`. Find the Org ID in your Zoho profile menu. |
 | `host` | Connection | `https://www.zohoapis.com` | API domain returned with the token, without `/crm/v8`. |
 | `module_api_name` | Pipeline | `Leads` | Module API name used by the `module_*` resources. |
 | `related_list_api_name` | Pipeline | `Notes` | Related list used by `module_related_records`. |
@@ -27,13 +34,18 @@ parent records have not received the same level of live verification.
 | `wizard_id` | Pipeline | | Wizard ID required for `wizard_layout_details`. |
 | `wizard_layout_id` | Pipeline | | Associated layout ID required for `wizard_layout_details`; listed in wizard containers. |
 
-Create a Zoho OAuth client and obtain an access token using Zoho's
-[authorization flow](https://www.zoho.com/crm/developer/docs/api/v8/access-refresh.html).
-Use the returned `api_domain` as the host so requests reach the correct data
-center and environment. Access tokens
-[expire after one hour](https://www.zoho.com/crm/developer/docs/api/v8/oauth-overview.html).
-Filament does not acquire or refresh them. Replace the token before a run and
-finish within its lifetime.
+Select `auth_method` to show only the configuration fields for that method:
+
+- **Access token:** supply an existing token. Tokens expire after an hour; replace it externally before it expires.
+- **Client credentials:** supply your client ID, client secret, scopes, and `soid`. Filament obtains and caches an access token and requests another when it expires. Zoho recommends this flow for one-time tasks such as migration and testing.
+- **Refresh token:** supply your client ID, client secret, and a previously authorized refresh token. Filament obtains access tokens automatically as needed. This is the preferred option for recurring ingestion; the initial browser authorization or self-client grant exchange must be completed outside Filament.
+
+See Zoho's [client credentials flow](https://www.zoho.com/crm/developer/docs/api/v8/client-credentials.html),
+[initial authorization](https://www.zoho.com/crm/developer/docs/api/v8/access-refresh.html),
+and [refresh-token instructions](https://www.zoho.com/crm/developer/docs/api/v8/refresh.html).
+Set `accounts_url` for your data center and `host` to the returned `api_domain`,
+without `/crm/v8`. The token's organization and environment must match the API host.
+Existing connections continue to use access-token authentication by default.
 
 Use read scopes for the selected modules and settings. Broad read access uses
 `ZohoCRM.modules.READ`, `ZohoCRM.settings.READ`, `ZohoCRM.users.READ`, and
