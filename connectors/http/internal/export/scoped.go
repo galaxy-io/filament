@@ -3,6 +3,7 @@ package export
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -26,6 +27,7 @@ type exportCoordinator struct {
 	state    RunState
 	target   Sink
 	resource string
+	dirty    bool
 }
 
 func (g *exportCoordinator) publish() error {
@@ -33,20 +35,45 @@ func (g *exportCoordinator) publish() error {
 	if err != nil {
 		return err
 	}
-	return g.target.Checkpoint(g.resource, token)
+	if err := g.target.Checkpoint(g.resource, token); err != nil {
+		return err
+	}
+	g.dirty = false
+	return nil
+}
+
+func (g *exportCoordinator) flush() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !g.dirty {
+		return nil
+	}
+	return g.publish()
 }
 
 func (g *exportCoordinator) update(key string, job exportScopedJob) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	old := g.state.Parents[key]
+	if old.Job != nil && old.Job.Phase == job.Phase && old.Job.Deadline.Equal(job.Deadline) &&
+		old.Job.Candidate == job.Candidate && maps.Equal(old.Job.Captures, job.Captures) {
+		return nil
+	}
 	next := old
 	copyJob := job
 	copyJob.Captures = maps.Clone(job.Captures)
 	next.Job = &copyJob
 	g.state.Parents[key] = next
+	wasDirty := g.dirty
+	g.dirty = true
+	// Completion is safe to replay. Fold it into the next identity checkpoint
+	// or the final flush, rather than serializing every parent again here.
+	if job.Phase == "done" {
+		return nil
+	}
 	if err := g.publish(); err != nil {
 		g.state.Parents[key] = old
+		g.dirty = wasDirty
 		return err
 	}
 	return nil
@@ -101,7 +128,10 @@ func (c *Runtime) runScoped(ctx context.Context, res manifest.Resource, sink Sin
 		entry := jobs[i]
 		workers.Go(func() error { return c.runScopedExport(ctx, res, sink, group, key, entry) })
 	}
-	return workers.Wait()
+	err = workers.Wait()
+	// Flush even on failure so completed candidates and the last captured job
+	// identities survive a checkpointable pause. This never promotes watermarks.
+	return errors.Join(err, group.flush())
 }
 
 func (c *Runtime) initializeExportParents(res manifest.Resource, state *RunState, parents []map[string]string) error {

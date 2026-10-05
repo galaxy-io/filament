@@ -529,6 +529,13 @@ checkpoint. Captures, frozen inputs, and committed watermarks are retained.
 This also applies when a saved attempt is resumed directly. A creation intent
 with an unknown outcome is never renewed or automatically resubmitted.
 
+Scoped exports publish creation intent and changed job captures eagerly.
+Unchanged post-poll snapshots are suppressed; completed jobs are folded into
+the next identity snapshot or flushed when extraction ends, including on error.
+Snapshots still contain the full parent set, so identity writes can remain
+quadratic in the number of parents. Batching reduces write volume while
+preserving the replay contract.
+
 Creation is attempted once, including when the API returns 202. A creation
 intent is queued before the request, then replaced with the captured job state.
 These pipeline checkpoint markers are asynchronous, so creation and checkpoint
