@@ -1,0 +1,905 @@
+version: 1
+name: fxmacrodata
+display_name: FXMacroData
+description: "Read macroeconomic announcements, forecasts, FX reference rates, positioning, and market context."
+api_version: v1
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-fxmacrodata-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-fxmacrodata-light.svg"
+config:
+  api_key:
+    type: secret
+    required: true
+    help: "FXMacroData trial or subscription API key."
+  currency:
+    type: string
+    scope: pipeline
+    default: USD
+    help: "Currency for macroeconomic resources. Use separate pipelines for other currencies."
+  indicator:
+    type: string
+    scope: pipeline
+    default: inflation
+    help: "Indicator slug for announcements and predictions; see data_catalogue."
+  base:
+    type: string
+    scope: pipeline
+    default: EUR
+    help: "Base currency for FX rates and rate differentials."
+  quote:
+    type: string
+    scope: pipeline
+    default: USD
+    help: "Quote currency for FX rates and rate differentials."
+  commodity:
+    type: string
+    scope: pipeline
+    default: gold
+    help: "Commodity indicator slug."
+  factor:
+    type: string
+    scope: pipeline
+    default: monetary_stance
+    help: "Factor slug."
+  session:
+    type: string
+    scope: pipeline
+    default: london
+    help: "FX session: sydney, tokyo, london, or new_york."
+  start_date:
+    type: string
+    scope: pipeline
+    required: true
+    help: "Inclusive start date (YYYY-MM-DD) for historical resources and the release calendar."
+  end_date:
+    type: string
+    scope: pipeline
+    required: true
+    help: "Inclusive end date (YYYY-MM-DD) for historical resources and the release calendar."
+  research_panel_request:
+    type: string
+    scope: pipeline
+    help: "Required only for research_panel. Complete JSON request with series, decision_times, start_date, and end_date."
+connection:
+  base_url: "https://api.fxmacrodata.com"
+  auth:
+    header:
+      name: X-API-Key
+      value: config.api_key
+  headers:
+    Accept: application/json
+  rate_limit:
+    requests_per_second: 1
+defaults:
+  method: GET
+resources:
+  - name: announcements
+    path: "/v1/announcements/{currency}/{indicator}"
+    params:
+      currency: config.currency
+      indicator: config.indicator
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      revisions: latest
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      announcement_id: string?
+      observation_id: string?
+      val: float64?
+      source: string?
+      source_url: string?
+      announcement_datetime: int64?
+      publication_time_status: string?
+      vintage_status: string?
+      collected_at_iso: string?
+      observed_at_ns_string: string?
+      publication_at_ns_string: string?
+      revisions: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: data_catalogue
+    path: "/v1/data_catalogue/{currency}"
+    params:
+      currency: config.currency
+    query:
+      include_capabilities: "true"
+      include_coverage: "true"
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: latest_announcements
+    path: "/v1/announcements/{currency}/latest"
+    params:
+      currency: config.currency
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: ["currency"]
+    fields:
+      currency: string?
+      as_of: string?
+      count: int64?
+      data: json?
+      freemium_delay: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: release_calendar
+    path: "/v1/calendar/{currency}"
+    params:
+      currency: config.currency
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+    response:
+      records: $.data
+      pagination: none
+    primary_key: []
+    fields:
+      calendar_event_id: string?
+      release: string
+      name: string?
+      announcement_datetime: int64
+      announcement_datetime_utc: string?
+      announcement_datetime_local: string?
+      release_date_confirmed: bool?
+      release_time_assumed: bool?
+      reference_period: string?
+      domain: string?
+      endpoint_path: string?
+      source_url: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: predictions
+    path: "/v1/predictions/{currency}/{indicator}"
+    params:
+      currency: config.currency
+      indicator: config.indicator
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+      official_limit: "0"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.before_date
+          more: has_more
+          null_terminates: true
+    primary_key: ["announcement_id"]
+    fields:
+      announcement_id: string
+      observation_id: string?
+      selected_series_id: string?
+      currency: string
+      indicator: string
+      date: string
+      announcement_datetime: int64
+      predictions: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: forecast_coverage
+    path: /v1/predictions/coverage
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: indicator_forecast_coverage
+    path: "/v1/predictions/coverage/{currency}"
+    params:
+      currency: config.currency
+    response:
+      records: $.indicators
+      pagination: none
+    primary_key: ["indicator"]
+    fields:
+      indicator: string
+      sources: json?
+      has_consensus_source: bool?
+      verified_history: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: forex
+    path: "/v1/forex/{base}/{quote}"
+    params:
+      base: config.base
+      quote: config.quote
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      val: float64?
+      open: float64?
+      high: float64?
+      low: float64?
+      close: float64?
+      observation_datetime: int64?
+      observation_datetime_iso: string?
+      source: json?
+      publication_time_status: string?
+      point_in_time_safe: bool?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: fx_reference_rates
+    path: "/v1/fx/reference-rates/{base}/{quote}"
+    params:
+      base: config.base
+      quote: config.quote
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: []
+    fields:
+      date: string
+      reference_date: string
+      base: string
+      quote: string
+      pair: string
+      rate: float64
+      timestamp_utc: string?
+      timestamp_type: string?
+      time_precision: string?
+      source: json?
+      native_or_derived: string?
+      derivation_method: string?
+      source_pair: string?
+      source_legs: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: fx_intraday_reference_rates
+    path: "/v1/fx/intraday-reference-rates/{base}/{quote}"
+    params:
+      base: config.base
+      quote: config.quote
+    response:
+      records: $.data
+      pagination: none
+    primary_key: []
+    fields:
+      timestamp: string
+      price: float64
+      reference_date: string?
+      timestamp_type: string?
+      source: json?
+      source_pair: string?
+      derivation_method: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    query:
+      start_time: "{{ config.start_date }}T00:00:00Z"
+      end_time: "{{ config.end_date }}T23:59:59.999999Z"
+  - name: fx_session_rates
+    path: "/v1/fx/session-rates/{base}/{quote}"
+    params:
+      base: config.base
+      quote: config.quote
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      session: "{{ config.session }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: []
+    fields:
+      date: string
+      reference_date: string
+      base: string
+      quote: string
+      pair: string
+      rate: float64
+      session: string?
+      session_close_utc: string?
+      selected_timestamp_utc: string?
+      source: json?
+      selection_rule: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: fx_sources
+    path: /v1/fx/sources
+    response:
+      records: $.sources
+      pagination: none
+    primary_key: []
+    fields:
+      id: string?
+      name: string?
+      authority_type: string?
+      country_or_area: string?
+      url: string?
+      attribution_text: string?
+      is_official: bool?
+      is_aggregator: bool?
+      publication_frequency: string?
+      native_pairs: json?
+      served_pairs: json?
+      serves_public_data: bool?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: fx_source_universe
+    path: /v1/fx/source-universe
+    response:
+      records: $.data
+      pagination: none
+    primary_key: []
+    fields:
+      source: json?
+      pair_count: int64?
+      pairs: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: curve_nodes
+    path: "/v1/curves/{currency}"
+    params:
+      currency: config.currency
+    query:
+      view: nodes
+      date: "{{ config.end_date }}"
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      currency: string
+      curve_family: string
+      view: string?
+      metric: string?
+      method: string?
+      as_of: string?
+      sources: json
+      data_quality: json
+      data: json
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: curve_slopes
+    path: "/v1/curves/{currency}"
+    params:
+      currency: config.currency
+    query:
+      view: slopes
+      date: "{{ config.end_date }}"
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      currency: string
+      curve_family: string
+      view: string?
+      metric: string?
+      method: string?
+      as_of: string?
+      sources: json
+      data_quality: json
+      data: json
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: curve_forwards
+    path: "/v1/curves/{currency}"
+    params:
+      currency: config.currency
+    query:
+      view: forwards
+      date: "{{ config.end_date }}"
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      currency: string
+      curve_family: string
+      view: string?
+      metric: string?
+      method: string?
+      as_of: string?
+      sources: json
+      data_quality: json
+      data: json
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: financial_prices
+    path: "/v1/financial_prices/{currency}"
+    params:
+      currency: config.currency
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["observation_id"]
+    fields:
+      observation_id: string
+      source_id: string
+      date: string
+      val: float64
+      currency: string
+      issuer: string
+      instrument_id: string
+      instrument_name: string?
+      measure: string
+      unit: string
+      source_url: string
+      tenor: string?
+      maturity_years: float64?
+      publication_time_confirmed: bool
+      release_time_assumed: bool
+      point_in_time_safe: bool
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: rate_differentials
+    path: "/v1/rate_differentials/{base}/{quote}"
+    params:
+      base: config.base
+      quote: config.quote
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      base_val: float64?
+      quote_val: float64?
+      spread: float64?
+      spread_bps: float64?
+      differential: float64?
+      differential_bps: float64?
+      base_announcement_datetime: int64?
+      quote_announcement_datetime: int64?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: factors
+    path: "/v1/factors/{currency}/{factor}"
+    params:
+      currency: config.currency
+      factor: config.factor
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      include_components: "true"
+      include_sources: "true"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      val: float64?
+      score: float64?
+      level_score: float64?
+      impulse_score: float64?
+      label: string?
+      stance_context: string?
+      coverage_ratio: float64?
+      point_in_time_safe: bool?
+      components: json?
+      source_observations: json?
+      source_endpoints: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: cot
+    path: "/v1/cot/{currency}"
+    params:
+      currency: config.currency
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      announcement_datetime: int64?
+      open_interest: int64?
+      noncommercial_long: int64?
+      noncommercial_short: int64?
+      noncommercial_net: int64?
+      commercial_long: int64?
+      commercial_short: int64?
+      commercial_net: int64?
+      report_date: string?
+      release_date: string?
+      release_datetime: string?
+      release_source_url: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: commodities
+    path: "/v1/commodities/{indicator}"
+    params:
+      indicator: config.commodity
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: ["date"]
+    fields:
+      date: string
+      val: float64?
+      source: string?
+      source_url: string?
+      announcement_datetime: int64?
+      publication_time_status: string?
+      point_in_time_safe: bool?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: latest_commodities
+    path: /v1/commodities/latest
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: ["currency"]
+    fields:
+      currency: string?
+      source: string?
+      as_of: string?
+      count: int64?
+      data: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: press_releases
+    path: "/v1/press-releases/{currency}"
+    params:
+      currency: config.currency
+    query:
+      limit: "50"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: []
+    fields:
+      url: string?
+      date: string?
+      title: string?
+      topics: json?
+      summary: string?
+      category: string?
+      rate_path: json?
+      relevance: float64?
+      sentiment: float64?
+      ai_summary: string?
+      ai_stance: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: risk_sentiment
+    path: /v1/risk_sentiment
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: []
+    fields:
+      date: string?
+      val: float64?
+      score: float64?
+      regime: string?
+      risk_regime: string?
+      sentiment: string?
+      components: json?
+      component_coverage: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: release_changes
+    path: /v1/announcements/changes
+    query:
+      currencies: "{{ config.currency }}"
+      payload: full
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: next_cursor
+          request: query.since
+          more: has_more
+          null_terminates: true
+    primary_key: ["event_id"]
+    fields:
+      event_id: string
+      currency: string
+      indicator: string
+      records_written: int64?
+      timestamp: int64?
+      release_timestamp: int64?
+      latest_announcement: json?
+      delivery_mode: string?
+      stale: bool?
+      late_delivery: bool?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: market_sessions
+    path: /v1/market_sessions
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      now_utc: string?
+      now_unix: int64?
+      is_market_day: bool?
+      sessions: json?
+      overlaps: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+  - name: official_forecast_sources
+    path: "/v1/predictions/coverage/{currency}"
+    params:
+      currency: config.currency
+    response:
+      records: $.official_forecast_sources
+      pagination: none
+    primary_key: ["source"]
+    fields:
+      source: string
+      prediction_class: string?
+      source_url: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    capture:
+      prediction_source: source
+  - name: official_forecasts
+    path: "/v1/predictions/{currency}"
+    params:
+      currency: config.currency
+    query:
+      prediction_source: "{{ parent.prediction_source }}"
+      limit: "100"
+    response:
+      records: $.official_forecasts
+      pagination:
+        cursor:
+          response: official_forecast_next_cursor
+          request: query.before_id
+          null_terminates: true
+    primary_key: []
+    fields:
+      prediction_source:
+        path: parent.prediction_source
+        type: string
+      prediction_class: string?
+      target_period: string?
+      period_basis: string?
+      unit: string?
+      source_url: string?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    for_each: official_forecast_sources
+  - name: official_forecast_calendar
+    path: "/v1/predictions/{currency}"
+    params:
+      currency: config.currency
+    query:
+      prediction_source: "{{ parent.prediction_source }}"
+      limit: "1"
+    response:
+      records: $.official_forecast_calendar
+      pagination: none
+    primary_key: []
+    fields:
+      prediction_source:
+        path: parent.prediction_source
+        type: string
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    for_each: official_forecast_sources
+  - name: research_panel
+    path: /v1/research/panel
+    response:
+      records: $
+      pagination: none
+      cardinality: one
+    primary_key: []
+    fields:
+      status: string
+      dataset_version: string
+      complete: bool
+      availability: string
+      value_mode: string
+      value_metadata: json
+      series: json
+      data: json
+      quality: json
+      limits: json
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      encoding: raw
+      template: "{{ config.research_panel_request }}"
+  - name: announcement_revisions
+    path: "/v1/announcements/{currency}/{indicator}"
+    params:
+      currency: config.currency
+      indicator: config.indicator
+    query:
+      start_date: "{{ config.start_date }}"
+      end_date: "{{ config.end_date }}"
+      revisions: all
+      limit: "100"
+    response:
+      records: $.data
+      pagination:
+        cursor:
+          response: pagination.next_offset
+          request: query.offset
+          more: pagination.has_more
+          null_terminates: true
+    primary_key: []
+    fields:
+      date: string
+      announcement_id: string?
+      observation_id: string?
+      val: float64?
+      source: string?
+      source_url: string?
+      announcement_datetime: int64?
+      revisions: json?
+      raw:
+        path: $
+        type: json
+        mode: remainder
+discovery:
+  mode: static
+  default_resources: ["announcements", "data_catalogue", "latest_announcements", "release_calendar"]

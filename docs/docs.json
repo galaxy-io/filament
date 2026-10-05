@@ -149,6 +149,8 @@
               "pages/connectors/sources/nats",
               "pages/connectors/sources/apollo",
               "pages/connectors/sources/attio",
+              "pages/connectors/sources/fhir",
+              "pages/connectors/sources/fxmacrodata",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gong",
               "pages/connectors/sources/granola",
