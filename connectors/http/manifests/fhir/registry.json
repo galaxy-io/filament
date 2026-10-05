@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "fhir",
+  "default_version": "r4",
+  "versions": {
+    "r4": {
+      "maturity": "alpha"
+    }
+  }
+}

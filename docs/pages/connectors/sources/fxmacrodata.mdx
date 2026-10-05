@@ -1,0 +1,159 @@
+---
+title: "FXMacroData"
+description: "Read macroeconomic announcements, forecasts, FX rates, and market context"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-fxmacrodata-dark.svg"
+---
+
+The FXMacroData source reads economic releases and supporting market data using
+an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It targets API version `v1` and is **alpha**. Public announcement, forecast
+coverage, and FX source responses have been checked live; authenticated reads
+and paid resources have not yet been tested against an account.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. FXMacroData trial or subscription key. |
+| `currency` | Pipeline | `USD` | Currency for economic releases and reference data. |
+| `indicator` | Pipeline | `inflation` | Indicator slug for announcements and predictions. |
+| `base` | Pipeline | `EUR` | Base currency for FX and rate differentials. |
+| `quote` | Pipeline | `USD` | Quote currency for FX and rate differentials. |
+| `commodity` | Pipeline | `gold` | Commodity indicator slug. |
+| `factor` | Pipeline | `monetary_stance` | Factor slug. |
+| `session` | Pipeline | `london` | FX session: `sydney`, `tokyo`, `london`, or `new_york`. |
+| `research_panel_request` | Pipeline | | Complete JSON body; required only when selecting `research_panel`. |
+| `start_date` | Pipeline | | Required. Inclusive historical start date, `YYYY-MM-DD`. |
+| `end_date` | Pipeline | | Required. Inclusive historical end date, `YYYY-MM-DD`. |
+
+Use an API key with access to the selected currencies and data families. Public
+USD availability does not establish access to paid resources. See the
+[FXMacroData API reference](https://fxmacrodata.com/documentation/reference)
+for authentication, subscription access, and supported currency and indicator values.
+The `data_catalogue` resource exposes indicator availability for your currency.
+
+Use separate pipelines and destination tables for different currencies,
+indicators, or pairs. Some resources use dates as keys within the configured
+series; those keys do not identify observations across multiple series.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `announcements` | `GET /v1/announcements/{currency}/{indicator}` |  |
+| `data_catalogue` | `GET /v1/data_catalogue/{currency}` |  |
+| `latest_announcements` | `GET /v1/announcements/{currency}/latest` |  |
+| `release_calendar` | `GET /v1/calendar/{currency}` |  |
+| `predictions` | `GET /v1/predictions/{currency}/{indicator}` |  |
+| `forecast_coverage` | `GET /v1/predictions/coverage` |  |
+| `indicator_forecast_coverage` | `GET /v1/predictions/coverage/{currency}` |  |
+| `forex` | `GET /v1/forex/{base}/{quote}` |  |
+| `fx_reference_rates` | `GET /v1/fx/reference-rates/{base}/{quote}` |  |
+| `fx_intraday_reference_rates` | `GET /v1/fx/intraday-reference-rates/{base}/{quote}` |  |
+| `fx_session_rates` | `GET /v1/fx/session-rates/{base}/{quote}` |  |
+| `fx_sources` | `GET /v1/fx/sources` |  |
+| `fx_source_universe` | `GET /v1/fx/source-universe` |  |
+| `curve_nodes` | `GET /v1/curves/{currency}` |  |
+| `curve_slopes` | `GET /v1/curves/{currency}` |  |
+| `curve_forwards` | `GET /v1/curves/{currency}` |  |
+| `financial_prices` | `GET /v1/financial_prices/{currency}` |  |
+| `rate_differentials` | `GET /v1/rate_differentials/{base}/{quote}` |  |
+| `factors` | `GET /v1/factors/{currency}/{factor}` |  |
+| `cot` | `GET /v1/cot/{currency}` |  |
+| `commodities` | `GET /v1/commodities/{indicator}` |  |
+| `latest_commodities` | `GET /v1/commodities/latest` |  |
+| `press_releases` | `GET /v1/press-releases/{currency}` |  |
+| `risk_sentiment` | `GET /v1/risk_sentiment` |  |
+| `release_changes` | `GET /v1/announcements/changes` |  |
+| `market_sessions` | `GET /v1/market_sessions` |  |
+| `official_forecast_sources` | `GET /v1/predictions/coverage/{currency}` |  |
+| `official_forecasts` | `GET /v1/predictions/{currency}` | `official_forecast_sources` |
+| `official_forecast_calendar` | `GET /v1/predictions/{currency}` | `official_forecast_sources` |
+| `research_panel` | `POST /v1/research/panel` |  |
+| `announcement_revisions` | `GET /v1/announcements/{currency}/{indicator}` |  |
+
+Announcements, the data catalogue, latest announcements, and the release
+calendar are selected by default. Other resources are optional and may require
+additional subscription access. Only selected resources are written.
+
+Historical resources read the configured date window. Predictions contain one
+row per announcement with its predictions nested as JSON. Native official
+forecasts are read separately by `official_forecasts`, which
+follows every publisher in `official_forecast_sources` for the configured
+currency. That source list is fetched even if it is not selected for output.
+The indicator endpoint's capped `official_forecasts` section remains disabled
+in favor of the paginated native resource. `official_forecast_calendar` reads
+verified publication schedules for those publishers. Native forecasts are not
+restricted by the pipeline date window. Press releases read the
+available feed without date bounds. Intraday FX reads the configured date
+window, from midnight UTC on `start_date`
+through the end of `end_date`. Curves return the latest available nodes up to
+`end_date`, subject to the API's lookback rules. `announcement_revisions` requests
+all revisions and retains the nested revision data.
+
+The data catalogue, global forecast coverage, latest announcements, latest
+commodities, market sessions, and curve views each produce a single snapshot
+row. Nested maps and arrays remain JSON. Other resources emit one row per item
+in their response array. The `raw` column retains unmapped fields from each row;
+it does not retain the surrounding response envelope for array resources.
+
+`research_panel` returns one snapshot containing values, series metadata,
+completeness, quality, and dataset version. Supply the complete request as the
+`research_panel_request` string, for example:
+
+```json
+{"series":[{"currency":"USD","indicator":"inflation"}],"decision_times":["2026-09-15T12:00:00Z"],"start_date":"2026-08-01","end_date":"2026-09-15","availability":"public"}
+```
+
+The API accepts 1–6 series and 1–10,000 decision times per request. These dates
+come from the JSON body, independently of the pipeline date fields. The body
+also accepts a known `dataset_version`; it is sent unchanged. See the
+[point-in-time guide](https://fxmacrodata.com/documentation/point-in-time-backtesting).
+
+## Modes
+
+All REST resources support full reads. Historical dates describe observations, not
+when they were last revised, so incremental reads are not supported. Rereading
+the chosen date window refreshes revisions within that window.
+
+Use **full replace** for resources without a primary key and to remove rows
+that are no longer returned. Keyed resources also support **full upsert**.
+The `release_changes` resource reads the currently retained event window on each
+run; it does not maintain a persistent change-feed cursor or provide a complete
+historical event archive.
+
+## Behavior
+
+- **Auth**: requests use `X-API-Key` against `https://api.fxmacrodata.com`.
+- **Pagination**: historical lists follow `pagination.next_offset` while
+  `pagination.has_more` is true, using 100 rows per request. Press releases use
+  50. Predictions follow `next_cursor` through `before_date`; release changes
+  follow `next_cursor` through `since`. Native forecasts follow
+  `official_forecast_next_cursor` through `before_id` for each publisher.
+  Snapshot and unpaginated endpoints make
+  one request per read.
+- **Rate limiting**: one request per second per connection. The API's account
+  limits also apply across other clients. Filament honors `Retry-After` when
+  throttled but does not track monthly usage.
+- **Revisions and consistency**: announcements request the latest revision.
+  The connector does not capture a first-page `dataset_version` and reuse it
+  across subsequent pages. A changing dataset can therefore shift offset pages
+  during a read; it is not a pinned point-in-time snapshot.
+- **Date-window fallbacks**: the API can return a latest available observation
+  outside the requested window. Such rows are retained, including any row-level
+  fallback flags in `raw`.
+- **FX semantics**: reference rates and derived crosses are not executable
+  quotes. Consult their source and derivation fields before using them.
+
+All 26 non-streaming data paths in the production API index are represented.
+SSE is excluded because the existing engine does not reconnect or persist
+`Last-Event-ID` for replay. Health and ping are service probes rather than
+data resources.
+Endpoint coverage does not mean every parameter combination is read: the
+connector does not automatically traverse every currency, indicator, pair, or
+series variant. Outside native forecast publisher discovery, it uses the API's
+default source and series choices. Automatic dataset pinning, durable stream
+replay, and authenticated verification remain outside this implementation.
+Native forecasts, forecast calendars, and research panels have
+been implemented from the official contracts but still need credentialed live
+validation. A public native-forecast request returned an API-key-required error.

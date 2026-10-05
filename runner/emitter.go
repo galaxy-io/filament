@@ -230,6 +230,12 @@ func emitAt[T any](e *emitter, t events.EventType[T], resource string, at time.T
 func sourceObserver(e *emitter) filament.SourceObserver {
 	return func(progress filament.SourceProgress) {
 		switch progress.Kind {
+		case filament.SourceProgressExportJobCreated:
+			emit(e, events.ExportJobCreated, progress.Resource, events.ExportJobCreatedEvent(progress.ExportJob))
+		case filament.SourceProgressExportJobPolled:
+			emit(e, events.ExportJobPolled, progress.Resource, events.ExportJobPolledEvent(progress.ExportJob))
+		case filament.SourceProgressExportJobReady:
+			emit(e, events.ExportJobReady, progress.Resource, events.ExportJobReadyEvent(progress.ExportJob))
 		case filament.SourceProgressPageFetched:
 			emit(e, events.PageFetched, progress.Resource, events.PageFetchedEvent{
 				Records: progress.Records,

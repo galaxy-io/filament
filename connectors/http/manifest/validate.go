@@ -23,26 +23,7 @@ const (
 func (m *Manifest) Normalize() {
 	for i := range m.Resources {
 		r := &m.Resources[i]
-		if len(r.UseFields) > 0 {
-			var inherited FieldList
-			for _, name := range r.UseFields {
-				inherited = append(inherited, m.FieldSets[name]...)
-			}
-			r.Fields = append(inherited, r.Fields...)
-		}
-		if len(r.ExcludeFields) > 0 {
-			excluded := make(map[string]struct{}, len(r.ExcludeFields))
-			for _, name := range r.ExcludeFields {
-				excluded[name] = struct{}{}
-			}
-			fields := r.Fields[:0]
-			for _, field := range r.Fields {
-				if _, skip := excluded[field.Name]; !skip {
-					fields = append(fields, field)
-				}
-			}
-			r.Fields = fields
-		}
+		m.normalizeResourceFields(r)
 		// Export requests have their own HTTP and decoding settings. Resource
 		// defaults must not accidentally paginate a job or change its payload.
 		if r.Mode == "export" {
@@ -786,5 +767,28 @@ func validateVersionHeaders(agg *errs.ManifestErrors, m *Manifest) {
 		} else if value != m.APIVersion {
 			_ = agg.Addf("api_version", "%q does not match %s %q", m.APIVersion, name, value)
 		}
+	}
+}
+
+func (m *Manifest) normalizeResourceFields(r *Resource) {
+	if len(r.UseFields) > 0 {
+		var inherited FieldList
+		for _, name := range r.UseFields {
+			inherited = append(inherited, m.FieldSets[name]...)
+		}
+		r.Fields = append(inherited, r.Fields...)
+	}
+	if len(r.ExcludeFields) > 0 {
+		excluded := make(map[string]struct{}, len(r.ExcludeFields))
+		for _, name := range r.ExcludeFields {
+			excluded[name] = struct{}{}
+		}
+		fields := r.Fields[:0]
+		for _, field := range r.Fields {
+			if _, skip := excluded[field.Name]; !skip {
+				fields = append(fields, field)
+			}
+		}
+		r.Fields = fields
 	}
 }

@@ -24,10 +24,10 @@ type rejectingSink struct{ err error }
 
 func (s rejectingSink) Emit(map[string]any, map[string]string, string) (int, error) { return 0, s.err }
 func (s rejectingSink) Checkpoint(string, string) error                             { return s.err }
-func (rejectingSink) Completed(int)                                                 {}
+func (rejectingSink) Completed(int, int64)                                          {}
 
 // A failed intent publication must cross the adapter boundary before any
-// creation request. This holds for both legacy full reads and scoped jobs.
+// creation request. This holds for both full reads and scoped jobs.
 func TestCheckpointFailurePreventsCreation(t *testing.T) {
 	for _, scoped := range []bool{false, true} {
 		t.Run(map[bool]string{false: "full", true: "parent"}[scoped], func(t *testing.T) {

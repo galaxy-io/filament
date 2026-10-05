@@ -11,6 +11,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -57,6 +58,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		}
 	}
 	for state.Phase != "done" {
+		progress := c.jobProgress(res.Name, state.Phase == "waiting" && c.ResumeToken != "")
 		if state.Phase == "next" {
 			scope.Job = state.Captures
 			start, err = request.RenderResource(spec.Next.Request.Resource(res.Name), scope)
@@ -82,6 +84,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 				return fmt.Errorf("export %s start: %w", res.Name, err)
 			}
 			state.Phase = "waiting"
+			progress.report(filament.SourceProgressExportJobCreated)
 			if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 				return err
 			}
@@ -89,34 +92,15 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		scope.Job = state.Captures
 		// Always retrieve job status again on resume, refreshing ephemeral URLs.
 		if spec.Wait.Type == "job" {
-			if err := c.waitExport(ctx, res, scope); err != nil {
+			if err := c.waitExport(ctx, res, scope, progress); err != nil {
 				return err
 			}
 			if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 				return err
 			}
 		}
-		location, err := template.Render(spec.Result.URL, scope)
+		count, downloadBytes, err := c.consumeFullExport(ctx, res, sink, scope, state.Token(), progress)
 		if err != nil {
-			return fmt.Errorf("export result URL: %w", err)
-		}
-		resp, err := c.downloadExport(ctx, res, location, scope)
-		if err != nil {
-			return err
-		}
-
-		checkpointToken := state.Token()
-		var count int
-		err = decodeExport(ctx, resp.Body, spec.Result, func(row map[string]any) error {
-			n, err := sink.Emit(row, nil, checkpointToken)
-			count += n
-			return err
-		})
-		_ = resp.Body.Close()
-		if err != nil {
-			return fmt.Errorf("export %s decode: %w", res.Name, err)
-		}
-		if err := ctx.Err(); err != nil {
 			return err
 		}
 		state.Phase = "done"
@@ -130,7 +114,7 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 		if err := target.Checkpoint(res.Name, state.Token()); err != nil {
 			return err
 		}
-		sink.Completed(count)
+		sink.Completed(count, downloadBytes)
 	}
 	return nil
 }
@@ -192,13 +176,14 @@ func captureExport(raw []byte, captures, job map[string]string) error {
 	return nil
 }
 
-func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope template.Scope) error {
+func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope template.Scope, progress *jobProgress) error {
 	wait := res.Export.Wait
 	for {
 		raw, err := c.Control.Poll(ctx, res.Name, *wait.Request, scope)
 		if err != nil {
 			return err
 		}
+		progress.polled()
 		v := gjson.GetBytes(raw, exportPath(wait.State.Path))
 		if v.Type != gjson.String {
 			return fmt.Errorf("export %s: missing or invalid job status", res.Name)
@@ -221,6 +206,7 @@ func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope t
 					}
 				}
 			}
+			progress.ready()
 			return nil
 		case slices.Contains(wait.State.Failed, v.Str):
 			return fmt.Errorf("export %s: job failed with status %q", res.Name, v.Str)
@@ -232,4 +218,31 @@ func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope t
 			return err
 		}
 	}
+}
+
+func (c *Runtime) consumeFullExport(ctx context.Context, res manifest.Resource, sink Sink, scope template.Scope, checkpointToken string, progress *jobProgress) (int, int64, error) {
+	location, err := template.Render(res.Export.Result.URL, scope)
+	if err != nil {
+		return 0, 0, fmt.Errorf("export result URL: %w", err)
+	}
+	resp, err := c.downloadExport(ctx, res, location, scope, progress)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var count int
+	artifact := &artifactReader{Reader: resp.Body}
+	err = decodeExport(ctx, artifact, res.Export.Result, func(row map[string]any) error {
+		n, err := sink.Emit(row, nil, checkpointToken)
+		count += n
+		return err
+	})
+	_ = resp.Body.Close()
+	if err != nil {
+		return 0, 0, fmt.Errorf("export %s decode: %w", res.Name, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+	return count, artifact.bytes, nil
 }

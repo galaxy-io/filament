@@ -30,6 +30,7 @@ func (c *Connector) exportRuntime(res manifest.Resource) *export.Runtime {
 		}
 	}
 	runtime := &export.Runtime{
+		Observe:      c.observe,
 		WaitDownload: c.limiter.Wait,
 		Control:      exportControl{connector: c}, Transport: c.streamClient.Transport,
 		RetryAfter: retryAfterDuration, MaxRetries: maxRetries,
@@ -68,6 +69,6 @@ func (s *exportSink) Emit(row map[string]any, parent map[string]string, token st
 	return count, err
 }
 
-func (s *exportSink) Completed(count int) {
-	s.connector.observe.Report(filament.SourceProgress{Kind: filament.SourceProgressPageFetched, Resource: s.resource.Name, Records: int64(count)})
+func (s *exportSink) Completed(count int, downloadBytes int64) {
+	s.connector.observe.Report(filament.SourceProgress{Kind: filament.SourceProgressPageFetched, Resource: s.resource.Name, Records: int64(count), Bytes: downloadBytes})
 }

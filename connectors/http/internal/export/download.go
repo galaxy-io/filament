@@ -25,7 +25,7 @@ func validateExportURL(location string, hosts []string) (*url.URL, error) {
 	return u, nil
 }
 
-func (c *Runtime) downloadExport(ctx context.Context, res manifest.Resource, location string, scope template.Scope) (*http.Response, error) {
+func (c *Runtime) downloadExport(ctx context.Context, res manifest.Resource, location string, scope template.Scope, progress *jobProgress) (*http.Response, error) {
 	spec := res.Export
 	// Use the stream transport only: no API auth, connection headers, cookie jar,
 	// or whole-response timeout. The export deadline bounds the transfer.
@@ -67,7 +67,13 @@ func (c *Runtime) downloadExport(ctx context.Context, res manifest.Resource, loc
 		if err != nil {
 			return nil, TransportError(ctx, err)
 		}
+		if spec.Wait.Type == "download" {
+			progress.polled()
+		}
 		if resp.StatusCode == http.StatusOK {
+			// Direct/download-wait exports have no status endpoint. Availability
+			// is established by the successful artifact response instead.
+			progress.ready()
 			return resp, nil
 		}
 		_ = resp.Body.Close()
@@ -84,7 +90,7 @@ func (c *Runtime) downloadExport(ctx context.Context, res manifest.Resource, loc
 		// A job endpoint can re-issue an expired URL. Refresh once rather than
 		// treating all forbidden responses as pending forever.
 		if spec.Wait.Type == "job" && !refreshed && (resp.StatusCode == 403 || resp.StatusCode == 410) {
-			if err := c.waitExport(ctx, res, scope); err != nil {
+			if err := c.waitExport(ctx, res, scope, progress); err != nil {
 				return nil, err
 			}
 			location, err = template.Render(spec.Result.URL, scope)

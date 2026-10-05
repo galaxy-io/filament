@@ -92,13 +92,14 @@ type DiscoverySpec struct {
 	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 }
 
-// ConfigSpec declares one user-facing connector configuration field. Enum is
-// the ordered set of choices for enum and list fields.
+// ConfigCondition controls field visibility based on another field's selected value.
 type ConfigCondition struct {
 	Field  string   `yaml:"field"`
 	Values []string `yaml:"values"`
 }
 
+// ConfigSpec declares one user-facing connector configuration field. Enum is
+// the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
 	VisibleWhen *ConfigCondition  `yaml:"visible_when,omitempty"`
 	Type        string            `yaml:"type"`
@@ -582,6 +583,12 @@ type IncrementalSpec struct {
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
 	OverlapSeconds int `yaml:"overlap_seconds,omitempty"`
+	// ValuePrefix is prepended to the watermark value when it is injected
+	// into the request (query, header, or body). The stored checkpoint and
+	// all comparisons keep the raw value; only the wire representation is
+	// prefixed. FHIR search needs `_lastUpdated=ge<ts>` — a bare timestamp
+	// carries `eq` semantics and would silently return the wrong result set.
+	ValuePrefix string `yaml:"value_prefix,omitempty"`
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.

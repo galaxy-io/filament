@@ -106,12 +106,7 @@ func validateExport(agg *errs.ManifestErrors, at string, r Resource) {
 		return
 	}
 	at += ".export"
-	if r.Stream != nil || r.EmitAs != "" || r.CaptureOnly || len(r.Capture) > 0 {
-		_ = agg.Addf(at, "cannot combine export with stream, emit_as, capture, or capture_only")
-	}
-	if r.Path != "" || r.Method != "" || len(r.Headers) > 0 || len(r.Query) > 0 || len(r.Params) > 0 || r.Body.Encoding != "" || r.Body.Template != nil || r.Records != "" || (r.Pagination.Type != "" && r.Pagination.Type != "none") || r.Response != (ResponseSpec{}) {
-		_ = agg.Addf(at, "declare requests and decoding inside export, without resource path, body, records, or pagination")
-	}
+	validateExportResourceFields(agg, at, r)
 	if e.Next != nil {
 		if r.Parent != nil || r.Incremental != nil || e.Wait.Type != "job" {
 			_ = agg.Addf(at+".next", "requires a top-level full export with job polling")
@@ -306,5 +301,14 @@ func validateExportParent(agg *errs.ManifestErrors, at string, r Resource) {
 	}
 	if r.Incremental != nil && r.Incremental.ResponseCursor != "" {
 		_ = agg.Addf(at, "exports use cursor_field, not response_cursor")
+	}
+}
+
+func validateExportResourceFields(agg *errs.ManifestErrors, at string, r Resource) {
+	if r.Stream != nil || r.EmitAs != "" || r.CaptureOnly || len(r.Capture) > 0 {
+		_ = agg.Addf(at, "cannot combine export with stream, emit_as, capture, or capture_only")
+	}
+	if r.Path != "" || r.Method != "" || len(r.Headers) > 0 || len(r.Query) > 0 || len(r.Params) > 0 || r.Body.Encoding != "" || r.Body.Template != nil || r.Records != "" || (r.Pagination.Type != "" && r.Pagination.Type != "none") || r.Response != (ResponseSpec{}) {
+		_ = agg.Addf(at, "declare requests and decoding inside export, without resource path, body, records, or pagination")
 	}
 }

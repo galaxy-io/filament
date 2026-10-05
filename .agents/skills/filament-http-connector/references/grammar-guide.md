@@ -280,6 +280,7 @@ emits only selected resources. Account for that behavior and parent-scoped keys.
 ```yaml
 pagination: { link: next }                # Link response header, rel="next"
 pagination: { next_url: paging.next }     # full next-page URL in the response (bare dot-path, no $.)
+pagination: { next_url: "link[relation=next].url" }  # [k=v] selects the first array element whose k renders to v
 pagination:
   cursor:
     response: response_metadata.next_cursor   # where the cursor appears in the response
@@ -318,12 +319,17 @@ incremental:
   comparator: time              # lex | numeric | time
   checkpoint_key: tickets_updated_at # unique across resources
   overlap_seconds: 60           # optional re-read window
+  value_prefix: "ge"            # optional prefix on the injected value only
 ```
 
 The cursor must be projected, non-nullable, and compatible with its comparator.
 `initial` can set a documented first-run lower bound. `overlap_seconds` applies
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.
+`value_prefix` is prepended to the watermark when it is injected into the
+request — the checkpoint and all comparisons keep the raw value. FHIR search
+needs `_lastUpdated=ge<timestamp>`; a bare timestamp means "equal" there and
+would silently return the wrong result set.
 See Slack for `ts` + `oldest` + `numeric`, and Granola for an update timestamp.
 Read [research.md](research.md) before deciding that incremental reads are sound.
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/template"
@@ -27,13 +28,16 @@ type Control interface {
 type Sink interface {
 	Emit(row map[string]any, parent map[string]string, token string) (int, error)
 	Checkpoint(resource, token string) error
-	Completed(records int)
+	// Completed reports a validated artifact's records and response-body bytes
+	// actually read, before manifest decompression or archive extraction.
+	Completed(records int, downloadBytes int64)
 }
 
 // Runtime contains one extraction's immutable dependencies and resume options.
 // IdentityConfig excludes secrets; Config and Env are used to render requests.
 // Transport is used without API headers, auth, cookies, or client timeouts.
 type Runtime struct {
+	Observe filament.SourceObserver
 	// WaitDownload applies the API limiter to authenticated artifact requests.
 	WaitDownload                func(context.Context) error
 	Authenticate                func(context.Context, *http.Request, template.Scope) error

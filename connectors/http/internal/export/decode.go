@@ -29,6 +29,19 @@ const (
 	maxExportArchiveFiles                = 10000
 )
 
+// artifactReader counts actual response-body reads, including n returned with
+// an error. Content-Length is neither required nor used for progress reporting.
+type artifactReader struct {
+	io.Reader
+	bytes int64
+}
+
+func (r *artifactReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.bytes += int64(n)
+	return n, err
+}
+
 // Unlike LimitReader, exhausting the budget is an error, not a successful EOF.
 // It also checks cancellation while reading local ZIP files after downloading.
 type exportLimitedReader struct {
