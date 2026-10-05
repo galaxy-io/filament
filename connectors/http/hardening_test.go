@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -11,6 +12,30 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/request"
 )
+
+func TestSecureRedirectRejectsDowngrade(t *testing.T) {
+	httpsPrev := []*http.Request{{URL: &url.URL{Scheme: "https", Host: "store.example.com"}}}
+
+	// HTTPS -> HTTP downgrade (where Go would otherwise forward Authorization
+	// on the same host) must be refused.
+	downgrade := &http.Request{URL: &url.URL{Scheme: "http", Host: "store.example.com"}}
+	if err := secureRedirect(downgrade, httpsPrev); err == nil {
+		t.Fatal("expected HTTPS->HTTP downgrade redirect to be refused, got nil")
+	}
+
+	// HTTPS -> HTTPS is fine.
+	same := &http.Request{URL: &url.URL{Scheme: "https", Host: "cdn.store.example.com"}}
+	if err := secureRedirect(same, httpsPrev); err != nil {
+		t.Fatalf("expected HTTPS->HTTPS redirect to be allowed, got %v", err)
+	}
+
+	// HTTP -> HTTP is fine (local/dev httptest clients).
+	httpPrev := []*http.Request{{URL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}}
+	plain := &http.Request{URL: &url.URL{Scheme: "http", Host: "127.0.0.1:8080"}}
+	if err := secureRedirect(plain, httpPrev); err != nil {
+		t.Fatalf("expected HTTP->HTTP redirect to be allowed, got %v", err)
+	}
+}
 
 func TestSourceValidatesEnumConfiguration(t *testing.T) {
 	data := strings.Replace(responseTokenManifest, "tenant_id: {type: string}", `environment: {type: enum, enum: ["", integration], default: ""}`, 1)

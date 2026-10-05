@@ -176,8 +176,8 @@ func (c *Connector) Configure(ctx context.Context) error {
 	if m.Connection.TimeoutSeconds > 0 {
 		timeout = time.Duration(m.Connection.TimeoutSeconds) * time.Second
 	}
-	c.client = &http.Client{Timeout: timeout}
-	c.streamClient = &http.Client{}
+	c.client = &http.Client{Timeout: timeout, CheckRedirect: secureRedirect}
+	c.streamClient = &http.Client{CheckRedirect: secureRedirect}
 	c.parentRecords = make(map[string][]Capture)
 
 	// Default logging for pre-extract paths. Replaced per extraction.
@@ -257,6 +257,22 @@ func processEnvironment() map[string]string {
 		}
 	}
 	return values
+}
+
+// secureRedirect is the http.Client.CheckRedirect policy used by the connector's
+// clients. It refuses any redirect that downgrades from HTTPS to a plaintext
+// HTTP destination, preventing the Authorization header (Basic/bearer/header
+// credentials) from being forwarded to an unencrypted host by Go's default
+// same-host redirect handling.
+func secureRedirect(req *http.Request, via []*http.Request) error {
+	if req.URL.Scheme != "https" {
+		for _, prev := range via {
+			if prev.URL.Scheme == "https" {
+				return fmt.Errorf("refusing redirect from %s to non-HTTPS destination %s", prev.URL, req.URL)
+			}
+		}
+	}
+	return nil
 }
 
 // buildLimiter constructs a Limiter from the manifest's RateLimit. Static

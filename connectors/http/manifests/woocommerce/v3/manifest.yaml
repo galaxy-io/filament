@@ -50,24 +50,24 @@ resources:
   # and needs no parent scope.
   - name: products
     path: /products
+    # dates_are_gmt returns date_*_gmt stamps in UTC and evaluates the
+    # modified_after filter in UTC too, so the watermark clock is monotonic.
+    query: { dates_are_gmt: "1" }
     primary_key: [id]
-    # WooCommerce returns date_modified as a naive, site-timezone datetime
-    # (YYYY-MM-DDTHH:MM:SS with no UTC offset) and evaluates the modified_after
-    # filter in the same site timezone. So a lex comparator on this fixed-width
-    # string orders chronologically, whereas a time comparator (RFC3339) would
-    # reject the naive value and fail the run. The cursor and the filter share
-    # one clock, keeping the watermark consistent.
+    # Cursor on the GMT stamp rather than the site-local date_modified: a
+    # store whose timezone moves backward (DST fall) can otherwise emit a later
+    # modification with a lower site-local watermark, dropping the record from
+    # the next incremental read. date_modified_gmt is fixed-width UTC and is
+    # compared lexically, matching the naive YYYY-MM-DDTHH:MM:SS shape.
     incremental:
-      cursor_field: date_modified
+      cursor_field: date_modified_gmt
       start_param: modified_after
       inject_into: query
       initial: "1970-01-01T00:00:00"
       comparator: lex
       # modified_after is an exclusive, second-granularity filter: records whose
-      # date_modified equals the saved watermark are omitted on the next read.
-      # overlap_seconds would re-fetch that window but requires a time or
-      # numeric comparator, which the naive datetimes can't satisfy — recover any
-      # same-second boundary records with a periodic full read.
+      # GMT stamp equals the saved watermark are omitted on the next read.
+      # recover any same-second boundary records with a periodic full read.
     capture:
       product_id: id
     fields:
@@ -77,6 +77,7 @@ resources:
       permalink: string?
       date_created: timestamptz?
       date_modified: timestamptz
+      date_modified_gmt: string
       type: string?
       status: string?
       featured: bool?
@@ -290,12 +291,20 @@ resources:
   # Parent-scoped sub-resource: one request per customer.
   - name: customer_downloads
     path: /customers/{customer_id}/downloads
+    # This endpoint returns the customer's full set of download permissions as
+    # a single array and does not honour page/per_page, so disable the inherited
+    # page paginator (its short-page termination would never fire).
+    pagination: none
     params:
       customer_id: parent.customer_id
     for_each: customers
-    primary_key: [download_id]
+    # A download permission is identified by (customer, order, file): the same
+    # downloadable file can be purchased by many customers or repurchased by one,
+    # so download_id alone would merge distinct rows.
+    primary_key: [customer_id, order_id, download_id]
     fields:
       customer_id: { path: parent.customer_id, type: int64 }
+      order_id: int64
       download_id: string
       download_url: string?
       download_name: string?
@@ -305,17 +314,18 @@ resources:
 
   - name: orders
     path: /orders
+    query: { dates_are_gmt: "1" }
     primary_key: [id]
     incremental:
-      cursor_field: date_modified
+      cursor_field: date_modified_gmt
       start_param: modified_after
       inject_into: query
       initial: "1970-01-01T00:00:00"
-      # Same naive site-timezone datetime and exclusive modified_after semantics
-      # as products: lex on a fixed-width string orders chronologically; any
+      # Same monotonic GMT stamp and exclusive modified_after semantics as
+      # products: lex on a fixed-width string orders chronologically; any
       # same-second boundary records need a periodic full read to recover.
       comparator: lex
-      checkpoint_key: orders_date_modified
+      checkpoint_key: orders_date_modified_gmt
     capture:
       order_id: id
     fields:
@@ -329,6 +339,7 @@ resources:
       currency: string?
       date_created: timestamptz?
       date_modified: timestamptz
+      date_modified_gmt: string
       discount_total: string?
       discount_tax: string?
       shipping_total: string?
@@ -450,6 +461,8 @@ resources:
 
   - name: shipping_zones
     path: /shipping/zones
+    # Returns every zone in one array; not page-sliced by the API.
+    pagination: none
     primary_key: [id]
     capture:
       zone_id: id
@@ -560,9 +573,10 @@ resources:
   # used as full reads.
   - name: report_sales
     path: /reports/sales
-    primary_key: [date_created]
+    # This returns one aggregate row for the filtered period; the API exposes no
+    # stable identifier for it, so there is no primary key and rows are appended.
+    primary_key: []
     fields:
-      date_created: string
       totals: json?
       raw: { path: $, type: json, mode: remainder }
 
