@@ -1,7 +1,7 @@
 version: 1
 name: gong
 display_name: Gong
-description: Calls, transcripts, users, workspaces, tracker and scorecard definitions, and call libraries from Gong.
+description: Revenue intelligence platform that captures and analyzes customer interactions to help sales teams understand deals, coach reps, and forecast revenue.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gong-light.svg
 api_version: "v2"

@@ -15,7 +15,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "gcs",
 		DisplayName:  "Google Cloud Storage",
-		Description:  "Run-versioned NDJSON, JSONL, JSON, or Parquet objects in Google Cloud Storage.",
+		Description:  "Managed object storage from Google Cloud for storing data in buckets, with storage classes for different access and availability needs.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-gcs-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-gcs-light.svg",
 		Version:      "1",

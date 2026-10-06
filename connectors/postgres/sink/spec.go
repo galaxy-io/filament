@@ -10,7 +10,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "postgres",
 		DisplayName:  "PostgreSQL",
-		Description:  "Popular open-source relational database management system known for reliability and advanced features.",
+		Description:  "Open source object-relational database that extends SQL to manage complex data workloads, with an emphasis on extensibility and data integrity.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "2",

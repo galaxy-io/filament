@@ -1,7 +1,7 @@
 version: 1
 name: instantly
 display_name: Instantly
-description: Campaigns, leads, emails, accounts, analytics, and workspace data from Instantly.
+description: Sales engagement and lead intelligence platform for finding prospects and automating personalized email outreach, with tools for managing deliverability.
 api_version: v2
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-light.svg

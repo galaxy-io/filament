@@ -1,7 +1,7 @@
 version: 1
 name: github
 display_name: GitHub
-description: Code hosting platform for version control, collaboration, and software development workflows.
+description: Software development platform for hosting Git repositories, reviewing code, and collaborating on projects from planning through deployment.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-github-light.svg
 api_version: "2022-11-28"

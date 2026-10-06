@@ -3,7 +3,7 @@ version: 1
 name: servicetitan
 api_version: v2
 display_name: ServiceTitan
-description: ServiceTitan operations, customers, accounting, inventory, memberships, and payroll.
+description: Field service management software for commercial and residential trades, connecting office operations with technicians in the field from scheduling through job completion.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-light.svg
 config:

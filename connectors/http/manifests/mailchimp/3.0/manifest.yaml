@@ -1,7 +1,7 @@
 version: 1
 name: mailchimp
 display_name: Mailchimp
-description: Audiences, members, campaigns, reports, and commerce data from Mailchimp Marketing.
+description: Email marketing and automation platform for building customer relationships through targeted campaigns, using the Mailchimp Marketing API.
 api_version: "3.0"
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-light.svg

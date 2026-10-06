@@ -12,7 +12,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		DisplayName:  "ClickHouse",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-light.svg",
-		Description:  "Column-oriented analytics database with typed batch loading and primary-key upserts.",
+		Description:  "Column-oriented SQL database for online analytical processing, designed to aggregate and analyze large datasets for real-time applications.",
 		Version:      "2",
 		Config: filament.ConfigSchema{Fields: append(clickhouseconnection.Fields(), filament.ConfigField{
 			Name: "database", Type: filament.FieldString, Default: clickhouseconnection.DefaultDatabase, Scope: filament.ScopePipeline,

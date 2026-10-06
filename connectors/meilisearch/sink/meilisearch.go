@@ -62,7 +62,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "meilisearch",
 		DisplayName:  "Meilisearch",
-		Description:  "Fast, open-source search engine with typo-tolerant full-text search.",
+		Description:  "Search engine for building search into websites and applications, combining typo-tolerant full-text search with semantic search over indexed documents.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-meilisearch-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-meilisearch-light.svg",
 		Version:      "1",

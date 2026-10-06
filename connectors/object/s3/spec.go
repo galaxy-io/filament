@@ -16,7 +16,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "s3",
 		DisplayName:  "Amazon S3",
-		Description:  "Run-versioned NDJSON, JSONL, JSON, or Parquet objects in Amazon S3 or an S3-compatible object store.",
+		Description:  "Cloud object storage for applications, backups, and data lakes, using Amazon S3 or a service compatible with the S3 API.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-s3-light.svg",
 		Version:      "3",

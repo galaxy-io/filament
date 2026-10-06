@@ -1,7 +1,7 @@
 version: 1
 name: novada
 display_name: Novada
-description: Read proxy traffic balances, scraping prices, usage reports, task metadata, and request logs from Novada.
+description: Proxy network and web scraping platform that provides geographically targeted access to public web data for research and data collection.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-novada-light.svg
 api_version: "v1"

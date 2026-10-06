@@ -1,7 +1,7 @@
 version: 1
 name: posthog
 display_name: PostHog
-description: People, groups, cohorts, feature flags, experiments, saved analytics, data definitions, surveys, notebooks, and replay metadata from PostHog.
+description: Product analytics platform that combines usage analysis, session replay, and experimentation to help teams understand customer behavior and improve their products.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-posthog-light.svg
 

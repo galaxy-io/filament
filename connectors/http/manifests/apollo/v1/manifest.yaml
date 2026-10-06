@@ -1,7 +1,7 @@
 version: 1
 name: apollo
 display_name: Apollo
-description: Read saved contacts, accounts, sequences, deals, and engagement data from Apollo.
+description: Sales intelligence and engagement platform that combines business contact data with prospecting and outreach tools to support go-to-market teams.
 api_version: v1
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-light.svg

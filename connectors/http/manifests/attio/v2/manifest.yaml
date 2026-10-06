@@ -1,7 +1,7 @@
 version: 1
 name: attio
 display_name: Attio
-description: CRM platform designed for modern teams to centralize customer data, pipelines, and workflows.
+description: CRM for go-to-market teams, with a flexible data model that can be tailored to how each business manages customer relationships.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg
 api_version: "v2"

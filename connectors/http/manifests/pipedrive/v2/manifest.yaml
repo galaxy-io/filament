@@ -1,7 +1,7 @@
 version: 1
 name: pipedrive
 display_name: Pipedrive
-description: Deals, leads, persons, organizations, activities, notes, products, users, pipelines, stages, and field definitions from Pipedrive.
+description: Sales CRM that helps teams visualize their pipeline, track customer interactions, and prioritize the activities needed to move deals forward.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-pipedrive-light.svg
 # v2 is the current API; users, leads, notes, files and reference data have

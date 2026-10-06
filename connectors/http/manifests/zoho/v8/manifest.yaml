@@ -1,7 +1,7 @@
 version: 1
 name: zoho
 display_name: Zoho CRM
-description: CRM and inventory records, custom modules, relationships, and administrative data from Zoho CRM.
+description: CRM platform that automates sales processes and brings customer interactions across channels together to help teams manage relationships and close deals.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zoho-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zoho-light.svg
 api_version: "v8"
