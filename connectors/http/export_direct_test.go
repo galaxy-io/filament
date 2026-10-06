@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -109,6 +111,64 @@ func TestDirectExportValidation(t *testing.T) {
 		t.Run(tc.new, func(t *testing.T) {
 			if _, err := manifest.Parse([]byte(strings.Replace(base, tc.old, tc.new, 1))); err == nil {
 				t.Fatal("accepted invalid direct export")
+			}
+		})
+	}
+}
+
+// A GDELT-style export: a ZIP holding one tab-separated file with no header
+// row, whose unquoted values may contain a stray double quote.
+func headerlessTSVFixture(s string) string {
+	s = directExportFixture(s)
+	return strings.Replace(s, "format: csv}", `archive: zip, files: '*.export.CSV', format: csv,
+        csv: {delimiter: "\t", header: false, columns: ['Record ID', Title, Url], quoting: none}}`, 1)
+}
+
+func TestDirectExportHeaderlessTSV(t *testing.T) {
+	var archive bytes.Buffer
+	zw := zip.NewWriter(&archive)
+	w, _ := zw.Create("20261006220000.export.CSV")
+	fmt.Fprint(w, "one\t\"Starts quoted\thttps://a.example/x\ntwo\tsays \"hi\"\thttps://b.example/y\n")
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	src, _ := exportSource(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write(archive.Bytes())
+	}, headerlessTSVFixture)
+	var sink collectSink
+	if err := src.Extract(t.Context(), &sink, filament.ExtractOpts{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.records) != 2 || sink.records[0].ID != "one" || sink.records[1].ID != "two" {
+		t.Fatalf("records = %d", len(sink.records))
+	}
+	for i, want := range []string{`"Title":"\"Starts quoted"`, `"Title":"says \"hi\""`} {
+		if !strings.Contains(string(sink.records[i].Data), want) {
+			t.Fatalf("record %d lost its quote: %s", i, sink.records[i].Data)
+		}
+	}
+}
+
+func TestExportCSVDialectValidation(t *testing.T) {
+	base := headerlessTSVFixture(exportTestManifest)
+	if _, err := manifest.Parse([]byte(base)); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct{ name, old, new string }{
+		{"columns-with-header", "header: false, ", ""},
+		{"header-false-no-columns", "columns: ['Record ID', Title, Url], ", ""},
+		{"duplicate-columns", "Title, Url]", "Title, Title]"},
+		{"empty-column", "Title, Url]", "Title, '']"},
+		{"two-char-delimiter", `delimiter: "\t"`, `delimiter: "ab"`},
+		{"quote-delimiter", `delimiter: "\t"`, `delimiter: '"'`},
+		{"newline-delimiter", `delimiter: "\t"`, `delimiter: "\n"`},
+		{"unknown-quoting", "quoting: none", "quoting: lazy"},
+		{"unknown-field", "quoting: none", "quoting: none, comment: '#'"},
+		{"not-csv", "format: csv,", "format: ndjson,"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := manifest.Parse([]byte(strings.Replace(base, tc.old, tc.new, 1))); err == nil {
+				t.Fatal("accepted invalid CSV dialect")
 			}
 		})
 	}
