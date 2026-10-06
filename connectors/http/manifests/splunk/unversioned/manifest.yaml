@@ -71,7 +71,7 @@ resources:
         timeout_seconds: 600
 
       result:
-        path: /services/search/jobs/{{ job.sid }}/results
+        path: /services/search/v2/jobs/{{ job.sid }}/results
         method: GET
         query:
           output_mode: json
