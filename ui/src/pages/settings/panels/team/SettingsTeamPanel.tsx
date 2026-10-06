@@ -5,8 +5,7 @@ import { PlusIcon, TrashIcon, UserGearIcon } from "@phosphor-icons/react";
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { MenuItem, MenuItemVariant, MenuRadioGroup, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -190,43 +189,37 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
             : undefined
         }
       >
-        <Flex alignItems={AlignItems.START} grow={1} basis={0} minHeight={0} fillWidth>
-          <Box variant={BoxVariant.BASE} height="100%" fillWidth>
-            <InfiniteTable<Member>
-              columns={columns}
-              data={sortedMembers}
-              getRowId={(row) => row.userId}
-              isLoading={membersQuery.isLoading}
-              error={displayError}
-              rowActions={(row) =>
-                canManageTeam && row.userId !== session.userId ? (
-                  <>
-                    <MenuItem
-                      label="Change role"
-                      icon={UserGearIcon}
-                      isDisabled={isMutatingMembers}
-                    >
-                      <MenuRadioGroup
-                        label="Role"
-                        options={SETTINGS_ROLE_MENU_OPTIONS}
-                        value={roleToOptionId(row.role)}
-                        onChange={(id) => handleRoleChange(row, optionIdToRole(id))}
-                      />
-                    </MenuItem>
-                    <MenuSeparator />
-                    <MenuItem
-                      label="Remove member"
-                      icon={TrashIcon}
-                      variant={MenuItemVariant.ERROR}
-                      onSelect={() => handleRemove(row)}
-                      isDisabled={isMutatingMembers}
+        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+          <InfiniteTable<Member>
+            columns={columns}
+            data={sortedMembers}
+            getRowId={(row) => row.userId}
+            isLoading={membersQuery.isLoading}
+            error={displayError}
+            rowActions={(row) =>
+              canManageTeam && row.userId !== session.userId ? (
+                <>
+                  <MenuItem label="Change role" icon={UserGearIcon} isDisabled={isMutatingMembers}>
+                    <MenuRadioGroup
+                      label="Role"
+                      options={SETTINGS_ROLE_MENU_OPTIONS}
+                      value={roleToOptionId(row.role)}
+                      onChange={(id) => handleRoleChange(row, optionIdToRole(id))}
                     />
-                  </>
-                ) : null
-              }
-              ariaLabel="Team members"
-            />
-          </Box>
+                  </MenuItem>
+                  <MenuSeparator />
+                  <MenuItem
+                    label="Remove member"
+                    icon={TrashIcon}
+                    variant={MenuItemVariant.ERROR}
+                    onSelect={() => handleRemove(row)}
+                    isDisabled={isMutatingMembers}
+                  />
+                </>
+              ) : null
+            }
+            ariaLabel="Team members"
+          />
         </Flex>
       </SettingsPanelLayout>
       <ConfirmDialog

@@ -1,9 +1,8 @@
-import { styled } from "@linaria/react";
-
 import SelectInput, {
   SelectInputVariant,
   type SelectOption,
 } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 
 import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -14,11 +13,6 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { READ_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
-
-const CellWrapper = styled.div`
-  width: 100%;
-  min-width: 0;
-`;
 
 const CreatePipelineModalResourcesReadModeCell = ({
   row,
@@ -41,7 +35,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
   };
 
   return (
-    <CellWrapper>
+    <Box fillWidth minWidth={0}>
       <SelectInput
         options={options}
         value={String(row.readMode)}
@@ -50,7 +44,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
         isDisabled={!row.isSelected}
         fillWidth
       />
-    </CellWrapper>
+    </Box>
   );
 };
 

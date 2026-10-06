@@ -1,4 +1,3 @@
-import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
@@ -9,11 +8,10 @@ import GridBackground, {
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -31,32 +29,6 @@ import {
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
-
-const SetupContent = styled.div`
-  position: relative;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-
-  width: 100%;
-  max-width: ${OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH}px;
-`;
-
-const SetupCard = styled.div`
-  display: flex;
-  flex-direction: column;
-
-  width: 100%;
-
-  background-color: ${t.color.background.secondary};
-
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.focused};
-  border-radius: ${t.radius.md};
-
-  overflow: hidden;
-`;
 
 const ObservabilitySetupChecklist = () => {
   const navigate = useNavigate();
@@ -111,34 +83,45 @@ const ObservabilitySetupChecklist = () => {
         size={GridBackgroundSize.X_SMALL}
         style={{ [GRID_BACKGROUND_OPACITY_VAR]: OBSERVABILITY_SETUP_GRID_OPACITY }}
       >
-        <SetupContent>
+        <Flex
+          direction={FlexDirection.COLUMN}
+          alignItems={AlignItems.CENTER}
+          gap={16}
+          fillWidth
+          maxWidth={OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH}
+        >
           <GalaxyFilamentWordmark size={28} />
           <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>
             <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
             <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
           </Flex>
-          <SetupCard>
-            <Flex alignItems={AlignItems.START} padding={[12, 16]}>
-              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
-              </Text>
-            </Flex>
-            <Divider />
-            {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
-              <ObservabilitySetupChecklistStep
-                key={step}
-                step={step}
-                status={getStepStatus(step)}
-                onClick={handleStepClick}
-              />
-            ))}
-          </SetupCard>
+          <FlexItem fillWidth>
+            <Widget
+              variant={WidgetVariant.SECONDARY}
+              isFlush
+              gap={0}
+              header={
+                <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                  {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
+                </Text>
+              }
+            >
+              {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
+                <ObservabilitySetupChecklistStep
+                  key={step}
+                  step={step}
+                  status={getStepStatus(step)}
+                  onClick={handleStepClick}
+                />
+              ))}
+            </Widget>
+          </FlexItem>
           <ProgressBar
             ariaLabel="Setup progress"
             value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
             variant={ProgressBarVariant.SUCCESS}
           />
-        </SetupContent>
+        </Flex>
       </GridBackground>
     </Box>
   );

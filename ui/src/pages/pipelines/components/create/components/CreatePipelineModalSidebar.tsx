@@ -1,13 +1,12 @@
-import { styled } from "@linaria/react";
 import pluralize from "pluralize";
 import { match } from "ts-pattern";
 
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Stepper, { StepperSize, type StepperStep } from "@galaxy-io/dls/navigation/Stepper";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
@@ -27,18 +26,6 @@ import {
 } from "@/pages/pipelines/components/create/constants";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
-
-const SidebarWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  flex-shrink: 0;
-
-  width: ${CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH}px;
-
-  background-color: ${t.color.background.primary};
-  border-right: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-`;
 
 const CreatePipelineModalSidebar = () => {
   const {
@@ -89,37 +76,54 @@ const CreatePipelineModalSidebar = () => {
   };
 
   return (
-    <SidebarWrapper>
-      <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
-        <Widget variant={WidgetVariant.SECONDARY}>
-          <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12}>
-            <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} variant={TextVariant.TERTIARY}>
-              Steps
-            </Text>
-            <Stepper
-              steps={steps}
-              value={stepIndex}
-              onChange={isSubmitting ? undefined : handleStepChange}
-              orientation={Orientation.VERTICAL}
-              size={StepperSize.SMALL}
-              ariaLabel="Pipeline setup"
-            />
+    <FlexItem shrink={0}>
+      <Box variant={BoxVariant.PRIMARY} width={CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH} height="100%">
+        <Flex
+          direction={FlexDirection.COLUMN}
+          justifyContent={JustifyContent.SPACE_BETWEEN}
+          height="100%"
+        >
+          <Flex
+            alignItems={AlignItems.STRETCH}
+            direction={FlexDirection.COLUMN}
+            padding={12}
+            fillWidth
+          >
+            <Widget variant={WidgetVariant.SECONDARY}>
+              <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12}>
+                <Text
+                  size={TextSize.BODY_SM}
+                  weight={TextWeight.MEDIUM}
+                  variant={TextVariant.TERTIARY}
+                >
+                  Steps
+                </Text>
+                <Stepper
+                  steps={steps}
+                  value={stepIndex}
+                  onChange={isSubmitting ? undefined : handleStepChange}
+                  orientation={Orientation.VERTICAL}
+                  size={StepperSize.SMALL}
+                  ariaLabel="Pipeline setup"
+                />
+              </Flex>
+            </Widget>
           </Flex>
-        </Widget>
-      </Flex>
-      <Flex
-        alignItems={AlignItems.START}
-        direction={FlexDirection.COLUMN}
-        gap={12}
-        padding={16}
-        fillWidth
-      >
-        <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
-          {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
-        </Text>
-        <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
-      </Flex>
-    </SidebarWrapper>
+          <Flex
+            alignItems={AlignItems.START}
+            direction={FlexDirection.COLUMN}
+            gap={12}
+            padding={16}
+            fillWidth
+          >
+            <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
+              {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
+            </Text>
+            <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
+          </Flex>
+        </Flex>
+      </Box>
+    </FlexItem>
   );
 };
 

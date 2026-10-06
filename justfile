@@ -105,15 +105,6 @@ proto-check:
 ui-dist:
     cd ui && pnpm install && pnpm build
 
-# refresh the design-system references of the filament-ui skill from the DLS checkout (DLS_DIR overrides ~/git/dls)
-ui-skill-sync:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    src="${DLS_DIR:-$HOME/git/dls}/skills/galaxy-ui/references"
-    dst=".agents/skills/filament-ui/references"
-    for f in components.md tokens.md patterns.md recipes.md; do cp "$src/$f" "$dst/$f"; done
-    echo "synced $dst from $src"
-
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-dist (_each "GOWORK=off go build ./...")
 

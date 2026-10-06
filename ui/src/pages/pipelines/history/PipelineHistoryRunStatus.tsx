@@ -2,13 +2,12 @@ import { InfoIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Square from "@galaxy-io/dls/shapes/Square";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Placement } from "@galaxy-io/dls/theme/enums";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
-
-import HueSquare from "@/components/HueSquare";
 
 import {
   PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP,
@@ -43,7 +42,7 @@ const PipelineHistoryRunStatus = ({
 
   return (
     <Flex alignItems={AlignItems.CENTER} gap={8}>
-      <HueSquare hue={display.hue} />
+      <Square {...(display.hue === null ? {} : { color: display.hue })} />
       <Text size={TextSize.BODY_SM} lineClamp={1}>
         {display.label}
       </Text>

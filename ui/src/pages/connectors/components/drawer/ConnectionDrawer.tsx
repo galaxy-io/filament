@@ -97,7 +97,7 @@ const ConnectionDrawer = ({ connectionId, isOpen, onClose }: ConnectionDrawerPro
         <ErrorLayout
           icon={LinkBreakIcon}
           header="Connection not found"
-          message="This connection no longer exists."
+          description="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
         />
       );

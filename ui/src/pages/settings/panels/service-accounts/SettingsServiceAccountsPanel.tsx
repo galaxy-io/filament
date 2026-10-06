@@ -2,13 +2,14 @@ import { useState } from "react";
 
 import { ArrowsClockwiseIcon, CopyIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
-import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
+import Modal from "@galaxy-io/dls/modal/Modal";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
@@ -17,8 +18,6 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
-
-import Dialog, { DialogVariant } from "@/components/Dialog";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 
@@ -176,77 +175,84 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
             : undefined
         }
       >
-        <Flex alignItems={AlignItems.START} grow={1} basis={0} minHeight={0} fillWidth>
-          <Box variant={BoxVariant.BASE} height="100%" fillWidth>
-            <InfiniteTable<ServiceAccount>
-              columns={columns}
-              data={accountsQuery.data?.serviceAccounts ?? []}
-              getRowId={(account) => account.userId}
-              isLoading={accountsQuery.isLoading}
-              error={displayError}
-              rowActions={(row) =>
-                canManage ? (
-                  <>
-                    <MenuItem
-                      label="Copy client ID"
-                      icon={CopyIcon}
-                      onSelect={() => void handleCopyClientId(row)}
-                    />
-                    <MenuItem
-                      label="Rotate secret"
-                      icon={ArrowsClockwiseIcon}
-                      onSelect={() => rotateConfirm.handleOpen(row)}
-                      isDisabled={isActionPending}
-                    />
-                    <MenuSeparator />
-                    <MenuItem
-                      label="Delete"
-                      icon={TrashIcon}
-                      variant={MenuItemVariant.ERROR}
-                      onSelect={() => accountConfirm.handleOpen(row)}
-                      isDisabled={isActionPending}
-                    />
-                  </>
-                ) : null
-              }
-              ariaLabel="Service accounts"
-              emptyState={
-                <EmptyLayout
-                  header="No service accounts yet"
-                  message="Create one to give CLI, CI, and automation access to your organization."
-                />
-              }
-            />
-          </Box>
+        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+          <InfiniteTable<ServiceAccount>
+            columns={columns}
+            data={accountsQuery.data?.serviceAccounts ?? []}
+            getRowId={(account) => account.userId}
+            isLoading={accountsQuery.isLoading}
+            error={displayError}
+            rowActions={(row) =>
+              canManage ? (
+                <>
+                  <MenuItem
+                    label="Copy client ID"
+                    icon={CopyIcon}
+                    onSelect={() => void handleCopyClientId(row)}
+                  />
+                  <MenuItem
+                    label="Rotate secret"
+                    icon={ArrowsClockwiseIcon}
+                    onSelect={() => rotateConfirm.handleOpen(row)}
+                    isDisabled={isActionPending}
+                  />
+                  <MenuSeparator />
+                  <MenuItem
+                    label="Delete"
+                    icon={TrashIcon}
+                    variant={MenuItemVariant.ERROR}
+                    onSelect={() => accountConfirm.handleOpen(row)}
+                    isDisabled={isActionPending}
+                  />
+                </>
+              ) : null
+            }
+            ariaLabel="Service accounts"
+            emptyState={
+              <EmptyLayout
+                header="No service accounts yet"
+                description="Create one to give CLI, CI, and automation access to your organization."
+              />
+            }
+          />
         </Flex>
       </SettingsPanelLayout>
       {isCreateOpen && (
         <SettingsServiceAccountsPanelCreateDialog open onClose={() => setIsCreateOpen(false)} />
       )}
-      <Dialog
-        open={rotateConfirm.isOpen}
-        onClose={rotateConfirm.handleClose}
+      <ConfirmDialog
+        isOpen={rotateConfirm.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) rotateConfirm.handleClose();
+        }}
         onConfirm={rotateConfirm.handleConfirm}
-        title="Rotate client secret"
+        header="Rotate client secret?"
         description={`Generate a new credential for ${rotateConfirm.target?.name ?? "this service account"}`}
-        variant={DialogVariant.WARNING}
-        bodyTitle="Current secret will be revoked"
-        body="Any clients using the existing secret will immediately lose access and must be updated with the new secret."
-        confirmLabel="Rotate secret"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isRotating}
-      />
-      <Dialog
-        open={!!rotatedCredentials}
-        onClose={() => setRotatedCredentials(undefined)}
-        title="Client secret rotated"
-        description="Copy the new credentials now. The client secret is only shown once."
+        label="Rotate secret"
+        isDestructive
+      >
+        <Alert variant={AlertVariant.WARNING} header="Current secret will be revoked">
+          Any clients using the existing secret will immediately lose access and must be updated
+          with the new secret.
+        </Alert>
+      </ConfirmDialog>
+      <Modal
+        header="Client secret rotated"
+        isOpen={!!rotatedCredentials}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setRotatedCredentials(undefined);
+        }}
         footer={<Button label="Done" onClick={() => setRotatedCredentials(undefined)} />}
       >
-        {rotatedCredentials && (
-          <SettingsServiceAccountsPanelCredentials credentials={rotatedCredentials} />
-        )}
-      </Dialog>
+        <Flex direction={FlexDirection.COLUMN} gap={16}>
+          <Text isProse variant={TextVariant.SECONDARY}>
+            Copy the new credentials now. The client secret is only shown once.
+          </Text>
+          {rotatedCredentials && (
+            <SettingsServiceAccountsPanelCredentials credentials={rotatedCredentials} />
+          )}
+        </Flex>
+      </Modal>
       <ConfirmDialog
         isOpen={accountConfirm.isOpen}
         onOpenChange={(isOpen) => {

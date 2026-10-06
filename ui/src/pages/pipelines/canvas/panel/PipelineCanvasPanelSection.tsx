@@ -1,7 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import type { SpaceShorthand } from "@galaxy-io/dls/theme/enums";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -12,7 +11,7 @@ interface PipelineCanvasPanelSectionProps {
   isEmpty: boolean;
   emptyHeader: string;
   emptyMessage: string;
-  padding?: SpaceShorthand;
+  hasInset?: boolean;
   isOpenInitial?: boolean;
   trailing?: ReactNode;
   isOpen?: boolean;
@@ -24,7 +23,7 @@ const PipelineCanvasPanelSection = ({
   isEmpty,
   emptyHeader,
   emptyMessage,
-  padding = 0,
+  hasInset = false,
   isOpenInitial = true,
   trailing,
   isOpen,
@@ -36,7 +35,7 @@ const PipelineCanvasPanelSection = ({
       isCollapsible
       header={header}
       variant={WidgetVariant.SECONDARY}
-      isFlush
+      isFlush={isEmpty || !hasInset}
       defaultIsOpen={isOpenInitial}
       isOpen={isOpen}
       onOpenChange={onToggle}
@@ -45,11 +44,11 @@ const PipelineCanvasPanelSection = ({
       <Flex
         alignItems={AlignItems.STRETCH}
         direction={FlexDirection.COLUMN}
-        padding={isEmpty ? 24 : padding}
+        padding={isEmpty ? 24 : undefined}
         fillWidth
       >
         {isEmpty ? (
-          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} description={emptyMessage} />
         ) : (
           children
         )}

@@ -1,10 +1,9 @@
-import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import type { Space } from "@galaxy-io/dls/theme/enums";
@@ -42,22 +41,6 @@ const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, Space> = {
   [BaseHeaderSize.LARGE]: 16,
 };
 
-const TitleWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const ActionsWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-`;
-
 const BaseHeader = ({
   title,
   icon,
@@ -69,7 +52,14 @@ const BaseHeader = ({
   const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
     <Flex alignItems={alignItems} gap={8} fillWidth>
-      <TitleWrapper>
+      <Flex
+        direction={FlexDirection.COLUMN}
+        gap={2}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+      >
         <Flex
           alignItems={AlignItems.CENTER}
           gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}
@@ -100,8 +90,8 @@ const BaseHeader = ({
             {description}
           </Text>
         )}
-      </TitleWrapper>
-      <ActionsWrapper>
+      </Flex>
+      <Flex alignItems={AlignItems.CENTER} gap={8} shrink={0}>
         {actions}
         {onClose && (
           <Button
@@ -112,7 +102,7 @@ const BaseHeader = ({
             onClick={onClose}
           />
         )}
-      </ActionsWrapper>
+      </Flex>
     </Flex>
   );
 };

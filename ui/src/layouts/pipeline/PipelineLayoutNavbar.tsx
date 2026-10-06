@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import {
   ArrowUUpLeftIcon,
   FloppyDiskIcon,
@@ -13,13 +12,12 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
 import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { Placement } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
@@ -84,22 +82,6 @@ import {
 } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
-
-const PipelineLayoutNavbarWrapper = styled.div`
-  width: 100%;
-  height: ${PIPELINE_NAVBAR_HEIGHT}px;
-
-  padding: 0 12px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  flex-shrink: 0;
-
-  background-color: ${t.color.background.base};
-`;
 
 const PipelineLayoutNavbar = () => {
   const { toast } = useToast();
@@ -301,7 +283,15 @@ const PipelineLayoutNavbar = () => {
   };
 
   return (
-    <PipelineLayoutNavbarWrapper>
+    <Flex
+      alignItems={AlignItems.CENTER}
+      justifyContent={JustifyContent.SPACE_BETWEEN}
+      gap={12}
+      fillWidth
+      height={PIPELINE_NAVBAR_HEIGHT}
+      shrink={0}
+      padding={[0, 12]}
+    >
       <Flex alignItems={AlignItems.CENTER} gap={12} grow={1} minWidth={0}>
         <FlexItem shrink={0}>
           <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
@@ -389,14 +379,8 @@ const PipelineLayoutNavbar = () => {
                   />
                   <Button
                     label={isResuming ? "Resume" : "Pause"}
-                    leading={
-                      <Icon
-                        component={isResuming ? PlayIcon : PauseIcon}
-                        size={12}
-                        weight={IconWeight.FILL}
-                        variant={IconVariant.INHERIT}
-                      />
-                    }
+                    icon={isResuming ? PlayIcon : PauseIcon}
+                    iconWeight={IconWeight.FILL}
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
@@ -405,14 +389,8 @@ const PipelineLayoutNavbar = () => {
                   />
                   <Button
                     label="Stop"
-                    leading={
-                      <Icon
-                        component={StopIcon}
-                        size={12}
-                        weight={IconWeight.FILL}
-                        variant={IconVariant.INHERIT}
-                      />
-                    }
+                    icon={StopIcon}
+                    iconWeight={IconWeight.FILL}
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
@@ -424,7 +402,7 @@ const PipelineLayoutNavbar = () => {
             </>
           ))}
       </Flex>
-    </PipelineLayoutNavbarWrapper>
+    </Flex>
   );
 };
 

@@ -26,8 +26,6 @@ import { useCreatePipelineNotifierMutation } from "@/api/queries/notifiers";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 
-import { NOOP } from "@/constants";
-
 import { getErrorMessage } from "@/utils/errors";
 
 const CreatePipelineModalFooter = () => {
@@ -115,17 +113,14 @@ const CreatePipelineModalFooter = () => {
   };
 
   const renderAction = () => {
-    if (isSubmitting) {
-      return <Button label="Creating..." onClick={NOOP} isLoading isDisabled />;
-    }
-
     if (isLastStep) {
       return (
         <Button
-          label="Create pipeline"
+          label={isSubmitting ? "Creating..." : "Create pipeline"}
           icon={PlusIcon}
+          isLoading={isSubmitting}
+          isDisabled={isSubmitting || isNextDisabled}
           onClick={handleCreate}
-          isDisabled={isNextDisabled}
         />
       );
     }

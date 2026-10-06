@@ -1,11 +1,11 @@
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { notFound, useParams } from "@tanstack/react-router";
 
-import Box from "@galaxy-io/dls/layout/Box";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -19,25 +19,6 @@ import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSet
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-const PageWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  background-color: ${t.color.background.base};
-`;
-
-const ScrollWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-`;
-
 const PipelineSettingsPage = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
@@ -50,28 +31,32 @@ const PipelineSettingsPage = () => {
   }
 
   return (
-    <PageWrapper>
-      <Box padding={16} fillWidth>
-        <BaseHeader size={BaseHeaderSize.LARGE} title="Settings" />
-      </Box>
-      <Divider />
-      <ScrollWrapper>
-        <Flex
-          alignItems={AlignItems.STRETCH}
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding={16}
-          minWidth={400}
-          maxWidth={640}
-        >
-          <PipelineSettingsPageGeneral />
-          <PipelineSettingsPageSchedule />
-          <PipelineSettingsPageNotifications pipeline={data.pipeline} />
-          <PipelineSettingsPageAdvanced />
-          <PipelineSettingsPageDanger />
-        </Flex>
-      </ScrollWrapper>
-    </PageWrapper>
+    <Box variant={BoxVariant.BASE} fillWidth height="100%" overflow="hidden">
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        <Box padding={16} fillWidth>
+          <BaseHeader size={BaseHeaderSize.LARGE} title="Settings" />
+        </Box>
+        <Divider />
+        <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
+          <ScrollArea>
+            <Flex
+              alignItems={AlignItems.STRETCH}
+              direction={FlexDirection.COLUMN}
+              gap={12}
+              padding={16}
+              minWidth={400}
+              maxWidth={640}
+            >
+              <PipelineSettingsPageGeneral />
+              <PipelineSettingsPageSchedule />
+              <PipelineSettingsPageNotifications pipeline={data.pipeline} />
+              <PipelineSettingsPageAdvanced />
+              <PipelineSettingsPageDanger />
+            </Flex>
+          </ScrollArea>
+        </FlexItem>
+      </Flex>
+    </Box>
   );
 };
 

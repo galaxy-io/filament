@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 
-import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -26,17 +25,6 @@ import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
-const TableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
-
-const NameWrapper = styled.div`
-  min-width: 0;
-  overflow: hidden;
-`;
-
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   id: "name",
   header: "Resource",
@@ -44,11 +32,11 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   canSort: true,
   isRowHeader: true,
   cell: ({ row }) => (
-    <NameWrapper>
+    <FlexItem minWidth={0} overflow="hidden">
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
         {row.displayName}
       </Text>
-    </NameWrapper>
+    </FlexItem>
   ),
 };
 
@@ -98,8 +86,8 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
 
   return (
-    <TableWrapper>
-      <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
+    <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
+      <Box variant={BoxVariant.PRIMARY} height="100%">
         <InfiniteTable<CreatePipelineModalResourceRow>
           columns={columns}
           data={rows}
@@ -114,16 +102,13 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
               padding={24}
               fillWidth
             >
-              <EmptyLayout
-                icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-                message="No resources match your search"
-              />
+              <EmptyLayout icon={MagnifyingGlassIcon} header="No resources match your search" />
             </Flex>
           }
           isSelectable
         />
       </Box>
-    </TableWrapper>
+    </FlexItem>
   );
 };
 

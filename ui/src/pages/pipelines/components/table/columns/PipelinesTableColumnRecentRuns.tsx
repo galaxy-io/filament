@@ -48,11 +48,6 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   }
 `;
 
-const PipelinesTableRecentRun = styled.span<{ $isClickable?: boolean }>`
-  display: inline-flex;
-  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
-`;
-
 const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
   const rows = [
     { label: "Duration", value: formatDuration(run.startedAt, run.endedAt) },
@@ -149,29 +144,26 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
                 )
               }
             >
-              <PipelinesTableRecentRun
-                $isClickable
-                onClick={(event) => handleRunClick(event, run.id)}
-              >
+              <Flex onClick={(event) => handleRunClick(event, run.id)}>
                 <PipelineRunStatusSwatch status={run.status} size={SquareSize.MEDIUM} />
-              </PipelinesTableRecentRun>
+              </Flex>
             </Tooltip>
           );
         }
         if (index === scheduledIndex && schedule) {
           return (
             <Tooltip key="scheduled" body={`Scheduled for ${formatTimestamp(schedule.nextFireAt)}`}>
-              <PipelinesTableRecentRun>
+              <Flex>
                 <PipelineRunStatusSwatch status={RunStatus.SCHEDULED} size={SquareSize.MEDIUM} />
-              </PipelinesTableRecentRun>
+              </Flex>
             </Tooltip>
           );
         }
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder slots with no identity
-          <PipelinesTableRecentRun key={`empty-${index}`}>
+          <Flex key={`empty-${index}`}>
             <Square size={SquareSize.MEDIUM} variant={SquareVariant.DISABLED} />
-          </PipelinesTableRecentRun>
+          </Flex>
         );
       })}
     </PipelinesTableRecentRunsWrapper>

@@ -9,6 +9,8 @@ import SelectInput, {
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
@@ -23,7 +25,6 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
-import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import {
@@ -168,100 +169,112 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               }
         }
       />
-      <PipelineCanvasPanelBody>
-        <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-          <ConnectionDrawerKeyValueRow
-            label="Source"
-            value={
-              <PipelineCanvasPanelResourceEndpoint
-                nodeId={edge.source}
-                kind={ConnectorKind.SOURCE}
-              />
-            }
-          />
-          <ConnectionDrawerKeyValueRow
-            label="Resource"
-            value={
-              <Text
-                size={TextSize.BODY_SM}
-                family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
-              >
-                {resourceLabel}
-              </Text>
-            }
-          />
-          <ConnectionDrawerKeyValueRow
-            label="Sink"
-            value={
-              <PipelineCanvasPanelResourceEndpoint nodeId={edge.target} kind={ConnectorKind.SINK} />
-            }
-          />
-        </ConnectionDrawerList>
-        <PipelineCanvasPanelSection
-          header="Configuration"
-          isEmpty={false}
-          emptyHeader="No configuration"
-          emptyMessage="No configuration options are available for this resource."
-          padding={12}
-        >
-          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
-            {hasReadLevers && (
-              <SelectInput
-                label="Read mode"
-                options={readModeSelectOptions}
-                value={String(readMode)}
-                onChange={(id) => {
-                  if (id !== null) handleReadModeChange(Number(id) as ReadMode);
-                }}
-                placeholder="Select a read mode..."
-                isDisabled={isReadOnly || isLoading}
-                variant={SelectInputVariant.TERTIARY}
-                fillWidth
-              />
-            )}
-            <SelectInput
-              label="Write mode"
-              options={writeModeSelectOptions}
-              value={String(writeMode)}
-              onChange={(id) => {
-                if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
-              }}
-              placeholder="Select a write mode..."
-              isDisabled={isReadOnly || isLoading}
-              variant={SelectInputVariant.TERTIARY}
-              fillWidth
-            />
-            {isContinuous && isNamedResource && (
-              <TextInput
-                label="Destination"
-                value={destinationResource}
-                onChange={handleDestinationChange}
-                placeholder={getDefaultDestinationResource(resource)}
-                isDisabled={isReadOnly}
-                variant={InputVariant.TERTIARY}
-                fillWidth
-              />
-            )}
-            {hasReadLevers &&
-              readMode === ReadMode.INCREMENTAL &&
-              coveredResources.map((resourceName) =>
-                managedIncrementalResources.has(resourceName) ? (
-                  <Text key={resourceName} size={TextSize.BODY_SM}>
-                    {resourceName}: incremental state is managed by the source.
-                  </Text>
-                ) : (
-                  <PipelineCanvasPanelResourceCursorField
-                    key={resourceName}
-                    value={cursorsByResource.get(resourceName) ?? ""}
-                    options={cursorOptionsByResource[resourceName] ?? []}
-                    isDisabled={isReadOnly || isLoading}
-                    onChange={(field) => handleCursorChange(resourceName, field)}
+      <FlexItem grow={1} minHeight={0}>
+        <ScrollArea>
+          <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
+            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
+              <ConnectionDrawerKeyValueRow
+                label="Source"
+                value={
+                  <PipelineCanvasPanelResourceEndpoint
+                    nodeId={edge.source}
+                    kind={ConnectorKind.SOURCE}
                   />
-                ),
-              )}
+                }
+              />
+              <ConnectionDrawerKeyValueRow
+                label="Resource"
+                value={
+                  <Text
+                    size={TextSize.BODY_SM}
+                    family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
+                  >
+                    {resourceLabel}
+                  </Text>
+                }
+              />
+              <ConnectionDrawerKeyValueRow
+                label="Sink"
+                value={
+                  <PipelineCanvasPanelResourceEndpoint
+                    nodeId={edge.target}
+                    kind={ConnectorKind.SINK}
+                  />
+                }
+              />
+            </ConnectionDrawerList>
+            <PipelineCanvasPanelSection
+              header="Configuration"
+              isEmpty={false}
+              emptyHeader="No configuration"
+              emptyMessage="No configuration options are available for this resource."
+              hasInset
+            >
+              <Flex
+                alignItems={AlignItems.START}
+                direction={FlexDirection.COLUMN}
+                gap={12}
+                fillWidth
+              >
+                {hasReadLevers && (
+                  <SelectInput
+                    label="Read mode"
+                    options={readModeSelectOptions}
+                    value={String(readMode)}
+                    onChange={(id) => {
+                      if (id !== null) handleReadModeChange(Number(id) as ReadMode);
+                    }}
+                    placeholder="Select a read mode..."
+                    isDisabled={isReadOnly || isLoading}
+                    variant={SelectInputVariant.TERTIARY}
+                    fillWidth
+                  />
+                )}
+                <SelectInput
+                  label="Write mode"
+                  options={writeModeSelectOptions}
+                  value={String(writeMode)}
+                  onChange={(id) => {
+                    if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
+                  }}
+                  placeholder="Select a write mode..."
+                  isDisabled={isReadOnly || isLoading}
+                  variant={SelectInputVariant.TERTIARY}
+                  fillWidth
+                />
+                {isContinuous && isNamedResource && (
+                  <TextInput
+                    label="Destination"
+                    value={destinationResource}
+                    onChange={handleDestinationChange}
+                    placeholder={getDefaultDestinationResource(resource)}
+                    isDisabled={isReadOnly}
+                    variant={InputVariant.TERTIARY}
+                    fillWidth
+                  />
+                )}
+                {hasReadLevers &&
+                  readMode === ReadMode.INCREMENTAL &&
+                  coveredResources.map((resourceName) =>
+                    managedIncrementalResources.has(resourceName) ? (
+                      <Text key={resourceName} size={TextSize.BODY_SM}>
+                        {resourceName}: incremental state is managed by the source.
+                      </Text>
+                    ) : (
+                      <PipelineCanvasPanelResourceCursorField
+                        key={resourceName}
+                        value={cursorsByResource.get(resourceName) ?? ""}
+                        options={cursorOptionsByResource[resourceName] ?? []}
+                        isDisabled={isReadOnly || isLoading}
+                        onChange={(field) => handleCursorChange(resourceName, field)}
+                      />
+                    ),
+                  )}
+              </Flex>
+            </PipelineCanvasPanelSection>
           </Flex>
-        </PipelineCanvasPanelSection>
-      </PipelineCanvasPanelBody>
+        </ScrollArea>
+      </FlexItem>
     </>
   );
 };

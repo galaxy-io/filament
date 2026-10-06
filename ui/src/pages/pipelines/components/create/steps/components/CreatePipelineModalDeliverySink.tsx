@@ -1,8 +1,7 @@
-import { styled } from "@linaria/react";
-
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text from "@galaxy-io/dls/text/Text";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
@@ -14,11 +13,6 @@ import {
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
-
-const SinkNameWrapper = styled.div`
-  min-width: 0;
-  overflow: hidden;
-`;
 
 const CreatePipelineModalDeliverySink = ({
   sink,
@@ -47,9 +41,9 @@ const CreatePipelineModalDeliverySink = ({
     >
       <Flex alignItems={AlignItems.CENTER} gap={8}>
         <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
-        <SinkNameWrapper>
+        <FlexItem minWidth={0} overflow="hidden">
           <Text lineClamp={1}>{sink.connection.name}</Text>
-        </SinkNameWrapper>
+        </FlexItem>
       </Flex>
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} grow={0} shrink={0}>
         <Box width={CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH}>

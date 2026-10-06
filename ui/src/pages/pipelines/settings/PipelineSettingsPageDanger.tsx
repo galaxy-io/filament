@@ -3,7 +3,9 @@ import { TrashIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -13,10 +15,8 @@ import {
   type Pipeline,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
-import Dialog, { DialogVariant } from "@/components/Dialog";
-
 import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { formatPipelineName, isPipelineNameMatch } from "@/pages/pipelines/utils";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -33,7 +33,7 @@ const PipelineSettingsPageDanger = () => {
   const pipeline = data.pipeline;
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
 
-  const { mutate: deletePipeline, isPending: isDeleting } = useDeletePipelineMutation();
+  const { mutate: deletePipeline } = useDeletePipelineMutation();
 
   const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Pipeline>({
     entityLabel: "Pipeline",
@@ -70,24 +70,25 @@ const PipelineSettingsPageDanger = () => {
           />
         </Flex>
       </Widget>
-      <Dialog
-        open={isOpen}
-        onClose={handleClose}
+      <ConfirmDialog
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
         onConfirm={handleConfirm}
-        title="Delete pipeline"
+        header="Delete pipeline?"
         description="This is a destructive action and cannot be undone."
-        variant={hasCdcSource ? DialogVariant.WARNING : undefined}
-        bodyTitle={hasCdcSource ? "Replication resources are not removed" : undefined}
-        body={
-          hasCdcSource
-            ? `This pipeline streams changes from ${cdcConnectionNames} with CDC. Deleting it does not remove replication resources on the source database. Drop the replication slot after deleting or WAL will accumulate.`
-            : "Are you sure you want to delete this pipeline?"
-        }
-        confirmationPhrase={target ? formatPipelineName(target) : undefined}
-        confirmLabel="Delete pipeline"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isDeleting}
-      />
+        confirmValue={target ? formatPipelineName(target) : undefined}
+        isMatch={isPipelineNameMatch}
+        label="Delete pipeline"
+        isDestructive
+      >
+        {hasCdcSource && (
+          <Alert variant={AlertVariant.WARNING} header="Replication resources are not removed">
+            {`This pipeline streams changes from ${cdcConnectionNames} with CDC. Deleting it does not remove replication resources on the source database. Drop the replication slot after deleting or WAL will accumulate.`}
+          </Alert>
+        )}
+      </ConfirmDialog>
     </>
   );
 };

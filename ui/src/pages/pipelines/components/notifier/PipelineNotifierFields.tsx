@@ -1,10 +1,11 @@
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import Field from "@galaxy-io/dls/inputs/Field";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text from "@galaxy-io/dls/text/Text";
 
 import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 
@@ -151,10 +152,7 @@ const PipelineNotifierFields = ({
             isDisabled={isDisabled}
             fillWidth
           />
-          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              Headers
-            </Text>
+          <Field label="Headers" error={headersError} fillWidth>
             <CodeEditor
               value={state.headers}
               onChange={handleHeadersChange}
@@ -163,12 +161,7 @@ const PipelineNotifierFields = ({
               isReadOnly={isDisabled}
               hasLineNumbers={false}
             />
-            {headersError && (
-              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-                {headersError}
-              </Text>
-            )}
-          </Flex>
+          </Field>
         </>
       )}
     </Flex>

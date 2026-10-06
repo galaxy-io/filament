@@ -14,6 +14,7 @@ interface ConnectionDrawerSectionProps {
   emptyHeader: string;
   emptyMessage: string;
   isOpenInitial?: boolean;
+  isFlush?: boolean;
 }
 
 const ConnectionDrawerSection = ({
@@ -23,6 +24,7 @@ const ConnectionDrawerSection = ({
   emptyHeader,
   emptyMessage,
   isOpenInitial = false,
+  isFlush = false,
   children,
 }: PropsWithChildren<ConnectionDrawerSectionProps>) => {
   return (
@@ -40,11 +42,11 @@ const ConnectionDrawerSection = ({
         />
       }
       defaultIsOpen={isOpenInitial}
-      isFlush={count > 0}
+      isFlush={count > 0 && isFlush}
     >
       {count === 0 ? (
         <Box padding={12}>
-          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} description={emptyMessage} />
         </Box>
       ) : (
         children

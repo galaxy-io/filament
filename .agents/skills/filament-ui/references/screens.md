@@ -10,7 +10,7 @@ The shells Filament already has, and how a new screen fits into one. Reuse these
 | A settings surface for one entity | `BaseHeader` + `Divider` + a scrolling column of `Widget` sections, each with its own Save | `pages/pipelines/PipelineSettingsPage.tsx` |
 | Details of an item while the list stays visible | DLS `Drawer` opened by a search param | `pages/connectors/components/drawer/ConnectionDrawer.tsx` |
 | A task the user must finish or abandon | DLS `Modal` opened by a `Flow` param, a `ConnectionFormWrapper`-style shell | `pages/connectors/components/edit/EditConnectionModal.tsx`, `CreatePipelineModal.tsx` |
-| A yes/no before an action | `useConfirm` + DLS `ConfirmDialog` (rows) or `components/Dialog` (page-level danger zone) | `ConnectionDrawer.tsx`, `pages/pipelines/settings/PipelineSettingsPageDanger.tsx` |
+| A yes/no before an action | `useConfirm` + DLS `ConfirmDialog` (rows, drawers and the page-level danger zone) | `ConnectionDrawer.tsx`, `pages/pipelines/settings/PipelineSettingsPageDanger.tsx` |
 | App-wide settings | the `SettingsPage` modal with a `SidebarNav` of panels | `pages/settings/SettingsPage.tsx` |
 
 ## The frame
@@ -93,7 +93,7 @@ A page inside `PipelineLayout` is a column. `PageWrapper` (full size, `overflow:
 - **A section is a collapsible `Widget`** (`isCollapsible header="General" defaultIsOpen`). Related fields share one widget, a standalone toggle gets its own. `gap={12}` between widgets.
 - **Every section has local state applied by one Save.** Toggles included. No immediate-action RPCs on a settings page. The Save / Cancel row is right-aligned, Cancel `SECONDARY` disabled unless dirty, Save `PRIMARY` with `isDisabled={!canSave}` and `isLoading={isSaving}`. Dirty and valid are derived at render. See [forms.md](./forms.md).
 - **No add-step friction.** Fields are always visible. No "Add X" empty state for cheap config and no remove button for config that is trivially re-created.
-- **Danger zone** is a plain `Widget` with a space-between row, a medium-weight title over a `BODY_SM` `SECONDARY` description, and a `ButtonVariant.ERROR` button with `TrashIcon`. It confirms through `useConfirm` and `components/Dialog` with `confirmationPhrase` set to the entity's name.
+- **Danger zone** is a plain `Widget` with a space-between row, a medium-weight title over a `BODY_SM` `SECONDARY` description, and a `ButtonVariant.ERROR` button with `TrashIcon` (not `Widget header actions` with no body: a header-only Widget still draws its divider above the bottom border). It confirms through `useConfirm` and DLS `ConfirmDialog` with `confirmValue` set to the entity's name, `isMatch={isPipelineNameMatch}` so a typed `->` matches the shown `→`, and a WARNING `Alert` as `children` for a caveat.
 - `BaseHeader` (`layouts/components/BaseHeader.tsx`) is the house title row for pages, panels and dropdowns. `title`, optional `icon`, `description`, `actions` and `onClose`. Sizes `SMALL` (dropdown panels), `MEDIUM`, `LARGE` (page headers). `BaseToolbar` is the matching row of `leadingActions` and `trailingActions`.
 
 ## Drawer
@@ -120,7 +120,7 @@ A page inside `PipelineLayout` is a column. `PageWrapper` (full size, `overflow:
 - Opened by `?connectionId=`, owned by `AppLayout`, id held with `useRetainedWhileClosed`. The drawer takes `connectionId`, `isOpen`, `onClose` as props and reads no search params. See [routing.md](./routing.md).
 - `renderContent()` checks `isError` (an `ErrorLayout` with a Close button), then `!entity` (`PendingLayout`), then the content.
 - Actions on the thing the drawer shows go in `actions` as a ⋯ `Menu`, Delete last and red. A read-only drawer has no footer.
-- Body building blocks, reused by the canvas panel too. `ConnectionDrawerList` (a bordered list with hairline separators between `ConnectionDrawerKeyValueRow`s, label medium on the left and a node on the right), `ConnectionDrawerSection` (a collapsible `Widget` with a count chip in `actions`, `isFlush` when it has items, `EmptyLayout size={LayoutSize.SMALL}` when it does not), `ConnectionDrawerJsonSection` (a section around `CodeBlock language=JSON canCopy`).
+- Body building blocks, reused by the canvas panel too. `ConnectionDrawerList` (a bordered list with hairline separators between `ConnectionDrawerKeyValueRow`s, label medium on the left and a node on the right; Mitch chose this look over DLS `DescriptionList isValueTrailing` on 2026-10-06, so keep it), `ConnectionDrawerSection` (a collapsible `Widget` with a count chip in `actions`, `isFlush` when it has items, `EmptyLayout size={LayoutSize.SMALL}` when it does not), `ConnectionDrawerJsonSection` (a section around `CodeBlock language=JSON canCopy`).
 - A related-entities list inside a drawer is a stack of compact `PipelineCard` rows (40px, hairline bottom border, hover background), not a table.
 
 ## Modal
@@ -156,7 +156,7 @@ const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Co
 
 - `useConfirm` (`src/hooks/useConfirm.ts`) holds the target, runs the mutation, toasts success ("Connection deleted") and failure ("Delete failed"), closes, then calls `onConfirmed`. Override copy through `messages`.
 - Rows and drawer items use DLS `ConfirmDialog` with `isDestructive`, a question header, a consequence description, a verb label and `confirmValue` for type-to-confirm.
-- A page-level danger zone uses `components/Dialog` with `confirmationPhrase`, `confirmVariant={ButtonVariant.ERROR}`, `isPending` from the mutation, and optionally `variant={DialogVariant.WARNING}` with `bodyTitle` for a caveat. `Dialog` is also the generic info dialog ("Service account created" with credentials and a Done footer).
+- `ConfirmDialog` consumes the promise `useConfirm.handleConfirm` returns: it shows the spinner, locks dismissal and closes on resolve, so no `isPending` plumbing. A caveat is an `Alert` passed as `children`. Create forms and info dialogs ("Service account created" with credentials and a Done footer) are a plain `Modal` with `header`, `footer`, `isDismissable={!isPending}` and a secondary `Text` as the first body line.
 - `ConfirmDialog` is gated on the host's `isOpen` too (`isOpen && confirmIsOpen`) so it closes with its drawer.
 
 ## State layouts
@@ -166,16 +166,16 @@ Three components in `src/layouts/` share one `LayoutSize` scale (`SMALL` / `MEDI
 | | Props | Use |
 |---|---|---|
 | `PendingLayout` | `size`, `message` | Whole-view loading. The router's pending component, a drawer or modal body before its entity arrives, a form body before its schema arrives. The animated Galaxy logomark. |
-| `EmptyLayout` | `size`, `icon: ReactNode`, `header`, `message`, `actions` | Nothing to show. `icon` is a node because empty states sometimes use an illustration (`EmptyGraphic`). |
-| `ErrorLayout` | `size`, `icon: PhosphorIcon`, `header`, `message`, `error`, `actions` | Something failed, including not found. Renders the icon itself at `IconVariant.ERROR` and shows `error.message` in mono in dev. Always red. |
+| `EmptyLayout` | `size`, `icon: PhosphorIcon` or `graphic: ReactNode`, `header`, `description`, `actions` | Nothing to show. A centred DLS `EmptyState`; `graphic` carries an illustration (`EmptyGraphic`) with no tile. `header` is required, so a message-only state promotes its line to `header`. |
+| `ErrorLayout` | `size`, `icon: PhosphorIcon`, `header`, `description`, `error`, `actions` | Something failed, including not found. DLS `EmptyState variant={ERROR}` (red tile and icon) with `error.message` in mono under it in dev. Always red. |
 
 - Whole-view loading is `PendingLayout`. Content-shaped loading is a DLS `Skeleton` sized to the value (`<Box width={160}><Skeleton /></Box>`), for table cells, repeated rows, KPI numbers and inline names. Do not hand-roll shimmer scaffolds for a drawer.
 - An error branch gets `ErrorLayout`, never an `EmptyLayout` with a red icon. When a component picks between the two from an `error` prop, split it into a tiny `*State` component that chooses.
-- Sections inside panels use `EmptyLayout size={LayoutSize.SMALL}` with a header and message. Table `emptyState`s use `EmptyLayout` with an icon and message, or a tertiary `Text` centred at a fixed height for dense dashboard tables.
+- Sections inside panels use `EmptyLayout size={LayoutSize.SMALL}` with a header and description. Table `emptyState`s use `EmptyLayout` with an icon and header, or the DLS `EmptyState header role="status"` directly for dense dashboard tables.
 
 ## Status marks
 
-- **Every run status is a square.** `PipelineRunStatusSwatch` (`pages/pipelines/history/PipelineRunStatusSwatch.tsx`) draws a DLS `Square` from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]` through `HueSquare` (`components/HueSquare.tsx`). `PipelineHistoryRunStatus` is that square plus a `BODY_SM` label and an info tooltip with the reason in mono. Charts showing run statuses pass `swatch={ChartSwatch.SQUARE}` so legends match.
+- **Every run status is a square.** `PipelineRunStatusSwatch` (`pages/pipelines/history/PipelineRunStatusSwatch.tsx`) draws a DLS `Square` straight from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]` (a DLS `RoleColor | null`; `null` leaves the default tertiary fill, otherwise it is the `color` prop). The same map feeds chart series `color`. `PipelineHistoryRunStatus` is that square plus a `BODY_SM` label and an info tooltip with the reason in mono. Charts showing run statuses pass `swatch={ChartSwatch.SQUARE}` so legends match.
 - **One map owns every status color.** `PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, Hue | null>` in `pages/pipelines/history/constants.ts`. `Hue` is a DLS status color or palette family, `null` is neutral. `hueToSquareMark` and `hueToChartPalette` in `src/utils/hue.ts` translate it, and `PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP` is derived with `mapRecordValues`. Add a status there and nowhere else.
 - **`Beacon` is not for run status.** It remains for non-run live state, the connection form's "Connected". The DLS pattern page's "Beacon for the live state of a row" is overridden here.
 - **`Chip` is for small meta badges**, a kind, a version, "Deleted", "Unsaved changes", "Next run in 5m". Status through `variant`, category through `color`. Pass `tooltip` on the Chip. Never wrap a Chip in `Tooltip`, which injects an `onClick` and turns the chip into a button.

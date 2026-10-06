@@ -1,7 +1,6 @@
-import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
 
-import { type Hue, hueToChartPalette } from "@/utils/hue";
-import { mapRecordValues } from "@/utils/record";
+import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS = 120;
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION = 120;
@@ -21,7 +20,7 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.SCHEDULED]: "Scheduled",
 };
 
-export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, Hue | null> = {
+export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, RoleColor | null> = {
   [RunStatus.UNSPECIFIED]: null,
   [RunStatus.REQUESTED]: "orange",
   [RunStatus.RUNNING]: "blue",
@@ -32,11 +31,6 @@ export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, Hue | null> = {
   [RunStatus.PARTIAL]: "pink",
   [RunStatus.SCHEDULED]: "yellow",
 };
-
-export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP = mapRecordValues(
-  PIPELINE_RUN_STATUS_TO_HUE_MAP,
-  hueToChartPalette,
-);
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
   ExecutionObservedState,
@@ -55,7 +49,7 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP: Record<
   ExecutionObservedState,
-  Hue | null
+  RoleColor | null
 > = {
   [ExecutionObservedState.UNSPECIFIED]: null,
   [ExecutionObservedState.STARTING]: "orange",

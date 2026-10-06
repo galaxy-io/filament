@@ -86,6 +86,7 @@ const PipelinesPage = () => {
 
   return (
     <MainLayoutListPage
+      isScrollable={false}
       actions={[
         <Button
           key="new-pipeline"

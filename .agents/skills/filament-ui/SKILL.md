@@ -11,7 +11,7 @@ Two layers of references live in this folder.
 
 | Layer | Files | Source of truth |
 |---|---|---|
-| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md` | generated from `~/git/dls/docs`, refreshed with `just ui-skill-sync` |
+| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md` | generated from `~/git/dls/docs`, copied here after a DLS release |
 | The app | `architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md` | Filament's `ui/src`, maintained here |
 
 When the two disagree, the app layer wins for Filament. The known case is run status marks, which are squares here and not `Beacon`s.
@@ -119,15 +119,16 @@ Shared enums (`Placement`, `Orientation`, `Side`, `Radius`, `FontFamily`, `Galax
 | Top-level list of entities | `MainLayoutListPage` + `InfiniteTable` or a `Grid` of cards |
 | Detail of an entity beside its list | `Drawer` opened by a search param through `AppLayout` |
 | Blocking task | `Modal` opened by a `Flow` param · multi-step: a provider folder + `Stepper` sidebar |
-| Yes/no before an action | `useConfirm` + `ConfirmDialog` (rows) or `components/Dialog` with `confirmationPhrase` (danger zone) |
+| Yes/no before an action | `useConfirm` + DLS `ConfirmDialog` (`confirmValue` + `isMatch` for a danger zone, an `Alert` as `children` for a caveat) · create and info dialogs: plain `Modal` |
 | Hint on hover | `Tooltip` · interactive anchored panel: `Popover` · panel with Apply: `Dropdown` · commands: `Menu` |
 | One of 2–5 visible options | `ToggleInput` · one of many: `SelectInput` · several: `MultiSelectInput` (pinned "All" via `utils/select`) |
 | On/off applied now | `SwitchInput` · confirmed on Save: `CheckboxInput` |
 | Lasting problem on screen | `Alert` · result of an action: `useToast()` · status value: `Chip` · run status: `PipelineRunStatusSwatch` |
 | Loading | whole view `PendingLayout` · known shape `Skeleton` in a sized `Box` · chart/table `isLoading` |
-| Nothing to show | `EmptyLayout` (feature `*EmptyGraphic` for a first-run page) · filtered: `EmptyLayout` with `MagnifyingGlassIcon` |
-| Read-only table | `InfiniteTable` · one record: `DescriptionList` or `ConnectionDrawerList` rows · JSON payload: `CodeBlock` |
-| Trend over time | `LineChart` · counts per bucket: `BarChart` · KPI: `MetricCard` / `StatChart` · linked charts: `ChartGroupProvider` |
+| Nothing to show | `EmptyLayout` (a centred DLS `EmptyState`; `graphic` for a feature `*EmptyGraphic` on a first-run page) · filtered: `EmptyLayout icon={MagnifyingGlassIcon}` |
+| Read-only table | `InfiniteTable` · one record: `ConnectionDrawerList` + `ConnectionDrawerKeyValueRow` rows (Mitch prefers these over DLS `DescriptionList`) · JSON payload: `CodeBlock` |
+| Trend over time | `LineChart` · counts per bucket: `BarChart` · KPI: `StatChart` (`trailing`, `isLoading`) · linked charts: `ChartGroupProvider` |
+| A scrolling region | `FlexItem grow={1} minHeight={0}` › `ScrollArea` › `Box padding`; never `overflow: auto` (the DLS reset hides native scrollbars) · a bounded table never scrolls the page: `Flex direction={COLUMN} grow={1} basis={0} minHeight={0}` |
 | Format a value | `utils/format` (`formatCount`, `formatTimeAgo`, `formatDuration`, `formatBytes`) · entity names: the feature's `formatX` |
 
 The full catalogue with every module and its props is [components.md](./references/components.md).

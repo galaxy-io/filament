@@ -2,8 +2,10 @@ import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -44,21 +46,6 @@ const CardsWrapper = styled.div`
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
-const GhostCard = styled.div`
-  height: ${SINKS_EMPTY_CARD_HEIGHT}px;
-  min-width: 0;
-
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-
-  background-color: ${t.color.background.primary};
-
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-  border-radius: ${t.radius.lg};
-`;
-
 const LiveCard = styled.div`
   height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
@@ -69,23 +56,6 @@ const LiveCard = styled.div`
 
   border: 1px dashed ${t.color.border.secondary};
   border-radius: ${t.radius.lg};
-`;
-
-const GhostCardRow = styled.div`
-  min-width: 0;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const GhostChip = styled.div`
-  width: 32px;
-  height: 12px;
-
-  background-color: ${t.color.background.secondary};
-
-  border-radius: ${t.radius.sm};
 `;
 
 const ConnectionsPageSinksEmptyGraphic = () => {
@@ -104,21 +74,31 @@ const ConnectionsPageSinksEmptyGraphic = () => {
           const spec = sinkSpecs.length ? sinkSpecs[index % sinkSpecs.length] : undefined;
 
           return (
-            <GhostCard key={card.nameWidth}>
-              <GhostCardRow>
-                {spec ? (
-                  <EmptyGraphicGhostTile>
-                    <ConnectorTile connector={spec.name} kind={spec.kind} />
-                  </EmptyGraphicGhostTile>
-                ) : (
-                  <EmptyGraphicGhostTileFallback />
-                )}
-                <EmptyGraphicGhostBar $width={card.nameWidth} />
-                <FlexItem grow={1} />
-                <GhostChip />
-              </GhostCardRow>
-              <EmptyGraphicGhostBar $width={card.metaWidth} />
-            </GhostCard>
+            <Box
+              key={card.nameWidth}
+              height={SINKS_EMPTY_CARD_HEIGHT}
+              minWidth={0}
+              variant={BoxVariant.PRIMARY}
+              hasBorder
+              radius={Radius.LG}
+              padding={12}
+            >
+              <Flex direction={FlexDirection.COLUMN} gap={12}>
+                <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+                  {spec ? (
+                    <EmptyGraphicGhostTile>
+                      <ConnectorTile connector={spec.name} kind={spec.kind} />
+                    </EmptyGraphicGhostTile>
+                  ) : (
+                    <EmptyGraphicGhostTileFallback />
+                  )}
+                  <EmptyGraphicGhostBar $width={card.nameWidth} />
+                  <FlexItem grow={1} />
+                  <Box width={32} height={12} variant={BoxVariant.SECONDARY} radius={Radius.SM} />
+                </Flex>
+                <EmptyGraphicGhostBar $width={card.metaWidth} />
+              </Flex>
+            </Box>
           );
         })}
       </CardsWrapper>

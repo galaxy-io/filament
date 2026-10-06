@@ -1,9 +1,8 @@
-import { styled } from "@linaria/react";
-
 import SelectInput, {
   SelectInputVariant,
   type SelectOption,
 } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
@@ -14,11 +13,6 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
-
-const CellWrapper = styled.div`
-  width: 100%;
-  min-width: 0;
-`;
 
 interface CreatePipelineModalResourcesCursorCellProps {
   row: CreatePipelineModalResourceRow;
@@ -60,7 +54,7 @@ const CreatePipelineModalResourcesCursorCell = ({
   };
 
   return (
-    <CellWrapper>
+    <Box fillWidth minWidth={0}>
       <SelectInput
         options={options}
         value={row.cursorField || null}
@@ -69,7 +63,7 @@ const CreatePipelineModalResourcesCursorCell = ({
         variant={SelectInputVariant.TERTIARY}
         fillWidth
       />
-    </CellWrapper>
+    </Box>
   );
 };
 

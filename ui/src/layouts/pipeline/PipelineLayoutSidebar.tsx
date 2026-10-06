@@ -13,19 +13,6 @@ import {
 } from "@/layouts/pipeline/constants";
 import type { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
-const SidebarWrapper = styled.div`
-  width: ${PIPELINE_SIDEBAR_WIDTH}px;
-  flex: 1;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  padding: 12px 0;
-
-  background-color: ${t.color.background.base};
-`;
-
 const SidebarButton = styled.button<{ $isActive?: boolean }>`
   width: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
   height: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
@@ -59,7 +46,14 @@ interface PipelineLayoutSidebarProps {
 
 const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSidebarProps) => {
   return (
-    <SidebarWrapper>
+    <Flex
+      direction={FlexDirection.COLUMN}
+      alignItems={AlignItems.CENTER}
+      width={PIPELINE_SIDEBAR_WIDTH}
+      grow={1}
+      basis={0}
+      padding={[12, 0]}
+    >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12}>
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
           const isActive = activeItem === item;
@@ -82,7 +76,7 @@ const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSideba
           );
         })}
       </Flex>
-    </SidebarWrapper>
+    </Flex>
   );
 };
 

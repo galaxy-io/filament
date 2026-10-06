@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 
-import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
@@ -26,13 +25,6 @@ import PipelineResourceCreateForm, {
 } from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
 
 import { isSearchMatch } from "@/utils/search";
-
-const ResourcesWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-`;
 
 interface CreatePipelineModalResourcesState {
   search: string;
@@ -85,7 +77,7 @@ const CreatePipelineModalResources = () => {
       <Flex alignItems={AlignItems.START} padding={24} fillWidth height="100%">
         <ErrorLayout
           header="Could not list resources"
-          message="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
+          description="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
           error={discoverError}
         />
       </Flex>
@@ -93,7 +85,7 @@ const CreatePipelineModalResources = () => {
   }
 
   return (
-    <ResourcesWrapper>
+    <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0}>
       {sinks.length > 1 && <CreatePipelineModalResourcesTabs />}
       <Flex gap={8} padding={8} alignItems={AlignItems.CENTER} fillWidth>
         <TextInput
@@ -129,7 +121,7 @@ const CreatePipelineModalResources = () => {
         </>
       )}
       <CreatePipelineModalResourcesTable rows={filteredRows} />
-    </ResourcesWrapper>
+    </Flex>
   );
 };
 

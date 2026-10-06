@@ -1,16 +1,15 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
-import Box from "@galaxy-io/dls/layout/Box";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
@@ -34,24 +33,6 @@ import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
-
-const PageWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  background-color: ${t.color.background.base};
-`;
-
-const RunTableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
 
 const createRunTableColumns = (
   versionById: ReadonlyMap<string, bigint>,
@@ -171,21 +152,24 @@ const PipelineHistoryPage = () => {
   };
 
   return (
-    <PageWrapper>
-      <Box padding={16} fillWidth>
-        <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
-      </Box>
+    <Box variant={BoxVariant.BASE} fillWidth height="100%" overflow="hidden">
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        <Box padding={16} fillWidth>
+          <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
+        </Box>
 
-      <Divider />
+        <Divider />
 
-      <RunTableWrapper>
-        <Box height="100%">
+        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
           <InfiniteTable<RunInfo>
             columns={columns}
             data={runs}
             getRowId={(run) => run.id}
             emptyState={
-              <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
+              <EmptyLayout
+                header="No runs yet"
+                description="Run a pipeline to see its history here."
+              />
             }
             expandedIds={runIds}
             onExpandedIdsChange={handleExpandedChange}
@@ -197,9 +181,9 @@ const PipelineHistoryPage = () => {
               if (hasNextPage) fetchNextPage();
             }}
           />
-        </Box>
-      </RunTableWrapper>
-    </PageWrapper>
+        </Flex>
+      </Flex>
+    </Box>
   );
 };
 

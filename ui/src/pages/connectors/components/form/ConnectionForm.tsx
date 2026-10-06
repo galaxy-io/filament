@@ -22,7 +22,6 @@ import {
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import {
   getConnectionScopedFields,
   getFieldDefaults,
@@ -54,8 +53,6 @@ import {
   useListConnectorsQuery,
   useValidateConfigMutation,
 } from "@/api/queries/connectors";
-
-import { NOOP } from "@/constants";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -100,7 +97,6 @@ const ConnectionForm = ({
   }));
 
   const submitLabel = connectionId ? "Save" : "Create";
-  const submittingLabel = connectionId ? "Saving..." : "Creating...";
 
   const { mutate: validateConfig } = useValidateConfigMutation();
 
@@ -112,9 +108,6 @@ const ConnectionForm = ({
   const isDisabled =
     state.phase === ConnectionFormPhase.VALIDATING ||
     state.phase === ConnectionFormPhase.SUBMITTING;
-
-  const isValidating = state.phase === ConnectionFormPhase.VALIDATING;
-  const isSubmitting = state.phase === ConnectionFormPhase.SUBMITTING;
 
   const nameError = useMemo(
     () => getNameError(state.name, state.shouldShowErrors),
@@ -251,17 +244,16 @@ const ConnectionForm = ({
           autoFocus
         />
         {onConnectorChange && versionOptions.length > 0 && (
-          <FieldWrapper label="API version">
-            <SelectInput
-              options={versionOptions}
-              value={connector?.name ?? null}
-              onChange={(id) => {
-                if (id) onConnectorChange(id);
-              }}
-              isDisabled={isDisabled || versionOptions.length === 1}
-              fillWidth
-            />
-          </FieldWrapper>
+          <SelectInput
+            label="API version"
+            options={versionOptions}
+            value={connector?.name ?? null}
+            onChange={(id) => {
+              if (id) onConnectorChange(id);
+            }}
+            isDisabled={isDisabled || versionOptions.length === 1}
+            fillWidth
+          />
         )}
         {fields
           .filter((field) => isFieldVisible(field, fieldValues))
@@ -291,18 +283,14 @@ const ConnectionForm = ({
           isIconTrailing
         />
       ))
-      .with(ConnectionFormPhase.VALIDATING, () => (
-        <Button label="Testing..." onClick={NOOP} isLoading={isValidating} isDisabled />
-      ))
+      .with(ConnectionFormPhase.VALIDATING, () => <Button label="Validate" isLoading />)
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
           <Beacon variant={BeaconVariant.SUCCESS} label="Connected" />
           <Button label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
         </Flex>
       ))
-      .with(ConnectionFormPhase.SUBMITTING, () => (
-        <Button label={submittingLabel} onClick={NOOP} isLoading={isSubmitting} isDisabled />
-      ))
+      .with(ConnectionFormPhase.SUBMITTING, () => <Button label={submitLabel} isLoading />)
       .exhaustive();
   };
 
@@ -311,7 +299,7 @@ const ConnectionForm = ({
       <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Connector not found" onClose={onClose}>
         <ErrorLayout
           header="Connector not found"
-          message={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
+          description={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
           actions={
             <Button
               label={onBack ? "Choose a connector" : "Close"}

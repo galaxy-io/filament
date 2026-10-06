@@ -1,13 +1,13 @@
 import { useCallback, useEffect } from "react";
 
-import { styled } from "@linaria/react";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
 import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 
 import { Flow } from "@/layouts/app/types";
 
@@ -23,35 +23,6 @@ import { useListMembersQuery } from "@/api/queries/auth";
 import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
 
 import type { AppSession } from "@/auth/types";
-
-const FrameWrapper = styled.div`
-  display: flex;
-  height: 100%;
-  min-height: 0;
-
-  background-color: ${t.color.background.primary};
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-  border-radius: ${t.radius.lg};
-  overflow: hidden;
-`;
-
-const SidebarWrapper = styled.div`
-  display: flex;
-  flex-shrink: 0;
-
-  background-color: ${t.color.background.primary};
-  border-right: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-`;
-
-const ContentWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  background-color: ${t.color.background.base};
-`;
 
 interface SettingsPageContentProps {
   session: AppSession;
@@ -109,17 +80,32 @@ const SettingsPageContent = ({
       .exhaustive();
 
   return (
-    <FrameWrapper>
-      <SidebarWrapper>
-        <SettingsPageSidebar
-          session={session}
-          activePanel={activePanel}
-          canManageTeam={canManageTeam}
-          onPanelChange={handlePanelChange}
-        />
-      </SidebarWrapper>
-      <ContentWrapper>{renderPanel()}</ContentWrapper>
-    </FrameWrapper>
+    <Flex
+      height="100%"
+      minHeight={0}
+      variant={FlexVariant.PRIMARY}
+      hasBorder
+      radius={Radius.LG}
+      overflow="hidden"
+    >
+      <SettingsPageSidebar
+        session={session}
+        activePanel={activePanel}
+        canManageTeam={canManageTeam}
+        onPanelChange={handlePanelChange}
+      />
+      <Divider orientation={Orientation.VERTICAL} />
+      <Flex
+        direction={FlexDirection.COLUMN}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+        variant={FlexVariant.BASE}
+      >
+        {renderPanel()}
+      </Flex>
+    </Flex>
   );
 };
 

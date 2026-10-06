@@ -70,7 +70,7 @@ export const OBSERVABILITY_SETUP_STATUS_TO_TITLE_VARIANT_MAP: Record<
 > = {
   [ObservabilitySetupStepStatus.COMPLETED]: TextVariant.SECONDARY,
   [ObservabilitySetupStepStatus.ACTIVE]: TextVariant.PRIMARY,
-  [ObservabilitySetupStepStatus.UPCOMING]: TextVariant.PRIMARY,
+  [ObservabilitySetupStepStatus.UPCOMING]: TextVariant.TERTIARY,
 };
 
 export const OBSERVABILITY_SETUP_STATUS_TO_BUTTON_VARIANT_MAP: Record<
@@ -80,15 +80,6 @@ export const OBSERVABILITY_SETUP_STATUS_TO_BUTTON_VARIANT_MAP: Record<
   [ObservabilitySetupStepStatus.COMPLETED]: ButtonVariant.TERTIARY,
   [ObservabilitySetupStepStatus.ACTIVE]: ButtonVariant.PRIMARY,
   [ObservabilitySetupStepStatus.UPCOMING]: ButtonVariant.SECONDARY,
-};
-
-export const OBSERVABILITY_SETUP_STATUS_TO_OPACITY_MAP: Record<
-  ObservabilitySetupStepStatus,
-  number
-> = {
-  [ObservabilitySetupStepStatus.COMPLETED]: 1,
-  [ObservabilitySetupStepStatus.ACTIVE]: 1,
-  [ObservabilitySetupStepStatus.UPCOMING]: 0.6,
 };
 
 export const OBSERVABILITY_SETUP_STATUS_TO_DESCRIPTION_VARIANT_MAP: Record<

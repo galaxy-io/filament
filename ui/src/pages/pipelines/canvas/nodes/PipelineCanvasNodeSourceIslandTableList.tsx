@@ -1,9 +1,8 @@
-import { styled } from "@linaria/react";
 import { Position } from "@xyflow/react";
 
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
@@ -17,14 +16,6 @@ import { PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT } from "@/pages/pipelines
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
-const TableRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  min-width: 0;
-`;
-
 const TableListShimmer = () => (
   <>
     {Array.from({ length: PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT }).map((_, index) => (
@@ -37,7 +28,12 @@ const TableListShimmer = () => (
 );
 
 const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
-  <TableRow>
+  <Flex
+    alignItems={AlignItems.CENTER}
+    justifyContent={JustifyContent.SPACE_BETWEEN}
+    gap={4}
+    minWidth={0}
+  >
     <Text
       size={TextSize.BODY_SM}
       variant={table.isConnected ? TextVariant.PRIMARY : TextVariant.TERTIARY}
@@ -52,7 +48,7 @@ const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
       position={Position.Right}
       isConnected={table.isConnected}
     />
-  </TableRow>
+  </Flex>
 );
 
 interface PipelineCanvasNodeSourceIslandTableListProps {
@@ -73,7 +69,7 @@ const PipelineCanvasNodeSourceIslandTableList = ({
   if (error) {
     return (
       <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-        <ErrorLayout size={LayoutSize.SMALL} message="Failed to load resources" error={error} />
+        <ErrorLayout size={LayoutSize.SMALL} header="Failed to load resources" error={error} />
       </Flex>
     );
   }
@@ -81,7 +77,7 @@ const PipelineCanvasNodeSourceIslandTableList = ({
   if (!tables.length) {
     return (
       <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-        <EmptyLayout size={LayoutSize.SMALL} message="No tables match your search" />
+        <EmptyLayout size={LayoutSize.SMALL} header="No tables match your search" />
       </Flex>
     );
   }

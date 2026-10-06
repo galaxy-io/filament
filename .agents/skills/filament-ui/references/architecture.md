@@ -45,7 +45,7 @@ ui/src
 │   └── auth/                LoginPage, RegisterPage, InvitePage
 ├── components/              app-generic pieces used by more than one feature
 │   ├── fields/              schema-driven form fields (Field, FieldString, FieldSecret, …)
-│   └── metrics/             MetricCard, MetricGroup
+│   └── metrics/             MetricGroup
 ├── api/                     transport, queryClient, utils, queries/<resource>.ts
 ├── auth/                    session types, invite token codec, useSignOut
 ├── hooks/                   app-generic hooks (useConfirm, useRetainedWhileClosed, useRouteMatch)
@@ -162,8 +162,8 @@ import { formatTimeAgo } from "@/utils/format";
 
 Everything the DLS references say about tokens applies. The app adds a few habits.
 
-- **Reach for `Flex`, `Box`, `Grid`, `FlexItem` props first.** `gap`, `padding`, `fillWidth`, `height="100%"`, `minWidth={0}`, `grow`, `shrink`, `overflow` cover most layout. A `styled` component appears when props cannot express it, a fixed-size frame (`IconTile`), a scroll region with its own padding (`MainLayoutListPageScrollArea`), absolute positioning (`PreviewChipOverlay`), a custom interactive element (`SidebarButton`, `AvatarButton`).
-- **Styled components are wrappers, named for what they wrap.** `PipelinesTableWrapper`, `MainLayoutIslandWrapper`, `ContentIsland`. Two or three per file at most, declared above the component.
+- **Reach for `Flex`, `Box`, `Grid`, `FlexItem` props first.** `gap`, `padding`, `fillWidth`, `height="100%"`, `minWidth={0}`, `grow`, `shrink`, `overflow` cover most layout. `variant`, `hasBorder` and `radius` on `Flex` and `FlexItem` make a bordered island one element. A scroll region is `FlexItem grow={1} minHeight={0}` › DLS `ScrollArea` › `Box padding`, never `overflow: auto` (the DLS reset hides native scrollbars). A `styled` component appears only when props cannot express it: a fixed-size frame (`IconTile`), absolute positioning with a z-index (`PreviewChipOverlay`, the canvas controls), a custom interactive element (`SidebarButton`, `AvatarButton`), a mask or a dashed border (the empty graphics), xyflow node chrome.
+- **Styled components are wrappers, named for what they wrap.** `PreviewChipOverlay`, `SidebarButton`, `PlaceholderCard`. Two or three per file at most, declared above the component.
 - **`styled` from `@linaria/react`, `t` from `@galaxy-io/dls/theme/tokens/t`, mixins from `@galaxy-io/dls/styles/mixins`.** `HAIRLINE_WIDTH` for every border width, `INTERACTIVE_RESET` + `FOCUS_RING` on any hand-made button.
 - **`$`-props only for continuous values** (`$size`, `$width`, `$isActive` for a single boolean). An enum axis is a `Record<Enum, string>` of `css` blocks, or two styled components. Linaria cannot interpolate a CSS property name from a prop.
 - **The island.** Filament's pages sit on `background.base` and content lives in an island, `background.primary` with a `HAIRLINE_WIDTH solid border.primary` border and `t.radius.lg` corners, `overflow: hidden`. `MainLayout`, `PipelineLayout` and the settings modal all draw it. New full-page surfaces do the same rather than inventing a frame.

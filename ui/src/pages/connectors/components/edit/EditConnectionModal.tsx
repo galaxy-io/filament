@@ -119,7 +119,7 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
       <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
         <ErrorLayout
           header="Connection not found"
-          message="This connection no longer exists."
+          description="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
         />
       </ConnectionFormWrapper>

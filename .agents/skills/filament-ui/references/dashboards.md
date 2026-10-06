@@ -28,9 +28,9 @@ The observability page is the reference dashboard. Its rules differ from the res
 ```
 
 - **Gate first.** The page calls `useObservabilitySetup()` (two suspense queries) and renders `ObservabilitySetupChecklist` until a source, a sink and a pipeline exist. After that, nothing suspends.
-- **Toolbar** is `BaseToolbar` with the page title in `leadingActions` and the timeframe `ToggleInput` plus an icon-only Refresh button (`ariaLabel`, `tooltip`) in `trailingActions`. Refresh invalidates each family through the exported key factories called with no input.
+- **Toolbar** is a DLS `Topbar` with the page title as its child and the timeframe `ToggleInput` plus an icon-only Refresh button (`ariaLabel`, `tooltip`) in `actions`; it draws its own bottom hairline. Refresh invalidates each family through the exported key factories called with no input.
 - **Responsive grid is flex wrap**, not CSS grid. `FlexWrap.WRAP` with `FlexItem grow={1} basis={400} minWidth={0}` per card.
-- **Every card is `<Widget isFlush>`** wrapping a column. A `BaseToolbar` (title left, view toggles and pivot select right), a `Divider`, the chart in a padded `Flex` with a fixed `height` constant (240 for timeseries, 250 for runs), and for the runs card another `Divider` and a table.
+- **Every card is `<Widget isFlush gap={0} header="…" actions={…}>`** (title left, view toggles and pivot select in `actions`; the Widget draws the divider under its header row). Children are the chart in a padded `Flex` with a fixed `height` constant (240 for timeseries, 250 for runs), and for the runs card a `Divider` and a table.
 - `ChartGroupProvider shouldShareTooltip` at the page root syncs hover across charts.
 
 ## View state in the URL
@@ -71,7 +71,7 @@ DLS charts come from `@galaxy-io/dls/charts/*` and use the DLS's own d3 dependen
 |---|---|
 | `charts/LineChart` + `type LineChartLineDatum` | trends over time, `showArea` for a single unpivoted series |
 | `charts/BarChart` + `type BarChartGroupDatum` | counts per bucket, stacked by status |
-| `charts/StatChart` + `StatChartVariant` | a KPI (wrapped by `components/metrics/MetricCard`) |
+| `charts/StatChart` + `StatChartVariant` | a KPI (`value`, `trailing` for an icon or a status swatch, `isLoading`, `hasBorder`) |
 | `charts/ChartGroupProvider` | shared hover across the page |
 | `charts/types` | `ChartSwatch`, `ChartPalette`, `ChartCurve`, `ChartSeriesStyles`, `ChartSelection`, `ChartSelectionInput`, `ChartValueFormatter` |
 
@@ -130,7 +130,7 @@ The card's `ToggleInput` options are `Object.values(ViewEnum)` mapped through th
 
 ## KPI tiles
 
-- `MetricCard` (`components/metrics/MetricCard.tsx`) wraps `StatChart` with `label`, `value`, an optional 14px tertiary `icon`, a `StatChartVariant` and `noBorder`.
+- KPI tiles are DLS `StatChart`s used directly: a string `value`, `trailing` for the 14px tertiary `Icon` or a `PipelineRunStatusSwatch`, `isLoading` per query, `variant` and `hasBorder`.
 - `MetricGroup` (`components/metrics/MetricGroup.tsx`) is one flush `Widget` row. An optional `primary` tile grows, the rest scroll horizontally.
 - The observability widget puts "Total runs" as the primary tile, totals with icons at `TERTIARY`, one tile per status with its `PipelineRunStatusSwatch`, and an "Other" tile whose `InfoIcon` tooltip lists the remaining statuses with swatches and counts.
 - Aggregates come from `useQueryAggregateQuery` with the input built in one `useMemo` keyed on timeframe. Grouped rows become `new Map(rows.map((row) => [Number(row.key) as RunStatus, row.values[0] ?? 0]))`.

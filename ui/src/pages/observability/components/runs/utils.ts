@@ -26,7 +26,7 @@ import {
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -83,7 +83,7 @@ export const createScheduledRunsChartGroups = (
                 Number(run.scheduledAt) >= bucketStartMs &&
                 Number(run.scheduledAt) < bucketBounds[bucketIndex + 1],
             ).length,
-            color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[RunStatus.SCHEDULED],
+            color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED] ?? undefined,
           },
         ],
       },
@@ -102,7 +102,7 @@ export const mapTimeseriesToChartGroups = (
         components: series
           .flatMap((statusSeries) => {
             const status = Number(statusSeries.key) as RunStatus;
-            const color = PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status];
+            const color = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
             return color
               ? [
                   {

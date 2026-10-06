@@ -1,7 +1,6 @@
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { INPUT_VARIANT_TO_SELECT_INPUT_VARIANT_MAP } from "@/components/fields/constants";
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
 const FieldEnum = ({
@@ -19,18 +18,19 @@ const FieldEnum = ({
   }));
 
   return (
-    <FieldWrapper label={label} help={field.help} isRequired={field.required}>
-      <SelectInput
-        options={options}
-        value={typeof value === "string" ? value : null}
-        onChange={(id) => onChange(id)}
-        variant={variant && INPUT_VARIANT_TO_SELECT_INPUT_VARIANT_MAP[variant]}
-        placeholder={`Select ${label}...`}
-        error={error}
-        isDisabled={isDisabled}
-        fillWidth
-      />
-    </FieldWrapper>
+    <SelectInput
+      label={label}
+      labelTooltip={field.help || undefined}
+      isRequired={field.required}
+      error={error}
+      options={options}
+      value={typeof value === "string" ? value : null}
+      onChange={(id) => onChange(id)}
+      variant={variant && INPUT_VARIANT_TO_SELECT_INPUT_VARIANT_MAP[variant]}
+      placeholder={`Select ${label}...`}
+      isDisabled={isDisabled}
+      fillWidth
+    />
   );
 };
 

@@ -1,9 +1,12 @@
-import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 
 import CreatePipelineModalProvider, {
   useCreatePipelineModalState,
@@ -17,27 +20,6 @@ import CreatePipelineModalDetails from "@/pages/pipelines/components/create/step
 import CreatePipelineModalResources from "@/pages/pipelines/components/create/steps/CreatePipelineModalResources";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 
-const FrameWrapper = styled.div`
-  display: flex;
-  height: 100%;
-
-  background-color: ${t.color.background.primary};
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-  border-radius: ${t.radius.lg};
-  overflow: hidden;
-`;
-
-const BodyWrapper = styled.div<{ $isPadded: boolean }>`
-  display: flex;
-  flex-direction: column;
-
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  background-color: ${t.color.background.base};
-  padding: ${({ $isPadded }) => ($isPadded ? "16px" : "0")};
-`;
-
 interface CreatePipelineModalProps {
   onClose: () => void;
 }
@@ -46,12 +28,26 @@ const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
   const { step } = useCreatePipelineModalState();
 
   const renderBody = () => {
-    return match(step)
+    const body = match(step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => <CreatePipelineModalConnections />)
       .with(CreatePipelineModalStep.RESOURCES, () => <CreatePipelineModalResources />)
       .with(CreatePipelineModalStep.DELIVERY, () => <CreatePipelineModalDelivery />)
       .with(CreatePipelineModalStep.DETAILS, () => <CreatePipelineModalDetails />)
       .exhaustive();
+
+    if (CREATE_PIPELINE_MODAL_STEP_TO_IS_PADDED_MAP[step]) {
+      return (
+        <ScrollArea>
+          <Box padding={16}>{body}</Box>
+        </ScrollArea>
+      );
+    }
+
+    return (
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        {body}
+      </Flex>
+    );
   };
 
   return (
@@ -64,12 +60,21 @@ const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
         if (!isOpen) onClose();
       }}
     >
-      <FrameWrapper>
+      <Flex
+        height="100%"
+        variant={FlexVariant.PRIMARY}
+        hasBorder
+        radius={Radius.LG}
+        overflow="hidden"
+      >
         <CreatePipelineModalSidebar />
-        <BodyWrapper $isPadded={CREATE_PIPELINE_MODAL_STEP_TO_IS_PADDED_MAP[step]}>
-          {renderBody()}
-        </BodyWrapper>
-      </FrameWrapper>
+        <Divider orientation={Orientation.VERTICAL} />
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <Box variant={BoxVariant.BASE} height="100%">
+            {renderBody()}
+          </Box>
+        </FlexItem>
+      </Flex>
     </Modal>
   );
 };

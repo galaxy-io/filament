@@ -9,7 +9,7 @@ import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -26,7 +26,7 @@ export const OBSERVABILITY_RUN_STATUSES = Object.values(RunStatus).filter(
 export const OBSERVABILITY_RUNS_SCHEDULED_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: {
     label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
-    color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[RunStatus.SCHEDULED],
+    color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED] ?? undefined,
   },
 };
 
@@ -80,7 +80,6 @@ export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY = 100;
-export const OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT = 360;
 export const OBSERVABILITY_RUNS_TABLE_HEIGHT = 450;
 
 export const OBSERVABILITY_RUNS_CHART_HEIGHT = 250;

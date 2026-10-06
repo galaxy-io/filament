@@ -1,14 +1,9 @@
-import { useEffect, useState } from "react";
-
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn, TableColumnLayout } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -22,10 +17,11 @@ import {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
+import PipelineName from "@/components/PipelineName";
+
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
-  PIPELINES_TABLE_COLUMN_LAYOUT_SAVE_DEBOUNCE_MS,
   PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
@@ -48,16 +44,9 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 import { useRunPipelineMutation } from "@/api/queries/runs";
 import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
-import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
 import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
 import { getErrorMessage } from "@/utils/errors";
 import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
-
-const PipelinesTableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
 
 const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
   {
@@ -74,7 +63,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     accessor: (pipeline) => pipeline.name,
     canSort: true,
     canHide: false,
-    cell: ({ row }) => <PipelinesTableColumnName pipeline={row} />,
+    cell: ({ row }) => <PipelineName pipelineId={row.id} pipeline={row} />,
   },
   {
     id: "recentRuns",
@@ -160,19 +149,10 @@ const PipelinesTable = ({
   const { mutate: runPipeline } = useRunPipelineMutation();
   const { mutate: updateSchedule } = useUpdatePipelineScheduleMutation();
 
-  const [savedColumnLayout, setSavedColumnLayout] = useLocalStorage<TableColumnLayout>(
+  const [columnLayout, setColumnLayout] = useLocalStorage<TableColumnLayout>(
     PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
     {},
   );
-  const [columnLayout, setColumnLayout] = useState<TableColumnLayout>(savedColumnLayout);
-  const debouncedColumnLayout = useDebouncedValue(
-    columnLayout,
-    PIPELINES_TABLE_COLUMN_LAYOUT_SAVE_DEBOUNCE_MS,
-  );
-
-  useEffect(() => {
-    setSavedColumnLayout(debouncedColumnLayout);
-  }, [debouncedColumnLayout, setSavedColumnLayout]);
 
   const handleRowClick = (row: Pipeline) => {
     navigate({
@@ -245,41 +225,36 @@ const PipelinesTable = ({
   };
 
   return (
-    <PipelinesTableWrapper>
-      <Box height="100%" fillWidth>
-        <InfiniteTable<Pipeline>
-          columns={PIPELINES_TABLE_COLUMNS}
-          data={pipelines}
-          getRowId={(pipeline) => pipeline.id}
-          emptyState={
-            <EmptyLayout
-              icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-              message="No pipelines match your search"
-            />
-          }
-          onRowClick={handleRowClick}
-          isLoading={isFetchingNextPage}
-          onEndReached={() => {
-            if (hasNextPage) fetchNextPage?.();
-          }}
-          sort={sorting}
-          onSortChange={onSortingChange}
-          rowActions={(row) => (
-            <PipelinesTableRowActions
-              pipeline={row}
-              onRun={handleRun}
-              onScheduleToggle={handleScheduleToggle}
-              onEdit={handleEdit}
-              onSettings={handleSettings}
-            />
-          )}
-          canCustomizeColumns
-          columnLayout={columnLayout}
-          onColumnLayoutChange={setColumnLayout}
-          ariaLabel="Pipelines"
-        />
-      </Box>
-    </PipelinesTableWrapper>
+    <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+      <InfiniteTable<Pipeline>
+        columns={PIPELINES_TABLE_COLUMNS}
+        data={pipelines}
+        getRowId={(pipeline) => pipeline.id}
+        emptyState={
+          <EmptyLayout icon={MagnifyingGlassIcon} header="No pipelines match your search" />
+        }
+        onRowClick={handleRowClick}
+        isLoading={isFetchingNextPage}
+        onEndReached={() => {
+          if (hasNextPage) fetchNextPage?.();
+        }}
+        sort={sorting}
+        onSortChange={onSortingChange}
+        rowActions={(row) => (
+          <PipelinesTableRowActions
+            pipeline={row}
+            onRun={handleRun}
+            onScheduleToggle={handleScheduleToggle}
+            onEdit={handleEdit}
+            onSettings={handleSettings}
+          />
+        )}
+        canCustomizeColumns
+        columnLayout={columnLayout}
+        onColumnLayoutChange={setColumnLayout}
+        ariaLabel="Pipelines"
+      />
+    </Flex>
   );
 };
 

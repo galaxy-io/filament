@@ -4,7 +4,7 @@ import { TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import Widget from "@galaxy-io/dls/widget/Widget";
+import Widget, { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import PipelineNotifierFields from "@/pages/pipelines/components/notifier/PipelineNotifierFields";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
@@ -37,44 +37,31 @@ const PipelineNotifierForm = ({
 
   return (
     <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
-      <Widget isFlush>
-        <Flex
-          alignItems={AlignItems.START}
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding={16}
-          fillWidth
-        >
-          <PipelineNotifierFields state={state} onChange={handleChange} isDisabled={isSaving} />
-          <Flex
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.END}
-            gap={8}
-            fillWidth
-          >
-            {onDelete && (
-              <Button
-                label="Delete"
-                icon={TrashIcon}
-                variant={ButtonVariant.SECONDARY}
-                onClick={onDelete}
-                isDisabled={isSaving}
-                ariaLabel="Delete notifier"
-              />
-            )}
+      <Widget size={WidgetSize.LARGE} gap={12}>
+        <PipelineNotifierFields state={state} onChange={handleChange} isDisabled={isSaving} />
+        <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
+          {onDelete && (
             <Button
-              label="Cancel"
+              label="Delete"
+              icon={TrashIcon}
               variant={ButtonVariant.SECONDARY}
-              onClick={onCancel}
+              onClick={onDelete}
               isDisabled={isSaving}
+              ariaLabel="Delete notifier"
             />
-            <Button
-              label="Save"
-              onClick={handleSave}
-              isDisabled={!isPipelineNotifierValid(state)}
-              isLoading={isSaving}
-            />
-          </Flex>
+          )}
+          <Button
+            label="Cancel"
+            variant={ButtonVariant.SECONDARY}
+            onClick={onCancel}
+            isDisabled={isSaving}
+          />
+          <Button
+            label="Save"
+            onClick={handleSave}
+            isDisabled={!isPipelineNotifierValid(state)}
+            isLoading={isSaving}
+          />
         </Flex>
       </Widget>
     </Flex>

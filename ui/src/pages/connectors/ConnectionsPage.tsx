@@ -5,7 +5,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Grid from "@galaxy-io/dls/layout/Grid";
 
@@ -97,9 +96,9 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
       return (
         <EmptyLayout
-          icon={<EmptyGraphic />}
+          graphic={<EmptyGraphic />}
           header={`No ${kindPlural} found`}
-          message={CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP[kind]}
+          description={CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP[kind]}
           actions={
             <Flex alignItems={AlignItems.CENTER} gap={16}>
               <Button
@@ -121,10 +120,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
     if (!kindConnections.length) {
       return (
-        <EmptyLayout
-          icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-          message={`No ${kindPlural} match your search`}
-        />
+        <EmptyLayout icon={MagnifyingGlassIcon} header={`No ${kindPlural} match your search`} />
       );
     }
 
@@ -154,6 +150,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
   return (
     <MainLayoutListPage
+      isScrollable={kindConnections.length > 0}
       actions={[
         <Button
           key="new-connector"

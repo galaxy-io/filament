@@ -1,15 +1,14 @@
 import { useState } from "react";
 
-import { styled } from "@linaria/react";
 import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { Placement } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -36,13 +35,6 @@ export interface PipelineLayoutNavbarRunButtonState {
   workerConfiguration: string;
 }
 
-const PipelineLayoutNavbarRunButtonDropdown = styled.div`
-  background-color: ${t.color.background.primary};
-  width: ${PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH}px;
-  display: flex;
-  flex-direction: column;
-`;
-
 const PipelineLayoutNavbarRunButton = ({
   workerConfiguration,
   runErrors,
@@ -64,21 +56,15 @@ const PipelineLayoutNavbarRunButton = ({
     >
       <Button
         label="Run"
-        leading={
-          <Icon
-            component={PlayIcon}
-            size={12}
-            weight={IconWeight.FILL}
-            variant={IconVariant.INHERIT}
-          />
-        }
+        icon={PlayIcon}
+        iconWeight={IconWeight.FILL}
         variant={ButtonVariant.PRIMARY}
         size={ButtonSize.SMALL}
         isLoading={isRunning}
         isDisabled={!isRunnable || runErrors.length > 0}
         onClick={() => onRun()}
         dropdown={({ close }) => (
-          <PipelineLayoutNavbarRunButtonDropdown>
+          <Box variant={BoxVariant.PRIMARY} width={PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH}>
             <Flex alignItems={AlignItems.START} padding={12}>
               <BaseHeader title="Custom run configuration" size={BaseHeaderSize.SMALL} />
             </Flex>
@@ -117,14 +103,8 @@ const PipelineLayoutNavbarRunButton = ({
               )}
               <Button
                 label="Run custom"
-                leading={
-                  <Icon
-                    component={PlayIcon}
-                    size={12}
-                    weight={IconWeight.FILL}
-                    variant={IconVariant.INHERIT}
-                  />
-                }
+                icon={PlayIcon}
+                iconWeight={IconWeight.FILL}
                 variant={ButtonVariant.PRIMARY}
                 size={ButtonSize.SMALL}
                 isLoading={isRunning}
@@ -135,7 +115,7 @@ const PipelineLayoutNavbarRunButton = ({
                 }}
               />
             </Flex>
-          </PipelineLayoutNavbarRunButtonDropdown>
+          </Box>
         )}
       />
     </Tooltip>

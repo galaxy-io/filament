@@ -4,7 +4,7 @@ import { GithubLogoIcon, SlackLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -69,21 +69,12 @@ const CreateConnectionSelectorCard = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
-        <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
       </Flex>
     </Widget>
   );
 };
 
 export const CreateConnectionSelectorEmptyCard = () => {
-  const handleCreateIssue = () => {
-    window.open(`${GITHUB_REPO_URL}/issues/new`, "_blank");
-  };
-
-  const handleContact = () => {
-    window.open(SLACK_COMMUNITY_URL, "_blank");
-  };
-
   return (
     <Widget variant={WidgetVariant.BASE}>
       <Flex
@@ -106,30 +97,20 @@ export const CreateConnectionSelectorEmptyCard = () => {
         <Flex alignItems={AlignItems.START} gap={8} fillWidth>
           <Button
             label="GitHub"
-            leading={
-              <Icon
-                component={GithubLogoIcon}
-                size={14}
-                weight={IconWeight.FILL}
-                variant={IconVariant.INHERIT}
-              />
-            }
+            icon={GithubLogoIcon}
+            iconWeight={IconWeight.FILL}
             variant={ButtonVariant.SECONDARY}
-            onClick={handleCreateIssue}
+            href={`${GITHUB_REPO_URL}/issues/new`}
+            isExternal
             fillWidth
           />
           <Button
             label="Slack"
-            leading={
-              <Icon
-                component={SlackLogoIcon}
-                size={14}
-                weight={IconWeight.FILL}
-                variant={IconVariant.INHERIT}
-              />
-            }
+            icon={SlackLogoIcon}
+            iconWeight={IconWeight.FILL}
             variant={ButtonVariant.SECONDARY}
-            onClick={handleContact}
+            href={SLACK_COMMUNITY_URL}
+            isExternal
             fillWidth
           />
         </Flex>

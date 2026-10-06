@@ -29,6 +29,7 @@ const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesPr
       emptyHeader="No pipelines"
       emptyMessage="This connection is not used in any pipelines."
       isOpenInitial
+      isFlush
     >
       <Flex alignItems={AlignItems.STRETCH} fillWidth direction={FlexDirection.COLUMN}>
         {connectedPipelines.map((pipeline) => (

@@ -2,11 +2,11 @@ import { useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
+import EmptyState from "@galaxy-io/dls/feedback/EmptyState";
 import Box from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -28,7 +28,6 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-  OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import {
@@ -255,15 +254,7 @@ const ObservabilityRunsTable = () => {
           if (view === ObservabilityRunsView.PAST && hasNextPage) fetchNextPage();
         }}
         emptyState={
-          <Flex
-            height={OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT}
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.CENTER}
-          >
-            <Text variant={TextVariant.TERTIARY}>
-              {OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]}
-            </Text>
-          </Flex>
+          <EmptyState header={OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]} role="status" />
         }
       />
     </Box>

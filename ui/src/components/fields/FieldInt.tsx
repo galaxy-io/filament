@@ -1,4 +1,3 @@
-import Field from "@galaxy-io/dls/inputs/Field";
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -11,26 +10,20 @@ const FieldInt = ({
   error,
   isDisabled = false,
   label,
-}: FieldComponentProps) => {
-  return (
-    <Field
-      label={label}
-      labelTooltip={field.help || undefined}
-      isRequired={field.required}
-      error={error}
-      fillWidth
-    >
-      <NumberInput
-        value={value !== null && value !== undefined ? Number(value) : undefined}
-        onChange={(v) => onChange(v)}
-        variant={variant}
-        placeholder={`Enter ${label}...`}
-        isDisabled={isDisabled}
-        step={1}
-        fillWidth
-      />
-    </Field>
-  );
-};
+}: FieldComponentProps) => (
+  <NumberInput
+    label={label}
+    labelTooltip={field.help || undefined}
+    isRequired={field.required}
+    error={error}
+    value={value === null || value === undefined ? null : Number(value)}
+    onChange={(v) => onChange(v)}
+    variant={variant}
+    placeholder={`Enter ${label}...`}
+    isDisabled={isDisabled}
+    step={1}
+    fillWidth
+  />
+);
 
 export default FieldInt;

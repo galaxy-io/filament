@@ -1,10 +1,13 @@
 import type { PropsWithChildren } from "react";
 
+import { css } from "@linaria/core";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem, { FlexItemVariant } from "@galaxy-io/dls/layout/FlexItem";
+import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
@@ -20,62 +23,8 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
-const LayoutWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-
-  background-color: ${t.color.background.base};
-`;
-
-const LeftColumn = styled.div`
-  width: ${PIPELINE_SIDEBAR_WIDTH}px;
-  height: 100%;
-
-  flex-shrink: 0;
-
-  display: flex;
-  flex-direction: column;
-
-  background-color: ${t.color.background.base};
-`;
-
-const RightColumn = styled.div`
-  flex: 1;
-  height: 100%;
-  min-width: 0;
-
-  display: flex;
-  flex-direction: column;
-`;
-
-const ContentWrapper = styled.div`
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-
-  padding: 0 12px 12px 0;
-
-  display: flex;
-
-  background-color: ${t.color.background.base};
-`;
-
-const ContentIsland = styled.div<{ $isPreview?: boolean }>`
-  position: relative;
-
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-
-  background-color: ${t.color.background.primary};
-
-  border: ${HAIRLINE_WIDTH} solid
-    ${({ $isPreview }) => ($isPreview ? t.color.border.error : t.color.border.primary)};
-  border-radius: ${t.radius.lg};
-
-  overflow: hidden;
+const PREVIEW_ISLAND_CSS = css`
+  border-color: ${t.color.border.error};
 `;
 
 const PreviewChipOverlay = styled.div`
@@ -114,25 +63,41 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
   };
 
   return (
-    <LayoutWrapper>
-      <LeftColumn>
+    <Flex fillWidth height="100%">
+      <Flex
+        direction={FlexDirection.COLUMN}
+        width={PIPELINE_SIDEBAR_WIDTH}
+        height="100%"
+        shrink={0}
+      >
         <PipelineLayoutNavbarBackButton />
         <PipelineLayoutSidebar activeItem={getActiveItem()} onItemClick={handleItemClick} />
-      </LeftColumn>
-      <RightColumn>
+      </Flex>
+      <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} height="100%" minWidth={0}>
         <PipelineLayoutNavbar />
-        <ContentWrapper>
-          <ContentIsland $isPreview={isPreview}>
+        <Flex grow={1} basis={0} fillWidth minHeight={0} padding={[0, 12, 12, 0]}>
+          <FlexItem
+            grow={1}
+            basis={0}
+            fillWidth
+            minHeight={0}
+            position="relative"
+            variant={FlexItemVariant.PRIMARY}
+            hasBorder
+            radius={Radius.LG}
+            overflow="hidden"
+            className={isPreview ? PREVIEW_ISLAND_CSS : undefined}
+          >
             {isPreview && (
               <PreviewChipOverlay>
                 <Chip label={`Version ${previewed.version}`} variant={ChipVariant.ERROR} />
               </PreviewChipOverlay>
             )}
             {children}
-          </ContentIsland>
-        </ContentWrapper>
-      </RightColumn>
-    </LayoutWrapper>
+          </FlexItem>
+        </Flex>
+      </Flex>
+    </Flex>
   );
 };
 

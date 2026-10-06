@@ -132,7 +132,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
               <EmptyLayout
                 size={LayoutSize.SMALL}
                 header="No notifiers"
-                message="Add a notifier to get notified when runs complete or fail."
+                description="Add a notifier to get notified when runs complete or fail."
               />
             }
             expandedIds={state.expandedRowIds}

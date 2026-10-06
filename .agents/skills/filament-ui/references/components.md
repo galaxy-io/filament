@@ -42,7 +42,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### Flex
 
-`@galaxy-io/dls/layout/Flex` · Flexbox: `direction`, `alignItems`, `justifyContent`, `wrap` (enums from the module), `gap` (one value or `[row, column]`), `padding`, sizing, `grow` / `shrink` / `basis` when it is itself a flex child, `overflow`, `as`.
+`@galaxy-io/dls/layout/Flex` · Flexbox: `direction`, `alignItems`, `justifyContent`, `wrap` (enums from the module), `gap` (one value or `[row, column]`), `padding`, sizing, `grow` / `shrink` / `basis` when it is itself a flex child, `overflow`, `as`, and the surface props of `Box` (`variant` from `FlexVariant`, `hasBorder`, `radius`) so a bordered island that also flexes is one element.
 
 - The default layout primitive. There is no `Stack`: a column is `direction={FlexDirection.COLUMN}`.
 - Pass `minWidth={0}` on a child column so nested text can truncate.
@@ -64,7 +64,7 @@ import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 
 ### FlexItem
 
-`@galaxy-io/dls/layout/FlexItem` · One child of a `Flex` with its own `grow`, `shrink`, `basis` and sizing. A plain block: nest a `Flex` inside to arrange its children.
+`@galaxy-io/dls/layout/FlexItem` · One child of a `Flex` with its own `grow`, `shrink`, `basis` and sizing, plus `variant` (`FlexItemVariant`), `hasBorder` and `radius` as on `Box`. A plain block: nest a `Flex` inside to arrange its children.
 
 ```tsx
 import Flex from "@galaxy-io/dls/layout/Flex";
@@ -466,7 +466,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 ### Button
 
-`@galaxy-io/dls/buttons/Button` · The action control. `label`, `icon` (+ `isIconTrailing`), `variant`, `size`, `onClick` or `type` (form) or `href` (+ `as`, `isExternal`), `isLoading` (spinner, keeps the width, blocks activation), `isDisabled`, `isActive` (toggle look, `aria-pressed`), `isRound`, `fillWidth`, `leading` / `trailing` (non-interactive), `hotKeys` (+ `shouldBindHotKey`), `tooltip`, `dropdown` (split button).
+`@galaxy-io/dls/buttons/Button` · The action control. `label`, `icon` (+ `isIconTrailing`, `iconWeight` for a filled brand glyph), `variant`, `size`, `onClick` or `type` (form) or `href` (+ `as`, `isExternal`), `isLoading` (spinner, keeps the width, blocks activation), `isDisabled`, `isActive` (toggle look, `aria-pressed`), `isRound`, `fillWidth`, `leading` / `trailing` (non-interactive), `hotKeys` (+ `shouldBindHotKey`), `tooltip`, `dropdown` (split button).
 
 - Icon-only buttons need `ariaLabel` (a type error otherwise); add a `tooltip` with the same words.
 - `isLoading` while the action runs; don't disable and swap the label.
@@ -549,7 +549,7 @@ import CopyButton from "@galaxy-io/dls/buttons/CopyButton";
 
 `@galaxy-io/dls/inputs/Field` · The frame around one control: `label`, `description`, `error`, `isRequired` / `isOptional`, `labelTooltip`, `actions` (a link at the end of the label row), `maxLength` + `count` (a counter), `orientation` (`HORIZONTAL` puts the label in a left column), `size`. Wires ids and `aria-describedby` to the control through `useField()`.
 
-- Put the label on the Field or on the input, never both. Don't nest Fields; a group of controls is a `Fieldset`.
+- Put `label`, `labelTooltip` and `description` on the Field or on the input, never both. Don't nest Fields; a group of controls is a `Fieldset`.
 
 ```tsx
 import { useState } from "react";
@@ -589,7 +589,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 ### Input
 
-`@galaxy-io/dls/inputs/Input` · The single-line frame the text inputs share; it exports `InputSize` and `InputVariant`, which `TextInput`, `PasswordInput`, `SearchInput`, `NumberInput` and `CopyInput` use. Apps render a wrapper, not `Input`.
+`@galaxy-io/dls/inputs/Input` · The single-line frame the text inputs share; it exports `InputSize` and `InputVariant`, which `TextInput`, `PasswordInput`, `SearchInput`, `NumberInput` and `CopyInput` use. Apps render a wrapper, not `Input`. Every wrapper takes `label`, `labelTooltip`, `description`, `error` and `isRequired` and renders its own `Field` for them, and forwards `name`, `autoComplete`, `inputMode`, `enterKeyHint`, `autoFocus`, `maxLength`, `spellCheck`, `onFocus`, `onBlur`, `onKeyDown` and `onPaste` to the native input.
 
 ```tsx
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -962,7 +962,7 @@ export function CustomControl() {
 
 ### Chip
 
-`@galaxy-io/dls/chips/Chip` · A compact tinted label: `label`, `variant` (meaning, default `SECONDARY` neutral) or `color` (category), `icon` / `leading`, `hasDot`, `count` (+ `max`; a chip with only a count is a badge), `isPill`, `hasBorder`, `isSelected`, `onClick` (a filter chip, `aria-pressed`), `onDismiss` (a × button), `tooltip`. Chip rungs are 16 / 20 / 24 / 28 / 32px, sitting inside the control rung of the same name.
+`@galaxy-io/dls/chips/Chip` · A compact tinted label: `label`, `variant` (meaning, default `SECONDARY` neutral) or `color` (a category, or a status name used as data), `icon` / `leading`, `hasDot`, `count` (+ `max`; a chip with only a count is a badge), `isPill`, `hasBorder`, `isSelected`, `onClick` (a filter chip, `aria-pressed`), `onDismiss` (a × button), `tooltip`. Chip rungs are 16 / 20 / 24 / 28 / 32px, sitting inside the control rung of the same name.
 
 - Short labels. No hue per chip for decoration; no chip as an action; no interactive chip inside a `Button` or clickable row.
 
@@ -994,7 +994,7 @@ import ChipGroup, { ChipGroupSize } from "@galaxy-io/dls/chips/ChipGroup";
 
 ### Beacon
 
-`@galaxy-io/dls/beacons/Beacon` · A status dot that can pulse: `variant` (`PRIMARY` default, statuses) or `color`, `label` (the whole status, "Running"), `isPulse` (the one live row), `size` (the rung of the text beside it). A dot alone needs `ariaLabel` or adjacent text.
+`@galaxy-io/dls/beacons/Beacon` · A status dot that can pulse: `variant` (`PRIMARY` default, statuses) or `color` (a family, or a status name used as data), `label` (the whole status, "Running"), `isPulse` (the one live row), `size` (the rung of the text beside it). A dot alone needs `ariaLabel` or adjacent text.
 
 ```tsx
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
@@ -1058,7 +1058,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### DescriptionList
 
-`@galaxy-io/dls/lists/DescriptionList` · Labelled values in a `<dl>`: `items` (`label`, `value` string / number / node, `family` for mono values, `isCopyable` + `copyValue`), `orientation` (`HORIZONTAL` aligns labels in a column), `columns` (1–4), `size`. Empty values render an em dash.
+`@galaxy-io/dls/lists/DescriptionList` · Labelled values in a `<dl>`: `items` (`label`, `value` string / number / node, `family` for mono values, `isCopyable` + `copyValue`), `orientation` (`HORIZONTAL` aligns labels in a column), `columns` (1–4), `size`, `isValueTrailing` (values at the right edge, the detail-pane layout). Empty values render an em dash.
 
 ```tsx
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
@@ -1077,7 +1077,7 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 ### Timeline
 
-`@galaxy-io/dls/timeline/Timeline` · Events in order on a hairline rail (a run's history, an audit trail, an agent's steps): `items` (`id`, `label`, `time` + `dateTime`, `description`, `footer`, `icon`, `isActive`, `variant` or `color`), `size`, `markerShape` (`SQUARE` box by default, `CIRCLE`, or `NONE`: no box, the rail leads to each dot or icon and stops 4px short; use `NONE` for a long, quiet feed), `isFilled` (fill each box with its item's background role, as a `Chip` fills). Not interactive.
+`@galaxy-io/dls/timeline/Timeline` · Events in order on a hairline rail (a run's history, an audit trail, an agent's steps): `items` (`id`, `label`, `time` + `dateTime`, `description`, `footer`, `icon`, `isActive`, `variant` or `color` (a family, or a status name used as data)), `size`, `markerShape` (`SQUARE` box by default, `CIRCLE`, or `NONE`: no box, the rail leads to each dot or icon and stops 4px short; use `NONE` for a long, quiet feed), `isFilled` (fill each box with its item's background role, as a `Chip` fills). Not interactive.
 
 ```tsx
 import { CheckIcon, WarningIcon } from "@phosphor-icons/react";
@@ -1201,7 +1201,7 @@ export function ArchiveButton() {
 
 ### EmptyState
 
-`@galaxy-io/dls/feedback/EmptyState` · What a region shows when it has nothing: `header` (what would be here), `description` (why, or what to do), `icon`, `actions` (one `PRIMARY` and one `SECONDARY` button), `size` (`SMALL` cell or chart, `MEDIUM` panel, `LARGE` page). Pass `role="status"` when it replaces results after a search or filter. A failure is an `Alert`, not an EmptyState.
+`@galaxy-io/dls/feedback/EmptyState` · What a region shows when it has nothing: `header` (what would be here), `description` (why, or what to do), `icon` or `graphic` (a node of the app's own, with no tile), `actions` (one `PRIMARY` and one `SECONDARY` button), `size` (`SMALL` cell or chart, `MEDIUM` panel, `LARGE` page), `variant` (`EmptyStateVariant.ERROR` for a region that failed to load: the tile icon and border turn red; pair it with a retry). Pass `role="status"` when it replaces results after a search or filter. A failure that needs a message in flow is an `Alert`.
 
 ```tsx
 import { PlugsIcon } from "@phosphor-icons/react";
@@ -1234,7 +1234,7 @@ import Spinner from "@galaxy-io/dls/feedback/Spinner";
 
 ### ProgressBar
 
-`@galaxy-io/dls/feedback/ProgressBar` · A horizontal bar: `value` (0–100, clamped) or `isIndeterminate`, `label` or `ariaLabel` (one is required), `shouldShowValue`, `variant` (neutral or a status) or `color`, `size` (track thickness and text step). Spans its parent.
+`@galaxy-io/dls/feedback/ProgressBar` · A horizontal bar: `value` (0–100, clamped) or `isIndeterminate`, `label` or `ariaLabel` (one is required), `shouldShowValue`, `variant` (neutral or a status) or `color` (a family, or a status name used as data), `size` (track thickness and text step). Spans its parent.
 
 ```tsx
 import ProgressBar from "@galaxy-io/dls/feedback/ProgressBar";
@@ -1423,7 +1423,7 @@ export function RenameDialog() {
 
 ### ConfirmDialog
 
-`@galaxy-io/dls/modal/ConfirmDialog` · One question before an action: `header` (the question), `description` (what happens), `label` (names the action, never "OK"), `onConfirm` (may return a promise: spinner while pending, closes on resolve, stays open on reject), `isDestructive` (`ERROR` button), `confirmValue` (type-to-confirm), `error`.
+`@galaxy-io/dls/modal/ConfirmDialog` · One question before an action: `header` (the question), `description` (what happens), `label` (names the action, never "OK"), `onConfirm` (may return a promise: spinner while pending, closes on resolve, stays open on reject), `isDestructive` (`ERROR` button), `confirmValue` (type-to-confirm) with `isMatch` (a comparison other than trimmed equality), `children` (block content between the description and the field: an `Alert` with what the action also does, a `BulletedList` of what is affected), `error`. Cancel is `SECONDARY`.
 
 ```tsx
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -1780,7 +1780,7 @@ For tables the three components do not cover. Prefer the components; these chang
 | A KPI: a label and a headline number | `StatChart` | a `Widget` with a big `Text` |
 | Linked hover across charts that share a category axis | `ChartGroupProvider` | syncing a `PieChart` |
 
-Charts fill their parent (size them with a `Box`, a `Grid` track or a flex item) or take a 2:1 fallback. Every chart has a tooltip, keyboard navigation (Tab, then the arrow keys), `onSelect` / `selection`, `isLoading` and an empty state. `isFilterable` (Line, Area, Bar, Pie, Heatmap) makes clicks filter: a legend entry, a mark or a category pins (click again to unpin, ⌘ / Ctrl / Shift-click to add), hovering a legend entry still previews, and filter chips after the legend name the pin, one per part ("06:00" and "Failed" for a segment): a chip's × drops that part, and several pins collapse into one "3 filters" chip (Escape on the plot clears everything). Uncontrolled by default (`defaultSelection`), or controlled with `selection` + `onSelectionChange(selection)` to filter something else on the page. Series colors come from `ChartPalette` slots (`@galaxy-io/dls/charts/types`), assigned in order when unset. Legend and tooltip swatches mirror the marks (a dot for lines, a square for filled marks); `swatch` (`ChartSwatch`) overrides it, so a line chart beside a bar chart of the same series can share square keys. Requires the `d3-scale` and `d3-shape` peers.
+Charts fill their parent (size them with a `Box`, a `Grid` track or a flex item) or take a 2:1 fallback. A series `color` is a `ChartPalette` slot or a `RoleColor` string (`"error"`, `"blue"`) for a series whose color is data. Every chart has a tooltip, keyboard navigation (Tab, then the arrow keys), `onSelect` / `selection`, `isLoading` and an empty state. `isFilterable` (Line, Area, Bar, Pie, Heatmap) makes clicks filter: a legend entry, a mark or a category pins (click again to unpin, ⌘ / Ctrl / Shift-click to add), hovering a legend entry still previews, and filter chips after the legend name the pin, one per part ("06:00" and "Failed" for a segment): a chip's × drops that part, and several pins collapse into one "3 filters" chip (Escape on the plot clears everything). Uncontrolled by default (`defaultSelection`), or controlled with `selection` + `onSelectionChange(selection)` to filter something else on the page. Series colors come from `ChartPalette` slots (`@galaxy-io/dls/charts/types`), assigned in order when unset. Legend and tooltip swatches mirror the marks (a dot for lines, a square for filled marks); `swatch` (`ChartSwatch`) overrides it, so a line chart beside a bar chart of the same series can share square keys. Requires the `d3-scale` and `d3-shape` peers.
 
 ### LineChart
 
@@ -1893,7 +1893,7 @@ import { ChartPalette } from "@galaxy-io/dls/charts/types";
 
 ### Sparkline
 
-`@galaxy-io/dls/charts/Sparkline` · A word-sized line or bar trend (`mark`) with no axes or interaction: `data`, `variant` (default `SECONDARY`) or `color`, `size` (the row's rung; four times as wide), `fillWidth`, `valueDomain`. Decorative without `ariaLabel`; pair it with the number it summarizes.
+`@galaxy-io/dls/charts/Sparkline` · A word-sized line or bar trend (`mark`) with no axes or interaction: `data`, `variant` (default `SECONDARY`) or `color` (a family, or a status name used as data), `size` (the row's rung; four times as wide), `fillWidth`, `valueDomain`. Decorative without `ariaLabel`; pair it with the number it summarizes.
 
 ```tsx
 import Sparkline, { SparklineVariant } from "@galaxy-io/dls/charts/Sparkline";

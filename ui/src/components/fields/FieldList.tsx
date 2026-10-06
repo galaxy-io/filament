@@ -6,7 +6,6 @@ import {
   INPUT_VARIANT_TO_MULTI_SELECT_INPUT_VARIANT_MAP,
   INPUT_VARIANT_TO_TAG_INPUT_VARIANT_MAP,
 } from "@/components/fields/constants";
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
 import {
@@ -41,38 +40,39 @@ const FieldList = ({
     onChange(getSelectAllChange(selectAll, next, selected));
   };
 
-  // No enum means there is nothing to select from; the user types the values.
   if (field.enum.length === 0) {
     return (
-      <FieldWrapper label={label} help={field.help} isRequired={field.required}>
-        <TagInput
-          value={selected}
-          onChange={onChange}
-          variant={variant && INPUT_VARIANT_TO_TAG_INPUT_VARIANT_MAP[variant]}
-          placeholder="Press Enter or comma to add a value"
-          error={error}
-          isDisabled={isDisabled}
-          fillWidth
-        />
-      </FieldWrapper>
+      <TagInput
+        label={label}
+        labelTooltip={field.help || undefined}
+        isRequired={field.required}
+        error={error}
+        value={selected}
+        onChange={onChange}
+        variant={variant && INPUT_VARIANT_TO_TAG_INPUT_VARIANT_MAP[variant]}
+        placeholder="Press Enter or comma to add a value"
+        isDisabled={isDisabled}
+        fillWidth
+      />
     );
   }
 
   return (
-    <FieldWrapper label={label} help={field.help} isRequired={field.required}>
-      <MultiSelectInput
-        options={getSelectAllOptions(selectAll, options)}
-        pinnedIds={[selectAll.id]}
-        value={getSelectAllValue(selectAll, selected)}
-        onChange={handleChange}
-        isClearable
-        variant={variant && INPUT_VARIANT_TO_MULTI_SELECT_INPUT_VARIANT_MAP[variant]}
-        placeholder={`Select ${label}...`}
-        error={error}
-        isDisabled={isDisabled}
-        fillWidth
-      />
-    </FieldWrapper>
+    <MultiSelectInput
+      label={label}
+      labelTooltip={field.help || undefined}
+      isRequired={field.required}
+      error={error}
+      options={getSelectAllOptions(selectAll, options)}
+      pinnedIds={[selectAll.id]}
+      value={getSelectAllValue(selectAll, selected)}
+      onChange={handleChange}
+      isClearable
+      variant={variant && INPUT_VARIANT_TO_MULTI_SELECT_INPUT_VARIANT_MAP[variant]}
+      placeholder={`Select ${label}...`}
+      isDisabled={isDisabled}
+      fillWidth
+    />
   );
 };
 

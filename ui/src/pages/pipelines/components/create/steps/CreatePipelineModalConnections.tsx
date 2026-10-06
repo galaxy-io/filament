@@ -14,6 +14,7 @@ import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -108,9 +109,9 @@ const CreatePipelineModalConnectionsState = ({
       padding={24}
     >
       {error ? (
-        <ErrorLayout size={LayoutSize.SMALL} message={message} error={error} actions={actions} />
+        <ErrorLayout size={LayoutSize.SMALL} header={message} error={error} actions={actions} />
       ) : (
-        <EmptyLayout size={LayoutSize.SMALL} message={message} actions={actions} />
+        <EmptyLayout size={LayoutSize.SMALL} header={message} actions={actions} />
       )}
     </Flex>
   );
@@ -253,29 +254,29 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
     }
 
     return (
-      <Flex
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.STRETCH}
-        gap={2}
-        padding={8}
-        grow={1}
-        basis={0}
-        minHeight={0}
-        overflow="auto"
-      >
-        {filteredConnections.map((connection) => (
-          <CreatePipelineModalConnectionRow
-            key={connection.id}
-            connection={connection}
-            kind={kind}
-          />
-        ))}
-        <InfiniteScrollSentinel
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-        />
-      </Flex>
+      <FlexItem grow={1} basis={0} minHeight={0}>
+        <ScrollArea>
+          <Flex
+            direction={FlexDirection.COLUMN}
+            alignItems={AlignItems.STRETCH}
+            gap={2}
+            padding={8}
+          >
+            {filteredConnections.map((connection) => (
+              <CreatePipelineModalConnectionRow
+                key={connection.id}
+                connection={connection}
+                kind={kind}
+              />
+            ))}
+            <InfiniteScrollSentinel
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+            />
+          </Flex>
+        </ScrollArea>
+      </FlexItem>
     );
   };
 

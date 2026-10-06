@@ -1,11 +1,11 @@
-import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -16,18 +16,6 @@ import { LayoutSize } from "@/layouts/types";
 
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-const ConnectionList = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-  background-color: ${t.color.background.primary};
-
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
 
 const PipelineCanvasConnectionSelectorEmpty = ({
   message,
@@ -61,15 +49,14 @@ const PipelineCanvasConnectionSelectorEmpty = ({
     >
       <EmptyLayout
         size={LayoutSize.SMALL}
-        message={message}
-        actions={[
+        header={message}
+        actions={
           <Button
-            key="create-connection"
             label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
             icon={PlusIcon}
             onClick={handleCreateConnection}
-          />,
-        ]}
+          />
+        }
       />
     </Flex>
   );
@@ -117,16 +104,20 @@ const PipelineCanvasConnectionSelectorList = ({
   ];
 
   return (
-    <ConnectionList>
-      {orderedConnections.map((connection) => (
-        <PipelineCanvasConnectionSelectorItem
-          key={connection.id}
-          connection={connection}
-          isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
-          onClick={() => onConnectionClick(connection)}
-        />
-      ))}
-    </ConnectionList>
+    <FlexItem grow={1} minHeight={0}>
+      <ScrollArea>
+        <Flex direction={FlexDirection.COLUMN} gap={2} padding={8}>
+          {orderedConnections.map((connection) => (
+            <PipelineCanvasConnectionSelectorItem
+              key={connection.id}
+              connection={connection}
+              isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
+              onClick={() => onConnectionClick(connection)}
+            />
+          ))}
+        </Flex>
+      </ScrollArea>
+    </FlexItem>
   );
 };
 

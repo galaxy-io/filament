@@ -1,15 +1,8 @@
 import type { ClipboardEvent } from "react";
 
-import { styled } from "@linaria/react";
-
-import Field from "@galaxy-io/dls/inputs/Field";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
-
-const FieldSecretWrapper = styled.div`
-  width: 100%;
-`;
 
 const FieldSecret = ({
   field,
@@ -23,36 +16,27 @@ const FieldSecret = ({
 }: FieldComponentProps) => {
   const placeholder = hasStoredSecret ? "Leave blank to keep current value" : `Enter ${label}...`;
 
-  const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+  const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
     const pasted = event.clipboardData.getData("text/plain");
     if (!pasted.includes("\n") && !pasted.includes("\r")) return;
-
-    // A single-line input strips line breaks during its paste.
-    // Store multiline secrets directly in form state while retaining the
-    // standard masked password control.
     event.preventDefault();
     onChange(pasted);
   };
 
   return (
-    <FieldSecretWrapper onPasteCapture={handlePaste}>
-      <Field
-        label={label}
-        labelTooltip={field.help || undefined}
-        isRequired={field.required}
-        error={error}
-        fillWidth
-      >
-        <PasswordInput
-          value={(value as string) ?? ""}
-          onChange={(v) => onChange(v)}
-          variant={variant}
-          placeholder={placeholder}
-          isDisabled={isDisabled}
-          fillWidth
-        />
-      </Field>
-    </FieldSecretWrapper>
+    <PasswordInput
+      label={label}
+      labelTooltip={field.help || undefined}
+      isRequired={field.required}
+      error={error}
+      value={(value as string) ?? ""}
+      onChange={(v) => onChange(v)}
+      onPaste={handlePaste}
+      variant={variant}
+      placeholder={placeholder}
+      isDisabled={isDisabled}
+      fillWidth
+    />
   );
 };
 

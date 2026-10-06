@@ -4,6 +4,8 @@ import type { JsonValue } from "@bufbuild/protobuf";
 
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
 
@@ -14,7 +16,6 @@ import FieldList from "@/components/fields/FieldList";
 import FieldObject from "@/components/fields/FieldObject";
 import FieldSecret from "@/components/fields/FieldSecret";
 import FieldString from "@/components/fields/FieldString";
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponent } from "@/components/fields/types";
 import {
   formatFieldName,
@@ -61,14 +62,9 @@ const Field = ({
   if (field.type === FieldType.OBJECT && field.fields.length > 0) {
     const objectValue = isJsonObject(value) ? value : {};
     const displayValue = { ...getFieldDefaults(field.fields), ...objectValue };
+    const error = getError?.(path);
     return (
-      <FieldWrapper
-        label={label}
-        help={field.help}
-        isRequired={field.required}
-        error={getError?.(path)}
-        isSection
-      >
+      <Widget isCollapsible variant={WidgetVariant.PRIMARY} header={label} defaultIsOpen>
         <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
           {field.fields
             .filter((child) => isFieldVisible(child, displayValue))
@@ -90,8 +86,13 @@ const Field = ({
                 storedSecretRefs={storedSecretRefs}
               />
             ))}
+          {error && (
+            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+              {error}
+            </Text>
+          )}
         </Flex>
-      </FieldWrapper>
+      </Widget>
     );
   }
 

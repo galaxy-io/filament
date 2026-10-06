@@ -1,12 +1,11 @@
-import { styled } from "@linaria/react";
 import { SidebarSimpleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { Radius } from "@galaxy-io/dls/theme/enums";
 
-import { PIPELINE_CANVAS_OVERLAY_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasPanelActivity from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivity";
 import {
@@ -21,37 +20,6 @@ import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { isConnectionNode } from "@/pages/pipelines/canvas/types";
 
-const PanelWrapper = styled.div`
-  position: absolute;
-  top: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  right: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  bottom: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
-
-  width: ${PIPELINE_CANVAS_PANEL_WIDTH}px;
-
-  display: flex;
-  flex-direction: column;
-
-  background-color: ${t.color.background.primary};
-
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-  border-radius: ${t.radius.lg};
-
-  overflow: hidden;
-`;
-
-const CollapsedWrapper = styled.div`
-  position: absolute;
-  top: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  right: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
-
-  padding: 8px 12px;
-
-  border: ${HAIRLINE_WIDTH} solid transparent;
-`;
-
 const PipelineCanvasPanel = () => {
   const state = usePipelineCanvasState();
   const { selectedNodeId, selectedResourceId, showPanel, activeTab, setShowPanel } =
@@ -59,7 +27,11 @@ const PipelineCanvasPanel = () => {
 
   if (!showPanel) {
     return (
-      <CollapsedWrapper>
+      <Box
+        position="absolute"
+        inset={{ top: PIPELINE_CANVAS_PANEL_INSET, right: PIPELINE_CANVAS_PANEL_INSET }}
+        padding={[8, 12]}
+      >
         <Button
           icon={SidebarSimpleIcon}
           variant={ButtonVariant.SECONDARY}
@@ -67,7 +39,7 @@ const PipelineCanvasPanel = () => {
           onClick={() => setShowPanel(true)}
           ariaLabel="Open configuration panel"
         />
-      </CollapsedWrapper>
+      </Box>
     );
   }
 
@@ -94,7 +66,25 @@ const PipelineCanvasPanel = () => {
     );
   };
 
-  return <PanelWrapper>{renderContent()}</PanelWrapper>;
+  return (
+    <Box
+      position="absolute"
+      inset={{
+        top: PIPELINE_CANVAS_PANEL_INSET,
+        right: PIPELINE_CANVAS_PANEL_INSET,
+        bottom: PIPELINE_CANVAS_PANEL_INSET,
+      }}
+      width={PIPELINE_CANVAS_PANEL_WIDTH}
+      variant={BoxVariant.PRIMARY}
+      hasBorder
+      radius={Radius.LG}
+      overflow="hidden"
+    >
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        {renderContent()}
+      </Flex>
+    </Box>
+  );
 };
 
 export default PipelineCanvasPanel;

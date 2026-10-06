@@ -8,11 +8,12 @@ import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Modal from "@galaxy-io/dls/modal/Modal";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { InviteMemberRequest } from "@/gen/auth/v1/members_pb";
-
-import Dialog from "@/components/Dialog";
 
 import { INVITE_DEFAULT_ROLE, ROLE_OPTIONS } from "@/pages/settings/constants";
 import { TeamSettingsView } from "@/pages/settings/types";
@@ -115,13 +116,16 @@ const SettingsTeamPanelInvite = ({
     onViewChange(TeamSettingsView.INVITE);
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen && !isInviting) onClose();
+  };
+
   return match(view)
     .with(TeamSettingsView.LINK, () => (
-      <Dialog
-        open={open}
-        title="Invite created"
-        description="Share this link with your new teammate"
-        onClose={onClose}
+      <Modal
+        header="Invite created"
+        isOpen={open}
+        onOpenChange={handleOpenChange}
         footer={
           <>
             <Button
@@ -133,15 +137,20 @@ const SettingsTeamPanelInvite = ({
           </>
         }
       >
-        {inviteLink && <CopyInput value={inviteLink} fillWidth family={FontFamily.MONO} />}
-      </Dialog>
+        <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
+          <Text isProse variant={TextVariant.SECONDARY}>
+            Share this link with your new teammate
+          </Text>
+          {inviteLink && <CopyInput value={inviteLink} fillWidth family={FontFamily.MONO} />}
+        </Flex>
+      </Modal>
     ))
     .otherwise(() => (
-      <Dialog
-        open={open}
-        title="Invite team"
-        description="Invite a new member to your organization"
-        onClose={onClose}
+      <Modal
+        header="Invite team"
+        isOpen={open}
+        isDismissable={!isInviting}
+        onOpenChange={handleOpenChange}
         footer={
           <>
             <Button
@@ -159,43 +168,48 @@ const SettingsTeamPanelInvite = ({
           </>
         }
       >
-        <TextInput
-          label="Email"
-          value={state.email}
-          onChange={(email) => setState((prev) => ({ ...prev, email }))}
-          placeholder="name@example.com"
-          fillWidth
-          isRequired
-          autoFocus
-        />
-        <TextInput
-          label="First name"
-          value={state.givenName}
-          onChange={(givenName) => setState((prev) => ({ ...prev, givenName }))}
-          fillWidth
-          isRequired
-        />
-        <TextInput
-          label="Last name"
-          value={state.familyName}
-          onChange={(familyName) => setState((prev) => ({ ...prev, familyName }))}
-          fillWidth
-          isRequired
-        />
-        <SelectInput
-          label="Role"
-          options={ROLE_OPTIONS}
-          value={roleToOptionId(state.role)}
-          onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
-          fillWidth
-          isRequired
-        />
-        {state.error && (
-          <Box fillWidth>
-            <Alert variant={AlertVariant.ERROR}>{state.error}</Alert>
-          </Box>
-        )}
-      </Dialog>
+        <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
+          <Text isProse variant={TextVariant.SECONDARY}>
+            Invite a new member to your organization
+          </Text>
+          <TextInput
+            label="Email"
+            value={state.email}
+            onChange={(email) => setState((prev) => ({ ...prev, email }))}
+            placeholder="name@example.com"
+            fillWidth
+            isRequired
+            autoFocus
+          />
+          <TextInput
+            label="First name"
+            value={state.givenName}
+            onChange={(givenName) => setState((prev) => ({ ...prev, givenName }))}
+            fillWidth
+            isRequired
+          />
+          <TextInput
+            label="Last name"
+            value={state.familyName}
+            onChange={(familyName) => setState((prev) => ({ ...prev, familyName }))}
+            fillWidth
+            isRequired
+          />
+          <SelectInput
+            label="Role"
+            options={ROLE_OPTIONS}
+            value={roleToOptionId(state.role)}
+            onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
+            fillWidth
+            isRequired
+          />
+          {state.error && (
+            <Box fillWidth>
+              <Alert variant={AlertVariant.ERROR}>{state.error}</Alert>
+            </Box>
+          )}
+        </Flex>
+      </Modal>
     ));
 };
 

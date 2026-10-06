@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import { styled } from "@linaria/react";
 
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -33,12 +34,6 @@ const PlaceholderCard = styled.div`
   border-radius: ${t.radius.lg};
 `;
 
-const CardHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
 const SelectorIsland = styled.div`
   height: ${PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT}px;
 
@@ -65,14 +60,14 @@ const PipelineCanvasNodePlaceholder = memo(
 
     return (
       <PlaceholderCard>
-        <CardHeader>
+        <Flex direction={FlexDirection.COLUMN} gap={2}>
           <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
             {CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP[data.kind]}
           </Text>
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
             {CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP[data.kind]}
           </Text>
-        </CardHeader>
+        </Flex>
         <SelectorIsland className="nodrag nowheel">
           <PipelineCanvasConnectionSelector
             kindFilter={data.kind}

@@ -1,5 +1,4 @@
 import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, FlexWrap } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
@@ -28,11 +27,8 @@ const ObservabilityPage = () => {
 
   return (
     <ChartGroupProvider shouldShareTooltip>
-      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth height="100%">
+      <Flex direction={FlexDirection.COLUMN} fillWidth height="100%">
         <ObservabilityToolbar />
-        <FlexItem grow={0} shrink={0} fillWidth>
-          <Divider />
-        </FlexItem>
         <Flex
           alignItems={AlignItems.START}
           direction={FlexDirection.COLUMN}

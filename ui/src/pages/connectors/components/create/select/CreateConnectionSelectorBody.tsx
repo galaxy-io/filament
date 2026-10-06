@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { styled } from "@linaria/react";
 import { useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
@@ -8,13 +7,18 @@ import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Flex, {
+  AlignItems,
+  FlexDirection,
+  FlexVariant,
+  JustifyContent,
+} from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Grid from "@galaxy-io/dls/layout/Grid";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Tabs, { type TabItem, TabsSize, TabsVariant } from "@galaxy-io/dls/navigation/Tabs";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { Orientation } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -38,67 +42,17 @@ import {
 } from "@/pages/connectors/constants";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
-import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
+import { LIST_SEARCH_DEBOUNCE_MS, MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
 
 interface CreateConnectionSelectorBodyProps {
-  search: string;
-  onSearchChange: (search: string) => void;
+  onSearch: (search: string) => void;
   shelf: CreateConnectionSelectorShelf;
   onShelfChange: (shelf: CreateConnectionSelectorShelf) => void;
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
 
-const FrameWrapper = styled.div`
-  display: flex;
-  height: 100%;
-
-  background-color: ${t.color.background.primary};
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-  border-radius: ${t.radius.lg};
-  overflow: hidden;
-`;
-
-const SidebarWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  flex-shrink: 0;
-
-  width: ${CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH}px;
-
-  background-color: ${t.color.background.primary};
-  border-right: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
-`;
-
-const ContentWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-
-  flex: 1;
-  min-width: 0;
-  background-color: ${t.color.background.base};
-`;
-
-const ScrollWrapper = styled.div`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 16px;
-`;
-
-const GhostCard = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border: ${HAIRLINE_WIDTH} solid ${t.color.border.tertiary};
-  border-radius: ${t.radius.lg};
-  background-color: ${t.color.background.primary};
-`;
-
 const CreateConnectionSelectorBody = ({
-  search,
-  onSearchChange,
+  onSearch,
   shelf,
   onShelfChange,
   onConnectorSelect,
@@ -152,8 +106,19 @@ const CreateConnectionSelectorBody = ({
   const kindLabel = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase());
 
   return (
-    <FrameWrapper>
-      <SidebarWrapper>
+    <Flex
+      height="100%"
+      variant={FlexVariant.PRIMARY}
+      hasBorder
+      radius={Radius.LG}
+      overflow="hidden"
+    >
+      <Flex
+        direction={FlexDirection.COLUMN}
+        justifyContent={JustifyContent.SPACE_BETWEEN}
+        shrink={0}
+        width={CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH}
+      >
         <Flex
           alignItems={AlignItems.STRETCH}
           direction={FlexDirection.COLUMN}
@@ -188,47 +153,61 @@ const CreateConnectionSelectorBody = ({
             path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]}
           />
         </Flex>
-      </SidebarWrapper>
-      <ContentWrapper>
+      </Flex>
+      <Divider orientation={Orientation.VERTICAL} />
+      <Flex
+        direction={FlexDirection.COLUMN}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        variant={FlexVariant.BASE}
+      >
         <Box padding={8} fillWidth>
           <SearchInput
             placeholder={
               isLoading ? `Search ${kindLabel}...` : `Search ${families.length} ${kindLabel}...`
             }
             ariaLabel={`Search ${kindLabel}`}
-            onChange={onSearchChange}
-            value={search}
+            defaultValue={connectorSearch}
+            debounceMs={LIST_SEARCH_DEBOUNCE_MS}
+            onSearch={onSearch}
             fillWidth
             autoFocus
           />
         </Box>
         <Divider />
-        <ScrollWrapper>
-          <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
-            {isLoading
-              ? Array.from({ length: CREATE_CONNECTION_SELECTOR_GHOST_COUNT }, (_, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
-                  <GhostCard key={index}>
-                    <Box width={24}>
-                      <Skeleton variant={SkeletonVariant.RECT} size={SkeletonSize.SMALL} />
-                    </Box>
-                    <Box width={100}>
-                      <Skeleton />
-                    </Box>
-                  </GhostCard>
-                ))
-              : shelfFamilies.map((connector) => (
-                  <CreateConnectionSelectorCard
-                    key={`${connector.name}-${connector.kind}`}
-                    connector={connector}
-                    onConnectorSelect={onConnectorSelect}
-                  />
-                ))}
-            {!isLoading && <CreateConnectionSelectorEmptyCard />}
-          </Grid>
-        </ScrollWrapper>
-      </ContentWrapper>
-    </FrameWrapper>
+        <FlexItem grow={1} minHeight={0}>
+          <ScrollArea>
+            <Box padding={16}>
+              <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
+                {isLoading
+                  ? Array.from({ length: CREATE_CONNECTION_SELECTOR_GHOST_COUNT }, (_, index) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
+                      <Widget key={index}>
+                        <Flex alignItems={AlignItems.CENTER} gap={8}>
+                          <Box width={24}>
+                            <Skeleton variant={SkeletonVariant.RECT} size={SkeletonSize.SMALL} />
+                          </Box>
+                          <Box width={100}>
+                            <Skeleton />
+                          </Box>
+                        </Flex>
+                      </Widget>
+                    ))
+                  : shelfFamilies.map((connector) => (
+                      <CreateConnectionSelectorCard
+                        key={`${connector.name}-${connector.kind}`}
+                        connector={connector}
+                        onConnectorSelect={onConnectorSelect}
+                      />
+                    ))}
+                {!isLoading && <CreateConnectionSelectorEmptyCard />}
+              </Grid>
+            </Box>
+          </ScrollArea>
+        </FlexItem>
+      </Flex>
+    </Flex>
   );
 };
 

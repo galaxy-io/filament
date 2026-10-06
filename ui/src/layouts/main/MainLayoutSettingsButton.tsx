@@ -12,6 +12,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Popover from "@galaxy-io/dls/overlays/Popover";
@@ -32,13 +33,6 @@ import { GITHUB_REPO_URL } from "@/constants";
 
 import { useSignOut } from "@/auth/hooks/useSignOut";
 import type { AppSession } from "@/auth/types";
-
-const MenuHeader = styled.div`
-  width: 100%;
-  background-color: ${t.color.background.primary};
-  border-radius: ${t.radius.lg} ${t.radius.lg} 0 0;
-  overflow: hidden;
-`;
 
 const AvatarButton = styled.button`
   ${INTERACTIVE_RESET}
@@ -80,15 +74,6 @@ const MenuItem = styled.button`
   }
 `;
 
-const MenuItemIcon = styled.span`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-`;
-
 const memberDisplayName = (member: { name?: string; email?: string }): string =>
   member.name || member.email || "Member";
 
@@ -126,7 +111,7 @@ const MainLayoutSettingsButtonMenu = ({
       overflow="hidden"
       width={MAIN_LAYOUT_SETTINGS_MENU_WIDTH}
     >
-      <MenuHeader>
+      <Box variant={BoxVariant.PRIMARY} fillWidth>
         <Flex
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
@@ -141,20 +126,16 @@ const MainLayoutSettingsButtonMenu = ({
           </Text>
           <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />
         </Flex>
-      </MenuHeader>
+      </Box>
       <Divider />
       <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
         <MenuItem type="button" onClick={onOpenTeamSettings}>
-          <MenuItemIcon>
-            <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
-          </MenuItemIcon>
+          <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
           <Text>Manage organization</Text>
         </MenuItem>
         {canManageTeam && (
           <MenuItem type="button" onClick={onOpenServiceAccounts}>
-            <MenuItemIcon>
-              <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
-            </MenuItemIcon>
+            <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
             <Text>Service accounts</Text>
           </MenuItem>
         )}
@@ -163,25 +144,19 @@ const MainLayoutSettingsButtonMenu = ({
       <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
         {shouldShowInvite && (
           <MenuItem type="button" onClick={onOpenInvite} disabled={isTeamActionsPending}>
-            <MenuItemIcon>
-              <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
-            </MenuItemIcon>
+            <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
             <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
           </MenuItem>
         )}
         <MenuItem type="button" onClick={onOpenGithub}>
-          <MenuItemIcon>
-            <Icon component={GithubLogoIcon} variant={IconVariant.TERTIARY} />
-          </MenuItemIcon>
+          <Icon component={GithubLogoIcon} variant={IconVariant.TERTIARY} />
           <Text>Star on GitHub</Text>
         </MenuItem>
       </Flex>
       <Divider />
       <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
         <MenuItem type="button" onClick={onLogout}>
-          <MenuItemIcon>
-            <Icon component={SignOutIcon} variant={IconVariant.TERTIARY} />
-          </MenuItemIcon>
+          <Icon component={SignOutIcon} variant={IconVariant.TERTIARY} />
           <Text>Log out</Text>
         </MenuItem>
       </Flex>

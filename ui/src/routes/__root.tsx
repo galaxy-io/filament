@@ -31,7 +31,7 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
     <ErrorLayout
       icon={BugIcon}
       header="Could not reach the server"
-      message="Please try again later"
+      description="Please try again later"
       error={error}
       actions={<Button label="Retry" onClick={() => void router.invalidate()} />}
     />

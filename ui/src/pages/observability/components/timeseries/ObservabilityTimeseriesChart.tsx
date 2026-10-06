@@ -26,7 +26,7 @@ import {
   useBucketLabelFormatter,
 } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -77,7 +77,7 @@ const ObservabilityTimeseriesChart = ({
     const timeseries = (data?.series ?? []).filter(
       (keySeries) =>
         pivotDimension !== MetricDimension.STATUS ||
-        PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(keySeries.key) as RunStatus] !== undefined,
+        PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(keySeries.key) as RunStatus] !== null,
     );
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
@@ -98,7 +98,7 @@ const ObservabilityTimeseriesChart = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(key) as RunStatus] ?? undefined;
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[

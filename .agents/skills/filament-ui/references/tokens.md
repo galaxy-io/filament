@@ -139,7 +139,7 @@ Each solid role is `{ background, text, hovered, pressed }`: the fill, the text 
 17 families: `red orange amber yellow lime green emerald teal cyan sky blue indigo violet purple fuchsia pink rose`. No gray: neutrals are the neutral roles.
 
 - Each family exists on every property (`background.purple`, `text.purple`, `border.purple`, `solid.purple`) and follows the theme.
-- Components take a category through the `color` prop (`PaletteColor`): `Chip`, `Beacon`, `Circle`, `Square`, `Avatar`, `Sparkline`, `ProgressBar`, `ProgressCircle`, `Timeline` items. `color` and `variant` are mutually exclusive by type: `variant` is meaning, `color` is category.
+- Components take a category through the `color` prop (`RoleColor`: a palette family, or a status name used as data): `Chip`, `Beacon`, `Circle`, `Square`, `Sparkline`, `ProgressBar`, `ProgressCircle`, `Timeline` items, and a chart series. `Avatar` takes a `PaletteColor` only. `color` and `variant` are mutually exclusive by type: `variant` is meaning, `color` is category. A run-status map that holds `"success"` beside `"blue"` feeds `color` directly; a status that is a meaning on its own takes `variant`.
 - Use a family for something that *is* a category (a team, a source type, a series), never to decorate.
 
 ```tsx

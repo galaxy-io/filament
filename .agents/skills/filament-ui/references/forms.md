@@ -98,7 +98,7 @@ const FIELD_TYPE_TO_FIELD_COMPONENT_MAP: Record<FieldType, FieldComponent> = {
 ```
 
 - Every field component takes `FieldComponentProps` from `fields/types.ts`. `field`, `value: JsonValue`, `onChange(JsonValue)`, `variant`, `error`, `isDisabled`, `label`, `hasStoredSecret`.
-- `FieldWrapper` is the house `Field`. Label from `formatFieldName(field.name)` (snake and camel case to Title Case, acronyms upper-cased), `field.help` as `labelTooltip`, `isRequired` from the schema, `fillWidth`. With `isSection` it becomes a collapsible `Widget` for nested objects.
+- Each `FieldX` is one DLS input with its own label: `label` from `formatFieldName(field.name)` (snake and camel case to Title Case, acronyms upper-cased), `labelTooltip={field.help || undefined}`, `isRequired` from the schema, `error`, `fillWidth`. Only `FieldBoolean` and `FieldObject` wrap a DLS `Field` (the checkbox and the code editor have no label of their own). A nested object is a collapsible `Widget` section in `Field.tsx` with the error line under its children.
 - Placeholders are `Enter ${label}...` for text and `Select ${label}...` for selects.
 - **Secrets.** `hasStoredSecret` is true when the path exists in `connection.secretRefs`, and the placeholder becomes "Leave blank to keep current value". The copy lives inside `FieldSecret`. Callers pass the boolean, never the string. A multi-line paste is written whole to state because a single-line input would strip it.
 - **Lists** are a `TagInput` ("Press Enter or comma to add a value"), or a `MultiSelectInput` with a pinned "All <label>" option through `src/utils/select.ts` when the schema enumerates values.

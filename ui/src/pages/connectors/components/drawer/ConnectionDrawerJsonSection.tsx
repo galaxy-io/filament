@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
 
-import Box from "@galaxy-io/dls/layout/Box";
 import CodeBlock, { CodeBlockLanguage } from "@galaxy-io/dls/text/CodeBlock";
 import type Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -31,13 +30,11 @@ const ConnectionDrawerJsonSection = ({
       emptyHeader={emptyHeader}
       emptyMessage={emptyMessage}
     >
-      <Box padding={12}>
-        <CodeBlock
-          content={JSON.stringify(data, null, 2)}
-          language={CodeBlockLanguage.JSON}
-          canCopy
-        />
-      </Box>
+      <CodeBlock
+        content={JSON.stringify(data, null, 2)}
+        language={CodeBlockLanguage.JSON}
+        canCopy
+      />
     </ConnectionDrawerSection>
   );
 };

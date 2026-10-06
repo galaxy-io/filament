@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -10,7 +9,6 @@ import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
@@ -33,14 +31,6 @@ import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/Pipel
 import { useGetRunQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
-
-const ResourceTableWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background-color: ${t.color.background.primary};
-`;
 
 interface PipelineHistoryRunInfoProps {
   runId: RunInfo["id"];
@@ -101,49 +91,40 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   const resources = data?.snapshot?.resources ?? [];
   const isEmpty = resources.length === 0;
 
-  if (isError) {
-    return (
-      <ResourceTableWrapper>
+  const renderBody = () => {
+    if (isError) {
+      return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.ERROR}>Failed to load run details.</Text>
         </Flex>
-      </ResourceTableWrapper>
-    );
-  }
+      );
+    }
 
-  if (isLoading) {
-    return (
-      <ResourceTableWrapper>
+    if (isLoading) {
+      return (
         <Flex alignItems={AlignItems.CENTER} padding={16} fillWidth>
           <Box width={PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH}>
             <Skeleton />
           </Box>
         </Flex>
-      </ResourceTableWrapper>
-    );
-  }
+      );
+    }
 
-  if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS)
-    return (
-      <ResourceTableWrapper>
-        <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
-      </ResourceTableWrapper>
-    );
+    if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS) {
+      return <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />;
+    }
 
-  if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
-    return (
-      <ResourceTableWrapper>
+    if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
+      return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
         </Flex>
-      </ResourceTableWrapper>
-    );
-  }
+      );
+    }
 
-  if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
-    const cancelledAt = data.snapshot.run.endedAt;
-    return (
-      <ResourceTableWrapper>
+    if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
+      const cancelledAt = data.snapshot.run.endedAt;
+      return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>
             {cancelledAt
@@ -151,30 +132,30 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
               : "The run was cancelled before it started."}
           </Text>
         </Flex>
-      </ResourceTableWrapper>
-    );
-  }
+      );
+    }
 
-  if (isEmpty) {
-    return (
-      <ResourceTableWrapper>
+    if (isEmpty) {
+      return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>The run did not record any resource activity.</Text>
         </Flex>
-      </ResourceTableWrapper>
+      );
+    }
+
+    return (
+      <InfiniteTable<RunResourceState>
+        columns={columns}
+        data={resources}
+        getRowId={(resource) => resource.resourceName}
+      />
     );
-  }
+  };
 
   return (
-    <ResourceTableWrapper>
-      <Box variant={BoxVariant.PRIMARY}>
-        <InfiniteTable<RunResourceState>
-          columns={columns}
-          data={resources}
-          getRowId={(resource) => resource.resourceName}
-        />
-      </Box>
-    </ResourceTableWrapper>
+    <Box variant={BoxVariant.PRIMARY} fillWidth height="100%">
+      {renderBody()}
+    </Box>
   );
 };
 

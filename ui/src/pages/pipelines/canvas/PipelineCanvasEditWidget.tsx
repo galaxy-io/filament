@@ -1,6 +1,7 @@
 import { styled } from "@linaria/react";
 
-import Popover from "@galaxy-io/dls/overlays/Popover";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Popover, { PopoverVariant } from "@galaxy-io/dls/overlays/Popover";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { Placement } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -10,7 +11,6 @@ import {
   PIPELINE_CANVAS_OVERLAY_Z_INDEX,
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
-import PipelineCanvasEditWidgetButton from "@/pages/pipelines/canvas/PipelineCanvasEditWidgetButton";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasState,
@@ -46,14 +46,17 @@ const PipelineCanvasEditWidget = () => {
     <PipelineCanvasEditWidgetContainer>
       <Popover
         placement={Placement.RIGHT_START}
+        variant={PopoverVariant.PRIMARY}
         isOpen={isAddNodeOpen}
         onOpenChange={handleAddNodeOpenChange}
         body={<PipelineCanvasConnectionSelector />}
       >
-        <PipelineCanvasEditWidgetButton
+        <Button
           icon={PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP[PipelineCanvasEditMode.ADD_NODE]}
+          variant={ButtonVariant.PRIMARY}
+          isRound
           isActive={isAddNodeOpen}
-          aria-label="Add a connection"
+          ariaLabel="Add a connection"
         />
       </Popover>
     </PipelineCanvasEditWidgetContainer>
