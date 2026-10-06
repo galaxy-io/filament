@@ -11,7 +11,7 @@ Two layers of references live in this folder.
 
 | Layer | Files | Source of truth |
 |---|---|---|
-| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md`, `migration.md` | generated from `~/git/dls/docs`, refreshed with `just ui-skill-sync` |
+| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md` | generated from `~/git/dls/docs`, refreshed with `just ui-skill-sync` |
 | The app | `architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md` | Filament's `ui/src`, maintained here |
 
 When the two disagree, the app layer wins for Filament. The known case is run status marks, which are squares here and not `Beacon`s.
@@ -196,6 +196,5 @@ Roles are `t.color.background.{base primary secondary tertiary hovered pressed s
 | [references/tokens.md](./references/tokens.md) | Styling anything yourself. Surface, text, border and status roles, chart colors, the inverse scope. |
 | [references/patterns.md](./references/patterns.md) | DLS-wide UX guidance. Page structure, density, forms, tables, overlays, feedback, charts, writing, accessibility. |
 | [references/recipes.md](./references/recipes.md) | Complete DLS-only screens that type-check against the package. |
-| [references/migration.md](./references/migration.md) | Working in an app still on DLS 1.x. |
 
 Design system source: `~/git/dls` (Storybook with `pnpm storybook`). App source: `ui/src` in this repository.

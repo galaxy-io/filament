@@ -6,7 +6,7 @@ The skill has two layers.
 
 | Layer | Files | Maintained |
 |---|---|---|
-| Design system | `references/components.md`, `tokens.md`, `patterns.md`, `recipes.md`, `migration.md` | in the DLS repository (`~/git/dls/skills/galaxy-ui/references/`). Copied here with `just ui-skill-sync`. Do not edit the copies. |
+| Design system | `references/components.md`, `tokens.md`, `patterns.md`, `recipes.md` | in the DLS repository (`~/git/dls/skills/galaxy-ui/references/`). Copied here with `just ui-skill-sync`. Do not edit the copies. |
 | App | `SKILL.md`, `references/architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md` | here. They describe how Filament's `ui/src` is built and are updated with the code. |
 
 | File | What |
@@ -23,10 +23,9 @@ The skill has two layers.
 | `references/tokens.md` | Themes and tokens, generated from the DLS docs. |
 | `references/patterns.md` | DLS-wide UX guidance, generated from the DLS docs. |
 | `references/recipes.md` | Complete DLS-only screens. |
-| `references/migration.md` | The 1.x to 2.0 pointer. |
 
 ## Keeping it current
 
-- After a DLS release, run `just ui-skill-sync` from the repository root to refresh the five design-system references from `~/git/dls` (set `DLS_DIR` to point elsewhere). Never `cp -R` the whole DLS skill folder over this one, that would overwrite `SKILL.md`.
+- After a DLS release, run `just ui-skill-sync` from the repository root to refresh the four design-system references from `~/git/dls` (set `DLS_DIR` to point elsewhere). Never `cp -R` the whole DLS skill folder over this one, that would overwrite `SKILL.md`.
 - When a convention in `ui/src` changes, change the app reference that describes it in the same pull request.
 - `.claude` at the repository root is a symlink to `.agents`, so Claude Code finds the skill at `.claude/skills/filament-ui` and git tracks it at `.agents/skills/filament-ui`.

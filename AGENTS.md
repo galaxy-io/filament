@@ -18,7 +18,7 @@ All work in `ui/` follows the `filament-ui` skill. Read its `SKILL.md` before wr
 - The UI is React 18, Vite, TanStack Router, ConnectRPC through `@connectrpc/connect-query`, Linaria, and the Galaxy design system `@galaxy-io/dls`. Components come from the DLS by subpath, styling comes from DLS tokens, and nothing is imported through a barrel.
 - Protos drive the UI's types. After a proto change run `cd ui && pnpm codegen` and commit `ui/src/gen/`. A new service needs a proxy entry in `ui/vite.config.ts`.
 - Gates, run from `ui/` with pnpm (never npm): `pnpm typecheck`, `pnpm lint:check`, `pnpm format:check`, `pnpm build`, and `git diff --exit-code src/routeTree.gen.ts`. `just format check` and `just lint check` cover the UI with the rest of the repo.
-- The five design-system references inside the skill are generated in the DLS repository. Refresh them with `just ui-skill-sync` after a DLS release. Never copy the whole DLS skill folder over `.agents/skills/filament-ui`.
+- The four design-system references inside the skill are generated in the DLS repository. Refresh them with `just ui-skill-sync` after a DLS release. Never copy the whole DLS skill folder over `.agents/skills/filament-ui`.
 - Do not restart a dev server you did not start. `just dev` runs the control plane, the API on 8080 and the UI on 5173. Start your own server on a free port to verify.
 
 ## Repository

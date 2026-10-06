@@ -111,7 +111,7 @@ ui-skill-sync:
     set -euo pipefail
     src="${DLS_DIR:-$HOME/git/dls}/skills/galaxy-ui/references"
     dst=".agents/skills/filament-ui/references"
-    for f in components.md tokens.md patterns.md recipes.md migration.md; do cp "$src/$f" "$dst/$f"; done
+    for f in components.md tokens.md patterns.md recipes.md; do cp "$src/$f" "$dst/$f"; done
     echo "synced $dst from $src"
 
 # regenerate code, build the UI, and compile every Go module
