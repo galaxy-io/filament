@@ -6,15 +6,11 @@ import { useSearch } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -100,7 +96,15 @@ const ObservabilityMetricsWidget = () => {
   );
 
   const totalValue = (value: string) =>
-    isTotalsLoading ? <TextShimmer width={48} height={18} /> : value;
+    isTotalsLoading ? (
+      <Box width={48}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={18}
+        />
+      </Box>
+    ) : (
+      value
+    );
 
   return (
     <MetricGroup
@@ -129,40 +133,67 @@ const ObservabilityMetricsWidget = () => {
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
           value={
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+            <Flex
+              alignItems={
+                AlignItems.CENTER
+              } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+              gap={6}
+            >
               {isStatusCountsLoading ? (
-                <TextShimmer width={32} height={18} />
+                <Box width={32}>
+                  <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+                    height={18}
+                  />
+                </Box>
               ) : (
                 <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
                   {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
                 </Text>
               )}
               <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
-            </FlexWrapper>
+            </Flex>
           }
         />
       ))}
       <MetricCard
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
         value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+          <Flex
+            alignItems={
+              AlignItems.CENTER
+            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+            gap={6}
+          >
             {isScheduledLoading ? (
-              <TextShimmer width={32} height={18} />
+              <Box width={32}>
+                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+                  height={18}
+                />
+              </Box>
             ) : (
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
                 {formatCount(BigInt(scheduledData?.runs.length ?? 0))}
               </Text>
             )}
             <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[RunStatus.SCHEDULED]} />
-          </FlexWrapper>
+          </Flex>
         }
       />
       <MetricCard
         label="Other"
         value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+          <Flex
+            alignItems={
+              AlignItems.CENTER
+            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+            gap={6}
+          >
             {isStatusCountsLoading ? (
-              <TextShimmer width={32} height={18} />
+              <Box width={32}>
+                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+                  height={18}
+                />
+              </Box>
             ) : (
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
                 {formatCount(BigInt(Math.round(otherStatusesCount)))}
@@ -170,32 +201,38 @@ const ObservabilityMetricsWidget = () => {
             )}
             <Tooltip
               body={
-                <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
+                <Flex
+                  alignItems={AlignItems.START}
+                  direction={
+                    FlexDirection.COLUMN
+                  } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+                  gap={6}
+                >
                   {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
-                    <FlexWrapper
+                    <Flex
                       key={status}
                       alignItems={AlignItems.CENTER}
                       justifyContent={JustifyContent.SPACE_BETWEEN}
                       gap={48}
                       fillWidth
                     >
-                      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+                      <Flex alignItems={AlignItems.CENTER} gap={8}>
                         <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
                         <Text size={TextSize.BODY_SM}>
                           {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
                         </Text>
-                      </FlexWrapper>
+                      </Flex>
                       <Text size={TextSize.BODY_SM}>
                         {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
                       </Text>
-                    </FlexWrapper>
+                    </Flex>
                   ))}
-                </FlexWrapper>
+                </Flex>
               }
             >
               <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
             </Tooltip>
-          </FlexWrapper>
+          </Flex>
         }
       />
     </MetricGroup>

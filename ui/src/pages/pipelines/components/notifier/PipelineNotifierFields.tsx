@@ -1,11 +1,11 @@
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiSelectInput, { MultiSelectInputSize } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
@@ -29,7 +29,7 @@ import {
 } from "@/pages/pipelines/components/notifier/utils";
 import { PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP } from "@/pages/pipelines/history/constants";
 
-const EVENT_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
+const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
   ...option,
   icon: (
     <Beacon
@@ -84,11 +84,11 @@ const PipelineNotifierFields = ({
     onChange({ name });
   };
 
-  const handleTypeChange = (option: SelectInputOption) => {
+  const handleTypeChange = (option: SelectOption) => {
     onChange({ notificationType: option.value as NotificationType, url: "", headers: "" });
   };
 
-  const handleEventsChange = (options: SelectInputOption[]) => {
+  const handleEventsChange = (options: SelectOption[]) => {
     onChange({ events: options.map((option) => option.value as NotifierEvent) });
   };
 
@@ -101,7 +101,7 @@ const PipelineNotifierFields = ({
   };
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
       <TextInput
         label="Name"
         value={state.name}
@@ -114,22 +114,30 @@ const PipelineNotifierFields = ({
       <SelectInput
         label="Type"
         options={PIPELINE_NOTIFIER_TYPE_OPTIONS}
-        value={selectedTypeOption}
+        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedTypeOption
+        }
         onChange={handleTypeChange}
         placeholder="Select type"
-        size={InputSize.LARGE}
+        size={SelectInputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
       />
       <MultiSelectInput
         label="Events"
         options={EVENT_OPTIONS}
-        value={selectedEventOptions}
+        /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedEventOptions
+        }
         onChange={handleEventsChange}
-        renderSelectedText={formatPipelineNotifierEventsSelection}
-        pinnedOptions={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION]}
+        /* @dls-migrate multiselectinput.renderSelectedText: Merged into `renderValue(options)`. */ renderSelectedText={
+          formatPipelineNotifierEventsSelection
+        }
+        /* @dls-migrate multiselectinput.pinnedOptions: Pinned rows are now option ids: pass `pinnedIds`. */ pinnedOptions={[
+          PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+        ]}
         placeholder="Select events"
-        size={InputSize.LARGE}
+        size={MultiSelectInputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
       />
@@ -156,28 +164,29 @@ const PipelineNotifierFields = ({
             isDisabled={isDisabled}
             fillWidth
           />
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
             <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
               Headers
             </Text>
             <CodeEditor
-              content={state.headers}
+              value={state.headers}
               onChange={handleHeadersChange}
-              lang="json"
+              language={CodeEditorLanguage.JSON}
               placeholder={headersPlaceholder}
-              borderRadius={4}
-              isReadOnly={isDisabled}
-              noLineNumbers
+              /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly={
+                isDisabled
+              }
+              hasLineNumbers={false}
             />
             {headersError && (
               <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
                 {headersError}
               </Text>
             )}
-          </FlexWrapper>
+          </Flex>
         </>
       )}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

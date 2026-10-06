@@ -1,8 +1,8 @@
 import { styled } from "@linaria/react";
 
-import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Dropdown from "@galaxy-io/dls/dropdown/Dropdown";
+import { Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP,
@@ -16,7 +16,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 
-const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
+const PipelineCanvasEditWidgetContainer = styled.div`
   position: absolute;
   left: 16px;
   top: 50%;
@@ -26,10 +26,10 @@ const PipelineCanvasEditWidgetContainer = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   padding: 8px;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.base};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 200px;
-`);
+`;
 
 const PipelineCanvasEditWidget = () => {
   const state = usePipelineCanvasState();
@@ -46,12 +46,13 @@ const PipelineCanvasEditWidget = () => {
   return (
     <PipelineCanvasEditWidgetContainer>
       <Dropdown
-        position={DropdownPosition.RIGHT_START}
+        placement={Placement.RIGHT_START}
         isOpen={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
-        onClose={handleDropdownClose}
+        /* @dls-migrate dropdown.onClose: A controlled 2.0 Dropdown also asks to open from its trigger: switch to `onOpenChange` and remove the trigger's own toggle. */ onClose={
+          handleDropdownClose
+        }
         body={<PipelineCanvasConnectionSelector />}
-        offset={[-8, 16]}
-        noPadding
+        /* @dls-migrate dropdown.noPadding: A panel that hosts its own layout is a `Popover`. */ noPadding
       >
         <PipelineCanvasEditWidgetButton
           icon={PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP[PipelineCanvasEditMode.ADD_NODE]}

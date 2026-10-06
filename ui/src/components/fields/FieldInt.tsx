@@ -1,3 +1,4 @@
+import Field from "@galaxy-io/dls/inputs/Field";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
@@ -13,20 +14,26 @@ const FieldInt = ({
   label,
 }: FieldComponentProps) => {
   return (
-    <NumberInput
-      value={value !== null && value !== undefined ? Number(value) : undefined}
-      size={InputSize.LARGE}
-      onChange={(v) => onChange(v)}
-      variant={variant}
-      placeholder={`Enter ${label}...`}
+    <Field
       label={label}
       labelTooltip={field.help || undefined}
       isRequired={field.required}
       error={error}
-      isDisabled={isDisabled}
-      step={1}
       fillWidth
-    />
+    >
+      <NumberInput
+        value={value !== null && value !== undefined ? Number(value) : undefined}
+        size={InputSize.LARGE}
+        /* @dls-migrate numberinput.onChange: `onChange` now runs on commit with `number | null`: check the handler. */ onChange={(
+          v,
+        ) => onChange(v)}
+        variant={variant}
+        placeholder={`Enter ${label}...`}
+        isDisabled={isDisabled}
+        step={1}
+        fillWidth
+      />
+    </Field>
   );
 };
 

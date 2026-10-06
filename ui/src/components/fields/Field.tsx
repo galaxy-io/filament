@@ -2,8 +2,8 @@ import { useMemo } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { type ConfigField, FieldType } from "@/gen/ingestion/v1/common_pb";
 
@@ -69,7 +69,7 @@ const Field = ({
         error={getError?.(path)}
         isSection
       >
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
           {field.fields
             .filter((child) => isFieldVisible(child, displayValue))
             .map((child) => (
@@ -90,7 +90,7 @@ const Field = ({
                 storedSecretRefs={storedSecretRefs}
               />
             ))}
-        </FlexWrapper>
+        </Flex>
       </FieldWrapper>
     );
   }

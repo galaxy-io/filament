@@ -8,11 +8,7 @@ import {
 } from "@phosphor-icons/react";
 
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import SettingsNavigationGroup from "@/pages/settings/components/SettingsNavigationGroup";
@@ -52,41 +48,43 @@ const SettingsPageSidebar = ({
   const profileEmail = currentMember?.email || session.email;
 
   return (
-    <FlexWrapper
+    <Flex
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.STRETCH}
-      gap={FlexGap.MEDIUM}
+      gap={12}
       width={SETTINGS_PAGE_SIDEBAR_WIDTH}
       shrink={0}
-      padding="12px"
+      padding={12}
       overflow="auto"
     >
-      <FlexWrapper
+      <Flex
         alignItems={AlignItems.CENTER}
-        gap={FlexGap.SMALL}
-        padding="6px 8px"
+        gap={8}
+        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px 8px"
         fillWidth
         minWidth={0}
       >
         <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={1} minWidth={0}>
-          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isEllipsis>
+        <Flex
+          alignItems={AlignItems.START}
+          direction={
+            FlexDirection.COLUMN
+          } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+          gap={1}
+          minWidth={0}
+        >
+          <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} lineClamp={1}>
             {profileName}
           </Text>
           {profileEmail && (
-            <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isEllipsis>
+            <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} lineClamp={1}>
               {profileEmail}
             </Text>
           )}
-        </FlexWrapper>
-      </FlexWrapper>
+        </Flex>
+      </Flex>
 
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.STRETCH}
-        gap={FlexGap.LARGE}
-        fillWidth
-      >
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} gap={16} fillWidth>
         <SettingsNavigationGroup title="Workspace">
           <SettingsNavigationItem
             label="Team"
@@ -127,8 +125,8 @@ const SettingsPageSidebar = ({
         </SettingsNavigationGroup>
 
         <SettingsNavigationItem label="Logout" icon={SignOutIcon} onClick={() => void signOut()} />
-      </FlexWrapper>
-    </FlexWrapper>
+      </Flex>
+    </Flex>
   );
 };
 

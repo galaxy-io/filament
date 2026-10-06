@@ -3,9 +3,9 @@ import type { ComponentProps } from "react";
 import { ArrowLeftIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
@@ -29,7 +29,7 @@ const PipelineCanvasPanelHeader = ({
   onDelete,
 }: PipelineCanvasPanelHeaderProps) => (
   <>
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px 12px" shrink={0} fillWidth>
+    <Flex alignItems={AlignItems.CENTER} gap={8} padding={[8, 12]} shrink={0} fillWidth>
       {onBack && (
         <FlexItem shrink={0}>
           <Button
@@ -65,8 +65,8 @@ const PipelineCanvasPanelHeader = ({
           onClose={onClose}
         />
       </FlexItem>
-    </FlexWrapper>
-    <HorizontalDivider />
+    </Flex>
+    <Divider />
   </>
 );
 

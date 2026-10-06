@@ -1,18 +1,13 @@
 import { styled } from "@linaria/react";
 import { Link, useRouteContext } from "@tanstack/react-router";
 
+import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
+import GalaxyLogomark from "@galaxy-io/dls/brand/GalaxyLogomark";
 import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
-import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import DocsButton from "@/components/DocsButton";
 import GithubButton from "@/components/GithubButton";
@@ -37,7 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/sinks", label: "Sinks" },
 ];
 
-const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
+const NavbarWrapper = styled.div`
   width: 100%;
   height: ${MAIN_NAVBAR_HEIGHT}px;
 
@@ -47,17 +42,17 @@ const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
   align-items: center;
   justify-content: space-between;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
-const NavTabWrapper = withTheme(styled.div<PropsWithTheme<{ $isActive?: boolean }>>`
+const NavTabWrapper = styled.div<{ $isActive?: boolean }>`
   padding-bottom: 6px;
 
   border-bottom: 2px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.color.text.primary : "transparent")};
+    ${({ $isActive }) => ($isActive ? t.color.text.primary : "transparent")};
 
   transition: border-color 100ms ease;
-`);
+`;
 
 const NavTabsWrapper = styled.div`
   height: 100%;
@@ -97,31 +92,27 @@ const MainLayoutNavbar = () => {
   return (
     <NavbarWrapper>
       <Link to={"/"}>
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          gap={FlexGap.MEDIUM}
-          width={MAIN_NAVBAR_RAIL_WIDTH}
-        >
+        <Flex alignItems={AlignItems.CENTER} gap={12} width={MAIN_NAVBAR_RAIL_WIDTH}>
           <FlexItem shrink={0}>
-            <GalaxyLogomark height={12} />
+            <GalaxyLogomark size={12} />
           </FlexItem>
           <FlexItem shrink={0}>
-            <GalaxyFilamentWordmark height={18} />
+            <GalaxyFilamentWordmark size={18} />
           </FlexItem>
           <FlexItem shrink={0}>
             <DocsButton variant={ButtonVariant.TERTIARY} />
           </FlexItem>
-        </FlexWrapper>
+        </Flex>
       </Link>
       <NavTabsWrapper>
         {NAV_ITEMS.map((item) => (
           <MainLayoutNavTab key={item.to} item={item} />
         ))}
       </NavTabsWrapper>
-      <FlexWrapper
+      <Flex
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.END}
-        gap={FlexGap.SMALL}
+        gap={8}
         width={MAIN_NAVBAR_RAIL_WIDTH}
       >
         <FlexItem shrink={0}>
@@ -135,7 +126,7 @@ const MainLayoutNavbar = () => {
         <FlexItem shrink={0}>
           <MainLayoutSettingsButton />
         </FlexItem>
-      </FlexWrapper>
+      </Flex>
     </NavbarWrapper>
   );
 };

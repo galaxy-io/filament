@@ -4,13 +4,14 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import InfiniteTable, { ColumnAlign } from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
@@ -35,7 +36,7 @@ import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
+const PageWrapper = styled.div`
   width: 100%;
   height: 100%;
 
@@ -44,8 +45,8 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
 
   overflow: hidden;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const RunTableWrapper = styled.div`
   width: 100%;
@@ -53,12 +54,20 @@ const RunTableWrapper = styled.div`
   min-height: 0;
 `;
 
-const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): ColumnDef<RunInfo>[] => [
+const createRunTableColumns = (
+  versionById: ReadonlyMap<string, bigint>,
+): TableColumn<RunInfo>[] => [
   {
     id: "status",
     header: "Status",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
-    cellLoading: () => <TextShimmer width={64} height={18} />,
+    cellLoading: () => (
+      <Box width={64}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={18}
+        />
+      </Box>
+    ),
     cell: ({ row }) => (
       <PipelineHistoryRunStatus
         status={row.original.status}
@@ -70,14 +79,20 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
   {
     id: "startedAt",
     header: "Started",
-    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cellLoading: () => (
+      <Box width={160}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={14}
+        />
+      </Box>
+    ),
     cell: ({ row }) => {
       const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row.original);
       return (
         <Text
           size={TextSize.BODY_SM}
           variant={isStarted ? TextVariant.PRIMARY : TextVariant.TERTIARY}
-          isEllipsis
+          lineClamp={1}
         >
           {formatTimestamp(timestamp)}
         </Text>
@@ -88,7 +103,13 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     id: "version",
     header: "Version",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-    cellLoading: () => <TextShimmer width={32} height={14} />,
+    cellLoading: () => (
+      <Box width={32}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={14}
+        />
+      </Box>
+    ),
     cell: ({ row }) => {
       const version = versionById.get(row.original.pipelineVersionId);
       return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
@@ -98,7 +119,13 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     id: "duration",
     header: "Duration",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
+    cellLoading: () => (
+      <Box width={160}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={14}
+        />
+      </Box>
+    ),
     cell: ({ row }) => (
       <PipelineHistoryRunDuration
         status={row.original.status}
@@ -111,9 +138,15 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     id: "records",
     header: "Records",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
+    cellLoading: () => (
+      <Box width={48}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={14}
+        />
+      </Box>
+    ),
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
         {row.original.startedAt ? formatCount(row.original.records) : "—"}
       </Text>
     ),
@@ -122,10 +155,17 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
     id: "volume",
     header: "Volume",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    // @dls-migrate infinitetable.ColumnAlign: Removed: use the 2.0 replacement where the value is passed around.
     align: ColumnAlign.RIGHT,
-    cellLoading: () => <TextShimmer width={52} height={14} />,
+    cellLoading: () => (
+      <Box width={52}>
+        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+          height={14}
+        />
+      </Box>
+    ),
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
         {row.original.startedAt ? formatBytes(row.original.bytes) : "—"}
       </Text>
     ),
@@ -176,31 +216,32 @@ const PipelineHistoryPage = () => {
 
   return (
     <PageWrapper>
-      <Wrapper padding={"16px"} fillWidth>
+      <Box padding={16} fillWidth>
         <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
-      </Wrapper>
+      </Box>
 
-      <HorizontalDivider />
+      <Divider />
 
       <RunTableWrapper>
-        <InfiniteTable<RunInfo>
-          columns={columns}
-          data={runs}
-          getRowId={(run) => run.id}
-          contentWhenEmpty={
-            <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
-          }
-          expandedRowIds={runIds}
-          onExpandedChange={handleExpandedChange}
-          onRowExpand={(row) => {
-            return <PipelineHistoryRunInfo runId={row.original.id} />;
-          }}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-          fillWidth
-          fillHeight
-        />
+        <Box height="100%">
+          <InfiniteTable<RunInfo>
+            columns={columns}
+            data={runs}
+            getRowId={(run) => run.id}
+            emptyState={
+              <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
+            }
+            expandedIds={runIds}
+            onExpandedIdsChange={handleExpandedChange}
+            renderExpandedRow={(row) => {
+              return <PipelineHistoryRunInfo runId={row.original.id} />;
+            }}
+            isLoading={isFetchingNextPage}
+            onEndReached={() => {
+              if (hasNextPage) fetchNextPage();
+            }}
+          />
+        </Box>
       </RunTableWrapper>
     </PageWrapper>
   );

@@ -1,4 +1,4 @@
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 
@@ -21,12 +21,11 @@ const PipelineWorkerConfigurationEditor = ({
 }: PipelineWorkerConfigurationEditorProps) => (
   <FieldWrapper label={label} help={help} error={error}>
     <CodeEditor
-      content={value}
+      value={value}
       onChange={onChange}
-      lang="json"
+      language={CodeEditorLanguage.JSON}
       placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
-      borderRadius={4}
-      noLineNumbers
+      hasLineNumbers={false}
     />
   </FieldWrapper>
 );

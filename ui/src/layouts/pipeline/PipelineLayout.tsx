@@ -4,8 +4,7 @@ import { styled } from "@linaria/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_PREVIEW_CHIP_Z_INDEX,
@@ -20,16 +19,16 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 
 import { useRouteMatch } from "@/hooks/useRouteMatch";
 
-const LayoutWrapper = withTheme(styled.div<PropsWithTheme>`
+const LayoutWrapper = styled.div`
   width: 100%;
   height: 100%;
 
   display: flex;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
-const LeftColumn = withTheme(styled.div<PropsWithTheme>`
+const LeftColumn = styled.div`
   width: ${PIPELINE_SIDEBAR_WIDTH}px;
   height: 100%;
 
@@ -38,8 +37,8 @@ const LeftColumn = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const RightColumn = styled.div`
   flex: 1;
@@ -50,7 +49,7 @@ const RightColumn = styled.div`
   flex-direction: column;
 `;
 
-const ContentWrapper = withTheme(styled.div<PropsWithTheme>`
+const ContentWrapper = styled.div`
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -59,25 +58,24 @@ const ContentWrapper = withTheme(styled.div<PropsWithTheme>`
 
   display: flex;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
-const ContentIsland = withTheme(styled.div<PropsWithTheme<{ $isPreview?: boolean }>>`
+const ContentIsland = styled.div<{ $isPreview?: boolean }>`
   position: relative;
 
   flex: 1;
   width: 100%;
   min-height: 0;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
 
   border: 0.5px solid
-    ${({ $isPreview, theme }) =>
-      $isPreview ? theme.color.border.error : theme.color.border.primary};
+    ${({ $isPreview }) => ($isPreview ? t.color.border.error : t.color.border.primary)};
   border-radius: 6px;
 
   overflow: hidden;
-`);
+`;
 
 const PreviewChipOverlay = styled.div`
   position: absolute;

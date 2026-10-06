@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 
-import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
 
 import {
   PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
@@ -102,12 +102,12 @@ const PipelineCanvasNodeSourceIsland = ({
         />
         {connectedCount > 0 && (
           <BadgeSlot ref={badgeRef}>
-            <Badge count={connectedCount} variant={BadgeVariant.SECONDARY} />
+            <Chip hasBorder isPill count={connectedCount} variant={ChipVariant.SECONDARY} />
           </BadgeSlot>
         )}
       </SearchSection>
 
-      <HorizontalDivider />
+      <Divider />
 
       <TableList ref={listRef} className="nowheel" onScroll={syncMeasurements}>
         <PipelineCanvasNodeSourceIslandTableList

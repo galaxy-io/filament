@@ -1,4 +1,4 @@
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -10,9 +10,9 @@ interface PipelinesTableColumnNameProps {
 
 const PipelinesTableColumnName = ({ pipeline }: PipelinesTableColumnNameProps) => {
   return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+    <Flex alignItems={AlignItems.CENTER} gap={8}>
       <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

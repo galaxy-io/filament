@@ -1,11 +1,16 @@
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputSize,
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -138,12 +143,12 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
 
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
-  const readModeSelectOptions: SelectInputOption[] = readModeOptions.map((mode) => ({
+  const readModeSelectOptions: SelectOption[] = readModeOptions.map((mode) => ({
     id: String(mode),
     label: READ_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
-  const writeModeSelectOptions: SelectInputOption[] = compatibleWriteModes.map((mode) => ({
+  const writeModeSelectOptions: SelectOption[] = compatibleWriteModes.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
     value: mode,
@@ -179,7 +184,10 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           <ConnectionDrawerKeyValueRow
             label="Resource"
             value={
-              <Text size={TextSize.BODY_SM} isMonospace={isNamedResource}>
+              <Text
+                size={TextSize.BODY_SM}
+                family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
+              >
                 {resourceLabel}
               </Text>
             }
@@ -198,16 +206,18 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           emptyMessage="No configuration options are available for this resource."
           padding="12px"
         >
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
             {hasReadLevers && (
               <SelectInput
                 label="Read mode"
                 options={readModeSelectOptions}
-                value={readModeSelectOptions.find((option) => option.value === readMode) ?? null}
+                /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                  readModeSelectOptions.find((option) => option.value === readMode) ?? null
+                }
                 onChange={(option) => handleReadModeChange(option.value as ReadMode)}
-                variant={InputVariant.TERTIARY}
+                variant={SelectInputVariant.TERTIARY}
                 placeholder="Select a read mode..."
-                size={InputSize.LARGE}
+                size={SelectInputSize.LARGE}
                 isDisabled={isReadOnly || isLoading}
                 fillWidth
               />
@@ -215,11 +225,13 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
             <SelectInput
               label="Write mode"
               options={writeModeSelectOptions}
-              value={writeModeSelectOptions.find((option) => option.value === writeMode) ?? null}
+              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                writeModeSelectOptions.find((option) => option.value === writeMode) ?? null
+              }
               onChange={(option) => handleWriteModeChange(option.value as WriteMode)}
-              variant={InputVariant.TERTIARY}
+              variant={SelectInputVariant.TERTIARY}
               placeholder="Select a write mode..."
-              size={InputSize.LARGE}
+              size={SelectInputSize.LARGE}
               isDisabled={isReadOnly || isLoading}
               fillWidth
             />
@@ -252,7 +264,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   />
                 ),
               )}
-          </FlexWrapper>
+          </Flex>
         </PipelineCanvasPanelSection>
       </PipelineCanvasPanelBody>
     </>

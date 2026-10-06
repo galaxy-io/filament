@@ -1,13 +1,12 @@
 import { styled } from "@linaria/react";
 import { ArrowSquareOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const NavigationAnchor = withTheme(styled.a<PropsWithTheme>`
+const NavigationAnchor = styled.a`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -15,7 +14,7 @@ const NavigationAnchor = withTheme(styled.a<PropsWithTheme>`
   min-width: 0;
   min-height: 32px;
   padding: 6px 8px;
-  color: ${({ theme }) => theme.color.text.secondary};
+  color: ${t.color.text.secondary};
   background-color: transparent;
   border: 0.5px solid transparent;
   border-radius: 5px;
@@ -25,15 +24,15 @@ const NavigationAnchor = withTheme(styled.a<PropsWithTheme>`
 
   &:hover,
   &:focus-visible {
-    color: ${({ theme }) => theme.color.text.primary};
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    color: ${t.color.text.primary};
+    background-color: ${t.color.background.tertiary};
   }
 
   &:focus-visible {
-    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline: 1px solid ${t.color.border.secondary};
     outline-offset: 1px;
   }
-`);
+`;
 
 interface SettingsNavigationLinkProps {
   label: string;
@@ -45,7 +44,7 @@ const SettingsNavigationLink = ({ label, icon, href }: SettingsNavigationLinkPro
   <NavigationAnchor href={href} target="_blank" rel="noreferrer">
     <Icon component={icon} size={16} variant={IconVariant.TERTIARY} />
     <FlexItem grow={1} minWidth={0}>
-      <Text isEllipsis>{label}</Text>
+      <Text lineClamp={1}>{label}</Text>
     </FlexItem>
     <Icon component={ArrowSquareOutIcon} size={13} variant={IconVariant.TERTIARY} />
   </NavigationAnchor>

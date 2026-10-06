@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 interface SettingsNavigationGroupProps {
@@ -11,16 +11,16 @@ const SettingsNavigationGroup = ({
   title,
   children,
 }: PropsWithChildren<SettingsNavigationGroupProps>) => (
-  <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} fillWidth>
-    <FlexWrapper padding="0 8px 8px">
+  <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} fillWidth>
+    <Flex alignItems={AlignItems.START} padding={[0, 8, 8]}>
       <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
         {title}
       </Text>
-    </FlexWrapper>
-    <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} gap={4} fillWidth>
+    </Flex>
+    <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} gap={4} fillWidth>
       {children}
-    </FlexWrapper>
-  </FlexWrapper>
+    </Flex>
+  </Flex>
 );
 
 export default SettingsNavigationGroup;

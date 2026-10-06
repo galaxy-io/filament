@@ -7,15 +7,14 @@ import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -67,22 +66,22 @@ import { NOOP } from "@/constants";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
+const BodyWrapper = styled.div`
   flex: 1;
   min-height: 0;
   width: 100%;
   overflow-y: auto;
-  background-color: ${({ theme }) => theme.color.background.base};
+  background-color: ${t.color.background.base};
   padding: 16px;
-`);
+`;
 
-const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
+const FooterWrapper = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
+  background-color: ${t.color.background.primary};
+`;
 
 interface ConnectionFormProps {
   connectorName: ConnectorSpec["name"];
@@ -106,7 +105,7 @@ const ConnectionForm = ({
   onConnectorChange,
 }: ConnectionFormProps) => {
   const { state, dispatch } = useConnectionFormContext();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const { data, isError } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
@@ -203,10 +202,10 @@ const ConnectionForm = ({
               type: ConnectionFormActionType.SET_PHASE,
               payload: ConnectionFormPhase.ERROR,
             });
-            showToast({
+            toast({
               variant: ToastVariant.ERROR,
               header: "Validation failed",
-              subheader: response.errors[0]?.message ?? "Connection could not be validated.",
+              description: response.errors[0]?.message ?? "Connection could not be validated.",
             });
           }
         },
@@ -215,10 +214,10 @@ const ConnectionForm = ({
             type: ConnectionFormActionType.SET_PHASE,
             payload: ConnectionFormPhase.ERROR,
           });
-          showToast({
+          toast({
             variant: ToastVariant.ERROR,
             header: "Validation failed",
-            subheader: getErrorMessage(error, "Validation failed"),
+            description: getErrorMessage(error, "Validation failed"),
           });
         },
       },
@@ -231,7 +230,7 @@ const ConnectionForm = ({
     connectionId,
     validateConfig,
     dispatch,
-    showToast,
+    toast,
   ]);
 
   const handleNameChange = useCallback(
@@ -281,10 +280,12 @@ const ConnectionForm = ({
           <FieldWrapper label="API version">
             <SelectInput
               options={versionOptions}
-              value={versionOptions.find((option) => option.value === connector?.name) ?? null}
+              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                versionOptions.find((option) => option.value === connector?.name) ?? null
+              }
               onChange={(option) => onConnectorChange(option.value as string)}
               isDisabled={isDisabled || versionOptions.length === 1}
-              size={InputSize.LARGE}
+              size={SelectInputSize.LARGE}
               fillWidth
             />
           </FieldWrapper>
@@ -328,19 +329,26 @@ const ConnectionForm = ({
         />
       ))
       .with(ConnectionFormPhase.VALIDATED, () => (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={16}>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+        <Flex alignItems={AlignItems.CENTER} gap={16}>
+          <Flex
+            alignItems={
+              AlignItems.CENTER
+            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+            gap={6}
+          >
             <Beacon variant={BeaconVariant.SUCCESS} />
             <Text variant={TextVariant.SUCCESS}>Connected</Text>
-          </FlexWrapper>
+          </Flex>
           <Button
             size={ButtonSize.LARGE}
             label={submitLabel}
             icon={CheckIcon}
-            variant={ButtonVariant.SUCCESS}
+            /* @dls-migrate button.ButtonVariant.SUCCESS: Removed: use `PRIMARY`, and show success with `Chip` or a labeled `Beacon`. */ variant={
+              ButtonVariant.SUCCESS
+            }
             onClick={onSubmit}
           />
-        </FlexWrapper>
+        </Flex>
       ))
       .with(ConnectionFormPhase.SUBMITTING, () => (
         <Button
@@ -393,17 +401,17 @@ const ConnectionForm = ({
         />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
-        <HorizontalDivider />
+        <Divider />
       </FlexItem>
 
       <BodyWrapper>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
           {renderBody()}
-        </FlexWrapper>
+        </Flex>
       </BodyWrapper>
 
       <FlexItem grow={0} shrink={0}>
-        <HorizontalDivider />
+        <Divider />
       </FlexItem>
       <FooterWrapper>
         {onBack ? (

@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import pluralize from "pluralize";
 
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
   NotificationType,
@@ -20,7 +20,7 @@ import {
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
 export const formatPipelineNotifierEventsSelection = (
-  selectedOptions: SelectInputOption[],
+  selectedOptions: SelectOption[],
   placeholder: string,
 ): string => {
   if (selectedOptions.length === 0) return placeholder;

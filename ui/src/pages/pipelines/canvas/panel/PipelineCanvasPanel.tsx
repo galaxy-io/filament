@@ -3,8 +3,7 @@ import { SidebarSimpleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { PIPELINE_CANVAS_OVERLAY_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -21,7 +20,7 @@ import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { isConnectionNode } from "@/pages/pipelines/canvas/types";
 
-const PanelWrapper = withTheme(styled.div<PropsWithTheme>`
+const PanelWrapper = styled.div`
   position: absolute;
   top: ${PIPELINE_CANVAS_PANEL_INSET}px;
   right: ${PIPELINE_CANVAS_PANEL_INSET}px;
@@ -33,13 +32,13 @@ const PanelWrapper = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 6px;
 
   overflow: hidden;
-`);
+`;
 
 const CollapsedWrapper = styled.div`
   position: absolute;

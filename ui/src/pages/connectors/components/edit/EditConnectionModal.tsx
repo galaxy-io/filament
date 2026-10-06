@@ -41,7 +41,7 @@ interface EditConnectionModalContentProps extends EditConnectionModalProps {
 
 const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModalContentProps) => {
   const { state, dispatch } = useConnectionFormContext();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const { mutate: updateConnection } = useUpdateConnectionMutation();
 
@@ -68,10 +68,10 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
       }),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             variant: ToastVariant.SUCCESS,
             header: "Connection updated",
-            subheader: `${name} has been updated successfully.`,
+            description: `${name} has been updated successfully.`,
           });
           onClose();
         },
@@ -81,17 +81,17 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
             payload: ConnectionFormPhase.ERROR,
           });
           const isConflict = ConnectError.from(error).code === Code.Aborted;
-          showToast({
+          toast({
             variant: ToastVariant.ERROR,
             header: isConflict ? "Connection changed elsewhere" : "Update failed",
-            subheader: isConflict
+            description: isConflict
               ? "This connection was modified since you opened it. Close the editor and reopen it to load the latest version."
               : getErrorMessage(error, "Update failed"),
           });
         },
       },
     );
-  }, [state.name, state.config, connection, updateConnection, showToast, onClose, dispatch]);
+  }, [state.name, state.config, connection, updateConnection, toast, onClose, dispatch]);
 
   return (
     <ConnectionForm

@@ -1,5 +1,8 @@
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 
 import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
@@ -17,7 +20,7 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
   const selectedOption =
     METRIC_DIMENSION_PIVOT_OPTIONS.find((option) => option.value === value) ?? null;
 
-  const handleChange = (option: SelectInputOption) => {
+  const handleChange = (option: SelectOption) => {
     onChange(option.value as MetricDimension);
   };
 
@@ -26,15 +29,21 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
   };
 
   return (
-    <SelectInput
-      options={METRIC_DIMENSION_PIVOT_OPTIONS}
-      value={selectedOption}
-      variant={InputVariant.TERTIARY}
-      onChange={handleChange}
-      onReset={handleReset}
-      placeholder="Pivot"
-      width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}
-    />
+    <Box width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}>
+      <SelectInput
+        fillWidth
+        options={METRIC_DIMENSION_PIVOT_OPTIONS}
+        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedOption
+        }
+        variant={SelectInputVariant.TERTIARY}
+        onChange={handleChange}
+        /* @dls-migrate selectinput.onReset: The clear button calls `onChange` with an empty value: move side effects there and add `isClearable`. */ onReset={
+          handleReset
+        }
+        placeholder="Pivot"
+      />
+    </Box>
   );
 };
 

@@ -4,12 +4,11 @@ import { styled } from "@linaria/react";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import VerticalDivider from "@galaxy-io/dls/dividers/VerticalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Modal from "@galaxy-io/dls/modal/Modal";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Orientation } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { Flow } from "@/layouts/app/types";
 import BaseHeader from "@/layouts/components/BaseHeader";
@@ -26,23 +25,23 @@ import { useListMembersQuery } from "@/api/queries/auth";
 
 import type { AppSession } from "@/auth/types";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
+const PageWrapper = styled.div`
   display: flex;
   flex-direction: column;
   width: calc(100vw - ${SETTINGS_PAGE_INSET}px);
   height: calc(100vh - ${SETTINGS_PAGE_INSET}px);
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 8px;
   overflow: hidden;
-`);
+`;
 
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
+const BodyWrapper = styled.div`
   display: flex;
   flex: 1;
   min-height: 0;
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 interface SettingsPageContentProps {
   session: AppSession;
@@ -96,10 +95,10 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
 
   return (
     <PageWrapper>
-      <FlexWrapper padding="16px">
+      <Flex alignItems={AlignItems.START} padding={16}>
         <BaseHeader title="Settings" onClose={onClose} />
-      </FlexWrapper>
-      <HorizontalDivider />
+      </Flex>
+      <Divider />
       <BodyWrapper>
         <SettingsPageSidebar
           session={session}
@@ -107,8 +106,8 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
           canManageTeam={canManageTeam}
           onPanelChange={handlePanelChange}
         />
-        <VerticalDivider />
-        <FlexWrapper
+        <Divider orientation={Orientation.VERTICAL} />
+        <Flex
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.STRETCH}
           grow={1}
@@ -117,7 +116,7 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
           overflow="hidden"
         >
           {renderPanel()}
-        </FlexWrapper>
+        </Flex>
       </BodyWrapper>
     </PageWrapper>
   );
@@ -190,7 +189,12 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Modal open={isSettingsOpen} onClose={handleCloseSettings}>
+      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+        isOpen={isSettingsOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseSettings();
+        }}
+      >
         <SettingsPageContent
           session={session}
           onClose={handleCloseSettings}

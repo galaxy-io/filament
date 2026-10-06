@@ -1,8 +1,8 @@
 import pluralize from "pluralize";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorMaturity, ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
@@ -41,7 +41,7 @@ const ConnectionFormHeader = ({
   onClose,
 }: ConnectionFormHeaderProps) => {
   return (
-    <FlexWrapper alignItems={AlignItems.CENTER} padding="12px 16px" gap={12} fillWidth>
+    <Flex alignItems={AlignItems.CENTER} padding={[12, 16]} gap={12} fillWidth>
       <FlexItem shrink={0}>
         <ConnectorTile
           connector={connectorName}
@@ -50,7 +50,7 @@ const ConnectionFormHeader = ({
         />
       </FlexItem>
       <FlexItem grow={1} minWidth={0}>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
           <BaseHeader
             size={BaseHeaderSize.LARGE}
             title={title}
@@ -59,7 +59,7 @@ const ConnectionFormHeader = ({
             ]}
             onClose={onClose}
           />
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+          <Flex alignItems={AlignItems.CENTER} gap={8}>
             <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
             {connectorApiVersion && (
               <Chip
@@ -69,10 +69,10 @@ const ConnectionFormHeader = ({
               />
             )}
             <ConnectorMaturityIcon maturity={connectorMaturity} />
-          </FlexWrapper>
-        </FlexWrapper>
+          </Flex>
+        </Flex>
       </FlexItem>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -1,26 +1,25 @@
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_CANVAS_NODE_BORDER_RADIUS,
   PIPELINE_CANVAS_NODE_PADDING,
 } from "@/pages/pipelines/canvas/nodes/constants";
 
-const PipelineCanvasNodeIsland = withTheme(styled.div<PropsWithTheme<{ $isSelected?: boolean }>>`
+const PipelineCanvasNodeIsland = styled.div<{ $isSelected?: boolean }>`
   padding: ${PIPELINE_CANVAS_NODE_PADDING}px;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
   border: 0.5px solid
-    ${({ theme, $isSelected }) =>
-      $isSelected ? theme.color.background.galaxy : theme.color.border.primary};
+    ${({ $isSelected }) =>
+      $isSelected ? t.color.solid.primary.background : t.color.border.primary};
   border-radius: ${PIPELINE_CANVAS_NODE_BORDER_RADIUS}px;
-  outline: ${({ theme, $isSelected }) =>
-    $isSelected ? `1px solid ${theme.color.background.galaxy}` : "none"};
+  outline: ${({ $isSelected }) =>
+    $isSelected ? `1px solid ${t.color.solid.primary.background}` : "none"};
   outline-offset: -1px;
 
   transition: border-color 100ms ease;
-`);
+`;
 
 export default PipelineCanvasNodeIsland;

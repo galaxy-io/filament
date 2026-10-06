@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react";
 
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 const LeadingWrapper = styled.div`
   display: flex;
@@ -28,17 +28,19 @@ const BaseToolbar = ({ leadingActions, trailingActions, noPadding }: BaseToolbar
   const hasTrailingActions = trailingActions && trailingActions.length > 0;
 
   return (
-    <FlexWrapper
+    <Flex
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.SPACE_BETWEEN}
       overflow="scroll"
       gap={8}
       fillWidth
-      padding={noPadding ? "0" : "8px 12px"}
+      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding={
+        noPadding ? "0" : "8px 12px"
+      }
     >
       <LeadingWrapper>{leadingActions}</LeadingWrapper>
       {hasTrailingActions && <TrailingWrapper>{trailingActions}</TrailingWrapper>}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

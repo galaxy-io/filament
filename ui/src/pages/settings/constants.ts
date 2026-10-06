@@ -1,4 +1,4 @@
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { Role } from "@/gen/auth/v1/members_pb";
 
@@ -37,19 +37,17 @@ export const SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP: Record<Role, string> = {
   [Role.VIEWER]: "Read-only",
 };
 
-export const ROLE_OPTIONS: SelectInputOption[] = ROLES.map((role) => ({
+export const ROLE_OPTIONS: SelectOption[] = ROLES.map((role) => ({
   id: String(role),
   label: ROLE_TO_LABEL_MAP[role],
   value: role,
 }));
 
-export const SERVICE_ACCOUNT_ROLE_OPTIONS: SelectInputOption[] = SERVICE_ACCOUNT_ROLES.map(
-  (role) => ({
-    id: String(role),
-    label: SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP[role],
-    value: role,
-  }),
-);
+export const SERVICE_ACCOUNT_ROLE_OPTIONS: SelectOption[] = SERVICE_ACCOUNT_ROLES.map((role) => ({
+  id: String(role),
+  label: SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP[role],
+  value: role,
+}));
 
 export const INVITE_DEFAULT_ROLE = Role.CREATOR;
 

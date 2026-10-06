@@ -3,10 +3,10 @@ import { useMemo } from "react";
 import { styled } from "@linaria/react";
 import { useSearch } from "@tanstack/react-router";
 
-import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import Grid from "@galaxy-io/dls/layout/Grid";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
@@ -27,25 +27,25 @@ interface CreateConnectionSelectorBodyProps {
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
 
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
+const BodyWrapper = styled.div`
   flex: 1;
   min-height: 0;
   width: 100%;
   overflow-y: auto;
-  background-color: ${({ theme }) => theme.color.background.base};
+  background-color: ${t.color.background.base};
   border-radius: 0 0 8px 8px;
   padding: 16px;
-`);
+`;
 
-const GhostCard = withTheme(styled.div<PropsWithTheme>`
+const GhostCard = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.tertiary};
+  border: 0.5px solid ${t.color.border.tertiary};
   border-radius: 8px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
+  background-color: ${t.color.background.primary};
+`;
 
 const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSelectorBodyProps) => {
   const { connectorKind, connectorSearch = "" } = useSearch({ from: "/_app" });
@@ -77,22 +77,28 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
   if (isLoading) {
     return (
       <BodyWrapper>
-        <GridWrapper columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
+        <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
           {Array.from({ length: CREATE_CONNECTION_SELECTOR_GHOST_COUNT }, (_, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
             <GhostCard key={index}>
-              <TextShimmer height={24} width={24} />
-              <TextShimmer height={16} width={100} />
+              <Box width={24}>
+                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+                  height={24}
+                />
+              </Box>
+              <Box width={100}>
+                <Skeleton />
+              </Box>
             </GhostCard>
           ))}
-        </GridWrapper>
+        </Grid>
       </BodyWrapper>
     );
   }
 
   return (
     <BodyWrapper>
-      <GridWrapper columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
+      <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
         {filteredConnectors.map((connector) => (
           <CreateConnectionSelectorCard
             key={`${connector.name}-${connector.kind}`}
@@ -101,7 +107,7 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
           />
         ))}
         <CreateConnectionSelectorEmptyCard />
-      </GridWrapper>
+      </Grid>
     </BodyWrapper>
   );
 };

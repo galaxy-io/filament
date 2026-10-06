@@ -3,17 +3,14 @@ import { useState } from "react";
 import { styled } from "@linaria/react";
 import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { type PropsWithTheme, withTheme } from "@galaxy-io/dls/theme";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
@@ -38,12 +35,12 @@ export interface PipelineLayoutNavbarRunButtonState {
   workerConfiguration: string;
 }
 
-const PipelineLayoutNavbarRunButtonDropdown = withTheme(styled.div<PropsWithTheme>`
-  background-color: ${({ theme }) => theme.color.background.primary};
+const PipelineLayoutNavbarRunButtonDropdown = styled.div`
+  background-color: ${t.color.background.primary};
   width: ${PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH}px;
   display: flex;
   flex-direction: column;
-`);
+`;
 
 const PipelineLayoutNavbarRunButton = ({
   workerConfiguration,
@@ -61,7 +58,7 @@ const PipelineLayoutNavbarRunButton = ({
   return (
     <Tooltip
       body={runErrors.join("\n")}
-      position={TooltipPosition.BOTTOM}
+      placement={Placement.BOTTOM}
       isDisabled={runErrors.length === 0}
     >
       <Button
@@ -72,14 +69,19 @@ const PipelineLayoutNavbarRunButton = ({
         isLoading={isRunning}
         isDisabled={!isRunnable || runErrors.length > 0}
         onClick={() => onRun()}
-        contentWhenDropdown={({ close }) => (
+        dropdown={({ close }) => (
           <PipelineLayoutNavbarRunButtonDropdown>
-            <FlexWrapper padding="12px">
+            <Flex alignItems={AlignItems.START} padding={12}>
               <BaseHeader title="Custom run configuration" size={BaseHeaderSize.SMALL} />
-            </FlexWrapper>
-            <HorizontalDivider />
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="12px">
-              <Accordion header="Worker configuration" isOpenInitial>
+            </Flex>
+            <Divider />
+            <Flex
+              alignItems={AlignItems.START}
+              direction={FlexDirection.COLUMN}
+              gap={12}
+              padding={12}
+            >
+              <Widget isCollapsible header="Worker configuration" defaultIsOpen>
                 <PipelineWorkerConfigurationEditor
                   value={state.workerConfiguration}
                   onChange={(value) =>
@@ -87,18 +89,18 @@ const PipelineLayoutNavbarRunButton = ({
                   }
                   help="Applied to the Kubernetes Job for this run only"
                 />
-              </Accordion>
-            </FlexWrapper>
-            <HorizontalDivider />
-            <FlexWrapper
+              </Widget>
+            </Flex>
+            <Divider />
+            <Flex
               alignItems={AlignItems.CENTER}
               justifyContent={JustifyContent.END}
               gap={8}
               fillWidth
-              padding="8px 12px"
+              padding={[8, 12]}
             >
               {parsed.error && (
-                <Tooltip body={parsed.error} position={TooltipPosition.TOP}>
+                <Tooltip body={parsed.error} placement={Placement.TOP}>
                   <Chip label="Invalid" icon={WarningIcon} variant={ChipVariant.ERROR} />
                 </Tooltip>
               )}
@@ -113,12 +115,12 @@ const PipelineLayoutNavbarRunButton = ({
                   onRun(parsed.configuration);
                   close();
                 }}
-                isIconFilled
+                /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
               />
-            </FlexWrapper>
+            </Flex>
           </PipelineLayoutNavbarRunButtonDropdown>
         )}
-        isIconFilled
+        /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
       />
     </Tooltip>
   );

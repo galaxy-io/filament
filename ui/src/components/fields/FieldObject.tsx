@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -67,12 +67,14 @@ const FieldObject = ({
       error={state.parseError ?? error}
     >
       <CodeEditor
-        content={state.displayValue}
+        value={state.displayValue}
         onChange={handleChange}
         placeholder="{}"
-        lang="json"
-        isReadOnly={isDisabled}
-        noLineNumbers
+        language={CodeEditorLanguage.JSON}
+        /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly={
+          isDisabled
+        }
+        hasLineNumbers={false}
       />
     </FieldWrapper>
   );

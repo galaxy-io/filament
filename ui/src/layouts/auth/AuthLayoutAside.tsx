@@ -1,13 +1,9 @@
 import { styled } from "@linaria/react";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
@@ -38,41 +34,61 @@ const AuthLayoutAside = () => (
   <AsideWrapper>
     <AuthLayoutAsideField>
       <AsideContentWrapper>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
           {AUTH_LAYOUT_ASIDE_LINKS.map(({ icon, label, description, url }) => (
             <Widget
+              isInteractive
               key={label}
-              variant={WidgetVariant.SECONDARY_ALT}
-              padding={AUTH_LAYOUT_ASIDE_LINK_PADDING}
+              /* @dls-migrate widget.WidgetVariant.SECONDARY_ALT: Removed: use the plain step, plus `isSelected` where it meant chosen. */ variant={
+                WidgetVariant.SECONDARY_ALT
+              }
+              /* @dls-migrate widget.padding-other: The body inset is fixed at 12px: remove `padding` (use `isFlush` for 0). */ padding={
+                AUTH_LAYOUT_ASIDE_LINK_PADDING
+              }
               onClick={() => window.open(url, "_blank")}
-              fillWidth
+              /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */ fillWidth
             >
-              <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} fillWidth>
+              <Flex alignItems={AlignItems.CENTER} gap={12} fillWidth>
                 <Icon
                   component={icon}
                   size={16}
                   weight={IconWeight.FILL}
-                  variant={IconVariant.SECONDARY_ALT}
+                  /* @dls-migrate icon.IconVariant.SECONDARY_ALT: Inverse is a scope, not a member: wrap the content in `<GalaxyProvider isScoped theme={…}>` (the opposite theme) and use `IconVariant.SECONDARY` inside it. */ variant={
+                    IconVariant.SECONDARY_ALT
+                  }
                 />
                 <FlexItem grow={1} minWidth={0}>
-                  <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XXSMALL}>
+                  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={2}>
                     <Text
                       size={TextSize.BODY_MD}
                       weight={TextWeight.MEDIUM}
-                      variant={TextVariant.PRIMARY_ALT}
+                      /* @dls-migrate text.TextVariant.PRIMARY_ALT: Inverse is a scope, not a member: wrap the content in `<GalaxyProvider isScoped theme={…}>` (the opposite theme) and use `TextVariant.PRIMARY` inside it. */ variant={
+                        TextVariant.PRIMARY_ALT
+                      }
                     >
                       {label}
                     </Text>
-                    <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY_ALT}>
+                    <Text
+                      size={
+                        TextSize.BODY_SM
+                      } /* @dls-migrate text.TextVariant.TERTIARY_ALT: Inverse is a scope, not a member: wrap the content in `<GalaxyProvider isScoped theme={…}>` (the opposite theme) and use `TextVariant.TERTIARY` inside it. */
+                      variant={TextVariant.TERTIARY_ALT}
+                    >
                       {description}
                     </Text>
-                  </FlexWrapper>
+                  </Flex>
                 </FlexItem>
-                <Icon component={ArrowUpRightIcon} size={12} variant={IconVariant.TERTIARY_ALT} />
-              </FlexWrapper>
+                <Icon
+                  component={ArrowUpRightIcon}
+                  size={
+                    12
+                  } /* @dls-migrate icon.IconVariant.TERTIARY_ALT: Inverse is a scope, not a member: wrap the content in `<GalaxyProvider isScoped theme={…}>` (the opposite theme) and use `IconVariant.TERTIARY` inside it. */
+                  variant={IconVariant.TERTIARY_ALT}
+                />
+              </Flex>
             </Widget>
           ))}
-        </FlexWrapper>
+        </Flex>
       </AsideContentWrapper>
     </AuthLayoutAsideField>
   </AsideWrapper>

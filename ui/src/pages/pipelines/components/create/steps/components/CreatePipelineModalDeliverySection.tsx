@@ -1,4 +1,4 @@
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 
 interface CreatePipelineModalDeliverySectionProps {
@@ -10,10 +10,10 @@ const CreatePipelineModalDeliverySection = ({
   header,
   children,
 }: CreatePipelineModalDeliverySectionProps) => (
-  <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
     <Text weight={TextWeight.MEDIUM}>{header}</Text>
     {children}
-  </FlexWrapper>
+  </Flex>
 );
 
 export default CreatePipelineModalDeliverySection;

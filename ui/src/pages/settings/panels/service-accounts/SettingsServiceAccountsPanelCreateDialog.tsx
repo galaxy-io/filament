@@ -124,7 +124,9 @@ const SettingsServiceAccountsPanelCreateDialog = ({
       <SelectInput
         label="Role"
         options={SERVICE_ACCOUNT_ROLE_OPTIONS}
-        value={serviceAccountRoleOption(state.role)}
+        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={serviceAccountRoleOption(
+          state.role,
+        )}
         onChange={(option) => setState((prev) => ({ ...prev, role: optionRole(option) }))}
         fillWidth
         isRequired

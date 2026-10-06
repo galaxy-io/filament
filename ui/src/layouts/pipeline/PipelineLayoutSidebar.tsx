@@ -1,9 +1,8 @@
 import { styled } from "@linaria/react";
 
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_SIDEBAR_BUTTON_SIZE,
@@ -13,7 +12,7 @@ import {
 } from "@/layouts/pipeline/constants";
 import type { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
-const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
+const SidebarWrapper = styled.div`
   width: ${PIPELINE_SIDEBAR_WIDTH}px;
   flex: 1;
 
@@ -23,10 +22,10 @@ const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
 
   padding: 12px 0;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
-const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boolean }>>`
+const SidebarButton = styled.button<{ $isActive?: boolean }>`
   width: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
   height: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
 
@@ -34,13 +33,11 @@ const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boole
   align-items: center;
   justify-content: center;
 
-  background-color: ${({ theme, $isActive }) =>
-    $isActive ? theme.color.background.tertiary : "transparent"};
+  background-color: ${({ $isActive }) => ($isActive ? t.color.background.tertiary : "transparent")};
   border: none;
   border-radius: 6px;
 
-  color: ${({ theme, $isActive }) =>
-    $isActive ? theme.color.text.primary : theme.color.text.secondary};
+  color: ${({ $isActive }) => ($isActive ? t.color.text.primary : t.color.text.secondary)};
 
   cursor: pointer;
 
@@ -49,10 +46,10 @@ const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boole
     color 100ms ease;
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
-    color: ${({ theme }) => theme.color.text.primary};
+    background-color: ${t.color.background.tertiary};
+    color: ${t.color.text.primary};
   }
-`);
+`;
 
 interface PipelineLayoutSidebarProps {
   activeItem: PipelineSidebarItem;
@@ -62,7 +59,7 @@ interface PipelineLayoutSidebarProps {
 const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSidebarProps) => {
   return (
     <SidebarWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM}>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12}>
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
           const isActive = activeItem === item;
           return (
@@ -76,7 +73,7 @@ const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSideba
             </SidebarButton>
           );
         })}
-      </FlexWrapper>
+      </Flex>
     </SidebarWrapper>
   );
 };

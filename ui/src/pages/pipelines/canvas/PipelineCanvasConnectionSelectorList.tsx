@@ -4,9 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -18,17 +17,17 @@ import { LayoutSize } from "@/layouts/types";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
-const ConnectionList = withTheme(styled.div<PropsWithTheme>`
+const ConnectionList = styled.div`
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 8px;
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
 
   display: flex;
   flex-direction: column;
   gap: 2px;
-`);
+`;
 
 const PipelineCanvasConnectionSelectorEmpty = ({
   message,
@@ -52,9 +51,9 @@ const PipelineCanvasConnectionSelectorEmpty = ({
   };
 
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       minHeight={240}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
@@ -73,7 +72,7 @@ const PipelineCanvasConnectionSelectorEmpty = ({
           />,
         ]}
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

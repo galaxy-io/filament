@@ -1,4 +1,4 @@
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { Role } from "@/gen/auth/v1/members_pb";
 
@@ -20,7 +20,7 @@ export const roleOption = (role: Role) =>
 export const serviceAccountRoleOption = (role: Role) =>
   SERVICE_ACCOUNT_ROLE_OPTIONS.find((option) => option.value === role) ?? null;
 
-export const optionRole = (option: SelectInputOption): Role =>
+export const optionRole = (option: SelectOption): Role =>
   typeof option.value === "number" ? (option.value as Role) : Role.UNSPECIFIED;
 
 export const buildCliLoginCommand = (clientId: string): string =>

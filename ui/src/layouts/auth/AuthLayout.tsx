@@ -2,26 +2,25 @@ import type { PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
-import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
+import GalaxyLogomark from "@galaxy-io/dls/brand/GalaxyLogomark";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Bold from "@galaxy-io/dls/text/Bold";
 import Selectable from "@galaxy-io/dls/text/Selectable";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import AuthLayoutAside from "@/layouts/auth/AuthLayoutAside";
 import { AUTH_LAYOUT_CONTENT_WIDTH, AUTH_LAYOUT_INSET } from "@/layouts/auth/constants";
 
-const LayoutWrapper = withTheme(styled.div<PropsWithTheme>`
+const LayoutWrapper = styled.div`
   flex: 1;
   min-height: 0;
 
   display: flex;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const MainWrapper = styled.div`
   flex: 1;
@@ -53,21 +52,21 @@ const Content = styled.div`
 const AuthLayout = ({ children }: PropsWithChildren) => (
   <LayoutWrapper>
     <MainWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <GalaxyLogomark height={12} />
-        <GalaxyFilamentWordmark height={18} />
-      </FlexWrapper>
+      <Flex alignItems={AlignItems.CENTER} gap={8}>
+        <GalaxyLogomark size={12} />
+        <GalaxyFilamentWordmark size={18} />
+      </Flex>
       <ContentWrapper>
         <Content>{children}</Content>
       </ContentWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER}>
+      <Flex alignItems={AlignItems.CENTER}>
         <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
           Need help? Email us at{" "}
           <Selectable>
             <Bold>support@getgalaxy.io</Bold>
           </Selectable>
         </Text>
-      </FlexWrapper>
+      </Flex>
     </MainWrapper>
     <AuthLayoutAside />
   </LayoutWrapper>

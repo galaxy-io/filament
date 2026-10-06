@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 
-import type { BarChartGroupDatum, ChartSelectionEvent } from "@galaxy-io/dls/charts/types";
+import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
+import type { ChartSelectionEvent } from "@galaxy-io/dls/charts/types";
 import type { InfiniteTableProps } from "@galaxy-io/dls/table/InfiniteTable";
 
 import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";

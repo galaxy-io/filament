@@ -4,12 +4,11 @@ import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -28,9 +27,7 @@ import {
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
 
-const NodeContainer = withTheme(styled.div<
-  PropsWithTheme<{ $isSelected?: boolean; $width: number }>
->`
+const NodeContainer = styled.div<{ $isSelected?: boolean; $width: number }>`
   width: ${({ $width }) => $width}px;
 
   display: flex;
@@ -38,12 +35,12 @@ const NodeContainer = withTheme(styled.div<
   gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
   &:hover ${PipelineCanvasNodeIsland} {
-    border-color: ${({ theme, $isSelected }) =>
-      $isSelected ? theme.color.background.galaxyAlt : theme.color.border.tertiary};
+    border-color: ${({ $isSelected }) =>
+      $isSelected ? t.color.solid.primary.hovered : t.color.border.tertiary};
   }
-`);
+`;
 
-const ActionButton = withTheme(styled.button<PropsWithTheme>`
+const ActionButton = styled.button`
   width: 20px;
   height: 20px;
   padding: 0;
@@ -52,7 +49,7 @@ const ActionButton = withTheme(styled.button<PropsWithTheme>`
   align-items: center;
   justify-content: center;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -60,9 +57,9 @@ const ActionButton = withTheme(styled.button<PropsWithTheme>`
   transition: background-color 100ms ease;
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
-`);
+`;
 
 const HeaderIsland = styled(PipelineCanvasNodeIsland)`
   display: flex;
@@ -118,13 +115,13 @@ const PipelineCanvasNode = ({
 
   return (
     <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
-      <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
+      <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
         <Chip
           label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
           variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
           size={ChipSize.SMALL}
         />
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
+        <Flex alignItems={AlignItems.CENTER} gap={4}>
           {onRefresh && (
             <ActionButton
               className="nodrag"
@@ -155,8 +152,8 @@ const PipelineCanvasNode = ({
               <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
             </ActionButton>
           )}
-        </FlexWrapper>
-      </FlexWrapper>
+        </Flex>
+      </Flex>
       <HeaderIsland $isSelected={isSelected}>
         {kind === ConnectorKind.SINK && (
           <PipelineCanvasNodeHandle
@@ -167,14 +164,14 @@ const PipelineCanvasNode = ({
           />
         )}
         <FlexItem grow={1} minWidth={0}>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
+          <Flex alignItems={AlignItems.CENTER} gap={8}>
             <FlexItem shrink={0}>
               <ConnectorTile connector={connector} kind={kind} />
             </FlexItem>
-            <Text size={TextSize.BODY_SM} isEllipsis>
+            <Text size={TextSize.BODY_SM} lineClamp={1}>
               {label}
             </Text>
-          </FlexWrapper>
+          </Flex>
         </FlexItem>
         {kind === ConnectorKind.SOURCE && (
           <PipelineCanvasNodeHandle

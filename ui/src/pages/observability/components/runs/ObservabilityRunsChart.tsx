@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import BarChart from "@galaxy-io/dls/charts/BarChart";
 import type { ChartSelectionEvent, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
@@ -72,9 +72,10 @@ const ObservabilityRunsChart = () => {
   };
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"24px 12px"}
+      padding={[24, 12]}
       height={OBSERVABILITY_RUNS_CHART_HEIGHT}
       fillWidth
     >
@@ -86,10 +87,9 @@ const ObservabilityRunsChart = () => {
         onSelect={handleSelect}
         isLoading={isLoading}
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
-        fillWidth
-        fillHeight
+        /* @dls-migrate barchart.fillHeight: Removed: give the parent a definite height (a `Grid` track or a `Box height`). */ fillHeight
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -13,16 +13,15 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
@@ -85,7 +84,7 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
+const PipelineLayoutNavbarWrapper = styled.div`
   width: 100%;
   height: ${PIPELINE_NAVBAR_HEIGHT}px;
 
@@ -98,11 +97,11 @@ const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
 
   flex-shrink: 0;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const PipelineLayoutNavbar = () => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
@@ -195,7 +194,7 @@ const PipelineLayoutNavbar = () => {
   const hasEdges = state.edges.length > 0;
 
   const latestVersion = versions[0]?.version;
-  const versionOptions = useMemo<SelectInputOption[]>(
+  const versionOptions = useMemo<SelectOption[]>(
     () =>
       versions.map((version) => ({
         id: version.version.toString(),
@@ -224,7 +223,7 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleVersionChange = (option: SelectInputOption) => {
+  const handleVersionChange = (option: SelectOption) => {
     const version = option.value as PipelineVersion["version"];
     handlePreviewVersionChange(version === latestVersion ? null : version);
   };
@@ -238,16 +237,16 @@ const PipelineLayoutNavbar = () => {
       mapCanvasStateToVersionRequest(state, id, currentVersion, pipeline.executionMode),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             header: "Pipeline saved",
-            subheader: `${formatPipelineName(pipeline)} has been saved successfully.`,
+            description: `${formatPipelineName(pipeline)} has been saved successfully.`,
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Save failed",
-            subheader: getErrorMessage(error, "Failed to save pipeline"),
+            description: getErrorMessage(error, "Failed to save pipeline"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -265,16 +264,16 @@ const PipelineLayoutNavbar = () => {
       {
         onSuccess: () => {
           showActivity();
-          showToast({
+          toast({
             header: "Run started",
-            subheader: `${formatPipelineName(pipeline)} is now running.`,
+            description: `${formatPipelineName(pipeline)} is now running.`,
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Run failed",
-            subheader: getErrorMessage(error, "Failed to run pipeline"),
+            description: getErrorMessage(error, "Failed to run pipeline"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -291,9 +290,9 @@ const PipelineLayoutNavbar = () => {
       }),
       {
         onError: (error) => {
-          showToast({
+          toast({
             header: "Run signal failed",
-            subheader: getErrorMessage(error, "Failed to signal run"),
+            description: getErrorMessage(error, "Failed to signal run"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -303,7 +302,7 @@ const PipelineLayoutNavbar = () => {
 
   return (
     <PipelineLayoutNavbarWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} grow={1} minWidth={0}>
+      <Flex alignItems={AlignItems.CENTER} gap={12} grow={1} minWidth={0}>
         <FlexItem shrink={0}>
           <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         </FlexItem>
@@ -314,24 +313,25 @@ const PipelineLayoutNavbar = () => {
           <FlexItem shrink={0}>
             <SelectInput
               options={versionOptions}
-              value={selectedVersionOption}
+              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                selectedVersionOption
+              }
               onChange={handleVersionChange}
-              size={InputSize.SMALL}
-              dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
+              size={SelectInputSize.SMALL}
               isDisabled={hasUnsavedChanges}
             />
           </FlexItem>
         )}
         {pipeline.description && (
           <FlexItem grow={1} minWidth={0}>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
               {pipeline.description}
             </Text>
           </FlexItem>
         )}
-      </FlexWrapper>
+      </Flex>
 
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
+      <Flex alignItems={AlignItems.CENTER} gap={12} shrink={0}>
         {isPreview && (
           <Button
             label="Back to latest"
@@ -356,13 +356,13 @@ const PipelineLayoutNavbar = () => {
               />
               <Tooltip
                 body={graphConflicts.join("\n")}
-                position={TooltipPosition.BOTTOM}
+                placement={Placement.BOTTOM}
                 isDisabled={graphConflicts.length === 0}
               >
                 <Button
                   label="Save"
                   icon={FloppyDiskIcon}
-                  variant={ButtonVariant.PRIMARY_ALT}
+                  variant={ButtonVariant.PRIMARY}
                   size={ButtonSize.SMALL}
                   isLoading={isSaving}
                   isDisabled={graphConflicts.length > 0}
@@ -396,7 +396,7 @@ const PipelineLayoutNavbar = () => {
                     isLoading={isSignaling}
                     isDisabled={isStopping || isBlocked}
                     onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
-                    isIconFilled
+                    /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
                   />
                   <Button
                     label="Stop"
@@ -406,13 +406,13 @@ const PipelineLayoutNavbar = () => {
                     isLoading={isSignaling}
                     isDisabled={isStopping}
                     onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
-                    isIconFilled
+                    /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
                   />
                 </>
               )}
             </>
           ))}
-      </FlexWrapper>
+      </Flex>
     </PipelineLayoutNavbarWrapper>
   );
 };

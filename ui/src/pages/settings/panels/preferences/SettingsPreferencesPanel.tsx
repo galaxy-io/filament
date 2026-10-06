@@ -1,17 +1,17 @@
 import { useMemo } from "react";
 
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
+import ToggleInput, { type ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
 
 const SettingsPreferencesPanel = () => {
   const { selectedTheme, setTheme } = useGalaxyTheme();
-  const themeItems = useMemo<SwitcherInputItem[]>(
+  const themeItems = useMemo<ToggleOption[]>(
     () => [
       {
         id: GalaxyTheme.LIGHT,
@@ -34,21 +34,24 @@ const SettingsPreferencesPanel = () => {
 
   return (
     <SettingsPanelLayout title="Preferences">
-      <FlexWrapper padding="16px" fillWidth>
-        <Widget noPadding noHover fillWidth>
-          <FlexWrapper
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
+        <Widget
+          isFlush /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+          fillWidth
+        >
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
-            padding="16px"
+            padding={16}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY} weight={TextWeight.MEDIUM}>
               Theme
             </Text>
-            <SwitcherInput items={themeItems} selectedId={selectedTheme} />
-          </FlexWrapper>
+            <ToggleInput options={themeItems} value={selectedTheme} />
+          </Flex>
         </Widget>
-      </FlexWrapper>
+      </Flex>
     </SettingsPanelLayout>
   );
 };

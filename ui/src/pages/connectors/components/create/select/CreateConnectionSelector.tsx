@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { useDebouncedValue } from "@galaxy-io/dls/inputs/hooks";
+import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
@@ -60,7 +60,7 @@ const CreateConnectionSelector = ({
         />
       </FlexItem>
       <FlexItem grow={0} shrink={0}>
-        <HorizontalDivider />
+        <Divider />
       </FlexItem>
       <CreateConnectionSelectorBody onConnectorSelect={onConnectorSelect} />
     </ConnectionFormWrapper>

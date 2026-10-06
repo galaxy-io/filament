@@ -1,5 +1,6 @@
+// @dls-migrate multiselectinput.PinnedOptions: Removed: pinned rows are `pinnedIds`.
 import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -34,7 +35,7 @@ export const PIPELINE_NOTIFIER_TYPES = Object.values(NotificationType).filter(
     typeof type === "number" && type !== NotificationType.UNSPECIFIED,
 );
 
-export const PIPELINE_NOTIFIER_TYPE_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_TYPES.map(
+export const PIPELINE_NOTIFIER_TYPE_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_TYPES.map(
   (type) => ({
     id: String(type),
     label: PIPELINE_NOTIFIER_TYPE_TO_LABEL_MAP[type],
@@ -67,7 +68,7 @@ export const PIPELINE_NOTIFIER_EVENTS = Object.values(NotifierEvent).filter(
     typeof event === "number" && event !== NotifierEvent.UNSPECIFIED,
 );
 
-export const PIPELINE_NOTIFIER_EVENT_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_EVENTS.map(
+export const PIPELINE_NOTIFIER_EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENTS.map(
   (event) => ({
     id: String(event),
     label: PIPELINE_NOTIFIER_EVENT_TO_LABEL_MAP[event],

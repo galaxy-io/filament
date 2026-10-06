@@ -1,19 +1,16 @@
 import { type ComponentProps, type PropsWithChildren, useState } from "react";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-import SwitcherInput from "@galaxy-io/dls/inputs/SwitcherInput";
+import MultiSelectInput, { MultiSelectInputSize } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SwitchInput, { SwitchInputSize } from "@galaxy-io/dls/inputs/SwitchInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
+import ToggleInput, { ToggleInputSize } from "@galaxy-io/dls/inputs/ToggleInput";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
   PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS,
@@ -35,8 +32,8 @@ import {
 
 interface PipelineScheduleFieldsProps {
   header: string;
-  size?: ComponentProps<typeof Accordion>["size"];
-  padding?: ComponentProps<typeof Accordion>["padding"];
+  size?: ComponentProps<typeof Widget>["size"];
+  padding?: ComponentProps<typeof Widget>["padding"];
   isOpenInitial?: boolean;
   state: PipelineSettingsPageScheduleState;
   onChange: (partial: Partial<PipelineSettingsPageScheduleState>) => void;
@@ -76,23 +73,23 @@ const PipelineScheduleFields = ({
     onChange({ cron });
   };
 
-  const handleDaysChange = (options: SelectInputOption[]) => {
+  const handleDaysChange = (options: SelectOption[]) => {
     onChange({ days: options.map((option) => option.value as number) });
   };
 
-  const handleDayOfMonthChange = (option: SelectInputOption) => {
+  const handleDayOfMonthChange = (option: SelectOption) => {
     onChange({ dayOfMonth: option.value as number });
   };
 
-  const handleHourChange = (option: SelectInputOption) => {
+  const handleHourChange = (option: SelectOption) => {
     onChange({ hour: option.value as number });
   };
 
-  const handleTimezoneChange = (option: SelectInputOption) => {
+  const handleTimezoneChange = (option: SelectOption) => {
     onChange({ timezone: option.value as string });
   };
 
-  const handleTimezoneSearch = (term: string, options: SelectInputOption[]) => {
+  const handleTimezoneSearch = (term: string, options: SelectOption[]) => {
     return options.filter((option) => option.label.toLowerCase().includes(term.toLowerCase()));
   };
 
@@ -114,129 +111,151 @@ const PipelineScheduleFields = ({
     PIPELINE_SCHEDULE_TIMEZONE_OPTIONS.find((option) => option.value === state.timezone) ?? null;
 
   return (
-    <Accordion
+    <Widget
+      isCollapsible
       header={header}
       size={size}
-      padding={padding}
+      /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */ padding={
+        padding
+      }
       isOpen={isOpen}
-      onToggle={() => setIsOpen((prev) => !prev)}
-      trailing={
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+      onOpenChange={() => setIsOpen((prev) => !prev)}
+      actions={
+        <Flex alignItems={AlignItems.CENTER} gap={12}>
           {state.isEnabled && summary && (
             <Text size={TextSize.BODY_SM} variant={TextVariant.SUCCESS}>
               {summary}
             </Text>
           )}
-          <ToggleInput
-            size={InputSize.MEDIUM}
-            value={state.isEnabled}
+          <SwitchInput
+            size={SwitchInputSize.MEDIUM}
+            isChecked={state.isEnabled}
             onChange={handleEnabledChange}
           />
-        </FlexWrapper>
+        </Flex>
       }
     >
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
-        <FlexWrapper
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+        <Flex
           alignItems={AlignItems.CENTER}
           justifyContent={JustifyContent.SPACE_BETWEEN}
           fillWidth
         >
           <Text variant={TextVariant.SECONDARY}>Frequency</Text>
-          <SwitcherInput
-            items={frequencyItems}
-            size={InputSize.LARGE}
-            selectedId={state.frequency}
+          <ToggleInput
+            options={frequencyItems}
+            size={ToggleInputSize.LARGE}
+            value={state.frequency}
           />
-        </FlexWrapper>
+        </Flex>
         {state.frequency === PipelineScheduleFrequency.WEEKLY && (
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Run on</Text>
-            <MultiSelectInput
-              options={PIPELINE_SCHEDULE_DAY_OPTIONS}
-              value={selectedDayOptions}
-              onChange={handleDaysChange}
-              size={InputSize.LARGE}
-              width={PIPELINE_SETTINGS_INPUT_WIDTH}
-              placeholder="Select days"
-            />
-          </FlexWrapper>
+            <Box width={PIPELINE_SETTINGS_INPUT_WIDTH}>
+              <MultiSelectInput
+                fillWidth
+                options={PIPELINE_SCHEDULE_DAY_OPTIONS}
+                /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                  selectedDayOptions
+                }
+                onChange={handleDaysChange}
+                size={MultiSelectInputSize.LARGE}
+                placeholder="Select days"
+              />
+            </Box>
+          </Flex>
         )}
         {state.frequency === PipelineScheduleFrequency.MONTHLY && (
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>On the</Text>
-            <SelectInput
-              options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
-              value={selectedDayOfMonthOption}
-              onChange={handleDayOfMonthChange}
-              size={InputSize.LARGE}
-              width={PIPELINE_SETTINGS_INPUT_WIDTH}
-            />
-          </FlexWrapper>
+            <Box width={PIPELINE_SETTINGS_INPUT_WIDTH}>
+              <SelectInput
+                fillWidth
+                options={PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS}
+                /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                  selectedDayOfMonthOption
+                }
+                onChange={handleDayOfMonthChange}
+                size={SelectInputSize.LARGE}
+              />
+            </Box>
+          </Flex>
         )}
         {state.frequency === PipelineScheduleFrequency.CUSTOM && (
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Expression</Text>
-            <TextInput
-              value={state.cron}
-              onChange={handleCronChange}
-              error={cronError}
-              placeholder="0 * * * *"
-              size={InputSize.LARGE}
-              width={PIPELINE_SETTINGS_INPUT_WIDTH}
-              isMonospace
-            />
-          </FlexWrapper>
+            <Box width={PIPELINE_SETTINGS_INPUT_WIDTH}>
+              <TextInput
+                fillWidth
+                value={state.cron}
+                onChange={handleCronChange}
+                error={cronError}
+                placeholder="0 * * * *"
+                size={InputSize.LARGE}
+                family={FontFamily.MONO}
+              />
+            </Box>
+          </Flex>
         )}
         {state.frequency !== PipelineScheduleFrequency.HOURLY &&
           state.frequency !== PipelineScheduleFrequency.CUSTOM && (
-            <FlexWrapper
+            <Flex
               alignItems={AlignItems.CENTER}
               justifyContent={JustifyContent.SPACE_BETWEEN}
               fillWidth
             >
               <Text variant={TextVariant.SECONDARY}>At</Text>
-              <SelectInput
-                options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
-                value={selectedHourOption}
-                onChange={handleHourChange}
-                size={InputSize.LARGE}
-                width={PIPELINE_SETTINGS_INPUT_WIDTH}
-              />
-            </FlexWrapper>
+              <Box width={PIPELINE_SETTINGS_INPUT_WIDTH}>
+                <SelectInput
+                  fillWidth
+                  options={PIPELINE_SCHEDULE_HOUR_OPTIONS}
+                  /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                    selectedHourOption
+                  }
+                  onChange={handleHourChange}
+                  size={SelectInputSize.LARGE}
+                />
+              </Box>
+            </Flex>
           )}
         {state.frequency !== PipelineScheduleFrequency.HOURLY && (
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             fillWidth
           >
             <Text variant={TextVariant.SECONDARY}>Timezone</Text>
-            <SelectInput
-              options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
-              value={selectedTimezoneOption}
-              onChange={handleTimezoneChange}
-              onSearch={handleTimezoneSearch}
-              debounceMs={100}
-              size={InputSize.LARGE}
-              width={PIPELINE_SETTINGS_INPUT_WIDTH}
-            />
-          </FlexWrapper>
+            <Box width={PIPELINE_SETTINGS_INPUT_WIDTH}>
+              <SelectInput
+                fillWidth
+                options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
+                /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                  selectedTimezoneOption
+                }
+                onChange={handleTimezoneChange}
+                /* @dls-migrate selectinput.onSearch: Add `isSearchable`; the DLS filters, `onSearch` only receives the term. */ onSearch={
+                  handleTimezoneSearch
+                }
+                size={SelectInputSize.LARGE}
+              />
+            </Box>
+          </Flex>
         )}
         {children}
-      </FlexWrapper>
-    </Accordion>
+      </Flex>
+    </Widget>
   );
 };
 

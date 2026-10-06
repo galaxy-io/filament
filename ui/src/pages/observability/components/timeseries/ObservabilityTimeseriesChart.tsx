@@ -2,14 +2,9 @@ import { useMemo } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 
-import LineChart from "@galaxy-io/dls/charts/LineChart";
-import type {
-  ChartPalette,
-  ChartValueFormatter,
-  LineChartCurve,
-  LineChartLineDatum,
-} from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
+import type { ChartCurve, ChartPalette, ChartValueFormatter } from "@galaxy-io/dls/charts/types";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
@@ -39,7 +34,7 @@ interface ObservabilityTimeseriesChartProps {
   metric: Metric;
   color: ChartPalette;
   pivot: MetricDimension | undefined;
-  curve: LineChartCurve;
+  curve: ChartCurve;
   valueFormatter?: ChartValueFormatter;
 }
 
@@ -126,9 +121,10 @@ const ObservabilityTimeseriesChart = ({
   }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"16px 12px"}
+      padding={[16, 12]}
       height={OBSERVABILITY_TIMESERIES_CHART_HEIGHT}
       fillWidth
     >
@@ -138,14 +134,11 @@ const ObservabilityTimeseriesChart = ({
         curve={curve}
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
-        tooltipMaxItems={8}
         isLoading={isLoading}
-        fillWidth
-        fillHeight
-        showGrid
-        showLegend
+        /* @dls-migrate linechart.fillHeight: Removed: give the parent a definite height (a `Grid` track or a `Box height`). */ fillHeight
+        hasLegend
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

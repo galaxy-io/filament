@@ -1,13 +1,11 @@
 import { styled } from "@linaria/react";
 
 import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon from "@galaxy-io/dls/icons/Icon";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import DocsButton from "@/components/DocsButton";
@@ -36,7 +34,7 @@ import {
   CreatePipelineModalStepStatus,
 } from "@/pages/pipelines/components/create/types";
 
-const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
+const SidebarWrapper = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -44,9 +42,9 @@ const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
 
   width: ${CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH}px;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border-right: 0.5px solid ${({ theme }) => theme.color.border.primary};
-`);
+  background-color: ${t.color.background.primary};
+  border-right: 0.5px solid ${t.color.border.primary};
+`;
 
 const StepButton = styled.button<{ $isClickable: boolean }>`
   display: flex;
@@ -74,14 +72,19 @@ const CreatePipelineModalSidebar = () => {
 
   return (
     <SidebarWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} padding="16px">
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} padding={16}>
           <BaseHeader title="Create a new pipeline" />
-        </FlexWrapper>
-        <HorizontalDivider />
-        <FlexWrapper direction={FlexDirection.COLUMN} padding="12px" fillWidth>
-          <Widget variant={WidgetVariant.SECONDARY} fillWidth>
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={12}>
+        </Flex>
+        <Divider />
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} padding={12} fillWidth>
+          <Widget
+            variant={
+              WidgetVariant.SECONDARY
+            } /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+            fillWidth
+          >
+            <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12}>
               <Text
                 size={TextSize.BODY_SM}
                 weight={TextWeight.MEDIUM}
@@ -99,7 +102,15 @@ const CreatePipelineModalSidebar = () => {
                   sinks.length > 0;
 
                 return (
-                  <FlexWrapper key={item} direction={FlexDirection.COLUMN} gap={6} fillWidth>
+                  <Flex
+                    alignItems={AlignItems.START}
+                    key={item}
+                    direction={
+                      FlexDirection.COLUMN
+                    } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+                    gap={6}
+                    fillWidth
+                  >
                     <StepButton
                       $isClickable={isClickable}
                       onClick={
@@ -125,7 +136,11 @@ const CreatePipelineModalSidebar = () => {
                       </Text>
                     </StepButton>
                     {hasSinkRows && (
-                      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+                      <Flex
+                        alignItems={AlignItems.START}
+                        direction={FlexDirection.COLUMN}
+                        fillWidth
+                      >
                         {sinks.map((sink) => (
                           <CreatePipelineModalSidebarSink
                             key={sink.connection.id}
@@ -146,21 +161,27 @@ const CreatePipelineModalSidebar = () => {
                             }
                           />
                         ))}
-                      </FlexWrapper>
+                      </Flex>
                     )}
-                  </FlexWrapper>
+                  </Flex>
                 );
               })}
-            </FlexWrapper>
+            </Flex>
           </Widget>
-        </FlexWrapper>
-      </FlexWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} padding="16px" fillWidth>
-        <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
+        </Flex>
+      </Flex>
+      <Flex
+        alignItems={AlignItems.START}
+        direction={FlexDirection.COLUMN}
+        gap={12}
+        padding={16}
+        fillWidth
+      >
+        <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
           {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
-        </Paragraph>
+        </Text>
         <DocsButton label="Read the docs" path="/pipelines/create" size={ButtonSize.MEDIUM} />
-      </FlexWrapper>
+      </Flex>
     </SidebarWrapper>
   );
 };

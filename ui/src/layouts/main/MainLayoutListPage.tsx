@@ -4,11 +4,11 @@ import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { useDebouncedValue } from "@galaxy-io/dls/inputs/hooks";
+import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
@@ -70,7 +70,7 @@ const MainLayoutListPage = ({
   }, [debouncedSearch, q, navigate]);
 
   return (
-    <FlexWrapper fillWidth fillHeight direction={FlexDirection.COLUMN}>
+    <Flex alignItems={AlignItems.START} fillWidth height="100%" direction={FlexDirection.COLUMN}>
       <BaseToolbar
         leadingActions={[
           <TextInput
@@ -78,17 +78,17 @@ const MainLayoutListPage = ({
             value={state.search}
             onChange={handleSearchChange}
             placeholder="Search"
-            leading={{ icon: MagnifyingGlassIcon }}
+            icon={MagnifyingGlassIcon}
             fillWidth
           />,
         ]}
         trailingActions={actions}
       />
       <FlexItem grow={0} shrink={0} fillWidth>
-        <HorizontalDivider />
+        <Divider />
       </FlexItem>
       <MainLayoutListPageScrollArea $noPadding={noPadding}>{children}</MainLayoutListPageScrollArea>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

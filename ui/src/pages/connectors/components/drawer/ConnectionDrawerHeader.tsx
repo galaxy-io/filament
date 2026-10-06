@@ -3,13 +3,9 @@ import { PencilIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
@@ -55,8 +51,8 @@ const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
   if (!connection) return null;
 
   return (
-    <Wrapper padding="12px 16px">
-      <FlexWrapper fillWidth alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM}>
+    <Box padding={[12, 16]}>
+      <Flex fillWidth alignItems={AlignItems.CENTER} gap={12}>
         <FlexItem shrink={0}>
           <ConnectorTile
             connector={connection.connector}
@@ -65,7 +61,13 @@ const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
             isDeleted={!!connection.deletedAt}
           />
         </FlexItem>
-        <FlexWrapper fillWidth minWidth={0} direction={FlexDirection.COLUMN} gap={FlexGap.XSMALL}>
+        <Flex
+          alignItems={AlignItems.START}
+          fillWidth
+          minWidth={0}
+          direction={FlexDirection.COLUMN}
+          gap={4}
+        >
           <BaseHeader
             title={connection.name}
             description={connector ? connector.displayName || connection.connector : undefined}
@@ -81,9 +83,9 @@ const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
             ]}
             onClose={onClose}
           />
-        </FlexWrapper>
-      </FlexWrapper>
-    </Wrapper>
+        </Flex>
+      </Flex>
+    </Box>
   );
 };
 

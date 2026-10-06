@@ -26,13 +26,18 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
 
 export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
   [RunStatus.UNSPECIFIED]: BeaconVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.REQUESTED]: BeaconVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.RUNNING]: BeaconVariant.BLUE,
   [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
   [RunStatus.FAILED]: BeaconVariant.ERROR,
   [RunStatus.CANCELED]: BeaconVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.PAUSED]: BeaconVariant.TEAL,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.PARTIAL]: BeaconVariant.PINK,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.SCHEDULED]: BeaconVariant.YELLOW,
 };
 
@@ -40,7 +45,7 @@ export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPa
   {
     [RunStatus.UNSPECIFIED]: undefined,
     [RunStatus.COMPLETED]: ChartPalette.GREEN,
-    [RunStatus.FAILED]: ChartPalette.RED,
+    [RunStatus.FAILED]: ChartPalette.ERROR,
     [RunStatus.RUNNING]: ChartPalette.BLUE,
     [RunStatus.REQUESTED]: ChartPalette.ORANGE,
     [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
@@ -51,13 +56,18 @@ export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPa
 
 export const PIPELINE_RUN_STATUS_TO_TEXT_VARIANT_MAP: Record<RunStatus, TextVariant> = {
   [RunStatus.UNSPECIFIED]: TextVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.REQUESTED]: TextVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.RUNNING]: TextVariant.BLUE,
   [RunStatus.COMPLETED]: TextVariant.SUCCESS,
   [RunStatus.FAILED]: TextVariant.ERROR,
   [RunStatus.CANCELED]: TextVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.PAUSED]: TextVariant.TEAL,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.PARTIAL]: TextVariant.PINK,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [RunStatus.SCHEDULED]: TextVariant.YELLOW,
 };
 
@@ -81,11 +91,16 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP: Record<
   BeaconVariant
 > = {
   [ExecutionObservedState.UNSPECIFIED]: BeaconVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.STARTING]: BeaconVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.RUNNING]: BeaconVariant.BLUE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.DRAINING]: BeaconVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.PAUSED]: BeaconVariant.TEAL,
   [ExecutionObservedState.STOPPED]: BeaconVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.RETRYING]: BeaconVariant.YELLOW,
   [ExecutionObservedState.BLOCKED]: BeaconVariant.ERROR,
   [ExecutionObservedState.FAILED]: BeaconVariant.ERROR,
@@ -96,11 +111,16 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_TEXT_VARIANT_MAP: Record<
   TextVariant
 > = {
   [ExecutionObservedState.UNSPECIFIED]: TextVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.STARTING]: TextVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.RUNNING]: TextVariant.BLUE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.DRAINING]: TextVariant.ORANGE,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.PAUSED]: TextVariant.TEAL,
   [ExecutionObservedState.STOPPED]: TextVariant.SECONDARY,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ExecutionObservedState.RETRYING]: TextVariant.YELLOW,
   [ExecutionObservedState.BLOCKED]: TextVariant.ERROR,
   [ExecutionObservedState.FAILED]: TextVariant.ERROR,

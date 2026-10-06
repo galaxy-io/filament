@@ -4,13 +4,13 @@ import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import BulletedList, { BulletedListSize } from "@galaxy-io/dls/lists/BulletedList";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -34,17 +34,17 @@ import { NOOP } from "@/constants";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
+const FooterWrapper = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
+  background-color: ${t.color.background.primary};
+`;
 
 const CreatePipelineModalFooter = () => {
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const state = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
@@ -64,10 +64,10 @@ const CreatePipelineModalFooter = () => {
       try {
         await createPipelineNotifier(mapCreatePipelineNotifierToRequest(notifier, pipelineId));
       } catch (error) {
-        showToast({
+        toast({
           variant: ToastVariant.ERROR,
           header: "Pipeline created without all notifiers",
-          subheader: getErrorMessage(error, `Failed to add notifier ${notifier.name}`),
+          description: getErrorMessage(error, `Failed to add notifier ${notifier.name}`),
         });
         break;
       }
@@ -98,18 +98,18 @@ const CreatePipelineModalFooter = () => {
 
         createPipelineVersion(versionRequest, {
           onSuccess: () => {
-            showToast({
+            toast({
               variant: ToastVariant.SUCCESS,
               header: "Pipeline created",
-              subheader: "Your pipeline has been created successfully.",
+              description: "Your pipeline has been created successfully.",
             });
             void handleFinish(pipelineId, state.notifiers);
           },
           onError: (error) => {
-            showToast({
+            toast({
               variant: ToastVariant.ERROR,
               header: "Pipeline created without connections",
-              subheader: getErrorMessage(error, "Failed to add connections"),
+              description: getErrorMessage(error, "Failed to add connections"),
             });
             void handleFinish(pipelineId, state.notifiers);
           },
@@ -117,10 +117,10 @@ const CreatePipelineModalFooter = () => {
       },
       onError: (error) => {
         dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: false });
-        showToast({
+        toast({
           variant: ToastVariant.ERROR,
           header: "Failed to create pipeline",
-          subheader: getErrorMessage(error, "Failed to create pipeline"),
+          description: getErrorMessage(error, "Failed to create pipeline"),
         });
       },
     });
@@ -167,11 +167,11 @@ const CreatePipelineModalFooter = () => {
         onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_BACK })}
         isDisabled={isSubmitting || !isBackVisible}
       />
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>
+      <Flex alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>
         {hints.length > 0 && (
           <Tooltip
             body={<BulletedList items={hints} size={BulletedListSize.SMALL} />}
-            position={TooltipPosition.TOP}
+            placement={Placement.TOP}
           >
             <Chip
               label="Invalid"
@@ -182,7 +182,7 @@ const CreatePipelineModalFooter = () => {
           </Tooltip>
         )}
         {renderAction()}
-      </FlexWrapper>
+      </Flex>
     </FooterWrapper>
   );
 };

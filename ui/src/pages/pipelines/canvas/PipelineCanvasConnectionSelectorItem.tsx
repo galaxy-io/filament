@@ -2,15 +2,14 @@ import { styled } from "@linaria/react";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
-const ItemWrapper = withTheme(styled.button<PropsWithTheme<{ $isDisabled?: boolean }>>`
+const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -24,10 +23,10 @@ const ItemWrapper = withTheme(styled.button<PropsWithTheme<{ $isDisabled?: boole
   opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
 
   &:hover {
-    background-color: ${({ theme, $isDisabled }) =>
-      $isDisabled ? "transparent" : theme.color.background.tertiary};
+    background-color: ${({ $isDisabled }) =>
+      $isDisabled ? "transparent" : t.color.background.tertiary};
   }
-`);
+`;
 
 const ItemName = styled.div`
   min-width: 0;

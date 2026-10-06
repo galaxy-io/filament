@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from "react";
 
-import { GalaxyThemeProvider } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import GalaxyProvider from "@galaxy-io/dls/theme/GalaxyProvider";
 
 import useLocalStorage from "@/hooks/useLocalStorage";
 
@@ -16,8 +16,8 @@ const ThemeProvider = ({ children }: PropsWithChildren) => {
   );
 
   return (
-    <GalaxyThemeProvider
-      initialTheme={storedTheme}
+    <GalaxyProvider
+      theme={storedTheme}
       storageKey={storageKey}
       storage={{
         get: () => storedTheme,
@@ -25,7 +25,7 @@ const ThemeProvider = ({ children }: PropsWithChildren) => {
       }}
     >
       {children}
-    </GalaxyThemeProvider>
+    </GalaxyProvider>
   );
 };
 

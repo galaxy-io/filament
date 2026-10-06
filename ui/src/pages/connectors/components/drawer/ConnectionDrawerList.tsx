@@ -2,26 +2,25 @@ import { Children, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const ListWrapper = withTheme(styled.div<PropsWithTheme>`
+const ListWrapper = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
   border-radius: 8px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  background-color: ${({ theme }) => theme.color.background.primary};
+  border: 0.5px solid ${t.color.border.primary};
+  background-color: ${t.color.background.primary};
   overflow: hidden;
-`);
+`;
 
-const ListItem = withTheme(styled.div<PropsWithTheme>`
+const ListItem = styled.div`
   padding: 12px;
 
   &:not(:last-child) {
-    border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+    border-bottom: 0.5px solid ${t.color.border.primary};
   }
-`);
+`;
 
 const ConnectionDrawerList = ({ children }: PropsWithChildren) => {
   return (

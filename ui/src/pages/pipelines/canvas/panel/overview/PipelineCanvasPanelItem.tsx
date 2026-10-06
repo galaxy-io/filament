@@ -1,9 +1,8 @@
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const PipelineCanvasPanelItem = withTheme(styled.button<PropsWithTheme>`
+const PipelineCanvasPanelItem = styled.button`
   width: 100%;
   padding: 12px;
 
@@ -19,12 +18,12 @@ const PipelineCanvasPanelItem = withTheme(styled.button<PropsWithTheme>`
   transition: background-color 100ms ease;
 
   &:not(:last-child) {
-    border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+    border-bottom: 0.5px solid ${t.color.border.primary};
   }
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
-`);
+`;
 
 export default PipelineCanvasPanelItem;

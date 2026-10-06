@@ -1,9 +1,11 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import { LineChartCurve } from "@galaxy-io/dls/charts/types";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
+import { ChartCurve } from "@galaxy-io/dls/charts/types";
+import ToggleInput, {
+  ToggleInputVariant,
+  type ToggleOption,
+} from "@galaxy-io/dls/inputs/ToggleInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -52,7 +54,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
     });
   };
 
-  const switcherItems: SwitcherInputItem[] = (
+  const switcherItems: ToggleOption[] = (
     Object.entries(views) as [View, ObservabilityChartView][]
   ).map(([id, viewConfig]) => ({
     id,
@@ -61,7 +63,11 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   }));
 
   return (
-    <Widget fillWidth fillHeight noPadding>
+    <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+      fillWidth /* @dls-migrate widget.fillHeight: Grow the card with a `FlexItem` or a `Grid` track. */
+      fillHeight
+      isFlush
+    >
       <BaseToolbar
         leadingActions={[
           <Text key="title" weight={TextWeight.MEDIUM}>
@@ -69,11 +75,11 @@ const ObservabilityTimeseriesWidget = <View extends string>({
           </Text>,
         ]}
         trailingActions={[
-          <SwitcherInput
+          <ToggleInput
             key="view-switcher"
-            variant={InputVariant.TERTIARY}
-            items={switcherItems}
-            selectedId={view}
+            variant={ToggleInputVariant.TERTIARY}
+            options={switcherItems}
+            value={view}
           />,
           <ObservabilityPivotSelect
             key="pivot-selector"
@@ -82,13 +88,13 @@ const ObservabilityTimeseriesWidget = <View extends string>({
           />,
         ]}
       />
-      <HorizontalDivider />
+      <Divider />
       <ObservabilityTimeseriesChart
         seriesLabel={seriesLabel}
         metric={metric}
         color={color}
         pivot={pivot}
-        curve={LineChartCurve.LINEAR}
+        curve={ChartCurve.LINEAR}
         valueFormatter={valueFormatter}
       />
     </Widget>

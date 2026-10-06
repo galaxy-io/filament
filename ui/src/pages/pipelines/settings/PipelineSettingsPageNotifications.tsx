@@ -47,7 +47,7 @@ const mapNotifierToRow = (notifier: Notifier): PipelineNotifier => ({
 });
 
 const PipelineSettingsPageNotifications = () => {
-  const { showToast } = useToast();
+  const { toast: showToast } = useToast();
   const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data, isLoading } = useListPipelineNotifiersQuery({
@@ -79,7 +79,7 @@ const PipelineSettingsPageNotifications = () => {
         onSuccess: () => {
           showToast({
             header: "Notifier created",
-            subheader: `${state.name} will now send notifications.`,
+            description: `${state.name} will now send notifications.`,
             variant: ToastVariant.SUCCESS,
           });
           onSuccess();
@@ -87,7 +87,7 @@ const PipelineSettingsPageNotifications = () => {
         onError: (error) => {
           showToast({
             header: "Create failed",
-            subheader: getErrorMessage(error, "Failed to create notifier"),
+            description: getErrorMessage(error, "Failed to create notifier"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -115,7 +115,7 @@ const PipelineSettingsPageNotifications = () => {
         onError: (error) => {
           showToast({
             header: "Update failed",
-            subheader: getErrorMessage(error, "Failed to update notifier"),
+            description: getErrorMessage(error, "Failed to update notifier"),
             variant: ToastVariant.ERROR,
           });
         },

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import {
   AUTH_LAYOUT_ASIDE_FIELD_MAX_DELTA,

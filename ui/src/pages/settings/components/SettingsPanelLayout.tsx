@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
 
@@ -15,19 +15,19 @@ const SettingsPanelLayout = ({
   actions,
   children,
 }: PropsWithChildren<SettingsPanelLayoutProps>) => (
-  <FlexWrapper
+  <Flex
     direction={FlexDirection.COLUMN}
     alignItems={AlignItems.STRETCH}
     overflow="hidden"
     fillWidth
-    fillHeight
+    height="100%"
   >
-    <FlexWrapper padding="16px" fillWidth>
+    <Flex alignItems={AlignItems.START} padding={16} fillWidth>
       <BaseHeader title={title} size={BaseHeaderSize.LARGE} actions={actions} />
-    </FlexWrapper>
-    <HorizontalDivider />
+    </Flex>
+    <Divider />
     {children}
-  </FlexWrapper>
+  </Flex>
 );
 
 export default SettingsPanelLayout;

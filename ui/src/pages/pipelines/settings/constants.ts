@@ -1,4 +1,4 @@
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
   PipelineScheduleFrequency,
@@ -20,7 +20,7 @@ export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState 
   timezone: PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,
 };
 
-export const PIPELINE_SCHEDULE_TIMEZONE_OPTIONS: SelectInputOption[] = Intl.supportedValuesOf(
+export const PIPELINE_SCHEDULE_TIMEZONE_OPTIONS: SelectOption[] = Intl.supportedValuesOf(
   "timeZone",
 ).map((timezone) => ({
   id: timezone,
@@ -46,7 +46,7 @@ export const PIPELINE_SCHEDULE_CRON_FIELD_BOUNDS: [number, number][] = [
 
 export const PIPELINE_SCHEDULE_CRON_PART_PATTERN = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/;
 
-export const PIPELINE_SCHEDULE_DAY_OPTIONS: SelectInputOption[] = [
+export const PIPELINE_SCHEDULE_DAY_OPTIONS: SelectOption[] = [
   { id: "1", label: "Monday", value: 1 },
   { id: "2", label: "Tuesday", value: 2 },
   { id: "3", label: "Wednesday", value: 3 },
@@ -56,7 +56,7 @@ export const PIPELINE_SCHEDULE_DAY_OPTIONS: SelectInputOption[] = [
   { id: "0", label: "Sunday", value: 0 },
 ];
 
-export const PIPELINE_SCHEDULE_HOUR_OPTIONS: SelectInputOption[] = Array.from(
+export const PIPELINE_SCHEDULE_HOUR_OPTIONS: SelectOption[] = Array.from(
   { length: 24 },
   (_, hour) => ({
     id: `${hour}`,
@@ -76,7 +76,7 @@ const PIPELINE_SCHEDULE_ORDINAL_SUFFIX_MAP: Record<number, string> = {
 
 export const PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT = 28;
 
-export const PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS: SelectInputOption[] = Array.from(
+export const PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS: SelectOption[] = Array.from(
   { length: PIPELINE_SCHEDULE_DAY_OF_MONTH_COUNT },
   (_, index) => ({
     id: `${index + 1}`,

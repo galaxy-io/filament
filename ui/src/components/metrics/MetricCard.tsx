@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
 import StatChart, { type StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 
 interface MetricCardProps {
@@ -20,7 +20,12 @@ const MetricCard = ({ label, value, icon, variant, noBorder }: MetricCardProps) 
     label={label}
     value={
       icon ? (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
+        <Flex
+          alignItems={
+            AlignItems.CENTER
+          } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+          gap={6}
+        >
           {typeof value === "string" ? (
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
               {value}
@@ -29,13 +34,13 @@ const MetricCard = ({ label, value, icon, variant, noBorder }: MetricCardProps) 
             value
           )}
           <Icon component={icon} variant={IconVariant.TERTIARY} size={14} />
-        </FlexWrapper>
+        </Flex>
       ) : (
         value
       )
     }
     variant={variant}
-    noBorder={noBorder}
+    hasBorder={!noBorder}
   />
 );
 

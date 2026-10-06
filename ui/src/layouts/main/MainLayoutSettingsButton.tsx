@@ -4,25 +4,20 @@ import { styled } from "@linaria/react";
 import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
-import Avatar from "@galaxy-io/dls/avatar/Avatar";
-import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
+import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
+import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/GridBackground";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
+import Dropdown from "@galaxy-io/dls/dropdown/Dropdown";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
+import ToggleInput, { ToggleInputSize, type ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme, type PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme, Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import type { Role } from "@/gen/auth/v1/members_pb";
 
@@ -36,14 +31,14 @@ import { useListMembersQuery } from "@/api/queries/auth";
 import { useSignOut } from "@/auth/hooks/useSignOut";
 import type { AppSession } from "@/auth/types";
 
-const MenuHeader = withTheme(styled.div<PropsWithTheme>`
+const MenuHeader = styled.div`
   width: 100%;
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
   border-radius: 5px 5px 0 0;
   overflow: hidden;
-`);
+`;
 
-const AvatarButton = withTheme(styled.button<PropsWithTheme>`
+const AvatarButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,16 +54,16 @@ const AvatarButton = withTheme(styled.button<PropsWithTheme>`
 
   &:hover,
   &:focus-visible {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
 
   &:focus-visible {
-    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline: 1px solid ${t.color.border.secondary};
     outline-offset: 2px;
   }
-`);
+`;
 
-const MenuItem = withTheme(styled.button<PropsWithTheme>`
+const MenuItem = styled.button`
   display: flex;
   align-items: center;
   gap: 10px;
@@ -84,11 +79,11 @@ const MenuItem = withTheme(styled.button<PropsWithTheme>`
 
   &:hover,
   &:focus-visible {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
 
   &:focus-visible {
-    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline: 1px solid ${t.color.border.secondary};
     outline-offset: 1px;
   }
 
@@ -100,7 +95,7 @@ const MenuItem = withTheme(styled.button<PropsWithTheme>`
   &:disabled:hover {
     background-color: transparent;
   }
-`);
+`;
 
 const memberDisplayName = (member: { name?: string; email?: string }): string =>
   member.name || member.email || "Member";
@@ -117,7 +112,7 @@ interface MainLayoutSettingsButtonMenuProps {
   onOpenServiceAccounts: () => void;
   onOpenInvite: () => void;
   onLogout: () => void;
-  themeItems: SwitcherInputItem[];
+  themeItems: ToggleOption[];
   selectedTheme: GalaxyTheme;
 }
 
@@ -141,44 +136,51 @@ const MainLayoutSettingsButtonMenu = ({
   const shouldShowInvite = canManageTeam || isTeamActionsPending;
 
   return (
-    <FlexWrapper
+    <Flex
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.STRETCH}
       overflow="hidden"
       fillWidth
     >
       <MenuHeader>
-        <DotGridBackground
-          dotSize={2}
-          dotOpacity={0.25}
-          spacing={8}
-          backgroundColor={theme.color.background.primary}
-          fillContainer={false}
+        <GridBackground
+          size={GridBackgroundSize.X_SMALL}
+          /* @dls-migrate gridbackground.backgroundColor: Put the grid in a `Box` with the surface `variant` (`<Box variant={BoxVariant.BASE}>` for the 1.x default). */ backgroundColor={
+            theme.color.background.primary
+          }
+          /* @dls-migrate gridbackground.fillContainer-false: GridBackground always fills its parent: size the parent instead. */ fillContainer={
+            false
+          }
         >
-          <FlexWrapper
+          <Flex
             direction={FlexDirection.COLUMN}
             alignItems={AlignItems.CENTER}
-            gap={FlexGap.MEDIUM}
-            padding="16px"
+            gap={12}
+            padding={16}
             fillWidth
             minWidth={0}
           >
-            <Avatar img={avatarUrl} size={36} seed={seed} />
-            <FlexWrapper
+            <Avatar img={avatarUrl} size={AvatarSize.LARGE} seed={seed} />
+            <Flex
               direction={FlexDirection.COLUMN}
               alignItems={AlignItems.CENTER}
               gap={8}
               fillWidth
               minWidth={0}
             >
-              <FlexWrapper
+              <Flex
                 direction={FlexDirection.COLUMN}
                 alignItems={AlignItems.CENTER}
                 gap={2}
                 fillWidth
                 minWidth={0}
               >
-                <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} align="center" isEllipsis>
+                <Text
+                  size={TextSize.BODY_LG}
+                  weight={TextWeight.MEDIUM}
+                  align="center"
+                  lineClamp={1}
+                >
                   {name}
                 </Text>
                 {email && (
@@ -186,24 +188,24 @@ const MainLayoutSettingsButtonMenu = ({
                     size={TextSize.BODY_SM}
                     variant={TextVariant.SECONDARY}
                     align="center"
-                    isEllipsis
+                    lineClamp={1}
                   >
                     {email}
                   </Text>
                 )}
-              </FlexWrapper>
+              </Flex>
               {displayRole && (
                 <Chip label={displayRole} size={ChipSize.SMALL} variant={ChipVariant.SECONDARY} />
               )}
-            </FlexWrapper>
-          </FlexWrapper>
-        </DotGridBackground>
+            </Flex>
+          </Flex>
+        </GridBackground>
       </MenuHeader>
-      <HorizontalDivider />
-      <FlexWrapper
+      <Divider />
+      <Flex
         direction={FlexDirection.COLUMN}
         alignItems={AlignItems.STRETCH}
-        padding="6px"
+        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
         fillWidth
       >
         <MenuItem type="button" onClick={onOpenTeamSettings}>
@@ -211,8 +213,12 @@ const MainLayoutSettingsButtonMenu = ({
             width={16}
             height={16}
             shrink={0}
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.CENTER}
+            /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
+              AlignItems.CENTER
+            }
+            /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
+              JustifyContent.CENTER
+            }
           >
             <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
           </FlexItem>
@@ -224,22 +230,26 @@ const MainLayoutSettingsButtonMenu = ({
               width={16}
               height={16}
               shrink={0}
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.CENTER}
+              /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
+                AlignItems.CENTER
+              }
+              /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
+                JustifyContent.CENTER
+              }
             >
               <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
             </FlexItem>
             <Text>Service accounts</Text>
           </MenuItem>
         )}
-      </FlexWrapper>
+      </Flex>
       {shouldShowInvite && (
         <>
-          <HorizontalDivider />
-          <FlexWrapper
+          <Divider />
+          <Flex
             direction={FlexDirection.COLUMN}
             alignItems={AlignItems.STRETCH}
-            padding="6px"
+            /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
             fillWidth
           >
             <MenuItem type="button" onClick={onOpenInvite} disabled={isTeamActionsPending}>
@@ -247,26 +257,32 @@ const MainLayoutSettingsButtonMenu = ({
                 width={16}
                 height={16}
                 shrink={0}
-                alignItems={AlignItems.CENTER}
-                justifyContent={JustifyContent.CENTER}
+                /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
+                  AlignItems.CENTER
+                }
+                /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
+                  JustifyContent.CENTER
+                }
               >
                 <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
               </FlexItem>
               <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
             </MenuItem>
-          </FlexWrapper>
+          </Flex>
         </>
       )}
-      <HorizontalDivider />
-      <FlexWrapper
+      <Divider />
+      <Flex
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.SPACE_BETWEEN}
-        gap={6}
-        padding="6px"
+        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+          6
+        }
+        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
         fillWidth
       >
         <FlexItem shrink={0} minWidth={0}>
-          <SwitcherInput items={themeItems} selectedId={selectedTheme} size={InputSize.SMALL} />
+          <ToggleInput options={themeItems} value={selectedTheme} size={ToggleInputSize.SMALL} />
         </FlexItem>
         <Button
           label="Logout"
@@ -275,8 +291,8 @@ const MainLayoutSettingsButtonMenu = ({
           size={ButtonSize.SMALL}
           onClick={onLogout}
         />
-      </FlexWrapper>
-    </FlexWrapper>
+      </Flex>
+    </Flex>
   );
 };
 
@@ -299,7 +315,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
     (currentMember ? memberDisplayName(currentMember) : session.name || session.email) ?? "Member";
   const profileEmail = currentMember?.email || session.email;
 
-  const themeItems = useMemo<SwitcherInputItem[]>(
+  const themeItems = useMemo<ToggleOption[]>(
     () => [
       {
         id: GalaxyTheme.LIGHT,
@@ -360,12 +376,18 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
 
   return (
     <Dropdown
-      position={DropdownPosition.BOTTOM_END}
-      minWidth={260}
-      maxWidth={260}
-      noPadding
+      placement={Placement.BOTTOM_END}
+      /* @dls-migrate dropdown.minWidth: Size the `body` content, or use `shouldMatchTriggerWidth` / the trigger's own `fillWidth`. */ minWidth={
+        260
+      }
+      /* @dls-migrate dropdown.maxWidth: Size the `body` content, or use `shouldMatchTriggerWidth` / the trigger's own `fillWidth`. */ maxWidth={
+        260
+      }
+      /* @dls-migrate dropdown.noPadding: A panel that hosts its own layout is a `Popover`. */ noPadding
       isOpen={isOpen}
-      onClose={handleClose}
+      /* @dls-migrate dropdown.onClose: A controlled 2.0 Dropdown also asks to open from its trigger: switch to `onOpenChange` and remove the trigger's own toggle. */ onClose={
+        handleClose
+      }
       body={
         <MainLayoutSettingsButtonMenu
           name={profileName}

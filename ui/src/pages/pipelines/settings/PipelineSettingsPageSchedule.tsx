@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -35,7 +35,7 @@ import {
 import { getErrorMessage } from "@/utils/errors";
 
 const PipelineSettingsPageSchedule = () => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
@@ -78,16 +78,16 @@ const PipelineSettingsPageSchedule = () => {
         }),
         {
           onSuccess: () => {
-            showToast({
+            toast({
               header: "Schedule saved",
-              subheader: "Your schedule has been saved successfully.",
+              description: "Your schedule has been saved successfully.",
               variant: ToastVariant.SUCCESS,
             });
           },
           onError: (error) => {
-            showToast({
+            toast({
               header: "Save failed",
-              subheader: getErrorMessage(error, "Failed to save schedule"),
+              description: getErrorMessage(error, "Failed to save schedule"),
               variant: ToastVariant.ERROR,
             });
           },
@@ -103,16 +103,16 @@ const PipelineSettingsPageSchedule = () => {
       }),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             header: "Schedule created",
-            subheader: "Your pipeline will now run on a schedule.",
+            description: "Your pipeline will now run on a schedule.",
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Create failed",
-            subheader: getErrorMessage(error, "Failed to create schedule"),
+            description: getErrorMessage(error, "Failed to create schedule"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -129,12 +129,7 @@ const PipelineSettingsPageSchedule = () => {
 
   return (
     <PipelineScheduleFields header="Schedule" state={state} onChange={handleScheduleChange}>
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        justifyContent={JustifyContent.END}
-        gap={8}
-        fillWidth
-      >
+      <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
         <Button
           label="Cancel"
           variant={ButtonVariant.SECONDARY}
@@ -147,7 +142,7 @@ const PipelineSettingsPageSchedule = () => {
           isLoading={isCreating || isUpdating}
           onClick={handleSave}
         />
-      </FlexWrapper>
+      </Flex>
     </PipelineScheduleFields>
   );
 };

@@ -15,12 +15,16 @@ const FieldBoolean = ({
 }: FieldComponentProps) => {
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required} error={error}>
-      <Widget fillWidth>
+      <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+        fillWidth
+      >
         <CheckboxInput
           label={field.help}
           isChecked={(value as boolean) ?? false}
           onChange={(v) => onChange(v)}
-          variant={variant}
+          /* @dls-migrate checkboxinput.enums: Pass a `CheckboxInputSize` / `CheckboxInputVariant` member (same names as `InputSize` / `InputVariant`). */ variant={
+            variant
+          }
           isDisabled={isDisabled}
         />
       </Widget>

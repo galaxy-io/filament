@@ -2,11 +2,10 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { notFound, useParams } from "@tanstack/react-router";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -20,7 +19,7 @@ import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSet
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
+const PageWrapper = styled.div`
   width: 100%;
   height: 100%;
 
@@ -29,8 +28,8 @@ const PageWrapper = withTheme(styled.div<PropsWithTheme>`
 
   overflow: hidden;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const ScrollWrapper = styled.div`
   width: 100%;
@@ -52,15 +51,16 @@ const PipelineSettingsPage = () => {
 
   return (
     <PageWrapper>
-      <Wrapper padding={"16px"} fillWidth>
+      <Box padding={16} fillWidth>
         <BaseHeader size={BaseHeaderSize.LARGE} title="Settings" />
-      </Wrapper>
-      <HorizontalDivider />
+      </Box>
+      <Divider />
       <ScrollWrapper>
-        <FlexWrapper
+        <Flex
+          alignItems={AlignItems.START}
           direction={FlexDirection.COLUMN}
           gap={12}
-          padding={"16px"}
+          padding={16}
           minWidth={400}
           maxWidth={640}
         >
@@ -69,7 +69,7 @@ const PipelineSettingsPage = () => {
           <PipelineSettingsPageNotifications />
           <PipelineSettingsPageAdvanced />
           <PipelineSettingsPageDanger />
-        </FlexWrapper>
+        </Flex>
       </ScrollWrapper>
     </PageWrapper>
   );

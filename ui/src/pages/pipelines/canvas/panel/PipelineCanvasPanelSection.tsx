@@ -1,6 +1,6 @@
 import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
-import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -10,7 +10,7 @@ interface PipelineCanvasPanelSectionProps {
   isEmpty: boolean;
   emptyHeader: string;
   emptyMessage: string;
-  padding?: ComponentProps<typeof Accordion>["padding"];
+  padding?: ComponentProps<typeof Widget>["padding"];
   isOpenInitial?: boolean;
   trailing?: ReactNode;
   isOpen?: boolean;
@@ -30,21 +30,24 @@ const PipelineCanvasPanelSection = ({
   children,
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
   return (
-    <Accordion
+    <Widget
+      isCollapsible
       header={header}
-      variant={AccordionVariant.TERTIARY}
-      padding={isEmpty ? "24px" : padding}
-      isOpenInitial={isOpenInitial}
+      variant={WidgetVariant.TERTIARY}
+      /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */ padding={
+        isEmpty ? "24px" : padding
+      }
+      defaultIsOpen={isOpenInitial}
       isOpen={isOpen}
-      onToggle={onToggle}
-      trailing={trailing}
+      onOpenChange={onToggle}
+      actions={trailing}
     >
       {isEmpty ? (
         <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
       ) : (
         children
       )}
-    </Accordion>
+    </Widget>
   );
 };
 

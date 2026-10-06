@@ -1,14 +1,12 @@
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const NavigationButton = withTheme(
-  styled.button<PropsWithTheme<{ $isActive?: boolean }>>`
+const NavigationButton = styled.button<{ $isActive?: boolean }>`
     display: flex;
     align-items: center;
     gap: 10px;
@@ -16,28 +14,26 @@ const NavigationButton = withTheme(
     min-width: 0;
     min-height: 32px;
     padding: 6px 8px;
-    color: ${({ theme, $isActive }) =>
-      $isActive ? theme.color.text.primary : theme.color.text.secondary};
-    background-color: ${({ theme, $isActive }) =>
-      $isActive ? theme.color.background.tertiary : "transparent"};
+    color: ${({ $isActive }) => ($isActive ? t.color.text.primary : t.color.text.secondary)};
+    background-color: ${({ $isActive }) =>
+      $isActive ? t.color.background.tertiary : "transparent"};
     border: 0.5px solid
-      ${({ theme, $isActive }) => ($isActive ? theme.color.border.primary : "transparent")};
+      ${({ $isActive }) => ($isActive ? t.color.border.primary : "transparent")};
     border-radius: 5px;
     text-align: left;
     cursor: pointer;
 
     &:hover,
     &:focus-visible {
-      color: ${({ theme }) => theme.color.text.primary};
-      background-color: ${({ theme }) => theme.color.background.tertiary};
+      color: ${t.color.text.primary};
+      background-color: ${t.color.background.tertiary};
     }
 
     &:focus-visible {
-      outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+      outline: 1px solid ${t.color.border.secondary};
       outline-offset: 1px;
     }
-  `,
-);
+  `;
 
 interface SettingsNavigationItemProps {
   label: string;
@@ -60,7 +56,7 @@ const SettingsNavigationItem = ({
       weight={isActive ? IconWeight.FILL : IconWeight.REGULAR}
     />
     <FlexItem grow={1} minWidth={0}>
-      <Text weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR} isEllipsis>
+      <Text weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR} lineClamp={1}>
         {label}
       </Text>
     </FlexItem>

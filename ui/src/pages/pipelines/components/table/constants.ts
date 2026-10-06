@@ -1,4 +1,4 @@
-import type { Theme } from "@galaxy-io/dls/theme/types";
+import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 

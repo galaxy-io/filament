@@ -1,7 +1,9 @@
 import { styled } from "@linaria/react";
 
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
@@ -45,7 +47,7 @@ const CreatePipelineModalResourcesCursorCell = ({
     );
   }
 
-  const options: SelectInputOption[] = row.cursorOptions.map((column) => ({
+  const options: SelectOption[] = row.cursorOptions.map((column) => ({
     id: column.name,
     label: column.name,
     value: column.name,
@@ -57,7 +59,9 @@ const CreatePipelineModalResourcesCursorCell = ({
     <CellWrapper>
       <SelectInput
         options={options}
-        value={selectedOption}
+        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedOption
+        }
         onChange={(option) =>
           dispatch({
             type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
@@ -69,8 +73,7 @@ const CreatePipelineModalResourcesCursorCell = ({
           })
         }
         placeholder="Select a column..."
-        variant={InputVariant.TERTIARY}
-        dropdownWidth={CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH}
+        variant={SelectInputVariant.TERTIARY}
         fillWidth
       />
     </CellWrapper>

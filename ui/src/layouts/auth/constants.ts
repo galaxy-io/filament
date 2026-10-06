@@ -5,7 +5,7 @@ import {
   SlackLogoIcon,
 } from "@phosphor-icons/react";
 
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
 
 import type {
   AuthLayoutAsideFieldPalette,

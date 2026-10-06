@@ -1,5 +1,5 @@
 import { ChartPalette, type ChartValueFormatter } from "@galaxy-io/dls/charts/types";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
@@ -10,7 +10,7 @@ import { formatBytes, formatCount, formatSeconds } from "@/utils/format";
 export const OBSERVABILITY_TIMESERIES_CHART_HEIGHT = 240;
 export const OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH = 150;
 
-export const METRIC_DIMENSION_PIVOT_OPTIONS: SelectInputOption[] = [
+export const METRIC_DIMENSION_PIVOT_OPTIONS: SelectOption[] = [
   {
     id: String(MetricDimension.PIPELINE_ID),
     label: "Pipeline",

@@ -1,13 +1,9 @@
 import { type Icon as PhosphorIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import {
   LAYOUT_SIZE_TO_GAP_MAP,
@@ -37,24 +33,22 @@ const ErrorLayout = ({
   actions,
 }: ErrorLayoutProps) => {
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
+      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+        LAYOUT_SIZE_TO_GAP_MAP[size]
+      }
     >
       <Icon
         component={icon}
         size={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
         variant={IconVariant.ERROR}
       />
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.CENTER}
-        gap={FlexGap.SMALL}
-      >
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
         {header && (
           <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
             {header}
@@ -66,13 +60,18 @@ const ErrorLayout = ({
           </Text>
         )}
         {IS_DEBUG && error && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isMonospace isSelectable>
+          <Text
+            size={TextSize.CAPTION}
+            variant={TextVariant.ERROR}
+            family={FontFamily.MONO}
+            isSelectable
+          >
             {error.message}
           </Text>
         )}
-      </FlexWrapper>
+      </Flex>
       {actions}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -40,7 +40,7 @@ export const useConfirm = <T>({
   onConfirm,
   onConfirmed,
 }: UseConfirmInput<T>) => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const [state, setState] = useState<UseConfirmState<T>>(DEFAULT_STATE);
 
@@ -53,9 +53,9 @@ export const useConfirm = <T>({
 
     onConfirm(target, {
       onSuccess: () => {
-        showToast({
+        toast({
           header: messages?.successHeader ?? `${entityLabel} deleted`,
-          subheader:
+          description:
             messages?.successSubheader?.(target) ??
             `${entityName(target)} has been deleted successfully.`,
           variant: ToastVariant.SUCCESS,
@@ -64,9 +64,9 @@ export const useConfirm = <T>({
         onConfirmed?.(target);
       },
       onError: (error) => {
-        showToast({
+        toast({
           header: messages?.errorHeader ?? "Delete failed",
-          subheader: getErrorMessage(
+          description: getErrorMessage(
             error,
             messages?.errorFallback ?? `Failed to delete ${entityLabel.toLowerCase()}`,
           ),

@@ -1,4 +1,4 @@
-import Accordion, { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
+import Widget, { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -37,7 +37,14 @@ const CreatePipelineModalDeliveryNodeConfig = ({
   if (nodeConfig.fields.length === 0) return null;
 
   return (
-    <Accordion header={header} padding="16px" size={AccordionSize.LARGE}>
+    <Widget
+      isCollapsible
+      header={
+        header
+      } /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */
+      padding="16px"
+      size={WidgetSize.LARGE}
+    >
       <PipelineNodeConfigFields
         {...nodeConfig}
         config={config}
@@ -48,7 +55,7 @@ const CreatePipelineModalDeliveryNodeConfig = ({
           })
         }
       />
-    </Accordion>
+    </Widget>
   );
 };
 

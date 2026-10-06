@@ -3,11 +3,7 @@ import { useState } from "react";
 import { TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import PipelineNotifierFields from "@/pages/pipelines/components/notifier/PipelineNotifierFields";
@@ -40,11 +36,14 @@ const PipelineNotifierForm = ({
   };
 
   return (
-    <FlexWrapper padding="12px" fillWidth>
-      <Widget noHover padding="16px" fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.START} padding={12} fillWidth>
+      <Widget /* @dls-migrate widget.padding-other: The body inset is fixed at 12px: remove `padding` (use `isFlush` for 0). */
+        padding="16px" /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+        fillWidth
+      >
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
           <PipelineNotifierFields state={state} onChange={handleChange} isDisabled={isSaving} />
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.END}
             gap={8}
@@ -75,10 +74,10 @@ const PipelineNotifierForm = ({
               isDisabled={!isPipelineNotifierValid(state)}
               isLoading={isSaving}
             />
-          </FlexWrapper>
-        </FlexWrapper>
+          </Flex>
+        </Flex>
       </Widget>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

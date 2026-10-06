@@ -5,9 +5,9 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
-import GridWrapper from "@galaxy-io/dls/containers/GridWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Grid from "@galaxy-io/dls/layout/Grid";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -101,7 +101,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
           header={`No ${kindPlural} found`}
           message={CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP[kind]}
           actions={
-            <FlexWrapper gap={8}>
+            <Flex alignItems={AlignItems.START} gap={8}>
               <Button
                 label={`New ${kindLabel}`}
                 icon={PlusIcon}
@@ -114,7 +114,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
                 path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]}
                 size={ButtonSize.LARGE}
               />
-            </FlexWrapper>
+            </Flex>
           }
         />
       );
@@ -131,7 +131,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
 
     return (
       <>
-        <GridWrapper
+        <Grid
           columns={`repeat(auto-fill, minmax(${CONNECTOR_GRID_MIN_COLUMN_WIDTH}px, 1fr))`}
           gap={12}
         >
@@ -143,7 +143,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
               onClick={() => handleConnectionClick(connection.id)}
             />
           ))}
-        </GridWrapper>
+        </Grid>
         <InfiniteScrollSentinel
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}

@@ -1,14 +1,14 @@
 import { useState } from "react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputSize,
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
@@ -48,16 +48,22 @@ const PipelineResourceCreateForm = ({
   const error = trimmed.resource === "" ? null : getError(trimmed);
   const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== null;
 
-  const sinkOptions: SelectInputOption[] = sinks.map((sink) => ({
+  const sinkOptions: SelectOption[] = sinks.map((sink) => ({
     id: sink.id,
     label: sink.label,
     value: sink.id,
   }));
 
   return (
-    <FlexWrapper padding="12px" fillWidth>
-      <Widget variant={WidgetVariant.TERTIARY} noHover padding="16px" fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.START} padding={12} fillWidth>
+      <Widget
+        variant={
+          WidgetVariant.TERTIARY
+        } /* @dls-migrate widget.padding-other: The body inset is fixed at 12px: remove `padding` (use `isFlush` for 0). */
+        padding="16px" /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+        fillWidth
+      >
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
           <TextInput
             label="Resource"
             value={state.resource}
@@ -75,12 +81,14 @@ const PipelineResourceCreateForm = ({
             <SelectInput
               label="Sink"
               options={sinkOptions}
-              value={sinkOptions.find((option) => option.value === state.sinkId) ?? null}
+              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                sinkOptions.find((option) => option.value === state.sinkId) ?? null
+              }
               onChange={(option) =>
                 setState((prev) => ({ ...prev, sinkId: option.value as string }))
               }
-              variant={InputVariant.TERTIARY}
-              size={InputSize.LARGE}
+              variant={SelectInputVariant.TERTIARY}
+              size={SelectInputSize.LARGE}
               fillWidth
             />
           )}
@@ -89,7 +97,7 @@ const PipelineResourceCreateForm = ({
               {error}
             </Text>
           )}
-          <FlexWrapper
+          <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.END}
             gap={8}
@@ -107,10 +115,10 @@ const PipelineResourceCreateForm = ({
               onClick={() => onSave(trimmed)}
               isDisabled={isSaveDisabled}
             />
-          </FlexWrapper>
-        </FlexWrapper>
+          </Flex>
+        </Flex>
       </Widget>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -3,16 +3,11 @@ import type { ReactNode } from "react";
 import { styled } from "@linaria/react";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -50,7 +45,7 @@ const VeilWrapper = styled.div`
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
-const GhostRow = withTheme(styled.div<PropsWithTheme>`
+const GhostRow = styled.div`
   height: 44px;
 
   display: flex;
@@ -58,11 +53,11 @@ const GhostRow = withTheme(styled.div<PropsWithTheme>`
   gap: 12px;
   padding: 0 12px;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 5px;
-`);
+`;
 
 const GhostFlowWrapper = styled.div`
   display: flex;
@@ -89,13 +84,15 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
   const sinkSpecs = connectors.filter((connector) => connector.kind === ConnectorKind.SINK);
 
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={20}
+      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+        20
+      }
     >
       <EmptyGraphic>
         <VeilWrapper>
@@ -144,16 +141,16 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
           })}
         </VeilWrapper>
       </EmptyGraphic>
-      <FlexWrapper direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
         <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
           No pipelines found
         </Text>
         <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
           Create pipelines to move data between your connectors.
         </Text>
-      </FlexWrapper>
+      </Flex>
       {actions}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

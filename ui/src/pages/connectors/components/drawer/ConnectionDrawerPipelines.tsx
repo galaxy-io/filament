@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import ConnectionDrawerSection from "@/pages/connectors/components/drawer/ConnectionDrawerSection";
 import { usePipelineConnectionMap } from "@/pages/connectors/hooks/usePipelineConnectionMap";
@@ -30,11 +30,11 @@ const ConnectionDrawerPipelines = () => {
       emptyMessage="This connection is not used in any pipelines."
       isOpenInitial
     >
-      <FlexWrapper fillWidth direction={FlexDirection.COLUMN}>
+      <Flex alignItems={AlignItems.START} fillWidth direction={FlexDirection.COLUMN}>
         {connectedPipelines.map((pipeline) => (
           <PipelineCard key={pipeline.id} pipeline={pipeline} />
         ))}
-      </FlexWrapper>
+      </Flex>
     </ConnectionDrawerSection>
   );
 };

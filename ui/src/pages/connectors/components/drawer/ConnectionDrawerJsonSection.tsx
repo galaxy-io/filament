@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 
-import type Accordion from "@galaxy-io/dls/accordion/Accordion";
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import type Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
@@ -9,7 +9,7 @@ import ConnectionDrawerSection from "@/pages/connectors/components/drawer/Connec
 
 interface ConnectionDrawerJsonSectionProps {
   header: string;
-  icon: ComponentProps<typeof Accordion>["icon"];
+  icon: ComponentProps<typeof Widget>["icon"];
   data: Connection["config"] | Connection["secretRefs"] | undefined;
   emptyHeader: string;
   emptyMessage: string;
@@ -31,11 +31,11 @@ const ConnectionDrawerJsonSection = ({
       emptyMessage={emptyMessage}
     >
       <CodeEditor
-        content={JSON.stringify(data, null, 2)}
-        lang="json"
-        isReadOnly
-        noBorder
-        noLineNumbers
+        value={JSON.stringify(data, null, 2)}
+        language={CodeEditorLanguage.JSON}
+        /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly
+        isGhost
+        hasLineNumbers={false}
       />
     </ConnectionDrawerSection>
   );

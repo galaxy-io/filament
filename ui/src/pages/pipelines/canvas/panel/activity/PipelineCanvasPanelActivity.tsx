@@ -8,7 +8,8 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Flash from "@galaxy-io/dls/transform/Flash";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import Flasher from "@galaxy-io/dls/transform/Flasher";
 
 import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
@@ -105,8 +106,8 @@ const PipelineCanvasPanelActivity = () => {
         ))}
       </ActivityList>
       {isStreaming && (
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} isMonospace>
-          <Flash>Listening...</Flash>
+        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
+          <Flasher isFlashing>Listening...</Flasher>
         </Text>
       )}
     </ActivityBody>

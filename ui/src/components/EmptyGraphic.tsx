@@ -1,7 +1,6 @@
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 export const EMPTY_GRAPHIC_WIDTH = 560;
 export const EMPTY_GRAPHIC_HEIGHT = 200;
@@ -20,23 +19,23 @@ export const EmptyGraphicGhostTile = styled.div`
   opacity: 0.3;
 `;
 
-export const EmptyGraphicGhostTileFallback = withTheme(styled.div<PropsWithTheme>`
+export const EmptyGraphicGhostTileFallback = styled.div`
   width: 24px;
   height: 24px;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${t.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 4px;
-`);
+`;
 
-export const EmptyGraphicGhostBar = withTheme(styled.div<PropsWithTheme<{ $width: number }>>`
+export const EmptyGraphicGhostBar = styled.div<{ $width: number }>`
   width: ${({ $width }) => $width}px;
   height: 12px;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${t.color.background.secondary};
 
   border-radius: 4px;
-`);
+`;
 
 export default EmptyGraphic;

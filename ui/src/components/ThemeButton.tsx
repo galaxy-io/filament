@@ -1,8 +1,8 @@
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 interface ThemeButtonProps {
   variant?: ButtonVariant;
@@ -27,7 +27,7 @@ const ThemeButton = ({
       variant={variant}
       size={size}
       onClick={handleTheme}
-      isIconFilled
+      /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
     />
   );
 };

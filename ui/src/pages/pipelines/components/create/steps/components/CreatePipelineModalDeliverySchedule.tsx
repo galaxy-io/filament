@@ -1,4 +1,4 @@
-import { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
+import { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -14,7 +14,7 @@ const CreatePipelineModalDeliverySchedule = () => {
   return (
     <PipelineScheduleFields
       header="Schedule"
-      size={AccordionSize.LARGE}
+      size={WidgetSize.LARGE}
       padding="16px"
       state={schedule}
       isOpenInitial

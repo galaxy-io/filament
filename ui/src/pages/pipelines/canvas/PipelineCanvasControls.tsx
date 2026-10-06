@@ -3,8 +3,7 @@ import { ArrowCounterClockwiseIcon, MinusIcon, PlusIcon } from "@phosphor-icons/
 import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
@@ -24,7 +23,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 
-const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
+const ControlsContainer = styled.div`
   position: absolute;
   bottom: 16px;
   left: 16px;
@@ -33,13 +32,13 @@ const ControlsContainer = withTheme(styled.div<PropsWithTheme>`
   display: flex;
   flex-direction: column;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 6px;
   overflow: hidden;
-`);
+`;
 
-const ControlButton = withTheme(styled.button<PropsWithTheme>`
+const ControlButton = styled.button`
   width: 28px;
   height: 30px;
   padding: 0;
@@ -50,7 +49,7 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
 
   background-color: transparent;
   border: none;
-  border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border-bottom: 0.5px solid ${t.color.border.primary};
   cursor: pointer;
 
   transition: background-color 100ms ease;
@@ -60,9 +59,9 @@ const ControlButton = withTheme(styled.button<PropsWithTheme>`
   }
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
-`);
+`;
 
 const PipelineCanvasControls = () => {
   const { zoomIn, zoomOut, setViewport } = useReactFlow();

@@ -3,10 +3,9 @@ import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import { OverlayProvider } from "@galaxy-io/dls/overlay/OverlayProvider";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import { ToastProvider } from "@galaxy-io/dls/toast/ToastProvider";
+import OverlayProvider from "@galaxy-io/dls/overlay/OverlayProvider";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import ToastProvider from "@galaxy-io/dls/toast/ToastProvider";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -14,18 +13,18 @@ import { createGetAuthConfigQueryOptions } from "@/api/queries/auth";
 import { queryClient } from "@/api/queryClient";
 import { transport } from "@/api/transport";
 
-const RootComponentWrapper = withTheme(styled.div<PropsWithTheme>`
+const RootComponentWrapper = styled.div`
   display: flex;
   flex-direction: column;
 
   height: 100vh;
   width: 100vw;
-  background-color: ${({ theme }) => theme.color.background.base};
+  background-color: ${t.color.background.base};
 
   ::selection {
-    background-color: ${({ theme }) => theme.color.background.blue};
+    background-color: ${t.color.background.blue};
   }
-`);
+`;
 
 const RootErrorComponent = ({ error }: { error: Error }) => {
   const router = useRouter();
@@ -43,8 +42,10 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
 
 const RootComponent = () => {
   return (
-    <ToastProvider>
-      <OverlayProvider>
+    <ToastProvider /* @dls-migrate galaxyprovider.providers-nested: GalaxyProvider already mounts this provider: remove it unless it serves a second React root. */
+    >
+      <OverlayProvider /* @dls-migrate galaxyprovider.providers-nested: GalaxyProvider already mounts this provider: remove it unless it serves a second React root. */
+      >
         <RootComponentWrapper>
           <Outlet />
         </RootComponentWrapper>

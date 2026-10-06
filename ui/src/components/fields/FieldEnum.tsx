@@ -1,5 +1,4 @@
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -13,7 +12,7 @@ const FieldEnum = ({
   isDisabled = false,
   label,
 }: FieldComponentProps) => {
-  const options: SelectInputOption[] = field.enum.map((enumOption) => ({
+  const options: SelectOption[] = field.enum.map((enumOption) => ({
     id: enumOption.value,
     label: enumOption.label || enumOption.value,
     value: enumOption.value,
@@ -25,13 +24,17 @@ const FieldEnum = ({
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>
       <SelectInput
         options={options}
-        value={selectedOption}
+        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedOption
+        }
         onChange={(opt) => onChange(opt.value as string)}
-        variant={variant}
+        /* @dls-migrate selectinput.enums: Pass a `SelectInputSize` / `SelectInputVariant` member (same names as `InputSize` / `InputVariant`). */ variant={
+          variant
+        }
         placeholder={`Select ${label}...`}
         error={error}
         isDisabled={isDisabled}
-        size={InputSize.LARGE}
+        size={SelectInputSize.LARGE}
         fillWidth
       />
     </FieldWrapper>

@@ -3,8 +3,7 @@ import { memo } from "react";
 import { styled } from "@linaria/react";
 
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
@@ -22,17 +21,17 @@ import type { PipelineCanvasNodePlaceholderProps } from "@/pages/pipelines/canva
 import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelector";
 import { usePipelineCanvasActions } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-const PlaceholderCard = withTheme(styled.div<PropsWithTheme>`
+const PlaceholderCard = styled.div`
   padding: 20px 16px;
 
   display: flex;
   flex-direction: column;
   gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-  border: 1px dashed ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.base};
+  border: 1px dashed ${t.color.border.primary};
   border-radius: ${PIPELINE_CANVAS_NODE_BORDER_RADIUS}px;
-`);
+`;
 
 const CardHeader = styled.div`
   display: flex;
@@ -40,11 +39,11 @@ const CardHeader = styled.div`
   gap: 2px;
 `;
 
-const SelectorIsland = withTheme(styled.div<PropsWithTheme>`
+const SelectorIsland = styled.div`
   height: ${PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT}px;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: ${PIPELINE_CANVAS_NODE_BORDER_RADIUS}px;
   overflow: hidden;
 
@@ -52,9 +51,9 @@ const SelectorIsland = withTheme(styled.div<PropsWithTheme>`
 
   &:hover,
   &:focus-within {
-    border-color: ${({ theme }) => theme.color.border.tertiary};
+    border-color: ${t.color.border.tertiary};
   }
-`);
+`;
 
 const PipelineCanvasNodePlaceholder = memo(
   ({ data, positionAbsoluteX, positionAbsoluteY }: PipelineCanvasNodePlaceholderProps) => {

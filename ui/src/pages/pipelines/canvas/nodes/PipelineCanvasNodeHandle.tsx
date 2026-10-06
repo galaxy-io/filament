@@ -3,8 +3,7 @@ import type { ComponentProps } from "react";
 import { styled } from "@linaria/react";
 import { Handle, type Position } from "@xyflow/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -30,11 +29,9 @@ const HandleBase = ({
   $isConnected: _isConnected,
   theme: _theme,
   ...props
-}: PropsWithTheme<{ $isConnected?: boolean }> & ComponentProps<typeof Handle>) => (
-  <Handle {...props} />
-);
+}: { $isConnected?: boolean } & ComponentProps<typeof Handle>) => <Handle {...props} />;
 
-const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?: boolean }>>`
+const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
   &.react-flow__handle {
     position: relative;
     top: auto;
@@ -46,10 +43,10 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
     width: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
     height: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
 
-    background-color: ${({ theme, $isConnected }) =>
-      $isConnected ? "transparent" : theme.color.text.tertiary};
-    border: ${({ theme, $isConnected }) =>
-      $isConnected ? `2px solid ${theme.color.background.galaxy}` : "none"};
+    background-color: ${({ $isConnected }) =>
+      $isConnected ? "transparent" : t.color.text.tertiary};
+    border: ${({ $isConnected }) =>
+      $isConnected ? `2px solid ${t.color.solid.primary.background}` : "none"};
     border-radius: 50%;
 
     transition:
@@ -61,7 +58,7 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
     width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
     height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
   }
-`);
+`;
 
 interface PipelineCanvasNodeHandleProps {
   id: string;

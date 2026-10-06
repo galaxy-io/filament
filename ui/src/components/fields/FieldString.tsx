@@ -1,3 +1,4 @@
+import Field from "@galaxy-io/dls/inputs/Field";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
@@ -13,19 +14,23 @@ const FieldString = ({
   label,
 }: FieldComponentProps) => {
   return (
-    <TextInput
-      value={(value as string) ?? ""}
-      onChange={(v) => onChange(v)}
-      size={InputSize.LARGE}
-      variant={variant}
-      placeholder={`Enter ${label}...`}
+    <Field
       label={label}
       labelTooltip={field.help || undefined}
       isRequired={field.required}
       error={error}
-      isDisabled={isDisabled}
       fillWidth
-    />
+    >
+      <TextInput
+        value={(value as string) ?? ""}
+        onChange={(v) => onChange(v)}
+        size={InputSize.LARGE}
+        variant={variant}
+        placeholder={`Enter ${label}...`}
+        isDisabled={isDisabled}
+        fillWidth
+      />
+    </Field>
   );
 };
 

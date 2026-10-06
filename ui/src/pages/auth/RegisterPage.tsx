@@ -2,11 +2,11 @@ import { useState } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import type { RegisterRequest } from "@/gen/auth/v1/session_pb";
 
@@ -92,7 +92,7 @@ const RegisterPage = () => {
         fillWidth
         autoFocus
       />
-      <FlexWrapper gap={FlexGap.MEDIUM} fillWidth>
+      <Flex alignItems={AlignItems.START} gap={12} fillWidth>
         <FlexItem grow={1} basis={0} minWidth={0}>
           <TextInput
             label="First name"
@@ -111,7 +111,7 @@ const RegisterPage = () => {
             fillWidth
           />
         </FlexItem>
-      </FlexWrapper>
+      </Flex>
       <TextInput
         label="Email"
         value={state.email}

@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
@@ -44,7 +44,7 @@ const PipelineCanvasPanelOverview = () => {
   const sinkNodes = connectionNodes.filter((node) => node.type === PipelineCanvasNodeType.SINK);
 
   const renderNodeItems = (nodes: (PipelineCanvasSourceNode | PipelineCanvasSinkNode)[]) => (
-    <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
       {nodes.map((node) => {
         const connection = connectionByNodeId.get(node.id);
         return (
@@ -54,13 +54,13 @@ const PipelineCanvasPanelOverview = () => {
               kind={PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP[node.type]}
               isDeleted={!!connection?.deletedAt}
             />
-            <Text size={TextSize.BODY_SM} isEllipsis>
+            <Text size={TextSize.BODY_SM} lineClamp={1}>
               {connection?.name ?? node.data.connectionId}
             </Text>
           </PipelineCanvasPanelItem>
         );
       })}
-    </FlexWrapper>
+    </Flex>
   );
 
   return (

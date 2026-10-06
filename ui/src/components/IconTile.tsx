@@ -2,10 +2,9 @@ import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const TileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: number }>>`
+const TileWrapper = styled.div<{ $size: number }>`
   width: ${({ $size }) => $size}px;
   height: ${({ $size }) => $size}px;
 
@@ -14,9 +13,9 @@ const TileWrapper = withTheme(styled.div<PropsWithTheme<{ $size: number }>>`
   justify-content: center;
   flex-shrink: 0;
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 6px;
-`);
+`;
 
 interface IconTileProps {
   icon: PhosphorIcon;

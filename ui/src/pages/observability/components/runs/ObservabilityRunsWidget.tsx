@@ -3,11 +3,14 @@ import { useMemo } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
-import SwitcherInput, { type SwitcherInputItem } from "@galaxy-io/dls/inputs/SwitcherInput";
+import MultiSelectInput, { MultiSelectInputVariant } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import ToggleInput, {
+  ToggleInputVariant,
+  type ToggleOption,
+} from "@galaxy-io/dls/inputs/ToggleInput";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -58,7 +61,7 @@ const ObservabilityRunsWidget = () => {
     });
   };
 
-  const handleStatusChange = (selected: SelectInputOption[]) => {
+  const handleStatusChange = (selected: SelectOption[]) => {
     void navigate({
       to: ".",
       search: (prev) => ({
@@ -70,16 +73,17 @@ const ObservabilityRunsWidget = () => {
     });
   };
 
-  const switcherItems: SwitcherInputItem[] = Object.values(ObservabilityRunsView).map(
-    (runsView) => ({
-      id: runsView,
-      label: OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP[runsView],
-      onClick: () => handleViewChange(runsView),
-    }),
-  );
+  const switcherItems: ToggleOption[] = Object.values(ObservabilityRunsView).map((runsView) => ({
+    id: runsView,
+    label: OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP[runsView],
+    onClick: () => handleViewChange(runsView),
+  }));
 
   return (
-    <Widget fillWidth noPadding>
+    <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+      fillWidth
+      isFlush
+    >
       <BaseToolbar
         leadingActions={[
           <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
@@ -88,41 +92,47 @@ const ObservabilityRunsWidget = () => {
         ]}
         trailingActions={[
           <ObservabilityRunsSelectionChips key="selection-chips" />,
-          <SwitcherInput
+          <ToggleInput
             key="view-switcher"
-            variant={InputVariant.TERTIARY}
-            items={switcherItems}
-            selectedId={view}
+            variant={ToggleInputVariant.TERTIARY}
+            options={switcherItems}
+            value={view}
           />,
-          <MultiSelectInput
-            key="status-selector"
-            options={OBSERVABILITY_RUN_STATUS_OPTIONS}
-            value={
-              view === ObservabilityRunsView.UPCOMING
-                ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
-                : selectedStatusOptions
-            }
-            variant={InputVariant.TERTIARY}
-            onChange={handleStatusChange}
-            placeholder="Select statuses..."
-            width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}
-            pinnedOptions={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION]}
-            isDisabled={view === ObservabilityRunsView.UPCOMING}
-            renderSelectedText={(selectedOptions, placeholder) =>
-              selectedOptions.length
-                ? pluralize("status", selectedOptions.length, true)
-                : placeholder
-            }
-          />,
+          <Box key="status-selector" width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
+            <MultiSelectInput
+              fillWidth
+              options={OBSERVABILITY_RUN_STATUS_OPTIONS}
+              /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+                view === ObservabilityRunsView.UPCOMING
+                  ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
+                  : selectedStatusOptions
+              }
+              variant={MultiSelectInputVariant.TERTIARY}
+              onChange={handleStatusChange}
+              placeholder="Select statuses..."
+              /* @dls-migrate multiselectinput.pinnedOptions: Pinned rows are now option ids: pass `pinnedIds`. */ pinnedOptions={[
+                OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+              ]}
+              isDisabled={view === ObservabilityRunsView.UPCOMING}
+              /* @dls-migrate multiselectinput.renderSelectedText: Merged into `renderValue(options)`. */ renderSelectedText={(
+                selectedOptions,
+                placeholder,
+              ) =>
+                selectedOptions.length
+                  ? pluralize("status", selectedOptions.length, true)
+                  : placeholder
+              }
+            />
+          </Box>,
         ]}
       />
-      <HorizontalDivider />
+      <Divider />
       {view === ObservabilityRunsView.PAST ? (
         <ObservabilityRunsChart />
       ) : (
         <ObservabilityRunsScheduledChart />
       )}
-      <HorizontalDivider />
+      <Divider />
       <ObservabilityRunsTable />
     </Widget>
   );

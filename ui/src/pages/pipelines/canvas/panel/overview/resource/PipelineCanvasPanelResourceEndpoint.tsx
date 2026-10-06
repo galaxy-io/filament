@@ -51,7 +51,7 @@ const PipelineCanvasPanelResourceEndpoint = ({
         size={ConnectorTileSize.MEDIUM}
         isDeleted={!!connection?.deletedAt}
       />
-      <Text size={TextSize.BODY_SM} isEllipsis>
+      <Text size={TextSize.BODY_SM} lineClamp={1}>
         {connection?.name ?? nodeId}
       </Text>
     </EndpointButton>

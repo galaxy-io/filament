@@ -4,7 +4,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
 import DocsButton from "@/components/DocsButton";
 
@@ -58,7 +58,7 @@ const PipelinesPage = () => {
       return (
         <PipelinesPageEmptyGraphic
           actions={
-            <FlexWrapper gap={8}>
+            <Flex alignItems={AlignItems.START} gap={8}>
               <Button
                 label="New pipeline"
                 icon={PlusIcon}
@@ -67,7 +67,7 @@ const PipelinesPage = () => {
                 onClick={handleNewPipeline}
               />
               <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
-            </FlexWrapper>
+            </Flex>
           }
         />
       );

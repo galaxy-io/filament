@@ -2,12 +2,11 @@ import { styled } from "@linaria/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { PIPELINE_CANVAS_PANEL_HEADER_HEIGHT } from "@/pages/pipelines/canvas/panel/constants";
@@ -27,7 +26,8 @@ const TabsWrapper = styled.div`
   flex-shrink: 0;
 `;
 
-const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>>`
+// @dls-migrate tokens.background.alt: Inverse is a scope, not a token: render the opposite-theme surface as `<GalaxyProvider isScoped theme={…}>` around a `Box variant`, and read the normal roles inside it.
+const TabButton = styled.button<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -38,7 +38,7 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
 
   border: none;
   border-bottom: 2px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.color.background.primaryAlt : "transparent")};
+    ${({ $isActive }) => ($isActive ? t.color.background.primaryAlt : "transparent")};
   background-color: transparent;
   cursor: pointer;
 
@@ -49,18 +49,18 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
   &:hover {
     opacity: ${({ $isActive }) => ($isActive ? 1 : 0.75)};
   }
-`);
+`;
 
 const PipelineCanvasPanelTabHeader = () => {
   const { activeTab, setActiveTab, setShowPanel } = usePipelineCanvasSelection();
 
   return (
     <>
-      <FlexWrapper
+      <Flex
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.SPACE_BETWEEN}
         gap={8}
-        padding="0 12px"
+        padding={[0, 12]}
         shrink={0}
         fillWidth
       >
@@ -87,8 +87,8 @@ const PipelineCanvasPanelTabHeader = () => {
             ariaLabel="Close configuration panel"
           />
         </FlexItem>
-      </FlexWrapper>
-      <HorizontalDivider />
+      </Flex>
+      <Divider />
     </>
   );
 };

@@ -1,12 +1,11 @@
 import { styled } from "@linaria/react";
 import { WarningIcon } from "@phosphor-icons/react";
 
-import Badge, { BadgeSize, BadgeVariant } from "@galaxy-io/dls/badge/Badge";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -25,7 +24,8 @@ const TabsWrapper = styled.div`
   overflow-x: auto;
 `;
 
-const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>>`
+// @dls-migrate tokens.background.alt: Inverse is a scope, not a token: render the opposite-theme surface as `<GalaxyProvider isScoped theme={…}>` around a `Box variant`, and read the normal roles inside it.
+const TabButton = styled.button<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -37,10 +37,10 @@ const TabButton = withTheme(styled.button<PropsWithTheme<{ $isActive: boolean }>
 
   border: none;
   border-bottom: 2px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.color.background.primaryAlt : "transparent")};
+    ${({ $isActive }) => ($isActive ? t.color.background.primaryAlt : "transparent")};
   background-color: transparent;
   cursor: pointer;
-`);
+`;
 
 const CreatePipelineModalResourcesTabs = () => {
   const { sinks, activeSinkId, selectedCountBySink, issuesBySink } = useCreatePipelineModalState();
@@ -65,7 +65,7 @@ const CreatePipelineModalResourcesTabs = () => {
             }
           >
             <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={12}>
+            <Flex alignItems={AlignItems.CENTER} gap={12}>
               <Text size={TextSize.BODY_SM} variant={TextVariant.PRIMARY}>
                 {sink.connection.name}
               </Text>
@@ -76,9 +76,15 @@ const CreatePipelineModalResourcesTabs = () => {
                   weight={IconWeight.FILL}
                 />
               ) : (
-                <Badge count={count} variant={BadgeVariant.SECONDARY} size={BadgeSize.SMALL} />
+                <Chip
+                  hasBorder
+                  isPill
+                  count={count}
+                  variant={ChipVariant.SECONDARY}
+                  size={ChipSize.SMALL}
+                />
               )}
-            </FlexWrapper>
+            </Flex>
           </TabButton>
         );
       })}

@@ -6,6 +6,8 @@ import { createRoot } from "react-dom/client";
 import App from "@/App";
 
 import "@galaxy-io/dls/styles.css";
+import "@galaxy-io/dls/tokens.css";
+import "@galaxy-io/dls/fonts.css";
 import "@/style.css";
 
 import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";

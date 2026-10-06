@@ -4,12 +4,11 @@ import { KeyIcon, LinkBreakIcon, SlidersIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
@@ -31,20 +30,20 @@ import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/querie
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-const DrawerWrapper = withTheme(styled.div<PropsWithTheme>`
+const DrawerWrapper = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
+  background-color: ${t.color.background.primary};
+`;
 
-const DrawerBody = withTheme(styled.div<PropsWithTheme>`
+const DrawerBody = styled.div`
   flex: 1;
   overflow-y: auto;
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 interface ConnectionDrawerProps {
   onClose: () => void;
@@ -100,10 +99,16 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
     <DrawerWrapper>
       <ConnectionDrawerHeader onClose={onClose} />
 
-      <HorizontalDivider />
+      <Divider />
 
       <DrawerBody>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} padding="16px" fillWidth>
+        <Flex
+          alignItems={AlignItems.START}
+          direction={FlexDirection.COLUMN}
+          gap={12}
+          padding={16}
+          fillWidth
+        >
           <ConnectionDrawerList>
             <ConnectionDrawerKeyValueRow
               label="Kind"
@@ -135,12 +140,12 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
             emptyMessage="This connection has no secret references."
           />
           <ConnectionDrawerPipelines />
-        </FlexWrapper>
+        </Flex>
       </DrawerBody>
 
-      <HorizontalDivider />
+      <Divider />
 
-      <FlexItem shrink={0} grow={0} padding="16px" fillWidth>
+      <FlexItem shrink={0} grow={0} padding={16} fillWidth>
         <DangerZone
           title="Delete connection"
           description="This will permanently delete this connection."

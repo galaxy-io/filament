@@ -3,11 +3,10 @@ import { useState } from "react";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -38,11 +37,11 @@ const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
   overflow: hidden;
 `;
 
-const SearchWrapper = withTheme(styled.div<PropsWithTheme>`
+const SearchWrapper = styled.div`
   padding: 8px;
   flex-shrink: 0;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
+  background-color: ${t.color.background.primary};
+`;
 
 interface PipelineCanvasConnectionSelectorProps {
   kindFilter?: ConnectorKind;
@@ -100,12 +99,12 @@ const PipelineCanvasConnectionSelector = ({
           value={state.search}
           onChange={handleSearchChange}
           placeholder="Search connections..."
-          leading={{ icon: MagnifyingGlassIcon }}
+          icon={MagnifyingGlassIcon}
           size={InputSize.LARGE}
           fillWidth
         />
       </SearchWrapper>
-      <HorizontalDivider />
+      <Divider />
       <PipelineCanvasConnectionSelectorList
         connections={filteredConnections}
         hasConnections={kindConnections.length > 0}

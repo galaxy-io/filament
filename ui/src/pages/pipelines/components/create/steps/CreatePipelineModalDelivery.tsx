@@ -1,4 +1,4 @@
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -13,7 +13,7 @@ const CreatePipelineModalDelivery = () => {
   const { sinks, executionMode } = useCreatePipelineModalState();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
       {sinks.length > 0 && (
         <CreatePipelineModalDeliverySection header="Destinations">
           <CreatePipelineModalDeliveryDestinations />
@@ -24,7 +24,7 @@ const CreatePipelineModalDelivery = () => {
       <CreatePipelineModalDeliverySection header="Advanced">
         <CreatePipelineModalDeliveryAdvanced />
       </CreatePipelineModalDeliverySection>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

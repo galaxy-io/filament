@@ -3,12 +3,11 @@ import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 
-const PipelineLayoutNavbarBackButtonWrapper = withTheme(styled.div<PropsWithTheme>`
+const PipelineLayoutNavbarBackButtonWrapper = styled.div`
   width: 100%;
   height: ${PIPELINE_NAVBAR_HEIGHT}px;
 
@@ -18,8 +17,8 @@ const PipelineLayoutNavbarBackButtonWrapper = withTheme(styled.div<PropsWithThem
 
   flex-shrink: 0;
 
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 const PipelineLayoutNavbarBackButton = () => {
   const navigate = useNavigate();

@@ -4,12 +4,11 @@ import { match } from "ts-pattern";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   OBSERVABILITY_SETUP_STATUS_TO_BUTTON_VARIANT_MAP,
@@ -43,13 +42,13 @@ const StepRow = styled.div<{ $opacity: number }>`
   }
 `;
 
-const StepMarker = withTheme(styled.div<PropsWithTheme>`
+const StepMarker = styled.div`
   display: flex;
   align-items: center;
   flex-shrink: 0;
 
-  height: ${({ theme }) => theme.font.sans.height.body_lg};
-`);
+  height: ${t.font.sans.height.body_lg};
+`;
 
 const StepAction = styled.div`
   display: flex;
@@ -81,7 +80,7 @@ const ObservabilitySetupChecklistStep = ({
         />
       </StepMarker>
       <FlexItem grow={1} minWidth={0}>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XXSMALL} minWidth={0}>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={2} minWidth={0}>
           <Text
             size={TextSize.BODY_LG}
             variant={OBSERVABILITY_SETUP_STATUS_TO_TITLE_VARIANT_MAP[status]}
@@ -94,7 +93,7 @@ const ObservabilitySetupChecklistStep = ({
           >
             {OBSERVABILITY_SETUP_STEP_TO_DESCRIPTION_MAP[step]}
           </Text>
-        </FlexWrapper>
+        </Flex>
       </FlexItem>
       <StepAction>
         {match(status)

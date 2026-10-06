@@ -3,12 +3,12 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { GalaxyTheme } from "@galaxy-io/dls/theme";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
-const StyledButton = withTheme(
-  styled.button<PropsWithTheme<{ $isActive: boolean }>>`
+// @dls-migrate tokens.background.alt: Inverse is a scope, not a token: render the opposite-theme surface as `<GalaxyProvider isScoped theme={…}>` around a `Box variant`, and read the normal roles inside it.
+const StyledButton = styled.button<{ $isActive: boolean }>`
     width: 32px;
     height: 32px;
     padding: 0;
@@ -17,8 +17,8 @@ const StyledButton = withTheme(
     align-items: center;
     justify-content: center;
 
-    background-color: ${({ theme, $isActive }) =>
-      $isActive ? theme.color.background.primaryAlt : theme.color.background.galaxy};
+    background-color: ${({ $isActive }) =>
+      $isActive ? t.color.background.primaryAlt : t.color.solid.primary.background};
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -26,11 +26,10 @@ const StyledButton = withTheme(
     transition: background-color 100ms ease;
 
     &:hover {
-      background-color: ${({ theme, $isActive }) =>
-        $isActive ? theme.color.background.primaryAlt : theme.color.background.galaxyAlt};
+      background-color: ${({ $isActive }) =>
+        $isActive ? t.color.background.primaryAlt : t.color.solid.primary.hovered};
     }
-  `,
-);
+  `;
 
 interface PipelineCanvasEditWidgetButtonProps {
   icon: PhosphorIcon;
@@ -45,6 +44,7 @@ const PipelineCanvasEditWidgetButton = ({
 }: PipelineCanvasEditWidgetButtonProps) => {
   const { activeTheme } = useGalaxyTheme();
 
+  // @dls-migrate icon.IconVariant.PRIMARY_ALT: Inverse is a scope, not a member: wrap the content in `<GalaxyProvider isScoped theme={…}>` (the opposite theme) and use `IconVariant.PRIMARY` inside it.
   const iconVariant = match(activeTheme)
     .with(GalaxyTheme.LIGHT, () => IconVariant.PRIMARY_ALT)
     .with(GalaxyTheme.DARK, () => (isActive ? IconVariant.PRIMARY_ALT : IconVariant.PRIMARY))

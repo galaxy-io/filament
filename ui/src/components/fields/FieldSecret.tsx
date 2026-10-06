@@ -1,5 +1,6 @@
 import type { ClipboardEvent } from "react";
 
+import Field from "@galaxy-io/dls/inputs/Field";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
@@ -30,19 +31,23 @@ const FieldSecret = ({
 
   return (
     <div onPasteCapture={handlePaste} style={{ width: "100%" }}>
-      <PasswordInput
-        value={(value as string) ?? ""}
-        onChange={(v) => onChange(v)}
-        size={InputSize.LARGE}
-        variant={variant}
-        placeholder={placeholder}
+      <Field
         label={label}
         labelTooltip={field.help || undefined}
         isRequired={field.required}
         error={error}
-        isDisabled={isDisabled}
         fillWidth
-      />
+      >
+        <PasswordInput
+          value={(value as string) ?? ""}
+          onChange={(v) => onChange(v)}
+          size={InputSize.LARGE}
+          variant={variant}
+          placeholder={placeholder}
+          isDisabled={isDisabled}
+          fillWidth
+        />
+      </Field>
     </div>
   );
 };

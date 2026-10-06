@@ -1,9 +1,5 @@
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import GalaxyLogomarkAnimation from "@galaxy-io/dls/icons/GalaxyLogomarkAnimation";
+import GalaxyLogomarkAnimation from "@galaxy-io/dls/brand/GalaxyLogomarkAnimation";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import {
@@ -22,16 +18,18 @@ interface PendingLayoutProps {
 
 const PendingLayout = ({ size = LayoutSize.MEDIUM, message }: PendingLayoutProps) => {
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
+      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+        LAYOUT_SIZE_TO_GAP_MAP[size]
+      }
     >
       <GalaxyLogomarkAnimation
-        height={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
+        size={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
         speed={PENDING_LAYOUT_ANIMATION_SPEED}
       />
       {message && (
@@ -39,7 +37,7 @@ const PendingLayout = ({ size = LayoutSize.MEDIUM, message }: PendingLayoutProps
           {message}
         </Text>
       )}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

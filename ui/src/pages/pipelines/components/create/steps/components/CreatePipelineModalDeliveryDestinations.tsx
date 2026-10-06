@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -16,11 +16,14 @@ const CreatePipelineModalDeliveryDestinations = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Widget noPadding noHover fillWidth>
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+    <Widget
+      isFlush /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+      fillWidth
+    >
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
         {sinks.map((sink, index) => (
           <Fragment key={sink.connection.id}>
-            {index > 0 && <HorizontalDivider />}
+            {index > 0 && <Divider />}
             <CreatePipelineModalDeliverySink
               sink={sink}
               onChange={(sinkId, writeMode) =>
@@ -32,7 +35,7 @@ const CreatePipelineModalDeliveryDestinations = () => {
             />
           </Fragment>
         ))}
-      </FlexWrapper>
+      </Flex>
     </Widget>
   );
 };

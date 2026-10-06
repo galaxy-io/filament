@@ -3,10 +3,10 @@ import { useCallback } from "react";
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -39,8 +39,8 @@ const CreateConnectionSelectorHeader = ({
   }, [onSearchChange]);
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
-      <FlexWrapper padding="16px" fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
         <BaseHeader
           size={BaseHeaderSize.LARGE}
           title={CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind]}
@@ -48,13 +48,13 @@ const CreateConnectionSelectorHeader = ({
           actions={[<DocsButton key="docs" path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]} />]}
           onClose={onClose}
         />
-      </FlexWrapper>
-      <HorizontalDivider />
-      <FlexWrapper padding="8px 16px" fillWidth>
+      </Flex>
+      <Divider />
+      <Flex alignItems={AlignItems.START} padding={[8, 16]} fillWidth>
         <TextInput
           key="search"
           placeholder="Search connectors..."
-          leading={{ icon: MagnifyingGlassIcon }}
+          icon={MagnifyingGlassIcon}
           trailing={search ? { icon: XIcon, onClick: handleSearchClear } : undefined}
           onChange={onSearchChange}
           value={search}
@@ -62,8 +62,8 @@ const CreateConnectionSelectorHeader = ({
           fillWidth
           autoFocus
         />
-      </FlexWrapper>
-    </FlexWrapper>
+      </Flex>
+    </Flex>
   );
 };
 

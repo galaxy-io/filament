@@ -16,7 +16,7 @@ const GithubButton = () => {
       variant={ButtonVariant.SECONDARY}
       size={ButtonSize.SMALL}
       onClick={handleGithub}
-      isIconFilled
+      /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
     />
   );
 };

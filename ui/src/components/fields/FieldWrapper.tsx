@@ -1,9 +1,10 @@
 import type { PropsWithChildren } from "react";
 
-import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+// @dls-migrate field.InputLabel: Wrap the control in `<Field label>` instead of rendering a label above it.
 import { InputLabel } from "@galaxy-io/dls/inputs/Input";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 interface FieldWrapperProps {
   label: string;
@@ -29,21 +30,21 @@ const FieldWrapper = ({
 
   if (isSection) {
     return (
-      <Accordion variant={AccordionVariant.PRIMARY} header={label} isOpenInitial>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
+      <Widget isCollapsible variant={WidgetVariant.PRIMARY} header={label} defaultIsOpen>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
           {children}
           {errorText}
-        </FlexWrapper>
-      </Accordion>
+        </Flex>
+      </Widget>
     );
   }
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
       <InputLabel label={label} labelTooltip={help || undefined} isRequired={isRequired} />
       {children}
       {errorText}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

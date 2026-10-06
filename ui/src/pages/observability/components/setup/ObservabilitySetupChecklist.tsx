@@ -2,15 +2,15 @@ import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
+import GridBackground from "@galaxy-io/dls/backgrounds/GridBackground";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
+import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -42,19 +42,19 @@ const SetupContent = styled.div`
   max-width: ${OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH}px;
 `;
 
-const SetupCard = withTheme(styled.div<PropsWithTheme>`
+const SetupCard = styled.div`
   display: flex;
   flex-direction: column;
 
   width: 100%;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${t.color.background.secondary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.galaxy};
+  border: 0.5px solid ${t.color.border.focused};
   border-radius: 6px;
 
   overflow: hidden;
-`);
+`;
 
 const ObservabilitySetupChecklist = () => {
   const { theme } = useGalaxyTheme();
@@ -105,25 +105,29 @@ const ObservabilitySetupChecklist = () => {
   };
 
   return (
-    <DotGridBackground dotSize={2} backgroundColor={theme.color.background.primary}>
+    <GridBackground /* @dls-migrate gridbackground.backgroundColor: Put the grid in a `Box` with the surface `variant` (`<Box variant={BoxVariant.BASE}>` for the 1.x default). */
+      backgroundColor={theme.color.background.primary}
+    >
       <SetupContent>
-        <GalaxyFilamentWordmark height={28} />
-        <FlexWrapper
+        <GalaxyFilamentWordmark size={28} />
+        <Flex
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
-          gap={6}
+          /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+            6
+          }
           fillWidth
         >
           <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
           <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
-        </FlexWrapper>
+        </Flex>
         <SetupCard>
-          <FlexWrapper padding={"12px 16px"}>
+          <Flex alignItems={AlignItems.START} padding={[12, 16]}>
             <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
               {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
             </Text>
-          </FlexWrapper>
-          <HorizontalDivider />
+          </Flex>
+          <Divider />
           {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
             <ObservabilitySetupChecklistStep
               key={step}
@@ -133,15 +137,13 @@ const ObservabilitySetupChecklist = () => {
             />
           ))}
         </SetupCard>
-        <ProgressBar
-          percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
+        <ProgressBar /* @dls-migrate progressbar.ariaLabel: Name the bar: add `label` or `ariaLabel`. */
+          value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
           variant={ProgressBarVariant.SUCCESS}
-          height={4}
-          noAnimation
         />
         <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
       </SetupContent>
-    </DotGridBackground>
+    </GridBackground>
   );
 };
 

@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { InviteMemberRequest } from "@/gen/auth/v1/members_pb";
 
@@ -132,10 +133,10 @@ const SettingsTeamPanelInvite = ({
           </>
         }
       >
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={4} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
           <Text variant={TextVariant.SECONDARY}>Share this link with your new teammate</Text>
-        </FlexWrapper>
-        {inviteLink && <CopyInput value={inviteLink} fillWidth isMonospace />}
+        </Flex>
+        {inviteLink && <CopyInput value={inviteLink} fillWidth family={FontFamily.MONO} />}
       </Dialog>
     ))
     .otherwise(() => (
@@ -189,7 +190,9 @@ const SettingsTeamPanelInvite = ({
         <SelectInput
           label="Role"
           options={ROLE_OPTIONS}
-          value={roleOption(state.role)}
+          /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={roleOption(
+            state.role,
+          )}
           onChange={(option) => setState((prev) => ({ ...prev, role: optionRole(option) }))}
           fillWidth
           isRequired

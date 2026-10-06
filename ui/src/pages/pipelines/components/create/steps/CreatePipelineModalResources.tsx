@@ -4,10 +4,10 @@ import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -81,13 +81,13 @@ const CreatePipelineModalResources = () => {
 
   if (discoverError) {
     return (
-      <FlexWrapper padding={24} fillWidth fillHeight>
+      <Flex alignItems={AlignItems.START} padding={24} fillWidth height="100%">
         <ErrorLayout
           header="Could not list resources"
           message="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
           error={discoverError}
         />
-      </FlexWrapper>
+      </Flex>
     );
   }
 
@@ -96,15 +96,15 @@ const CreatePipelineModalResources = () => {
       {sinks.length > 1 && (
         <>
           <CreatePipelineModalResourcesTabs />
-          <HorizontalDivider />
+          <Divider />
         </>
       )}
-      <FlexWrapper gap={8} padding="8px" alignItems={AlignItems.CENTER} fillWidth>
+      <Flex gap={8} padding={8} alignItems={AlignItems.CENTER} fillWidth>
         <TextInput
           value={localState.search}
           onChange={handleSearchChange}
           placeholder="Search resources..."
-          leading={{ icon: MagnifyingGlassIcon }}
+          icon={MagnifyingGlassIcon}
           fillWidth
         />
         {isContinuous && (
@@ -118,8 +118,8 @@ const CreatePipelineModalResources = () => {
             />
           </FlexItem>
         )}
-      </FlexWrapper>
-      <HorizontalDivider />
+      </Flex>
+      <Divider />
       {localState.isCreating && activeSink && (
         <>
           <PipelineResourceCreateForm
@@ -128,7 +128,7 @@ const CreatePipelineModalResources = () => {
             onSave={handleCreate}
             onCancel={() => setCreating(false)}
           />
-          <HorizontalDivider />
+          <Divider />
         </>
       )}
       <CreatePipelineModalResourcesTable rows={filteredRows} />

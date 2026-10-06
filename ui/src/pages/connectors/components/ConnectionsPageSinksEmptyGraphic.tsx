@@ -1,10 +1,9 @@
 import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -44,7 +43,7 @@ const CardsWrapper = styled.div`
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
-const GhostCard = withTheme(styled.div<PropsWithTheme>`
+const GhostCard = styled.div`
   height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
@@ -53,13 +52,13 @@ const GhostCard = withTheme(styled.div<PropsWithTheme>`
   gap: 12px;
   padding: 12px;
 
-  background-color: ${({ theme }) => theme.color.background.primary};
+  background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 5px;
-`);
+`;
 
-const LiveCard = withTheme(styled.div<PropsWithTheme>`
+const LiveCard = styled.div`
   height: ${SINKS_EMPTY_CARD_HEIGHT}px;
   min-width: 0;
 
@@ -67,9 +66,9 @@ const LiveCard = withTheme(styled.div<PropsWithTheme>`
   align-items: center;
   justify-content: center;
 
-  border: 1px dashed ${({ theme }) => theme.color.border.secondary};
+  border: 1px dashed ${t.color.border.secondary};
   border-radius: 5px;
-`);
+`;
 
 const GhostCardRow = styled.div`
   min-width: 0;
@@ -79,14 +78,14 @@ const GhostCardRow = styled.div`
   gap: 8px;
 `;
 
-const GhostChip = withTheme(styled.div<PropsWithTheme>`
+const GhostChip = styled.div`
   width: 32px;
   height: 12px;
 
-  background-color: ${({ theme }) => theme.color.background.secondary};
+  background-color: ${t.color.background.secondary};
 
   border-radius: 4px;
-`);
+`;
 
 const ConnectionsPageSinksEmptyGraphic = () => {
   const { data } = useListConnectorsQuery();

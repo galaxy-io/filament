@@ -1,8 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 
 import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
+// @dls-migrate multiselectinput.PinnedOptions: Removed: pinned rows are `pinnedIds`.
 import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
@@ -39,14 +40,15 @@ export const OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP: Record<ObservabilityRunsVi
   [ObservabilityRunsView.UPCOMING]: "No upcoming runs",
 };
 
-export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectInputOption[] =
-  OBSERVABILITY_RUN_STATUSES.filter((status) => status !== RunStatus.SCHEDULED).map((status) => ({
-    id: String(status),
-    label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-    value: status,
-  }));
+export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectOption[] = OBSERVABILITY_RUN_STATUSES.filter(
+  (status) => status !== RunStatus.SCHEDULED,
+).map((status) => ({
+  id: String(status),
+  label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+  value: status,
+}));
 
-export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectInputOption = {
+export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectOption = {
   id: String(RunStatus.SCHEDULED),
   label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
   value: RunStatus.SCHEDULED,

@@ -1,7 +1,7 @@
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput, { TextAreaInputSize } from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -14,7 +14,13 @@ const CreatePipelineModalDetails = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth fillHeight>
+    <Flex
+      alignItems={AlignItems.START}
+      direction={FlexDirection.COLUMN}
+      gap={16}
+      fillWidth
+      height="100%"
+    >
       <TextInput
         value={effectiveName}
         onChange={(name) =>
@@ -36,13 +42,13 @@ const CreatePipelineModalDetails = () => {
             payload: nextDescription,
           })
         }
-        size={InputSize.LARGE}
+        size={TextAreaInputSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"
-        fillHeight
+        /* @dls-migrate textareainput.fillHeight: Size the field in rows (`minRows`, `maxRows`) or let it grow with `isAutoGrow`. */ fillHeight
         fillWidth
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

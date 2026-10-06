@@ -1,9 +1,4 @@
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import {
@@ -29,20 +24,18 @@ const EmptyLayout = ({
   actions,
 }: EmptyLayoutProps) => {
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
+      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
+        LAYOUT_SIZE_TO_GAP_MAP[size]
+      }
     >
       {icon}
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.CENTER}
-        gap={FlexGap.SMALL}
-      >
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={8}>
         {header && (
           <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
             {header}
@@ -53,9 +46,9 @@ const EmptyLayout = ({
             {message}
           </Text>
         )}
-      </FlexWrapper>
+      </Flex>
       {actions}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

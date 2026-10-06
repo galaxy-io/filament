@@ -1,7 +1,6 @@
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
-import MultiTextInput from "@galaxy-io/dls/inputs/MultiTextInput";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import MultiSelectInput, { MultiSelectInputSize } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import TagInput, { TagInputSize } from "@galaxy-io/dls/inputs/TagInput";
 
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -16,13 +15,13 @@ const FieldList = ({
   label,
 }: FieldComponentProps) => {
   const selected = Array.isArray(value) ? value : [];
-  const options: SelectInputOption[] = field.enum.map((option) => ({
+  const options: SelectOption[] = field.enum.map((option) => ({
     id: option.value,
     label: option.label || option.value,
     value: option.value,
   }));
   const selectedOptions = options.filter((option) => selected.includes(option.value as string));
-  const handleChange = (next: SelectInputOption[]) => {
+  const handleChange = (next: SelectOption[]) => {
     onChange(next.map((option) => option.value as string));
   };
   const handleReset = () => {
@@ -33,11 +32,13 @@ const FieldList = ({
   if (field.enum.length === 0) {
     return (
       <FieldWrapper label={label} help={field.help} isRequired={field.required}>
-        <MultiTextInput
+        <TagInput
           value={selected.filter((item): item is string => typeof item === "string")}
           onChange={onChange}
-          size={InputSize.LARGE}
-          variant={variant}
+          size={TagInputSize.LARGE}
+          /* @dls-migrate taginput.enums: Pass a `TagInputSize` / `TagInputVariant` member (same names as `InputSize` / `InputVariant`). */ variant={
+            variant
+          }
           placeholder="Press Enter or comma to add a value"
           error={error}
           isDisabled={isDisabled}
@@ -51,18 +52,24 @@ const FieldList = ({
     <FieldWrapper label={label} help={field.help} isRequired={field.required}>
       <MultiSelectInput
         options={options}
-        pinnedOptions={[
+        /* @dls-migrate multiselectinput.pinnedOptions: Pinned rows are now option ids: pass `pinnedIds`. */ pinnedOptions={[
           {
             id: "select-all",
             label: `All ${label.toLowerCase()}`,
             optionIds: options.map((option) => option.value as string),
           },
         ]}
-        value={selectedOptions}
+        /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+          selectedOptions
+        }
         onChange={handleChange}
-        onReset={handleReset}
-        size={InputSize.LARGE}
-        variant={variant}
+        /* @dls-migrate multiselectinput.onReset: The clear button calls `onChange` with an empty value: move side effects there and add `isClearable`. */ onReset={
+          handleReset
+        }
+        size={MultiSelectInputSize.LARGE}
+        /* @dls-migrate multiselectinput.enums: Pass a `MultiSelectInputSize` / `MultiSelectInputVariant` member (same names as `InputSize` / `InputVariant`). */ variant={
+          variant
+        }
         placeholder={`Select ${label}...`}
         error={error}
         isDisabled={isDisabled}

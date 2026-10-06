@@ -1,12 +1,8 @@
 import { styled } from "@linaria/react";
 
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text from "@galaxy-io/dls/text/Text";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
@@ -31,36 +27,45 @@ const CreatePipelineModalDeliverySink = ({
   sink: CreatePipelineModalSinkRow;
   onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
 }) => {
-  const options: SelectInputOption[] = sink.writeModeOptions.map((mode) => ({
+  const options: SelectOption[] = sink.writeModeOptions.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
     value: mode,
   }));
 
   return (
-    <FlexWrapper
+    <Flex
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.SPACE_BETWEEN}
       gap={16}
-      padding="12px 16px"
+      padding={[12, 16]}
       fillWidth
     >
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={10}>
+      <Flex
+        alignItems={
+          AlignItems.CENTER
+        } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+        gap={10}
+      >
         <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
         <SinkNameWrapper>
-          <Text isEllipsis>{sink.connection.name}</Text>
+          <Text lineClamp={1}>{sink.connection.name}</Text>
         </SinkNameWrapper>
-      </FlexWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} grow={0} shrink={0}>
-        <SelectInput
-          options={options}
-          value={options.find((option) => option.value === sink.writeMode) ?? null}
-          onChange={(option) => onChange(sink.connection.id, option.value as WriteMode)}
-          size={InputSize.LARGE}
-          width={CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH}
-        />
-      </FlexWrapper>
-    </FlexWrapper>
+      </Flex>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} grow={0} shrink={0}>
+        <Box width={CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH}>
+          <SelectInput
+            fillWidth
+            options={options}
+            /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
+              options.find((option) => option.value === sink.writeMode) ?? null
+            }
+            onChange={(option) => onChange(sink.connection.id, option.value as WriteMode)}
+            size={SelectInputSize.LARGE}
+          />
+        </Box>
+      </Flex>
+    </Flex>
   );
 };
 

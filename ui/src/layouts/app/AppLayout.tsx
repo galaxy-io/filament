@@ -47,16 +47,37 @@ const AppLayout = () => {
   return (
     <>
       <Outlet />
-      <Drawer open={!!connectionId} onClose={handleCloseDrawer} width={CONNECTOR_DRAWER_WIDTH}>
+      <Drawer /* @dls-migrate drawer.ariaLabel: The dialog panel needs a name: give it a `header` or an `ariaLabel`. */
+        isOpen={!!connectionId}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseDrawer();
+        }} /* @dls-migrate drawer.width-other: Pick a `DrawerSize` (default `MEDIUM`, 560px), or `isResizable`. */
+        width={CONNECTOR_DRAWER_WIDTH}
+      >
         {connectionId && <ConnectionDrawer onClose={handleCloseDrawer} />}
       </Drawer>
-      <Modal open={flow === Flow.CREATE_CONNECTION} onClose={handleCloseFlow}>
+      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+        isOpen={flow === Flow.CREATE_CONNECTION}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseFlow();
+        }}
+      >
         <CreateConnectionModal onClose={handleCloseFlow} />
       </Modal>
-      <Modal open={flow === Flow.EDIT_CONNECTION && !!connectionId} onClose={handleCloseFlow}>
+      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+        isOpen={flow === Flow.EDIT_CONNECTION && !!connectionId}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseFlow();
+        }}
+      >
         {connectionId && <EditConnectionModal onClose={handleCloseFlow} />}
       </Modal>
-      <Modal open={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow}>
+      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+        isOpen={flow === Flow.CREATE_PIPELINE}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseFlow();
+        }}
+      >
         <CreatePipelineModal onClose={handleCloseFlow} />
       </Modal>
       <SettingsPage />

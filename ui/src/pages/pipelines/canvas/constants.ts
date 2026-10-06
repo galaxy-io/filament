@@ -61,8 +61,11 @@ export const CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP: Record<ConnectorKind, Positi
 };
 
 export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVariant> = {
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ConnectorKind.UNSPECIFIED]: ChipVariant.LIME,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ConnectorKind.SOURCE]: ChipVariant.LIME,
+  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
   [ConnectorKind.SINK]: ChipVariant.PINK,
 };
 

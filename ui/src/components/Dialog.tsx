@@ -9,22 +9,16 @@ import {
 } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Modal from "@galaxy-io/dls/modal/Modal";
 import Code from "@galaxy-io/dls/text/Code";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
 import Selectable from "@galaxy-io/dls/text/Selectable";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import BaseHeader from "@/layouts/components/BaseHeader";
@@ -61,25 +55,25 @@ export interface DialogProps {
   isPending?: boolean;
 }
 
-const DialogWrapper = withTheme(styled.div<PropsWithTheme>`
+const DialogWrapper = styled.div`
   display: flex;
   flex-direction: column;
   width: ${DIALOG_WIDTH}px;
   max-width: calc(100vw - 32px);
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
+  background-color: ${t.color.background.primary};
+  border: 0.5px solid ${t.color.border.primary};
   border-radius: 8px;
   overflow: hidden;
-`);
+`;
 
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
+const BodyWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-height: 0;
   padding: 16px;
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
+  background-color: ${t.color.background.base};
+`;
 
 interface DialogState {
   inputValue: string;
@@ -102,8 +96,11 @@ const DIALOG_VARIANT_TO_ICON_VARIANT_MAP: Record<DialogVariant, IconVariant> = {
 };
 
 const DIALOG_VARIANT_TO_WIDGET_VARIANT_MAP: Record<DialogVariant, WidgetVariant> = {
+  // @dls-migrate widget.WidgetVariant.SUCCESS: Removed: use a neutral card with an `Alert`, a labeled `Beacon` or a `Chip` inside.
   [DialogVariant.SUCCESS]: WidgetVariant.SUCCESS,
+  // @dls-migrate widget.WidgetVariant.WARNING: Removed: use a neutral card with an `Alert`, a labeled `Beacon` or a `Chip` inside.
   [DialogVariant.WARNING]: WidgetVariant.WARNING,
+  // @dls-migrate widget.WidgetVariant.ERROR: Removed: use a neutral card with an `Alert`, a labeled `Beacon` or a `Chip` inside.
   [DialogVariant.ERROR]: WidgetVariant.ERROR,
 };
 
@@ -172,36 +169,61 @@ const Dialog = ({
     ));
 
   return (
-    <Modal open={open} onClose={handleClose}>
+    <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+      isOpen={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) handleClose();
+      }}
+    >
       <DialogWrapper>
-        <FlexWrapper padding="16px">
+        <Flex alignItems={AlignItems.START} padding={16}>
           <BaseHeader title={title} description={description} onClose={handleClose} />
-        </FlexWrapper>
-        <HorizontalDivider />
+        </Flex>
+        <Divider />
         <BodyWrapper>
           {body &&
             (variant ? (
-              <Widget variant={DIALOG_VARIANT_TO_WIDGET_VARIANT_MAP[variant]} fillWidth noHover>
-                <FlexWrapper alignItems={AlignItems.START} gap={12} fillWidth>
-                  <FlexItem grow={0} shrink={0} display="flex">
+              <Widget
+                variant={
+                  DIALOG_VARIANT_TO_WIDGET_VARIANT_MAP[variant]
+                } /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
+                fillWidth
+              >
+                <Flex alignItems={AlignItems.START} gap={12} fillWidth>
+                  <FlexItem
+                    grow={0}
+                    shrink={
+                      0
+                    } /* @dls-migrate flexitem.display: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */
+                    display="flex"
+                  >
                     <Icon
                       component={DIALOG_VARIANT_TO_ICON_MAP[variant]}
                       size={18}
                       variant={DIALOG_VARIANT_TO_ICON_VARIANT_MAP[variant]}
                     />
                   </FlexItem>
-                  <FlexWrapper direction={FlexDirection.COLUMN} gap={4} minWidth={0}>
+                  <Flex
+                    alignItems={AlignItems.START}
+                    direction={FlexDirection.COLUMN}
+                    gap={4}
+                    minWidth={0}
+                  >
                     {bodyTitle && <Text weight={TextWeight.MEDIUM}>{bodyTitle}</Text>}
-                    <Paragraph variant={TextVariant.SECONDARY}>{body}</Paragraph>
-                  </FlexWrapper>
-                </FlexWrapper>
+                    <Text isProse variant={TextVariant.SECONDARY}>
+                      {body}
+                    </Text>
+                  </Flex>
+                </Flex>
               </Widget>
             ) : (
-              <Paragraph variant={TextVariant.SECONDARY}>{body}</Paragraph>
+              <Text isProse variant={TextVariant.SECONDARY}>
+                {body}
+              </Text>
             ))}
           {children}
           {confirmationPhrase !== undefined && (
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
+            <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
               <Text variant={TextVariant.PRIMARY}>
                 Type{" "}
                 <Code>
@@ -216,21 +238,21 @@ const Dialog = ({
                 fillWidth
                 autoFocus
               />
-            </FlexWrapper>
+            </Flex>
           )}
         </BodyWrapper>
         {renderedFooter && (
           <>
-            <HorizontalDivider />
-            <FlexWrapper
+            <Divider />
+            <Flex
               alignItems={AlignItems.CENTER}
               justifyContent={JustifyContent.END}
-              padding="16px"
+              padding={16}
               gap={8}
               fillWidth
             >
               {renderedFooter}
-            </FlexWrapper>
+            </Flex>
           </>
         )}
       </DialogWrapper>

@@ -3,16 +3,14 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  TableVariant,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import InfiniteTable, { ColumnAlign } from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
@@ -36,13 +34,13 @@ import { useGetRunQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
 
-const ResourceTableWrapper = withTheme(styled.div<PropsWithTheme>`
+const ResourceTableWrapper = styled.div`
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: ${({ theme }) => theme.color.background.tertiary};
-`);
+  background-color: ${t.color.background.tertiary};
+`;
 
 interface PipelineHistoryRunInfoProps {
   runId: RunInfo["id"];
@@ -55,12 +53,18 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   const sourceConnectionId = data?.snapshot?.run?.sourceConnectionId ?? "";
   const sinkConnectionId = data?.snapshot?.run?.sinkConnectionId ?? "";
 
-  const columns = useMemo<ColumnDef<RunResourceState>[]>(
+  const columns = useMemo<TableColumn<RunResourceState>[]>(
     () => [
       {
         id: "resource",
         header: "Resource",
-        cellLoading: () => <TextShimmer width={160} height={14} />,
+        cellLoading: () => (
+          <Box width={160}>
+            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+              height={14}
+            />
+          </Box>
+        ),
         cell: ({ row }) => (
           <PipelineHistoryRunInfoConnectionColumn
             connectionId={sourceConnectionId}
@@ -74,16 +78,28 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         size:
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cellLoading: () => (
+          <Box width={48}>
+            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+              height={14}
+            />
+          </Box>
+        ),
         cell: () => <PipelineHistoryRunInfoConnectionColumn connectionId={sinkConnectionId} />,
       },
       {
         id: "records",
         header: "Records",
         size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-        cellLoading: () => <TextShimmer width={48} height={14} />,
+        cellLoading: () => (
+          <Box width={48}>
+            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+              height={14}
+            />
+          </Box>
+        ),
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
             {formatCount(row.original.records)}
           </Text>
         ),
@@ -92,10 +108,17 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
         id: "volume",
         header: "Volume",
         size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+        // @dls-migrate infinitetable.ColumnAlign: Removed: use the 2.0 replacement where the value is passed around.
         align: ColumnAlign.RIGHT,
-        cellLoading: () => <TextShimmer width={52} height={14} />,
+        cellLoading: () => (
+          <Box width={52}>
+            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
+              height={14}
+            />
+          </Box>
+        ),
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
             {formatBytes(row.original.bytes)}
           </Text>
         ),
@@ -110,9 +133,9 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (isError) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper padding={"16px"} fillWidth>
+        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.ERROR}>Failed to load run details.</Text>
-        </FlexWrapper>
+        </Flex>
       </ResourceTableWrapper>
     );
   }
@@ -127,9 +150,9 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper padding={"16px"} fillWidth>
+        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
-        </FlexWrapper>
+        </Flex>
       </ResourceTableWrapper>
     );
   }
@@ -138,13 +161,13 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     const cancelledAt = data.snapshot.run.endedAt;
     return (
       <ResourceTableWrapper>
-        <FlexWrapper padding={"16px"} fillWidth>
+        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>
             {cancelledAt
               ? `The run was cancelled at ${formatTimestamp(cancelledAt)}, before it started.`
               : "The run was cancelled before it started."}
           </Text>
-        </FlexWrapper>
+        </Flex>
       </ResourceTableWrapper>
     );
   }
@@ -152,26 +175,23 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   if (isEmpty) {
     return (
       <ResourceTableWrapper>
-        <FlexWrapper padding={"16px"} fillWidth>
+        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>The run did not record any resource activity.</Text>
-        </FlexWrapper>
+        </Flex>
       </ResourceTableWrapper>
     );
   }
 
   return (
     <ResourceTableWrapper>
-      <InfiniteTable<RunResourceState>
-        variant={TableVariant.TERTIARY}
-        columns={columns}
-        data={resources}
-        getRowId={(resource) => resource.resourceName}
-        isLoading={isLoading}
-        loadingRowCount={PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT}
-        noLastRowPadding
-        noLastRowBorder
-        fillWidth
-      />
+      <Box variant={BoxVariant.TERTIARY}>
+        <InfiniteTable<RunResourceState>
+          columns={columns}
+          data={resources}
+          getRowId={(resource) => resource.resourceName}
+          isLoading={isLoading}
+        />
+      </Box>
     </ResourceTableWrapper>
   );
 };

@@ -3,8 +3,8 @@ import { memo } from "react";
 import { styled } from "@linaria/react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
 
@@ -20,11 +20,11 @@ const LineWrapper = styled.div`
   gap: 8px;
 `;
 
-const Timestamp = withTheme(styled.span<PropsWithTheme>`
+const Timestamp = styled.span`
   flex-shrink: 0;
-  color: ${({ theme }) => theme.color.text.tertiary};
+  color: ${t.color.text.tertiary};
   font-family: inherit;
-`);
+`;
 
 const Detail = styled.div`
   flex: 1;
@@ -41,14 +41,14 @@ const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActi
 
   return (
     <LineWrapper>
-      <Text size={TextSize.CAPTION} isMonospace>
+      <Text size={TextSize.CAPTION} family={FontFamily.MONO}>
         <Timestamp>{formatRunEventTime(event)}</Timestamp>
       </Text>
       <Detail>
         <Text
           size={TextSize.CAPTION}
           variant={getRunEventTextVariant(event)}
-          isMonospace
+          family={FontFamily.MONO}
           isSelectable
         >
           {event.eventType}
