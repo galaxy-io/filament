@@ -40,7 +40,8 @@ resources:
 
     incremental:
       cursor_field: _time
-      cursor_param: earliest_time
+      start_param: earliest_time
+      inject_into: body
 
     export:
       start:
@@ -51,7 +52,6 @@ resources:
           template:
             search: "{{ config.search_query }}"
             output_mode: json
-            earliest_time: "{{ state.cursor | default: '1970-01-01T00:00:00Z' }}"
         capture:
           sid: $.sid
 
@@ -71,21 +71,13 @@ resources:
         timeout_seconds: 600
 
       result:
-        path: /services/search/v2/jobs/{{ job.sid }}/results
-        method: GET
-        query:
-          output_mode: json
-          count: "{{ page.limit }}"
-          offset: "{{ page.offset }}"
-        pagination:
-          type: offset
-          limit: 1000
+        url: "{{ config.host }}/services/search/jobs/{{ job.sid }}/results?output_mode=json&count=0"
         auth: connection
         format: json
         records_path: results
 
     fields:
-      _cd: { path: _cd, type: string, nullable: true }
+      _cd: { path: _cd, type: string }
       _time: { path: _time, type: timestamptz }
       _raw: string
       host: string?
