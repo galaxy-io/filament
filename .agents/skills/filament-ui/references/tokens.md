@@ -63,10 +63,10 @@ Never write a hex literal outside `src/theme/tokens/` (Biome's `no-hex-literal` 
 | `base` | The canvas: the page behind everything. |
 | `primary` | Panels and cards on the canvas (`Widget`, `Box variant={PRIMARY}`), field fills. |
 | `secondary` | Raised surfaces: a toolbar, a nested panel, the default `Chip`, the `BASE` button fill. |
-| `tertiary` | The most elevated step: inline code, the selected segment of a `ToggleInput`, `Kbd` caps. |
+| `tertiary` | The most elevated step: inline code, `Kbd` caps. |
 | `hovered` | A neutral row or control under the pointer. |
 | `pressed` | A neutral row or control while pressed. |
-| `selected` | The chosen item: a menu row, a tree row, the active nav item, a selected table row. `text.primary` at 12% over `base`. |
+| `selected` | The chosen item: a menu row, a tree row, the active nav item, a selected table row, the selected segment of a `ToggleInput`. `text.primary` at 12% over `base`. |
 | `disabled` | Disabled controls. |
 | `success` `warning` `error` | The soft tint of a status (an `Alert`, a status `Chip`). |
 | `<family>` | The soft tint of a category (`background.purple`). |
@@ -107,8 +107,8 @@ Each solid role is `{ background, text, hovered, pressed }`: the fill, the text 
 |---|---|
 | `solid.primary` | The monochrome fill (`text.primary` with `background.base` on it): the `PRIMARY` button, checked checkbox, radio and switch, the current Stepper marker, the selected date, the brand mark. |
 | `solid.neutral` | The muted fill (`background.secondary` with `text.primary` on it): the `BASE` button. Hover and press are visible steps in both themes. |
-| `solid.success` `solid.warning` `solid.error` | Strong status fills: the `ERROR` button. |
-| `solid.<family>` | Strong category fills. |
+| `solid.success` `solid.warning` `solid.error` | Strong status fills: the `ERROR` button, the `Beacon` dot. A status dot is a `solid.<role>.background`, never a `text` role: `text` is tuned for copy on the canvas and makes a dark, muddy fill in Light. A `Circle` or `Square` swatch is the exception: it keys chart marks, so it draws the same `text.<role>` the marks do. |
+| `solid.<family>` | Strong category fills, and a categorical `Beacon` dot. |
 
 ### `opacity`: overlays
 
@@ -132,7 +132,7 @@ Each solid role is `{ background, text, hovered, pressed }`: the fill, the text 
 
 - Use them only for status: a run failed, a sync is degraded, a save succeeded.
 - There is no `info`. Neutral news uses the neutral roles (`AlertVariant.PRIMARY`, `ToastVariant.PRIMARY`).
-- Components take a status through `variant` (`ChipVariant.ERROR`, `BeaconVariant.SUCCESS`, `TextVariant.WARNING`). Every status component draws the same `text.<status>`, tint and border.
+- Components take a status through `variant` (`ChipVariant.ERROR`, `BeaconVariant.SUCCESS`, `TextVariant.WARNING`). Every status component draws the same `text.<status>`, tint and border; a solid indicator (the `Beacon` dot) draws `solid.<status>.background`.
 
 ## Categorical palette
 

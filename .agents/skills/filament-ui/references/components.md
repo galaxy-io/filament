@@ -98,7 +98,7 @@ import StatChart from "@galaxy-io/dls/charts/StatChart";
 
 ### Divider
 
-`@galaxy-io/dls/layout/Divider` · The `0.5px` rule: `orientation` (`Orientation` from `theme/enums`), an optional centered `label` on a horizontal rule. Adds no space; the parent's `gap` spaces it. A vertical rule needs a flex or grid parent.
+`@galaxy-io/dls/layout/Divider` · The hairline rule: `orientation` (`Orientation` from `theme/enums`), an optional centered `label` on a horizontal rule. Adds no space; the parent's `gap` spaces it. A vertical rule needs a flex or grid parent.
 
 ```tsx
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -108,7 +108,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 
 ### Widget
 
-`@galaxy-io/dls/widget/Widget` · The card: a hairline-bordered surface with an optional header row (`header`, `subheader`, leading `icon`, `actions`), a body and a `footer`, separated by hairlines. `variant` (surface set, default `PRIMARY`), `size` (`SMALL MEDIUM LARGE` density), `isFlush` (body runs to the edges: tables, charts, lists), `isLoading`, `isSelected`. Modes: `isCollapsible` (the header is a disclosure button; `isOpen` / `defaultIsOpen` / `onOpenChange`, `hasCaret`) or `isInteractive` + `onClick` (the whole card is one button).
+`@galaxy-io/dls/widget/Widget` · The card: a hairline-bordered surface with an optional header row (`header`, `subheader`, leading `icon`, `actions`), a body and a `footer`, separated by hairlines. `variant` (surface set, default `PRIMARY`), `size` (`SMALL MEDIUM LARGE` density), `gap` (space between body children, default the size's 8 / 12 / 16; `0` stacks flush sections edge to edge), `isFlush` (body runs to the edges: tables, charts, lists), `isLoading`, `isSelected`. Modes: `isCollapsible` (the header is a disclosure button; `isOpen` / `defaultIsOpen` / `onOpenChange`, `hasCaret`) or `isInteractive` + `onClick` (the whole card is one button).
 
 - Any titled or bordered unit of content is a Widget, even one without a header.
 - Header `actions` are `ButtonSize.SMALL` buttons, a count `Chip` or a `Menu` trigger. No buttons in the body of an interactive card.
@@ -233,7 +233,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### GridBackground
 
-`@galaxy-io/dls/backgrounds/GridBackground` · A quiet dot, cross or cell grid (`pattern`, `GridBackgroundPattern`) behind centered children, at a pitch of 8 / 12 / 24 / 32 / 48px (`size`, `GridBackgroundSize`). Decoration only: empty canvases, hero areas. The parent `Box` gives the surface and clipping.
+`@galaxy-io/dls/backgrounds/GridBackground` · A quiet dot, cross or cell grid (`pattern`, `GridBackgroundPattern`) behind centered children, at a pitch of 8 / 12 / 24 / 32 / 48px (`size`, `GridBackgroundSize`). Decoration only: empty canvases, hero areas. The parent `Box` gives the surface and clipping. To tone the marks, set `GRID_BACKGROUND_COLOR_VAR` (a `t.color.*` token) and `GRID_BACKGROUND_OPACITY_VAR` (0 to 1) on `style`.
 
 ```tsx
 import GridBackground, { GridBackgroundPattern } from "@galaxy-io/dls/backgrounds/GridBackground";
@@ -245,6 +245,23 @@ import Text from "@galaxy-io/dls/text/Text";
     <Text>Drop a node here</Text>
   </GridBackground>
 </Box>;
+```
+
+```tsx
+import GridBackground, {
+  GRID_BACKGROUND_COLOR_VAR,
+  GRID_BACKGROUND_OPACITY_VAR,
+  GridBackgroundSize,
+} from "@galaxy-io/dls/backgrounds/GridBackground";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+
+<GridBackground
+  size={GridBackgroundSize.X_SMALL}
+  style={{
+    [GRID_BACKGROUND_COLOR_VAR]: t.color.text.tertiary,
+    [GRID_BACKGROUND_OPACITY_VAR]: 0.4,
+  }}
+/>;
 ```
 
 ## Typography
@@ -786,7 +803,7 @@ import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 
 ### ToggleInput
 
-`@galaxy-io/dls/inputs/ToggleInput` · The segmented control: one of two to five short options side by side (`options`: `id`, `label` and/or `icon`, `tooltip`, `isDisabled`), `value` / `defaultValue` / `onChange(id)`. Default `variant` is `SECONDARY`. Use it for a view mode or a short setting; not for on/off (`SwitchInput`), not for actions, not for six or more options.
+`@galaxy-io/dls/inputs/ToggleInput` · The segmented control: one of two to five short options side by side (`options`: `id`, `label` and/or `icon`, `tooltip`, `isDisabled`), `value` / `defaultValue` / `onChange(id)`. It looks like an attached `ButtonGroup`: one `border.secondary` frame, one hairline at each seam, round outer corners only, the selected segment filled `background.selected`; `isGhost` drops the frame and seams. Default `variant` (the fill behind the unselected segments) is `SECONDARY`. Use it for a view mode or a short setting; not for on/off (`SwitchInput`), not for actions, not for six or more options.
 
 ```tsx
 import { ListIcon, SquaresFourIcon } from "@phosphor-icons/react";
@@ -850,12 +867,19 @@ import DurationInput from "@galaxy-io/dls/inputs/DurationInput";
 
 ### CronInput
 
-`@galaxy-io/dls/inputs/CronInput` · A schedule builder over a five-field cron expression (`value` / `onChange`), with a Custom field for raw expressions and a readable summary.
+`@galaxy-io/dls/inputs/CronInput` · A five-field cron expression (`value` / `onChange`, `""` is empty) in a field that opens a schedule panel: `presets` (built-in list, or the app's), a frequency builder, the expression as text and a readable summary. `isClearable`, `isOpen` / `onOpenChange`.
 
 ```tsx
 import CronInput from "@galaxy-io/dls/inputs/CronInput";
 
-<CronInput label="Schedule" defaultValue="0 2 * * *" />;
+<CronInput
+  label="Schedule"
+  defaultValue="0 2 * * *"
+  presets={[
+    { label: "Nightly at 02:00", value: "0 2 * * *" },
+    { label: "Weekdays at 06:00", value: "0 6 * * 1-5" },
+  ]}
+/>;
 ```
 
 ### ColorInput
@@ -1053,7 +1077,7 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 ### Timeline
 
-`@galaxy-io/dls/timeline/Timeline` · Events in order on a hairline rail: `items` (`id`, `label`, `time` + `dateTime`, `description`, `footer`, `icon`, `isActive`, `variant` or `color`), `size`. Not interactive.
+`@galaxy-io/dls/timeline/Timeline` · Events in order on a hairline rail (a run's history, an audit trail, an agent's steps): `items` (`id`, `label`, `time` + `dateTime`, `description`, `footer`, `icon`, `isActive`, `variant` or `color`), `size`, `markerShape` (`SQUARE` box by default, `CIRCLE`, or `NONE`: no box, the rail leads to each dot or icon and stops 4px short; use `NONE` for a long, quiet feed), `isFilled` (fill each box with its item's background role, as a `Chip` fills). Not interactive.
 
 ```tsx
 import { CheckIcon, WarningIcon } from "@phosphor-icons/react";
@@ -1130,6 +1154,7 @@ import JsonViewer from "@galaxy-io/dls/json/JsonViewer";
 `@galaxy-io/dls/feedback/Alert` · A message about the thing on screen: `variant` (`PRIMARY SUCCESS WARNING ERROR`), `header`, the body (`children`), `actions` (usually one `ButtonSize.SMALL` button), `onDismiss`, `icon`, `isBanner` (a full-width strip). `ERROR` is `role="alert"`.
 
 - Give an `ERROR` a way out (a retry, a link to fix it). One Alert per problem.
+- The way out is one `PRIMARY` button at `ButtonSize.SMALL`; a second or informational action ("View logs", "Details") is `TERTIARY`. Never `SECONDARY`: its framed surface reads as a hole in the tinted alert.
 
 ```tsx
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
@@ -1138,7 +1163,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 <Alert
   variant={AlertVariant.ERROR}
   header="Sync failed"
-  actions={<Button label="Retry" size={ButtonSize.SMALL} variant={ButtonVariant.SECONDARY} />}
+  actions={<Button label="Retry" size={ButtonSize.SMALL} variant={ButtonVariant.PRIMARY} />}
 >
   The orders table is locked by another process.
 </Alert>;
@@ -1364,7 +1389,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### Modal
 
-`@galaxy-io/dls/modal/Modal` · The blocking dialog: `header` (a string names it), the scrolling body, `footer` (actions, least destructive first), `size` (`SMALL` 400 / `MEDIUM` 560 / `LARGE` 720 / `X_LARGE` near full), `isDismissable`. No trigger: the app opens it with `isOpen` / `onOpenChange`.
+`@galaxy-io/dls/modal/Modal` · The blocking dialog: `header` (a string names it), `subheader` (a second line that describes it), `icon` (leading), the scrolling body, `footer` (actions, least destructive first), `size` (`SMALL` 400 / `MEDIUM` 560 / `LARGE` 720 / `X_LARGE` near full), `isDismissable`. No trigger: the app opens it with `isOpen` / `onOpenChange`.
 
 ```tsx
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -1429,13 +1454,19 @@ export function DeleteSource() {
 
 ### Drawer
 
-`@galaxy-io/dls/drawer/Drawer` · A panel from an edge that keeps the page visible: `header`, body, `footer`, `side` (`Side`, default `RIGHT`), `size`, `isResizable`, `isModal` (default `true`; `false` docks it beside the content with no backdrop), `isDismissable`.
+`@galaxy-io/dls/drawer/Drawer` · A panel from an edge that keeps the page visible: `header`, `subheader` (a second line that describes it), `icon` (leading), `actions` (title-row controls before the close button: one or two icon-only `TERTIARY` `SMALL` buttons and a ⋯ `Menu`, for the thing the drawer shows), body, `footer` (only what finishes the task: Cancel, then the `PRIMARY` action), `side` (`Side`, default `RIGHT`), `size`, `isResizable`, `isModal` (default `true`; `false` docks it beside the content with no backdrop), `isDismissable`.
 
 ```tsx
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
 import DescriptionList from "@galaxy-io/dls/lists/DescriptionList";
 
-<Drawer header="Run 4812" size={DrawerSize.MEDIUM} isOpen onOpenChange={() => {}}>
+<Drawer
+  header="Run 4812"
+  subheader="orders_daily"
+  size={DrawerSize.MEDIUM}
+  isOpen
+  onOpenChange={() => {}}
+>
   <DescriptionList items={[{ label: "Duration", value: "6m 12s" }]} />
 </Drawer>;
 ```
@@ -1749,11 +1780,11 @@ For tables the three components do not cover. Prefer the components; these chang
 | A KPI: a label and a headline number | `StatChart` | a `Widget` with a big `Text` |
 | Linked hover across charts that share a category axis | `ChartGroupProvider` | syncing a `PieChart` |
 
-Charts fill their parent (size them with a `Box`, a `Grid` track or a flex item) or take a 2:1 fallback. Every chart has a tooltip, keyboard navigation (Tab, then the arrow keys), `onSelect` / `selection`, `isLoading` and an empty state. Series colors come from `ChartPalette` slots (`@galaxy-io/dls/charts/types`), assigned in order when unset. Requires the `d3-scale` and `d3-shape` peers.
+Charts fill their parent (size them with a `Box`, a `Grid` track or a flex item) or take a 2:1 fallback. Every chart has a tooltip, keyboard navigation (Tab, then the arrow keys), `onSelect` / `selection`, `isLoading` and an empty state. `isFilterable` (Line, Area, Bar, Pie, Heatmap) makes clicks filter: a legend entry, a mark or a category pins (click again to unpin, ⌘ / Ctrl / Shift-click to add), hovering a legend entry still previews, and filter chips after the legend name the pin, one per part ("06:00" and "Failed" for a segment): a chip's × drops that part, and several pins collapse into one "3 filters" chip (Escape on the plot clears everything). Uncontrolled by default (`defaultSelection`), or controlled with `selection` + `onSelectionChange(selection)` to filter something else on the page. Series colors come from `ChartPalette` slots (`@galaxy-io/dls/charts/types`), assigned in order when unset. Legend and tooltip swatches mirror the marks (a dot for lines, a square for filled marks); `swatch` (`ChartSwatch`) overrides it, so a line chart beside a bar chart of the same series can share square keys. Requires the `d3-scale` and `d3-shape` peers.
 
 ### LineChart
 
-`@galaxy-io/dls/charts/LineChart` · `series` (label and color per metric), `lines` (`metric`, `points` of `{ x, y }`; `null` breaks the line; `isDashed` for a forecast), `categories`, `curve`, `valueFormatter`, `labelFormatter`, `valueDomain`, `axisLabels`, `hasLegend`, `hasTooltip`.
+`@galaxy-io/dls/charts/LineChart` · `series` (label and color per metric), `lines` (`metric`, `points` of `{ x, y }`; `null` breaks the line; `isDashed` for a forecast), `categories`, `curve`, `valueFormatter`, `labelFormatter`, `valueDomain`, `axisLabels`, `hasLegend`, `swatch`, `hasTooltip`.
 
 ```tsx
 import Box from "@galaxy-io/dls/layout/Box";
@@ -1934,7 +1965,7 @@ import Box from "@galaxy-io/dls/layout/Box";
 
 ## Brand
 
-All marks paint `text.primary` (monochrome), follow the theme in CSS, and take `isInverse` for a mark on a `text.primary` fill. `size` is the height in px.
+All marks paint `text.primary` (monochrome), follow the theme in CSS, and take `isInverse` for a mark on a `text.primary` fill. `size` is the height in px. The artwork is one SVG per mark in `src/brand/assets/`, compiled by `pnpm assets` into a private component the public mark renders.
 
 | Module | What | When |
 |---|---|---|
@@ -1942,7 +1973,7 @@ All marks paint `text.primary` (monochrome), follow the theme in CSS, and take `
 | `@galaxy-io/dls/brand/GalaxyWordmark` | "galaxy" in the brand lettering | Beside the logomark when there is room. |
 | `@galaxy-io/dls/brand/GalaxyFilamentWordmark` | "filament" in the same lettering | Filament's product wordmark. |
 | `@galaxy-io/dls/brand/GalaxyLogomarkAnimation` | The mark drawing itself in a loop | Splash and long-loading moments; `isPaused`; needs `lottie-react`. |
-| `@galaxy-io/dls/three/GalaxyLogomark3D` | The mark as a lit 3D object | Hero moments only; `isAutoRotate`, `isInteractive`, `isHoverable`; needs `three`. |
+| `@galaxy-io/dls/brand/GalaxyLogomark3D` | The mark as a lit 3D object | Hero moments only; `isAutoRotate`, `isInteractive`; needs `three` (loaded after mount from `src/brand/assets/galaxy-logomark.obj`). |
 | `@galaxy-io/dls/three/galaxyLogomark3DScene` | The three.js scene behind it | Mounting the 3D mark into your own canvas. |
 | `@galaxy-io/dls/brand/brandMark` | Shared CSS and ARIA helpers for the marks | Building another mark. |
 
@@ -2001,7 +2032,7 @@ declare const isSyncing: boolean;
 | `@galaxy-io/dls/tokens.css` | The `--gx-*` variables. Import once. |
 | `@galaxy-io/dls/fonts.css` | The `@font-face` rules. Import once. |
 | `@galaxy-io/dls/theme/GalaxyProvider` | The root provider: theme, overlay stack, toasts. See [getting-started.md](https://github.com/galaxy-io/dls/blob/main/docs/getting-started.md#galaxyprovider). |
-| `@galaxy-io/dls/theme/ThemeSwitcher` | The System / Dark / Light control (`size`, `isIconOnly`, `label`). |
+| `@galaxy-io/dls/theme/ThemeSwitcher` | The System / Dark / Light control (`size`, `variant`, `isIconOnly`, `label`). |
 | `@galaxy-io/dls/theme/useGalaxyTheme` | `selectedTheme`, `activeTheme`, `systemTheme`, `setTheme`, `reducedMotion`, `theme` (hex). |
 | `@galaxy-io/dls/theme/enums` | `GalaxyTheme`, `ReducedMotion`, `FontFamily`, `Placement`, `Orientation`, `Side`, `Radius`, the `Space` type, the canonical member lists. |
 | `@galaxy-io/dls/theme/tokens/t` | The typed token accessor. |
@@ -2011,7 +2042,7 @@ declare const isSyncing: boolean;
 | `@galaxy-io/dls/theme/tokens/scales` | `SPACE`, `RADIUS`, `DURATION`, `Z`, `CONTROL_SIZE`, `TYPE_SCALE`. |
 | `@galaxy-io/dls/theme/tokens/generate` | `tokenName`, `themeToCss`, `scalesToCss`: how `tokens.css` is built. |
 | `@galaxy-io/dls/theme/useInverseScope` | Internal: the attributes of an inverse scope (the Tooltip bubble). Apps use a scoped `GalaxyProvider`. |
-| `@galaxy-io/dls/styles/mixins` | `INTERACTIVE_RESET`, `HAIRLINE_BORDER`, `FOCUS_RING`, `FIELD_FOCUS`, `TRUNCATE`, `VISUALLY_HIDDEN`, `REDUCED_MOTION`. |
+| `@galaxy-io/dls/styles/mixins` | `INTERACTIVE_RESET`, `HAIRLINE_BORDER`, `HAIRLINE_WIDTH` (1px), `FOCUS_RING`, `FIELD_FOCUS`, `TRUNCATE`, `VISUALLY_HIDDEN`, `REDUCED_MOTION`. |
 | `@galaxy-io/dls/vite` | `galaxyDls({ prefix })`: the Linaria (wyw-in-js) setup for apps. |
 | `@galaxy-io/dls/biome` | The Biome preset: `"extends": ["@galaxy-io/dls/biome"]`. |
 
@@ -2120,6 +2151,7 @@ Exported so apps can build charts and tables the components do not cover. They f
 | `@galaxy-io/dls/charts/heatmapGeometry` | Cells, ramp steps, labels. |
 | `@galaxy-io/dls/charts/useChartDimensions`, `@galaxy-io/dls/charts/useCartesianChartLayout` | Measuring the chart and laying out cartesian plots. |
 | `@galaxy-io/dls/charts/useChartInteraction`, `@galaxy-io/dls/charts/useChartTooltipPosition` | Hover, keyboard and selection state; tooltip placement. |
+| `@galaxy-io/dls/charts/chartSelection` | The click-to-filter model: toggling descriptors, additive clicks. |
 | `@galaxy-io/dls/charts/useChartFormatters`, `@galaxy-io/dls/charts/useSeriesColorResolver` | Resolved formatters; series colors. |
 | `@galaxy-io/dls/tree/treeRow` | The row geometry Tree and JsonViewer share. |
 | `@galaxy-io/dls/table/TableCore` and the `table/use*` hooks | See [Table building blocks](#table-building-blocks). |

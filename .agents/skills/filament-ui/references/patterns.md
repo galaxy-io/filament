@@ -171,6 +171,7 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 
 - **Pick the table:** `InfiniteTable` for read-only data in memory, `VirtualizedInfiniteTable` for very long server-paged lists, `InfiniteSpreadsheet` for editing in place. Key–value data of one record is a `DescriptionList`.
 - **Bound the parent** (`Box height`, a grid track or a flex column with `minHeight={0}`): the table scrolls inside it.
+- **The last row closes itself.** Its bottom hairline is drawn while the rows end above the table's bottom edge (a full-height table with a few rows) and dropped when the last row lands on that edge, where the container's frame draws the line. There is no prop for it; don't draw your own line under a table.
 - **Always pass `getRowId`** when rows can be sorted, inserted or removed; selection and the active row follow ids.
 - **Row header:** mark the column that names the row `isRowHeader`; it labels the checkbox and row actions for screen readers.
 - **Numbers** are right-aligned (`align: "right"`) and tabular; ids, hashes and timestamps are mono.
@@ -191,6 +192,8 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 - **Stacking.** The overlay stack orders layers: dropdowns < drawers < modals < toasts < tooltips. A Menu inside a Modal opens above it. Avoid a Modal on a Modal; replace the content or use a Drawer.
 - **Keep them mounted.** Drive Modal, Drawer and ConfirmDialog with `isOpen` instead of rendering them conditionally, so they animate out and restore focus.
 - **Dialog structure:** a `header` that names the task ("Rename pipeline"), the body, a `footer` with the least destructive action first and the primary last.
+- **Drawer actions split by job.** Actions on the thing a drawer shows (open in full page, copy link, re-run) go in its title row (`actions`): one or two icon-only buttons, then a ⋯ `Menu` for the rest, with Delete last and red. The `footer` only finishes the drawer's task (Cancel, then Save); a read-only detail drawer usually has none. Never put ⋯ in the footer.
+- **Overlay titles: header, subheader, icon.** A Modal or Drawer title is `header`, with `subheader` for the second line (the connector, the run's pipeline) and `icon` for a leading glyph; don't build them into a custom `header` node. A node `header` renders in a first line one control tall, where the close button and `actions` center; anything taller pushes below that line.
 - **Tooltips** hold short hints, never essential information or controls. Every icon-only button gets a tooltip with its accessible name.
 
 ## Destructive actions
@@ -213,7 +216,7 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 | A status value users filter or scan (Failed, Paused) | `Chip` with a status `variant` |
 
 - **Toasts** are transient, one per event, one short line, never the only record of an outcome. Use `toast.promise` for async work.
-- **Alerts** stay until the condition is resolved; `ERROR` alerts give a way out (a retry or a link). Don't stack several alerts about one thing.
+- **Alerts** stay until the condition is resolved; `ERROR` alerts give a way out (a retry or a link). The way out is one `PRIMARY` `SMALL` button, any other action `TERTIARY`. Don't stack several alerts about one thing.
 - **Statuses** use the status variants only: success, warning, error. Neutral news is `PRIMARY`.
 - **Loading:** a `Skeleton` where the content's shape is known (the default for pages, cards and tables); a `Spinner` where it is not, or in a small space; a `ProgressBar` / `ProgressCircle` when the total is known; `isLoading` on the button that started it. Set `aria-busy` on the region.
 - Don't block the whole page for a partial load; load regions independently.
@@ -235,6 +238,7 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 - **Color.** Let series take the automatic palette order. Use a status slot (`ChartPalette.ERROR`) only when the series *is* a status (failures). Use one hue in a `Heatmap` whose meaning fits the value.
 - **Never color-only meaning.** Every series has a legend entry and a tooltip label; a status shown by color also shows its word.
 - **Linked charts** that share a category axis go in a `ChartGroupProvider`.
+- **Filtering.** When clicking a chart should narrow it (or a table beside it), set `isFilterable` rather than wiring `onSelect` to your own `selection`; control it with `selection` + `onSelectionChange` only when something else on the page reads the filter.
 - Size charts with their parent (a `Box`, a `Grid` track); don't pass pixel sizes.
 
 ## Color
@@ -267,7 +271,7 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 ## Motion
 
 - Motion is functional: it shows where something came from or that something changed. 75ms for color and border, 150ms for enter, exit and transforms.
-- Overlays, toasts and disclosures animate themselves. For your own content use `Fade` (appear in place), `ScaleFade` (floating surfaces), `Rotate` (carets), `Flasher` (a value updating).
+- Overlays, toasts and disclosures animate themselves. Overlay panels leave content first: the content fades in place over 75ms, then the empty panel scales, slides or collapses over the next 75ms, so text is never scaled, smeared or squeezed on the way out. For your own content use `Fade` (appear in place), `ScaleFade` (floating surfaces), `Rotate` (carets), `Flasher` (a value updating).
 - No decorative animation, no bounces, no motion longer than 150ms in product UI (brand animations are the exception, in hero and splash moments).
 - Everything stops under reduced motion (`prefers-reduced-motion` or `GalaxyProvider reducedMotion`); don't add motion that ignores it.
 
