@@ -5,6 +5,7 @@ import { styled } from "@linaria/react";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
+import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutNavbar from "@/layouts/main/MainLayoutNavbar";
 
 const MainLayoutBodyWrapper = styled.div`
@@ -13,7 +14,7 @@ const MainLayoutBodyWrapper = styled.div`
   min-width: 0;
   min-height: 0;
 
-  padding: 12px;
+  padding: ${MAIN_LAYOUT_GUTTER}px;
 
   display: flex;
   flex-direction: column;

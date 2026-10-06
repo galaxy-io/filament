@@ -2,7 +2,7 @@ import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import GridBackground from "@galaxy-io/dls/backgrounds/GridBackground";
+import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/GridBackground";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -104,7 +104,7 @@ const ObservabilitySetupChecklist = () => {
 
   return (
     <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
-      <GridBackground>
+      <GridBackground size={GridBackgroundSize.X_SMALL}>
         <SetupContent>
           <GalaxyFilamentWordmark size={28} />
           <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>

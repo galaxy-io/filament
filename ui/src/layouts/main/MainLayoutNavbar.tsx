@@ -3,7 +3,6 @@ import { type AnchorHTMLAttributes, forwardRef, type ReactNode } from "react";
 import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
 
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
-import GalaxyLogomark from "@galaxy-io/dls/brand/GalaxyLogomark";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -15,6 +14,7 @@ import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwit
 import DocsLink from "@/components/DocsLink";
 import GithubButton from "@/components/GithubButton";
 
+import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
 
 import type { TRoutes } from "@/hooks/useRouteMatch";
@@ -46,7 +46,7 @@ const MainLayoutNavbarRail = ({
     alignItems={AlignItems.CENTER}
     justifyContent={isEnd ? JustifyContent.END : JustifyContent.START}
     gap={isEnd ? 8 : 12}
-    padding={[0, 16]}
+    padding={[0, MAIN_LAYOUT_GUTTER]}
   >
     {children}
   </Flex>
@@ -68,8 +68,7 @@ const MainLayoutNavbar = () => {
       <Flex height="100%">
         <MainLayoutNavbarRail>
           <Link to="/">
-            <Flex alignItems={AlignItems.CENTER} gap={12}>
-              <GalaxyLogomark size={12} />
+            <Flex alignItems={AlignItems.CENTER}>
               <GalaxyFilamentWordmark size={18} />
             </Flex>
           </Link>
