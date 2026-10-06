@@ -14,13 +14,13 @@ defaults:
   method: GET
 field_sets:
   record:
-    workspace_id: { path: id.workspace_id, type: uuid }
-    object_id: { path: id.object_id, type: uuid }
-    record_id: { path: id.record_id, type: uuid }
+    workspace_id: {path: id.workspace_id, type: uuid}
+    object_id: {path: id.object_id, type: uuid}
+    record_id: {path: id.record_id, type: uuid}
     created_at: timestamptz
     web_url: string?
     values: json?
-    raw: { path: $, type: json, mode: remainder }
+    raw: {path: $, type: json, mode: remainder}
 connection:
   base_url: https://api.attio.com
   auth:
@@ -32,13 +32,13 @@ resources:
     path: /v2/objects
     primary_key: [object_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      object_id: { path: id.object_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      object_id: {path: id.object_id, type: uuid}
       api_slug: string
       singular_noun: string?
       plural_noun: string?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       object: api_slug
     response:
@@ -52,14 +52,14 @@ resources:
     for_each: objects
     primary_key: [record_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      object_id: { path: id.object_id, type: uuid }
-      record_id: { path: id.record_id, type: uuid }
-      object: { path: parent.object, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      object_id: {path: id.object_id, type: uuid}
+      record_id: {path: id.record_id, type: uuid}
+      object: {path: parent.object, type: string}
       created_at: timestamptz
       web_url: string?
       values: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       object: id.object_id
       record_id: id.record_id
@@ -79,8 +79,8 @@ resources:
     path: /v2/lists
     primary_key: [list_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      list_id: { path: id.list_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      list_id: {path: id.list_id, type: uuid}
       api_slug: string?
       name: string
       parent_object: json?
@@ -88,7 +88,7 @@ resources:
       workspace_member_access: json?
       created_by_actor: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       list: api_slug
     response:
@@ -102,15 +102,15 @@ resources:
     for_each: lists
     primary_key: [entry_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      list_id: { path: id.list_id, type: uuid }
-      entry_id: { path: id.entry_id, type: uuid }
-      list: { path: parent.list, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      list_id: {path: id.list_id, type: uuid}
+      entry_id: {path: id.entry_id, type: uuid}
+      list: {path: parent.list, type: string}
       parent_record_id: uuid?
       parent_object: string?
       created_at: timestamptz
       entry_values: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     body:
       encoding: json
       template:
@@ -130,10 +130,10 @@ resources:
     for_each: objects
     primary_key: [attribute_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      object_id: { path: id.object_id, type: uuid }
-      attribute_id: { path: id.attribute_id, type: uuid }
-      object: { path: parent.object, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      object_id: {path: id.object_id, type: uuid}
+      attribute_id: {path: id.attribute_id, type: uuid}
+      object: {path: parent.object, type: string}
       title: string
       description: string?
       api_slug: string
@@ -149,7 +149,7 @@ resources:
       relationship: json?
       config: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -164,10 +164,10 @@ resources:
     for_each: lists
     primary_key: [attribute_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      list_id: { path: id.object_id, type: uuid }
-      attribute_id: { path: id.attribute_id, type: uuid }
-      list: { path: parent.list, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      list_id: {path: id.object_id, type: uuid}
+      attribute_id: {path: id.attribute_id, type: uuid}
+      list: {path: parent.list, type: string}
       title: string
       description: string?
       api_slug: string
@@ -183,7 +183,7 @@ resources:
       relationship: json?
       config: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -198,13 +198,13 @@ resources:
     for_each: objects
     primary_key: [view_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      object_id: { path: id.object_id, type: uuid }
-      view_id: { path: id.view_id, type: uuid }
-      object: { path: parent.object, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      object_id: {path: id.object_id, type: uuid}
+      view_id: {path: id.view_id, type: uuid}
+      object: {path: parent.object, type: string}
       title: string
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       limit: "500"
     response:
@@ -221,13 +221,13 @@ resources:
     for_each: lists
     primary_key: [view_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      list_id: { path: id.list_id, type: uuid }
-      view_id: { path: id.view_id, type: uuid }
-      list: { path: parent.list, type: string }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      list_id: {path: id.list_id, type: uuid}
+      view_id: {path: id.view_id, type: uuid}
+      list: {path: parent.list, type: string}
       title: string
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       limit: "500"
     response:
@@ -245,13 +245,13 @@ resources:
     for_each: records
     primary_key: [entry_id]
     fields:
-      object: { path: parent.object, type: string }
-      record_id: { path: parent.record_id, type: uuid }
+      object: {path: parent.object, type: string}
+      record_id: {path: parent.record_id, type: uuid}
       list_id: uuid
       list_api_slug: string
       entry_id: uuid
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -268,8 +268,8 @@ resources:
       limit: "200"
     primary_key: [file_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      file_id: { path: id.file_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      file_id: {path: id.file_id, type: uuid}
       object_id: uuid?
       object_slug: string?
       record_id: uuid?
@@ -281,7 +281,7 @@ resources:
       parent_folder_id: uuid?
       created_by_actor: json?
       created_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -293,15 +293,15 @@ resources:
     path: /v2/workspace_members
     primary_key: [workspace_member_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      workspace_member_id: { path: id.workspace_member_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      workspace_member_id: {path: id.workspace_member_id, type: uuid}
       first_name: string
       last_name: string
       avatar_url: string?
       email_address: string
       access_level: string
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination: none
@@ -311,8 +311,8 @@ resources:
       limit: "50"
     primary_key: [note_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      note_id: { path: id.note_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      note_id: {path: id.note_id, type: uuid}
       parent_object: string
       parent_record_id: uuid
       title: string
@@ -322,7 +322,7 @@ resources:
       tags: json
       created_by_actor: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -336,8 +336,8 @@ resources:
       limit: "500"
     primary_key: [task_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      task_id: { path: id.task_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      task_id: {path: id.task_id, type: uuid}
       content_plaintext: string
       deadline_at: timestamptz?
       is_completed: bool
@@ -346,7 +346,7 @@ resources:
       assignees: json
       created_by_actor: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -363,11 +363,11 @@ resources:
       limit: "50"
     primary_key: [thread_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      thread_id: { path: id.thread_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      thread_id: {path: id.thread_id, type: uuid}
       comments: json
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -381,8 +381,8 @@ resources:
       limit: "200"
     primary_key: [meeting_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      meeting_id: { path: id.meeting_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      meeting_id: {path: id.meeting_id, type: uuid}
       title: string
       description: string?
       is_all_day: bool
@@ -392,7 +392,7 @@ resources:
       linked_records: json
       created_by_actor: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       meeting_id: id.meeting_id
     response:
@@ -411,14 +411,14 @@ resources:
       limit: "200"
     primary_key: [call_recording_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      meeting_id: { path: id.meeting_id, type: uuid }
-      call_recording_id: { path: id.call_recording_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      meeting_id: {path: id.meeting_id, type: uuid}
+      call_recording_id: {path: id.call_recording_id, type: uuid}
       status: string
       web_url: string
       created_by_actor: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       meeting_id: id.meeting_id
       call_recording_id: id.call_recording_id
@@ -437,13 +437,13 @@ resources:
     for_each: call_recordings
     primary_key: [call_recording_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      meeting_id: { path: id.meeting_id, type: uuid }
-      call_recording_id: { path: id.call_recording_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      meeting_id: {path: id.meeting_id, type: uuid}
+      call_recording_id: {path: id.call_recording_id, type: uuid}
       transcript: json
       raw_transcript: string
       web_url: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       cardinality: one
@@ -454,13 +454,13 @@ resources:
       limit: "100"
     primary_key: [webhook_id]
     fields:
-      workspace_id: { path: id.workspace_id, type: uuid }
-      webhook_id: { path: id.webhook_id, type: uuid }
+      workspace_id: {path: id.workspace_id, type: uuid}
+      webhook_id: {path: id.webhook_id, type: uuid}
       target_url: string
       subscriptions: json
       status: string
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.data
       pagination:
@@ -475,10 +475,10 @@ resources:
     use_fields: [record]
     body:
       encoding: json
-      template: { limit: 500, offset: 0 }
+      template: {limit: 500, offset: 0}
     response:
       records: $.data
-      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+      pagination: {offset: {offset: body.offset, limit: body.limit, page_size: 500}}
   - name: companies
     path: /v2/objects/companies/records/query
     method: POST
@@ -486,10 +486,10 @@ resources:
     use_fields: [record]
     body:
       encoding: json
-      template: { limit: 500, offset: 0 }
+      template: {limit: 500, offset: 0}
     response:
       records: $.data
-      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+      pagination: {offset: {offset: body.offset, limit: body.limit, page_size: 500}}
   - name: deals
     path: /v2/objects/deals/records/query
     method: POST
@@ -497,10 +497,10 @@ resources:
     use_fields: [record]
     body:
       encoding: json
-      template: { limit: 500, offset: 0 }
+      template: {limit: 500, offset: 0}
     response:
       records: $.data
-      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+      pagination: {offset: {offset: body.offset, limit: body.limit, page_size: 500}}
   - name: users
     path: /v2/objects/users/records/query
     method: POST
@@ -508,10 +508,10 @@ resources:
     use_fields: [record]
     body:
       encoding: json
-      template: { limit: 500, offset: 0 }
+      template: {limit: 500, offset: 0}
     response:
       records: $.data
-      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+      pagination: {offset: {offset: body.offset, limit: body.limit, page_size: 500}}
   - name: workspaces
     path: /v2/objects/workspaces/records/query
     method: POST
@@ -519,10 +519,10 @@ resources:
     use_fields: [record]
     body:
       encoding: json
-      template: { limit: 500, offset: 0 }
+      template: {limit: 500, offset: 0}
     response:
       records: $.data
-      pagination: { offset: { offset: body.offset, limit: body.limit, page_size: 500 } }
+      pagination: {offset: {offset: body.offset, limit: body.limit, page_size: 500}}
 discovery:
   mode: static
   include:

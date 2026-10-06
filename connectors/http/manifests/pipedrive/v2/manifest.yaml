@@ -54,7 +54,7 @@ field_sets:
     won_time: timestamptz?
     lost_time: timestamptz?
     close_time: timestamptz?
-    raw: { path: $, type: json, mode: remainder }
+    raw: {path: $, type: json, mode: remainder}
   lead:
     id: string
     title: string?
@@ -77,7 +77,7 @@ field_sets:
     cc_email: string?
     add_time: timestamptz?
     update_time: timestamptz
-    raw: { path: $, type: json, mode: remainder }
+    raw: {path: $, type: json, mode: remainder}
   field_definition:
     field_code: string
     field_name: string?
@@ -86,7 +86,7 @@ field_sets:
     is_optional_response_field: bool?
     options: json?
     subfields: json?
-    raw: { path: $, type: json, mode: remainder }
+    raw: {path: $, type: json, mode: remainder}
 connection:
   base_url: "{{ config.host }}"
   auth:
@@ -120,11 +120,11 @@ resources:
       created: timestamptz?
       modified: timestamptz?
       last_login: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: deals
     path: /api/v2/deals
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     use_fields: [deal]
     incremental:
@@ -137,7 +137,7 @@ resources:
 
   - name: deals_archived
     path: /api/v2/deals/archived
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     use_fields: [deal]
     incremental:
@@ -150,7 +150,7 @@ resources:
 
   - name: persons
     path: /api/v2/persons
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -172,7 +172,7 @@ resources:
       custom_fields: json?
       add_time: timestamptz?
       update_time: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: update_time
       start_param: updated_since
@@ -183,7 +183,7 @@ resources:
 
   - name: organizations
     path: /api/v2/organizations
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -201,7 +201,7 @@ resources:
       custom_fields: json?
       add_time: timestamptz?
       update_time: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: update_time
       start_param: updated_since
@@ -212,7 +212,7 @@ resources:
 
   - name: activities
     path: /api/v2/activities
-    query: { limit: "500", include_fields: attendees }
+    query: {limit: "500", include_fields: attendees}
     primary_key: [id]
     fields:
       id: int64
@@ -241,7 +241,7 @@ resources:
       marked_as_done_time: timestamptz?
       add_time: timestamptz?
       update_time: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: update_time
       start_param: updated_since
@@ -253,7 +253,7 @@ resources:
   - name: leads
     path: /api/v1/leads
     pagination:
-      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+      offset: {offset: query.start, limit: query.limit, page_size: 100}
     primary_key: [id]
     use_fields: [lead]
     incremental:
@@ -267,14 +267,14 @@ resources:
   - name: leads_archived
     path: /api/v1/leads/archived
     pagination:
-      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+      offset: {offset: query.start, limit: query.limit, page_size: 100}
     primary_key: [id]
     use_fields: [lead]
 
   - name: notes
     path: /api/v1/notes
     pagination:
-      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+      offset: {offset: query.start, limit: query.limit, page_size: 100}
     primary_key: [id]
     fields:
       id: int64
@@ -296,11 +296,11 @@ resources:
       pinned_to_task_flag: bool?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: products
     path: /api/v2/products
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -319,7 +319,7 @@ resources:
       custom_fields: json?
       add_time: timestamptz?
       update_time: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: update_time
       start_param: updated_since
@@ -330,7 +330,7 @@ resources:
 
   - name: pipelines
     path: /api/v2/pipelines
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -340,11 +340,11 @@ resources:
       is_deal_probability_enabled: bool?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: stages
     path: /api/v2/stages
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -357,35 +357,35 @@ resources:
       is_deleted: bool?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: deal_fields
     path: /api/v2/dealFields
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [field_code]
     use_fields: [field_definition]
 
   - name: person_fields
     path: /api/v2/personFields
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [field_code]
     use_fields: [field_definition]
 
   - name: organization_fields
     path: /api/v2/organizationFields
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [field_code]
     use_fields: [field_definition]
 
   - name: activity_fields
     path: /api/v2/activityFields
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [field_code]
     use_fields: [field_definition]
 
   - name: product_fields
     path: /api/v2/productFields
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [field_code]
     use_fields: [field_definition]
 
@@ -404,7 +404,7 @@ resources:
       is_custom_flag: bool?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lead_labels
     path: /api/v1/leadLabels
@@ -416,7 +416,7 @@ resources:
       color: string?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: currencies
     path: /api/v1/currencies
@@ -430,7 +430,7 @@ resources:
       decimal_points: int64?
       active_flag: bool?
       is_custom_flag: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: filters
     path: /api/v1/filters
@@ -445,11 +445,11 @@ resources:
       filter_code: string?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: projects
     path: /api/v2/projects
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -471,11 +471,11 @@ resources:
       archive_time: timestamptz?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: tasks
     path: /api/v2/tasks
-    query: { limit: "500" }
+    query: {limit: "500"}
     primary_key: [id]
     fields:
       id: int64
@@ -493,12 +493,12 @@ resources:
       marked_as_done_time: timestamptz?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: files
     path: /api/v1/files
     pagination:
-      offset: { offset: query.start, limit: query.limit, page_size: 100 }
+      offset: {offset: query.start, limit: query.limit, page_size: 100}
     primary_key: [id]
     fields:
       id: int64
@@ -521,7 +521,7 @@ resources:
       inline_flag: bool?
       add_time: timestamptz?
       update_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 discovery:
   mode: static
   default_resources:

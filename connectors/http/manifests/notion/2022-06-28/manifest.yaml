@@ -26,8 +26,8 @@ resources:
       object: string
       created_time: timestamptz?
       last_edited_time: timestamptz?
-      title: { path: title.0.plain_text, type: string, nullable: true }
-      raw: { path: $, type: json }
+      title: {path: title.0.plain_text, type: string, nullable: true}
+      raw: {path: $, type: json}
     capture:
       database_id: id
     body:
@@ -51,14 +51,14 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      database_id: { path: parent.database_id, type: string }
+      database_id: {path: parent.database_id, type: string}
       object: string
       created_time: timestamptz?
       last_edited_time: timestamptz
       archived: bool?
       url: string?
       properties: json?
-      raw: { path: $, type: json }
+      raw: {path: $, type: json}
     capture:
       block_id: id
     for_each: databases
@@ -96,7 +96,7 @@ resources:
       avatar_url: string?
       person: json?
       bot: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.results
       pagination:
@@ -112,7 +112,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      page_id: { path: parent.block_id, type: string }
+      page_id: {path: parent.block_id, type: string}
       type: string
       created_time: timestamptz?
       last_edited_time: timestamptz?
@@ -120,7 +120,7 @@ resources:
       has_children: bool?
       created_by: json?
       last_edited_by: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     for_each: pages
     response:
       records: $.results

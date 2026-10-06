@@ -39,7 +39,7 @@ resources:
       icon: json?
       enterprise_id: string?
       enterprise_name: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.team
       cardinality: one
@@ -68,7 +68,7 @@ resources:
       is_bot: bool?
       updated: int64?
       profile: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.members
       pagination:
@@ -98,7 +98,7 @@ resources:
       deleted_by: string?
       prefs: json?
       users: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.usergroups
       pagination: none
@@ -133,7 +133,7 @@ resources:
       is_ext_shared: bool?
       is_member: bool?
       user: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       channel_id: id
     response:
@@ -151,7 +151,7 @@ resources:
     for_each: conversations
     primary_key: [channel_id, ts]
     fields:
-      channel_id: { path: parent.channel_id, type: string }
+      channel_id: {path: parent.channel_id, type: string}
       ts: string
       thread_ts: string?
       type: string?
@@ -172,7 +172,7 @@ resources:
       files: json?
       reactions: json?
       metadata: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.messages
       pagination:
@@ -220,8 +220,8 @@ resources:
       since: latest_reply
     primary_key: [channel_id, thread_ts, ts]
     fields:
-      channel_id: { path: parent.channel_id, type: string }
-      thread_ts: { path: parent.thread_ts, type: string }
+      channel_id: {path: parent.channel_id, type: string}
+      thread_ts: {path: parent.thread_ts, type: string}
       ts: string
       type: string?
       subtype: string?
@@ -236,7 +236,7 @@ resources:
       files: json?
       reactions: json?
       metadata: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.messages
       pagination:
@@ -277,7 +277,7 @@ resources:
       channels: json?
       groups: json?
       ims: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.files
       pagination:
@@ -301,7 +301,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      channel_id: { path: parent.channel_id, type: string }
+      channel_id: {path: parent.channel_id, type: string}
       title: string?
       link: string?
       emoji: string?
@@ -311,7 +311,7 @@ resources:
       date_created: int64?
       date_updated: int64?
       rank: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.bookmarks
       pagination: none
@@ -323,14 +323,14 @@ resources:
     for_each: conversations
     primary_key: [channel_id, created]
     fields:
-      channel_id: { path: parent.channel_id, type: string }
+      channel_id: {path: parent.channel_id, type: string}
       type: string
       created: int64
       created_by: string?
       message: json?
       file: json?
       comment: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $.items
       pagination: none

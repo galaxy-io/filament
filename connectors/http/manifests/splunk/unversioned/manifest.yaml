@@ -77,14 +77,14 @@ resources:
         records_path: results
 
     fields:
-      _cd: { path: _cd, type: string }
-      _time: { path: _time, type: timestamptz }
+      _cd: {path: _cd, type: string}
+      _time: {path: _time, type: timestamptz}
       _raw: string
       host: string?
       source: string?
       sourcetype: string?
       index: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
 discovery:
   mode: static
