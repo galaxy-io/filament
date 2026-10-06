@@ -16,7 +16,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import {
-  CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
+  CONNECTOR_KIND_TO_CHIP_COLOR_MAP,
   CONNECTOR_KIND_TO_HANDLE_ID_MAP,
   CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP,
 } from "@/pages/pipelines/canvas/constants";
@@ -118,7 +118,7 @@ const PipelineCanvasNode = ({
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
         <Chip
           label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
-          variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
+          color={CONNECTOR_KIND_TO_CHIP_COLOR_MAP[kind]}
           size={ChipSize.SMALL}
         />
         <Flex alignItems={AlignItems.CENTER} gap={4}>

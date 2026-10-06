@@ -51,19 +51,18 @@ const PipelineResourceCreateForm = ({
   const sinkOptions: SelectOption[] = sinks.map((sink) => ({
     id: sink.id,
     label: sink.label,
-    value: sink.id,
   }));
 
   return (
-    <Flex alignItems={AlignItems.START} padding={12} fillWidth>
-      <Widget
-        variant={
-          WidgetVariant.TERTIARY
-        } /* @dls-migrate widget.padding-other: The body inset is fixed at 12px: remove `padding` (use `isFlush` for 0). */
-        padding="16px" /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-        fillWidth
-      >
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
+      <Widget variant={WidgetVariant.TERTIARY} isFlush>
+        <Flex
+          alignItems={AlignItems.START}
+          direction={FlexDirection.COLUMN}
+          gap={12}
+          padding={16}
+          fillWidth
+        >
           <TextInput
             label="Resource"
             value={state.resource}
@@ -81,12 +80,10 @@ const PipelineResourceCreateForm = ({
             <SelectInput
               label="Sink"
               options={sinkOptions}
-              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                sinkOptions.find((option) => option.value === state.sinkId) ?? null
-              }
-              onChange={(option) =>
-                setState((prev) => ({ ...prev, sinkId: option.value as string }))
-              }
+              value={state.sinkId || null}
+              onChange={(sinkId) => {
+                if (sinkId !== null) setState((prev) => ({ ...prev, sinkId }));
+              }}
               variant={SelectInputVariant.TERTIARY}
               size={SelectInputSize.LARGE}
               fillWidth

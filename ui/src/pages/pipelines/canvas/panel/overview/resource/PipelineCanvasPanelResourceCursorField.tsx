@@ -22,17 +22,16 @@ const PipelineCanvasPanelResourceCursorField = ({
   const selectOptions: SelectOption[] = options.map((column) => ({
     id: column.name,
     label: column.name,
-    value: column.name,
   }));
 
   return (
     <SelectInput
       label="Cursor"
       options={selectOptions}
-      /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-        selectOptions.find((option) => option.value === value) ?? null
-      }
-      onChange={(option) => onChange(option.value as string)}
+      value={value || null}
+      onChange={(id) => {
+        if (id !== null) onChange(id);
+      }}
       placeholder="Select a column..."
       size={SelectInputSize.LARGE}
       isDisabled={isDisabled}

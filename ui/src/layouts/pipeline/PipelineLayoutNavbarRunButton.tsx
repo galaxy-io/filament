@@ -84,7 +84,7 @@ const PipelineLayoutNavbarRunButton = ({
             </Flex>
             <Divider />
             <Flex
-              alignItems={AlignItems.START}
+              alignItems={AlignItems.STRETCH}
               direction={FlexDirection.COLUMN}
               gap={12}
               padding={12}

@@ -29,6 +29,7 @@ const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
 `;
 
 const ItemName = styled.div`
+  flex: 1;
   min-width: 0;
   text-align: left;
   overflow: hidden;
@@ -37,7 +38,6 @@ const ItemName = styled.div`
 `;
 
 const ChipWrapper = styled.div`
-  margin-left: auto;
   flex-shrink: 0;
 `;
 

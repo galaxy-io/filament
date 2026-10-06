@@ -76,6 +76,7 @@ const PIPELINE_EDGE_TYPE_TO_COMPONENT_MAP: Record<
 
 const PipelineCanvasPageWrapper = styled.div`
   position: relative;
+  isolation: isolate;
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -233,10 +234,12 @@ const PipelineCanvasPage = () => {
         <MiniMap
           nodeColor={(node) => {
             if (node.type === PipelineCanvasNodeType.PLACEHOLDER) return "transparent";
-            return node.selected ? theme.color.background.galaxy : theme.color.background.tertiary;
+            return node.selected
+              ? theme.color.solid.primary.background
+              : theme.color.background.tertiary;
           }}
           nodeStrokeColor={(node) =>
-            node.selected ? theme.color.background.galaxy : theme.color.border.primary
+            node.selected ? theme.color.solid.primary.background : theme.color.border.primary
           }
           nodeStrokeWidth={1}
           bgColor={theme.color.background.base}

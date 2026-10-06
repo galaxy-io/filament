@@ -2,7 +2,7 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { PlusIcon } from "@phosphor-icons/react";
 import { type HandleType, Position } from "@xyflow/react";
 
-import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -60,13 +60,10 @@ export const CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP: Record<ConnectorKind, Positi
   [ConnectorKind.SINK]: Position.Left,
 };
 
-export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVariant> = {
-  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
-  [ConnectorKind.UNSPECIFIED]: ChipVariant.LIME,
-  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
-  [ConnectorKind.SOURCE]: ChipVariant.LIME,
-  // @dls-migrate shared-enums.color-other: `variant` is meaning only (`PRIMARY SECONDARY TERTIARY SUCCESS WARNING ERROR DISABLED INHERIT`): pick the meaning, or put the category on a component that takes `color`.
-  [ConnectorKind.SINK]: ChipVariant.PINK,
+export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<ConnectorKind, PaletteColor> = {
+  [ConnectorKind.UNSPECIFIED]: "lime",
+  [ConnectorKind.SOURCE]: "lime",
+  [ConnectorKind.SINK]: "pink",
 };
 
 export const CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP: Record<ConnectorKind, ConnectorKind> = {

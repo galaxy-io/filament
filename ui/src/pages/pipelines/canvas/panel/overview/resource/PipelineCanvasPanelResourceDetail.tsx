@@ -146,12 +146,10 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
   const readModeSelectOptions: SelectOption[] = readModeOptions.map((mode) => ({
     id: String(mode),
     label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
   }));
   const writeModeSelectOptions: SelectOption[] = compatibleWriteModes.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
-    value: mode,
   }));
 
   return (
@@ -204,17 +202,17 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
           isEmpty={false}
           emptyHeader="No configuration"
           emptyMessage="No configuration options are available for this resource."
-          padding="12px"
+          padding={12}
         >
           <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
             {hasReadLevers && (
               <SelectInput
                 label="Read mode"
                 options={readModeSelectOptions}
-                /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                  readModeSelectOptions.find((option) => option.value === readMode) ?? null
-                }
-                onChange={(option) => handleReadModeChange(option.value as ReadMode)}
+                value={String(readMode)}
+                onChange={(id) => {
+                  if (id !== null) handleReadModeChange(Number(id) as ReadMode);
+                }}
                 variant={SelectInputVariant.TERTIARY}
                 placeholder="Select a read mode..."
                 size={SelectInputSize.LARGE}
@@ -225,10 +223,10 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
             <SelectInput
               label="Write mode"
               options={writeModeSelectOptions}
-              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                writeModeSelectOptions.find((option) => option.value === writeMode) ?? null
-              }
-              onChange={(option) => handleWriteModeChange(option.value as WriteMode)}
+              value={String(writeMode)}
+              onChange={(id) => {
+                if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
+              }}
               variant={SelectInputVariant.TERTIARY}
               placeholder="Select a write mode..."
               size={SelectInputSize.LARGE}

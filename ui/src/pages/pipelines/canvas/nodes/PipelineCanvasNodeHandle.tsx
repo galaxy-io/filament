@@ -27,7 +27,6 @@ const HandleSlot = styled.div`
 
 const HandleBase = ({
   $isConnected: _isConnected,
-  theme: _theme,
   ...props
 }: { $isConnected?: boolean } & ComponentProps<typeof Handle>) => <Handle {...props} />;
 

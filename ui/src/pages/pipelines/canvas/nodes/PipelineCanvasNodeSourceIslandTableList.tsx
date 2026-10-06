@@ -72,13 +72,7 @@ const PipelineCanvasNodeSourceIslandTableList = ({
 
   if (error) {
     return (
-      <Flex
-        alignItems={
-          AlignItems.START
-        } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-        padding={"20px 16px"}
-        fillWidth
-      >
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
         <ErrorLayout size={LayoutSize.SMALL} message="Failed to load resources" error={error} />
       </Flex>
     );
@@ -86,13 +80,7 @@ const PipelineCanvasNodeSourceIslandTableList = ({
 
   if (!tables.length) {
     return (
-      <Flex
-        alignItems={
-          AlignItems.START
-        } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-        padding={"20px 16px"}
-        fillWidth
-      >
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
         <EmptyLayout size={LayoutSize.SMALL} message="No tables match your search" />
       </Flex>
     );

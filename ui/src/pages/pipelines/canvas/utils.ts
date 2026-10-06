@@ -76,7 +76,9 @@ export const mapEdgesToStyledEdges = (
       animated: isRunning,
       style: {
         stroke:
-          isRunning || isHighlighted ? theme.color.background.galaxy : theme.color.border.primary,
+          isRunning || isHighlighted
+            ? theme.color.solid.primary.background
+            : theme.color.border.primary,
         strokeWidth: edge.selected ? 3 : 2,
         ...(isRunning && { strokeDasharray: "5 5" }),
       },

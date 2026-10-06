@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react";
 
-import Dropdown from "@galaxy-io/dls/dropdown/Dropdown";
+import Popover from "@galaxy-io/dls/overlays/Popover";
 import { Placement } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -35,31 +35,26 @@ const PipelineCanvasEditWidget = () => {
   const state = usePipelineCanvasState();
   const { setActiveMode } = usePipelineCanvasActions();
 
-  const handleModeToggle = (mode: PipelineCanvasEditMode) => {
-    setActiveMode(state.activeMode === mode ? null : mode);
-  };
+  const isAddNodeOpen = state.activeMode === PipelineCanvasEditMode.ADD_NODE;
 
-  const handleDropdownClose = () => {
-    setActiveMode(null);
+  const handleAddNodeOpenChange = (isOpen: boolean) => {
+    setActiveMode(isOpen ? PipelineCanvasEditMode.ADD_NODE : null);
   };
 
   return (
     <PipelineCanvasEditWidgetContainer>
-      <Dropdown
+      <Popover
         placement={Placement.RIGHT_START}
-        isOpen={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
-        /* @dls-migrate dropdown.onClose: A controlled 2.0 Dropdown also asks to open from its trigger: switch to `onOpenChange` and remove the trigger's own toggle. */ onClose={
-          handleDropdownClose
-        }
+        isOpen={isAddNodeOpen}
+        onOpenChange={handleAddNodeOpenChange}
         body={<PipelineCanvasConnectionSelector />}
-        /* @dls-migrate dropdown.noPadding: A panel that hosts its own layout is a `Popover`. */ noPadding
       >
         <PipelineCanvasEditWidgetButton
           icon={PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP[PipelineCanvasEditMode.ADD_NODE]}
-          isActive={state.activeMode === PipelineCanvasEditMode.ADD_NODE}
-          onClick={() => handleModeToggle(PipelineCanvasEditMode.ADD_NODE)}
+          isActive={isAddNodeOpen}
+          aria-label="Add a connection"
         />
-      </Dropdown>
+      </Popover>
     </PipelineCanvasEditWidgetContainer>
   );
 };

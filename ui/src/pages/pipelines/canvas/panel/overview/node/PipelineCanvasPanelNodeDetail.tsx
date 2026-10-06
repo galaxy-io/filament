@@ -105,7 +105,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
           isEmpty={nodeConfig.fields.length === 0}
           emptyHeader="No configuration"
           emptyMessage="This connector has no pipeline configuration."
-          padding="12px"
+          padding={12}
         >
           <PipelineNodeConfigFields
             {...nodeConfig}
