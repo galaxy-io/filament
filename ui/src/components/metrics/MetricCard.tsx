@@ -20,12 +20,7 @@ const MetricCard = ({ label, value, icon, variant, noBorder }: MetricCardProps) 
     label={label}
     value={
       icon ? (
-        <Flex
-          alignItems={
-            AlignItems.CENTER
-          } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-          gap={6}
-        >
+        <Flex alignItems={AlignItems.CENTER} gap={4}>
           {typeof value === "string" ? (
             <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
               {value}

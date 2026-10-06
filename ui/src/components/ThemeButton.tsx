@@ -24,10 +24,10 @@ const ThemeButton = ({
   return (
     <Button
       icon={isDark ? SunIcon : MoonIcon}
+      ariaLabel={isDark ? "Switch to light theme" : "Switch to dark theme"}
       variant={variant}
       size={size}
       onClick={handleTheme}
-      /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
     />
   );
 };

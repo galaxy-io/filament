@@ -1,6 +1,7 @@
 import { GithubLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import { GITHUB_REPO_URL } from "@/constants";
 
@@ -12,11 +13,17 @@ const GithubButton = () => {
   return (
     <Button
       label="Star on GitHub"
-      icon={GithubLogoIcon}
+      leading={
+        <Icon
+          component={GithubLogoIcon}
+          size={12}
+          weight={IconWeight.FILL}
+          variant={IconVariant.INHERIT}
+        />
+      }
       variant={ButtonVariant.SECONDARY}
       size={ButtonSize.SMALL}
       onClick={handleGithub}
-      /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
     />
   );
 };

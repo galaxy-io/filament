@@ -1,10 +1,16 @@
 import type { ClipboardEvent } from "react";
 
+import { styled } from "@linaria/react";
+
 import Field from "@galaxy-io/dls/inputs/Field";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
+
+const FieldSecretWrapper = styled.div`
+  width: 100%;
+`;
 
 const FieldSecret = ({
   field,
@@ -30,7 +36,7 @@ const FieldSecret = ({
   };
 
   return (
-    <div onPasteCapture={handlePaste} style={{ width: "100%" }}>
+    <FieldSecretWrapper onPasteCapture={handlePaste}>
       <Field
         label={label}
         labelTooltip={field.help || undefined}
@@ -48,7 +54,7 @@ const FieldSecret = ({
           fillWidth
         />
       </Field>
-    </div>
+    </FieldSecretWrapper>
   );
 };
 

@@ -1,6 +1,7 @@
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
+import { INPUT_VARIANT_TO_CHECKBOX_INPUT_VARIANT_MAP } from "@/components/fields/constants";
 import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
@@ -15,16 +16,12 @@ const FieldBoolean = ({
 }: FieldComponentProps) => {
   return (
     <FieldWrapper label={label} help={field.help} isRequired={field.required} error={error}>
-      <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-        fillWidth
-      >
+      <Widget>
         <CheckboxInput
           label={field.help}
           isChecked={(value as boolean) ?? false}
           onChange={(v) => onChange(v)}
-          /* @dls-migrate checkboxinput.enums: Pass a `CheckboxInputSize` / `CheckboxInputVariant` member (same names as `InputSize` / `InputVariant`). */ variant={
-            variant
-          }
+          variant={variant && INPUT_VARIANT_TO_CHECKBOX_INPUT_VARIANT_MAP[variant]}
           isDisabled={isDisabled}
         />
       </Widget>

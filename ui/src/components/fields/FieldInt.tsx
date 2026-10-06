@@ -24,9 +24,7 @@ const FieldInt = ({
       <NumberInput
         value={value !== null && value !== undefined ? Number(value) : undefined}
         size={InputSize.LARGE}
-        /* @dls-migrate numberinput.onChange: `onChange` now runs on commit with `number | null`: check the handler. */ onChange={(
-          v,
-        ) => onChange(v)}
+        onChange={(v) => onChange(v)}
         variant={variant}
         placeholder={`Enter ${label}...`}
         isDisabled={isDisabled}

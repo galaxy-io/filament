@@ -71,9 +71,7 @@ const FieldObject = ({
         onChange={handleChange}
         placeholder="{}"
         language={CodeEditorLanguage.JSON}
-        /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly={
-          isDisabled
-        }
+        isReadOnly={isDisabled}
         hasLineNumbers={false}
       />
     </FieldWrapper>
