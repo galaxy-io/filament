@@ -6,7 +6,7 @@ import { useSearch } from "@tanstack/react-router";
 
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -98,9 +98,7 @@ const ObservabilityMetricsWidget = () => {
   const totalValue = (value: string) =>
     isTotalsLoading ? (
       <Box width={48}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={18}
-        />
+        <Skeleton size={SkeletonSize.LARGE} />
       </Box>
     ) : (
       value
@@ -133,17 +131,10 @@ const ObservabilityMetricsWidget = () => {
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
           value={
-            <Flex
-              alignItems={
-                AlignItems.CENTER
-              } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-              gap={6}
-            >
+            <Flex alignItems={AlignItems.CENTER} gap={4}>
               {isStatusCountsLoading ? (
                 <Box width={32}>
-                  <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-                    height={18}
-                  />
+                  <Skeleton size={SkeletonSize.LARGE} />
                 </Box>
               ) : (
                 <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
@@ -158,17 +149,10 @@ const ObservabilityMetricsWidget = () => {
       <MetricCard
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
         value={
-          <Flex
-            alignItems={
-              AlignItems.CENTER
-            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-            gap={6}
-          >
+          <Flex alignItems={AlignItems.CENTER} gap={4}>
             {isScheduledLoading ? (
               <Box width={32}>
-                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-                  height={18}
-                />
+                <Skeleton size={SkeletonSize.LARGE} />
               </Box>
             ) : (
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
@@ -182,17 +166,10 @@ const ObservabilityMetricsWidget = () => {
       <MetricCard
         label="Other"
         value={
-          <Flex
-            alignItems={
-              AlignItems.CENTER
-            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-            gap={6}
-          >
+          <Flex alignItems={AlignItems.CENTER} gap={4}>
             {isStatusCountsLoading ? (
               <Box width={32}>
-                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-                  height={18}
-                />
+                <Skeleton size={SkeletonSize.LARGE} />
               </Box>
             ) : (
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
@@ -201,13 +178,7 @@ const ObservabilityMetricsWidget = () => {
             )}
             <Tooltip
               body={
-                <Flex
-                  alignItems={AlignItems.START}
-                  direction={
-                    FlexDirection.COLUMN
-                  } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-                  gap={6}
-                >
+                <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
                   {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
                     <Flex
                       key={status}

@@ -14,13 +14,18 @@ const ObservabilityTimeframeSwitcher = ({
   value,
   onChange,
 }: ObservabilityTimeframeSwitcherProps) => {
-  const items: ToggleOption[] = Object.values(ObservabilityTimeframe).map((timeframe) => ({
-    id: timeframe,
-    label: timeframe,
-    onClick: () => onChange(timeframe),
-  }));
+  const items: ToggleOption<ObservabilityTimeframe>[] = Object.values(ObservabilityTimeframe).map(
+    (timeframe) => ({ id: timeframe, label: timeframe }),
+  );
 
-  return <ToggleInput variant={ToggleInputVariant.TERTIARY} options={items} value={value} />;
+  return (
+    <ToggleInput
+      variant={ToggleInputVariant.TERTIARY}
+      options={items}
+      value={value}
+      onChange={onChange}
+    />
+  );
 };
 
 export default ObservabilityTimeframeSwitcher;

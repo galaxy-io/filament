@@ -54,20 +54,15 @@ const ObservabilityTimeseriesWidget = <View extends string>({
     });
   };
 
-  const switcherItems: ToggleOption[] = (
+  const switcherItems: ToggleOption<View>[] = (
     Object.entries(views) as [View, ObservabilityChartView][]
   ).map(([id, viewConfig]) => ({
     id,
     label: viewConfig.label,
-    onClick: () => handleViewChange(id),
   }));
 
   return (
-    <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-      fillWidth /* @dls-migrate widget.fillHeight: Grow the card with a `FlexItem` or a `Grid` track. */
-      fillHeight
-      isFlush
-    >
+    <Widget isFlush>
       <BaseToolbar
         leadingActions={[
           <Text key="title" weight={TextWeight.MEDIUM}>
@@ -80,6 +75,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
             variant={ToggleInputVariant.TERTIARY}
             options={switcherItems}
             value={view}
+            onChange={handleViewChange}
           />,
           <ObservabilityPivotSelect
             key="pivot-selector"

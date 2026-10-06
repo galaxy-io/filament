@@ -135,7 +135,6 @@ const ObservabilityTimeseriesChart = ({
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
         isLoading={isLoading}
-        /* @dls-migrate linechart.fillHeight: Removed: give the parent a definite height (a `Grid` track or a `Box height`). */ fillHeight
         hasLegend
       />
     </Flex>

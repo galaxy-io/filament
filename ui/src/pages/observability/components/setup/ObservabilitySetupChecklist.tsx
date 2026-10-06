@@ -6,11 +6,11 @@ import GridBackground from "@galaxy-io/dls/backgrounds/GridBackground";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -57,7 +57,6 @@ const SetupCard = styled.div`
 `;
 
 const ObservabilitySetupChecklist = () => {
-  const { theme } = useGalaxyTheme();
   const navigate = useNavigate();
   const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
 
@@ -105,45 +104,39 @@ const ObservabilitySetupChecklist = () => {
   };
 
   return (
-    <GridBackground /* @dls-migrate gridbackground.backgroundColor: Put the grid in a `Box` with the surface `variant` (`<Box variant={BoxVariant.BASE}>` for the 1.x default). */
-      backgroundColor={theme.color.background.primary}
-    >
-      <SetupContent>
-        <GalaxyFilamentWordmark size={28} />
-        <Flex
-          direction={FlexDirection.COLUMN}
-          alignItems={AlignItems.CENTER}
-          /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
-            6
-          }
-          fillWidth
-        >
-          <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
-          <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
-        </Flex>
-        <SetupCard>
-          <Flex alignItems={AlignItems.START} padding={[12, 16]}>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
-            </Text>
+    <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
+      <GridBackground>
+        <SetupContent>
+          <GalaxyFilamentWordmark size={28} />
+          <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>
+            <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
+            <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
           </Flex>
-          <Divider />
-          {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
-            <ObservabilitySetupChecklistStep
-              key={step}
-              step={step}
-              status={getStepStatus(step)}
-              onClick={handleStepClick}
-            />
-          ))}
-        </SetupCard>
-        <ProgressBar /* @dls-migrate progressbar.ariaLabel: Name the bar: add `label` or `ariaLabel`. */
-          value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-          variant={ProgressBarVariant.SUCCESS}
-        />
-        <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
-      </SetupContent>
-    </GridBackground>
+          <SetupCard>
+            <Flex alignItems={AlignItems.START} padding={[12, 16]}>
+              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
+              </Text>
+            </Flex>
+            <Divider />
+            {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
+              <ObservabilitySetupChecklistStep
+                key={step}
+                step={step}
+                status={getStepStatus(step)}
+                onClick={handleStepClick}
+              />
+            ))}
+          </SetupCard>
+          <ProgressBar
+            ariaLabel="Setup progress"
+            value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
+            variant={ProgressBarVariant.SUCCESS}
+          />
+          <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
+        </SetupContent>
+      </GridBackground>
+    </Box>
   );
 };
 

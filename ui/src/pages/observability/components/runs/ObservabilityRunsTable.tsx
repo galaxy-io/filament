@@ -2,11 +2,9 @@ import { useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-// @dls-migrate infinitetable.Row: Removed: TanStack types are not exposed; use `TableColumn`, `TableColumnLayout`, `TableCellContext`, `TableSort`.
-import InfiniteTable, { type Row } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
@@ -99,12 +97,11 @@ const ObservabilityRunsTable = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
         pin: Side.LEFT,
         canSort: false,
-        // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
         cell: ({ row }) => (
           <PipelineHistoryRunStatus
-            status={row.original.status}
-            error={row.original.error}
-            executionStatus={row.original.executionStatus}
+            status={row.status}
+            error={row.error}
+            executionStatus={row.executionStatus}
           />
         ),
       },
@@ -114,16 +111,14 @@ const ObservabilityRunsTable = () => {
         minWidth: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
         pin: Side.LEFT,
         canSort: false,
-        // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
-        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row.original} />,
+        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row} />,
       },
       {
         id: "pipeline",
         header: "Pipeline",
         minWidth: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
         canSort: false,
-        // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
-        cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
+        cell: ({ row }) => <PipelineName pipelineId={row.pipelineId} />,
       },
     ];
 
@@ -133,12 +128,11 @@ const ObservabilityRunsTable = () => {
         {
           id: "scheduledAt",
           header: "Scheduled",
-          size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+          width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
           align: "right",
-          enableSorting: false,
           cell: ({ row }) => (
             <Text size={TextSize.BODY_SM} lineClamp={1}>
-              {formatTimestamp(row.original.scheduledAt)}
+              {formatTimestamp(row.scheduledAt)}
             </Text>
           ),
         },
@@ -150,69 +144,63 @@ const ObservabilityRunsTable = () => {
       {
         id: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
         header: "Started",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
-        accessorFn: (run) => Number(run.startedAt),
-        enableSorting: true,
-        sortDescFirst: true,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+        accessor: (run) => Number(run.startedAt),
+        canSort: true,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} lineClamp={1}>
-            {formatTimestamp(row.original.startedAt)}
+            {formatTimestamp(row.startedAt)}
           </Text>
         ),
       },
       {
         id: "duration",
         header: "Duration",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
-        enableSorting: false,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} lineClamp={1}>
-            {formatDuration(row.original.startedAt, row.original.endedAt)}
+            {formatDuration(row.startedAt, row.endedAt)}
           </Text>
         ),
       },
       {
         id: "records",
         header: "Records",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-        enableSorting: false,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatCount(row.original.records)}
+            {formatCount(row.records)}
           </Text>
         ),
       },
       {
         id: "volume",
         header: "Volume",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-        enableSorting: false,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatBytes(row.original.bytes)}
+            {formatBytes(row.bytes)}
           </Text>
         ),
       },
       {
         id: "cpu",
         header: "CPU",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
-        enableSorting: false,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {row.original.cpuSeconds ? formatSeconds(row.original.cpuSeconds) : "—"}
+            {row.cpuSeconds ? formatSeconds(row.cpuSeconds) : "—"}
           </Text>
         ),
       },
       {
         id: "memory",
         header: "Memory",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
         align: "right",
-        enableSorting: false,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {row.original.memoryPeakBytes ? formatBytes(row.original.memoryPeakBytes) : "—"}
+            {row.memoryPeakBytes ? formatBytes(row.memoryPeakBytes) : "—"}
           </Text>
         ),
       },
@@ -233,8 +221,7 @@ const ObservabilityRunsTable = () => {
     [sortBy, sortOrder],
   );
 
-  const handleSortingChange: ObservabilityRunsTableSortingChange = (updater) => {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
+  const handleSortingChange: ObservabilityRunsTableSortingChange = (next) => {
     void navigate({
       to: ".",
       replace: true,
@@ -242,13 +229,13 @@ const ObservabilityRunsTable = () => {
     });
   };
 
-  const handleRowClick = (row: Row<RunInfo>) => {
+  const handleRowClick = (row: RunInfo) => {
     navigate({
       to: "/pipelines/$id/history",
       params: {
-        id: row.original.pipelineId,
+        id: row.pipelineId,
       },
-      search: { runId: [row.original.id] },
+      search: { runId: [row.id] },
     });
   };
 
@@ -258,16 +245,9 @@ const ObservabilityRunsTable = () => {
         columns={columns}
         data={runs}
         getRowId={(run) => run.id}
-        /* @dls-migrate infinitetable.onRowClick: `row` is now the data object: `row.original` → `row`. */ onRowClick={
-          handleRowClick
-        }
-        /* @dls-migrate infinitetable.enableSorting: Sorting is per column (`canSort`) with a `TableSort` value. */ enableSorting
-        /* @dls-migrate infinitetable.sorting: Sorting is per column (`canSort`) with a `TableSort` value. */ sorting={
-          sorting
-        }
-        /* @dls-migrate infinitetable.onSortingChange: Sorting is per column (`canSort`) with a `TableSort` value. */ onSortingChange={
-          handleSortingChange
-        }
+        onRowClick={handleRowClick}
+        sort={sorting}
+        onSortChange={handleSortingChange}
         isLoading={
           view === ObservabilityRunsView.UPCOMING
             ? isLoadingScheduled

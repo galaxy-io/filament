@@ -4,7 +4,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import MultiSelectInput, { MultiSelectInputVariant } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import ToggleInput, {
   ToggleInputVariant,
   type ToggleOption,
@@ -32,6 +31,8 @@ import ObservabilityRunsSelectionChips from "@/pages/observability/components/ru
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
+import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
+
 const ObservabilityRunsWidget = () => {
   const navigate = useNavigate();
   const {
@@ -41,10 +42,10 @@ const ObservabilityRunsWidget = () => {
     from: "/_app/_main/observability",
   });
 
-  const selectedStatusOptions = useMemo(
+  const selectedStatusIds = useMemo(
     () =>
-      OBSERVABILITY_RUN_STATUS_OPTIONS.filter((option) =>
-        statuses.includes(option.value as RunStatus),
+      OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id).filter((id) =>
+        statuses.includes(Number(id) as RunStatus),
       ),
     [statuses],
   );
@@ -61,29 +62,33 @@ const ObservabilityRunsWidget = () => {
     });
   };
 
-  const handleStatusChange = (selected: SelectOption[]) => {
+  const handleStatusChange = (ids: string[]) => {
+    const next = getSelectAllChange(
+      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+      ids,
+      selectedStatusIds,
+    );
     void navigate({
       to: ".",
       search: (prev) => ({
         ...prev,
-        statuses: selected.map((option) => option.value as RunStatus),
+        statuses: next.map((id) => Number(id) as RunStatus),
         runsBucket: undefined,
         runsStatus: undefined,
       }),
     });
   };
 
-  const switcherItems: ToggleOption[] = Object.values(ObservabilityRunsView).map((runsView) => ({
+  const switcherItems: ToggleOption<ObservabilityRunsView>[] = Object.values(
+    ObservabilityRunsView,
+  ).map((runsView) => ({
     id: runsView,
     label: OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP[runsView],
-    onClick: () => handleViewChange(runsView),
   }));
+  const isUpcoming = view === ObservabilityRunsView.UPCOMING;
 
   return (
-    <Widget /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-      fillWidth
-      isFlush
-    >
+    <Widget isFlush>
       <BaseToolbar
         leadingActions={[
           <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
@@ -97,31 +102,43 @@ const ObservabilityRunsWidget = () => {
             variant={ToggleInputVariant.TERTIARY}
             options={switcherItems}
             value={view}
+            onChange={handleViewChange}
           />,
           <Box key="status-selector" width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
             <MultiSelectInput
               fillWidth
-              options={OBSERVABILITY_RUN_STATUS_OPTIONS}
-              /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                view === ObservabilityRunsView.UPCOMING
+              options={
+                isUpcoming
                   ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
-                  : selectedStatusOptions
+                  : getSelectAllOptions(
+                      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+                      OBSERVABILITY_RUN_STATUS_OPTIONS,
+                    )
+              }
+              pinnedIds={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id]}
+              value={
+                isUpcoming
+                  ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id]
+                  : getSelectAllValue(
+                      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+                      selectedStatusIds,
+                    )
               }
               variant={MultiSelectInputVariant.TERTIARY}
               onChange={handleStatusChange}
               placeholder="Select statuses..."
-              /* @dls-migrate multiselectinput.pinnedOptions: Pinned rows are now option ids: pass `pinnedIds`. */ pinnedOptions={[
-                OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-              ]}
-              isDisabled={view === ObservabilityRunsView.UPCOMING}
-              /* @dls-migrate multiselectinput.renderSelectedText: Merged into `renderValue(options)`. */ renderSelectedText={(
-                selectedOptions,
-                placeholder,
-              ) =>
-                selectedOptions.length
-                  ? pluralize("status", selectedOptions.length, true)
-                  : placeholder
-              }
+              isDisabled={isUpcoming}
+              renderValue={(options) => (
+                <Text>
+                  {pluralize(
+                    "status",
+                    options.filter(
+                      (option) => option.id !== OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id,
+                    ).length,
+                    true,
+                  )}
+                </Text>
+              )}
             />
           </Box>,
         ]}

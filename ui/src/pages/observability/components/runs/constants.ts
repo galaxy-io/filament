@@ -1,8 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
 import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
-// @dls-migrate multiselectinput.PinnedOptions: Removed: pinned rows are `pinnedIds`.
-import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -14,6 +12,8 @@ import {
   PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
+
+import type { SelectAllOption } from "@/utils/select";
 
 export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: { label: "Runs" },
@@ -45,16 +45,14 @@ export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectOption[] = OBSERVABILITY_RU
 ).map((status) => ({
   id: String(status),
   label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-  value: status,
 }));
 
 export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectOption = {
   id: String(RunStatus.SCHEDULED),
   label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
-  value: RunStatus.SCHEDULED,
 };
 
-export const OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION: PinnedOptions = {
+export const OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION: SelectAllOption = {
   id: "all-statuses",
   label: "All statuses",
   optionIds: OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id),

@@ -14,12 +14,10 @@ export const METRIC_DIMENSION_PIVOT_OPTIONS: SelectOption[] = [
   {
     id: String(MetricDimension.PIPELINE_ID),
     label: "Pipeline",
-    value: MetricDimension.PIPELINE_ID,
   },
   {
     id: String(MetricDimension.STATUS),
     label: "Status",
-    value: MetricDimension.STATUS,
   },
 ];
 

@@ -87,7 +87,6 @@ const ObservabilityRunsChart = () => {
         onSelect={handleSelect}
         isLoading={isLoading}
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
-        /* @dls-migrate barchart.fillHeight: Removed: give the parent a definite height (a `Grid` track or a `Box height`). */ fillHeight
       />
     </Flex>
   );

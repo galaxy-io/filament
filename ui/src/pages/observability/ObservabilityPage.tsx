@@ -62,7 +62,9 @@ const ObservabilityPage = () => {
               />
             </FlexItem>
           </Flex>
-          <ObservabilityRunsWidget />
+          <FlexItem fillWidth>
+            <ObservabilityRunsWidget />
+          </FlexItem>
         </Flex>
       </Flex>
     </ChartGroupProvider>
