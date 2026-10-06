@@ -1,6 +1,6 @@
 # Recipes
 
-Complete Galaxy screens built only from `@galaxy-io/dls`. Each one type-checks against the package (`pnpm skill:check` in the DLS repository). Data fetching, routing and persistence are stubbed with `declare` so the UI is what you read; replace them with the app's own.
+Complete Galaxy screens built only from `@galaxy-io/dls`. Each one type-checks against the package. Data fetching, routing and persistence are stubbed with `declare` so the UI is what you read; replace them with the app's own.
 
 The examples are written for `exactOptionalPropertyTypes`, so an optional prop that may be `undefined` is passed with a conditional spread (`{...(error ? { error } : {})}`). Without that compiler flag, `error={error}` works too.
 

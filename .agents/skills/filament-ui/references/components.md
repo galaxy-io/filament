@@ -6,7 +6,7 @@ Every module `@galaxy-io/dls` exports, grouped by job. For each: what it is for,
 
 - Import each module from its subpath; the default export is the component, named exports are its enums and types.
 - Shared conventions (sizes, variants, `color`, booleans, state triples, slots) are in [AGENTS.md](https://github.com/galaxy-io/dls/blob/main/AGENTS.md#component-conventions); tokens in [theming.md](./tokens.md); how to combine components in [patterns.md](./patterns.md).
-- Every example compiles against the current package (`pnpm skill:check`). Icons come from `@phosphor-icons/react`.
+- Every example compiles against the current package. Icons come from `@phosphor-icons/react`.
 
 **Contents:** [Layout](#layout) · [Typography](#typography) · [Actions](#actions) · [Forms](#forms) · [Data display](#data-display) · [Feedback](#feedback) · [Overlays](#overlays) · [Navigation](#navigation) · [Tables](#tables) · [Charts](#charts) · [Editor](#editor) · [Brand](#brand) · [Transforms](#transforms) · [Theme and setup](#theme-and-setup) · [Hooks and utils](#hooks-and-utils) · [Accessibility primitives](#accessibility-primitives) · [Low-level modules](#low-level-modules)
 

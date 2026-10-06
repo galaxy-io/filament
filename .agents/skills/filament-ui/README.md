@@ -6,7 +6,7 @@ The skill has two layers.
 
 | Layer | Files | Maintained |
 |---|---|---|
-| Design system | `references/components.md`, `tokens.md`, `patterns.md`, `recipes.md` | in the DLS repository (`~/git/dls/skills/galaxy-ui/references/`). Copied here by hand after a DLS release. Do not edit the copies. |
+| Design system | `references/components.md`, `tokens.md`, `patterns.md`, `recipes.md` | with `@galaxy-io/dls`. Updated with a DLS version bump. App conventions never go here. |
 | App | `SKILL.md`, `references/architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md` | here. They describe how Filament's `ui/src` is built and are updated with the code. |
 
 | File | What |
@@ -26,6 +26,6 @@ The skill has two layers.
 
 ## Keeping it current
 
-- After a DLS release, copy the four design-system references from `~/git/dls/skills/galaxy-ui/references/` into `references/`. Never `cp -R` the whole DLS skill folder over this one, that would overwrite `SKILL.md`.
+- When `@galaxy-io/dls` is bumped, update the four design-system references to match the new release.
 - When a convention in `ui/src` changes, change the app reference that describes it in the same pull request.
 - `.claude` at the repository root is a symlink to `.agents`, so Claude Code finds the skill at `.claude/skills/filament-ui` and git tracks it at `.agents/skills/filament-ui`.

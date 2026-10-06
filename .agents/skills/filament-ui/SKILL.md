@@ -11,7 +11,7 @@ Two layers of references live in this folder.
 
 | Layer | Files | Source of truth |
 |---|---|---|
-| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md` | generated from `~/git/dls/docs`, copied here after a DLS release |
+| The design system | `components.md`, `tokens.md`, `patterns.md`, `recipes.md` | `@galaxy-io/dls`, updated with a DLS version bump |
 | The app | `architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md` | Filament's `ui/src`, maintained here |
 
 When the two disagree, the app layer wins for Filament. The known case is run status marks, which are squares here and not `Beacon`s.
@@ -198,4 +198,4 @@ Roles are `t.color.background.{base primary secondary tertiary hovered pressed s
 | [references/patterns.md](./references/patterns.md) | DLS-wide UX guidance. Page structure, density, forms, tables, overlays, feedback, charts, writing, accessibility. |
 | [references/recipes.md](./references/recipes.md) | Complete DLS-only screens that type-check against the package. |
 
-Design system source: `~/git/dls` (Storybook with `pnpm storybook`). App source: `ui/src` in this repository.
+Design system: `@galaxy-io/dls`, with Storybook at [storybook.getgalaxy.io](https://storybook.getgalaxy.io). App source: `ui/src` in this repository.

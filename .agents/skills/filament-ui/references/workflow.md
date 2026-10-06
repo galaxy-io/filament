@@ -5,7 +5,7 @@ How a feature goes from a proto to a verified screen in Filament, and the comman
 ## 0. Start from what exists
 
 - Find the nearest existing screen in [screens.md](./screens.md) and open it. New screens copy an existing shape, they do not invent one.
-- Read the DLS stories for the components you plan to use when the layout is not obvious. `~/git/dls/src/**/<Component>.stories.tsx`, especially the `Example:` and `Do / Don't` stories. Decide the layout yourself from them.
+- Read the DLS stories for the components you plan to use when the layout is not obvious. They are on [storybook.getgalaxy.io](https://storybook.getgalaxy.io), especially the `Example:` and `Do / Don't` stories. Decide the layout yourself from them.
 - Check `ui/src/api/queries/` for the resource. If the RPC is already wrapped, reuse the hook.
 
 ## 1. Server and protos
