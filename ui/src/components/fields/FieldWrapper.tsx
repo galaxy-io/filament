@@ -1,7 +1,6 @@
 import type { PropsWithChildren } from "react";
 
-// @dls-migrate field.InputLabel: Wrap the control in `<Field label>` instead of rendering a label above it.
-import { InputLabel } from "@galaxy-io/dls/inputs/Input";
+import Field from "@galaxy-io/dls/inputs/Field";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
@@ -22,29 +21,31 @@ const FieldWrapper = ({
   isSection = false,
   children,
 }: PropsWithChildren<FieldWrapperProps>) => {
-  const errorText = error && (
-    <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-      {error}
-    </Text>
-  );
-
   if (isSection) {
     return (
       <Widget isCollapsible variant={WidgetVariant.PRIMARY} header={label} defaultIsOpen>
         <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
           {children}
-          {errorText}
+          {error && (
+            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+              {error}
+            </Text>
+          )}
         </Flex>
       </Widget>
     );
   }
 
   return (
-    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
-      <InputLabel label={label} labelTooltip={help || undefined} isRequired={isRequired} />
+    <Field
+      label={label}
+      labelTooltip={help || undefined}
+      isRequired={isRequired}
+      error={error}
+      fillWidth
+    >
       {children}
-      {errorText}
-    </Flex>
+    </Field>
   );
 };
 

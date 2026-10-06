@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
@@ -8,12 +8,12 @@ import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/GridBackground";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import Dropdown from "@galaxy-io/dls/dropdown/Dropdown";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import ToggleInput, { ToggleInputSize, type ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Popover from "@galaxy-io/dls/overlays/Popover";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { GalaxyTheme, Placement } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -34,7 +34,7 @@ import type { AppSession } from "@/auth/types";
 const MenuHeader = styled.div`
   width: 100%;
   background-color: ${t.color.background.primary};
-  border-radius: 5px 5px 0 0;
+  border-radius: ${t.radius.lg} ${t.radius.lg} 0 0;
   overflow: hidden;
 `;
 
@@ -97,6 +97,12 @@ const MenuItem = styled.button`
   }
 `;
 
+const MAIN_LAYOUT_SETTINGS_THEME_OPTIONS: ToggleOption<GalaxyTheme>[] = [
+  { id: GalaxyTheme.LIGHT, label: "Light" },
+  { id: GalaxyTheme.DARK, label: "Dark" },
+  { id: GalaxyTheme.SYSTEM, label: "System" },
+];
+
 const memberDisplayName = (member: { name?: string; email?: string }): string =>
   member.name || member.email || "Member";
 
@@ -112,8 +118,8 @@ interface MainLayoutSettingsButtonMenuProps {
   onOpenServiceAccounts: () => void;
   onOpenInvite: () => void;
   onLogout: () => void;
-  themeItems: ToggleOption[];
   selectedTheme: GalaxyTheme;
+  onThemeChange: (theme: GalaxyTheme) => void;
 }
 
 const MainLayoutSettingsButtonMenu = ({
@@ -128,10 +134,9 @@ const MainLayoutSettingsButtonMenu = ({
   onOpenServiceAccounts,
   onOpenInvite,
   onLogout,
-  themeItems,
   selectedTheme,
+  onThemeChange,
 }: MainLayoutSettingsButtonMenuProps) => {
-  const { theme } = useGalaxyTheme();
   const displayRole = role === undefined ? undefined : roleLabel(role);
   const shouldShowInvite = canManageTeam || isTeamActionsPending;
 
@@ -140,18 +145,10 @@ const MainLayoutSettingsButtonMenu = ({
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.STRETCH}
       overflow="hidden"
-      fillWidth
+      width={260}
     >
       <MenuHeader>
-        <GridBackground
-          size={GridBackgroundSize.X_SMALL}
-          /* @dls-migrate gridbackground.backgroundColor: Put the grid in a `Box` with the surface `variant` (`<Box variant={BoxVariant.BASE}>` for the 1.x default). */ backgroundColor={
-            theme.color.background.primary
-          }
-          /* @dls-migrate gridbackground.fillContainer-false: GridBackground always fills its parent: size the parent instead. */ fillContainer={
-            false
-          }
-        >
+        <GridBackground size={GridBackgroundSize.X_SMALL}>
           <Flex
             direction={FlexDirection.COLUMN}
             alignItems={AlignItems.CENTER}
@@ -202,43 +199,30 @@ const MainLayoutSettingsButtonMenu = ({
         </GridBackground>
       </MenuHeader>
       <Divider />
-      <Flex
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.STRETCH}
-        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
-        fillWidth
-      >
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
         <MenuItem type="button" onClick={onOpenTeamSettings}>
-          <FlexItem
+          <Flex
             width={16}
             height={16}
             shrink={0}
-            /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
-              AlignItems.CENTER
-            }
-            /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
-              JustifyContent.CENTER
-            }
+            alignItems={AlignItems.CENTER}
+            justifyContent={JustifyContent.CENTER}
           >
             <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
-          </FlexItem>
+          </Flex>
           <Text>Manage organization</Text>
         </MenuItem>
         {canManageTeam && (
           <MenuItem type="button" onClick={onOpenServiceAccounts}>
-            <FlexItem
+            <Flex
               width={16}
               height={16}
               shrink={0}
-              /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
-                AlignItems.CENTER
-              }
-              /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
-                JustifyContent.CENTER
-              }
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.CENTER}
             >
               <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
-            </FlexItem>
+            </Flex>
             <Text>Service accounts</Text>
           </MenuItem>
         )}
@@ -249,23 +233,19 @@ const MainLayoutSettingsButtonMenu = ({
           <Flex
             direction={FlexDirection.COLUMN}
             alignItems={AlignItems.STRETCH}
-            /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
+            padding={4}
             fillWidth
           >
             <MenuItem type="button" onClick={onOpenInvite} disabled={isTeamActionsPending}>
-              <FlexItem
+              <Flex
                 width={16}
                 height={16}
                 shrink={0}
-                /* @dls-migrate flexitem.alignItems: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ alignItems={
-                  AlignItems.CENTER
-                }
-                /* @dls-migrate flexitem.justifyContent: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */ justifyContent={
-                  JustifyContent.CENTER
-                }
+                alignItems={AlignItems.CENTER}
+                justifyContent={JustifyContent.CENTER}
               >
                 <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
-              </FlexItem>
+              </Flex>
               <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
             </MenuItem>
           </Flex>
@@ -275,14 +255,17 @@ const MainLayoutSettingsButtonMenu = ({
       <Flex
         alignItems={AlignItems.CENTER}
         justifyContent={JustifyContent.SPACE_BETWEEN}
-        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
-          6
-        }
-        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px"
+        gap={8}
+        padding={4}
         fillWidth
       >
         <FlexItem shrink={0} minWidth={0}>
-          <ToggleInput options={themeItems} value={selectedTheme} size={ToggleInputSize.SMALL} />
+          <ToggleInput
+            options={MAIN_LAYOUT_SETTINGS_THEME_OPTIONS}
+            value={selectedTheme}
+            onChange={onThemeChange}
+            size={ToggleInputSize.SMALL}
+          />
         </FlexItem>
         <Button
           label="Logout"
@@ -314,31 +297,6 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const profileName =
     (currentMember ? memberDisplayName(currentMember) : session.name || session.email) ?? "Member";
   const profileEmail = currentMember?.email || session.email;
-
-  const themeItems = useMemo<ToggleOption[]>(
-    () => [
-      {
-        id: GalaxyTheme.LIGHT,
-        label: "Light",
-        onClick: () => setTheme(GalaxyTheme.LIGHT),
-      },
-      {
-        id: GalaxyTheme.DARK,
-        label: "Dark",
-        onClick: () => setTheme(GalaxyTheme.DARK),
-      },
-      {
-        id: GalaxyTheme.SYSTEM,
-        label: "System",
-        onClick: () => setTheme(GalaxyTheme.SYSTEM),
-      },
-    ],
-    [setTheme],
-  );
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-  }, []);
 
   const handleOpenSettings = useCallback(
     (panel: SettingsPanel, teamView?: TeamSettingsView) => {
@@ -375,19 +333,10 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   }, [signOut]);
 
   return (
-    <Dropdown
+    <Popover
       placement={Placement.BOTTOM_END}
-      /* @dls-migrate dropdown.minWidth: Size the `body` content, or use `shouldMatchTriggerWidth` / the trigger's own `fillWidth`. */ minWidth={
-        260
-      }
-      /* @dls-migrate dropdown.maxWidth: Size the `body` content, or use `shouldMatchTriggerWidth` / the trigger's own `fillWidth`. */ maxWidth={
-        260
-      }
-      /* @dls-migrate dropdown.noPadding: A panel that hosts its own layout is a `Popover`. */ noPadding
       isOpen={isOpen}
-      /* @dls-migrate dropdown.onClose: A controlled 2.0 Dropdown also asks to open from its trigger: switch to `onOpenChange` and remove the trigger's own toggle. */ onClose={
-        handleClose
-      }
+      onOpenChange={setIsOpen}
       body={
         <MainLayoutSettingsButtonMenu
           name={profileName}
@@ -401,21 +350,15 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
           onOpenServiceAccounts={handleOpenServiceAccounts}
           onOpenInvite={handleOpenInvite}
           onLogout={handleLogout}
-          themeItems={themeItems}
           selectedTheme={selectedTheme}
+          onThemeChange={setTheme}
         />
       }
     >
-      <AvatarButton
-        type="button"
-        title="Account settings"
-        onClick={() => {
-          setIsOpen((isDropdownOpen) => !isDropdownOpen);
-        }}
-      >
+      <AvatarButton type="button" title="Account settings">
         <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
       </AvatarButton>
-    </Dropdown>
+    </Popover>
   );
 };
 

@@ -33,6 +33,7 @@ const PipelineLayoutNavbarBackButton = () => {
         variant={ButtonVariant.SECONDARY}
         size={ButtonSize.SMALL}
         icon={ArrowLeftIcon}
+        ariaLabel="Back to pipelines"
         onClick={handleBack}
       />
     </PipelineLayoutNavbarBackButtonWrapper>

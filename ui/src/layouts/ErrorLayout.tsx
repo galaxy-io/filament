@@ -39,9 +39,7 @@ const ErrorLayout = ({
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
-        LAYOUT_SIZE_TO_GAP_MAP[size]
-      }
+      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
       <Icon
         component={icon}

@@ -10,7 +10,7 @@ import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-import InfiniteTable, { ColumnAlign } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -109,8 +109,7 @@ const memberColumns = ({
     {
       id: "role",
       header: "",
-      // @dls-migrate infinitetable.ColumnAlign: Removed: use the 2.0 replacement where the value is passed around.
-      align: ColumnAlign.RIGHT,
+      align: "right",
       size: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
       enableSorting: false,
       cellLoading: () => (

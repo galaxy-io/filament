@@ -1,4 +1,4 @@
-import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -22,17 +22,14 @@ export const PIPELINES_TABLE_RECENT_RUNS_STATUSES: RunStatus[] = [
   RunStatus.PARTIAL,
 ];
 
-export const PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP: Record<
-  RunStatus,
-  (theme: Theme) => string
-> = {
-  [RunStatus.UNSPECIFIED]: (theme) => theme.color.border.primary,
-  [RunStatus.REQUESTED]: (theme) => theme.color.icon.orange,
-  [RunStatus.RUNNING]: (theme) => theme.color.icon.blue,
-  [RunStatus.COMPLETED]: (theme) => theme.color.icon.success,
-  [RunStatus.FAILED]: (theme) => theme.color.icon.error,
-  [RunStatus.CANCELED]: (theme) => theme.color.icon.secondary,
-  [RunStatus.PAUSED]: (theme) => theme.color.icon.teal,
-  [RunStatus.PARTIAL]: (theme) => theme.color.icon.pink,
-  [RunStatus.SCHEDULED]: (theme) => theme.color.icon.yellow,
+export const PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP: Record<RunStatus, string> = {
+  [RunStatus.UNSPECIFIED]: t.color.border.primary,
+  [RunStatus.REQUESTED]: t.color.text.orange,
+  [RunStatus.RUNNING]: t.color.text.blue,
+  [RunStatus.COMPLETED]: t.color.text.success,
+  [RunStatus.FAILED]: t.color.text.error,
+  [RunStatus.CANCELED]: t.color.text.secondary,
+  [RunStatus.PAUSED]: t.color.text.teal,
+  [RunStatus.PARTIAL]: t.color.text.pink,
+  [RunStatus.SCHEDULED]: t.color.text.yellow,
 };

@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
-import InfiniteTable, { ColumnAlign } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
@@ -155,8 +155,7 @@ const createRunTableColumns = (
     id: "volume",
     header: "Volume",
     size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-    // @dls-migrate infinitetable.ColumnAlign: Removed: use the 2.0 replacement where the value is passed around.
-    align: ColumnAlign.RIGHT,
+    align: "right",
     cellLoading: () => (
       <Box width={52}>
         <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */

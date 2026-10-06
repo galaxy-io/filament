@@ -5,6 +5,7 @@ import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { Placement } from "@galaxy-io/dls/theme/enums";
@@ -63,7 +64,14 @@ const PipelineLayoutNavbarRunButton = ({
     >
       <Button
         label="Run"
-        icon={PlayIcon}
+        leading={
+          <Icon
+            component={PlayIcon}
+            size={12}
+            weight={IconWeight.FILL}
+            variant={IconVariant.INHERIT}
+          />
+        }
         variant={ButtonVariant.PRIMARY}
         size={ButtonSize.SMALL}
         isLoading={isRunning}
@@ -106,7 +114,14 @@ const PipelineLayoutNavbarRunButton = ({
               )}
               <Button
                 label="Run custom"
-                icon={PlayIcon}
+                leading={
+                  <Icon
+                    component={PlayIcon}
+                    size={12}
+                    weight={IconWeight.FILL}
+                    variant={IconVariant.INHERIT}
+                  />
+                }
                 variant={ButtonVariant.PRIMARY}
                 size={ButtonSize.SMALL}
                 isLoading={isRunning}
@@ -115,12 +130,10 @@ const PipelineLayoutNavbarRunButton = ({
                   onRun(parsed.configuration);
                   close();
                 }}
-                /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
               />
             </Flex>
           </PipelineLayoutNavbarRunButtonDropdown>
         )}
-        /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
       />
     </Tooltip>
   );

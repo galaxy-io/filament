@@ -10,20 +10,18 @@ import {
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Dropdown, { DropdownPosition } from "@galaxy-io/dls/dropdown/Dropdown";
+import Dropdown from "@galaxy-io/dls/dropdown/Dropdown";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  TableVariant,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import { FontFamily, Placement } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
 
@@ -55,7 +53,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import type { AppSession } from "@/auth/types";
 import { getErrorMessage } from "@/utils/errors";
 
-const ActionsMenuItem = withTheme(styled.button<PropsWithTheme>`
+const ActionsMenuItem = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -64,20 +62,20 @@ const ActionsMenuItem = withTheme(styled.button<PropsWithTheme>`
   padding: 6px 8px;
   border: 0;
   border-radius: 4px;
-  color: ${({ theme }) => theme.color.text.primary};
+  color: ${t.color.text.primary};
   background: transparent;
   text-align: left;
   cursor: pointer;
 
   &:hover,
   &:focus-visible {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.tertiary};
   }
 
   &:focus-visible {
-    outline: 1px solid ${({ theme }) => theme.color.border.secondary};
+    outline: 1px solid ${t.color.border.secondary};
   }
-`);
+`;
 
 interface SettingsServiceAccountsPanelProps {
   session: AppSession;
@@ -130,35 +128,42 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
     accountConfirm.handleOpen(account);
   };
 
-  const columns: ColumnDef<ServiceAccount>[] = [
+  const columns: TableColumn<ServiceAccount>[] = [
     {
       id: "name",
       header: "Service account",
-      accessorFn: (account) => account.name,
-      enableSorting: false,
-      cellLoading: () => <TextShimmer width={120} height={16} />,
+      accessor: (account) => account.name,
+      canSort: false,
+      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={10} fillWidth minWidth={0}>
+        <Flex
+          alignItems={
+            AlignItems.CENTER
+          } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
+          gap={10}
+          fillWidth
+          minWidth={0}
+        >
           <FlexItem shrink={0}>
             <Beacon variant={BeaconVariant.SUCCESS} />
           </FlexItem>
           <FlexItem grow={1} minWidth={0}>
-            <Text weight={TextWeight.MEDIUM} isEllipsis>
+            <Text weight={TextWeight.MEDIUM} lineClamp={1}>
               {row.original.name}
             </Text>
           </FlexItem>
-        </FlexWrapper>
+        </Flex>
       ),
     },
     {
       id: "clientId",
       header: "Client ID",
-      accessorFn: (account) => account.clientId,
-      size: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
-      enableSorting: false,
-      cellLoading: () => <TextShimmer width={140} height={16} />,
+      accessor: (account) => account.clientId,
+      width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
+      canSort: false,
+      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => (
-        <Text variant={TextVariant.SECONDARY} isMonospace isEllipsis>
+        <Text variant={TextVariant.SECONDARY} family={FontFamily.MONO} lineClamp={1}>
           {row.original.clientId}
         </Text>
       ),
@@ -166,30 +171,34 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
     {
       id: "role",
       header: "Permissions",
-      size: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
-      enableSorting: false,
-      cellLoading: () => <TextShimmer width={60} height={16} />,
+      width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
+      canSort: false,
+      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => <Text>{serviceAccountRoleLabel(row.original.role)}</Text>,
     },
     {
       id: "actions",
       header: "",
-      align: ColumnAlign.RIGHT,
-      size: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ACTIONS,
-      enableSorting: false,
-      cellLoading: () => null,
+      align: "right",
+      width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ACTIONS,
+      canSort: false,
+      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => (
         <Dropdown
-          position={DropdownPosition.RIGHT_START}
-          minWidth={SETTINGS_SERVICE_ACCOUNTS_ACTIONS_DROPDOWN_WIDTH}
-          noPadding
+          placement={Placement.RIGHT_START}
+          /* @dls-migrate dropdown.minWidth: Size the `body` content, or use `shouldMatchTriggerWidth` / the trigger's own `fillWidth`. */ minWidth={
+            SETTINGS_SERVICE_ACCOUNTS_ACTIONS_DROPDOWN_WIDTH
+          }
+          /* @dls-migrate dropdown.noPadding: A panel that hosts its own layout is a `Popover`. */ noPadding
           isOpen={openActionsFor === row.original.userId}
-          onClose={() => setOpenActionsFor(undefined)}
+          /* @dls-migrate dropdown.onClose: A controlled 2.0 Dropdown also asks to open from its trigger: switch to `onOpenChange` and remove the trigger's own toggle. */ onClose={() =>
+            setOpenActionsFor(undefined)
+          }
           body={
-            <FlexWrapper
+            <Flex
               direction={FlexDirection.COLUMN}
               alignItems={AlignItems.STRETCH}
-              padding="4px"
+              padding={4}
               fillWidth
             >
               <ActionsMenuItem
@@ -213,10 +222,10 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
                 <Icon component={TrashIcon} size={16} variant={IconVariant.SECONDARY} />
                 <Text>Delete</Text>
               </ActionsMenuItem>
-            </FlexWrapper>
+            </Flex>
           }
         >
-          <Tooltip body={`Actions for ${row.original.name}`} position={TooltipPosition.BOTTOM}>
+          <Tooltip body={`Actions for ${row.original.name}`} placement={Placement.BOTTOM}>
             <Button
               icon={DotsThreeVerticalIcon}
               variant={ButtonVariant.TERTIARY}
@@ -258,30 +267,28 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
             : undefined
         }
       >
-        <FlexWrapper grow={1} basis={0} minHeight={0} fillWidth>
-          <InfiniteTable<ServiceAccount>
-            columns={columns}
-            data={accountsQuery.data?.serviceAccounts ?? []}
-            getRowId={(account) => account.userId}
-            isLoading={accountsQuery.isLoading}
-            loadingRowCount={SETTINGS_SERVICE_ACCOUNTS_TABLE_LOADING_ROW_COUNT}
-            contentWhenEmpty={
-              <EmptyLayout
-                header="No service accounts yet"
-                message="Create one to give CLI, CI, and automation access to your organization."
-              />
-            }
-            variant={TableVariant.BASE}
-            fillWidth
-            fillHeight
-          />
-        </FlexWrapper>
+        <Flex alignItems={AlignItems.START} grow={1} basis={0} minHeight={0} fillWidth>
+          <Box variant={BoxVariant.BASE} height="100%">
+            <InfiniteTable<ServiceAccount>
+              columns={columns}
+              data={accountsQuery.data?.serviceAccounts ?? []}
+              getRowId={(account) => account.userId}
+              isLoading={accountsQuery.isLoading}
+              emptyState={
+                <EmptyLayout
+                  header="No service accounts yet"
+                  message="Create one to give CLI, CI, and automation access to your organization."
+                />
+              }
+            />
+          </Box>
+        </Flex>
         {displayError && (
-          <FlexWrapper padding="16px" fillWidth>
+          <Flex alignItems={AlignItems.START} padding={16} fillWidth>
             <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
               {displayError}
             </Text>
-          </FlexWrapper>
+          </Flex>
         )}
       </SettingsPanelLayout>
       {isCreateOpen && (

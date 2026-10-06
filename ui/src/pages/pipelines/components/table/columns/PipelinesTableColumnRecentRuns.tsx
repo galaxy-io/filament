@@ -5,15 +5,10 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
-// @dls-migrate chartgroupprovider.internals: Chart internals are not app API in 2.0: compose the public charts instead.
-import {
-  ChartTooltipGrid,
-  ChartTooltipLabelCell,
-  ChartTooltipValueCell,
-} from "@galaxy-io/dls/charts/ChartPrimitives";
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Grid, { GridAlignItems } from "@galaxy-io/dls/layout/Grid";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
@@ -52,14 +47,13 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   }
 `;
 
-// @dls-migrate tokens.dynamic: The codemod only rewrites static token paths: rewrite this theme access by hand.
 const PipelinesTableRecentRunSquare = styled.div<{ $status?: RunStatus; $isClickable?: boolean }>`
   width: 10px;
   height: 10px;
   border-radius: 2px;
   cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
-  background: ${({ theme, $status = RunStatus.UNSPECIFIED }) =>
-    PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP[$status](theme)};
+  background: ${({ $status = RunStatus.UNSPECIFIED }) =>
+    PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP[$status]};
 `;
 
 const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
@@ -80,22 +74,23 @@ const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
             {run.error}
           </Text>
         ) : (
-          <ChartTooltipGrid>
+          <Grid
+            columns="minmax(0, 1fr) auto"
+            gap={[4, 16]}
+            alignItems={GridAlignItems.CENTER}
+            fillWidth
+          >
             {rows.map((row) => (
               <Fragment key={row.label}>
-                <ChartTooltipLabelCell>
-                  <Text size={TextSize.BODY_SM} lineClamp={1}>
-                    {row.label}
-                  </Text>
-                </ChartTooltipLabelCell>
-                <ChartTooltipValueCell>
-                  <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} align="right">
-                    {row.value}
-                  </Text>
-                </ChartTooltipValueCell>
+                <Text size={TextSize.BODY_SM} lineClamp={1}>
+                  {row.label}
+                </Text>
+                <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} align="right">
+                  {row.value}
+                </Text>
               </Fragment>
             ))}
-          </ChartTooltipGrid>
+          </Grid>
         )}
       </Flex>
     </Box>
@@ -136,9 +131,7 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
   if (isLoading) {
     return (
       <Box width={136}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={18}
-        />
+        <Skeleton size={SkeletonSize.X_SMALL} />
       </Box>
     );
   }
@@ -158,9 +151,6 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
                   PIPELINE_RUN_STATUS_TO_LABEL_MAP[run.status]
                 )
               }
-              /* @dls-migrate tooltip.isInteractive: Every tooltip is hoverable now; a bubble with its own layout is a `Popover`. */ isInteractive={Boolean(
-                run.error,
-              )}
             >
               <PipelinesTableRecentRunSquare
                 $status={run.status}

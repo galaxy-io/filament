@@ -13,6 +13,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
@@ -39,10 +40,7 @@ import {
 
 import PipelineName from "@/components/PipelineName";
 
-import {
-  PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
-} from "@/layouts/pipeline/constants";
+import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
@@ -199,7 +197,6 @@ const PipelineLayoutNavbar = () => {
       versions.map((version) => ({
         id: version.version.toString(),
         label: `Version ${version.version.toString()}`,
-        value: version.version,
       })),
     [versions],
   );
@@ -209,8 +206,7 @@ const PipelineLayoutNavbar = () => {
   const isPreview = previewVersion !== null;
   const hasUnsavedChanges = !isPreview && hasChanges;
 
-  const selectedVersionOption =
-    versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
+  const selectedVersionId = (previewVersion ?? latestVersion)?.toString() ?? null;
 
   const handlePreviewVersionChange = (nextVersion: PipelineVersion["version"] | null) => {
     void navigate({
@@ -223,8 +219,9 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleVersionChange = (option: SelectOption) => {
-    const version = option.value as PipelineVersion["version"];
+  const handleVersionChange = (versionId: string | null) => {
+    const version = versions.find((item) => item.version.toString() === versionId)?.version;
+    if (version === undefined) return;
     handlePreviewVersionChange(version === latestVersion ? null : version);
   };
 
@@ -313,9 +310,7 @@ const PipelineLayoutNavbar = () => {
           <FlexItem shrink={0}>
             <SelectInput
               options={versionOptions}
-              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                selectedVersionOption
-              }
+              value={selectedVersionId}
               onChange={handleVersionChange}
               size={SelectInputSize.SMALL}
               isDisabled={hasUnsavedChanges}
@@ -390,23 +385,35 @@ const PipelineLayoutNavbar = () => {
                   />
                   <Button
                     label={isResuming ? "Resume" : "Pause"}
-                    icon={isResuming ? PlayIcon : PauseIcon}
+                    leading={
+                      <Icon
+                        component={isResuming ? PlayIcon : PauseIcon}
+                        size={12}
+                        weight={IconWeight.FILL}
+                        variant={IconVariant.INHERIT}
+                      />
+                    }
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping || isBlocked}
                     onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
-                    /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
                   />
                   <Button
                     label="Stop"
-                    icon={StopIcon}
+                    leading={
+                      <Icon
+                        component={StopIcon}
+                        size={12}
+                        weight={IconWeight.FILL}
+                        variant={IconVariant.INHERIT}
+                      />
+                    }
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping}
                     onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
-                    /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
                   />
                 </>
               )}

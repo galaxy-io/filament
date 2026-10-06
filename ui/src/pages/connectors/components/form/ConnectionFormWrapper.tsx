@@ -3,7 +3,6 @@ import type { PropsWithChildren } from "react";
 import { styled } from "@linaria/react";
 
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import { CREATE_CONNECTION_MODAL_HEIGHT } from "@/pages/connectors/constants";
 
@@ -11,7 +10,7 @@ interface ConnectionFormWrapperProps {
   width: number;
 }
 
-const Wrapper = styled.div<PropsWithTheme & { $width: number }>`
+const Wrapper = styled.div<{ $width: number }>`
   display: flex;
   flex-direction: column;
 

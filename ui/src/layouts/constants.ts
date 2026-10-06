@@ -1,10 +1,11 @@
 import { TextSize } from "@galaxy-io/dls/text/Text";
+import type { Space } from "@galaxy-io/dls/theme/enums";
 
 import { LayoutSize } from "@/layouts/types";
 
-export const LAYOUT_SIZE_TO_GAP_MAP: Record<LayoutSize, number> = {
+export const LAYOUT_SIZE_TO_GAP_MAP: Record<LayoutSize, Space> = {
   [LayoutSize.SMALL]: 12,
-  [LayoutSize.MEDIUM]: 20,
+  [LayoutSize.MEDIUM]: 16,
   [LayoutSize.LARGE]: 24,
 };
 

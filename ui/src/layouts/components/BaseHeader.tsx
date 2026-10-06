@@ -7,6 +7,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import type { Space } from "@galaxy-io/dls/theme/enums";
 
 export enum BaseHeaderSize {
   SMALL = "SMALL",
@@ -35,7 +36,7 @@ const BASE_HEADER_SIZE_TO_ICON_SIZE_MAP: Record<BaseHeaderSize, number> = {
   [BaseHeaderSize.LARGE]: 20,
 };
 
-const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, number> = {
+const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, Space> = {
   [BaseHeaderSize.SMALL]: 8,
   [BaseHeaderSize.MEDIUM]: 12,
   [BaseHeaderSize.LARGE]: 16,
@@ -71,9 +72,7 @@ const BaseHeader = ({
       <TitleWrapper>
         <Flex
           alignItems={AlignItems.CENTER}
-          /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ gap={
-            BASE_HEADER_SIZE_TO_GAP_MAP[size]
-          }
+          gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}
           minWidth={0}
           fillWidth
         >
@@ -107,6 +106,7 @@ const BaseHeader = ({
         {onClose && (
           <Button
             icon={XIcon}
+            ariaLabel="Close"
             variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
             onClick={onClose}

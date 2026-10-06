@@ -34,9 +34,7 @@ const BaseToolbar = ({ leadingActions, trailingActions, noPadding }: BaseToolbar
       overflow="scroll"
       gap={8}
       fillWidth
-      /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding={
-        noPadding ? "0" : "8px 12px"
-      }
+      padding={noPadding ? 0 : [8, 12]}
     >
       <LeadingWrapper>{leadingActions}</LeadingWrapper>
       {hasTrailingActions && <TrailingWrapper>{trailingActions}</TrailingWrapper>}
