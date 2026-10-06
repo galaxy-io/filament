@@ -30,7 +30,7 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
   const { connector, connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
   const { state, dispatch } = useConnectionFormContext();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const { mutate: createConnection } = useCreateConnectionMutation();
 
@@ -52,10 +52,10 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
       }),
       {
         onSuccess: (response) => {
-          showToast({
+          toast({
             variant: ToastVariant.SUCCESS,
             header: "Connection created",
-            subheader: `${name} has been created successfully.`,
+            description: `${name} has been created successfully.`,
           });
 
           if (response.connection?.id) {
@@ -74,15 +74,15 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
             type: ConnectionFormActionType.SET_PHASE,
             payload: ConnectionFormPhase.ERROR,
           });
-          showToast({
+          toast({
             variant: ToastVariant.ERROR,
             header: "Creation failed",
-            subheader: getErrorMessage(error, "Creation failed"),
+            description: getErrorMessage(error, "Creation failed"),
           });
         },
       },
     );
-  }, [state.name, state.config, connector, kind, createConnection, showToast, navigate, dispatch]);
+  }, [state.name, state.config, connector, kind, createConnection, toast, navigate, dispatch]);
 
   const handleConnectionChange = useCallback(
     (version: string) => {

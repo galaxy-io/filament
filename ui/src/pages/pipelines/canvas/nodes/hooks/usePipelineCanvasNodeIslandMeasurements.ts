@@ -12,7 +12,7 @@ export const usePipelineCanvasNodeIslandMeasurements = (hiddenHandleIds: string[
   const updateNodeInternals = useUpdateNodeInternals();
   const { getZoom } = useReactFlow();
   const listRef = useRef<HTMLDivElement>(null);
-  const badgeRef = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLElement>(null);
 
   const publishMeasurements = () => {
     const listElement = listRef.current;

@@ -1,22 +1,4 @@
-import { styled } from "@linaria/react";
-
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-
-const LeadingWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const TrailingWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-`;
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 interface BaseToolbarProps {
   leadingActions: React.ReactNode[];
@@ -28,17 +10,30 @@ const BaseToolbar = ({ leadingActions, trailingActions, noPadding }: BaseToolbar
   const hasTrailingActions = trailingActions && trailingActions.length > 0;
 
   return (
-    <FlexWrapper
+    <Flex
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.SPACE_BETWEEN}
       overflow="scroll"
       gap={8}
       fillWidth
-      padding={noPadding ? "0" : "8px 12px"}
+      padding={noPadding ? 0 : [8, 12]}
     >
-      <LeadingWrapper>{leadingActions}</LeadingWrapper>
-      {hasTrailingActions && <TrailingWrapper>{trailingActions}</TrailingWrapper>}
-    </FlexWrapper>
+      <Flex
+        direction={FlexDirection.COLUMN}
+        gap={4}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+      >
+        {leadingActions}
+      </Flex>
+      {hasTrailingActions && (
+        <Flex alignItems={AlignItems.CENTER} gap={8} shrink={0}>
+          {trailingActions}
+        </Flex>
+      )}
+    </Flex>
   );
 };
 

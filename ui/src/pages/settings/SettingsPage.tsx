@@ -1,20 +1,16 @@
 import { useCallback, useEffect } from "react";
 
-import { styled } from "@linaria/react";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import VerticalDivider from "@galaxy-io/dls/dividers/VerticalDivider";
-import Modal from "@galaxy-io/dls/modal/Modal";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
+import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
+import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 
 import { Flow } from "@/layouts/app/types";
-import BaseHeader from "@/layouts/components/BaseHeader";
 
-import { SETTINGS_PAGE_INSET } from "@/pages/settings/constants";
 import SettingsPreferencesPanel from "@/pages/settings/panels/preferences/SettingsPreferencesPanel";
 import SettingsServiceAccountsPanel from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanel";
 import SettingsTeamPanel from "@/pages/settings/panels/team/SettingsTeamPanel";
@@ -24,43 +20,32 @@ import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
+import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
+
 import type { AppSession } from "@/auth/types";
-
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-  width: calc(100vw - ${SETTINGS_PAGE_INSET}px);
-  height: calc(100vh - ${SETTINGS_PAGE_INSET}px);
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 8px;
-  overflow: hidden;
-`);
-
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
 
 interface SettingsPageContentProps {
   session: AppSession;
-  onClose: () => void;
+  panel: SettingsPanel;
+  isOpen: boolean;
   onInviteTeam: () => void;
 }
 
-const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageContentProps) => {
+const SettingsPageContent = ({
+  session,
+  panel,
+  isOpen,
+  onInviteTeam,
+}: SettingsPageContentProps) => {
   const navigate = useNavigate();
-  const { settings = SettingsPanel.TEAM } = useSearch({ from: "/_app" });
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
   });
   const canManageTeam = membersQuery.data?.canManage;
   const activePanel =
-    settings === SettingsPanel.SERVICE_ACCOUNTS && canManageTeam === false
+    panel === SettingsPanel.SERVICE_ACCOUNTS && canManageTeam === false
       ? SettingsPanel.TEAM
-      : settings;
+      : panel;
 
   const handlePanelChange = useCallback(
     (panel: SettingsPanel) => {
@@ -78,10 +63,10 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
   );
 
   useEffect(() => {
-    if (activePanel !== settings) {
+    if (isOpen && activePanel !== panel) {
       handlePanelChange(activePanel);
     }
-  }, [activePanel, handlePanelChange, settings]);
+  }, [activePanel, handlePanelChange, isOpen, panel]);
 
   const renderPanel = () =>
     match(activePanel)
@@ -95,31 +80,32 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
       .exhaustive();
 
   return (
-    <PageWrapper>
-      <FlexWrapper padding="16px">
-        <BaseHeader title="Settings" onClose={onClose} />
-      </FlexWrapper>
-      <HorizontalDivider />
-      <BodyWrapper>
-        <SettingsPageSidebar
-          session={session}
-          activePanel={activePanel}
-          canManageTeam={canManageTeam}
-          onPanelChange={handlePanelChange}
-        />
-        <VerticalDivider />
-        <FlexWrapper
-          direction={FlexDirection.COLUMN}
-          alignItems={AlignItems.STRETCH}
-          grow={1}
-          basis={0}
-          minWidth={0}
-          overflow="hidden"
-        >
-          {renderPanel()}
-        </FlexWrapper>
-      </BodyWrapper>
-    </PageWrapper>
+    <Flex
+      height="100%"
+      minHeight={0}
+      variant={FlexVariant.PRIMARY}
+      hasBorder
+      radius={Radius.LG}
+      overflow="hidden"
+    >
+      <SettingsPageSidebar
+        session={session}
+        activePanel={activePanel}
+        canManageTeam={canManageTeam}
+        onPanelChange={handlePanelChange}
+      />
+      <Divider orientation={Orientation.VERTICAL} />
+      <Flex
+        direction={FlexDirection.COLUMN}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+        variant={FlexVariant.BASE}
+      >
+        {renderPanel()}
+      </Flex>
+    </Flex>
   );
 };
 
@@ -129,6 +115,7 @@ const SettingsPage = () => {
   const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;
+  const settingsPanel = useRetainedWhileClosed(settings ?? SettingsPanel.TEAM, isSettingsOpen);
   const isTeamViewOpen =
     isSettingsOpen &&
     (settings ?? SettingsPanel.TEAM) === SettingsPanel.TEAM &&
@@ -190,10 +177,21 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Modal open={isSettingsOpen} onClose={handleCloseSettings}>
+      <Modal
+        header="Settings"
+        size={ModalSize.X_LARGE}
+        isOpen={isSettingsOpen}
+        footer={
+          <Button label="Cancel" variant={ButtonVariant.SECONDARY} onClick={handleCloseSettings} />
+        }
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleCloseSettings();
+        }}
+      >
         <SettingsPageContent
           session={session}
-          onClose={handleCloseSettings}
+          panel={settingsPanel}
+          isOpen={isSettingsOpen}
           onInviteTeam={handleInviteTeam}
         />
       </Modal>

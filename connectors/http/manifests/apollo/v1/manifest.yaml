@@ -1,7 +1,7 @@
 version: 1
 name: apollo
 display_name: Apollo
-description: Read saved contacts, accounts, sequences, deals, and engagement data from Apollo.
+description: Sales intelligence and engagement platform that combines business contact data with prospecting and outreach tools to support go-to-market teams.
 api_version: v1
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-apollo-light.svg
@@ -89,7 +89,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: accounts
-    capture: { record_id: id }
+    capture: {record_id: id}
     path: /api/v1/accounts/search
     method: POST
     primary_key: ["id"]
@@ -147,7 +147,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: deals
-    capture: { record_id: id }
+    capture: {record_id: id}
     path: /api/v1/opportunities/search
     method: GET
     primary_key: ["id"]
@@ -177,7 +177,7 @@ resources:
           page_size: 100
           total_pages: pagination.total_pages
   - name: tasks
-    capture: { record_id: id }
+    capture: {record_id: id}
     path: /api/v1/tasks/search
     method: POST
     primary_key: ["id"]
@@ -601,7 +601,7 @@ resources:
     fields:
       contact_id: string
       events: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $
       cardinality: one
@@ -624,7 +624,7 @@ resources:
       video_recording: json?
       audio_recording: json?
       opportunities: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     response:
       records: $
       cardinality: one

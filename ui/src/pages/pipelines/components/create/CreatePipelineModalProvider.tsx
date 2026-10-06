@@ -31,7 +31,6 @@ import {
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import { PipelineScheduleFrequency } from "@/pages/pipelines/settings/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
@@ -53,7 +52,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   schedule: {
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     isEnabled: true,
-    frequency: PipelineScheduleFrequency.HOURLY,
+    cron: "0 * * * *",
   },
   notifiers: [],
   workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,

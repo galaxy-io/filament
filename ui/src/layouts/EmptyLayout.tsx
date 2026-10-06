@@ -1,61 +1,47 @@
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import type { ReactNode } from "react";
 
-import {
-  LAYOUT_SIZE_TO_GAP_MAP,
-  LAYOUT_SIZE_TO_HEADER_SIZE_MAP,
-  LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP,
-} from "@/layouts/constants";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+
+import EmptyState from "@galaxy-io/dls/feedback/EmptyState";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+
+import { LAYOUT_SIZE_TO_EMPTY_STATE_SIZE_MAP } from "@/layouts/constants";
 import { LayoutSize } from "@/layouts/types";
 
 interface EmptyLayoutProps {
   size?: LayoutSize;
-  icon?: React.ReactNode;
-  header?: string;
-  message?: string;
-  actions?: React.ReactNode;
+  icon?: PhosphorIcon;
+  graphic?: ReactNode;
+  header: string;
+  description?: string;
+  actions?: ReactNode;
 }
 
 const EmptyLayout = ({
   size = LayoutSize.MEDIUM,
   icon,
+  graphic,
   header,
-  message,
+  description,
   actions,
 }: EmptyLayoutProps) => {
+  const mark = graphic === undefined ? { icon } : { graphic };
+
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
-      direction={FlexDirection.COLUMN}
+      height="100%"
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
-      {icon}
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.CENTER}
-        gap={FlexGap.SMALL}
-      >
-        {header && (
-          <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
-            {header}
-          </Text>
-        )}
-        {message && (
-          <Text size={LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
-            {message}
-          </Text>
-        )}
-      </FlexWrapper>
-      {actions}
-    </FlexWrapper>
+      <EmptyState
+        {...mark}
+        size={LAYOUT_SIZE_TO_EMPTY_STATE_SIZE_MAP[size]}
+        header={header}
+        description={description}
+        actions={actions}
+      />
+    </Flex>
   );
 };
 

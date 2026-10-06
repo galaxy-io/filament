@@ -2,14 +2,14 @@ import { useMemo } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 
-import LineChart from "@galaxy-io/dls/charts/LineChart";
-import type {
-  ChartPalette,
-  ChartValueFormatter,
-  LineChartCurve,
-  LineChartLineDatum,
+import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
+import {
+  type ChartCurve,
+  type ChartPalette,
+  ChartSwatch,
+  type ChartValueFormatter,
 } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
@@ -26,7 +26,7 @@ import {
   useBucketLabelFormatter,
 } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 import { formatPipelineName } from "@/pages/pipelines/utils";
@@ -39,7 +39,7 @@ interface ObservabilityTimeseriesChartProps {
   metric: Metric;
   color: ChartPalette;
   pivot: MetricDimension | undefined;
-  curve: LineChartCurve;
+  curve: ChartCurve;
   valueFormatter?: ChartValueFormatter;
 }
 
@@ -74,7 +74,11 @@ const ObservabilityTimeseriesChart = ({
   });
 
   const { series, lines } = useMemo(() => {
-    const timeseries = data?.series ?? [];
+    const timeseries = (data?.series ?? []).filter(
+      (keySeries) =>
+        pivotDimension !== MetricDimension.STATUS ||
+        PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(keySeries.key) as RunStatus] !== null,
+    );
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
         pipeline.id,
@@ -94,7 +98,7 @@ const ObservabilityTimeseriesChart = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(key) as RunStatus] ?? undefined;
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[
@@ -126,9 +130,10 @@ const ObservabilityTimeseriesChart = ({
   }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"16px 12px"}
+      padding={[16, 12]}
       height={OBSERVABILITY_TIMESERIES_CHART_HEIGHT}
       fillWidth
     >
@@ -138,14 +143,12 @@ const ObservabilityTimeseriesChart = ({
         curve={curve}
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
-        tooltipMaxItems={8}
         isLoading={isLoading}
-        fillWidth
-        fillHeight
-        showGrid
-        showLegend
+        swatch={ChartSwatch.SQUARE}
+        hasLegend
+        isFilterable
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

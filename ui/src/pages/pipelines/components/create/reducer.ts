@@ -6,7 +6,6 @@ import {
   type CreatePipelineModalAction,
   CreatePipelineModalActionType,
   type GoToStepAction,
-  type OpenSinkResourcesAction,
   type RemoveNotifierAction,
   type SelectSourceAction,
   type SetActiveSinkAction,
@@ -25,10 +24,7 @@ import {
   type UpdateNotifierAction,
 } from "@/pages/pipelines/components/create/actions";
 import { CREATE_PIPELINE_MODAL_STEP_ORDER } from "@/pages/pipelines/components/create/constants";
-import {
-  type CreatePipelineModalState,
-  CreatePipelineModalStep,
-} from "@/pages/pipelines/components/create/types";
+import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
 function applyExecutionMode(
@@ -111,13 +107,6 @@ function setActiveSink(
   action: SetActiveSinkAction,
 ): CreatePipelineModalState {
   return { ...state, activeSinkId: action.payload };
-}
-
-function openSinkResources(
-  state: CreatePipelineModalState,
-  action: OpenSinkResourcesAction,
-): CreatePipelineModalState {
-  return { ...state, activeSinkId: action.payload, step: CreatePipelineModalStep.RESOURCES };
 }
 
 function setResourceSelection(
@@ -278,8 +267,6 @@ const createPipelineModalReducer = (
       return setExecutionMode(state, action);
     case CreatePipelineModalActionType.ADD_RESOURCE:
       return addResource(state, action);
-    case CreatePipelineModalActionType.OPEN_SINK_RESOURCES:
-      return openSinkResources(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_SELECTION:
       return setResourceSelection(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_READ_MODE:

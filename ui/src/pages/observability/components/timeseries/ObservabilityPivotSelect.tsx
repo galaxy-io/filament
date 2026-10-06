@@ -1,5 +1,5 @@
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 
 import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
@@ -14,27 +14,22 @@ interface ObservabilityPivotSelectProps {
 }
 
 const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectProps) => {
-  const selectedOption =
-    METRIC_DIMENSION_PIVOT_OPTIONS.find((option) => option.value === value) ?? null;
-
-  const handleChange = (option: SelectInputOption) => {
-    onChange(option.value as MetricDimension);
-  };
-
-  const handleReset = () => {
-    onChange(undefined);
+  const handleChange = (id: string | null) => {
+    onChange(id === null ? undefined : (Number(id) as MetricDimension));
   };
 
   return (
-    <SelectInput
-      options={METRIC_DIMENSION_PIVOT_OPTIONS}
-      value={selectedOption}
-      variant={InputVariant.TERTIARY}
-      onChange={handleChange}
-      onReset={handleReset}
-      placeholder="Pivot"
-      width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}
-    />
+    <Box width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}>
+      <SelectInput
+        fillWidth
+        options={METRIC_DIMENSION_PIVOT_OPTIONS}
+        value={value === undefined ? null : String(value)}
+        variant={SelectInputVariant.PRIMARY}
+        onChange={handleChange}
+        isClearable
+        placeholder="Pivot"
+      />
+    </Box>
   );
 };
 

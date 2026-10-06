@@ -2,15 +2,12 @@ import { useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  ColumnPin,
-  type Row,
-} from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import EmptyState from "@galaxy-io/dls/feedback/EmptyState";
+import Box from "@galaxy-io/dls/layout/Box";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -31,7 +28,6 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-  OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import {
@@ -92,39 +88,34 @@ const ObservabilityRunsTable = () => {
     options: { enabled: view === ObservabilityRunsView.UPCOMING },
   });
 
-  const columns = useMemo<ColumnDef<RunInfo>[]>(() => {
-    const baseColumns: ColumnDef<RunInfo>[] = [
+  const columns = useMemo<TableColumn<RunInfo>[]>(() => {
+    const baseColumns: TableColumn<RunInfo>[] = [
       {
         id: "status",
         header: "Status",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
-        pin: ColumnPin.LEFT,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={64} height={18} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
+        canSort: false,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus
-            status={row.original.status}
-            error={row.original.error}
-            executionStatus={row.original.executionStatus}
+            status={row.status}
+            error={row.error}
+            executionStatus={row.executionStatus}
           />
         ),
       },
       {
         id: "flow",
         header: "Flow",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
-        pin: ColumnPin.LEFT,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={120} height={18} />,
-        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row.original} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
+        canSort: false,
+        cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row} />,
       },
       {
         id: "pipeline",
         header: "Pipeline",
-        minSize: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={120} height={14} />,
-        cell: ({ row }) => <PipelineName pipelineId={row.original.pipelineId} />,
+        minWidth: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
+        canSort: false,
+        cell: ({ row }) => <PipelineName pipelineId={row.pipelineId} />,
       },
     ];
 
@@ -134,13 +125,11 @@ const ObservabilityRunsTable = () => {
         {
           id: "scheduledAt",
           header: "Scheduled",
-          size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
-          align: ColumnAlign.RIGHT,
-          enableSorting: false,
-          cellLoading: () => <TextShimmer width={100} height={14} />,
+          width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+          align: "right",
           cell: ({ row }) => (
-            <Text size={TextSize.BODY_SM} isEllipsis>
-              {formatTimestamp(row.original.scheduledAt)}
+            <Text size={TextSize.BODY_SM} lineClamp={1}>
+              {formatTimestamp(row.scheduledAt)}
             </Text>
           ),
         },
@@ -152,75 +141,63 @@ const ObservabilityRunsTable = () => {
       {
         id: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
         header: "Started",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
-        accessorFn: (run) => Number(run.startedAt),
-        enableSorting: true,
-        sortDescFirst: true,
-        cellLoading: () => <TextShimmer width={100} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+        accessor: (run) => Number(run.startedAt),
+        canSort: true,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isEllipsis>
-            {formatTimestamp(row.original.startedAt)}
+          <Text size={TextSize.BODY_SM} lineClamp={1}>
+            {formatTimestamp(row.startedAt)}
           </Text>
         ),
       },
       {
         id: "duration",
         header: "Duration",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={60} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isEllipsis>
-            {formatDuration(row.original.startedAt, row.original.endedAt)}
+          <Text size={TextSize.BODY_SM} lineClamp={1}>
+            {formatDuration(row.startedAt, row.endedAt)}
           </Text>
         ),
       },
       {
         id: "records",
         header: "Records",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={48} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
-            {formatCount(row.original.records)}
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+            {formatCount(row.records)}
           </Text>
         ),
       },
       {
         id: "volume",
         header: "Volume",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={52} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
-            {formatBytes(row.original.bytes)}
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+            {formatBytes(row.bytes)}
           </Text>
         ),
       },
       {
         id: "cpu",
         header: "CPU",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={48} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.cpuSeconds ? formatSeconds(row.original.cpuSeconds) : "—"}
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+            {row.cpuSeconds ? formatSeconds(row.cpuSeconds) : "—"}
           </Text>
         ),
       },
       {
         id: "memory",
         header: "Memory",
-        size: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
-        align: ColumnAlign.RIGHT,
-        enableSorting: false,
-        cellLoading: () => <TextShimmer width={52} height={14} />,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY,
+        align: "right",
         cell: ({ row }) => (
-          <Text size={TextSize.BODY_SM} isMonospace>
-            {row.original.memoryPeakBytes ? formatBytes(row.original.memoryPeakBytes) : "—"}
+          <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+            {row.memoryPeakBytes ? formatBytes(row.memoryPeakBytes) : "—"}
           </Text>
         ),
       },
@@ -241,8 +218,7 @@ const ObservabilityRunsTable = () => {
     [sortBy, sortOrder],
   );
 
-  const handleSortingChange: ObservabilityRunsTableSortingChange = (updater) => {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
+  const handleSortingChange: ObservabilityRunsTableSortingChange = (next) => {
     void navigate({
       to: ".",
       replace: true,
@@ -250,45 +226,38 @@ const ObservabilityRunsTable = () => {
     });
   };
 
-  const handleRowClick = (row: Row<RunInfo>) => {
+  const handleRowClick = (row: RunInfo) => {
     navigate({
       to: "/pipelines/$id/history",
       params: {
-        id: row.original.pipelineId,
+        id: row.pipelineId,
       },
-      search: { runId: [row.original.id] },
+      search: { runId: [row.id] },
     });
   };
 
   return (
-    <InfiniteTable<RunInfo>
-      columns={columns}
-      data={runs}
-      getRowId={(run) => run.id}
-      onRowClick={handleRowClick}
-      enableSorting
-      manualSorting
-      sorting={sorting}
-      onSortingChange={handleSortingChange}
-      isLoading={view === ObservabilityRunsView.UPCOMING ? isLoadingScheduled : isLoading}
-      loadingRowCount={10}
-      hasNextPage={view === ObservabilityRunsView.PAST && hasNextPage}
-      isFetchingNextPage={isFetchingNextPage}
-      fetchNextPage={fetchNextPage}
-      contentWhenEmpty={
-        <FlexWrapper
-          height={OBSERVABILITY_RUNS_TABLE_EMPTY_STATE_HEIGHT}
-          alignItems={AlignItems.CENTER}
-          justifyContent={JustifyContent.CENTER}
-        >
-          <Text variant={TextVariant.TERTIARY}>
-            {OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]}
-          </Text>
-        </FlexWrapper>
-      }
-      height={OBSERVABILITY_RUNS_TABLE_HEIGHT}
-      fillWidth
-    />
+    <Box height={OBSERVABILITY_RUNS_TABLE_HEIGHT}>
+      <InfiniteTable<RunInfo>
+        columns={columns}
+        data={runs}
+        getRowId={(run) => run.id}
+        onRowClick={handleRowClick}
+        sort={sorting}
+        onSortChange={handleSortingChange}
+        isLoading={
+          view === ObservabilityRunsView.UPCOMING
+            ? isLoadingScheduled
+            : isLoading || isFetchingNextPage
+        }
+        onEndReached={() => {
+          if (view === ObservabilityRunsView.PAST && hasNextPage) fetchNextPage();
+        }}
+        emptyState={
+          <EmptyState header={OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]} role="status" />
+        }
+      />
+    </Box>
   );
 };
 

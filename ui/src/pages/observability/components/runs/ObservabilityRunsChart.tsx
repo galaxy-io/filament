@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import BarChart from "@galaxy-io/dls/charts/BarChart";
-import type { ChartSelectionEvent, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import type { ChartSelection, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
@@ -49,32 +49,28 @@ const ObservabilityRunsChart = () => {
 
   const selection = useMemo<ChartSelectionInput>(
     () =>
-      runsBucket === undefined
+      runsBucket === undefined && runsStatus === undefined
         ? null
         : {
-            categoryKey: String(runsBucket),
+            categoryKey: runsBucket === undefined ? undefined : String(runsBucket),
             seriesKey: runsStatus === undefined ? undefined : String(runsStatus),
           },
     [runsBucket, runsStatus],
   );
 
-  const handleSelect = (event: ChartSelectionEvent) => {
-    const selected = mapChartSelectionToRunsFilter(event);
-    const isSelected = selected.runsBucket === runsBucket && selected.runsStatus === runsStatus;
+  const handleSelectionChange = (next: ChartSelection[]) => {
+    const filter = mapChartSelectionToRunsFilter(next[next.length - 1]);
     void navigate({
       to: ".",
-      search: (prev) => ({
-        ...prev,
-        runsBucket: isSelected ? undefined : selected.runsBucket,
-        runsStatus: isSelected ? undefined : selected.runsStatus,
-      }),
+      search: (prev) => ({ ...prev, ...filter }),
     });
   };
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"24px 12px"}
+      padding={[24, 12]}
       height={OBSERVABILITY_RUNS_CHART_HEIGHT}
       fillWidth
     >
@@ -83,13 +79,12 @@ const ObservabilityRunsChart = () => {
         groups={groups}
         labelFormatter={bucketLabelFormatter}
         selection={selection}
-        onSelect={handleSelect}
+        onSelectionChange={handleSelectionChange}
+        isFilterable
         isLoading={isLoading}
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
-        fillWidth
-        fillHeight
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

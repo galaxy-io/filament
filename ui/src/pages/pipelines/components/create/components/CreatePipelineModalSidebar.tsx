@@ -1,167 +1,129 @@
-import { styled } from "@linaria/react";
+import pluralize from "pluralize";
+import { match } from "ts-pattern";
 
-import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import Icon from "@galaxy-io/dls/icons/Icon";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Stepper, { StepperSize, type StepperStep } from "@galaxy-io/dls/navigation/Stepper";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Orientation } from "@galaxy-io/dls/theme/enums";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import DocsButton from "@/components/DocsButton";
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import BaseHeader from "@/layouts/components/BaseHeader";
+import DocsLink from "@/components/DocsLink";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import CreatePipelineModalSidebarSink from "@/pages/pipelines/components/create/components/CreatePipelineModalSidebarSink";
 import {
   CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
-  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP,
-  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP,
-  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP,
-  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP,
-  CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP,
   CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP,
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
-import {
-  CreatePipelineModalStep,
-  CreatePipelineModalStepStatus,
-} from "@/pages/pipelines/components/create/types";
-
-const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  flex-shrink: 0;
-
-  width: ${CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH}px;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border-right: 0.5px solid ${({ theme }) => theme.color.border.primary};
-`);
-
-const StepButton = styled.button<{ $isClickable: boolean }>`
-  display: flex;
-  align-items: flex-start;
-  text-align: left;
-  gap: 8px;
-  padding: 0;
-
-  background-color: transparent;
-  border: none;
-  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
-`;
+import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 const CreatePipelineModalSidebar = () => {
-  const { step, stepIndex, sinks, activeSinkId, issuesBySink, isSubmitting } =
-    useCreatePipelineModalState();
+  const {
+    step,
+    stepIndex,
+    sourceConnection,
+    sinks,
+    executionMode,
+    schedule,
+    issuesBySink,
+    selectedCountBySink,
+    isSubmitting,
+  } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
-  const getStepStatus = (item: CreatePipelineModalStep): CreatePipelineModalStepStatus => {
-    const itemIndex = CREATE_PIPELINE_MODAL_STEP_ORDER.indexOf(item);
-    if (itemIndex < stepIndex) return CreatePipelineModalStepStatus.COMPLETED;
-    if (itemIndex === stepIndex) return CreatePipelineModalStepStatus.CURRENT;
-    return CreatePipelineModalStepStatus.UPCOMING;
+  const hasResourceIssues = Object.values(issuesBySink).some((issues) => issues.length > 0);
+  const selectedCount = Object.values(selectedCountBySink).reduce((sum, count) => sum + count, 0);
+
+  const getStepSummary = (item: CreatePipelineModalStep) =>
+    match(item)
+      .with(CreatePipelineModalStep.CONNECTIONS, () =>
+        sourceConnection
+          ? `${sourceConnection.name} → ${
+              sinks.length === 1 ? sinks[0].connection.name : pluralize("sink", sinks.length, true)
+            }`
+          : undefined,
+      )
+      .with(CreatePipelineModalStep.RESOURCES, () => pluralize("resource", selectedCount, true))
+      .with(CreatePipelineModalStep.DELIVERY, () => {
+        if (executionMode === ExecutionMode.CONTINUOUS) return "Continuous";
+        if (!schedule.isEnabled) return "On demand";
+        return formatPipelineScheduleSummary(schedule) ?? undefined;
+      })
+      .with(CreatePipelineModalStep.DETAILS, () => undefined)
+      .exhaustive();
+
+  const steps: StepperStep[] = CREATE_PIPELINE_MODAL_STEP_ORDER.map((item, index) => ({
+    label: CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP[item],
+    description: index < stepIndex ? getStepSummary(item) : undefined,
+    isError: item === CreatePipelineModalStep.RESOURCES && index <= stepIndex && hasResourceIssues,
+  }));
+
+  const handleStepChange = (index: number) => {
+    dispatch({
+      type: CreatePipelineModalActionType.GO_TO_STEP,
+      payload: CREATE_PIPELINE_MODAL_STEP_ORDER[index],
+    });
   };
 
   return (
-    <SidebarWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} padding="16px">
-          <BaseHeader title="Create a new pipeline" />
-        </FlexWrapper>
-        <HorizontalDivider />
-        <FlexWrapper direction={FlexDirection.COLUMN} padding="12px" fillWidth>
-          <Widget variant={WidgetVariant.SECONDARY} fillWidth>
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={12}>
-              <Text
-                size={TextSize.BODY_SM}
-                weight={TextWeight.MEDIUM}
-                variant={TextVariant.TERTIARY}
-              >
-                Steps
-              </Text>
-              {CREATE_PIPELINE_MODAL_STEP_ORDER.map((item) => {
-                const status = getStepStatus(item);
-                const isClickable =
-                  status === CreatePipelineModalStepStatus.COMPLETED && !isSubmitting;
-                const hasSinkRows =
-                  item === CreatePipelineModalStep.RESOURCES &&
-                  status !== CreatePipelineModalStepStatus.UPCOMING &&
-                  sinks.length > 0;
-
-                return (
-                  <FlexWrapper key={item} direction={FlexDirection.COLUMN} gap={6} fillWidth>
-                    <StepButton
-                      $isClickable={isClickable}
-                      onClick={
-                        isClickable
-                          ? () =>
-                              dispatch({
-                                type: CreatePipelineModalActionType.GO_TO_STEP,
-                                payload: item,
-                              })
-                          : undefined
-                      }
-                    >
-                      <Icon
-                        component={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP[status]}
-                        weight={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP[status]}
-                        variant={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP[status]}
-                      />
-                      <Text
-                        variant={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP[status]}
-                        weight={CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP[status]}
-                      >
-                        {CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP[item]}
-                      </Text>
-                    </StepButton>
-                    {hasSinkRows && (
-                      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
-                        {sinks.map((sink) => (
-                          <CreatePipelineModalSidebarSink
-                            key={sink.connection.id}
-                            sink={sink}
-                            isActive={
-                              sink.connection.id === activeSinkId &&
-                              status === CreatePipelineModalStepStatus.CURRENT
-                            }
-                            issues={issuesBySink[sink.connection.id] ?? []}
-                            onClick={
-                              isSubmitting
-                                ? undefined
-                                : () =>
-                                    dispatch({
-                                      type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES,
-                                      payload: sink.connection.id,
-                                    })
-                            }
-                          />
-                        ))}
-                      </FlexWrapper>
-                    )}
-                  </FlexWrapper>
-                );
-              })}
-            </FlexWrapper>
-          </Widget>
-        </FlexWrapper>
-      </FlexWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} padding="16px" fillWidth>
-        <Paragraph weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
-          {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
-        </Paragraph>
-        <DocsButton label="Read the docs" path="/pipelines/create" size={ButtonSize.MEDIUM} />
-      </FlexWrapper>
-    </SidebarWrapper>
+    <FlexItem shrink={0}>
+      <Box variant={BoxVariant.PRIMARY} width={CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH} height="100%">
+        <Flex
+          direction={FlexDirection.COLUMN}
+          justifyContent={JustifyContent.SPACE_BETWEEN}
+          height="100%"
+        >
+          <Flex
+            alignItems={AlignItems.STRETCH}
+            direction={FlexDirection.COLUMN}
+            padding={12}
+            fillWidth
+          >
+            <Widget variant={WidgetVariant.SECONDARY}>
+              <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12}>
+                <Text
+                  size={TextSize.BODY_SM}
+                  weight={TextWeight.MEDIUM}
+                  variant={TextVariant.TERTIARY}
+                >
+                  Steps
+                </Text>
+                <Stepper
+                  steps={steps}
+                  value={stepIndex}
+                  onChange={isSubmitting ? undefined : handleStepChange}
+                  orientation={Orientation.VERTICAL}
+                  size={StepperSize.SMALL}
+                  ariaLabel="Pipeline setup"
+                />
+              </Flex>
+            </Widget>
+          </Flex>
+          <Flex
+            alignItems={AlignItems.START}
+            direction={FlexDirection.COLUMN}
+            gap={12}
+            padding={16}
+            fillWidth
+          >
+            <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
+              {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
+            </Text>
+            <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
+          </Flex>
+        </Flex>
+      </Box>
+    </FlexItem>
   );
 };
 

@@ -1,13 +1,15 @@
 import { useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Modal from "@galaxy-io/dls/modal/Modal";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import type { CreateServiceAccountRequest } from "@/gen/auth/v1/service_accounts_pb";
-
-import Dialog from "@/components/Dialog";
 
 import {
   SERVICE_ACCOUNT_DEFAULT_ROLE,
@@ -15,7 +17,7 @@ import {
 } from "@/pages/settings/constants";
 import SettingsServiceAccountsPanelCredentials from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanelCredentials";
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
-import { optionRole, serviceAccountRoleOption } from "@/pages/settings/utils";
+import { optionIdToRole, roleToOptionId } from "@/pages/settings/utils";
 
 import { useCreateServiceAccountMutation } from "@/api/queries/auth";
 
@@ -75,66 +77,73 @@ const SettingsServiceAccountsPanelCreateDialog = ({
     );
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen && !isCreating) onClose();
+  };
+
   if (state.credentials) {
     return (
-      <Dialog
-        open={open}
-        title="Service account created"
-        description="Copy these credentials now. The client secret is only shown once."
-        onClose={onClose}
-        footer={<Button size={ButtonSize.LARGE} label="Done" onClick={onClose} />}
+      <Modal
+        header="Service account created"
+        isOpen={open}
+        onOpenChange={handleOpenChange}
+        footer={<Button label="Done" onClick={onClose} />}
       >
-        <SettingsServiceAccountsPanelCredentials credentials={state.credentials} />
-      </Dialog>
+        <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
+          <Text isProse variant={TextVariant.SECONDARY}>
+            Copy these credentials now. The client secret is only shown once.
+          </Text>
+          <SettingsServiceAccountsPanelCredentials credentials={state.credentials} />
+        </Flex>
+      </Modal>
     );
   }
 
   return (
-    <Dialog
-      open={open}
-      title="Create service account"
-      description="Create a machine identity for CLI, CI, and automation"
-      onClose={onClose}
+    <Modal
+      header="Create service account"
+      isOpen={open}
+      isDismissable={!isCreating}
+      onOpenChange={handleOpenChange}
       footer={
         <>
           <Button
-            size={ButtonSize.LARGE}
             label="Cancel"
             variant={ButtonVariant.SECONDARY}
             onClick={onClose}
             isDisabled={isCreating}
           />
-          <Button
-            size={ButtonSize.LARGE}
-            label="Create"
-            onClick={handleCreate}
-            isLoading={isCreating}
-          />
+          <Button label="Create" onClick={handleCreate} isLoading={isCreating} />
         </>
       }
     >
-      <TextInput
-        label="Name"
-        value={state.name}
-        onChange={(name) => setState((prev) => ({ ...prev, name }))}
-        fillWidth
-        isRequired
-        autoFocus
-      />
-      <SelectInput
-        label="Role"
-        options={SERVICE_ACCOUNT_ROLE_OPTIONS}
-        value={serviceAccountRoleOption(state.role)}
-        onChange={(option) => setState((prev) => ({ ...prev, role: optionRole(option) }))}
-        fillWidth
-        isRequired
-      />
-      {state.error && (
-        <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-          {state.error}
+      <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
+        <Text isProse variant={TextVariant.SECONDARY}>
+          Create a machine identity for CLI, CI, and automation
         </Text>
-      )}
-    </Dialog>
+        <TextInput
+          label="Name"
+          value={state.name}
+          onChange={(name) => setState((prev) => ({ ...prev, name }))}
+          fillWidth
+          isRequired
+          autoFocus
+        />
+        <SelectInput
+          label="Role"
+          options={SERVICE_ACCOUNT_ROLE_OPTIONS}
+          value={roleToOptionId(state.role)}
+          onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
+          fillWidth
+          isRequired
+        />
+        {state.error && (
+          <Box fillWidth>
+            <Alert variant={AlertVariant.ERROR}>{state.error}</Alert>
+          </Box>
+        )}
+      </Flex>
+    </Modal>
   );
 };
 

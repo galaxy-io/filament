@@ -1,12 +1,6 @@
-import { ChartGroupProvider } from "@galaxy-io/dls/charts/ChartGroupProvider";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  FlexWrap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
+import Flex, { AlignItems, FlexDirection, FlexWrap } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
@@ -32,27 +26,20 @@ const ObservabilityPage = () => {
   }
 
   return (
-    <ChartGroupProvider sharedTooltip>
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth fillHeight>
+    <ChartGroupProvider shouldShareTooltip>
+      <Flex direction={FlexDirection.COLUMN} fillWidth height="100%">
         <ObservabilityToolbar />
-        <FlexItem grow={0} shrink={0} fillWidth>
-          <HorizontalDivider />
-        </FlexItem>
-        <FlexWrapper
+        <Flex
+          alignItems={AlignItems.START}
           direction={FlexDirection.COLUMN}
-          padding={"12px"}
-          gap={FlexGap.MEDIUM}
+          padding={12}
+          gap={12}
           fillWidth
-          fillHeight
+          height="100%"
           overflow="auto"
         >
           <ObservabilityMetricsWidget />
-          <FlexWrapper
-            gap={FlexGap.MEDIUM}
-            alignItems={AlignItems.STRETCH}
-            wrap={FlexWrap.WRAP}
-            fillWidth
-          >
+          <Flex gap={12} alignItems={AlignItems.STRETCH} wrap={FlexWrap.WRAP} fillWidth>
             <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
               <ObservabilityTimeseriesWidget
                 views={OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP}
@@ -70,10 +57,12 @@ const ObservabilityPage = () => {
                 pivotSearchKey="usagePivot"
               />
             </FlexItem>
-          </FlexWrapper>
-          <ObservabilityRunsWidget />
-        </FlexWrapper>
-      </FlexWrapper>
+          </Flex>
+          <FlexItem fillWidth>
+            <ObservabilityRunsWidget />
+          </FlexItem>
+        </Flex>
+      </Flex>
     </ChartGroupProvider>
   );
 };

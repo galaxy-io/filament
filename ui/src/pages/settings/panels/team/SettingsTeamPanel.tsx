@@ -1,37 +1,31 @@
 import { useCallback, useMemo } from "react";
 
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon, UserGearIcon } from "@phosphor-icons/react";
 
-import Avatar from "@galaxy-io/dls/avatar/Avatar";
-import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
-import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  TableVariant,
-} from "@galaxy-io/dls/table/InfiniteTable";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { MenuItem, MenuItemVariant, MenuRadioGroup, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
+import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { Member, Role } from "@/gen/auth/v1/members_pb";
-
-import Dialog from "@/components/Dialog";
+import { type Member, Role } from "@/gen/auth/v1/members_pb";
 
 import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
 import {
-  ROLE_OPTIONS,
-  SETTINGS_TEAM_TABLE_COLUMN_WIDTH_EMAIL,
+  SETTINGS_ROLE_MENU_OPTIONS,
+  SETTINGS_ROLE_TO_CHIP_PROPS_MAP,
+  SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_EMAIL,
+  SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_NAME,
   SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
-  SETTINGS_TEAM_TABLE_LOADING_ROW_COUNT,
-  SETTINGS_TEAM_TABLE_ROLE_SELECT_DROPDOWN_WIDTH,
-  SETTINGS_TEAM_TABLE_ROLE_SELECT_WIDTH,
 } from "@/pages/settings/constants";
-import { optionRole, roleLabel, roleOption } from "@/pages/settings/utils";
+import { optionIdToRole, roleLabel, roleToOptionId } from "@/pages/settings/utils";
 
 import {
   useListMembersQuery,
@@ -46,102 +40,58 @@ import { getErrorMessage } from "@/utils/errors";
 
 const memberDisplayName = (member: Member): string => member.name || member.email || "Member";
 
-const memberColumns = ({
-  myID,
-  canManage,
-  isMutatingMembers,
-  onRoleChange,
-  onRemove,
-}: {
-  myID: string | undefined;
-  canManage: boolean;
-  isMutatingMembers: boolean;
-  onRoleChange: (member: Member, role: Role) => void;
-  onRemove: (member: Member) => void;
-}): ColumnDef<Member>[] => {
-  return [
-    {
-      id: "name",
-      header: "Name",
-      accessorFn: (row) => memberDisplayName(row),
-      enableSorting: true,
-      sortDescFirst: false,
-      cellLoading: () => (
-        <FlexWrapper gap={12} alignItems={AlignItems.CENTER}>
-          <TextShimmer width={120} height={16} />
-        </FlexWrapper>
-      ),
-      cell: ({ row }) => (
-        <FlexWrapper gap={12} alignItems={AlignItems.CENTER}>
-          <FlexItem grow={0} shrink={0} display="flex">
-            <Avatar size={26} seed={row.original.userId} />
-          </FlexItem>
-          <Text weight={TextWeight.MEDIUM} isEllipsis>
-            {memberDisplayName(row.original)}
-          </Text>
-        </FlexWrapper>
-      ),
-    },
-    {
-      id: "email",
-      header: "Email",
-      accessorFn: (row) => row.email,
-      size: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_EMAIL,
-      enableSorting: true,
-      sortDescFirst: false,
-      cellLoading: () => <TextShimmer height={16} width="80%" />,
-      cell: ({ row }) => (
-        <Text variant={TextVariant.SECONDARY} isEllipsis>
-          {row.original.email}
+const memberColumns = (myID: string | undefined): TableColumn<Member>[] => [
+  {
+    id: "name",
+    header: "Name",
+    accessor: (row) => memberDisplayName(row),
+    isRowHeader: true,
+    canSort: true,
+    minWidth: SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_NAME,
+    cell: ({ row }) => (
+      <Flex gap={8} alignItems={AlignItems.CENTER} minWidth={0}>
+        <Avatar size={AvatarSize.SMALL} seed={row.userId} name={memberDisplayName(row)} isSquare />
+        <Text lineClamp={1} shouldTooltipOnOverflow>
+          {memberDisplayName(row)}
         </Text>
-      ),
-    },
-    {
-      id: "role",
-      header: "",
-      align: ColumnAlign.RIGHT,
-      size: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
-      enableSorting: false,
-      cellLoading: () => <TextShimmer height={16} width="80%" />,
-      cell: ({ row }) => {
-        const isMe = myID !== undefined && row.original.userId === myID;
-        return (
-          <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-            {isMe && (
-              <FlexItem grow={0} shrink={0} display="flex">
-                <Beacon variant={BeaconVariant.PRIMARY} isPulse />
-              </FlexItem>
-            )}
-            <FlexWrapper gap={8} alignItems={AlignItems.CENTER}>
-              <SelectInput
-                options={ROLE_OPTIONS}
-                value={roleOption(row.original.role)}
-                onChange={(option) => {
-                  const role = optionRole(option);
-                  if (role !== undefined) {
-                    onRoleChange(row.original, role);
-                  }
-                }}
-                width={SETTINGS_TEAM_TABLE_ROLE_SELECT_WIDTH}
-                dropdownWidth={SETTINGS_TEAM_TABLE_ROLE_SELECT_DROPDOWN_WIDTH}
-                isDisabled={!canManage || isMe || isMutatingMembers}
-              />
-              {canManage && (
-                <Button
-                  icon={TrashIcon}
-                  variant={ButtonVariant.SECONDARY}
-                  size={ButtonSize.SMALL}
-                  onClick={() => onRemove(row.original)}
-                  isDisabled={isMe || isMutatingMembers}
-                />
-              )}
-            </FlexWrapper>
-          </FlexWrapper>
-        );
-      },
-    },
-  ];
-};
+        {myID !== undefined && row.userId === myID && (
+          <Chip label="You" size={ChipSize.SMALL} variant={ChipVariant.SECONDARY} />
+        )}
+      </Flex>
+    ),
+  },
+  {
+    id: "email",
+    header: "Email",
+    accessor: (row) => row.email,
+    minWidth: SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_EMAIL,
+    canSort: true,
+    cell: ({ row }) => (
+      <Text
+        family={FontFamily.MONO}
+        variant={TextVariant.SECONDARY}
+        lineClamp={1}
+        shouldTooltipOnOverflow
+      >
+        {row.email}
+      </Text>
+    ),
+  },
+  {
+    id: "role",
+    header: "Role",
+    accessor: (row) => roleLabel(row.role),
+    width: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
+    canSort: true,
+    cell: ({ row }) => (
+      <Chip
+        label={roleLabel(row.role)}
+        size={ChipSize.SMALL}
+        {...SETTINGS_ROLE_TO_CHIP_PROPS_MAP[row.role]}
+      />
+    ),
+  },
+];
 
 interface SettingsTeamPanelProps {
   session: AppSession;
@@ -149,7 +99,7 @@ interface SettingsTeamPanelProps {
 }
 
 const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
@@ -188,28 +138,28 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
 
   const handleRoleChange = useCallback(
     (member: Member, nextRole: Role) => {
-      if (nextRole === member.role) return;
+      if (nextRole === member.role || nextRole === Role.UNSPECIFIED) return;
       setMemberRole(
         { userId: member.userId, role: nextRole },
         {
           onSuccess: () => {
-            showToast({
+            toast({
               header: "Role updated",
-              subheader: `${memberDisplayName(member)}'s role is now ${roleLabel(nextRole)}.`,
+              description: `${memberDisplayName(member)}'s role is now ${roleLabel(nextRole)}.`,
               variant: ToastVariant.SUCCESS,
             });
           },
           onError: (err) => {
-            showToast({
+            toast({
               header: "Role change failed",
-              subheader: getErrorMessage(err, "Could not change role"),
+              description: getErrorMessage(err, "Could not change role"),
               variant: ToastVariant.ERROR,
             });
           },
         },
       );
     },
-    [setMemberRole, showToast],
+    [setMemberRole, toast],
   );
 
   const handleRemove = useCallback(
@@ -219,17 +169,7 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
     [memberConfirm],
   );
 
-  const columns = useMemo(
-    () =>
-      memberColumns({
-        myID: session.userId,
-        canManage: canManageTeam,
-        isMutatingMembers,
-        onRoleChange: handleRoleChange,
-        onRemove: handleRemove,
-      }),
-    [session.userId, canManageTeam, isMutatingMembers, handleRoleChange, handleRemove],
-  );
+  const columns = useMemo(() => memberColumns(session.userId), [session.userId]);
 
   return (
     <>
@@ -249,37 +189,50 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
             : undefined
         }
       >
-        <FlexWrapper grow={1} basis={0} minHeight={0} fillWidth>
+        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
           <InfiniteTable<Member>
             columns={columns}
             data={sortedMembers}
             getRowId={(row) => row.userId}
             isLoading={membersQuery.isLoading}
-            loadingRowCount={SETTINGS_TEAM_TABLE_LOADING_ROW_COUNT}
-            enableSorting
-            variant={TableVariant.BASE}
-            fillWidth
-            fillHeight
+            error={displayError}
+            rowActions={(row) =>
+              canManageTeam && row.userId !== session.userId ? (
+                <>
+                  <MenuItem label="Change role" icon={UserGearIcon} isDisabled={isMutatingMembers}>
+                    <MenuRadioGroup
+                      label="Role"
+                      options={SETTINGS_ROLE_MENU_OPTIONS}
+                      value={roleToOptionId(row.role)}
+                      onChange={(id) => handleRoleChange(row, optionIdToRole(id))}
+                    />
+                  </MenuItem>
+                  <MenuSeparator />
+                  <MenuItem
+                    label="Remove member"
+                    icon={TrashIcon}
+                    variant={MenuItemVariant.ERROR}
+                    onSelect={() => handleRemove(row)}
+                    isDisabled={isMutatingMembers}
+                  />
+                </>
+              ) : null
+            }
+            ariaLabel="Team members"
           />
-        </FlexWrapper>
-        {displayError && (
-          <FlexWrapper padding="16px" fillWidth>
-            <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-              {displayError}
-            </Text>
-          </FlexWrapper>
-        )}
+        </Flex>
       </SettingsPanelLayout>
-      <Dialog
-        open={memberConfirm.isOpen}
-        onClose={memberConfirm.handleClose}
+      <ConfirmDialog
+        isOpen={memberConfirm.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) memberConfirm.handleClose();
+        }}
         onConfirm={memberConfirm.handleConfirm}
-        title="Remove team member"
-        body="This member will immediately lose access to the organization and its resources."
-        confirmationPhrase={memberConfirm.target && memberDisplayName(memberConfirm.target)}
-        confirmLabel="Remove member"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isRemovingMember}
+        header="Remove team member?"
+        description="This member will immediately lose access to the organization and its resources."
+        confirmValue={memberConfirm.target && memberDisplayName(memberConfirm.target)}
+        label="Remove member"
+        isDestructive
       />
     </>
   );

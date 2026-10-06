@@ -1,9 +1,10 @@
-import { styled } from "@linaria/react";
 import { Position } from "@xyflow/react";
 
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -15,30 +16,29 @@ import { PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT } from "@/pages/pipelines
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
-const TableRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  min-width: 0;
-`;
-
 const TableListShimmer = () => (
   <>
     {Array.from({ length: PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT }).map((_, index) => (
       // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows with no identity
-      <TextShimmer key={index} height={16} width="100%" />
+      <Box key={index} width="100%">
+        <Skeleton />
+      </Box>
     ))}
   </>
 );
 
 const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
-  <TableRow>
+  <Flex
+    alignItems={AlignItems.CENTER}
+    justifyContent={JustifyContent.SPACE_BETWEEN}
+    gap={4}
+    minWidth={0}
+  >
     <Text
       size={TextSize.BODY_SM}
       variant={table.isConnected ? TextVariant.PRIMARY : TextVariant.TERTIARY}
-      isMonospace
-      isEllipsis
+      family={FontFamily.MONO}
+      lineClamp={1}
     >
       {table.name}
     </Text>
@@ -48,7 +48,7 @@ const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
       position={Position.Right}
       isConnected={table.isConnected}
     />
-  </TableRow>
+  </Flex>
 );
 
 interface PipelineCanvasNodeSourceIslandTableListProps {
@@ -68,17 +68,17 @@ const PipelineCanvasNodeSourceIslandTableList = ({
 
   if (error) {
     return (
-      <FlexWrapper padding={"20px 16px"} fillWidth>
-        <ErrorLayout size={LayoutSize.SMALL} message="Failed to load resources" error={error} />
-      </FlexWrapper>
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
+        <ErrorLayout size={LayoutSize.SMALL} header="Failed to load resources" error={error} />
+      </Flex>
     );
   }
 
   if (!tables.length) {
     return (
-      <FlexWrapper padding={"20px 16px"} fillWidth>
-        <EmptyLayout size={LayoutSize.SMALL} message="No tables match your search" />
-      </FlexWrapper>
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
+        <EmptyLayout size={LayoutSize.SMALL} header="No tables match your search" />
+      </Flex>
     );
   }
 

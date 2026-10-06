@@ -1,16 +1,15 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
@@ -35,49 +34,31 @@ import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const RunTableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
-
-const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): ColumnDef<RunInfo>[] => [
+const createRunTableColumns = (
+  versionById: ReadonlyMap<string, bigint>,
+): TableColumn<RunInfo>[] => [
   {
     id: "status",
     header: "Status",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
-    cellLoading: () => <TextShimmer width={64} height={18} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cell: ({ row }) => (
       <PipelineHistoryRunStatus
-        status={row.original.status}
-        error={row.original.error}
-        executionStatus={row.original.executionStatus}
+        status={row.status}
+        error={row.error}
+        executionStatus={row.executionStatus}
       />
     ),
   },
   {
     id: "startedAt",
     header: "Started",
-    cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => {
-      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row.original);
+      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row);
       return (
         <Text
           size={TextSize.BODY_SM}
           variant={isStarted ? TextVariant.PRIMARY : TextVariant.TERTIARY}
-          isEllipsis
+          lineClamp={1}
         >
           {formatTimestamp(timestamp)}
         </Text>
@@ -87,46 +68,42 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
   {
     id: "version",
     header: "Version",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-    cellLoading: () => <TextShimmer width={32} height={14} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cell: ({ row }) => {
-      const version = versionById.get(row.original.pipelineVersionId);
+      const version = versionById.get(row.pipelineVersionId);
       return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
     },
   },
   {
     id: "duration",
     header: "Duration",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
     cell: ({ row }) => (
       <PipelineHistoryRunDuration
-        status={row.original.status}
-        startedAt={row.original.startedAt}
-        endedAt={row.original.endedAt}
+        status={row.status}
+        startedAt={row.startedAt}
+        endedAt={row.endedAt}
       />
     ),
   },
   {
     id: "records",
     header: "Records",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.startedAt ? formatCount(row.original.records) : "—"}
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+        {row.startedAt ? formatCount(row.records) : "—"}
       </Text>
     ),
   },
   {
     id: "volume",
     header: "Volume",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-    align: ColumnAlign.RIGHT,
-    cellLoading: () => <TextShimmer width={52} height={14} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    align: "right",
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.startedAt ? formatBytes(row.original.bytes) : "—"}
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+        {row.startedAt ? formatBytes(row.bytes) : "—"}
       </Text>
     ),
   },
@@ -175,34 +152,38 @@ const PipelineHistoryPage = () => {
   };
 
   return (
-    <PageWrapper>
-      <Wrapper padding={"16px"} fillWidth>
-        <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
-      </Wrapper>
+    <Box variant={BoxVariant.BASE} fillWidth height="100%" overflow="hidden">
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        <Box padding={16} fillWidth>
+          <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
+        </Box>
 
-      <HorizontalDivider />
+        <Divider />
 
-      <RunTableWrapper>
-        <InfiniteTable<RunInfo>
-          columns={columns}
-          data={runs}
-          getRowId={(run) => run.id}
-          contentWhenEmpty={
-            <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
-          }
-          expandedRowIds={runIds}
-          onExpandedChange={handleExpandedChange}
-          onRowExpand={(row) => {
-            return <PipelineHistoryRunInfo runId={row.original.id} />;
-          }}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-          fillWidth
-          fillHeight
-        />
-      </RunTableWrapper>
-    </PageWrapper>
+        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+          <InfiniteTable<RunInfo>
+            columns={columns}
+            data={runs}
+            getRowId={(run) => run.id}
+            emptyState={
+              <EmptyLayout
+                header="No runs yet"
+                description="Run a pipeline to see its history here."
+              />
+            }
+            expandedIds={runIds}
+            onExpandedIdsChange={handleExpandedChange}
+            renderExpandedRow={(row) => {
+              return <PipelineHistoryRunInfo runId={row.id} />;
+            }}
+            isLoading={isFetchingNextPage}
+            onEndReached={() => {
+              if (hasNextPage) fetchNextPage();
+            }}
+          />
+        </Flex>
+      </Flex>
+    </Box>
   );
 };
 

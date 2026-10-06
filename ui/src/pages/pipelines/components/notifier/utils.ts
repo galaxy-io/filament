@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import pluralize from "pluralize";
 
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
   NotificationType,
@@ -19,11 +19,10 @@ import {
 } from "@/pages/pipelines/components/notifier/constants";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
-export const formatPipelineNotifierEventsSelection = (
-  selectedOptions: SelectInputOption[],
-  placeholder: string,
-): string => {
-  if (selectedOptions.length === 0) return placeholder;
+export const formatPipelineNotifierEventsSelection = (options: SelectOption[]): string => {
+  const selectedOptions = options.filter(
+    (option) => option.id !== PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id,
+  );
   if (selectedOptions.length === 1) return selectedOptions[0].label;
   if (selectedOptions.length === PIPELINE_NOTIFIER_EVENTS.length) {
     return PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.label;

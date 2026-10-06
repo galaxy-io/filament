@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import {
   ArrowUUpLeftIcon,
   FloppyDiskIcon,
@@ -13,16 +12,15 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip, { TooltipPosition } from "@galaxy-io/dls/tooltip/Tooltip";
+import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
@@ -42,7 +40,7 @@ import PipelineName from "@/components/PipelineName";
 
 import {
   PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH,
+  PIPELINE_NAVBAR_VERSION_SELECT_WIDTH,
 } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
 
@@ -85,24 +83,8 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineLayoutNavbarWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: ${PIPELINE_NAVBAR_HEIGHT}px;
-
-  padding: 0 12px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-
-  flex-shrink: 0;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
 const PipelineLayoutNavbar = () => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
@@ -195,12 +177,11 @@ const PipelineLayoutNavbar = () => {
   const hasEdges = state.edges.length > 0;
 
   const latestVersion = versions[0]?.version;
-  const versionOptions = useMemo<SelectInputOption[]>(
+  const versionOptions = useMemo<SelectOption[]>(
     () =>
       versions.map((version) => ({
         id: version.version.toString(),
         label: `Version ${version.version.toString()}`,
-        value: version.version,
       })),
     [versions],
   );
@@ -210,8 +191,7 @@ const PipelineLayoutNavbar = () => {
   const isPreview = previewVersion !== null;
   const hasUnsavedChanges = !isPreview && hasChanges;
 
-  const selectedVersionOption =
-    versionOptions.find((option) => option.value === (previewVersion ?? latestVersion)) ?? null;
+  const selectedVersionId = (previewVersion ?? latestVersion)?.toString() ?? null;
 
   const handlePreviewVersionChange = (nextVersion: PipelineVersion["version"] | null) => {
     void navigate({
@@ -224,8 +204,9 @@ const PipelineLayoutNavbar = () => {
     });
   };
 
-  const handleVersionChange = (option: SelectInputOption) => {
-    const version = option.value as PipelineVersion["version"];
+  const handleVersionChange = (versionId: string | null) => {
+    const version = versions.find((item) => item.version.toString() === versionId)?.version;
+    if (version === undefined) return;
     handlePreviewVersionChange(version === latestVersion ? null : version);
   };
 
@@ -238,16 +219,16 @@ const PipelineLayoutNavbar = () => {
       mapCanvasStateToVersionRequest(state, id, currentVersion, pipeline.executionMode),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             header: "Pipeline saved",
-            subheader: `${formatPipelineName(pipeline)} has been saved successfully.`,
+            description: `${formatPipelineName(pipeline)} has been saved successfully.`,
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Save failed",
-            subheader: getErrorMessage(error, "Failed to save pipeline"),
+            description: getErrorMessage(error, "Failed to save pipeline"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -265,16 +246,16 @@ const PipelineLayoutNavbar = () => {
       {
         onSuccess: () => {
           showActivity();
-          showToast({
+          toast({
             header: "Run started",
-            subheader: `${formatPipelineName(pipeline)} is now running.`,
+            description: `${formatPipelineName(pipeline)} is now running.`,
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Run failed",
-            subheader: getErrorMessage(error, "Failed to run pipeline"),
+            description: getErrorMessage(error, "Failed to run pipeline"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -291,9 +272,9 @@ const PipelineLayoutNavbar = () => {
       }),
       {
         onError: (error) => {
-          showToast({
+          toast({
             header: "Run signal failed",
-            subheader: getErrorMessage(error, "Failed to signal run"),
+            description: getErrorMessage(error, "Failed to signal run"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -302,8 +283,16 @@ const PipelineLayoutNavbar = () => {
   };
 
   return (
-    <PipelineLayoutNavbarWrapper>
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} grow={1} minWidth={0}>
+    <Flex
+      alignItems={AlignItems.CENTER}
+      justifyContent={JustifyContent.SPACE_BETWEEN}
+      gap={12}
+      fillWidth
+      height={PIPELINE_NAVBAR_HEIGHT}
+      shrink={0}
+      padding={[0, 12]}
+    >
+      <Flex alignItems={AlignItems.CENTER} gap={12} grow={1} minWidth={0}>
         <FlexItem shrink={0}>
           <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
         </FlexItem>
@@ -311,27 +300,27 @@ const PipelineLayoutNavbar = () => {
           <PipelineName pipelineId={id} />
         </FlexItem>
         {versionOptions.length > 0 && (
-          <FlexItem shrink={0}>
+          <FlexItem shrink={0} width={PIPELINE_NAVBAR_VERSION_SELECT_WIDTH}>
             <SelectInput
               options={versionOptions}
-              value={selectedVersionOption}
+              value={selectedVersionId}
               onChange={handleVersionChange}
-              size={InputSize.SMALL}
-              dropdownWidth={PIPELINE_VERSION_SELECT_DROPDOWN_WIDTH}
+              size={SelectInputSize.SMALL}
               isDisabled={hasUnsavedChanges}
+              fillWidth
             />
           </FlexItem>
         )}
         {pipeline.description && (
           <FlexItem grow={1} minWidth={0}>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
               {pipeline.description}
             </Text>
           </FlexItem>
         )}
-      </FlexWrapper>
+      </Flex>
 
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.MEDIUM} shrink={0}>
+      <Flex alignItems={AlignItems.CENTER} gap={12} shrink={0}>
         {isPreview && (
           <Button
             label="Back to latest"
@@ -356,13 +345,13 @@ const PipelineLayoutNavbar = () => {
               />
               <Tooltip
                 body={graphConflicts.join("\n")}
-                position={TooltipPosition.BOTTOM}
+                placement={Placement.BOTTOM}
                 isDisabled={graphConflicts.length === 0}
               >
                 <Button
                   label="Save"
                   icon={FloppyDiskIcon}
-                  variant={ButtonVariant.PRIMARY_ALT}
+                  variant={ButtonVariant.PRIMARY}
                   size={ButtonSize.SMALL}
                   isLoading={isSaving}
                   isDisabled={graphConflicts.length > 0}
@@ -391,29 +380,29 @@ const PipelineLayoutNavbar = () => {
                   <Button
                     label={isResuming ? "Resume" : "Pause"}
                     icon={isResuming ? PlayIcon : PauseIcon}
+                    iconWeight={IconWeight.FILL}
                     variant={ButtonVariant.SECONDARY}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping || isBlocked}
                     onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
-                    isIconFilled
                   />
                   <Button
                     label="Stop"
                     icon={StopIcon}
+                    iconWeight={IconWeight.FILL}
                     variant={ButtonVariant.ERROR}
                     size={ButtonSize.SMALL}
                     isLoading={isSignaling}
                     isDisabled={isStopping}
                     onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
-                    isIconFilled
                   />
                 </>
               )}
             </>
           ))}
-      </FlexWrapper>
-    </PipelineLayoutNavbarWrapper>
+      </Flex>
+    </Flex>
   );
 };
 

@@ -1,7 +1,7 @@
 version: 1
 name: fhir
 display_name: FHIR
-description: Read clinical resources from any FHIR R4 server (Patient, Observation, Condition, Encounter, MedicationRequest, AllergyIntolerance, Immunization, Procedure).
+description: Healthcare interoperability standard for exchanging clinical and administrative information between systems, using the HL7 FHIR R4 API.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-fhir-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-fhir-light.svg
 api_version: "r4"

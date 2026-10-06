@@ -1,5 +1,5 @@
-import Accordion, { AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -17,7 +17,7 @@ const CreatePipelineModalDeliveryAdvanced = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
       {sourceConnection && (
         <CreatePipelineModalDeliveryNodeConfig
           header="Source configuration"
@@ -33,7 +33,10 @@ const CreatePipelineModalDeliveryAdvanced = () => {
           kind={ConnectorKind.SINK}
         />
       ))}
-      <Accordion header="Worker configuration" padding="16px" size={AccordionSize.LARGE}>
+      <Fieldset
+        label="Worker configuration"
+        description="Pod template merged into every run's worker."
+      >
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           error={workerConfigurationError}
@@ -44,8 +47,8 @@ const CreatePipelineModalDeliveryAdvanced = () => {
             })
           }
         />
-      </Accordion>
-    </FlexWrapper>
+      </Fieldset>
+    </Flex>
   );
 };
 

@@ -360,6 +360,10 @@ func decDecimal(scale int32) func(arrowbatch.RowWriter, []byte) error {
 			}
 			return fmt.Errorf("numeric %s has no decimal form", s)
 		}
+		if n.ndigits == 0 { // zero has no groups, so the width check below does not apply to it
+			w.Decimal(decimal128.Num{})
+			return nil
+		}
 		// exp is the power of ten the Horner accumulation over all groups is
 		// short of (or, when negative, past) the target scale.
 		exp := 4*(n.weight-n.ndigits+1) + int(scale)

@@ -1,7 +1,7 @@
 import { create, type JsonValue } from "@bufbuild/protobuf";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
 import type { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import type { ConfigField, ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -69,7 +69,7 @@ const PipelineNodeConfigFields = ({
   variant,
   isDisabled,
 }: PipelineNodeConfigFieldsProps) => (
-  <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
     {fields.map((field) => (
       <Field
         key={field.name}
@@ -80,7 +80,7 @@ const PipelineNodeConfigFields = ({
         isDisabled={isDisabled}
       />
     ))}
-  </FlexWrapper>
+  </Flex>
 );
 
 export default PipelineNodeConfigFields;

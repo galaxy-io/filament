@@ -22,7 +22,7 @@ const PipelineNotFoundComponent = () => {
     <ErrorLayout
       icon={ImageBrokenIcon}
       header="Pipeline not found"
-      message="The pipeline you are looking for does not exist"
+      description="The pipeline you are looking for does not exist"
       actions={
         <Button label="Go back to pipelines" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />
       }

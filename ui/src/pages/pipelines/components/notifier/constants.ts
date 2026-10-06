@@ -1,10 +1,11 @@
-import type { PinnedOptions } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
+
+import type { SelectAllOption } from "@/utils/select";
 
 export const PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY = "headers";
 export const PIPELINE_NOTIFIER_URL_SECRET_REF_KEY = "url";
@@ -34,11 +35,10 @@ export const PIPELINE_NOTIFIER_TYPES = Object.values(NotificationType).filter(
     typeof type === "number" && type !== NotificationType.UNSPECIFIED,
 );
 
-export const PIPELINE_NOTIFIER_TYPE_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_TYPES.map(
+export const PIPELINE_NOTIFIER_TYPE_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_TYPES.map(
   (type) => ({
     id: String(type),
     label: PIPELINE_NOTIFIER_TYPE_TO_LABEL_MAP[type],
-    value: type,
   }),
 );
 
@@ -67,15 +67,14 @@ export const PIPELINE_NOTIFIER_EVENTS = Object.values(NotifierEvent).filter(
     typeof event === "number" && event !== NotifierEvent.UNSPECIFIED,
 );
 
-export const PIPELINE_NOTIFIER_EVENT_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_EVENTS.map(
+export const PIPELINE_NOTIFIER_EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENTS.map(
   (event) => ({
     id: String(event),
     label: PIPELINE_NOTIFIER_EVENT_TO_LABEL_MAP[event],
-    value: event,
   }),
 );
 
-export const PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION: PinnedOptions = {
+export const PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION: SelectAllOption = {
   id: "all-events",
   label: "All events",
   optionIds: PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => option.id),

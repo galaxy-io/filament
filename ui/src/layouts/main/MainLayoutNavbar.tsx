@@ -1,142 +1,90 @@
-import { styled } from "@linaria/react";
-import { Link, useRouteContext } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 
-import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
-import GalaxyLogomark from "@galaxy-io/dls/icons/GalaxyLogomark";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
 
-import DocsButton from "@/components/DocsButton";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { LinkUnderline } from "@galaxy-io/dls/links/Link";
+import Tabs, { type TabLinkItem, TabsSize } from "@galaxy-io/dls/navigation/Tabs";
+import { TextSize } from "@galaxy-io/dls/text/Text";
+import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
+
+import DocsLink from "@/components/DocsLink";
 import GithubButton from "@/components/GithubButton";
-import ThemeButton from "@/components/ThemeButton";
+import RouterLink from "@/components/RouterLink";
 
+import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
 
-import { type TRoutes, useRouteMatch } from "@/hooks/useRouteMatch";
+import type { TRoutes } from "@/hooks/useRouteMatch";
 
-const MAIN_NAVBAR_HEIGHT = 52;
-const MAIN_NAVBAR_RAIL_WIDTH = 200;
+const MAIN_NAVBAR_HEIGHT = 48;
 
-export interface NavItem {
-  to: TRoutes;
-  label: string;
-}
-
-export const NAV_ITEMS: NavItem[] = [
-  { to: "/observability", label: "Observability" },
-  { to: "/pipelines", label: "Pipelines" },
-  { to: "/sources", label: "Sources" },
-  { to: "/sinks", label: "Sinks" },
+const MAIN_NAVBAR_ITEMS: TabLinkItem<TRoutes>[] = [
+  { id: "/observability", label: "Observability", href: "/observability" },
+  { id: "/pipelines", label: "Pipelines", href: "/pipelines" },
+  { id: "/sources", label: "Sources", href: "/sources" },
+  { id: "/sinks", label: "Sinks", href: "/sinks" },
 ];
 
-const NavbarWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: ${MAIN_NAVBAR_HEIGHT}px;
-
-  padding: 0 16px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const NavTabWrapper = withTheme(styled.div<PropsWithTheme<{ $isActive?: boolean }>>`
-  padding-bottom: 6px;
-
-  border-bottom: 2px solid
-    ${({ theme, $isActive }) => ($isActive ? theme.color.text.primary : "transparent")};
-
-  transition: border-color 100ms ease;
-`);
-
-const NavTabsWrapper = styled.div`
-  height: 100%;
-
-  padding: 16px 24px 0;
-
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-`;
-
-const MainLayoutNavTab = ({ item }: { item: NavItem }) => {
-  const { isRouteMatch: isActive } = useRouteMatch({
-    route: item.to,
-    fuzzy: true,
-  });
-
-  return (
-    <Link to={item.to}>
-      <NavTabWrapper $isActive={isActive}>
-        <Text
-          size={TextSize.BODY_MD}
-          variant={isActive ? TextVariant.PRIMARY : TextVariant.SECONDARY}
-          weight={isActive ? TextWeight.MEDIUM : TextWeight.REGULAR}
-          cursor="pointer"
-        >
-          {item.label}
-        </Text>
-      </NavTabWrapper>
-    </Link>
-  );
-};
+const MainLayoutNavbarRail = ({
+  children,
+  isEnd = false,
+}: {
+  children: ReactNode;
+  isEnd?: boolean;
+}) => (
+  <Flex
+    grow={1}
+    basis={0}
+    minWidth={0}
+    alignItems={AlignItems.CENTER}
+    justifyContent={isEnd ? JustifyContent.END : JustifyContent.START}
+    gap={isEnd ? 8 : 12}
+    padding={[0, MAIN_LAYOUT_GUTTER]}
+  >
+    {children}
+  </Flex>
+);
 
 const MainLayoutNavbar = () => {
   const { session } = useRouteContext({ from: "/_app" });
+  const matchRoute = useMatchRoute();
+
+  const activeItem = MAIN_NAVBAR_ITEMS.find(
+    (item) => matchRoute({ to: item.id, fuzzy: true }) !== false,
+  );
 
   return (
-    <NavbarWrapper>
-      <Link to={"/"}>
-        <FlexWrapper
-          alignItems={AlignItems.CENTER}
-          gap={FlexGap.MEDIUM}
-          width={MAIN_NAVBAR_RAIL_WIDTH}
-        >
-          <FlexItem shrink={0}>
-            <GalaxyLogomark height={12} />
-          </FlexItem>
-          <FlexItem shrink={0}>
-            <GalaxyFilamentWordmark height={18} />
-          </FlexItem>
-          <FlexItem shrink={0}>
-            <DocsButton variant={ButtonVariant.TERTIARY} />
-          </FlexItem>
-        </FlexWrapper>
-      </Link>
-      <NavTabsWrapper>
-        {NAV_ITEMS.map((item) => (
-          <MainLayoutNavTab key={item.to} item={item} />
-        ))}
-      </NavTabsWrapper>
-      <FlexWrapper
-        alignItems={AlignItems.CENTER}
-        justifyContent={JustifyContent.END}
-        gap={FlexGap.SMALL}
-        width={MAIN_NAVBAR_RAIL_WIDTH}
-      >
-        <FlexItem shrink={0}>
-          <GithubButton />
-        </FlexItem>
-        {!session.isAuthenticated && (
-          <FlexItem shrink={0}>
-            <ThemeButton />
-          </FlexItem>
-        )}
-        <FlexItem shrink={0}>
+    <Box position="relative" height={MAIN_NAVBAR_HEIGHT} fillWidth>
+      <Box position="absolute" inset={{ right: 0, bottom: 0, left: 0 }}>
+        <Divider />
+      </Box>
+      <Flex height="100%">
+        <MainLayoutNavbarRail>
+          <Link to="/">
+            <Flex alignItems={AlignItems.CENTER}>
+              <GalaxyFilamentWordmark size={18} />
+            </Flex>
+          </Link>
+          <DocsLink label="Docs" size={TextSize.BODY_SM} underline={LinkUnderline.NONE} />
+        </MainLayoutNavbarRail>
+        <Tabs
+          ariaLabel="Main"
+          size={TabsSize.MEDIUM}
+          items={MAIN_NAVBAR_ITEMS}
+          value={activeItem?.id ?? null}
+          as={RouterLink}
+        />
+        <MainLayoutNavbarRail isEnd>
+          {!session.isAuthenticated && <GithubButton />}
+          {!session.isAuthenticated && <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />}
           <MainLayoutSettingsButton />
-        </FlexItem>
-      </FlexWrapper>
-    </NavbarWrapper>
+        </MainLayoutNavbarRail>
+      </Flex>
+    </Box>
   );
 };
 

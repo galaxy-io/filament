@@ -1,16 +1,15 @@
 import { useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, {
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
+import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -31,6 +30,7 @@ interface PipelineResourceCreateFormProps {
   getError: (state: PipelineResourceCreateState) => string | null;
   onSave: (state: PipelineResourceCreateState) => void;
   onCancel: () => void;
+  variant?: WidgetVariant;
 }
 
 const PipelineResourceCreateForm = ({
@@ -38,6 +38,7 @@ const PipelineResourceCreateForm = ({
   getError,
   onSave,
   onCancel,
+  variant = WidgetVariant.TERTIARY,
 }: PipelineResourceCreateFormProps) => {
   const [state, setState] = useState<PipelineResourceCreateState>({
     resource: "",
@@ -48,69 +49,49 @@ const PipelineResourceCreateForm = ({
   const error = trimmed.resource === "" ? null : getError(trimmed);
   const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== null;
 
-  const sinkOptions: SelectInputOption[] = sinks.map((sink) => ({
+  const sinkOptions: SelectOption[] = sinks.map((sink) => ({
     id: sink.id,
     label: sink.label,
-    value: sink.id,
   }));
 
   return (
-    <FlexWrapper padding="12px" fillWidth>
-      <Widget variant={WidgetVariant.TERTIARY} noHover padding="16px" fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-          <TextInput
-            label="Resource"
-            value={state.resource}
-            onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
+      <Widget variant={variant} size={WidgetSize.LARGE} gap={12}>
+        <TextInput
+          label="Resource"
+          value={state.resource}
+          onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
+          }}
+          placeholder="orders.>"
+          autoFocus
+          variant={InputVariant.TERTIARY}
+          fillWidth
+        />
+        {sinks.length > 1 && (
+          <SelectInput
+            label="Sink"
+            options={sinkOptions}
+            value={state.sinkId || null}
+            onChange={(sinkId) => {
+              if (sinkId !== null) setState((prev) => ({ ...prev, sinkId }));
             }}
-            placeholder="orders.>"
-            variant={InputVariant.TERTIARY}
-            size={InputSize.LARGE}
-            autoFocus
+            variant={SelectInputVariant.TERTIARY}
             fillWidth
           />
-          {sinks.length > 1 && (
-            <SelectInput
-              label="Sink"
-              options={sinkOptions}
-              value={sinkOptions.find((option) => option.value === state.sinkId) ?? null}
-              onChange={(option) =>
-                setState((prev) => ({ ...prev, sinkId: option.value as string }))
-              }
-              variant={InputVariant.TERTIARY}
-              size={InputSize.LARGE}
-              fillWidth
-            />
-          )}
-          {error && (
-            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-              {error}
-            </Text>
-          )}
-          <FlexWrapper
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.END}
-            gap={8}
-            fillWidth
-          >
-            <Button
-              label="Cancel"
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
-              onClick={onCancel}
-            />
-            <Button
-              label="Add"
-              size={ButtonSize.MEDIUM}
-              onClick={() => onSave(trimmed)}
-              isDisabled={isSaveDisabled}
-            />
-          </FlexWrapper>
-        </FlexWrapper>
+        )}
+        {error && (
+          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+            {error}
+          </Text>
+        )}
+        <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
+          <Button label="Cancel" variant={ButtonVariant.SECONDARY} onClick={onCancel} />
+          <Button label="Add" onClick={() => onSave(trimmed)} isDisabled={isSaveDisabled} />
+        </Flex>
       </Widget>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

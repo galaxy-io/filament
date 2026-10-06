@@ -1,7 +1,6 @@
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -14,13 +13,18 @@ const CreatePipelineModalDetails = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth fillHeight>
+    <Flex
+      alignItems={AlignItems.START}
+      direction={FlexDirection.COLUMN}
+      gap={16}
+      fillWidth
+      height="100%"
+    >
       <TextInput
         value={effectiveName}
         onChange={(name) =>
           dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name })
         }
-        size={InputSize.LARGE}
         placeholder="Enter pipeline name..."
         label="Name"
         isRequired
@@ -36,13 +40,13 @@ const CreatePipelineModalDetails = () => {
             payload: nextDescription,
           })
         }
-        size={InputSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"
-        fillHeight
+        minRows={12}
+        isAutoGrow
         fillWidth
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

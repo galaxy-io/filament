@@ -43,6 +43,7 @@ const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
 
 export const createListPipelinesInput = (search: ListSearchParams) => ({
   includeLastRun: true,
+  includeSchedule: true,
   ...createListSearchInput(search),
 });
 

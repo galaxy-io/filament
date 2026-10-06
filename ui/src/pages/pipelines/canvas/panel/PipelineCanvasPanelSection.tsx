@@ -1,6 +1,7 @@
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 
-import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -10,7 +11,7 @@ interface PipelineCanvasPanelSectionProps {
   isEmpty: boolean;
   emptyHeader: string;
   emptyMessage: string;
-  padding?: ComponentProps<typeof Accordion>["padding"];
+  hasInset?: boolean;
   isOpenInitial?: boolean;
   trailing?: ReactNode;
   isOpen?: boolean;
@@ -22,7 +23,7 @@ const PipelineCanvasPanelSection = ({
   isEmpty,
   emptyHeader,
   emptyMessage,
-  padding = 0,
+  hasInset = false,
   isOpenInitial = true,
   trailing,
   isOpen,
@@ -30,21 +31,29 @@ const PipelineCanvasPanelSection = ({
   children,
 }: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
   return (
-    <Accordion
+    <Widget
+      isCollapsible
       header={header}
-      variant={AccordionVariant.TERTIARY}
-      padding={isEmpty ? "24px" : padding}
-      isOpenInitial={isOpenInitial}
+      variant={WidgetVariant.SECONDARY}
+      isFlush={isEmpty || !hasInset}
+      defaultIsOpen={isOpenInitial}
       isOpen={isOpen}
-      onToggle={onToggle}
-      trailing={trailing}
+      onOpenChange={onToggle}
+      actions={trailing}
     >
-      {isEmpty ? (
-        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
-      ) : (
-        children
-      )}
-    </Accordion>
+      <Flex
+        alignItems={AlignItems.STRETCH}
+        direction={FlexDirection.COLUMN}
+        padding={isEmpty ? 24 : undefined}
+        fillWidth
+      >
+        {isEmpty ? (
+          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} description={emptyMessage} />
+        ) : (
+          children
+        )}
+      </Flex>
+    </Widget>
   );
 };
 

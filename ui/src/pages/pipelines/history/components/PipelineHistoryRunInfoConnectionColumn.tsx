@@ -1,9 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { useNavigate } from "@tanstack/react-router";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
@@ -44,7 +45,7 @@ const PipelineHistoryRunInfoConnectionColumn = ({
 
   const renderContent = () => {
     return (
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} width={200}>
+      <Flex alignItems={AlignItems.CENTER} gap={8} width={200}>
         <ConnectorTile
           connector={connectionData?.connection?.connector ?? ""}
           kind={connectionData?.connection?.kind}
@@ -56,17 +57,22 @@ const PipelineHistoryRunInfoConnectionColumn = ({
         </FlexItem>
         {resourceName && (
           <>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
               /
             </Text>
             <FlexItem shrink={0}>
-              <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
+              <Text
+                size={TextSize.BODY_SM}
+                weight={TextWeight.MEDIUM}
+                family={FontFamily.MONO}
+                lineClamp={1}
+              >
                 {resourceName}
               </Text>
             </FlexItem>
           </>
         )}
-      </FlexWrapper>
+      </Flex>
     );
   };
 

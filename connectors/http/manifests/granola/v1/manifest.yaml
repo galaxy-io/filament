@@ -1,7 +1,7 @@
 version: 1
 name: granola
 display_name: Granola
-description: Meeting notes, AI summaries, transcripts, folders, and webhook configuration from Granola.
+description: AI notepad that transcribes meetings and uses the conversation to enhance your notes, without a meeting bot.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-granola-light.svg
 api_version: "v1"
@@ -39,13 +39,13 @@ connection:
 resources:
   - name: notes
     path: /v1/notes
-    query: { page_size: "30" }
+    query: {page_size: "30"}
     records: $.notes
     primary_key: [id]
     use_fields: [note]
     fields:
-      raw: { path: $, type: json, mode: remainder }
-    capture: { note_id: id }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {note_id: id}
     incremental:
       cursor_field: updated_at
       start_param: updated_after
@@ -56,7 +56,7 @@ resources:
 
   - name: note_details
     path: /v1/notes/{note_id}
-    params: { note_id: parent.note_id }
+    params: {note_id: parent.note_id}
     for_each: notes
     primary_key: [id]
     use_fields: [note]
@@ -69,7 +69,7 @@ resources:
       summary_markdown: string?
       private_notes_text: string?
       private_notes_markdown: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     # Fetch transcripts separately: include=transcript can fail with 413.
     response:
       records: $
@@ -78,24 +78,24 @@ resources:
 
   - name: transcripts
     path: /v1/notes/{note_id}/transcript
-    params: { note_id: parent.note_id }
+    params: {note_id: parent.note_id}
     for_each: notes
-    query: { page_size: "100" }
+    query: {page_size: "100"}
     records: $.transcript
     # Transcript items have no stable ID or documented unique tuple.
     # Keep every item, including repeated speech, using full replacement.
     primary_key: []
     fields:
-      note_id: { path: parent.note_id, type: string }
+      note_id: {path: parent.note_id, type: string}
       speaker: json
       text: string
       start_time: timestamptz
       end_time: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: folders
     path: /v1/folders
-    query: { page_size: "30" }
+    query: {page_size: "30"}
     records: $.folders
     primary_key: [id]
     fields:
@@ -103,7 +103,7 @@ resources:
       object: string
       name: string
       parent_folder_id: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_endpoints
     path: /v1/webhook-endpoints
@@ -121,7 +121,7 @@ resources:
       created_by: json?
       enabled: bool
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 discovery:
   mode: static
   default_resources: [notes, note_details, transcripts, folders]

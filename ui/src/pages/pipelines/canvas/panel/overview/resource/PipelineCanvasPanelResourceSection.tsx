@@ -4,16 +4,12 @@ import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
@@ -139,7 +135,7 @@ const PipelineCanvasPanelResourceSection = ({
         ) : undefined
       }
     >
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
         {isCreating && (
           <>
             <PipelineResourceCreateForm
@@ -151,7 +147,7 @@ const PipelineCanvasPanelResourceSection = ({
               onSave={handleCreate}
               onCancel={() => setIsCreating(false)}
             />
-            {edges.length > 0 && <HorizontalDivider />}
+            {edges.length > 0 && <Divider />}
           </>
         )}
         {edges.map((edge) => {
@@ -163,19 +159,23 @@ const PipelineCanvasPanelResourceSection = ({
           );
           return (
             <PipelineCanvasPanelItem key={edge.id} onClick={() => selectResource(edge.id)}>
-              <FlexWrapper
+              <Flex
                 alignItems={AlignItems.CENTER}
                 justifyContent={JustifyContent.SPACE_BETWEEN}
-                gap={FlexGap.SMALL}
+                gap={8}
                 minWidth={0}
                 fillWidth
               >
                 <FlexItem minWidth={0}>
-                  <Text size={TextSize.BODY_SM} isMonospace={isNamedResource} isEllipsis>
+                  <Text
+                    size={TextSize.BODY_SM}
+                    family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
+                    lineClamp={1}
+                  >
                     {label}
                   </Text>
                 </FlexItem>
-                <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} shrink={0}>
+                <Flex alignItems={AlignItems.CENTER} gap={8} shrink={0}>
                   <ConnectorTile
                     connector={sourceConnection?.connector ?? ""}
                     kind={ConnectorKind.SOURCE}
@@ -189,12 +189,12 @@ const PipelineCanvasPanelResourceSection = ({
                     size={ConnectorTileSize.SMALL}
                     isDeleted={!!sinkConnection?.deletedAt}
                   />
-                </FlexWrapper>
-              </FlexWrapper>
+                </Flex>
+              </Flex>
             </PipelineCanvasPanelItem>
           );
         })}
-      </FlexWrapper>
+      </Flex>
     </PipelineCanvasPanelSection>
   );
 };

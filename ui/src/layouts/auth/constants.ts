@@ -5,7 +5,7 @@ import {
   SlackLogoIcon,
 } from "@phosphor-icons/react";
 
-import { GalaxyTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
 
 import type {
   AuthLayoutAsideFieldPalette,
@@ -19,7 +19,6 @@ export const AUTH_LAYOUT_INSET = 32;
 export const AUTH_LAYOUT_CONTENT_WIDTH = 320;
 export const AUTH_LAYOUT_ASIDE_BREAKPOINT = 1080;
 export const AUTH_LAYOUT_ASIDE_CONTENT_WIDTH = 320;
-export const AUTH_LAYOUT_ASIDE_LINK_PADDING = "12px 16px";
 
 export const AUTH_LAYOUT_ASIDE_FIELD_SPACING = 12;
 export const AUTH_LAYOUT_ASIDE_FIELD_DOT_RADIUS = 0.5;
@@ -78,3 +77,5 @@ export const AUTH_LAYOUT_ASIDE_LINKS: AuthLayoutAsideLink[] = [
     url: SLACK_COMMUNITY_URL,
   },
 ];
+
+export const SUPPORT_EMAIL = "support@getgalaxy.io";

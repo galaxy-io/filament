@@ -80,6 +80,8 @@ Useful targeted commands include:
 just ui-dist          # Type-check and build the UI bundle
 just build            # Generate and compile the full workspace
 just proto-lint       # Lint protobuf definitions
+just manifest-lint    # Check HTTP manifest YAML syntax and formatting
+just manifest-format  # Format HTTP manifest YAML
 just test-integration # Run Docker-backed integration and e2e tests
 ```
 

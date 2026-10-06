@@ -1,20 +1,13 @@
+import type { ReactNode } from "react";
+
 import { type Icon as PhosphorIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import EmptyState, { EmptyStateVariant } from "@galaxy-io/dls/feedback/EmptyState";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import {
-  LAYOUT_SIZE_TO_GAP_MAP,
-  LAYOUT_SIZE_TO_GLYPH_SIZE_MAP,
-  LAYOUT_SIZE_TO_HEADER_SIZE_MAP,
-  LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP,
-} from "@/layouts/constants";
+import { LAYOUT_SIZE_TO_EMPTY_STATE_SIZE_MAP } from "@/layouts/constants";
 import { LayoutSize } from "@/layouts/types";
 
 import { IS_DEBUG } from "@/constants";
@@ -22,57 +15,47 @@ import { IS_DEBUG } from "@/constants";
 interface ErrorLayoutProps {
   size?: LayoutSize;
   icon?: PhosphorIcon;
-  header?: string;
-  message?: string;
+  header: string;
+  description?: string;
   error?: Error;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 }
 
 const ErrorLayout = ({
   size = LayoutSize.MEDIUM,
   icon = WarningCircleIcon,
   header,
-  message,
+  description,
   error,
   actions,
 }: ErrorLayoutProps) => {
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
-      gap={LAYOUT_SIZE_TO_GAP_MAP[size]}
     >
-      <Icon
-        component={icon}
-        size={LAYOUT_SIZE_TO_GLYPH_SIZE_MAP[size]}
-        variant={IconVariant.ERROR}
+      <EmptyState
+        size={LAYOUT_SIZE_TO_EMPTY_STATE_SIZE_MAP[size]}
+        variant={EmptyStateVariant.ERROR}
+        icon={icon}
+        header={header}
+        description={description}
+        actions={actions}
       />
-      <FlexWrapper
-        direction={FlexDirection.COLUMN}
-        alignItems={AlignItems.CENTER}
-        gap={FlexGap.SMALL}
-      >
-        {header && (
-          <Text size={LAYOUT_SIZE_TO_HEADER_SIZE_MAP[size]} weight={TextWeight.MEDIUM}>
-            {header}
-          </Text>
-        )}
-        {message && (
-          <Text size={LAYOUT_SIZE_TO_MESSAGE_SIZE_MAP[size]} variant={TextVariant.SECONDARY}>
-            {message}
-          </Text>
-        )}
-        {IS_DEBUG && error && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR} isMonospace isSelectable>
-            {error.message}
-          </Text>
-        )}
-      </FlexWrapper>
-      {actions}
-    </FlexWrapper>
+      {IS_DEBUG && error && (
+        <Text
+          size={TextSize.CAPTION}
+          variant={TextVariant.ERROR}
+          family={FontFamily.MONO}
+          isSelectable
+        >
+          {error.message}
+        </Text>
+      )}
+    </Flex>
   );
 };
 

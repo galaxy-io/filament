@@ -2,8 +2,8 @@ import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -29,7 +29,7 @@ const SlotsWrapper = styled.div`
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
-const Slot = withTheme(styled.div<PropsWithTheme<{ $isLive: boolean; $isFilled: boolean }>>`
+const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
   width: ${SLOT_SIZE}px;
   height: ${SLOT_SIZE}px;
 
@@ -38,10 +38,9 @@ const Slot = withTheme(styled.div<PropsWithTheme<{ $isLive: boolean; $isFilled: 
   justify-content: center;
   flex-shrink: 0;
 
-  border: ${({ $isFilled }) => ($isFilled ? "0.5px solid" : "1px dashed")}
-    ${({ theme, $isLive }) =>
-      $isLive ? theme.color.border.secondary : theme.color.border.primary};
-  border-radius: 6px;
+  border: ${({ $isFilled }) => ($isFilled ? `${HAIRLINE_WIDTH} solid` : "1px dashed")}
+    ${({ $isLive }) => ($isLive ? t.color.border.secondary : t.color.border.primary)};
+  border-radius: ${t.radius.md};
 
   animation: ${({ $isLive }) =>
     $isLive ? "sources-empty-slot-pulse 3s ease-in-out infinite" : "none"};
@@ -55,7 +54,7 @@ const Slot = withTheme(styled.div<PropsWithTheme<{ $isLive: boolean; $isFilled: 
       opacity: 1;
     }
   }
-`);
+`;
 
 const ConnectionsPageSourcesEmptyGraphic = () => {
   const { data } = useListConnectorsQuery();

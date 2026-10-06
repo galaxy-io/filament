@@ -2,9 +2,10 @@ import { memo } from "react";
 
 import { styled } from "@linaria/react";
 
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { RunEvent } from "@/gen/ingestion/v1/runs_pb";
 
@@ -13,18 +14,6 @@ import {
   formatRunEventTime,
   getRunEventTextVariant,
 } from "@/pages/pipelines/canvas/panel/activity/utils";
-
-const LineWrapper = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-`;
-
-const Timestamp = withTheme(styled.span<PropsWithTheme>`
-  flex-shrink: 0;
-  color: ${({ theme }) => theme.color.text.tertiary};
-  font-family: inherit;
-`);
 
 const Detail = styled.div`
   flex: 1;
@@ -40,22 +29,24 @@ const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActi
   const detail = formatRunEventDetail(event);
 
   return (
-    <LineWrapper>
-      <Text size={TextSize.CAPTION} isMonospace>
-        <Timestamp>{formatRunEventTime(event)}</Timestamp>
-      </Text>
+    <Flex alignItems={AlignItems.BASELINE} gap={8}>
+      <FlexItem shrink={0}>
+        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
+          {formatRunEventTime(event)}
+        </Text>
+      </FlexItem>
       <Detail>
         <Text
           size={TextSize.CAPTION}
           variant={getRunEventTextVariant(event)}
-          isMonospace
+          family={FontFamily.MONO}
           isSelectable
         >
           {event.eventType}
           {detail ? ` ${detail}` : ""}
         </Text>
       </Detail>
-    </LineWrapper>
+    </Flex>
   );
 });
 

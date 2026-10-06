@@ -1,21 +1,15 @@
 import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -28,7 +22,6 @@ import {
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import Field from "@/components/fields/Field";
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import {
   getConnectionScopedFields,
   getFieldDefaults,
@@ -44,6 +37,7 @@ import {
 } from "@/pages/connectors/components/create/utils";
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
+import ConnectionFormMaturityAlert from "@/pages/connectors/components/form/ConnectionFormMaturityAlert";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
@@ -52,10 +46,7 @@ import {
   getNameError,
   isNameValid,
 } from "@/pages/connectors/components/form/validation";
-import {
-  CONNECTOR_KIND_TO_LABEL_MAP,
-  CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH,
-} from "@/pages/connectors/constants";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 import {
   useGetConnectorQuery,
@@ -63,26 +54,7 @@ import {
   useValidateConfigMutation,
 } from "@/api/queries/connectors";
 
-import { NOOP } from "@/constants";
-
 import { getErrorMessage } from "@/utils/errors";
-
-const BodyWrapper = withTheme(styled.div<PropsWithTheme>`
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  overflow-y: auto;
-  background-color: ${({ theme }) => theme.color.background.base};
-  padding: 16px;
-`);
-
-const FooterWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
 
 interface ConnectionFormProps {
   connectorName: ConnectorSpec["name"];
@@ -106,7 +78,7 @@ const ConnectionForm = ({
   onConnectorChange,
 }: ConnectionFormProps) => {
   const { state, dispatch } = useConnectionFormContext();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const { data, isError } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
@@ -121,12 +93,10 @@ const ConnectionForm = ({
   const versions = family ? getConnectorVersions(family, catalog) : [];
   const versionOptions = versions.map((version) => ({
     id: version.name,
-    value: version.name,
     label: `${version.apiVersion || version.version}${version.name === family?.aliasTarget ? " (default)" : ""}`,
   }));
 
   const submitLabel = connectionId ? "Save" : "Create";
-  const submittingLabel = connectionId ? "Saving..." : "Creating...";
 
   const { mutate: validateConfig } = useValidateConfigMutation();
 
@@ -138,9 +108,6 @@ const ConnectionForm = ({
   const isDisabled =
     state.phase === ConnectionFormPhase.VALIDATING ||
     state.phase === ConnectionFormPhase.SUBMITTING;
-
-  const isValidating = state.phase === ConnectionFormPhase.VALIDATING;
-  const isSubmitting = state.phase === ConnectionFormPhase.SUBMITTING;
 
   const nameError = useMemo(
     () => getNameError(state.name, state.shouldShowErrors),
@@ -203,10 +170,10 @@ const ConnectionForm = ({
               type: ConnectionFormActionType.SET_PHASE,
               payload: ConnectionFormPhase.ERROR,
             });
-            showToast({
+            toast({
               variant: ToastVariant.ERROR,
               header: "Validation failed",
-              subheader: response.errors[0]?.message ?? "Connection could not be validated.",
+              description: response.errors[0]?.message ?? "Connection could not be validated.",
             });
           }
         },
@@ -215,10 +182,10 @@ const ConnectionForm = ({
             type: ConnectionFormActionType.SET_PHASE,
             payload: ConnectionFormPhase.ERROR,
           });
-          showToast({
+          toast({
             variant: ToastVariant.ERROR,
             header: "Validation failed",
-            subheader: getErrorMessage(error, "Validation failed"),
+            description: getErrorMessage(error, "Validation failed"),
           });
         },
       },
@@ -231,7 +198,7 @@ const ConnectionForm = ({
     connectionId,
     validateConfig,
     dispatch,
-    showToast,
+    toast,
   ]);
 
   const handleNameChange = useCallback(
@@ -268,7 +235,6 @@ const ConnectionForm = ({
         <TextInput
           value={state.name}
           onChange={handleNameChange}
-          size={InputSize.LARGE}
           placeholder="Enter connection name..."
           label="Name"
           isRequired
@@ -278,16 +244,16 @@ const ConnectionForm = ({
           autoFocus
         />
         {onConnectorChange && versionOptions.length > 0 && (
-          <FieldWrapper label="API version">
-            <SelectInput
-              options={versionOptions}
-              value={versionOptions.find((option) => option.value === connector?.name) ?? null}
-              onChange={(option) => onConnectorChange(option.value as string)}
-              isDisabled={isDisabled || versionOptions.length === 1}
-              size={InputSize.LARGE}
-              fillWidth
-            />
-          </FieldWrapper>
+          <SelectInput
+            label="API version"
+            options={versionOptions}
+            value={connector?.name ?? null}
+            onChange={(id) => {
+              if (id) onConnectorChange(id);
+            }}
+            isDisabled={isDisabled || versionOptions.length === 1}
+            fillWidth
+          />
         )}
         {fields
           .filter((field) => isFieldVisible(field, fieldValues))
@@ -310,7 +276,6 @@ const ConnectionForm = ({
     return match(state.phase)
       .with(ConnectionFormPhase.IDLE, ConnectionFormPhase.ERROR, () => (
         <Button
-          size={ButtonSize.LARGE}
           label="Validate"
           icon={ArrowRightIcon}
           onClick={handleTestConnection}
@@ -318,48 +283,23 @@ const ConnectionForm = ({
           isIconTrailing
         />
       ))
-      .with(ConnectionFormPhase.VALIDATING, () => (
-        <Button
-          size={ButtonSize.LARGE}
-          label="Testing..."
-          onClick={NOOP}
-          isLoading={isValidating}
-          isDisabled
-        />
-      ))
+      .with(ConnectionFormPhase.VALIDATING, () => <Button label="Validate" isLoading />)
       .with(ConnectionFormPhase.VALIDATED, () => (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={16}>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-            <Beacon variant={BeaconVariant.SUCCESS} />
-            <Text variant={TextVariant.SUCCESS}>Connected</Text>
-          </FlexWrapper>
-          <Button
-            size={ButtonSize.LARGE}
-            label={submitLabel}
-            icon={CheckIcon}
-            variant={ButtonVariant.SUCCESS}
-            onClick={onSubmit}
-          />
-        </FlexWrapper>
+        <Flex alignItems={AlignItems.CENTER} gap={16}>
+          <Beacon variant={BeaconVariant.SUCCESS} label="Connected" />
+          <Button label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
+        </Flex>
       ))
-      .with(ConnectionFormPhase.SUBMITTING, () => (
-        <Button
-          size={ButtonSize.LARGE}
-          label={submittingLabel}
-          onClick={NOOP}
-          isLoading={isSubmitting}
-          isDisabled
-        />
-      ))
+      .with(ConnectionFormPhase.SUBMITTING, () => <Button label={submitLabel} isLoading />)
       .exhaustive();
   };
 
   if (isError) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Connector not found" onClose={onClose}>
         <ErrorLayout
           header="Connector not found"
-          message={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
+          description={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
           actions={
             <Button
               label={onBack ? "Choose a connector" : "Close"}
@@ -374,51 +314,54 @@ const ConnectionForm = ({
 
   if (!connector) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper
+        size={ModalSize.MEDIUM}
+        header={connectionId ? "Edit connection" : "New connection"}
+        onClose={onClose}
+      >
         <PendingLayout />
       </ConnectionFormWrapper>
     );
   }
 
   return (
-    <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
-      <FlexItem grow={0} shrink={0}>
+    <ConnectionFormWrapper
+      size={ModalSize.MEDIUM}
+      header={
         <ConnectionFormHeader
+          connectorName={connectorName}
+          connectorKind={connectorKind}
+          title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
+        />
+      }
+      footer={
+        <Flex
+          alignItems={AlignItems.CENTER}
+          justifyContent={onBack ? JustifyContent.SPACE_BETWEEN : JustifyContent.END}
+          fillWidth
+        >
+          {onBack && (
+            <Button
+              onClick={onBack}
+              icon={ArrowLeftIcon}
+              label="Back"
+              variant={ButtonVariant.SECONDARY}
+            />
+          )}
+          {renderFooter()}
+        </Flex>
+      }
+      onClose={onClose}
+    >
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+        <ConnectionFormMaturityAlert
           connectorName={connectorName}
           connectorKind={connectorKind}
           connectorMaturity={connector.maturity}
           connectorApiVersion={connector.apiVersion}
-          title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
-          onClose={onClose}
         />
-      </FlexItem>
-      <FlexItem grow={0} shrink={0}>
-        <HorizontalDivider />
-      </FlexItem>
-
-      <BodyWrapper>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth>
-          {renderBody()}
-        </FlexWrapper>
-      </BodyWrapper>
-
-      <FlexItem grow={0} shrink={0}>
-        <HorizontalDivider />
-      </FlexItem>
-      <FooterWrapper>
-        {onBack ? (
-          <Button
-            size={ButtonSize.LARGE}
-            onClick={onBack}
-            icon={ArrowLeftIcon}
-            label="Back"
-            variant={ButtonVariant.SECONDARY}
-          />
-        ) : (
-          <div />
-        )}
-        {renderFooter()}
-      </FooterWrapper>
+        {renderBody()}
+      </Flex>
     </ConnectionFormWrapper>
   );
 };

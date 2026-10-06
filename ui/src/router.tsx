@@ -16,7 +16,7 @@ export const DefaultErrorComponent = ({ error }: { error: Error }) => {
     <ErrorLayout
       icon={BugIcon}
       header="Looks like there was a glitch in the matrix"
-      message="Please try again later"
+      description="Please try again later"
       error={error}
     />
   );
@@ -33,7 +33,7 @@ const DefaultNotFoundComponent = () => {
     <ErrorLayout
       icon={ImageBrokenIcon}
       header="Page not found"
-      message="The page you are looking for does not exist"
+      description="The page you are looking for does not exist"
       actions={<Button label="Go back to app" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />}
     />
   );

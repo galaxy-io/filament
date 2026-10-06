@@ -3,7 +3,7 @@ version: 1
 name: servicetitan
 api_version: v2
 display_name: ServiceTitan
-description: ServiceTitan operations, customers, accounting, inventory, memberships, and payroll.
+description: Field service management software for commercial and residential trades, connecting office operations with technicians in the field from scheduling through job completion.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-servicetitan-light.svg
 config:
@@ -91,7 +91,7 @@ resources:
       membershipId: int64?
       partnerLeadCallId: int64?
       summaryOfWork: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -127,7 +127,7 @@ resources:
       arrivalWindowStart: string?
       specialInstructions: string?
       appointmentSummaries: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -168,7 +168,7 @@ resources:
       projectManagerIds: json?
       actualCompletionDate: string?
       targetCompletionDate: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -195,7 +195,7 @@ resources:
       createdOn: string?
       modifiedOn: string?
       createdById: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -216,8 +216,8 @@ resources:
     fields:
       jobId: int64
       history: json?
-      lastEventDate: { path: history, type: string, nullable: true, max_string: date }
-      raw: { path: $, type: json, mode: remainder }
+      lastEventDate: {path: history, type: string, nullable: true, max_string: date}
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -256,7 +256,7 @@ resources:
       customFieldTypeIds: json?
       defaultEstimateSoldAction: string?
       isSmartDispatched: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       active: "Any"
       includeTotal: "true"
@@ -291,7 +291,7 @@ resources:
       paymentTermId: int64?
       nationalAccount: bool?
       creditLimitBalance: decimal?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -325,7 +325,7 @@ resources:
       createdById: int64?
       customFields: json?
       externalData: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -375,7 +375,7 @@ resources:
       leadUnit: string?
       leadZip: string?
       manualCallId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -416,7 +416,7 @@ resources:
       dismissingReasonId: int64?
       isSendConfirmationEmail: bool?
       uploadedImages: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -445,7 +445,7 @@ resources:
       modifiedOn: string?
       preferences: json?
       phoneSettings: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -474,7 +474,7 @@ resources:
       modifiedOn: string?
       preferences: json?
       phoneSettings: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -537,7 +537,7 @@ resources:
       assignedTo: json?
       importId: string?
       exportId: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -596,7 +596,7 @@ resources:
       serviceDate: string?
       soldHours: decimal?
       technicianId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -638,7 +638,7 @@ resources:
       deposit: string?
       typeId: string?
       unappliedAmount: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -677,7 +677,7 @@ resources:
       businessUnitId: int64?
       referenceNumber: string?
       inventoryLocationId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -724,7 +724,7 @@ resources:
       batchId: int64?
       budgetCodeId: int64?
       shipTo: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -775,7 +775,7 @@ resources:
       dateCanceled: string?
       returnTypeId: int64?
       syncStatus: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -814,7 +814,7 @@ resources:
       transferType: string?
       fromLocationId: int64?
       referenceNumber: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -850,7 +850,7 @@ resources:
       businessUnitIds: json?
       skuImages: json?
       skuVideos: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -906,7 +906,7 @@ resources:
       crossSaleGroup: string?
       isPriceLocked: bool?
       tags: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -973,7 +973,7 @@ resources:
       serviceProviderWarranty: json?
       upgrades: json?
       variationsOrConfigurableEquipment: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1039,7 +1039,7 @@ resources:
       isPriceLocked: bool?
       otherVendors: json?
       variationsOrConfigurableMaterials: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1084,7 +1084,7 @@ resources:
       businessUnitAccessIds: json?
       home: json?
       permissions: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1149,7 +1149,7 @@ resources:
       shiftStart: string?
       skills: json?
       startDate: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1195,7 +1195,7 @@ resources:
       invoiceMessage: string?
       materialSku: string?
       tenant: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1225,7 +1225,7 @@ resources:
       isConversionOpportunity: bool?
       allowToUseOnTimesheetActivity: bool?
       isVisibleOnDispatchBoard: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1257,7 +1257,7 @@ resources:
       medium: string?
       otherMedium: string?
       campaignPhoneNumbers: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       active: "Any"
       includeTotal: "true"
@@ -1277,7 +1277,7 @@ resources:
       month: int64?
       dailyCost: decimal?
       campaignId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeTotal: "true"
     response:
@@ -1297,7 +1297,7 @@ resources:
       type: string?
       createdOn: string?
       modifiedOn: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeTotal: "true"
     response:
@@ -1333,7 +1333,7 @@ resources:
       excuseMemo: string?
       tag: string?
       voiceMailPath: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1368,7 +1368,7 @@ resources:
       employeeType: string?
       appointmentId: int64?
       activityTypeId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1398,7 +1398,7 @@ resources:
       dispatchedOn: string?
       technicianId: int64?
       appointmentId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1424,7 +1424,7 @@ resources:
       createdOn: string?
       modifiedOn: string?
       technicianId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1459,7 +1459,7 @@ resources:
       employeeType: string?
       activityCodeId: int64?
       businessUnitId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1521,7 +1521,7 @@ resources:
       startedOn: string?
       taxZoneName: string?
       zoneName: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1549,7 +1549,7 @@ resources:
       createdOn: string?
       modifiedOn: string?
       active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1577,7 +1577,7 @@ resources:
       createdOn: string?
       modifiedOn: string
       active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeTotal: "true"
       sort: "+ModifiedOn"
@@ -1609,7 +1609,7 @@ resources:
       timesheetCodeId: int64?
       createdOn: string?
       modifiedOn: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       active: "Any"
       includeTotal: "true"
@@ -1635,7 +1635,7 @@ resources:
       createdOn: string?
       modifiedOn: string
       active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeTotal: "true"
       sort: "+ModifiedOn"
@@ -1676,7 +1676,7 @@ resources:
       autoCalculateInvoiceTemplates: bool?
       useMembershipPricingTable: bool?
       showMembershipSavings: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1713,7 +1713,7 @@ resources:
       priority: string?
       campaignId: int64?
       jobSummary: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1769,7 +1769,7 @@ resources:
       recurringLocationId: int64?
       renewalMembershipTaskId: int64?
       customFields: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1798,7 +1798,7 @@ resources:
       createdById: int64?
       isSettingsTemplate: bool?
       items: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1853,7 +1853,7 @@ resources:
       estimatedPayrollCost: decimal?
       preferredTechnicianIds: json?
       tagTypeIds: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1884,7 +1884,7 @@ resources:
       membershipName: string?
       locationRecurringServiceId: int64?
       locationRecurringServiceName: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1910,7 +1910,7 @@ resources:
       createdOn: string?
       createdById: int64?
       membershipId: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:
@@ -1952,7 +1952,7 @@ resources:
       depositAmount: decimal?
       depositPercent: decimal?
       requireDepositOnSignature: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"
     response:

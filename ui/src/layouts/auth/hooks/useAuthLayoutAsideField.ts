@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
+import { usePrefersReducedMotion } from "@galaxy-io/dls/hooks/usePrefersReducedMotion";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import {
   AUTH_LAYOUT_ASIDE_FIELD_MAX_DELTA,
@@ -15,6 +16,7 @@ import {
 
 export const useAuthLayoutAsideField = () => {
   const { activeTheme } = useGalaxyTheme();
+  const isMotionReduced = usePrefersReducedMotion();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -28,7 +30,6 @@ export const useAuthLayoutAsideField = () => {
     const palette = AUTH_LAYOUT_ASIDE_FIELD_PALETTE_MAP[activeTheme];
     const sprite = createAuthLayoutAsideFieldSprite(palette, pixelRatio);
     const state = createAuthLayoutAsideFieldState();
-    const isMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const resize = () => {
       const { width, height } = wrapper.getBoundingClientRect();
@@ -67,7 +68,7 @@ export const useAuthLayoutAsideField = () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [activeTheme]);
+  }, [activeTheme, isMotionReduced]);
 
   return { wrapperRef, canvasRef };
 };

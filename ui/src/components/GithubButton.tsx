@@ -1,6 +1,7 @@
 import { GithubLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import { GITHUB_REPO_URL } from "@/constants";
 
@@ -13,10 +14,10 @@ const GithubButton = () => {
     <Button
       label="Star on GitHub"
       icon={GithubLogoIcon}
-      variant={ButtonVariant.SECONDARY}
+      iconWeight={IconWeight.FILL}
+      variant={ButtonVariant.TERTIARY}
       size={ButtonSize.SMALL}
       onClick={handleGithub}
-      isIconFilled
     />
   );
 };

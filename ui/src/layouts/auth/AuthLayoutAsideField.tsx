@@ -2,24 +2,30 @@ import type { PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import GalaxyProvider from "@galaxy-io/dls/theme/GalaxyProvider";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import { useAuthLayoutAsideField } from "@/layouts/auth/hooks/useAuthLayoutAsideField";
 
-const FieldWrapper = withTheme(styled.div<PropsWithTheme>`
+const FieldWrapper = styled.div`
   position: relative;
   flex: 1;
   min-width: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
   overflow: hidden;
 
-  background-color: ${({ theme }) => theme.color.background.primaryAlt};
-`);
+  & > [data-gx-theme] {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: ${t.color.background.primary};
+  }
+`;
 
 const FieldCanvas = styled.canvas`
   position: absolute;
@@ -36,11 +42,15 @@ const FieldContent = styled.div`
 
 const AuthLayoutAsideField = ({ children }: PropsWithChildren) => {
   const { wrapperRef, canvasRef } = useAuthLayoutAsideField();
+  const { activeTheme } = useGalaxyTheme();
+  const inverseTheme = activeTheme === GalaxyTheme.LIGHT ? GalaxyTheme.DARK : GalaxyTheme.LIGHT;
 
   return (
     <FieldWrapper ref={wrapperRef}>
-      <FieldCanvas ref={canvasRef} />
-      <FieldContent>{children}</FieldContent>
+      <GalaxyProvider key={inverseTheme} theme={inverseTheme} isScoped>
+        <FieldCanvas ref={canvasRef} />
+        <FieldContent>{children}</FieldContent>
+      </GalaxyProvider>
     </FieldWrapper>
   );
 };

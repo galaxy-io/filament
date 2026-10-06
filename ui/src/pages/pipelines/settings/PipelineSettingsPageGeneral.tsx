@@ -3,18 +3,13 @@ import { useState } from "react";
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
   GetPipelineRequestSchema,
@@ -40,7 +35,7 @@ const DEFAULT_STATE: PipelineSettingsPageGeneralState = {
 };
 
 const PipelineSettingsPageGeneral = () => {
-  const { showToast } = useToast();
+  const { toast } = useToast();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({
@@ -89,16 +84,16 @@ const PipelineSettingsPageGeneral = () => {
 
     updatePipeline(request, {
       onSuccess: () => {
-        showToast({
+        toast({
           header: "Pipeline saved",
-          subheader: "Your pipeline has been saved successfully.",
+          description: "Your pipeline has been saved successfully.",
           variant: ToastVariant.SUCCESS,
         });
       },
       onError: (error) => {
-        showToast({
+        toast({
           header: "Save failed",
-          subheader: getErrorMessage(error, "Failed to save pipeline"),
+          description: getErrorMessage(error, "Failed to save pipeline"),
           variant: ToastVariant.ERROR,
         });
       },
@@ -106,12 +101,11 @@ const PipelineSettingsPageGeneral = () => {
   };
 
   return (
-    <Accordion header="General" isOpenInitial>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+    <Widget isCollapsible header="General" defaultIsOpen>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
         <TextInput
           value={state.name}
           onChange={handleNameChange}
-          size={InputSize.LARGE}
           placeholder={formatPipelineName(pipeline)}
           label="Name"
           fillWidth
@@ -119,12 +113,11 @@ const PipelineSettingsPageGeneral = () => {
         <TextAreaInput
           value={state.description}
           onChange={handleDescriptionChange}
-          size={InputSize.LARGE}
           placeholder="Optional description"
           label="Description"
           fillWidth
         />
-        <FlexWrapper justifyContent={JustifyContent.END} gap={8} fillWidth>
+        <Flex alignItems={AlignItems.START} justifyContent={JustifyContent.END} gap={8} fillWidth>
           <Button
             label="Cancel"
             variant={ButtonVariant.SECONDARY}
@@ -132,9 +125,9 @@ const PipelineSettingsPageGeneral = () => {
             onClick={handleCancel}
           />
           <Button label="Save" isDisabled={!canSave} isLoading={isSaving} onClick={handleSave} />
-        </FlexWrapper>
-      </FlexWrapper>
-    </Accordion>
+        </Flex>
+      </Flex>
+    </Widget>
   );
 };
 

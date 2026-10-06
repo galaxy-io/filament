@@ -4,9 +4,9 @@ import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 
 import { Flow } from "@/layouts/app/types";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
@@ -37,8 +37,7 @@ const PipelinesPage = () => {
 
   const sorting = useMemo(() => createPipelinesTableSorting(search), [search]);
 
-  const handleSortingChange: PipelinesTableSortingChange = (updater) => {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
+  const handleSortingChange: PipelinesTableSortingChange = (next) => {
     void navigate({
       to: ".",
       replace: true,
@@ -58,7 +57,7 @@ const PipelinesPage = () => {
       return (
         <PipelinesPageEmptyGraphic
           actions={
-            <FlexWrapper gap={8}>
+            <Flex alignItems={AlignItems.CENTER} gap={16}>
               <Button
                 label="New pipeline"
                 icon={PlusIcon}
@@ -66,8 +65,8 @@ const PipelinesPage = () => {
                 size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
-            </FlexWrapper>
+              <DocsLink label="Learn about pipelines" path="/pages/guides/usage/web#pipelines" />
+            </Flex>
           }
         />
       );
@@ -87,6 +86,7 @@ const PipelinesPage = () => {
 
   return (
     <MainLayoutListPage
+      isScrollable={false}
       actions={[
         <Button
           key="new-pipeline"

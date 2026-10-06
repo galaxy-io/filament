@@ -2,34 +2,33 @@ import { Children, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { Radius } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const ListWrapper = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  border-radius: 8px;
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  background-color: ${({ theme }) => theme.color.background.primary};
-  overflow: hidden;
-`);
-
-const ListItem = withTheme(styled.div<PropsWithTheme>`
+const ListItem = styled.div`
   padding: 12px;
 
   &:not(:last-child) {
-    border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+    border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   }
-`);
+`;
 
-const ConnectionDrawerList = ({ children }: PropsWithChildren) => {
+interface ConnectionDrawerListProps {
+  variant?: BoxVariant;
+}
+
+const ConnectionDrawerList = ({
+  variant = BoxVariant.PRIMARY,
+  children,
+}: PropsWithChildren<ConnectionDrawerListProps>) => {
   return (
-    <ListWrapper>
+    <Box variant={variant} radius={Radius.LG} overflow="hidden" hasBorder fillWidth>
       {Children.map(children, (child) => (
         <ListItem>{child}</ListItem>
       ))}
-    </ListWrapper>
+    </Box>
   );
 };
 
