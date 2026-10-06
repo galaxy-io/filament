@@ -13,7 +13,7 @@ import (
 // (Normalize fills in the actual default before validation runs).
 var (
 	ValidHTTPMethods   = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", ""}
-	ValidModes         = []string{"paginated", "stream", ""}
+	ValidModes         = []string{"paginated", "stream", "export", ""}
 	ValidBodyEncodings = []string{"json", "form", "multipart", "raw", "none", ""}
 	ValidResponseRoots = []string{"array", "object", ""}
 

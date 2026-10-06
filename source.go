@@ -70,6 +70,14 @@ type IncrementalPlanner interface {
 	PlanIncremental(ctx context.Context, resources []string, prev map[string]Checkpoint, cursors map[string]ResourceCursorConfig) (map[string]Checkpoint, error)
 }
 
+// IncrementalResumePlanner restores source job state from the current run without
+// promoting it to a cross-run watermark. Opt-in plans carry replay_on_resume
+// metadata; their rows must be replayed after interruption, even for completed
+// jobs, because the previous sink transaction may not have committed.
+type IncrementalResumePlanner interface {
+	PlanIncrementalResume(ctx context.Context, planned, attempt map[string]Checkpoint) (map[string]Checkpoint, error)
+}
+
 // CursorColumnProvider describes which resource columns can safely serve as
 // durable incremental cursors and which one the connector recommends.
 type CursorColumnProvider interface {
@@ -426,7 +434,21 @@ const (
 	SourceProgressWatermarkAdvanced
 	SourceProgressRateLimited
 	SourceProgressRetryExhausted
+	SourceProgressExportJobCreated
+	SourceProgressExportJobPolled
+	SourceProgressExportJobReady
 )
+
+// ExportJobProgress describes one job execution within an extraction attempt.
+// CorrelationID is opaque and changes on resume; it is never an upstream job ID,
+// parent key, or URL. Polls and Elapsed are local to this execution, including
+// when Resumed is true. Ready means an artifact is available, not sink commit.
+type ExportJobProgress struct {
+	CorrelationID string        `json:"correlationId"`
+	Polls         int           `json:"polls"`
+	Elapsed       time.Duration `json:"elapsed"`
+	Resumed       bool          `json:"resumed"`
+}
 
 // SourceProgress carries source-local extraction progress to the runner. Fields
 // are populated according to Kind. Checkpoint on WatermarkAdvanced describes an
@@ -441,6 +463,7 @@ type SourceProgress struct {
 	RetryAfter   time.Duration
 	Checkpoint   *CheckpointData
 	Error        string
+	ExportJob    ExportJobProgress
 }
 
 // SourceObserver receives progress concurrently when a source extracts more

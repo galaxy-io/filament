@@ -92,15 +92,23 @@ type DiscoverySpec struct {
 	DefaultResources []string    `yaml:"default_resources,omitempty"` // nil selects all; empty selects none
 }
 
+// ConfigCondition controls field visibility based on another field's selected value.
+type ConfigCondition struct {
+	Field  string   `yaml:"field"`
+	Values []string `yaml:"values"`
+}
+
 // ConfigSpec declares one user-facing connector configuration field. Enum is
 // the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
-	Type     string   `yaml:"type"`
-	Required bool     `yaml:"required,omitempty"`
-	Default  any      `yaml:"default,omitempty"`
-	Enum     []string `yaml:"enum,omitempty"`
-	Help     string   `yaml:"help,omitempty"`
-	Scope    string   `yaml:"scope,omitempty"`
+	VisibleWhen *ConfigCondition  `yaml:"visible_when,omitempty"`
+	Type        string            `yaml:"type"`
+	Required    bool              `yaml:"required,omitempty"`
+	Default     any               `yaml:"default,omitempty"`
+	Enum        []string          `yaml:"enum,omitempty"`
+	EnumLabels  map[string]string `yaml:"enum_labels,omitempty"`
+	Help        string            `yaml:"help,omitempty"`
+	Scope       string            `yaml:"scope,omitempty"`
 }
 
 // Defaults are inherited by resources when the corresponding resource field
@@ -207,13 +215,38 @@ func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
 		}
 		a.Params["user"] = referenceTemplate(spec.Username)
 		a.Params["pass"] = referenceTemplate(spec.Password)
+	case "select":
+		a.Type = "select"
+		var spec struct {
+			Field string `yaml:"field"`
+			Cases map[string]struct {
+				Required []string `yaml:"required"`
+				Auth     AuthSpec `yaml:"auth"`
+			} `yaml:"cases"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		cases := map[string]any{}
+		for name, choice := range spec.Cases {
+			required := make([]any, len(choice.Required))
+			for i, field := range choice.Required {
+				required[i] = field
+			}
+			cases[name] = map[string]any{"type": choice.Auth.Type, "params": choice.Auth.Params, "required": required}
+		}
+		a.Params["field"], a.Params["cases"] = spec.Field, cases
 	case "oauth2":
 		a.Type = "oauth2_cc"
 		var spec struct {
-			TokenURL     string `yaml:"token_url"`
-			ClientID     string `yaml:"client_id"`
-			ClientSecret string `yaml:"client_secret"`
-			Scope        string `yaml:"scope"`
+			TokenURL     string            `yaml:"token_url"`
+			ClientID     string            `yaml:"client_id"`
+			ClientSecret string            `yaml:"client_secret"`
+			Scope        string            `yaml:"scope"`
+			GrantType    string            `yaml:"grant_type"`
+			RefreshToken string            `yaml:"refresh_token"`
+			HeaderPrefix string            `yaml:"header_prefix"`
+			Params       map[string]string `yaml:"params"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
@@ -222,6 +255,14 @@ func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
 		a.Params["client_id"] = referenceTemplate(spec.ClientID)
 		a.Params["client_secret"] = referenceTemplate(spec.ClientSecret)
 		a.Params["scope"] = spec.Scope
+		a.Params["grant_type"] = spec.GrantType
+		a.Params["refresh_token"] = referenceTemplate(spec.RefreshToken)
+		a.Params["header_prefix"] = spec.HeaderPrefix
+		extra := map[string]any{}
+		for k, v := range spec.Params {
+			extra[k] = v
+		}
+		a.Params["params"] = extra
 	default:
 		return fmt.Errorf("unknown auth strategy %q", strategy)
 	}
@@ -291,6 +332,7 @@ type Resource struct {
 	Incremental *IncrementalSpec  `yaml:"incremental,omitempty"`
 	Parent      *ParentRef        `yaml:"parent,omitempty"`
 	Stream      *StreamSpec       `yaml:"stream,omitempty"`
+	Export      *ExportSpec       `yaml:"export,omitempty"`
 }
 
 // FieldSpec maps a response path to a typed output field.

@@ -6,10 +6,65 @@ dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zoho-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zoho-light.svg
 api_version: "v8"
 config:
-  access_token:
-    type: secret
+  auth_method:
+    type: enum
+    enum: [access_token, client_credentials, refresh_token]
+    enum_labels:
+      access_token: Access Token
+      client_credentials: Client Credentials
+      refresh_token: Refresh Token
+    default: access_token
+    help: Authentication method. Use refresh_token for ongoing integrations, or client_credentials for one-time tasks.
+  client_id:
     required: true
-    help: Zoho OAuth access token. Expires after one hour; obtain and replace it externally. Automatic refresh is not supported.
+    visible_when: {field: auth_method, values: [client_credentials, refresh_token]}
+    type: string
+    help: OAuth client ID. Required for client_credentials and refresh_token.
+  client_secret:
+    required: true
+    visible_when: {field: auth_method, values: [client_credentials, refresh_token]}
+    type: secret
+    help: OAuth client secret. Required for client_credentials and refresh_token.
+  refresh_token:
+    required: true
+    visible_when: {field: auth_method, values: [refresh_token]}
+    type: secret
+    help: Previously authorized refresh token. Required for refresh_token authentication.
+  accounts_url:
+    visible_when: {field: auth_method, values: [client_credentials, refresh_token]}
+    type: string
+    default: https://accounts.zoho.com
+    help: Zoho Accounts origin for your data center, such as https://accounts.zoho.eu. Used to obtain tokens.
+  oauth_scope:
+    required: true
+    visible_when: {field: auth_method, values: [client_credentials]}
+    type: list
+    enum:
+      - ZohoCRM.modules.READ
+      - ZohoCRM.settings.READ
+      - ZohoCRM.users.READ
+      - ZohoCRM.org.READ
+      - ZohoCRM.templates.email.READ
+      - ZohoCRM.templates.inventory.READ
+      - ZohoCRM.settings.currencies.READ
+      - ZohoCRM.settings.fiscal_year.READ
+      - ZohoCRM.settings.recycle_bin.READ
+      - ZohoCRM.settings.audit_logs.READ
+      - ZohoCRM.share.READ
+      - ZohoCRM.Zia.enrichment.READ
+      - ZohoCRM.bulk.backup.READ
+      - ZohoCRM.notifications.READ
+    help: Select OAuth read scopes. Include ZohoCRM.users.READ for connection testing; select all to test the connector's full resource set. Account permissions and enabled features still apply.
+  soid:
+    required: true
+    visible_when: {field: auth_method, values: [client_credentials]}
+    type: string
+    help: Required for client_credentials. Use ZohoCRM.<organization ID>; find the Org ID in your Zoho profile menu.
+  access_token:
+    required: true
+    visible_when: {field: auth_method, values: [access_token]}
+    type: secret
+    help: Required for access_token authentication. Expires after one hour; obtain and replace it externally.
   host:
     type: string
     default: https://www.zohoapis.com
@@ -82,9 +137,36 @@ field_sets:
 connection:
   base_url: "{{ config.host }}"
   auth:
-    header:
-      name: Authorization
-      value: "Zoho-oauthtoken {{ config.access_token }}"
+    select:
+      field: auth_method
+      cases:
+        access_token:
+          required: [access_token]
+          auth:
+            header:
+              name: Authorization
+              value: "Zoho-oauthtoken {{ config.access_token }}"
+        client_credentials:
+          required: [client_id, client_secret, accounts_url, oauth_scope, soid]
+          auth:
+            oauth2:
+              token_url: "{{ config.accounts_url }}/oauth/v2/token"
+              client_id: config.client_id
+              client_secret: config.client_secret
+              scope: "{{ config.oauth_scope }}"
+              header_prefix: Zoho-oauthtoken
+              params:
+                soid: "{{ config.soid }}"
+        refresh_token:
+          required: [client_id, client_secret, accounts_url, refresh_token]
+          auth:
+            oauth2:
+              token_url: "{{ config.accounts_url }}/oauth/v2/token"
+              grant_type: refresh_token
+              client_id: config.client_id
+              client_secret: config.client_secret
+              refresh_token: config.refresh_token
+              header_prefix: Zoho-oauthtoken
   headers: { Accept: application/json }
   timeout_seconds: 60
 resources:
@@ -923,6 +1005,7 @@ resources:
       raw: { path: $, type: json, mode: remainder }
 
   - name: module_tags
+    capture: { tag_id: id }
     path: /crm/v8/settings/tags
     query:
       module: '{{ config.module_api_name }}'
@@ -2283,6 +2366,240 @@ resources:
     fields:
       id: string
       raw: { path: $, type: json, mode: remainder }
+
+  # Optional administrative and relationship reads.
+  - name: features
+    path: "/crm/v8/__features"
+    method: "GET"
+    response: {"records": "$.__features", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: []
+    fields:
+      api_name: "string?"
+      components: "json?"
+      details: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_licenses
+    path: "/crm/v8/__features/user_licenses"
+    method: "GET"
+    response: {"records": "$.__features", "pagination": "none"}
+    primary_key: ["api_name"]
+    fields:
+      api_name: "string"
+      details: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: available_apis
+    path: "/crm/v8/__apis"
+    method: "GET"
+    response: {"records": "$.__apis", "pagination": "none"}
+    primary_key: ["path"]
+    fields:
+      path: "string"
+      operation_types: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_enrichment_fields
+    path: "/crm/v8/settings/zia/data_enrichment/allowed_field_mappings"
+    method: "GET"
+    query: {"module": "{{ config.module_api_name }}", "type": "organization"}
+    response: {"records": "$.allowed_field_mappings", "pagination": "none", "cardinality": "one"}
+    primary_key: []
+    fields:
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_locking_information
+    path: "/crm/v8/{module}/{record_id}/Locking_Information__s"
+    method: "GET"
+    for_each: "module_record_index"
+    params: {"module": "config.module_api_name", "record_id": "parent.record_id"}
+    query: {"fields": "Locked_For__s,Locked_Reason__s,Lock_Source__s,Locked_Time__s,Locked_By__s,Record_Locking_Rule_Id__s,Record_Locking_Configuration_Id__s,Owner,Parent_Id", "per_page": "200"}
+    response: {"records": "$.data", "pagination": {"cursor": {"response": "info.next_page_token", "request": "query.page_token", "more": "info.more_records", "null_terminates": true}}}
+    primary_key: ["record_id", "id"]
+    fields:
+      record_id: {"path": "parent.record_id", "type": "string"}
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_group_associations
+    path: "/crm/v8/settings/user_groups/{group_id}/actions/associations"
+    method: "GET"
+    for_each: "user_groups"
+    params: {"group_id": "parent.user_groups_id"}
+    response: {"records": "$.associations", "pagination": "none"}
+    primary_key: []
+    fields:
+      group_id: {"path": "parent.user_groups_id", "type": "string"}
+      type: "string?"
+      resource: "json?"
+      details: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_associated_groups
+    path: "/crm/v8/users/{user_id}/actions/associated_groups"
+    method: "GET"
+    for_each: "users"
+    params: {"user_id": "parent.user_id"}
+    response: {"records": "$.user_groups", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["user_id", "id"]
+    fields:
+      user_id: {"path": "parent.user_id", "type": "string"}
+      id: "string"
+      name: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: child_territories
+    path: "/crm/v8/settings/territories/{territory_id}/__child_territories"
+    method: "GET"
+    for_each: "territories"
+    params: {"territory_id": "parent.territories_id"}
+    response: {"records": "$.territories", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["parent_territory_id", "id"]
+    fields:
+      parent_territory_id: {"path": "parent.territories_id", "type": "string"}
+      id: "string"
+      name: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_group_source_counts
+    path: "/crm/v8/settings/user_groups/{group_id}/actions/sources_count"
+    method: "GET"
+    for_each: "user_groups"
+    params: {"group_id": "parent.user_groups_id"}
+    response: {"records": "$.sources_count", "pagination": "none"}
+    primary_key: []
+    fields:
+      group_id: {"path": "parent.user_groups_id", "type": "string"}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: territory_user_counts
+    path: "/crm/v8/settings/territories/actions/associated_users_count"
+    method: "GET"
+    response: {"records": "$.associated_users_count", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["territory_id"]
+    fields:
+      territory_id: {"path": "territory.id", "type": "string"}
+      count: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_group_user_counts
+    path: "/crm/v8/settings/user_groups/actions/associated_users_count"
+    method: "GET"
+    response: {"records": "$.associated_users_count", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["group_id"]
+    fields:
+      group_id: {"path": "user_group.id", "type": "string"}
+      count: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: user_count
+    path: "/crm/v8/users/actions/count"
+    method: "GET"
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: []
+    fields:
+      count: "int64"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_record_count
+    path: "/crm/v8/{module}/actions/count"
+    method: "GET"
+    params: {"module": "config.module_api_name"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: []
+    fields:
+      count: "int64"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: workflow_action_counts
+    path: "/crm/v8/settings/automation/workflow_rules/actions/actions_count"
+    method: "GET"
+    for_each: "workflow_rules"
+    query: {"ids": "{{ parent.workflow_rules_id }}"}
+    response: {"records": "$.workflow_rules", "pagination": "none"}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      conditions: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: workflow_module_counts
+    path: "/crm/v8/settings/automation/workflow_rules/actions/module_specific_count"
+    method: "GET"
+    response: {"records": "$.module_specific_count", "pagination": "none"}
+    primary_key: ["module_id"]
+    fields:
+      module_id: {"path": "module.id", "type": "string"}
+      active_rules_configured: "int64?"
+      total_rules_configured: "int64?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: connected_workflow_action_counts
+    path: "/crm/v8/settings/connected_workflows/{workflow_id}/rules/actions/actions_count"
+    method: "GET"
+    for_each: "module_connected_workflow_rules"
+    params: {"workflow_id": "parent.workflow_id"}
+    query: {"ids": "{{ parent.rule_id }}"}
+    response: {"records": "$.rules", "pagination": "none"}
+    primary_key: ["workflow_id", "id"]
+    fields:
+      workflow_id: {"path": "parent.workflow_id", "type": "string"}
+      id: "string"
+      conditions: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_related_record_counts
+    path: "/crm/v8/{module}/{record_id}/actions/get_related_records_count"
+    method: "POST"
+    for_each: "module_record_index"
+    params: {"module": "config.module_api_name", "record_id": "parent.record_id"}
+    body: {"encoding": "json", "template": {"get_related_records_count": [{"related_list": {"api_name": "{{ config.related_list_api_name }}"}}]}}
+    response: {"records": "$.get_related_records_count", "pagination": "none"}
+    primary_key: ["record_id", "related_list_id"]
+    fields:
+      record_id: {"path": "parent.record_id", "type": "string"}
+      related_list_id: {"path": "related_list.id", "type": "string"}
+      count: "int64"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_recycle_index
+    path: "/crm/v8/{module}/deleted"
+    method: "GET"
+    params: {"module": "config.module_api_name"}
+    query: {"type": "recycle"}
+    capture: {"record_id": "id"}
+    capture_only: true
+    response: {"records": "$.data", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_deleted_related_records
+    path: "/crm/v8/{module}/deleted/{record_id}/{related_list}"
+    method: "GET"
+    for_each: "module_recycle_index"
+    params: {"module": "config.module_api_name", "record_id": "parent.record_id", "related_list": "config.related_list_api_name"}
+    query: {"fields": "{{ config.related_fields }}"}
+    response: {"records": "$.data", "pagination": {"page": {"number": "query.page", "size": "query.per_page", "page_size": 200, "more": "info.more_records"}}}
+    primary_key: ["record_id", "id"]
+    fields:
+      record_id: {"path": "parent.record_id", "type": "string"}
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: module_tag_counts
+    path: "/crm/v8/settings/tags/{tag_id}/actions/records_count"
+    method: "GET"
+    for_each: "module_tags"
+    params: {"tag_id": "parent.tag_id"}
+    query: {"module": "{{ config.module_api_name }}"}
+    response: {"records": "$", "pagination": "none", "cardinality": "one"}
+    primary_key: ["tag_id"]
+    fields:
+      tag_id: {"path": "parent.tag_id", "type": "string"}
+      count: "int64"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
 
 discovery:
   mode: static

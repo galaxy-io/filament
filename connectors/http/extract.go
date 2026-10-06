@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -27,12 +28,14 @@ func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOp
 }
 
 func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOptions) error {
-	c.resumeStates = opts.ResumeStates
+	c.resumeExports = opts.ResumeExports
+	c.resumeStates = maps.Clone(opts.ResumeStates)
 	c.resumeWatermarks = opts.ResumeWatermarks
 	c.incrementalLookbacks = opts.IncrementalLookbacks
 	c.incrementalResources = opts.IncrementalResources
 	c.buildEnabledFilter(opts.EnabledResources)
 	c.buildResourceFilter(opts.Resources)
+	c.resetExportParentPagination()
 	c.mu.Lock()
 	c.parentRecords = make(map[string][]Capture)
 	c.mu.Unlock()
@@ -59,7 +62,12 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	sortedChildren := manifest.SortResources(children)
 	var childErr error
 	for _, res := range sortedChildren {
-		if len(c.snapshotCaptures(res.Parent.Resource)) == 0 {
+		// An earlier child may be this export's parent index. Never freeze a
+		// partial capture set after an ancestor failed to enumerate completely.
+		if res.Mode == "export" && childErr != nil {
+			continue
+		}
+		if res.Mode != "export" && len(c.snapshotCaptures(res.Parent.Resource)) == 0 {
 			continue
 		}
 		if err := c.extractChildResource(ctx, res, sink); err != nil {
@@ -93,6 +101,9 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 
 func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
+	if res.Mode == "export" {
+		return c.runExport(ctx, res, sink, parents)
+	}
 	if res.Parent.Since != "" {
 		var err error
 		if parents, err = c.gateParents(res, parents); err != nil {
@@ -137,6 +148,9 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
 func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
+	if res.Mode == "export" {
+		return c.runExport(ctx, res, sink, nil)
+	}
 	pag, err := pagination.New(res.Pagination)
 	if err != nil {
 		return fmt.Errorf("paginator: %w", err)
@@ -378,6 +392,24 @@ func (c *Connector) buildEnabledFilter(refs []resourceRef) {
 		} else if len(anyKind) > 0 {
 			c.enabledByResource[d.From] = anyKind
 			c.enabledIDPath[d.From] = d.Map.IDPath
+		}
+	}
+}
+
+// Parent captures are not stored in ordinary pagination checkpoints. Until a
+// scoped export freezes its complete parent set, recovery must enumerate its
+// ancestors from the beginning rather than only the last page of their records.
+func (c *Connector) resetExportParentPagination() {
+	byName := map[string]manifest.Resource{}
+	for _, res := range c.manifest.Resources {
+		byName[res.Name] = res
+	}
+	for _, res := range c.filteredResources(c.manifest.Resources) {
+		if res.Export == nil {
+			continue
+		}
+		for parent := res.Parent; parent != nil; parent = byName[parent.Resource].Parent {
+			delete(c.resumeStates, parent.Resource)
 		}
 	}
 }

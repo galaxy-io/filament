@@ -23,25 +23,19 @@ const (
 func (m *Manifest) Normalize() {
 	for i := range m.Resources {
 		r := &m.Resources[i]
-		if len(r.UseFields) > 0 {
-			var inherited FieldList
-			for _, name := range r.UseFields {
-				inherited = append(inherited, m.FieldSets[name]...)
-			}
-			r.Fields = append(inherited, r.Fields...)
-		}
-		if len(r.ExcludeFields) > 0 {
-			excluded := make(map[string]struct{}, len(r.ExcludeFields))
-			for _, name := range r.ExcludeFields {
-				excluded[name] = struct{}{}
-			}
-			fields := r.Fields[:0]
-			for _, field := range r.Fields {
-				if _, skip := excluded[field.Name]; !skip {
-					fields = append(fields, field)
+		m.normalizeResourceFields(r)
+		// Export requests have their own HTTP and decoding settings. Resource
+		// defaults must not accidentally paginate a job or change its payload.
+		if r.Mode == "export" {
+			if r.ForEach != "" {
+				if r.Parent == nil {
+					r.Parent = &ParentRef{}
+				}
+				if r.Parent.Resource == "" {
+					r.Parent.Resource = r.ForEach
 				}
 			}
-			r.Fields = fields
+			continue
 		}
 		for name, ref := range r.Params {
 			r.Path = strings.ReplaceAll(r.Path, "{"+name+"}", referenceTemplate(ref))
@@ -138,6 +132,28 @@ func (m *Manifest) validateSemantics() error {
 		_ = agg.Addf("defaults.response.empty", "must be declared on individual resources")
 	}
 
+	for name, spec := range m.Config {
+		for value := range spec.EnumLabels {
+			if (spec.Type != "enum" && spec.Type != "list") || !slices.Contains(spec.Enum, value) {
+				_ = agg.Addf("config."+name+".enum_labels", "label references unknown enum option %q", value)
+			}
+		}
+		if spec.VisibleWhen == nil {
+			continue
+		}
+		condition := spec.VisibleWhen
+		controller, ok := m.Config[condition.Field]
+		if !ok || condition.Field == name || controller.Type != "enum" || controller.VisibleWhen != nil || (controller.Scope == "pipeline") != (spec.Scope == "pipeline") {
+			_ = agg.Addf("config."+name+".visible_when", "must reference an unconditional enum field in the same scope")
+			continue
+		}
+		for _, value := range condition.Values {
+			if !slices.Contains(controller.Enum, value) {
+				_ = agg.Addf("config."+name+".visible_when", "unknown option %q", value)
+			}
+		}
+	}
+
 	if m.Name == "" {
 		_ = agg.Addf("name", "is required")
 	}
@@ -179,7 +195,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
-		if r.Path == "" {
+		if r.Path == "" && r.Mode != "export" {
 			_ = agg.Addf(path+".path", "is required")
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
@@ -199,6 +215,7 @@ func (m *Manifest) validateSemantics() error {
 
 		validateTemplate(&agg, path+".emit_as", r.EmitAs)
 		validateTemplate(&agg, path+".path", r.Path)
+		validateExport(&agg, path, *r)
 		fieldNames := make(map[string]struct{}, len(r.Fields))
 		for j, f := range r.Fields {
 			fieldPath := fmt.Sprintf("%s.fields[%d]", path, j)
@@ -375,6 +392,15 @@ func (m *Manifest) validateSemantics() error {
 	for i := range m.Discovery.Resources {
 		path := fmt.Sprintf("discovery[%d]", i)
 		validateDiscovery(&agg, path, &m.Discovery.Resources[i], names)
+		d := m.Discovery.Resources[i]
+		if byName[d.From] != nil && byName[d.From].Mode == "export" {
+			_ = agg.Addf(path+".from", "exports cannot be used for dynamic discovery")
+		}
+		for _, target := range d.Scope.AppliesTo {
+			if byName[target] != nil && byName[target].Mode == "export" {
+				_ = agg.Addf(path+".scope", "export scope injection is not supported")
+			}
+		}
 		kind := m.Discovery.Resources[i].Map.Kind
 		if kind == "" {
 			continue
@@ -404,6 +430,31 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(fmt.Sprintf("resources[%q].parent.resource", r.Name),
 				"unknown parent %q", r.Parent.Resource)
 			continue
+		}
+		if r.Export != nil {
+			for _, key := range r.Export.ParentKey {
+				if _, ok := parent.Capture[key]; !ok {
+					_ = agg.Addf(fmt.Sprintf("resources[%q].export.parent_key", r.Name), "%q is not captured by the parent", key)
+				}
+			}
+		}
+		if r.Export != nil {
+			visited := map[string]bool{}
+			for ancestor := parent; ancestor != nil && !visited[ancestor.Name]; {
+				visited[ancestor.Name] = true
+				if ancestor.Incremental != nil || ancestor.Mode == "stream" {
+					_ = agg.Addf(fmt.Sprintf("resources[%q].parent", r.Name), "export ancestors must be finite full-read indexes without incremental filters")
+					break
+				}
+				if ancestor.Parent == nil {
+					break
+				}
+				// Cycles are checked below; bound this walk independently.
+				ancestor = byName[ancestor.Parent.Resource]
+			}
+		}
+		if parent.Mode == "export" {
+			_ = agg.Addf(fmt.Sprintf("resources[%q].parent", r.Name), "export resources cannot supply parent captures")
 		}
 		if r.Parent.Since == "" {
 			continue
@@ -716,5 +767,28 @@ func validateVersionHeaders(agg *errs.ManifestErrors, m *Manifest) {
 		} else if value != m.APIVersion {
 			_ = agg.Addf("api_version", "%q does not match %s %q", m.APIVersion, name, value)
 		}
+	}
+}
+
+func (m *Manifest) normalizeResourceFields(r *Resource) {
+	if len(r.UseFields) > 0 {
+		var inherited FieldList
+		for _, name := range r.UseFields {
+			inherited = append(inherited, m.FieldSets[name]...)
+		}
+		r.Fields = append(inherited, r.Fields...)
+	}
+	if len(r.ExcludeFields) > 0 {
+		excluded := make(map[string]struct{}, len(r.ExcludeFields))
+		for _, name := range r.ExcludeFields {
+			excluded[name] = struct{}{}
+		}
+		fields := r.Fields[:0]
+		for _, field := range r.Fields {
+			if _, skip := excluded[field.Name]; !skip {
+				fields = append(fields, field)
+			}
+		}
+		r.Fields = fields
 	}
 }

@@ -77,6 +77,7 @@ type Connector struct {
 	enabledByResource    map[string]map[string]struct{}
 	enabledIDPath        map[string]string
 	enabledResources     map[string]struct{}
+	resumeExports        map[string]string
 	resumeStates         map[string]pagination.State
 	resumeWatermarks     map[string]map[string]string
 	incrementalLookbacks map[string]int
@@ -93,6 +94,7 @@ type extractOptions struct {
 	Observe              filament.SourceObserver
 	EnabledResources     []resourceRef
 	Resources            []string
+	ResumeExports        map[string]string
 	ResumeStates         map[string]pagination.State
 	ResumeWatermarks     map[string]map[string]string
 	IncrementalLookbacks map[string]int
@@ -192,7 +194,7 @@ func (c *Connector) Configure(ctx context.Context) error {
 }
 
 // TestConnection performs one authenticated request against the first
-// top-level, non-streaming resource in the manifest. It deliberately stops
+// top-level, non-streaming, non-export resource in the manifest. It deliberately stops
 // after the first response: validation should prove that the credentials are
 // accepted without walking pagination or extracting user data.
 func (c *Connector) TestConnection(ctx context.Context) error {
@@ -202,7 +204,7 @@ func (c *Connector) TestConnection(ctx context.Context) error {
 	var probe *manifest.Resource
 	for i := range c.manifest.Resources {
 		candidate := &c.manifest.Resources[i]
-		if candidate.Parent == nil && candidate.Mode != "stream" {
+		if candidate.Parent == nil && candidate.Mode != "stream" && candidate.Mode != "export" {
 			probe = candidate
 			break
 		}

@@ -16,6 +16,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -441,10 +442,16 @@ func intBoundaries(lo, hi int64, k int) []string {
 	if k <= 1 || hi <= lo {
 		return nil
 	}
-	span := hi - lo + 1
+	// big.Int, because i*span overflows int64 for wide keys (snowflake-style IDs), and
+	// wrapped boundaries would make the last shard overlap the others.
+	span := new(big.Int).Sub(big.NewInt(hi), big.NewInt(lo))
+	span.Add(span, big.NewInt(1))
 	bounds := make([]string, 0, k-1)
 	for i := 1; i < k; i++ {
-		bounds = append(bounds, strconv.FormatInt(lo+int64(i)*span/int64(k), 10))
+		b := new(big.Int).Mul(span, big.NewInt(int64(i)))
+		b.Quo(b, big.NewInt(int64(k)))
+		b.Add(b, big.NewInt(lo))
+		bounds = append(bounds, b.String())
 	}
 	return bounds
 }

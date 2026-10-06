@@ -281,3 +281,67 @@ func TestOpaqueTerminalTokenRequiresSuccessfulCommit(t *testing.T) {
 		})
 	}
 }
+
+func TestReplayableJobStatePersistsPerRunBeforeCommit(t *testing.T) {
+	ctx := t.Context()
+	store := sqlite.NewMemory()
+	request := filament.RunRequest{
+		PipelineID: "pipe", PipelineVersionID: "v1", CheckpointRoute: "route",
+		IngestionTypes: map[string]filament.IngestionType{"items": filament.IngestionIncrementalUpsert},
+	}
+	if err := store.SaveRun(ctx, filament.RunState{Run: "run", Tenant: "tenant", Request: request}); err != nil {
+		t.Fatal(err)
+	}
+	makeCP := func(value string) filament.Checkpoint {
+		return checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: []string{"export_state"}, Types: []string{"string"}, Meta: map[string]string{checkpoint.ReplayOnResume: "true"}, Shards: []checkpoint.KeysetShard{{Key: []string{value}}}}.ToCheckpoint("items")
+	}
+	key, _ := request.ResourceCheckpointKey("items")
+	if err := store.SaveResourceCheckpoint(ctx, "tenant", filament.ResourceCheckpointState{Key: key, Run: "previous", Checkpoint: makeCP("committed")}); err != nil {
+		t.Fatal(err)
+	}
+	m := New()
+	m.ds = store
+	slot := ckKey{run: "run", resource: "items"}
+	m.boundary[slot] = filament.CheckpointAfterCommit
+	active := makeCP("active-job")
+	if err := m.saveCheckpoint(ctx, "tenant", "run", active); err != nil {
+		t.Fatal(err)
+	}
+	m.cp[slot] = active
+	if err := m.flushRunFor(ctx, "tenant", "run", false, checkpointReason("flush")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.LoadCheckpoint(ctx, "tenant", "run", "items")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ks, _ := checkpoint.ParseKeyset(got)
+	if ks.Shards[0].Key[0] != "active-job" {
+		t.Fatalf("run state = %#v", ks)
+	}
+	durable, err := store.LoadResourceCheckpoint(ctx, "tenant", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ks, _ = checkpoint.ParseKeyset(durable.Checkpoint)
+	if ks.Shards[0].Key[0] != "committed" {
+		t.Fatal("tentative state leaked across runs")
+	}
+	restarted := New()
+	restarted.ds = store
+	ks, _ = checkpoint.ParseKeyset(restarted.loadCheckpoint(ctx, "tenant", "run", "items"))
+	if ks.Shards[0].Key[0] != "active-job" {
+		t.Fatal("restart lost job identity")
+	}
+	if err := m.flushRunFor(ctx, "tenant", "run", true, checkpointReason("flush")); err != nil {
+		t.Fatal(err)
+	}
+	durable, err = store.LoadResourceCheckpoint(ctx, "tenant", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ks, _ = checkpoint.ParseKeyset(durable.Checkpoint)
+	if ks.Shards[0].Key[0] != "active-job" {
+		t.Fatal("commit did not promote state")
+	}
+}

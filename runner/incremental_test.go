@@ -190,3 +190,67 @@ func TestIncrementalAppendFailureIsNotResumable(t *testing.T) {
 		t.Fatal("commit-gated progress must fail instead of resuming before commit")
 	}
 }
+
+type replayTestSource struct {
+	incrementalTestSource
+	attempts map[string]filament.Checkpoint
+}
+
+func (s *replayTestSource) PlanIncrementalResume(_ context.Context, planned, attempts map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
+	s.attempts = attempts
+	for resource, cp := range attempts {
+		planned[resource] = cp
+	}
+	return planned, nil
+}
+
+func TestIncrementalAttemptRestoreDoesNotPromoteJobs(t *testing.T) {
+	ctx := t.Context()
+	store := sqlite.NewMemory()
+	for _, run := range []filament.RunID{"run-a", "run-b"} {
+		if err := store.SaveRun(ctx, filament.RunState{Tenant: "tenant", Run: run}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	spec := filament.RunSpec{
+		Tenant: "tenant", Run: "run-a", PipelineID: "pipe", PipelineVersionID: "v1", CheckpointRoute: "route",
+		Source: filament.Ref{Connector: "test"}, Resources: []string{"users"},
+		IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionIncrementalUpsert},
+	}
+	cp := func(value string) filament.Checkpoint {
+		return checkpoint.KeysetCheckpoint{Mode: checkpoint.ModeIncremental, Cols: []string{"export_state"}, Meta: map[string]string{checkpoint.ReplayOnResume: "true"}, Shards: []checkpoint.KeysetShard{{Key: []string{value}}}}.ToCheckpoint("users")
+	}
+	key, _ := spec.ResourceCheckpointKey("users")
+	if err := store.SaveResourceCheckpoint(ctx, spec.Tenant, filament.ResourceCheckpointState{Key: key, Run: "old", Checkpoint: cp("committed")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveCheckpoint(ctx, spec.Tenant, spec.Run, cp("active")); err != nil {
+		t.Fatal(err)
+	}
+	src := &replayTestSource{}
+	if _, err := resolveExtractor(ctx, store, src, spec, filament.IngestionPlan{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := checkpoint.ParseKeyset(src.attempts["users"])
+	if got.Shards[0].Key[0] != "active" {
+		t.Fatal("attempt not restored")
+	}
+	durable, err := store.LoadResourceCheckpoint(ctx, spec.Tenant, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ = checkpoint.ParseKeyset(durable.Checkpoint)
+	if got.Shards[0].Key[0] != "committed" {
+		t.Fatal("attempt leaked into durable state")
+	}
+	spec.Run = "run-b"
+	if _, err := resolveExtractor(ctx, store, src, spec, filament.IngestionPlan{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(src.attempts) != 0 {
+		t.Fatal("new run inherited failed run's jobs")
+	}
+	if _, err := resolveExtractor(ctx, store, &incrementalTestSource{}, spec, filament.IngestionPlan{}, nil); err == nil {
+		t.Fatal("accepted replay state without resume contract")
+	}
+}

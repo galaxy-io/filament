@@ -205,7 +205,13 @@ are referenced elsewhere in the manifest as `config.<name>`.
   resolved once when the connector is configured, not separately for every
   request.
 - `auth` supports no auth, bearer tokens, a custom header, basic auth, and
-  OAuth 2 client credentials. OAuth tokens are cached. Query, HMAC, and chained
+  OAuth 2 client credentials or a supplied refresh token. OAuth tokens are
+  cached. Token URLs must resolve to HTTPS without userinfo or a fragment;
+  token requests never follow redirects. Replacement refresh tokens are kept
+  as opaque credentials for the authenticator's lifetime. They are not written
+  back to connection secrets, so providers that revoke old refresh tokens
+  require an updated configured secret before a new authenticator is created.
+  Query, HMAC, and chained
   authentication exist in the Go runtime but cannot currently be declared in
   YAML.
 - `rate_limit.requests_per_second` sets a shared limit for the connection. A
@@ -333,6 +339,248 @@ For static discovery, `default_resources: [issues, comments]` sets the initial
 selection when creating a pipeline. All resources remain listed and selectable.
 Omit it to select all by default, or use `[]` to select none by default.
 
+### Asynchronous exports
+
+Use `mode: export` for a finite read that creates a job, waits for readiness,
+and downloads its result. Export requests live inside `export`; ordinary
+resource request, response, and pagination defaults do not apply. Connection
+authentication and headers apply to creation and status requests only.
+
+```yaml
+- name: exported_records
+  mode: export
+  primary_key: [id]
+  export:
+    start:
+      method: POST
+      path: /exports
+      body:
+        encoding: json
+        template: {dataset: records}
+      capture: {id: $.id}
+    wait:
+      type: job
+      request:
+        method: GET
+        path: /exports/{{ job.id }}
+      state:
+        path: $.status
+        pending: [queued, running]
+        ready: [completed]
+        failed: [failed, cancelled]
+      capture: {download_url: $.download_url}
+      interval_seconds: 10
+      timeout_seconds: 7200
+    result:
+      url: '{{ job.download_url }}'
+      allowed_hosts: [downloads.example.com]
+      auth: none
+      compression: gzip
+      format: ndjson
+  fields:
+    id: string
+    raw: {type: json, mode: remainder}
+```
+
+This example describes a hypothetical API. State values, paths, and file formats
+must match the provider's contract. Start templates accept `config`, `env`,
+`parent`, and `state` (the frozen incremental lower bound);
+status requests and the result URL also accept `job`, populated by captures.
+Captures select nonempty scalar values from the start response or ready status
+response. Unknown or missing job states fail the read.
+
+For APIs that return a file URL before it is ready, capture that URL in `start`
+and replace `wait` with:
+
+```yaml
+wait:
+  type: download
+  pending_statuses: [403]
+  interval_seconds: 10
+  timeout_seconds: 7200
+```
+
+Only explicitly listed statuses mean pending; supported choices are 202, 403,
+404, 409, and 425. For example, [Braze documents a 403](https://www.braze.com/docs/api/endpoints/export/user_data/post_users_segment)
+while a segment-export file is being prepared. Do not use that rule on an authenticated API status
+endpoint. Download 429 and 5xx responses use bounded retries. Job polling retries
+transient API failures separately from the pending-job loop. The deadline covers
+creation, polling, downloading, and decoding and remains fixed across recovery.
+
+`result` separates file compression, archive layout, and record encoding:
+
+| Setting | Values and behavior |
+|---|---|
+| `compression` | `none` (default) or `gzip`. |
+| `archive` | `none` (default), `zip`, or `tar`. ZIP cannot also declare gzip. |
+| `files` | Required for archives. A Go `path.Match` pattern over member names; `*` does not cross `/`. No matching files is an error. |
+| `format` | Required: `json` (an array), `ndjson` (one object per line), or `csv` (header row and string values). |
+| `records_path` | Optional dot path to an array inside a JSON document. Missing paths fail rather than producing an empty export. |
+| `allowed_hosts` | Required exact download hostnames, without ports or wildcards. Checked on the initial HTTPS URL and every redirect. |
+| `auth` | Only `none` is supported. Downloads never inherit API authentication, connection headers, or cookies. |
+| `max_download_bytes` | Maximum downloaded bytes; default 1 GiB. |
+| `max_uncompressed_bytes` | Maximum decoded bytes across selected ZIP files, or the full gzip/tar stream; default 10 GiB. |
+
+JSON numbers retain their precision. Records are limited to 10 MiB. Archives
+are limited to 10,000 entries and cannot contain links or unsafe file paths.
+ZIP downloads use a temporary file, removed when the read ends; gzip and tar
+are processed as streams. CSV headers must be nonempty and unique.
+
+Batch-operation archives can contain envelopes rather than records. Add an
+`envelope` to require operation success and parse a JSON string inside each
+outer object:
+
+```yaml
+result:
+  url: '{{ job.download_url }}'
+  allowed_hosts: [storage.googleapis.com]
+  compression: gzip
+  archive: tar
+  files: '*.json'
+  format: json
+  envelope:
+    status_path: status_code
+    success: [200]
+    body_path: response
+    records_path: members
+```
+
+Here each archive member contains an array of operation envelopes; each
+`response` string must contain a `members` array. An operation error, corrupt
+archive, truncated document, or exceeded limit fails the export. Rows may
+already have reached the destination before that failure; completion is emitted
+only after all selected files validate.
+
+Exports support full and incremental reads, including parent fan-out. Add
+`for_each` (or `parent.resource`) and `export.parent_key` to create one job per
+parent. The key lists capture names that together uniquely identify a parent.
+Missing or duplicate keys fail before any jobs are created. `parent.concurrency`
+limits simultaneous jobs (default 5).
+
+For example, add the following settings to the export above, and include a
+`segments` index resource that captures `segment_id`:
+
+```yaml
+for_each: segments
+parent: {concurrency: 3}
+incremental:
+  cursor_field: updated_at
+  start_param: updated_since
+  inject_into: body
+  comparator: time
+  initial: '2026-01-01T00:00:00Z'
+  overlap_seconds: 300
+export:
+  parent_key: [segment_id]
+  start:
+    method: POST
+    path: /exports
+    body:
+      encoding: json
+      template: {segment_id: '{{ parent.segment_id }}'}
+    capture: {id: $.job_id}
+  # Keep wait and result from the complete example above.
+fields:
+  id: string
+  updated_at: timestamptz
+  segment_id: {type: string, path: parent.segment_id}
+  raw: {type: json, mode: remainder}
+```
+
+Each parent has its own watermark. The runtime injects the lower bound into
+the start request's query, header, or body using the ordinary `incremental`
+settings. The selected parents, captured values, incremental seed, and lookback
+are frozen before creation. Downloads may be unordered: the candidate
+watermark is the maximum observed cursor, and becomes eligible for the next run
+only after the entire artifact validates and the sink commits. An empty export
+retains its seed. There is no automatically generated upper time bound; verify
+that the provider's filter and snapshot semantics support this watermark model.
+
+Parent indexes and their ancestors must be finite full reads without incremental
+filters. A dedicated `capture_only` index is useful when the ordinary parent
+resource is incremental. Parent pagination restarts during recovery to rebuild
+captures. Once frozen, the job set remains unchanged even if that listing changes.
+New scheduled runs enumerate parents again, retaining watermarks for absent
+parents. State is limited to 10,000 historical parent keys and 16 MiB per resource.
+
+Record captures, `parent.since`, dynamic discovery from exports, and discovery
+scope injection into exports are rejected. One export emits one resource; multi-dataset routing,
+cloud-storage delivery without an HTTP URL, webhook completion, and automatic
+creation reconciliation are not implemented. Provider catalog manifests do not
+automatically switch to exports when this mode becomes available.
+
+Full-read checkpoints retain the job, deadline, and captured URLs. Interrupted
+reads resume a known job and replay its artifact from the beginning, so recovery
+is at-least-once. A job status request refreshes the download URL on resume; a
+403 or 410 download failure can trigger one further refresh. Download-only jobs
+cannot refresh expired URLs. For resources declaring a parent or an incremental
+block, retries replay every selected artifact, including completed jobs. Job
+snapshots are saved within the run separately from committed cross-run watermarks;
+an individual parent's completion does not advance durable progress after a
+failed run. Existing sink and ingestion-mode recovery policies still apply.
+Plain top-level full exports skip completed jobs on same-run resume. A fresh full
+read creates new jobs. Checkpoint identity binds the export to its manifest,
+base URL, and non-secret configuration. Planned scoped jobs rebuild their start
+request when it is sent, using the validated manifest, saved parent values,
+incremental seed, and lookback together with current runtime credentials and
+environment values. Checkpoints contain neither rendered start requests nor
+deferred request templates. Changes to the manifest or non-secret configuration
+invalidate checkpoint identity; environment values come from the current
+connector context. Rendered values are never evaluated as another template.
+Jobs with captured identities resume without rebuilding their creation request.
+
+Scoped checkpoints use a single version 1 format. Captured URLs and parent
+values still make checkpoint storage sensitive.
+
+For scoped recovery, expired waiting deadlines receive a new
+`wait.timeout_seconds` budget, including completed jobs replayed from a mixed
+checkpoint. Captures, frozen inputs, and committed watermarks are retained.
+This also applies when a saved attempt is resumed directly. A creation intent
+with an unknown outcome is never renewed or automatically resubmitted.
+
+Scoped exports publish creation intent and changed job captures eagerly.
+Unchanged post-poll snapshots are suppressed; completed jobs are folded into
+the next identity snapshot or flushed when extraction ends, including on error.
+Snapshots still contain the full parent set, so identity writes can remain
+quadratic in the number of parents. Batching reduces write volume while
+preserving the replay contract.
+
+Exports also report typed observational events through the source observer and
+runner: `export.job_created`, `export.job_polled`, and `export.job_ready`.
+Creation is reported only after the required captures validate. Poll reports
+count completed status requests (or artifact availability requests for download
+waiting), with the first report immediate and subsequent reports at most once
+every 30 seconds per job execution. Ready means the artifact is available;
+it does not mean rows have been decoded or the sink has committed. Direct
+downloads do not emit a creation event.
+
+Payloads include `correlationId`, cumulative `polls`, `elapsed` (nanoseconds),
+and `resumed`. Correlation IDs are randomly generated for each job execution
+and change on resume; counts and elapsed time restart for that execution.
+Events contain no upstream job IDs, parent values, captures, or signed URLs.
+Readiness is reported once per execution, even if an expired URL requires
+another status request. Events do not replace checkpoints or advance watermarks.
+
+After an artifact validates, `resource.page_fetched` reports both delivered
+records and downloaded artifact-body bytes actually read, before decompression
+or archive extraction. This works for chunked responses without `Content-Length`
+and counts nonzero artifact bytes even when there are no records. Counts are
+per artifact and exclude status requests and failed downloads. They describe
+source progress; authoritative sink byte totals still come from `batch.written`.
+
+Creation is attempted once, including when the API returns 202. A creation
+intent is queued before the request, then replaced with the captured job state.
+These pipeline checkpoint markers are asynchronous, so creation and checkpoint
+persistence are not an atomic transaction. A process crash before persistence
+can still lead to duplicate creation; provider idempotency or reconciliation is
+needed to eliminate that window. If recovery finds a creation intent without a
+job ID, extraction fails and requires upstream reconciliation before a fresh
+read. Signed URLs and captured parent values are sensitive
+checkpoint data. Signed URLs are omitted from transport errors.
+
+Include an ordinary top-level resource for connection testing. Export resources
+are excluded from probes so validating credentials cannot create a paid export.
+
 ## Runtime behavior
 
 The optional `connection.rate_limit.burst` bounds how many requests can start
@@ -394,7 +642,7 @@ children after their parents.
 
 **Connection testing.** When a caller explicitly invokes the connector's
 `TestConnection` capability, it sends one request to the first top-level,
-non-streaming resource. Saving or validating a connection through the service
+non-streaming, non-export resource. Saving or validating a connection through the service
 API does not invoke this live test.
 
 **Manifest validation.** Loading a manifest reports all detectable problems

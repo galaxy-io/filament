@@ -91,6 +91,23 @@ func build(kind string, params map[string]any, creds, env map[string]string) (Au
 	if kind == "" {
 		return nil, nil
 	}
+	if kind == "select" {
+		field := strParam(params, "field")
+		cases, _ := params["cases"].(map[string]any)
+		choice, ok := cases[creds[field]].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("auth: select a valid %s", field)
+		}
+		required, _ := choice["required"].([]any)
+		for _, value := range required {
+			key, _ := value.(string)
+			if strings.TrimSpace(creds[key]) == "" {
+				return nil, fmt.Errorf("auth: %s is required for %s=%s", key, field, creds[field])
+			}
+		}
+		child, _ := choice["params"].(map[string]any)
+		return build(strParam(choice, "type"), child, creds, env)
+	}
 	if err := validateParamTemplates(kind, params, creds, env); err != nil {
 		return nil, err
 	}
