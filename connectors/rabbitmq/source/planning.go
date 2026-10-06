@@ -36,7 +36,7 @@ func (*Source) BindReplicationStream(config map[string]any, admitted filament.Re
 	if err != nil {
 		return nil, err
 	}
-	configured, err := selectedStreams(bound, configStrings(filament.NewConfig(config), "streams"))
+	configured, err := selectedStreams(nil, configStrings(filament.NewConfig(config), "streams"))
 	if err != nil || !slices.Equal(configured, bound) {
 		return nil, fmt.Errorf("rabbitmq: configuration does not match admitted streams")
 	}
