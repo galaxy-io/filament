@@ -15,7 +15,7 @@ import {
 } from "@/pages/settings/constants";
 import SettingsServiceAccountsPanelCredentials from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanelCredentials";
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
-import { optionRole, serviceAccountRoleOption } from "@/pages/settings/utils";
+import { optionIdToRole, roleToOptionId } from "@/pages/settings/utils";
 
 import { useCreateServiceAccountMutation } from "@/api/queries/auth";
 
@@ -124,10 +124,8 @@ const SettingsServiceAccountsPanelCreateDialog = ({
       <SelectInput
         label="Role"
         options={SERVICE_ACCOUNT_ROLE_OPTIONS}
-        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={serviceAccountRoleOption(
-          state.role,
-        )}
-        onChange={(option) => setState((prev) => ({ ...prev, role: optionRole(option) }))}
+        value={roleToOptionId(state.role)}
+        onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
         fillWidth
         isRequired
       />

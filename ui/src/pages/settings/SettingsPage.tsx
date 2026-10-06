@@ -1,19 +1,15 @@
 import { useCallback, useEffect } from "react";
 
-import { styled } from "@linaria/react";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Modal from "@galaxy-io/dls/modal/Modal";
+import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { Flow } from "@/layouts/app/types";
-import BaseHeader from "@/layouts/components/BaseHeader";
 
-import { SETTINGS_PAGE_INSET } from "@/pages/settings/constants";
 import SettingsPreferencesPanel from "@/pages/settings/panels/preferences/SettingsPreferencesPanel";
 import SettingsServiceAccountsPanel from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanel";
 import SettingsTeamPanel from "@/pages/settings/panels/team/SettingsTeamPanel";
@@ -25,31 +21,12 @@ import { useListMembersQuery } from "@/api/queries/auth";
 
 import type { AppSession } from "@/auth/types";
 
-const PageWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: calc(100vw - ${SETTINGS_PAGE_INSET}px);
-  height: calc(100vh - ${SETTINGS_PAGE_INSET}px);
-  background-color: ${t.color.background.primary};
-  border: 0.5px solid ${t.color.border.primary};
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const BodyWrapper = styled.div`
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  background-color: ${t.color.background.base};
-`;
-
 interface SettingsPageContentProps {
   session: AppSession;
-  onClose: () => void;
   onInviteTeam: () => void;
 }
 
-const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageContentProps) => {
+const SettingsPageContent = ({ session, onInviteTeam }: SettingsPageContentProps) => {
   const navigate = useNavigate();
   const { settings = SettingsPanel.TEAM } = useSearch({ from: "/_app" });
   const membersQuery = useListMembersQuery({
@@ -94,31 +71,25 @@ const SettingsPageContent = ({ session, onClose, onInviteTeam }: SettingsPageCon
       .exhaustive();
 
   return (
-    <PageWrapper>
-      <Flex alignItems={AlignItems.START} padding={16}>
-        <BaseHeader title="Settings" onClose={onClose} />
+    <Flex alignItems={AlignItems.STRETCH} height="100%" minHeight={0}>
+      <SettingsPageSidebar
+        session={session}
+        activePanel={activePanel}
+        canManageTeam={canManageTeam}
+        onPanelChange={handlePanelChange}
+      />
+      <Divider orientation={Orientation.VERTICAL} />
+      <Flex
+        direction={FlexDirection.COLUMN}
+        alignItems={AlignItems.STRETCH}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+      >
+        {renderPanel()}
       </Flex>
-      <Divider />
-      <BodyWrapper>
-        <SettingsPageSidebar
-          session={session}
-          activePanel={activePanel}
-          canManageTeam={canManageTeam}
-          onPanelChange={handlePanelChange}
-        />
-        <Divider orientation={Orientation.VERTICAL} />
-        <Flex
-          direction={FlexDirection.COLUMN}
-          alignItems={AlignItems.STRETCH}
-          grow={1}
-          basis={0}
-          minWidth={0}
-          overflow="hidden"
-        >
-          {renderPanel()}
-        </Flex>
-      </BodyWrapper>
-    </PageWrapper>
+    </Flex>
   );
 };
 
@@ -189,17 +160,15 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
+      <Modal
+        header="Settings"
+        size={ModalSize.X_LARGE}
         isOpen={isSettingsOpen}
         onOpenChange={(isOpen) => {
           if (!isOpen) handleCloseSettings();
         }}
       >
-        <SettingsPageContent
-          session={session}
-          onClose={handleCloseSettings}
-          onInviteTeam={handleInviteTeam}
-        />
+        <SettingsPageContent session={session} onInviteTeam={handleInviteTeam} />
       </Modal>
       {isTeamViewOpen && teamView && (
         <SettingsTeamPanelInvite

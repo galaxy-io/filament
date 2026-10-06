@@ -1,27 +1,18 @@
-import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
-
 import { Role } from "@/gen/auth/v1/members_pb";
 
-import {
-  ROLE_OPTIONS,
-  ROLE_TO_LABEL_MAP,
-  SERVICE_ACCOUNT_ROLE_OPTIONS,
-  SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP,
-} from "@/pages/settings/constants";
+import { ROLE_TO_LABEL_MAP, SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP } from "@/pages/settings/constants";
 
 export const roleLabel = (role: Role): string => ROLE_TO_LABEL_MAP[role];
 
 export const serviceAccountRoleLabel = (role: Role): string =>
   SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP[role];
 
-export const roleOption = (role: Role) =>
-  ROLE_OPTIONS.find((option) => option.value === role) ?? null;
+export const roleToOptionId = (role: Role): string => String(role);
 
-export const serviceAccountRoleOption = (role: Role) =>
-  SERVICE_ACCOUNT_ROLE_OPTIONS.find((option) => option.value === role) ?? null;
-
-export const optionRole = (option: SelectOption): Role =>
-  typeof option.value === "number" ? (option.value as Role) : Role.UNSPECIFIED;
+export const optionIdToRole = (id: string | null): Role => {
+  const role = Number(id);
+  return id !== null && role in ROLE_TO_LABEL_MAP ? (role as Role) : Role.UNSPECIFIED;
+};
 
 export const buildCliLoginCommand = (clientId: string): string =>
   `filament auth login --server ${window.location.origin} --client-id ${clientId}`;

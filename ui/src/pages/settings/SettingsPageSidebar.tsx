@@ -57,22 +57,9 @@ const SettingsPageSidebar = ({
       padding={12}
       overflow="auto"
     >
-      <Flex
-        alignItems={AlignItems.CENTER}
-        gap={8}
-        /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */ padding="6px 8px"
-        fillWidth
-        minWidth={0}
-      >
+      <Flex alignItems={AlignItems.CENTER} gap={8} padding={[4, 8]} fillWidth minWidth={0}>
         <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
-        <Flex
-          alignItems={AlignItems.START}
-          direction={
-            FlexDirection.COLUMN
-          } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-          gap={1}
-          minWidth={0}
-        >
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={0} minWidth={0}>
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} lineClamp={1}>
             {profileName}
           </Text>

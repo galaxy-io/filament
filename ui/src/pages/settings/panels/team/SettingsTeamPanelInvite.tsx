@@ -16,7 +16,7 @@ import Dialog from "@/components/Dialog";
 
 import { INVITE_DEFAULT_ROLE, ROLE_OPTIONS } from "@/pages/settings/constants";
 import { TeamSettingsView } from "@/pages/settings/types";
-import { optionRole, roleOption } from "@/pages/settings/utils";
+import { optionIdToRole, roleToOptionId } from "@/pages/settings/utils";
 
 import { useInviteMemberMutation, useListMembersQuery } from "@/api/queries/auth";
 
@@ -190,10 +190,8 @@ const SettingsTeamPanelInvite = ({
         <SelectInput
           label="Role"
           options={ROLE_OPTIONS}
-          /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={roleOption(
-            state.role,
-          )}
-          onChange={(option) => setState((prev) => ({ ...prev, role: optionRole(option) }))}
+          value={roleToOptionId(state.role)}
+          onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
           fillWidth
           isRequired
         />

@@ -5,18 +5,16 @@ import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import Avatar from "@galaxy-io/dls/avatar/Avatar";
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { Member, Role } from "@/gen/auth/v1/members_pb";
+import { type Member, Role } from "@/gen/auth/v1/members_pb";
 
 import Dialog from "@/components/Dialog";
 
@@ -25,11 +23,9 @@ import {
   ROLE_OPTIONS,
   SETTINGS_TEAM_TABLE_COLUMN_WIDTH_EMAIL,
   SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
-  SETTINGS_TEAM_TABLE_LOADING_ROW_COUNT,
-  SETTINGS_TEAM_TABLE_ROLE_SELECT_DROPDOWN_WIDTH,
   SETTINGS_TEAM_TABLE_ROLE_SELECT_WIDTH,
 } from "@/pages/settings/constants";
-import { optionRole, roleLabel, roleOption } from "@/pages/settings/utils";
+import { optionIdToRole, roleLabel, roleToOptionId } from "@/pages/settings/utils";
 
 import {
   useListMembersQuery,
@@ -61,29 +57,15 @@ const memberColumns = ({
     {
       id: "name",
       header: "Name",
-      accessorFn: (row) => memberDisplayName(row),
-      enableSorting: true,
-      sortDescFirst: false,
-      cellLoading: () => (
-        <Flex gap={12} alignItems={AlignItems.CENTER}>
-          <Box width={120}>
-            <Skeleton />
-          </Box>
-        </Flex>
-      ),
+      accessor: (row) => memberDisplayName(row),
+      canSort: true,
       cell: ({ row }) => (
         <Flex gap={12} alignItems={AlignItems.CENTER}>
-          <FlexItem
-            grow={0}
-            shrink={
-              0
-            } /* @dls-migrate flexitem.display: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */
-            display="flex"
-          >
-            <Avatar size={26} seed={row.original.userId} />
-          </FlexItem>
+          <Flex shrink={0}>
+            <Avatar size={26} seed={row.userId} />
+          </Flex>
           <Text weight={TextWeight.MEDIUM} lineClamp={1}>
-            {memberDisplayName(row.original)}
+            {memberDisplayName(row)}
           </Text>
         </Flex>
       ),
@@ -91,18 +73,12 @@ const memberColumns = ({
     {
       id: "email",
       header: "Email",
-      accessorFn: (row) => row.email,
-      size: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_EMAIL,
-      enableSorting: true,
-      sortDescFirst: false,
-      cellLoading: () => (
-        <Box width="80%">
-          <Skeleton />
-        </Box>
-      ),
+      accessor: (row) => row.email,
+      width: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_EMAIL,
+      canSort: true,
       cell: ({ row }) => (
         <Text variant={TextVariant.SECONDARY} lineClamp={1}>
-          {row.original.email}
+          {row.email}
         </Text>
       ),
     },
@@ -110,41 +86,25 @@ const memberColumns = ({
       id: "role",
       header: "",
       align: "right",
-      size: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
-      enableSorting: false,
-      cellLoading: () => (
-        <Box width="80%">
-          <Skeleton />
-        </Box>
-      ),
+      width: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
       cell: ({ row }) => {
-        const isMe = myID !== undefined && row.original.userId === myID;
+        const isMe = myID !== undefined && row.userId === myID;
         return (
           <Flex gap={8} alignItems={AlignItems.CENTER}>
             {isMe && (
-              <FlexItem
-                grow={0}
-                shrink={
-                  0
-                } /* @dls-migrate flexitem.display: A FlexItem is not a flex container: use `<Flex grow={1}>` or nest a `Flex`. */
-                display="flex"
-              >
+              <Flex shrink={0}>
                 <Beacon variant={BeaconVariant.PRIMARY} isPulse />
-              </FlexItem>
+              </Flex>
             )}
             <Flex gap={8} alignItems={AlignItems.CENTER}>
               <Box width={SETTINGS_TEAM_TABLE_ROLE_SELECT_WIDTH}>
                 <SelectInput
                   fillWidth
                   options={ROLE_OPTIONS}
-                  /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={roleOption(
-                    row.original.role,
-                  )}
-                  onChange={(option) => {
-                    const role = optionRole(option);
-                    if (role !== undefined) {
-                      onRoleChange(row.original, role);
-                    }
+                  value={roleToOptionId(row.role)}
+                  onChange={(id) => {
+                    const role = optionIdToRole(id);
+                    if (role !== Role.UNSPECIFIED) onRoleChange(row, role);
                   }}
                   isDisabled={!canManage || isMe || isMutatingMembers}
                 />
@@ -152,9 +112,10 @@ const memberColumns = ({
               {canManage && (
                 <Button
                   icon={TrashIcon}
+                  ariaLabel="Remove member"
                   variant={ButtonVariant.SECONDARY}
                   size={ButtonSize.SMALL}
-                  onClick={() => onRemove(row.original)}
+                  onClick={() => onRemove(row)}
                   isDisabled={isMe || isMutatingMembers}
                 />
               )}
@@ -273,13 +234,12 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
         }
       >
         <Flex alignItems={AlignItems.START} grow={1} basis={0} minHeight={0} fillWidth>
-          <Box variant={BoxVariant.BASE} height="100%">
+          <Box variant={BoxVariant.BASE} height="100%" fillWidth>
             <InfiniteTable<Member>
               columns={columns}
               data={sortedMembers}
               getRowId={(row) => row.userId}
               isLoading={membersQuery.isLoading}
-              /* @dls-migrate infinitetable.enableSorting: Sorting is per column (`canSort`) with a `TableSort` value. */ enableSorting
             />
           </Box>
         </Flex>
