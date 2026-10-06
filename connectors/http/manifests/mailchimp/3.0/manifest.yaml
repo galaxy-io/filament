@@ -1,7 +1,7 @@
 version: 1
 name: mailchimp
 display_name: Mailchimp
-description: Audiences, members, campaigns, reports, and commerce data from Mailchimp Marketing.
+description: Email marketing and automation platform for building customer relationships through targeted campaigns, using the Mailchimp Marketing API.
 api_version: "3.0"
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mailchimp-light.svg
@@ -40,7 +40,7 @@ connection:
         oauth_access_token:
           required: [access_token]
           auth: {bearer: config.access_token}
-  headers: { Accept: application/json }
+  headers: {Accept: application/json}
   timeout_seconds: 120
 defaults:
   method: GET
@@ -59,14 +59,14 @@ resources:
       role: string?
       pricing_plan_type: string?
       total_subscribers: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lists
     path: /3.0/lists
-    capture: { list_id: id }
+    capture: {list_id: id}
     response:
       records: $.lists
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -76,17 +76,17 @@ resources:
       campaign_defaults: json?
       stats: json?
       double_optin: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: members
     path: /3.0/lists/{list_id}/members
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
-    query: { sort_field: last_changed, sort_dir: ASC }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
+    query: {sort_field: last_changed, sort_dir: ASC}
     response:
       records: $.members
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     incremental:
       cursor_field: last_changed
       start_param: since_last_changed
@@ -96,7 +96,7 @@ resources:
       overlap_seconds: 60
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
       email_address: string?
       full_name: string?
@@ -109,54 +109,54 @@ resources:
       tags: json?
       stats: json?
       marketing_permissions: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   # Keep detail parents independent of the incremental member selection.
   - name: member_index
     path: /3.0/lists/{list_id}/members
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
-    query: { fields: "members.id,total_items" }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
+    query: {fields: "members.id,total_items"}
     capture_only: true
-    capture: { list_id: parent.list_id, subscriber_hash: id }
+    capture: {list_id: parent.list_id, subscriber_hash: id}
     response:
       records: $.members
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
 
   - name: member_tags
     path: /3.0/lists/{list_id}/members/{subscriber_hash}/tags
     for_each: member_index
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, subscriber_hash: parent.subscriber_hash }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, subscriber_hash: parent.subscriber_hash}
     response:
       records: $.tags
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, subscriber_hash, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
-      subscriber_hash: { path: parent.subscriber_hash, type: string }
+      list_id: {path: parent.list_id, type: string}
+      subscriber_hash: {path: parent.subscriber_hash, type: string}
       id: string
       name: string?
       date_added: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: member_notes
     path: /3.0/lists/{list_id}/members/{subscriber_hash}/notes
     for_each: member_index
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, subscriber_hash: parent.subscriber_hash }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, subscriber_hash: parent.subscriber_hash}
     response:
       records: $.notes
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, subscriber_hash, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
-      subscriber_hash: { path: parent.subscriber_hash, type: string }
+      list_id: {path: parent.list_id, type: string}
+      subscriber_hash: {path: parent.subscriber_hash, type: string}
       id: string
       created_at: string?
       created_by: string?
@@ -164,37 +164,37 @@ resources:
       note: string?
       email_id: string?
       contact_id: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: member_events
     path: /3.0/lists/{list_id}/members/{subscriber_hash}/events
     for_each: member_index
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, subscriber_hash: parent.subscriber_hash }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, subscriber_hash: parent.subscriber_hash}
     response:
       records: $.events
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: []
     fields:
-      list_id: { path: parent.list_id, type: string }
-      subscriber_hash: { path: parent.subscriber_hash, type: string }
+      list_id: {path: parent.list_id, type: string}
+      subscriber_hash: {path: parent.subscriber_hash, type: string}
       occurred_at: string?
       name: string?
       properties: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: member_activity
     path: /3.0/lists/{list_id}/members/{subscriber_hash}/activity
     for_each: member_index
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, subscriber_hash: parent.subscriber_hash }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, subscriber_hash: parent.subscriber_hash}
     response:
       records: $.activity
       pagination: none
     primary_key: []
     fields:
-      list_id: { path: parent.list_id, type: string }
-      subscriber_hash: { path: parent.subscriber_hash, type: string }
+      list_id: {path: parent.list_id, type: string}
+      subscriber_hash: {path: parent.subscriber_hash, type: string}
       action: string?
       timestamp: string?
       url: string?
@@ -202,33 +202,33 @@ resources:
       campaign_id: string?
       title: string?
       parent_campaign: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: member_activity_feed
     path: /3.0/lists/{list_id}/members/{subscriber_hash}/activity-feed
     for_each: member_index
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, subscriber_hash: parent.subscriber_hash }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, subscriber_hash: parent.subscriber_hash}
     response:
       records: $.activity
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: []
     fields:
-      list_id: { path: parent.list_id, type: string }
-      subscriber_hash: { path: parent.subscriber_hash, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      list_id: {path: parent.list_id, type: string}
+      subscriber_hash: {path: parent.subscriber_hash, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: merge_fields
     path: /3.0/lists/{list_id}/merge-fields
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.merge_fields
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, merge_id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       merge_id: string
       tag: string?
       name: string?
@@ -241,20 +241,20 @@ resources:
       help_text: string?
       total_items: int64?
       merge_field_limit: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: segments
     path: /3.0/lists/{list_id}/segments
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
-    capture: { list_id: parent.list_id, segment_id: id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
+    capture: {list_id: parent.list_id, segment_id: id}
     response:
       records: $.segments
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
       name: string?
       member_count: int64?
@@ -262,37 +262,37 @@ resources:
       created_at: string?
       updated_at: string?
       options: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: interest_categories
     path: /3.0/lists/{list_id}/interest-categories
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
-    capture: { list_id: parent.list_id, interest_category_id: id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
+    capture: {list_id: parent.list_id, interest_category_id: id}
     response:
       records: $.categories
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
       title: string?
       display_order: int64?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_growth_history
     path: /3.0/lists/{list_id}/growth-history
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.history
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, month]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       month: string
       existing: int64?
       imports: int64?
@@ -304,19 +304,19 @@ resources:
       pending: int64?
       deleted: int64?
       transactional: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_activity
     path: /3.0/lists/{list_id}/activity
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.activity
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, day]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       day: string
       emails_sent: int64?
       unique_opens: int64?
@@ -327,51 +327,51 @@ resources:
       unsubs: int64?
       other_adds: int64?
       other_removes: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_clients
     path: /3.0/lists/{list_id}/clients
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.clients
       pagination: none
     primary_key: [list_id, client]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       client: string
       members: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_locations
     path: /3.0/lists/{list_id}/locations
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.locations
       pagination: none
     primary_key: [list_id, cc]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       country: string?
       cc: string
       percent: float64?
       total: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_abuse_reports
     path: /3.0/lists/{list_id}/abuse-reports
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.abuse_reports
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
       campaign_id: string?
       email_id: string?
@@ -379,55 +379,55 @@ resources:
       merge_fields: json?
       vip: bool?
       date: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: list_webhooks
     path: /3.0/lists/{list_id}/webhooks
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.webhooks
       pagination: none
     primary_key: [list_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       id: string
       url: string?
       events: json?
       sources: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: signup_forms
     path: /3.0/lists/{list_id}/signup-forms
     for_each: lists
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id}
     response:
       records: $.signup_forms
       pagination: none
     primary_key: []
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       header: json?
       contents: json?
       styles: json?
       signup_form_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: segment_members
     path: /3.0/lists/{list_id}/segments/{segment_id}/members
     for_each: segments
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, segment_id: parent.segment_id }
-    query: { include_cleaned: "true", include_transactional: "true", include_unsubscribed: "true" }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, segment_id: parent.segment_id}
+    query: {include_cleaned: "true", include_transactional: "true", include_unsubscribed: "true"}
     response:
       records: $.members
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, segment_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
-      segment_id: { path: parent.segment_id, type: string }
+      list_id: {path: parent.list_id, type: string}
+      segment_id: {path: parent.segment_id, type: string}
       id: string
       email_address: string?
       full_name: string?
@@ -448,33 +448,33 @@ resources:
       email_client: string?
       location: json?
       last_note: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: interests
     path: /3.0/lists/{list_id}/interest-categories/{interest_category_id}/interests
     for_each: interest_categories
-    parent: { concurrency: 2 }
-    params: { list_id: parent.list_id, interest_category_id: parent.interest_category_id }
+    parent: {concurrency: 2}
+    params: {list_id: parent.list_id, interest_category_id: parent.interest_category_id}
     response:
       records: $.interests
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [list_id, interest_category_id, id]
     fields:
-      list_id: { path: parent.list_id, type: string }
-      interest_category_id: { path: parent.interest_category_id, type: string }
+      list_id: {path: parent.list_id, type: string}
+      interest_category_id: {path: parent.interest_category_id, type: string}
       category_id: string?
       id: string
       name: string?
       subscriber_count: string?
       display_order: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaigns
     path: /3.0/campaigns
-    capture: { campaign_id: id }
+    capture: {campaign_id: id}
     response:
       records: $.campaigns
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -487,37 +487,37 @@ resources:
       settings: json?
       tracking: json?
       report_summary: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_content
     path: /3.0/campaigns/{campaign_id}/content
     for_each: campaigns
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $
       cardinality: one
       pagination: none
     primary_key: [campaign_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       variate_contents: json?
       plain_text: string?
       html: string?
       archive_html: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_feedback
     path: /3.0/campaigns/{campaign_id}/feedback
     for_each: campaigns
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.feedback
       pagination: none
     primary_key: [campaign_id, feedback_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       feedback_id: string
       parent_id: int64?
       block_id: int64?
@@ -527,26 +527,26 @@ resources:
       created_at: string?
       updated_at: string?
       source: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_folders
     path: /3.0/campaign-folders
     response:
       records: $.folders
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       name: string?
       id: string
       count: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: reports
     path: /3.0/reports
-    capture: { campaign_id: id }
+    capture: {campaign_id: id}
     response:
       records: $.reports
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -575,20 +575,20 @@ resources:
       share_report: json?
       ecommerce: json?
       delivery_status: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_clicks
     path: /3.0/reports/{campaign_id}/click-details
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
-    capture: { campaign_id: parent.campaign_id, link_id: id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
+    capture: {campaign_id: parent.campaign_id, link_id: id}
     response:
       records: $.urls_clicked
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       id: string
       url: string?
       total_clicks: int64?
@@ -597,19 +597,19 @@ resources:
       unique_click_percentage: float64?
       last_click: string?
       ab_split: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_opens
     path: /3.0/reports/{campaign_id}/open-details
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.members
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, email_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       list_id: string?
       list_is_active: bool?
       contact_status: string?
@@ -620,37 +620,37 @@ resources:
       opens_count: int64?
       proxy_excluded_opens_count: int64?
       opens: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_email_activity
     path: /3.0/reports/{campaign_id}/email-activity
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.emails
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, email_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       list_id: string?
       list_is_active: bool?
       email_id: string
       email_address: string?
       activity: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_recipients
     path: /3.0/reports/{campaign_id}/sent-to
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.sent_to
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, email_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       email_id: string
       email_address: string?
       merge_fields: json?
@@ -662,19 +662,19 @@ resources:
       gmt_offset: int64?
       list_id: string?
       list_is_active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_unsubscribes
     path: /3.0/reports/{campaign_id}/unsubscribed
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.unsubscribes
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, email_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       email_id: string
       email_address: string?
       merge_fields: json?
@@ -683,19 +683,19 @@ resources:
       reason: string?
       list_id: string?
       list_is_active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_abuse
     path: /3.0/reports/{campaign_id}/abuse-reports
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.abuse_reports
       pagination: none
     primary_key: [campaign_id, id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       id: string
       list_id: string?
       list_is_active: bool?
@@ -704,19 +704,19 @@ resources:
       merge_fields: json?
       vip: bool?
       date: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_domains
     path: /3.0/reports/{campaign_id}/domain-performance
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.domains
       pagination: none
     primary_key: [campaign_id, domain]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       domain: string
       emails_sent: int64?
       bounces: int64?
@@ -729,37 +729,37 @@ resources:
       opens_pct: float64?
       clicks_pct: float64?
       unsubs_pct: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_locations
     path: /3.0/reports/{campaign_id}/locations
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.locations
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: []
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       country_code: string?
       region: string?
       region_name: string?
       opens: int64?
       proxy_excluded_opens: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_product_activity
     path: /3.0/reports/{campaign_id}/ecommerce-product-activity
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.products
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: []
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       title: string?
       sku: string?
       image_url: string?
@@ -768,19 +768,19 @@ resources:
       currency_code: string?
       recommendation_total: int64?
       recommendation_purchased: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_subreports
     path: /3.0/reports/{campaign_id}/sub-reports
     for_each: reports
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id}
     response:
       records: $.reports
       pagination: none
     primary_key: [campaign_id, id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       id: string
       campaign_title: string?
       type: string?
@@ -807,20 +807,20 @@ resources:
       share_report: json?
       ecommerce: json?
       delivery_status: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: report_click_members
     path: /3.0/reports/{campaign_id}/click-details/{link_id}/members
     for_each: report_clicks
-    parent: { concurrency: 2 }
-    params: { campaign_id: parent.campaign_id, link_id: parent.link_id }
+    parent: {concurrency: 2}
+    params: {campaign_id: parent.campaign_id, link_id: parent.link_id}
     response:
       records: $.members
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [campaign_id, link_id, email_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
-      link_id: { path: parent.link_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
+      link_id: {path: parent.link_id, type: string}
       email_id: string
       email_address: string?
       merge_fields: json?
@@ -830,14 +830,14 @@ resources:
       list_id: string?
       list_is_active: bool?
       contact_status: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: templates
     path: /3.0/templates
-    capture: { template_id: id }
+    capture: {template_id: id}
     response:
       records: $.templates
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -855,40 +855,40 @@ resources:
       thumbnail: string?
       share_url: string?
       content_type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: template_folders
     path: /3.0/template-folders
     response:
       records: $.folders
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       name: string?
       id: string
       count: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: template_default_content
     path: /3.0/templates/{template_id}/default-content
     for_each: templates
-    parent: { concurrency: 2 }
-    params: { template_id: parent.template_id }
+    parent: {concurrency: 2}
+    params: {template_id: parent.template_id}
     response:
       records: $
       cardinality: one
       pagination: none
     primary_key: [template_id]
     fields:
-      template_id: { path: parent.template_id, type: string }
+      template_id: {path: parent.template_id, type: string}
       sections: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: files
     path: /3.0/file-manager/files
     response:
       records: $.files
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -902,13 +902,13 @@ resources:
       created_by: string?
       width: int64?
       height: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: file_folders
     path: /3.0/file-manager/folders
     response:
       records: $.folders
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -916,13 +916,13 @@ resources:
       file_count: int64?
       created_at: string?
       created_by: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: connected_sites
     path: /3.0/connected-sites
     response:
       records: $.sites
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [foreign_id]
     fields:
       foreign_id: string
@@ -933,26 +933,26 @@ resources:
       is_pixel_enabled: bool?
       created_at: string?
       updated_at: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: authorized_apps
     path: /3.0/authorized-apps
     response:
       records: $.apps
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
       name: string?
       description: string?
       users: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: account_exports
     path: /3.0/account-exports
     response:
       records: $.exports
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [export_id]
     fields:
       export_id: string
@@ -960,19 +960,19 @@ resources:
       finished: string?
       size_in_bytes: int64?
       download_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: batch_webhooks
     path: /3.0/batch-webhooks
     response:
       records: $.webhooks
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
       url: string?
       enabled: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: verified_domains
     path: /3.0/verified-domains
@@ -988,14 +988,14 @@ resources:
       verification_sent: string?
       status: string?
       is_free_email_provider: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: stores
     path: /3.0/ecommerce/stores
-    capture: { store_id: id }
+    capture: {store_id: id}
     response:
       records: $.stores
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -1016,20 +1016,20 @@ resources:
       list_is_active: bool?
       created_at: string?
       updated_at: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: customers
     path: /3.0/ecommerce/stores/{store_id}/customers
     for_each: stores
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id }
-    capture: { store_id: parent.store_id, customer_id: id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id}
+    capture: {store_id: parent.store_id, customer_id: id}
     response:
       records: $.customers
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
+      store_id: {path: parent.store_id, type: string}
       id: string
       email_address: string?
       sms_phone_number: string?
@@ -1042,20 +1042,20 @@ resources:
       address: json?
       created_at: string?
       updated_at: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: products
     path: /3.0/ecommerce/stores/{store_id}/products
     for_each: stores
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id }
-    capture: { store_id: parent.store_id, product_id: id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id}
+    capture: {store_id: parent.store_id, product_id: id}
     response:
       records: $.products
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
+      store_id: {path: parent.store_id, type: string}
       id: string
       currency_code: string?
       title: string?
@@ -1068,20 +1068,20 @@ resources:
       variants: json?
       images: json?
       published_at_foreign: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: orders
     path: /3.0/ecommerce/stores/{store_id}/orders
     for_each: stores
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id }
-    capture: { store_id: parent.store_id, order_id: id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id}
+    capture: {store_id: parent.store_id, order_id: id}
     response:
       records: $.orders
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
+      store_id: {path: parent.store_id, type: string}
       id: string
       customer: json?
       campaign_id: string?
@@ -1107,20 +1107,20 @@ resources:
       tracking_number: string?
       tracking_carrier: string?
       tracking_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: carts
     path: /3.0/ecommerce/stores/{store_id}/carts
     for_each: stores
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id }
-    capture: { store_id: parent.store_id, cart_id: id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id}
+    capture: {store_id: parent.store_id, cart_id: id}
     response:
       records: $.carts
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
+      store_id: {path: parent.store_id, type: string}
       id: string
       customer: json?
       campaign_id: string?
@@ -1131,20 +1131,20 @@ resources:
       lines: json?
       created_at: string?
       updated_at: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: promo_rules
     path: /3.0/ecommerce/stores/{store_id}/promo-rules
     for_each: stores
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id }
-    capture: { store_id: parent.store_id, promo_rule_id: id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id}
+    capture: {store_id: parent.store_id, promo_rule_id: id}
     response:
       records: $.promo_rules
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
+      store_id: {path: parent.store_id, type: string}
       id: string
       title: string?
       description: string?
@@ -1156,20 +1156,20 @@ resources:
       enabled: bool?
       created_at_foreign: string?
       updated_at_foreign: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: order_lines
     path: /3.0/ecommerce/stores/{store_id}/orders/{order_id}/lines
     for_each: orders
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id, order_id: parent.order_id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id, order_id: parent.order_id}
     response:
       records: $.lines
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, order_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
-      order_id: { path: parent.order_id, type: string }
+      store_id: {path: parent.store_id, type: string}
+      order_id: {path: parent.order_id, type: string}
       id: string
       product_id: string?
       product_title: string?
@@ -1179,20 +1179,20 @@ resources:
       quantity: int64?
       price: float64?
       discount: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: cart_lines
     path: /3.0/ecommerce/stores/{store_id}/carts/{cart_id}/lines
     for_each: carts
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id, cart_id: parent.cart_id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id, cart_id: parent.cart_id}
     response:
       records: $.lines
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, cart_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
-      cart_id: { path: parent.cart_id, type: string }
+      store_id: {path: parent.store_id, type: string}
+      cart_id: {path: parent.cart_id, type: string}
       id: string
       product_id: string?
       product_title: string?
@@ -1200,20 +1200,20 @@ resources:
       product_variant_title: string?
       quantity: int64?
       price: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: product_variants
     path: /3.0/ecommerce/stores/{store_id}/products/{product_id}/variants
     for_each: products
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id, product_id: parent.product_id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id, product_id: parent.product_id}
     response:
       records: $.variants
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, product_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
-      product_id: { path: parent.product_id, type: string }
+      store_id: {path: parent.store_id, type: string}
+      product_id: {path: parent.product_id, type: string}
       id: string
       title: string?
       url: string?
@@ -1225,37 +1225,37 @@ resources:
       visibility: string?
       created_at: string?
       updated_at: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: product_images
     path: /3.0/ecommerce/stores/{store_id}/products/{product_id}/images
     for_each: products
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id, product_id: parent.product_id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id, product_id: parent.product_id}
     response:
       records: $.images
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, product_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
-      product_id: { path: parent.product_id, type: string }
+      store_id: {path: parent.store_id, type: string}
+      product_id: {path: parent.product_id, type: string}
       id: string
       url: string?
       variant_ids: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: promo_codes
     path: /3.0/ecommerce/stores/{store_id}/promo-rules/{promo_rule_id}/promo-codes
     for_each: promo_rules
-    parent: { concurrency: 2 }
-    params: { store_id: parent.store_id, promo_rule_id: parent.promo_rule_id }
+    parent: {concurrency: 2}
+    params: {store_id: parent.store_id, promo_rule_id: parent.promo_rule_id}
     response:
       records: $.promo_codes
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [store_id, promo_rule_id, id]
     fields:
-      store_id: { path: parent.store_id, type: string }
-      promo_rule_id: { path: parent.promo_rule_id, type: string }
+      store_id: {path: parent.store_id, type: string}
+      promo_rule_id: {path: parent.promo_rule_id, type: string}
       id: string
       code: string?
       redemption_url: string?
@@ -1263,14 +1263,14 @@ resources:
       enabled: bool?
       created_at_foreign: string?
       updated_at_foreign: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automations
     path: /3.0/automations
-    capture: { workflow_id: id }
+    capture: {workflow_id: id}
     response:
       records: $.automations
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -1283,20 +1283,20 @@ resources:
       tracking: json?
       trigger_settings: json?
       report_summary: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automation_emails
     path: /3.0/automations/{workflow_id}/emails
     for_each: automations
-    parent: { concurrency: 2 }
-    params: { workflow_id: parent.workflow_id }
-    capture: { workflow_id: parent.workflow_id, workflow_email_id: id }
+    parent: {concurrency: 2}
+    params: {workflow_id: parent.workflow_id}
+    capture: {workflow_id: parent.workflow_id, workflow_email_id: id}
     response:
       records: $.emails
       pagination: none
     primary_key: [workflow_id, id]
     fields:
-      workflow_id: { path: parent.workflow_id, type: string }
+      workflow_id: {path: parent.workflow_id, type: string}
       id: string
       web_id: int64?
       position: int64?
@@ -1316,49 +1316,49 @@ resources:
       social_card: json?
       trigger_settings: json?
       report_summary: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automation_queue
     path: /3.0/automations/{workflow_id}/emails/{workflow_email_id}/queue
     for_each: automation_emails
-    parent: { concurrency: 2 }
-    params: { workflow_id: parent.workflow_id, workflow_email_id: parent.workflow_email_id }
+    parent: {concurrency: 2}
+    params: {workflow_id: parent.workflow_id, workflow_email_id: parent.workflow_email_id}
     response:
       records: $.queue
       pagination: none
     primary_key: [workflow_id, workflow_email_id, id]
     fields:
-      workflow_id: { path: parent.workflow_id, type: string }
-      workflow_email_id: { path: parent.workflow_email_id, type: string }
+      workflow_id: {path: parent.workflow_id, type: string}
+      workflow_email_id: {path: parent.workflow_email_id, type: string}
       id: string
       email_id: string?
       list_id: string?
       email_address: string?
       next_send: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automation_removed_subscribers
     path: /3.0/automations/{workflow_id}/removed-subscribers
     for_each: automations
-    parent: { concurrency: 2 }
-    params: { workflow_id: parent.workflow_id }
+    parent: {concurrency: 2}
+    params: {workflow_id: parent.workflow_id}
     response:
       records: $.subscribers
       pagination: none
     primary_key: [workflow_id, id]
     fields:
-      workflow_id: { path: parent.workflow_id, type: string }
+      workflow_id: {path: parent.workflow_id, type: string}
       id: string
       list_id: string?
       email_address: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: sms_campaigns
     path: /3.0/sms-campaigns
-    capture: { sms_campaign_id: id }
+    capture: {sms_campaign_id: id}
     response:
       records: $.sms_campaigns
-      pagination: { offset: { offset: query.offset, limit: query.count, page_size: 100 } }
+      pagination: {offset: {offset: query.offset, limit: query.count, page_size: 100}}
     primary_key: [id]
     fields:
       id: string
@@ -1376,27 +1376,27 @@ resources:
       folder_id: string?
       segments: json?
       excluded_segments: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: sms_campaign_content
     path: /3.0/sms-campaigns/{sms_campaign_id}/content
     for_each: sms_campaigns
-    parent: { concurrency: 2 }
-    params: { sms_campaign_id: parent.sms_campaign_id }
+    parent: {concurrency: 2}
+    params: {sms_campaign_id: parent.sms_campaign_id}
     response:
       records: $
       cardinality: one
       pagination: none
     primary_key: [sms_campaign_id]
     fields:
-      sms_campaign_id: { path: parent.sms_campaign_id, type: string }
+      sms_campaign_id: {path: parent.sms_campaign_id, type: string}
       message_body: string?
       estimated_segments: int64?
       merge_fields: json?
       media: json?
       source: json?
       properties: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   # Optional Marketing API read families. Defaults remain unchanged.
   - name: account_activity

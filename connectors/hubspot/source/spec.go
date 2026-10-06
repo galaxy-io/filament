@@ -6,7 +6,7 @@ import "github.com/galaxy-io/filament"
 func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "hubspot", DisplayName: "HubSpot", Version: "1",
-		Description:  "Read HubSpot CRM records, activities, owners, and custom objects.",
+		Description:  "Customer relationship management platform that unifies customer data so marketing, sales, and service teams can manage relationships throughout the customer journey.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-hubspot-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-hubspot-light.svg",
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental},

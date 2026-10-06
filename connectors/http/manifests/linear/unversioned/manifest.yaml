@@ -1,7 +1,7 @@
 version: 1
 name: linear
 display_name: Linear
-description: Modern issue tracking and project management tool built for high-performance teams.
+description: Product development system for planning and building software, with issue tracking and roadmaps that help teams coordinate work from idea to launch.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-linear-light.svg
 config:
@@ -30,9 +30,9 @@ resources:
       id: string
       key: string?
       name: string
-      created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz }
-      raw: { path: $, type: json, mode: remainder }
+      created_at: {path: createdAt, type: timestamptz, nullable: true}
+      updated_at: {path: updatedAt, type: timestamptz}
+      raw: {path: $, type: json, mode: remainder}
     body:
       encoding: json
       template:
@@ -68,11 +68,11 @@ resources:
     fields:
       id: string
       name: string?
-      display_name: { path: displayName, type: string, nullable: true }
+      display_name: {path: displayName, type: string, nullable: true}
       email: string?
-      created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz }
-      raw: { path: $, type: json, mode: remainder }
+      created_at: {path: createdAt, type: timestamptz, nullable: true}
+      updated_at: {path: updatedAt, type: timestamptz}
+      raw: {path: $, type: json, mode: remainder}
     body:
       encoding: json
       template:
@@ -110,9 +110,9 @@ resources:
       name: string
       description: string?
       url: string?
-      created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz }
-      raw: { path: $, type: json, mode: remainder }
+      created_at: {path: createdAt, type: timestamptz, nullable: true}
+      updated_at: {path: updatedAt, type: timestamptz}
+      raw: {path: $, type: json, mode: remainder}
     body:
       encoding: json
       template:
@@ -154,14 +154,14 @@ resources:
       priority: int64?
       estimate: float64?
       url: string?
-      branch_name: { path: branchName, type: string, nullable: true }
-      created_at: { path: createdAt, type: timestamptz, nullable: true }
-      updated_at: { path: updatedAt, type: timestamptz }
-      completed_at: { path: completedAt, type: timestamptz, nullable: true }
-      archived_at: { path: archivedAt, type: timestamptz, nullable: true }
-      canceled_at: { path: canceledAt, type: timestamptz, nullable: true }
-      team_id: { path: team.id, type: string, nullable: true }
-      team_key: { path: team.key, type: string, nullable: true }
+      branch_name: {path: branchName, type: string, nullable: true}
+      created_at: {path: createdAt, type: timestamptz, nullable: true}
+      updated_at: {path: updatedAt, type: timestamptz}
+      completed_at: {path: completedAt, type: timestamptz, nullable: true}
+      archived_at: {path: archivedAt, type: timestamptz, nullable: true}
+      canceled_at: {path: canceledAt, type: timestamptz, nullable: true}
+      team_id: {path: team.id, type: string, nullable: true}
+      team_key: {path: team.key, type: string, nullable: true}
       team:
         type: json
         nullable: true
@@ -169,7 +169,7 @@ resources:
           id: team.id
           key: team.key
           name: team.name
-      state_id: { path: state.id, type: string, nullable: true }
+      state_id: {path: state.id, type: string, nullable: true}
       state:
         type: json
         nullable: true
@@ -177,7 +177,7 @@ resources:
           id: state.id
           name: state.name
           type: state.type
-      assignee_id: { path: assignee.id, type: string, nullable: true }
+      assignee_id: {path: assignee.id, type: string, nullable: true}
       assignee:
         type: json
         nullable: true
@@ -186,7 +186,7 @@ resources:
           name: assignee.name
           display_name: assignee.displayName
           email: assignee.email
-      creator_id: { path: creator.id, type: string, nullable: true }
+      creator_id: {path: creator.id, type: string, nullable: true}
       creator:
         type: json
         nullable: true
@@ -195,15 +195,15 @@ resources:
           name: creator.name
           display_name: creator.displayName
           email: creator.email
-      project_id: { path: project.id, type: string, nullable: true }
+      project_id: {path: project.id, type: string, nullable: true}
       project:
         type: json
         nullable: true
         shape:
           id: project.id
           name: project.name
-      labels: { path: labels.nodes, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      labels: {path: labels.nodes, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
     body:
       encoding: json
       template:

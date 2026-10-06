@@ -119,6 +119,7 @@ func TestDecDecimal(t *testing.T) {
 		{"0.05 scale 2", 2, numericWire(0, -1, 2, 500), "0.05", false},
 		{"-123456.000", 3, numericWire(numericNeg, 1, 3, 12, 3456), "-123456.000", false},
 		{"zero", 2, numericWire(0, 0, 2), "0.00", false},
+		{"zero scale 36", 36, numericWire(0, 0, 36), "0.000000000000000000000000000000000000", false},
 		{"1.5 in scale 4", 4, numericWire(0, 0, 1, 1, 5000), "1.5000", false},
 		{"38 digits", 2, numericWire(0, 8, 2, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9900), "999999999999999999999999999999999999.99", false},
 		{"NaN is null", 2, numericWire(numericNaN, 0, 0), "", false},

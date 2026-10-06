@@ -110,7 +110,9 @@ existing defaults. Do not update `http-manifests.mdx` when adding or updating a
 connector. Directory and registry versions identify the provider's API, not
 Filament revisions; keep them equal to YAML `api_version`, or use `unversioned`
 when that field is omitted. YAML `version: 1` remains the grammar version.
-Use direct, human prose.
+Use direct, human prose. For UI descriptions, follow the
+[connector card guidance](references/wiring.md#connector-card-descriptions):
+identify the system and its purpose using its official product terminology.
 
 ## 5. Verify and report the actual result
 

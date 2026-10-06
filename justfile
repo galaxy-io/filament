@@ -136,11 +136,11 @@ images: binaries
 _each cmd:
     for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{ cmd }}) || exit 1; done
 
-# format Go, UI, and proto; `just format check` verifies without writing
-format mode="fix": (go-format mode) (ui-format mode) (proto-format mode)
+# format Go, UI, proto, and HTTP manifests; `just format check` verifies without writing
+format mode="fix": (go-format mode) (ui-format mode) (proto-format mode) (manifest-format mode)
 
 # run all linters; `just lint check` runs without fixing
-lint mode="fix": (go-lint mode) (ui-lint mode)
+lint mode="fix": (go-lint mode) (ui-lint mode) manifest-lint
 
 # gofumpt + goimports across every Go module (settings in .golangci.yaml)
 go-format mode="fix": (_each ("GOWORK=off golangci-lint fmt " + (if mode == "check" { "--diff " } else { "" }) + "./..."))
@@ -155,6 +155,12 @@ ui-format mode="fix":
 # Biome lint for the UI package
 ui-lint mode="fix":
     cd ui && pnpm run {{ if mode == "check" { "lint:check" } else { "lint" } }}
+
+manifest-lint: (manifest-format "check")
+
+# format HTTP manifest YAML with a pinned Go tool; check mode does not write
+manifest-format mode="fix":
+    go run github.com/google/yamlfmt/cmd/yamlfmt@v0.21.0 -conf connectors/http/.yamlfmt.yaml {{ if mode == "check" { "-lint" } else { "" } }} connectors/http/manifests
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:

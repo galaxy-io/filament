@@ -10,7 +10,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:         "mysql",
 		DisplayName:  "MySQL",
-		Description:  "Widely-used open-source relational database known for speed, reliability, and ease of use.",
+		Description:  "Open source relational database management system that uses SQL to store, organize, and query application data in related tables.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-mysql-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-mysql-light.svg",
 		Version:      "2",

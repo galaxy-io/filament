@@ -1,7 +1,7 @@
 version: 1
 name: heyreach
 display_name: HeyReach
-description: Read LinkedIn campaigns, lists, leads, conversations, and analytics from HeyReach.
+description: LinkedIn automation platform for running outreach across multiple sender accounts and managing replies in a unified inbox.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-heyreach-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-heyreach-light.svg
 config:
