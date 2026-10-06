@@ -1,34 +1,32 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 
-import { styled } from "@linaria/react";
-
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-
-import { CREATE_CONNECTION_MODAL_HEIGHT } from "@/pages/connectors/constants";
+import Modal, { type ModalSize } from "@galaxy-io/dls/modal/Modal";
 
 interface ConnectionFormWrapperProps {
-  width: number;
+  size: ModalSize;
+  header: ReactNode;
+  footer?: ReactNode;
+  onClose: () => void;
 }
 
-const Wrapper = withTheme(styled.div<PropsWithTheme & { $width: number }>`
-  display: flex;
-  flex-direction: column;
-
-  height: ${CREATE_CONNECTION_MODAL_HEIGHT}px;
-  width: ${({ $width }) => $width}px;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 8px;
-  overflow: hidden;
-`);
-
 const ConnectionFormWrapper = ({
+  size,
+  header,
+  footer,
+  onClose,
   children,
-  width,
-}: PropsWithChildren<ConnectionFormWrapperProps>) => {
-  return <Wrapper $width={width}>{children}</Wrapper>;
-};
+}: PropsWithChildren<ConnectionFormWrapperProps>) => (
+  <Modal
+    isOpen
+    size={size}
+    header={header}
+    footer={footer}
+    onOpenChange={(isOpen) => {
+      if (!isOpen) onClose();
+    }}
+  >
+    {children}
+  </Modal>
+);
 
 export default ConnectionFormWrapper;

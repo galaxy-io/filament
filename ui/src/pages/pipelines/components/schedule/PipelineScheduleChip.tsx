@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { CalendarIcon } from "@phosphor-icons/react";
 
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -32,7 +32,7 @@ const PipelineScheduleChip = ({ pipelineId }: PipelineScheduleChipProps) => {
     <Chip
       icon={CalendarIcon}
       label={`Next run ${formatTimeUntil(schedule.nextFireAt)}`}
-      variant={ChipVariant.YELLOW}
+      color="yellow"
       size={ChipSize.SMALL}
       isPill
     />

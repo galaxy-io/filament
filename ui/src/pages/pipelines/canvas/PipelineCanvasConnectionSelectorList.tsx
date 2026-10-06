@@ -1,12 +1,11 @@
-import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Button from "@galaxy-io/dls/buttons/Button";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -17,18 +16,6 @@ import { LayoutSize } from "@/layouts/types";
 
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-const ConnectionList = withTheme(styled.div<PropsWithTheme>`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`);
 
 const PipelineCanvasConnectionSelectorEmpty = ({
   message,
@@ -52,9 +39,9 @@ const PipelineCanvasConnectionSelectorEmpty = ({
   };
 
   return (
-    <FlexWrapper
+    <Flex
       fillWidth
-      fillHeight
+      height="100%"
       minHeight={240}
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.CENTER}
@@ -62,18 +49,16 @@ const PipelineCanvasConnectionSelectorEmpty = ({
     >
       <EmptyLayout
         size={LayoutSize.SMALL}
-        message={message}
-        actions={[
+        header={message}
+        actions={
           <Button
-            key="create-connection"
             label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
             icon={PlusIcon}
-            size={ButtonSize.SMALL}
             onClick={handleCreateConnection}
-          />,
-        ]}
+          />
+        }
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 
@@ -119,16 +104,20 @@ const PipelineCanvasConnectionSelectorList = ({
   ];
 
   return (
-    <ConnectionList>
-      {orderedConnections.map((connection) => (
-        <PipelineCanvasConnectionSelectorItem
-          key={connection.id}
-          connection={connection}
-          isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
-          onClick={() => onConnectionClick(connection)}
-        />
-      ))}
-    </ConnectionList>
+    <FlexItem grow={1} minHeight={0}>
+      <ScrollArea>
+        <Flex direction={FlexDirection.COLUMN} gap={2} padding={8}>
+          {orderedConnections.map((connection) => (
+            <PipelineCanvasConnectionSelectorItem
+              key={connection.id}
+              connection={connection}
+              isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
+              onClick={() => onConnectionClick(connection)}
+            />
+          ))}
+        </Flex>
+      </ScrollArea>
+    </FlexItem>
   );
 };
 

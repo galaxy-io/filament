@@ -1,6 +1,5 @@
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
-
-import FieldWrapper from "@/components/fields/FieldWrapper";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import Field from "@galaxy-io/dls/inputs/Field";
 
 import { DEFAULT_WORKER_CONFIGURATION_TEXT } from "@/pages/pipelines/components/worker/utils";
 
@@ -19,16 +18,15 @@ const PipelineWorkerConfigurationEditor = ({
   label = "Pod template",
   help = "Applied to the Kubernetes Job for every run of this pipeline",
 }: PipelineWorkerConfigurationEditorProps) => (
-  <FieldWrapper label={label} help={help} error={error}>
+  <Field label={label} labelTooltip={help} error={error} fillWidth>
     <CodeEditor
-      content={value}
+      value={value}
       onChange={onChange}
-      lang="json"
+      language={CodeEditorLanguage.JSON}
       placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
-      borderRadius={4}
-      noLineNumbers
+      hasLineNumbers={false}
     />
-  </FieldWrapper>
+  </Field>
 );
 
 export default PipelineWorkerConfigurationEditor;

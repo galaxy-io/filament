@@ -1,7 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
@@ -14,7 +17,6 @@ import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/use
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasPanelItem from "@/pages/pipelines/canvas/panel/overview/PipelineCanvasPanelItem";
 import PipelineCanvasPanelResourceSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceSection";
-import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
@@ -44,7 +46,7 @@ const PipelineCanvasPanelOverview = () => {
   const sinkNodes = connectionNodes.filter((node) => node.type === PipelineCanvasNodeType.SINK);
 
   const renderNodeItems = (nodes: (PipelineCanvasSourceNode | PipelineCanvasSinkNode)[]) => (
-    <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
       {nodes.map((node) => {
         const connection = connectionByNodeId.get(node.id);
         return (
@@ -54,59 +56,63 @@ const PipelineCanvasPanelOverview = () => {
               kind={PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP[node.type]}
               isDeleted={!!connection?.deletedAt}
             />
-            <Text size={TextSize.BODY_SM} isEllipsis>
+            <Text size={TextSize.BODY_SM} lineClamp={1}>
               {connection?.name ?? node.data.connectionId}
             </Text>
           </PipelineCanvasPanelItem>
         );
       })}
-    </FlexWrapper>
+    </Flex>
   );
 
   return (
-    <PipelineCanvasPanelBody>
-      <ConnectionDrawerList>
-        <ConnectionDrawerKeyValueRow
-          label="Name"
-          value={
-            <Text size={TextSize.BODY_SM}>
-              {pipelineData.pipeline ? formatPipelineName(pipelineData.pipeline) : id}
-            </Text>
-          }
-        />
-        <ConnectionDrawerKeyValueRow
-          label="Version"
-          value={
-            <Text
-              size={TextSize.BODY_SM}
-              variant={previewed ? TextVariant.ERROR : TextVariant.SECONDARY}
-            >
-              {version ? `Version ${version}` : "—"}
-            </Text>
-          }
-        />
-      </ConnectionDrawerList>
+    <FlexItem grow={1} minHeight={0}>
+      <ScrollArea>
+        <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
+          <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
+            <ConnectionDrawerKeyValueRow
+              label="Name"
+              value={
+                <Text size={TextSize.BODY_SM}>
+                  {pipelineData.pipeline ? formatPipelineName(pipelineData.pipeline) : id}
+                </Text>
+              }
+            />
+            <ConnectionDrawerKeyValueRow
+              label="Version"
+              value={
+                <Text
+                  size={TextSize.BODY_SM}
+                  variant={previewed ? TextVariant.ERROR : TextVariant.SECONDARY}
+                >
+                  {version ? `Version ${version}` : "—"}
+                </Text>
+              }
+            />
+          </ConnectionDrawerList>
 
-      <PipelineCanvasPanelSection
-        header="Source"
-        isEmpty={sourceNodes.length === 0}
-        emptyHeader="No source"
-        emptyMessage="This pipeline has no source connection."
-      >
-        {renderNodeItems(sourceNodes)}
-      </PipelineCanvasPanelSection>
+          <PipelineCanvasPanelSection
+            header="Source"
+            isEmpty={sourceNodes.length === 0}
+            emptyHeader="No source"
+            emptyMessage="This pipeline has no source connection."
+          >
+            {renderNodeItems(sourceNodes)}
+          </PipelineCanvasPanelSection>
 
-      <PipelineCanvasPanelSection
-        header="Sinks"
-        isEmpty={sinkNodes.length === 0}
-        emptyHeader="No sinks"
-        emptyMessage="This pipeline has no sink connections."
-      >
-        {renderNodeItems(sinkNodes)}
-      </PipelineCanvasPanelSection>
+          <PipelineCanvasPanelSection
+            header="Sinks"
+            isEmpty={sinkNodes.length === 0}
+            emptyHeader="No sinks"
+            emptyMessage="This pipeline has no sink connections."
+          >
+            {renderNodeItems(sinkNodes)}
+          </PipelineCanvasPanelSection>
 
-      <PipelineCanvasPanelResourceSection edges={state.edges} />
-    </PipelineCanvasPanelBody>
+          <PipelineCanvasPanelResourceSection edges={state.edges} />
+        </Flex>
+      </ScrollArea>
+    </FlexItem>
   );
 };
 

@@ -2,10 +2,10 @@ import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -43,34 +43,42 @@ const PipelineName = ({
     }
 
     return (
-      <Tooltip body={`Deleted on ${formatTimestamp(pipeline.deletedAt)}`}>
-        <Chip icon={TrashIcon} label="Deleted" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
-      </Tooltip>
+      <Chip
+        icon={TrashIcon}
+        label="Deleted"
+        variant={ChipVariant.ERROR}
+        size={ChipSize.SMALL}
+        tooltip={`Deleted on ${formatTimestamp(pipeline.deletedAt)}`}
+      />
     );
   };
 
   if (isLoading) {
-    return <TextShimmer width={160} height={16} />;
+    return (
+      <Box width={160}>
+        <Skeleton />
+      </Box>
+    );
   }
 
   if (!pipeline?.name) {
     return (
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-        <Text size={size} variant={TextVariant.TERTIARY} isEllipsis>
+      <Flex alignItems={AlignItems.CENTER} gap={8}>
+        <Text size={size} variant={TextVariant.TERTIARY} lineClamp={1}>
           Untitled pipeline
         </Text>
         {renderDeletedChip()}
-      </FlexWrapper>
+      </Flex>
     );
   }
 
   return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-      <Text size={size} isEllipsis>
+    <Flex alignItems={AlignItems.CENTER} gap={8}>
+      <Text size={size} lineClamp={1}>
         {formatPipelineName(pipeline)}
       </Text>
       {renderDeletedChip()}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

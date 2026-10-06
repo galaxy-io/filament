@@ -4,20 +4,16 @@ import { GithubLogoIcon, SlackLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import { IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorMaturityIcon from "@/pages/connectors/components/ConnectorMaturityIcon";
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
   CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
@@ -39,87 +35,87 @@ const CreateConnectionSelectorCard = ({
   }, [connector, onConnectorSelect]);
 
   return (
-    <Widget
-      fillWidth
-      minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}
-      variant={WidgetVariant.PRIMARY}
-      onClick={handleClick}
-    >
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillHeight>
-        <FlexWrapper
+    <Widget isInteractive variant={WidgetVariant.PRIMARY} onClick={handleClick}>
+      <Flex
+        alignItems={AlignItems.START}
+        direction={FlexDirection.COLUMN}
+        gap={12}
+        grow={1}
+        minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}
+      >
+        <Flex
           justifyContent={JustifyContent.SPACE_BETWEEN}
           alignItems={AlignItems.CENTER}
           gap={8}
           fillWidth
         >
-          <FlexWrapper gap={8} alignItems={AlignItems.CENTER} minWidth={0}>
-            <ConnectorTile connector={connector.name} kind={connector.kind} />
+          <Flex gap={12} alignItems={AlignItems.CENTER} minWidth={0}>
+            <ConnectorTile
+              connector={connector.name}
+              kind={connector.kind}
+              size={ConnectorTileSize.LARGE}
+            />
             <FlexItem minWidth={0} overflow="hidden">
-              <Text weight={TextWeight.MEDIUM} isEllipsis>
+              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} lineClamp={1}>
                 {connector.displayName || connector.name}
               </Text>
             </FlexItem>
-          </FlexWrapper>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-            <ConnectorMaturityIcon maturity={connector.maturity} />
-            <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
-          </FlexWrapper>
-        </FlexWrapper>
+          </Flex>
+          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+        </Flex>
 
         <FlexItem grow={1}>
-          <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
+          <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_MD}>
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
-        <Button label="Connect" onClick={handleClick} fillWidth />
-      </FlexWrapper>
+        <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
+      </Flex>
     </Widget>
   );
 };
 
 export const CreateConnectionSelectorEmptyCard = () => {
-  const handleCreateIssue = () => {
-    window.open(`${GITHUB_REPO_URL}/issues/new`, "_blank");
-  };
-
-  const handleContact = () => {
-    window.open(SLACK_COMMUNITY_URL, "_blank");
-  };
-
   return (
-    <Widget
-      fillWidth
-      minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}
-      variant={WidgetVariant.BASE}
-    >
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillHeight>
+    <Widget variant={WidgetVariant.BASE}>
+      <Flex
+        alignItems={AlignItems.START}
+        direction={FlexDirection.COLUMN}
+        gap={12}
+        grow={1}
+        minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}
+      >
         <FlexItem grow={1}>
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
-            <Text weight={TextWeight.MEDIUM}>Looking for something different?</Text>
-            <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+            <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
+              Looking for something different?
+            </Text>
+            <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_MD}>
               Request a connector by opening an issue on GitHub or message our Slack community.
             </Text>
-          </FlexWrapper>
+          </Flex>
         </FlexItem>
-        <FlexWrapper gap={8} fillWidth>
+        <Flex alignItems={AlignItems.START} gap={8} fillWidth>
           <Button
             label="GitHub"
             icon={GithubLogoIcon}
+            iconWeight={IconWeight.FILL}
             variant={ButtonVariant.SECONDARY}
-            onClick={handleCreateIssue}
-            isIconFilled
+            href={`${GITHUB_REPO_URL}/issues/new`}
+            isExternal
             fillWidth
           />
           <Button
             label="Slack"
             icon={SlackLogoIcon}
+            iconWeight={IconWeight.FILL}
             variant={ButtonVariant.SECONDARY}
-            onClick={handleContact}
-            isIconFilled
+            href={SLACK_COMMUNITY_URL}
+            isExternal
             fillWidth
           />
-        </FlexWrapper>
-      </FlexWrapper>
+        </Flex>
+      </Flex>
     </Widget>
   );
 };

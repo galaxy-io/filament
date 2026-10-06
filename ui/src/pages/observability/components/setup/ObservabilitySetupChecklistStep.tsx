@@ -1,15 +1,12 @@
-import { styled } from "@linaria/react";
 import { ArrowRightIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import {
   OBSERVABILITY_SETUP_STATUS_TO_BUTTON_VARIANT_MAP,
@@ -17,7 +14,6 @@ import {
   OBSERVABILITY_SETUP_STATUS_TO_ICON_MAP,
   OBSERVABILITY_SETUP_STATUS_TO_ICON_VARIANT_MAP,
   OBSERVABILITY_SETUP_STATUS_TO_ICON_WEIGHT_MAP,
-  OBSERVABILITY_SETUP_STATUS_TO_OPACITY_MAP,
   OBSERVABILITY_SETUP_STATUS_TO_TITLE_VARIANT_MAP,
   OBSERVABILITY_SETUP_STEP_TO_ACTION_LABEL_MAP,
   OBSERVABILITY_SETUP_STEP_TO_DESCRIPTION_MAP,
@@ -27,35 +23,7 @@ import type { ObservabilitySetupStep } from "@/pages/observability/components/se
 import { ObservabilitySetupStepStatus } from "@/pages/observability/components/setup/types";
 
 const OBSERVABILITY_SETUP_STEP_MARKER_SIZE = 18;
-
-const StepRow = styled.div<{ $opacity: number }>`
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-
-  width: 100%;
-  padding: 14px 12px;
-
-  opacity: ${({ $opacity }) => $opacity};
-
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const StepMarker = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-
-  height: ${({ theme }) => theme.font.sans.height.body_lg};
-`);
-
-const StepAction = styled.div`
-  display: flex;
-  align-self: center;
-  flex-shrink: 0;
-`;
+const OBSERVABILITY_SETUP_STEP_MARKER_HEIGHT = 20;
 
 interface ObservabilitySetupChecklistStepProps {
   step: ObservabilitySetupStep;
@@ -71,17 +39,21 @@ const ObservabilitySetupChecklistStep = ({
   const handleClick = () => onClick(step);
 
   return (
-    <StepRow $opacity={OBSERVABILITY_SETUP_STATUS_TO_OPACITY_MAP[status]}>
-      <StepMarker>
+    <Flex alignItems={AlignItems.START} gap={12} padding={[12, 12]} fillWidth>
+      <Flex
+        alignItems={AlignItems.CENTER}
+        shrink={0}
+        height={OBSERVABILITY_SETUP_STEP_MARKER_HEIGHT}
+      >
         <Icon
           component={OBSERVABILITY_SETUP_STATUS_TO_ICON_MAP[status]}
           size={OBSERVABILITY_SETUP_STEP_MARKER_SIZE}
           weight={OBSERVABILITY_SETUP_STATUS_TO_ICON_WEIGHT_MAP[status]}
           variant={OBSERVABILITY_SETUP_STATUS_TO_ICON_VARIANT_MAP[status]}
         />
-      </StepMarker>
+      </Flex>
       <FlexItem grow={1} minWidth={0}>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.XXSMALL} minWidth={0}>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={2} minWidth={0}>
           <Text
             size={TextSize.BODY_LG}
             variant={OBSERVABILITY_SETUP_STATUS_TO_TITLE_VARIANT_MAP[status]}
@@ -94,9 +66,9 @@ const ObservabilitySetupChecklistStep = ({
           >
             {OBSERVABILITY_SETUP_STEP_TO_DESCRIPTION_MAP[step]}
           </Text>
-        </FlexWrapper>
+        </Flex>
       </FlexItem>
-      <StepAction>
+      <FlexItem shrink={0}>
         {match(status)
           .with(ObservabilitySetupStepStatus.COMPLETED, () => (
             <Chip label="Done" variant={ChipVariant.SUCCESS} />
@@ -110,8 +82,8 @@ const ObservabilitySetupChecklistStep = ({
               isIconTrailing
             />
           ))}
-      </StepAction>
-    </StepRow>
+      </FlexItem>
+    </Flex>
   );
 };
 

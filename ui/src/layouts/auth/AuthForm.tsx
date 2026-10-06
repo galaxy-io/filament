@@ -1,21 +1,18 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
-import { type Icon as PhosphorIcon, WarningIcon } from "@phosphor-icons/react";
-import { Link, type LinkProps } from "@tanstack/react-router";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import type { LinkProps } from "@tanstack/react-router";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
 import IconTile from "@/components/IconTile";
+import RouterLink from "@/components/RouterLink";
 
 import AuthLayout from "@/layouts/auth/AuthLayout";
 
@@ -25,29 +22,6 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 24px;
-`;
-
-const ErrorWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  padding: 8px 12px;
-
-  background-color: ${({ theme }) => theme.color.background.error};
-  border: 0.5px solid ${({ theme }) => theme.color.border.error};
-  border-radius: 5px;
-`);
-
-const FooterLink = styled(Link)`
-  cursor: pointer;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
 `;
 
 export interface AuthFormProps {
@@ -95,30 +69,27 @@ const AuthForm = ({
   return (
     <AuthLayout>
       <Form onSubmit={handleFormSubmit} onKeyDown={handleKeyDown}>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
           {icon && <IconTile icon={icon} size={28} />}
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.SMALL} fillWidth>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
             <Text size={TextSize.HEADING_MD} weight={TextWeight.MEDIUM}>
               {title}
             </Text>
             <Text size={TextSize.BODY_MD} variant={TextVariant.SECONDARY}>
               {subtitle}
             </Text>
-          </FlexWrapper>
-        </FlexWrapper>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
+          </Flex>
+        </Flex>
+        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
           {children && (
-            <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+            <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
               {children}
-            </FlexWrapper>
+            </Flex>
           )}
           {error && (
-            <ErrorWrapper>
-              <Icon component={WarningIcon} size={14} variant={IconVariant.ERROR} />
-              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-                {error}
-              </Text>
-            </ErrorWrapper>
+            <Box fillWidth>
+              <Alert variant={AlertVariant.ERROR}>{error}</Alert>
+            </Box>
           )}
           <Button
             label={submitLabel}
@@ -127,7 +98,7 @@ const AuthForm = ({
             isLoading={isPending}
             fillWidth
           />
-        </FlexWrapper>
+        </Flex>
         {footer}
       </Form>
     </AuthLayout>
@@ -141,14 +112,16 @@ interface AuthFormFooterProps {
 }
 
 export const AuthFormFooter = ({ prompt, to, label }: AuthFormFooterProps) => (
-  <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} fillWidth>
+  <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth>
     <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
       {prompt}
     </Text>
-    <FooterLink to={to}>
-      <Text size={TextSize.BODY_SM}>{label}</Text>
-    </FooterLink>
-  </FlexWrapper>
+    <Text size={TextSize.BODY_SM}>
+      <Link href={to} as={RouterLink} underline={LinkUnderline.HOVER}>
+        {label}
+      </Link>
+    </Text>
+  </Flex>
 );
 
 export default AuthForm;

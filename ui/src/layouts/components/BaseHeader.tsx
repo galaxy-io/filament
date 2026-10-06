@@ -1,13 +1,12 @@
-import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Paragraph from "@galaxy-io/dls/text/Paragraph";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import type { Space } from "@galaxy-io/dls/theme/enums";
 
 export enum BaseHeaderSize {
   SMALL = "SMALL",
@@ -36,27 +35,11 @@ const BASE_HEADER_SIZE_TO_ICON_SIZE_MAP: Record<BaseHeaderSize, number> = {
   [BaseHeaderSize.LARGE]: 20,
 };
 
-const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, number> = {
+const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, Space> = {
   [BaseHeaderSize.SMALL]: 8,
   [BaseHeaderSize.MEDIUM]: 12,
   [BaseHeaderSize.LARGE]: 16,
 };
-
-const TitleWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const ActionsWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-`;
 
 const BaseHeader = ({
   title,
@@ -68,9 +51,16 @@ const BaseHeader = ({
 }: BaseHeaderProps) => {
   const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
-    <FlexWrapper alignItems={alignItems} gap={8} fillWidth>
-      <TitleWrapper>
-        <FlexWrapper
+    <Flex alignItems={alignItems} gap={8} fillWidth>
+      <Flex
+        direction={FlexDirection.COLUMN}
+        gap={2}
+        grow={1}
+        basis={0}
+        minWidth={0}
+        overflow="hidden"
+      >
+        <Flex
           alignItems={AlignItems.CENTER}
           gap={BASE_HEADER_SIZE_TO_GAP_MAP[size]}
           minWidth={0}
@@ -89,26 +79,31 @@ const BaseHeader = ({
             <Text
               size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]}
               weight={TextWeight.MEDIUM}
-              isEllipsis
+              lineClamp={1}
             >
               {title}
             </Text>
           </FlexItem>
-        </FlexWrapper>
-        {description && <Paragraph variant={TextVariant.SECONDARY}>{description}</Paragraph>}
-      </TitleWrapper>
-      <ActionsWrapper>
+        </Flex>
+        {description && (
+          <Text isProse variant={TextVariant.SECONDARY}>
+            {description}
+          </Text>
+        )}
+      </Flex>
+      <Flex alignItems={AlignItems.CENTER} gap={8} shrink={0}>
         {actions}
         {onClose && (
           <Button
             icon={XIcon}
+            ariaLabel="Close"
             variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
             onClick={onClose}
           />
         )}
-      </ActionsWrapper>
-    </FlexWrapper>
+      </Flex>
+    </Flex>
   );
 };
 

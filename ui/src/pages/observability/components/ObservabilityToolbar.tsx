@@ -3,9 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-
-import BaseToolbar from "@/layouts/components/BaseToolbar";
+import Topbar from "@galaxy-io/dls/navigation/Topbar";
 
 import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
@@ -46,27 +44,22 @@ const ObservabilityToolbar = () => {
   };
 
   return (
-    <BaseToolbar
-      leadingActions={[
-        <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-          Observability
-        </Text>,
-      ]}
-      trailingActions={[
-        <ObservabilityTimeframeSwitcher
-          key="timeframe-SwitcherInput"
-          value={timeframe}
-          onChange={handleTimeframeChange}
-        />,
-        <Button
-          key="refresh"
-          icon={ArrowsClockwiseIcon}
-          variant={ButtonVariant.SECONDARY}
-          ariaLabel="Refresh"
-          onClick={handleRefresh}
-        />,
-      ]}
-    />
+    <Topbar
+      actions={
+        <>
+          <ObservabilityTimeframeSwitcher value={timeframe} onChange={handleTimeframeChange} />
+          <Button
+            icon={ArrowsClockwiseIcon}
+            variant={ButtonVariant.SECONDARY}
+            ariaLabel="Refresh"
+            tooltip="Refresh"
+            onClick={handleRefresh}
+          />
+        </>
+      }
+    >
+      Observability
+    </Topbar>
   );
 };
 

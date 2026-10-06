@@ -1,32 +1,19 @@
 import { styled } from "@linaria/react";
 
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_SIDEBAR_BUTTON_SIZE,
   PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP,
+  PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP,
   PIPELINE_SIDEBAR_ITEMS,
   PIPELINE_SIDEBAR_WIDTH,
 } from "@/layouts/pipeline/constants";
 import type { PipelineSidebarItem } from "@/layouts/pipeline/types";
 
-const SidebarWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: ${PIPELINE_SIDEBAR_WIDTH}px;
-  flex: 1;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  padding: 12px 0;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boolean }>>`
+const SidebarButton = styled.button<{ $isActive?: boolean }>`
   width: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
   height: ${PIPELINE_SIDEBAR_BUTTON_SIZE}px;
 
@@ -34,13 +21,11 @@ const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boole
   align-items: center;
   justify-content: center;
 
-  background-color: ${({ theme, $isActive }) =>
-    $isActive ? theme.color.background.tertiary : "transparent"};
+  background-color: ${({ $isActive }) => ($isActive ? t.color.background.selected : "transparent")};
   border: none;
-  border-radius: 6px;
+  border-radius: ${t.radius.md};
 
-  color: ${({ theme, $isActive }) =>
-    $isActive ? theme.color.text.primary : theme.color.text.secondary};
+  color: ${({ $isActive }) => ($isActive ? t.color.text.primary : t.color.text.secondary)};
 
   cursor: pointer;
 
@@ -49,10 +34,10 @@ const SidebarButton = withTheme(styled.button<PropsWithTheme<{ $isActive?: boole
     color 100ms ease;
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
-    color: ${({ theme }) => theme.color.text.primary};
+    background-color: ${t.color.background.hovered};
+    color: ${t.color.text.primary};
   }
-`);
+`;
 
 interface PipelineLayoutSidebarProps {
   activeItem: PipelineSidebarItem;
@@ -61,12 +46,26 @@ interface PipelineLayoutSidebarProps {
 
 const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSidebarProps) => {
   return (
-    <SidebarWrapper>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM}>
+    <Flex
+      direction={FlexDirection.COLUMN}
+      alignItems={AlignItems.CENTER}
+      width={PIPELINE_SIDEBAR_WIDTH}
+      grow={1}
+      basis={0}
+      padding={[12, 0]}
+    >
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12}>
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
           const isActive = activeItem === item;
           return (
-            <SidebarButton key={item} $isActive={isActive} onClick={() => onItemClick(item)}>
+            <SidebarButton
+              key={item}
+              $isActive={isActive}
+              onClick={() => onItemClick(item)}
+              aria-label={PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP[item]}
+              aria-current={isActive ? "page" : undefined}
+              title={PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP[item]}
+            >
               <Icon
                 component={PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP[item]}
                 size={18}
@@ -76,8 +75,8 @@ const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSideba
             </SidebarButton>
           );
         })}
-      </FlexWrapper>
-    </SidebarWrapper>
+      </Flex>
+    </Flex>
   );
 };
 

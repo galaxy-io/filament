@@ -3,13 +3,12 @@ import { type PropsWithChildren, useCallback } from "react";
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearIcon, TrashIcon } from "@phosphor-icons/react";
 
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -17,7 +16,7 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import {
-  CONNECTOR_KIND_TO_CHIP_VARIANT_MAP,
+  CONNECTOR_KIND_TO_CHIP_COLOR_MAP,
   CONNECTOR_KIND_TO_HANDLE_ID_MAP,
   CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP,
 } from "@/pages/pipelines/canvas/constants";
@@ -28,9 +27,7 @@ import {
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
 
-const NodeContainer = withTheme(styled.div<
-  PropsWithTheme<{ $isSelected?: boolean; $width: number }>
->`
+const NodeContainer = styled.div<{ $isSelected?: boolean; $width: number }>`
   width: ${({ $width }) => $width}px;
 
   display: flex;
@@ -38,36 +35,9 @@ const NodeContainer = withTheme(styled.div<
   gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
   &:hover ${PipelineCanvasNodeIsland} {
-    border-color: ${({ theme, $isSelected }) =>
-      $isSelected ? theme.color.background.galaxyAlt : theme.color.border.tertiary};
+    border-color: ${({ $isSelected }) =>
+      $isSelected ? t.color.solid.primary.hovered : t.color.border.tertiary};
   }
-`);
-
-const ActionButton = withTheme(styled.button<PropsWithTheme>`
-  width: 20px;
-  height: 20px;
-  padding: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  transition: background-color 100ms ease;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
-  }
-`);
-
-const HeaderIsland = styled(PipelineCanvasNodeIsland)`
-  display: flex;
-  align-items: center;
-  gap: 4px;
 `;
 
 interface PipelineCanvasNodeProps extends PropsWithChildren {
@@ -118,73 +88,78 @@ const PipelineCanvasNode = ({
 
   return (
     <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
-      <FlexWrapper alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
+      <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
         <Chip
           label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
-          variant={CONNECTOR_KIND_TO_CHIP_VARIANT_MAP[kind]}
+          color={CONNECTOR_KIND_TO_CHIP_COLOR_MAP[kind]}
           size={ChipSize.SMALL}
         />
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={4}>
+        <Flex alignItems={AlignItems.CENTER} gap={4}>
           {onRefresh && (
-            <ActionButton
+            <Button
+              icon={ArrowsClockwiseIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.X_SMALL}
+              ariaLabel="Refresh resources"
+              tooltip="Refresh resources"
               className="nodrag"
               onClick={handleRefresh}
-              aria-label="Refresh resources"
-              title="Refresh resources"
-            >
-              <Icon component={ArrowsClockwiseIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            />
           )}
           {onSettings && (
-            <ActionButton
+            <Button
+              icon={GearIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.X_SMALL}
+              ariaLabel="Open settings"
+              tooltip="Open settings"
               className="nodrag"
               onClick={handleSettings}
-              aria-label="Open settings"
-              title="Open settings"
-            >
-              <Icon component={GearIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            />
           )}
           {onDelete && (
-            <ActionButton
+            <Button
+              icon={TrashIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.X_SMALL}
+              ariaLabel="Delete node"
+              tooltip="Delete node"
               className="nodrag"
               onClick={handleDelete}
-              aria-label="Delete node"
-              title="Delete node"
-            >
-              <Icon component={TrashIcon} size={14} variant={IconVariant.TERTIARY} />
-            </ActionButton>
+            />
           )}
-        </FlexWrapper>
-      </FlexWrapper>
-      <HeaderIsland $isSelected={isSelected}>
-        {kind === ConnectorKind.SINK && (
-          <PipelineCanvasNodeHandle
-            id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
-            kind={kind}
-            position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
-            isConnected={isConnected}
-          />
-        )}
-        <FlexItem grow={1} minWidth={0}>
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={8}>
-            <FlexItem shrink={0}>
-              <ConnectorTile connector={connector} kind={kind} />
-            </FlexItem>
-            <Text size={TextSize.BODY_SM} isEllipsis>
-              {label}
-            </Text>
-          </FlexWrapper>
-        </FlexItem>
-        {kind === ConnectorKind.SOURCE && (
-          <PipelineCanvasNodeHandle
-            id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
-            kind={kind}
-            position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
-            isConnected={isConnected}
-          />
-        )}
-      </HeaderIsland>
+        </Flex>
+      </Flex>
+      <PipelineCanvasNodeIsland $isSelected={isSelected}>
+        <Flex alignItems={AlignItems.CENTER} gap={4}>
+          {kind === ConnectorKind.SINK && (
+            <PipelineCanvasNodeHandle
+              id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
+              kind={kind}
+              position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
+              isConnected={isConnected}
+            />
+          )}
+          <FlexItem grow={1} minWidth={0}>
+            <Flex alignItems={AlignItems.CENTER} gap={8}>
+              <FlexItem shrink={0}>
+                <ConnectorTile connector={connector} kind={kind} />
+              </FlexItem>
+              <Text size={TextSize.BODY_SM} lineClamp={1}>
+                {label}
+              </Text>
+            </Flex>
+          </FlexItem>
+          {kind === ConnectorKind.SOURCE && (
+            <PipelineCanvasNodeHandle
+              id={CONNECTOR_KIND_TO_HANDLE_ID_MAP[kind]}
+              kind={kind}
+              position={CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP[kind]}
+              isConnected={isConnected}
+            />
+          )}
+        </Flex>
+      </PipelineCanvasNodeIsland>
       {children}
     </NodeContainer>
   );

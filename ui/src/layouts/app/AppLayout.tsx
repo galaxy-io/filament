@@ -2,21 +2,21 @@ import { useCallback } from "react";
 
 import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 
-import Drawer from "@galaxy-io/dls/drawer/Drawer";
-import Modal from "@galaxy-io/dls/modal/Modal";
-
 import { Flow } from "@/layouts/app/types";
 
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
 import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
 import EditConnectionModal from "@/pages/connectors/components/edit/EditConnectionModal";
-import { CONNECTOR_DRAWER_WIDTH } from "@/pages/connectors/constants";
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import SettingsPage from "@/pages/settings/SettingsPage";
+
+import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
 
 const AppLayout = () => {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "/_app" });
+  const isDrawerOpen = !!connectionId;
+  const drawerConnectionId = useRetainedWhileClosed(connectionId, isDrawerOpen);
 
   const handleCloseDrawer = useCallback(() => {
     void navigate({
@@ -47,18 +47,16 @@ const AppLayout = () => {
   return (
     <>
       <Outlet />
-      <Drawer open={!!connectionId} onClose={handleCloseDrawer} width={CONNECTOR_DRAWER_WIDTH}>
-        {connectionId && <ConnectionDrawer onClose={handleCloseDrawer} />}
-      </Drawer>
-      <Modal open={flow === Flow.CREATE_CONNECTION} onClose={handleCloseFlow}>
-        <CreateConnectionModal onClose={handleCloseFlow} />
-      </Modal>
-      <Modal open={flow === Flow.EDIT_CONNECTION && !!connectionId} onClose={handleCloseFlow}>
-        {connectionId && <EditConnectionModal onClose={handleCloseFlow} />}
-      </Modal>
-      <Modal open={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow}>
-        <CreatePipelineModal onClose={handleCloseFlow} />
-      </Modal>
+      <ConnectionDrawer
+        connectionId={drawerConnectionId}
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+      />
+      {flow === Flow.CREATE_CONNECTION && <CreateConnectionModal onClose={handleCloseFlow} />}
+      {flow === Flow.EDIT_CONNECTION && !!connectionId && (
+        <EditConnectionModal onClose={handleCloseFlow} />
+      )}
+      {flow === Flow.CREATE_PIPELINE && <CreatePipelineModal onClose={handleCloseFlow} />}
       <SettingsPage />
     </>
   );

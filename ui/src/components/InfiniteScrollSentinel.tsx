@@ -1,13 +1,8 @@
 import { useEffect } from "react";
 
-import { styled } from "@linaria/react";
 import { useInView } from "react-intersection-observer";
 
-const SentinelWrapper = styled.div`
-  width: 100%;
-  height: 1px;
-  flex-shrink: 0;
-`;
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 interface InfiniteScrollSentinelProps {
   hasNextPage: boolean;
@@ -32,7 +27,7 @@ const InfiniteScrollSentinel = ({
     return null;
   }
 
-  return <SentinelWrapper ref={ref} />;
+  return <FlexItem ref={ref} shrink={0} fillWidth height={1} />;
 };
 
 export default InfiniteScrollSentinel;

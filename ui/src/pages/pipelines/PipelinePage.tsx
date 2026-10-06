@@ -48,7 +48,7 @@ const PipelinePage = () => {
       <ErrorLayout
         icon={LinkBreakIcon}
         header="Deleted pipeline"
-        message="The pipeline you are looking for has been deleted"
+        description="The pipeline you are looking for has been deleted"
         actions={
           <Button
             label="Go back to pipelines"

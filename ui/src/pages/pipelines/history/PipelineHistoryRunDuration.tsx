@@ -29,7 +29,7 @@ const PipelineHistoryRunDuration = ({
   }, [isLive]);
 
   return (
-    <Text size={TextSize.BODY_SM} isEllipsis>
+    <Text size={TextSize.BODY_SM} lineClamp={1}>
       {formatDuration(startedAt, isLive ? BigInt(now) : endedAt)}
     </Text>
   );

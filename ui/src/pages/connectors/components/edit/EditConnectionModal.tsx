@@ -5,6 +5,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -25,7 +26,6 @@ import ConnectionFormProvider, {
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH } from "@/pages/connectors/constants";
 
 import { useGetConnectionQuery, useUpdateConnectionMutation } from "@/api/queries/connections";
 
@@ -41,7 +41,7 @@ interface EditConnectionModalContentProps extends EditConnectionModalProps {
 
 const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModalContentProps) => {
   const { state, dispatch } = useConnectionFormContext();
-  const { showToast } = useToast();
+  const { toast } = useToast();
 
   const { mutate: updateConnection } = useUpdateConnectionMutation();
 
@@ -68,10 +68,10 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
       }),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             variant: ToastVariant.SUCCESS,
             header: "Connection updated",
-            subheader: `${name} has been updated successfully.`,
+            description: `${name} has been updated successfully.`,
           });
           onClose();
         },
@@ -81,17 +81,17 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
             payload: ConnectionFormPhase.ERROR,
           });
           const isConflict = ConnectError.from(error).code === Code.Aborted;
-          showToast({
+          toast({
             variant: ToastVariant.ERROR,
             header: isConflict ? "Connection changed elsewhere" : "Update failed",
-            subheader: isConflict
+            description: isConflict
               ? "This connection was modified since you opened it. Close the editor and reopen it to load the latest version."
               : getErrorMessage(error, "Update failed"),
           });
         },
       },
     );
-  }, [state.name, state.config, connection, updateConnection, showToast, onClose, dispatch]);
+  }, [state.name, state.config, connection, updateConnection, toast, onClose, dispatch]);
 
   return (
     <ConnectionForm
@@ -116,10 +116,10 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
 
   if (isError) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
         <ErrorLayout
           header="Connection not found"
-          message="This connection no longer exists."
+          description="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
         />
       </ConnectionFormWrapper>
@@ -128,7 +128,7 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
 
   if (!connection) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
         <PendingLayout />
       </ConnectionFormWrapper>
     );

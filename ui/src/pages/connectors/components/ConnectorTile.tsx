@@ -4,11 +4,13 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
+import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { GalaxyTheme } from "@galaxy-io/dls/theme";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily, GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
@@ -27,10 +29,10 @@ const CONNECTOR_TILE_SIZE_TO_SIZE_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.LARGE]: 36,
 };
 
-const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
-  [ConnectorTileSize.SMALL]: 4,
-  [ConnectorTileSize.MEDIUM]: 5,
-  [ConnectorTileSize.LARGE]: 6,
+const CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP: Record<ConnectorTileSize, SkeletonSize> = {
+  [ConnectorTileSize.SMALL]: SkeletonSize.X_SMALL,
+  [ConnectorTileSize.MEDIUM]: SkeletonSize.SMALL,
+  [ConnectorTileSize.LARGE]: SkeletonSize.LARGE,
 };
 
 const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
@@ -45,13 +47,11 @@ const CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP: Record<ConnectorTileSize, TextSize> 
   [ConnectorTileSize.LARGE]: TextSize.BODY_LG,
 };
 
-const TileWrapper = withTheme(styled.div<
-  PropsWithTheme<{
-    $size: ConnectorTileSize;
-    $isClickable: boolean;
-    $isDeleted: boolean;
-  }>
->`
+const TileWrapper = styled.div<{
+  $size: ConnectorTileSize;
+  $isClickable: boolean;
+  $isDeleted: boolean;
+}>`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
 
@@ -60,13 +60,11 @@ const TileWrapper = withTheme(styled.div<
   justify-content: center;
   flex-shrink: 0;
 
-  background-color: ${({ theme, $isDeleted }) =>
-    $isDeleted ? theme.color.background.error : theme.color.background.secondary};
+  background-color: transparent;
 
-  border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
-  border: 0.5px solid
-    ${({ theme, $isDeleted }) =>
-      $isDeleted ? theme.color.border.error : theme.color.border.tertiary};
+  border-radius: ${t.radius.md};
+  border: ${HAIRLINE_WIDTH} solid
+    ${({ $isDeleted }) => ($isDeleted ? t.color.border.error : t.color.border.tertiary)};
 
   overflow: hidden;
 
@@ -77,7 +75,7 @@ const TileWrapper = withTheme(styled.div<
   &:hover {
     opacity: ${({ $isClickable }) => ($isClickable ? 0.8 : 1)};
   }
-`);
+`;
 
 const ConnectorLogo = styled.img<{ $height: number }>`
   display: block;
@@ -137,7 +135,7 @@ const ConnectorTile = ({
         <Text
           size={CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP[size]}
           variant={TextVariant.SECONDARY}
-          isMonospace
+          family={FontFamily.MONO}
         >
           {connector.charAt(0).toUpperCase()}
         </Text>
@@ -155,7 +153,7 @@ export const ConnectorOverflowTile = ({
 }) => {
   return (
     <TileWrapper $size={size} $isClickable={false} $isDeleted={false}>
-      <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} isMonospace>
+      <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} family={FontFamily.MONO}>
         +{count}
       </Text>
     </TileWrapper>
@@ -168,10 +166,12 @@ export const ConnectorTileShimmer = ({
   size?: ConnectorTileSize;
 }) => {
   return (
-    <TextShimmer
-      height={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}
-      width={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}
-    />
+    <Box width={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}>
+      <Skeleton
+        variant={SkeletonVariant.RECT}
+        size={CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP[size]}
+      />
+    </Box>
   );
 };
 

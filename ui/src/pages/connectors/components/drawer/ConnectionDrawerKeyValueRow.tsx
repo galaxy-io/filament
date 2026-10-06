@@ -1,8 +1,4 @@
-import FlexWrapper, {
-  AlignItems,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 
 interface ConnectionDrawerKeyValueRowProps {
@@ -12,15 +8,15 @@ interface ConnectionDrawerKeyValueRowProps {
 
 const ConnectionDrawerKeyValueRow = ({ label, value }: ConnectionDrawerKeyValueRowProps) => {
   return (
-    <FlexWrapper
+    <Flex
       alignItems={AlignItems.CENTER}
       justifyContent={JustifyContent.SPACE_BETWEEN}
-      gap={FlexGap.SMALL}
+      gap={8}
       fillWidth
     >
       <Text weight={TextWeight.MEDIUM}>{label}</Text>
       {value}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

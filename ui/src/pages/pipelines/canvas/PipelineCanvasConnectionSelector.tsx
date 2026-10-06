@@ -1,13 +1,9 @@
 import { useState } from "react";
 
-import { styled } from "@linaria/react";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -27,22 +23,6 @@ import {
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 
 import { isSearchMatch } from "@/utils/search";
-
-const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
-  width: ${({ $width }) => $width}px;
-  height: ${({ $fillHeight }) => ($fillHeight ? "100%" : "auto")};
-  max-height: ${PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT}px;
-  display: flex;
-  flex-direction: column;
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const SearchWrapper = withTheme(styled.div<PropsWithTheme>`
-  padding: 8px;
-  flex-shrink: 0;
-  background-color: ${({ theme }) => theme.color.background.primary};
-`);
 
 interface PipelineCanvasConnectionSelectorProps {
   kindFilter?: ConnectorKind;
@@ -94,18 +74,22 @@ const PipelineCanvasConnectionSelector = ({
   };
 
   return (
-    <BodyWrapper $width={width} $fillHeight={fillHeight}>
-      <SearchWrapper>
-        <TextInput
+    <Flex
+      direction={FlexDirection.COLUMN}
+      width={width}
+      height={fillHeight ? "100%" : undefined}
+      maxHeight={PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT}
+      overflow="hidden"
+    >
+      <Box padding={8}>
+        <SearchInput
           value={state.search}
           onChange={handleSearchChange}
           placeholder="Search connections..."
-          leading={{ icon: MagnifyingGlassIcon }}
-          size={InputSize.LARGE}
           fillWidth
         />
-      </SearchWrapper>
-      <HorizontalDivider />
+      </Box>
+      <Divider />
       <PipelineCanvasConnectionSelectorList
         connections={filteredConnections}
         hasConnections={kindConnections.length > 0}
@@ -113,7 +97,7 @@ const PipelineCanvasConnectionSelector = ({
         isSourceDisabled={!canAddSourceNode(canvasState.nodes)}
         onConnectionClick={handleConnectionClick}
       />
-    </BodyWrapper>
+    </Flex>
   );
 };
 

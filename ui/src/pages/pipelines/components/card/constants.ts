@@ -1,2 +1,1 @@
 export const PIPELINE_CARD_HEIGHT = 40;
-export const PIPELINE_INDICATOR_WIDTH = 16;

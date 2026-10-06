@@ -2,9 +2,12 @@ import { useState } from "react";
 
 import { styled } from "@linaria/react";
 
-import Badge, { BadgeVariant } from "@galaxy-io/dls/badge/Badge";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
+import Box from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import {
   PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
@@ -21,33 +24,6 @@ import { isSearchMatch } from "@/utils/search";
 
 const IslandWrapper = styled(PipelineCanvasNodeIsland)`
   padding: 0;
-`;
-
-const SearchSection = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: ${PIPELINE_CANVAS_NODE_PADDING}px;
-`;
-
-const BadgeSlot = styled.span`
-  width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
-  flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const TableList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: ${PIPELINE_CANVAS_NODE_PADDING}px ${PIPELINE_CANVAS_NODE_PADDING}px
-    ${PIPELINE_CANVAS_NODE_PADDING}px 12px;
-
-  max-height: ${PIPELINE_CANVAS_NODE_TABLE_LIST_MAX_HEIGHT}px;
-  overflow-y: auto;
 `;
 
 interface PipelineCanvasNodeSourceIslandProps {
@@ -93,30 +69,50 @@ const PipelineCanvasNodeSourceIsland = ({
 
   return (
     <IslandWrapper $isSelected={isSelected}>
-      <SearchSection className="nodrag">
-        <TextInput
-          placeholder="Search"
-          value={state.search}
-          onChange={handleSearchChange}
-          fillWidth
-        />
+      <Flex
+        alignItems={AlignItems.CENTER}
+        gap={8}
+        padding={PIPELINE_CANVAS_NODE_PADDING}
+        className="nodrag"
+      >
+        <SearchInput value={state.search} onChange={handleSearchChange} fillWidth />
         {connectedCount > 0 && (
-          <BadgeSlot ref={badgeRef}>
-            <Badge count={connectedCount} variant={BadgeVariant.SECONDARY} />
-          </BadgeSlot>
+          <Flex
+            ref={badgeRef}
+            as="span"
+            width={PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}
+            shrink={0}
+            alignItems={AlignItems.CENTER}
+            justifyContent={JustifyContent.CENTER}
+          >
+            <Chip hasBorder isPill count={connectedCount} variant={ChipVariant.SECONDARY} />
+          </Flex>
         )}
-      </SearchSection>
+      </Flex>
 
-      <HorizontalDivider />
+      <Divider />
 
-      <TableList ref={listRef} className="nowheel" onScroll={syncMeasurements}>
-        <PipelineCanvasNodeSourceIslandTableList
-          tables={filteredTables}
-          error={error}
-          isLoading={isLoading}
-        />
-        <PipelineCanvasNodeSourceIslandHiddenHandles tables={hiddenTables} />
-      </TableList>
+      <Box maxHeight={PIPELINE_CANVAS_NODE_TABLE_LIST_MAX_HEIGHT}>
+        <ScrollArea ref={listRef} onScroll={syncMeasurements} className="nowheel">
+          <Flex
+            direction={FlexDirection.COLUMN}
+            gap={4}
+            padding={[
+              PIPELINE_CANVAS_NODE_PADDING,
+              PIPELINE_CANVAS_NODE_PADDING,
+              PIPELINE_CANVAS_NODE_PADDING,
+              12,
+            ]}
+          >
+            <PipelineCanvasNodeSourceIslandTableList
+              tables={filteredTables}
+              error={error}
+              isLoading={isLoading}
+            />
+            <PipelineCanvasNodeSourceIslandHiddenHandles tables={hiddenTables} />
+          </Flex>
+        </ScrollArea>
+      </Box>
     </IslandWrapper>
   );
 };

@@ -4,32 +4,22 @@ import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
-import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import StatChart, { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
-import MetricCard from "@/components/metrics/MetricCard";
 import MetricGroup from "@/components/metrics/MetricGroup";
 
 import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
-import {
-  PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
+import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";
@@ -99,104 +89,83 @@ const ObservabilityMetricsWidget = () => {
     0,
   );
 
-  const totalValue = (value: string) =>
-    isTotalsLoading ? <TextShimmer width={48} height={18} /> : value;
-
   return (
     <MetricGroup
       primary={
-        <MetricCard
+        <StatChart
           label="Total runs"
-          value={totalValue(formatCount(BigInt(Math.round(totalRuns))))}
-          noBorder
+          value={formatCount(BigInt(Math.round(totalRuns)))}
+          isLoading={isTotalsLoading}
         />
       }
     >
-      <MetricCard
+      <StatChart
         label="Total records"
-        value={totalValue(formatCount(BigInt(Math.round(totalRecords))))}
-        icon={RowsIcon}
+        value={formatCount(BigInt(Math.round(totalRecords)))}
+        trailing={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
         variant={StatChartVariant.TERTIARY}
+        isLoading={isTotalsLoading}
+        hasBorder
       />
-      <MetricCard
+      <StatChart
         label="Total volume"
-        value={totalValue(formatBytes(BigInt(Math.round(totalBytes))))}
-        icon={HardDrivesIcon}
+        value={formatBytes(BigInt(Math.round(totalBytes)))}
+        trailing={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
         variant={StatChartVariant.TERTIARY}
+        isLoading={isTotalsLoading}
+        hasBorder
       />
       {OBSERVABILITY_METRICS_FEATURED_STATUSES.map((status) => (
-        <MetricCard
+        <StatChart
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-          value={
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-              {isStatusCountsLoading ? (
-                <TextShimmer width={32} height={18} />
-              ) : (
-                <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                  {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
-                </Text>
-              )}
-              <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
-            </FlexWrapper>
-          }
+          value={formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+          trailing={<PipelineRunStatusSwatch status={status} />}
+          isLoading={isStatusCountsLoading}
+          hasBorder
         />
       ))}
-      <MetricCard
+      <StatChart
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
-        value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-            {isScheduledLoading ? (
-              <TextShimmer width={32} height={18} />
-            ) : (
-              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                {formatCount(BigInt(scheduledData?.runs.length ?? 0))}
-              </Text>
-            )}
-            <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[RunStatus.SCHEDULED]} />
-          </FlexWrapper>
-        }
+        value={formatCount(BigInt(scheduledData?.runs.length ?? 0))}
+        trailing={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
+        isLoading={isScheduledLoading}
+        hasBorder
       />
-      <MetricCard
+      <StatChart
         label="Other"
-        value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-            {isStatusCountsLoading ? (
-              <TextShimmer width={32} height={18} />
-            ) : (
-              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                {formatCount(BigInt(Math.round(otherStatusesCount)))}
-              </Text>
-            )}
-            <Tooltip
-              body={
-                <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
-                  {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
-                    <FlexWrapper
-                      key={status}
-                      alignItems={AlignItems.CENTER}
-                      justifyContent={JustifyContent.SPACE_BETWEEN}
-                      gap={48}
-                      fillWidth
-                    >
-                      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-                        <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
-                        <Text size={TextSize.BODY_SM}>
-                          {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-                        </Text>
-                      </FlexWrapper>
+        value={formatCount(BigInt(Math.round(otherStatusesCount)))}
+        trailing={
+          <Tooltip
+            body={
+              <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+                {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
+                  <Flex
+                    key={status}
+                    alignItems={AlignItems.CENTER}
+                    justifyContent={JustifyContent.SPACE_BETWEEN}
+                    gap={48}
+                    fillWidth
+                  >
+                    <Flex alignItems={AlignItems.CENTER} gap={8}>
+                      <PipelineRunStatusSwatch status={status} />
                       <Text size={TextSize.BODY_SM}>
-                        {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+                        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
                       </Text>
-                    </FlexWrapper>
-                  ))}
-                </FlexWrapper>
-              }
-            >
-              <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-            </Tooltip>
-          </FlexWrapper>
+                    </Flex>
+                    <Text size={TextSize.BODY_SM}>
+                      {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+                    </Text>
+                  </Flex>
+                ))}
+              </Flex>
+            }
+          >
+            <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+          </Tooltip>
         }
+        isLoading={isStatusCountsLoading}
+        hasBorder
       />
     </MetricGroup>
   );

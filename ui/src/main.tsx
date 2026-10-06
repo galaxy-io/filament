@@ -6,11 +6,13 @@ import { createRoot } from "react-dom/client";
 import App from "@/App";
 
 import "@galaxy-io/dls/styles.css";
+import "@galaxy-io/dls/tokens.css";
+import "@galaxy-io/dls/fonts.css";
 import "@/style.css";
 
-import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
+import GalaxyProvider from "@galaxy-io/dls/theme/GalaxyProvider";
 
-import ThemeProvider from "@/providers/theme/ThemeProvider";
+import TransportQueryClientProvider from "@/api/TransportQueryClientProvider";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -19,10 +21,10 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   <StrictMode>
-    <ThemeProvider>
+    <GalaxyProvider>
       <TransportQueryClientProvider>
         <App />
       </TransportQueryClientProvider>
-    </ThemeProvider>
+    </GalaxyProvider>
   </StrictMode>,
 );

@@ -2,8 +2,8 @@ import { FlowArrowIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -90,7 +90,7 @@ const PipelineFlow = ({
   const renderSinks = () => {
     if (hasSinks) {
       return (
-        <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.XSMALL}>
+        <Flex alignItems={AlignItems.CENTER} gap={4}>
           {visibleSinks.map((sink, index) => (
             <ConnectorTile
               // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
@@ -108,14 +108,14 @@ const PipelineFlow = ({
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
             />
           )}
-        </FlexWrapper>
+        </Flex>
       );
     }
   };
 
   if (isLoading) {
     return (
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+      <Flex alignItems={AlignItems.CENTER} gap={8}>
         <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
         <Icon
           component={FlowArrowIcon}
@@ -124,7 +124,7 @@ const PipelineFlow = ({
           weight={IconWeight.REGULAR}
         />
         <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
-      </FlexWrapper>
+      </Flex>
     );
   }
 
@@ -133,7 +133,7 @@ const PipelineFlow = ({
   }
 
   return (
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
+    <Flex alignItems={AlignItems.CENTER} gap={8}>
       {renderSource()}
       <Icon
         component={FlowArrowIcon}
@@ -142,7 +142,7 @@ const PipelineFlow = ({
         weight={IconWeight.REGULAR}
       />
       {renderSinks()}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

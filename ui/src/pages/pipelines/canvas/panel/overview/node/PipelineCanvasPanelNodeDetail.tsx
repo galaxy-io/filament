@@ -1,5 +1,9 @@
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
@@ -10,7 +14,6 @@ import { PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP } from "@/pages/pipelin
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasPanelResourceSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceSection";
-import PipelineCanvasPanelBody from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelBody";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import {
@@ -88,40 +91,44 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
               }
         }
       />
-      <PipelineCanvasPanelBody>
-        <ConnectionDrawerList>
-          <ConnectionDrawerKeyValueRow
-            label="Connector"
-            value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? "—"}</Text>}
-          />
-          <ConnectionDrawerKeyValueRow
-            label="Kind"
-            value={<ConnectionKindChip kind={kind} size={ChipSize.SMALL} />}
-          />
-        </ConnectionDrawerList>
+      <FlexItem grow={1} minHeight={0}>
+        <ScrollArea>
+          <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
+            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
+              <ConnectionDrawerKeyValueRow
+                label="Connector"
+                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? "—"}</Text>}
+              />
+              <ConnectionDrawerKeyValueRow
+                label="Kind"
+                value={<ConnectionKindChip kind={kind} size={ChipSize.SMALL} />}
+              />
+            </ConnectionDrawerList>
 
-        <PipelineCanvasPanelSection
-          header="Configuration"
-          isEmpty={nodeConfig.fields.length === 0}
-          emptyHeader="No configuration"
-          emptyMessage="This connector has no pipeline configuration."
-          padding="12px"
-        >
-          <PipelineNodeConfigFields
-            {...nodeConfig}
-            config={configValue}
-            onChange={(config) => setNodeConfig(node.id, config)}
-            variant={InputVariant.TERTIARY}
-            isDisabled={isReadOnly}
-          />
-        </PipelineCanvasPanelSection>
+            <PipelineCanvasPanelSection
+              header="Configuration"
+              isEmpty={nodeConfig.fields.length === 0}
+              emptyHeader="No configuration"
+              emptyMessage="This connector has no pipeline configuration."
+              hasInset
+            >
+              <PipelineNodeConfigFields
+                {...nodeConfig}
+                config={configValue}
+                onChange={(config) => setNodeConfig(node.id, config)}
+                variant={InputVariant.TERTIARY}
+                isDisabled={isReadOnly}
+              />
+            </PipelineCanvasPanelSection>
 
-        <PipelineCanvasPanelResourceSection
-          edges={nodeEdges}
-          nodeId={node.id}
-          nodeType={node.type}
-        />
-      </PipelineCanvasPanelBody>
+            <PipelineCanvasPanelResourceSection
+              edges={nodeEdges}
+              nodeId={node.id}
+              nodeType={node.type}
+            />
+          </Flex>
+        </ScrollArea>
+      </FlexItem>
     </>
   );
 };

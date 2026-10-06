@@ -1,24 +1,32 @@
-import {
-  CircleNotchIcon,
-  FlaskIcon,
-  type Icon as PhosphorIcon,
-  SealCheckIcon,
-  ShieldStarIcon,
-} from "@phosphor-icons/react";
-
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ConnectorMaturity } from "@/gen/ingestion/v1/connectors_pb";
 
+import { CreateConnectionSelectorShelf } from "@/pages/connectors/components/create/types";
+
 export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
-export const CONNECTOR_DRAWER_WIDTH = 600;
-export const CREATE_CONNECTION_MODAL_SELECTOR_WIDTH = 900;
-export const CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH = 480;
-export const CREATE_CONNECTION_MODAL_HEIGHT = 680;
 export const CREATE_CONNECTION_SELECTOR_GHOST_COUNT = 6;
-export const CREATE_CONNECTION_SELECTOR_GRID_COLUMNS = "repeat(3, 1fr)";
+export const CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH = 240;
+export const CREATE_CONNECTION_SELECTOR_GRID_COLUMNS = "repeat(3, minmax(0, 1fr))";
+
+export const CREATE_CONNECTION_SELECTOR_SHELF_ORDER: CreateConnectionSelectorShelf[] = [
+  CreateConnectionSelectorShelf.ALL,
+  CreateConnectionSelectorShelf.STABLE,
+  CreateConnectionSelectorShelf.BETA,
+  CreateConnectionSelectorShelf.ALPHA,
+];
+
+export const CREATE_CONNECTION_SELECTOR_SHELF_TO_LABEL_MAP: Record<
+  CreateConnectionSelectorShelf,
+  string
+> = {
+  [CreateConnectionSelectorShelf.ALL]: "All",
+  [CreateConnectionSelectorShelf.STABLE]: "Stable",
+  [CreateConnectionSelectorShelf.BETA]: "Beta",
+  [CreateConnectionSelectorShelf.ALPHA]: "Alpha",
+};
 export const CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT = 150;
 
 export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
@@ -39,16 +47,10 @@ export const CONNECTOR_KIND_TO_CREATE_TITLE_MAP: Record<ConnectorKind, string> =
   [ConnectorKind.SINK]: "New sink",
 };
 
-export const CONNECTOR_KIND_TO_CREATE_DESCRIPTION_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "Connect to a data source or sink",
-  [ConnectorKind.SOURCE]: "Connect to a data source",
-  [ConnectorKind.SINK]: "Connect to a data sink",
-};
-
 export const CONNECTOR_KIND_TO_DOCS_PATH_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "/pages/connectors",
-  [ConnectorKind.SOURCE]: "/pages/connectors/sources",
-  [ConnectorKind.SINK]: "/pages/connectors/sinks",
+  [ConnectorKind.UNSPECIFIED]: "/pages/connectors/overview/introduction",
+  [ConnectorKind.SOURCE]: "/pages/connectors/overview/introduction#sources",
+  [ConnectorKind.SINK]: "/pages/connectors/overview/introduction#sinks",
 };
 
 export const CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP: Record<
@@ -59,29 +61,18 @@ export const CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP: Record<
   [ConnectorKind.SINK]: "Connect data sinks to move data out.",
 };
 
-export const CONNECTOR_KIND_TO_CHIP_VARIANT_MAP: Record<ConnectorKind, ChipVariant> = {
-  [ConnectorKind.UNSPECIFIED]: ChipVariant.TERTIARY,
-  [ConnectorKind.SOURCE]: ChipVariant.LIME,
-  [ConnectorKind.SINK]: ChipVariant.PINK,
+export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<
+  ConnectorKind,
+  { variant: ChipVariant } | { color: PaletteColor }
+> = {
+  [ConnectorKind.UNSPECIFIED]: { variant: ChipVariant.TERTIARY },
+  [ConnectorKind.SOURCE]: { color: "lime" },
+  [ConnectorKind.SINK]: { color: "pink" },
 };
 
-export const CONNECTOR_MATURITY_TO_ICON_MAP: Record<ConnectorMaturity, PhosphorIcon> = {
-  [ConnectorMaturity.UNSPECIFIED]: CircleNotchIcon,
-  [ConnectorMaturity.ALPHA]: FlaskIcon,
-  [ConnectorMaturity.BETA]: ShieldStarIcon,
-  [ConnectorMaturity.STABLE]: SealCheckIcon,
-};
-
-export const CONNECTOR_MATURITY_TO_LABEL_MAP: Record<ConnectorMaturity, string> = {
-  [ConnectorMaturity.UNSPECIFIED]: "—",
-  [ConnectorMaturity.ALPHA]: "Experimental",
-  [ConnectorMaturity.BETA]: "Beta",
-  [ConnectorMaturity.STABLE]: "Verified",
-};
-
-export const CONNECTOR_MATURITY_TO_ICON_VARIANT_MAP: Record<ConnectorMaturity, IconVariant> = {
-  [ConnectorMaturity.UNSPECIFIED]: IconVariant.PRIMARY,
-  [ConnectorMaturity.ALPHA]: IconVariant.DISABLED,
-  [ConnectorMaturity.BETA]: IconVariant.TERTIARY,
-  [ConnectorMaturity.STABLE]: IconVariant.PRIMARY,
+export const CONNECTOR_MATURITY_TO_STATUS_MAP: Record<ConnectorMaturity, string | undefined> = {
+  [ConnectorMaturity.UNSPECIFIED]: undefined,
+  [ConnectorMaturity.ALPHA]: "experimental",
+  [ConnectorMaturity.BETA]: "beta",
+  [ConnectorMaturity.STABLE]: undefined,
 };

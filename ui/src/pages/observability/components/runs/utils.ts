@@ -1,7 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 
-import type { BarChartGroupDatum, ChartSelectionEvent } from "@galaxy-io/dls/charts/types";
-import type { InfiniteTableProps } from "@galaxy-io/dls/table/InfiniteTable";
+import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
+import type { ChartSelection } from "@galaxy-io/dls/charts/types";
+import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
@@ -25,7 +26,7 @@ import {
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -82,7 +83,7 @@ export const createScheduledRunsChartGroups = (
                 Number(run.scheduledAt) >= bucketStartMs &&
                 Number(run.scheduledAt) < bucketBounds[bucketIndex + 1],
             ).length,
-            color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[RunStatus.SCHEDULED],
+            color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED] ?? undefined,
           },
         ],
       },
@@ -99,24 +100,29 @@ export const mapTimeseriesToChartGroups = (
       {
         metric: "runs",
         components: series
-          .map((statusSeries) => {
+          .flatMap((statusSeries) => {
             const status = Number(statusSeries.key) as RunStatus;
-            return {
-              key: statusSeries.key,
-              label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-              value: statusSeries.points[bucketIndex].values[0],
-              color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status],
-            };
+            const color = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
+            return color
+              ? [
+                  {
+                    key: statusSeries.key,
+                    label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+                    value: statusSeries.points[bucketIndex].values[0],
+                    color,
+                  },
+                ]
+              : [];
           })
           .sort((a, b) => b.value - a.value),
       },
     ],
   }));
 
-export const mapChartSelectionToRunsFilter = (event: ChartSelectionEvent) => {
-  const status = Number(event.seriesKey);
+export const mapChartSelectionToRunsFilter = (selection: ChartSelection | undefined) => {
+  const status = Number(selection?.seriesKey);
   return {
-    runsBucket: BigInt(event.categoryKey),
+    runsBucket: selection?.categoryKey === undefined ? undefined : BigInt(selection.categoryKey),
     runsStatus: Number.isNaN(status) ? undefined : (status as RunStatus),
   };
 };
@@ -136,11 +142,9 @@ export const createRunsWindowInput = (
   };
 };
 
-export type ObservabilityRunsTableSorting = NonNullable<InfiniteTableProps<RunInfo>["sorting"]>;
+export type ObservabilityRunsTableSorting = TableSort | null;
 
-export type ObservabilityRunsTableSortingChange = NonNullable<
-  InfiniteTableProps<RunInfo>["onSortingChange"]
->;
+export type ObservabilityRunsTableSortingChange = (sorting: ObservabilityRunsTableSorting) => void;
 
 type ObservabilityRunsSortSearch = Pick<ListSearchParams, "sortBy" | "sortOrder">;
 
@@ -149,23 +153,20 @@ export const createObservabilityRunsSorting = ({
   sortOrder,
 }: ObservabilityRunsSortSearch): ObservabilityRunsTableSorting =>
   sortBy === SortBy.CREATED_AT
-    ? [
-        {
-          id: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
-          desc: sortOrder !== SortOrder.ASC,
-        },
-      ]
-    : [];
+    ? {
+        columnId: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
+        isDescending: sortOrder !== SortOrder.ASC,
+      }
+    : null;
 
 export const createObservabilityRunsSortSearch = (
   sorting: ObservabilityRunsTableSorting,
 ): ObservabilityRunsSortSearch => {
-  const [column] = sorting;
-  if (column?.id !== OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT) {
+  if (sorting?.columnId !== OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT) {
     return { sortBy: undefined, sortOrder: undefined };
   }
   return {
     sortBy: SortBy.CREATED_AT,
-    sortOrder: column.desc ? SortOrder.DESC : SortOrder.ASC,
+    sortOrder: sorting.isDescending ? SortOrder.DESC : SortOrder.ASC,
   };
 };

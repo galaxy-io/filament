@@ -5,17 +5,13 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import {
-  ChartTooltipGrid,
-  ChartTooltipLabelCell,
-  ChartTooltipValueCell,
-} from "@galaxy-io/dls/charts/ChartPrimitives";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
+import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
+import Box from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Grid, { GridAlignItems } from "@galaxy-io/dls/layout/Grid";
+import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
@@ -24,10 +20,10 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 
 import {
   PIPELINES_TABLE_RECENT_RUNS_COUNT,
-  PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP,
   PIPELINES_TABLE_RECENT_RUNS_STATUSES,
 } from "@/pages/pipelines/components/table/constants";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
@@ -52,17 +48,6 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   }
 `;
 
-const PipelinesTableRecentRunSquare = withTheme(styled.div<
-  PropsWithTheme<{ $status?: RunStatus; $isClickable?: boolean }>
->`
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
-  background: ${({ theme, $status = RunStatus.UNSPECIFIED }) =>
-    PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP[$status](theme)};
-`);
-
 const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
   const rows = [
     { label: "Duration", value: formatDuration(run.startedAt, run.endedAt) },
@@ -71,35 +56,36 @@ const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
   ];
 
   return (
-    <Wrapper minWidth={160}>
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
-        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isEllipsis>
+    <Box minWidth={160}>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
           {formatTimestamp(getPipelineHistoryRunTimestamp(run).timestamp)}
         </Text>
         {run.error ? (
-          <Text size={TextSize.CAPTION} isMonospace isSelectable>
+          <Text size={TextSize.CAPTION} family={FontFamily.MONO} isSelectable>
             {run.error}
           </Text>
         ) : (
-          <ChartTooltipGrid>
+          <Grid
+            columns="minmax(0, 1fr) auto"
+            gap={[4, 16]}
+            alignItems={GridAlignItems.CENTER}
+            fillWidth
+          >
             {rows.map((row) => (
               <Fragment key={row.label}>
-                <ChartTooltipLabelCell>
-                  <Text size={TextSize.BODY_SM} isEllipsis>
-                    {row.label}
-                  </Text>
-                </ChartTooltipLabelCell>
-                <ChartTooltipValueCell>
-                  <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} align="right">
-                    {row.value}
-                  </Text>
-                </ChartTooltipValueCell>
+                <Text size={TextSize.BODY_SM} lineClamp={1}>
+                  {row.label}
+                </Text>
+                <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} align="right">
+                  {row.value}
+                </Text>
               </Fragment>
             ))}
-          </ChartTooltipGrid>
+          </Grid>
         )}
-      </FlexWrapper>
-    </Wrapper>
+      </Flex>
+    </Box>
   );
 };
 
@@ -135,7 +121,11 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
   };
 
   if (isLoading) {
-    return <TextShimmer width={136} height={18} />;
+    return (
+      <Box width={136}>
+        <Skeleton size={SkeletonSize.X_SMALL} />
+      </Box>
+    );
   }
 
   return (
@@ -153,25 +143,28 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
                   PIPELINE_RUN_STATUS_TO_LABEL_MAP[run.status]
                 )
               }
-              isInteractive={Boolean(run.error)}
             >
-              <PipelinesTableRecentRunSquare
-                $status={run.status}
-                $isClickable
-                onClick={(event) => handleRunClick(event, run.id)}
-              />
+              <Flex onClick={(event) => handleRunClick(event, run.id)}>
+                <PipelineRunStatusSwatch status={run.status} size={SquareSize.MEDIUM} />
+              </Flex>
             </Tooltip>
           );
         }
         if (index === scheduledIndex && schedule) {
           return (
             <Tooltip key="scheduled" body={`Scheduled for ${formatTimestamp(schedule.nextFireAt)}`}>
-              <PipelinesTableRecentRunSquare $status={RunStatus.SCHEDULED} />
+              <Flex>
+                <PipelineRunStatusSwatch status={RunStatus.SCHEDULED} size={SquareSize.MEDIUM} />
+              </Flex>
             </Tooltip>
           );
         }
-        // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder slots with no identity
-        return <PipelinesTableRecentRunSquare key={`empty-${index}`} />;
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder slots with no identity
+          <Flex key={`empty-${index}`}>
+            <Square size={SquareSize.MEDIUM} variant={SquareVariant.DISABLED} />
+          </Flex>
+        );
       })}
     </PipelinesTableRecentRunsWrapper>
   );

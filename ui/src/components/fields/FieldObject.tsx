@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import Field from "@galaxy-io/dls/inputs/Field";
 
-import FieldWrapper from "@/components/fields/FieldWrapper";
 import type { FieldComponentProps } from "@/components/fields/types";
 
 interface FieldObjectState {
@@ -60,21 +60,22 @@ const FieldObject = ({
   };
 
   return (
-    <FieldWrapper
+    <Field
       label={label}
-      help={field.help}
+      labelTooltip={field.help || undefined}
       isRequired={field.required}
       error={state.parseError ?? error}
+      fillWidth
     >
       <CodeEditor
-        content={state.displayValue}
+        value={state.displayValue}
         onChange={handleChange}
         placeholder="{}"
-        lang="json"
+        language={CodeEditorLanguage.JSON}
         isReadOnly={isDisabled}
-        noLineNumbers
+        hasLineNumbers={false}
       />
-    </FieldWrapper>
+    </Field>
   );
 };
 

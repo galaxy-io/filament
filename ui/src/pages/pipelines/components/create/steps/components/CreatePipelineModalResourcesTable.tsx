@@ -1,18 +1,14 @@
 import { useMemo } from "react";
 
-import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import InfiniteTable, {
-  type ColumnDef,
-  ColumnPin,
-  type Row,
-  TableVariant,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
+import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 
@@ -24,57 +20,43 @@ import {
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
-  CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
-const TableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
-
-const NameWrapper = styled.div`
-  min-width: 0;
-  overflow: hidden;
-`;
-
-const NAME_COLUMN: ColumnDef<CreatePipelineModalResourceRow> = {
+const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   id: "name",
   header: "Resource",
-  accessorFn: (row) => row.displayName,
-  enableSorting: true,
-  cellLoading: () => <TextShimmer width={180} height={16} />,
+  accessor: (row) => row.displayName,
+  canSort: true,
+  isRowHeader: true,
   cell: ({ row }) => (
-    <NameWrapper>
-      <Text size={TextSize.BODY_SM} isMonospace isEllipsis>
-        {row.original.displayName}
+    <FlexItem minWidth={0} overflow="hidden">
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
+        {row.displayName}
       </Text>
-    </NameWrapper>
+    </FlexItem>
   ),
 };
 
-const RESOURCE_COLUMNS_BASE: ColumnDef<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
+const RESOURCE_COLUMNS_BASE: TableColumn<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
 
-const RESOURCE_COLUMNS_WITH_LEVERS: ColumnDef<CreatePipelineModalResourceRow>[] = [
+const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[] = [
   NAME_COLUMN,
   {
     id: "readMode",
     header: "Read mode",
-    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
-    pin: ColumnPin.RIGHT,
-    cellLoading: () => <TextShimmer width={120} height={16} />,
-    cell: ({ row }) => <CreatePipelineModalResourcesReadModeCell row={row.original} />,
+    width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
+    pin: Side.RIGHT,
+    cell: ({ row }) => <CreatePipelineModalResourcesReadModeCell row={row} />,
   },
   {
     id: "cursor",
     header: "Cursor",
-    size: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
-    pin: ColumnPin.RIGHT,
-    cellLoading: () => <TextShimmer width={140} height={16} />,
-    cell: ({ row }) => <CreatePipelineModalResourcesCursorCell row={row.original} />,
+    width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
+    pin: Side.RIGHT,
+    cell: ({ row }) => <CreatePipelineModalResourcesCursorCell row={row} />,
   },
 ];
 
@@ -86,55 +68,47 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
-  const rowSelection = useMemo(
-    () => Object.fromEntries(rows.map((row) => [row.name, row.isSelected])),
+  const selectedNames = useMemo(
+    () => rows.filter((row) => row.isSelected).map((row) => row.name),
     [rows],
   );
+
+  const handleSelectionChange = (names: string[]) =>
+    dispatch({
+      type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
+      payload: {
+        sinkId: activeSinkId,
+        visibleNames: rows.map((row) => row.name),
+        selection: Object.fromEntries(names.map((name) => [name, true])),
+      },
+    });
 
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
 
   return (
-    <TableWrapper>
-      <InfiniteTable<CreatePipelineModalResourceRow>
-        variant={TableVariant.PRIMARY}
-        columns={columns}
-        data={rows}
-        getRowId={(row) => row.name}
-        isLoading={isLoading}
-        loadingRowCount={CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT}
-        rowSelection={rowSelection}
-        onRowSelectionChange={(updater) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
-            payload: {
-              sinkId: activeSinkId,
-              visibleNames: rows.map((row) => row.name),
-              selection: typeof updater === "function" ? updater(rowSelection) : updater,
-            },
-          })
-        }
-        enableRowSelection={(row: Row<CreatePipelineModalResourceRow>) => row.original.isSelectable}
-        getRowSelectAriaLabel={(row: Row<CreatePipelineModalResourceRow>) => row.original.name}
-        contentWhenEmpty={
-          <FlexWrapper
-            direction={FlexDirection.COLUMN}
-            alignItems={AlignItems.CENTER}
-            padding={24}
-            fillWidth
-          >
-            <EmptyLayout
-              icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-              message="No resources match your search"
-            />
-          </FlexWrapper>
-        }
-        showSelectionColumn
-        enableSelectAll
-        enableSelectionRange
-        fillWidth
-        fillHeight
-      />
-    </TableWrapper>
+    <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
+      <Box variant={BoxVariant.PRIMARY} height="100%">
+        <InfiniteTable<CreatePipelineModalResourceRow>
+          columns={columns}
+          data={rows}
+          getRowId={(row) => row.name}
+          isLoading={isLoading}
+          value={selectedNames}
+          onChange={handleSelectionChange}
+          emptyState={
+            <Flex
+              direction={FlexDirection.COLUMN}
+              alignItems={AlignItems.CENTER}
+              padding={24}
+              fillWidth
+            >
+              <EmptyLayout icon={MagnifyingGlassIcon} header="No resources match your search" />
+            </Flex>
+          }
+          isSelectable
+        />
+      </Box>
+    </FlexItem>
   );
 };
 
