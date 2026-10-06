@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
@@ -10,11 +9,9 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, { SelectInputSize } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Divider from "@galaxy-io/dls/layout/Divider";
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -51,10 +48,7 @@ import {
   getNameError,
   isNameValid,
 } from "@/pages/connectors/components/form/validation";
-import {
-  CONNECTOR_KIND_TO_LABEL_MAP,
-  CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH,
-} from "@/pages/connectors/constants";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 
 import {
   useGetConnectorQuery,
@@ -65,23 +59,6 @@ import {
 import { NOOP } from "@/constants";
 
 import { getErrorMessage } from "@/utils/errors";
-
-const BodyWrapper = styled.div`
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  overflow-y: auto;
-  background-color: ${t.color.background.base};
-  padding: 16px;
-`;
-
-const FooterWrapper = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background-color: ${t.color.background.primary};
-`;
 
 interface ConnectionFormProps {
   connectorName: ConnectorSpec["name"];
@@ -120,7 +97,6 @@ const ConnectionForm = ({
   const versions = family ? getConnectorVersions(family, catalog) : [];
   const versionOptions = versions.map((version) => ({
     id: version.name,
-    value: version.name,
     label: `${version.apiVersion || version.version}${version.name === family?.aliasTarget ? " (default)" : ""}`,
   }));
 
@@ -280,10 +256,10 @@ const ConnectionForm = ({
           <FieldWrapper label="API version">
             <SelectInput
               options={versionOptions}
-              /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-                versionOptions.find((option) => option.value === connector?.name) ?? null
-              }
-              onChange={(option) => onConnectorChange(option.value as string)}
+              value={connector?.name ?? null}
+              onChange={(id) => {
+                if (id) onConnectorChange(id);
+              }}
               isDisabled={isDisabled || versionOptions.length === 1}
               size={SelectInputSize.LARGE}
               fillWidth
@@ -330,24 +306,11 @@ const ConnectionForm = ({
       ))
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
-          <Flex
-            alignItems={
-              AlignItems.CENTER
-            } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-            gap={6}
-          >
+          <Flex alignItems={AlignItems.CENTER} gap={4}>
             <Beacon variant={BeaconVariant.SUCCESS} />
             <Text variant={TextVariant.SUCCESS}>Connected</Text>
           </Flex>
-          <Button
-            size={ButtonSize.LARGE}
-            label={submitLabel}
-            icon={CheckIcon}
-            /* @dls-migrate button.ButtonVariant.SUCCESS: Removed: use `PRIMARY`, and show success with `Chip` or a labeled `Beacon`. */ variant={
-              ButtonVariant.SUCCESS
-            }
-            onClick={onSubmit}
-          />
+          <Button size={ButtonSize.LARGE} label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
         </Flex>
       ))
       .with(ConnectionFormPhase.SUBMITTING, () => (
@@ -364,7 +327,7 @@ const ConnectionForm = ({
 
   if (isError) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Connector not found" onClose={onClose}>
         <ErrorLayout
           header="Connector not found"
           message={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
@@ -382,51 +345,51 @@ const ConnectionForm = ({
 
   if (!connector) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper
+        size={ModalSize.MEDIUM}
+        header={connectionId ? "Edit connection" : "New connection"}
+        onClose={onClose}
+      >
         <PendingLayout />
       </ConnectionFormWrapper>
     );
   }
 
   return (
-    <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
-      <FlexItem grow={0} shrink={0}>
+    <ConnectionFormWrapper
+      size={ModalSize.MEDIUM}
+      header={
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
           connectorMaturity={connector.maturity}
           connectorApiVersion={connector.apiVersion}
           title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
-          onClose={onClose}
         />
-      </FlexItem>
-      <FlexItem grow={0} shrink={0}>
-        <Divider />
-      </FlexItem>
-
-      <BodyWrapper>
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
-          {renderBody()}
+      }
+      footer={
+        <Flex
+          alignItems={AlignItems.CENTER}
+          justifyContent={onBack ? JustifyContent.SPACE_BETWEEN : JustifyContent.END}
+          fillWidth
+        >
+          {onBack && (
+            <Button
+              size={ButtonSize.LARGE}
+              onClick={onBack}
+              icon={ArrowLeftIcon}
+              label="Back"
+              variant={ButtonVariant.SECONDARY}
+            />
+          )}
+          {renderFooter()}
         </Flex>
-      </BodyWrapper>
-
-      <FlexItem grow={0} shrink={0}>
-        <Divider />
-      </FlexItem>
-      <FooterWrapper>
-        {onBack ? (
-          <Button
-            size={ButtonSize.LARGE}
-            onClick={onBack}
-            icon={ArrowLeftIcon}
-            label="Back"
-            variant={ButtonVariant.SECONDARY}
-          />
-        ) : (
-          <div />
-        )}
-        {renderFooter()}
-      </FooterWrapper>
+      }
+      onClose={onClose}
+    >
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+        {renderBody()}
+      </Flex>
     </ConnectionFormWrapper>
   );
 };

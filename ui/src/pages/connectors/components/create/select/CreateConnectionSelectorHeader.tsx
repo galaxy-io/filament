@@ -1,11 +1,7 @@
-import { useCallback } from "react";
-
-import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Divider from "@galaxy-io/dls/layout/Divider";
+import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -23,46 +19,31 @@ import {
 interface CreateConnectionSelectorHeaderProps {
   search: string;
   onSearchChange: (search: string) => void;
-  onClose: () => void;
 }
 
 const CreateConnectionSelectorHeader = ({
   search,
   onSearchChange,
-  onClose,
 }: CreateConnectionSelectorHeaderProps) => {
   const { connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
-  const handleSearchClear = useCallback(() => {
-    onSearchChange("");
-  }, [onSearchChange]);
-
   return (
-    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
-      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-        <BaseHeader
-          size={BaseHeaderSize.LARGE}
-          title={CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind]}
-          description={CONNECTOR_KIND_TO_CREATE_DESCRIPTION_MAP[kind]}
-          actions={[<DocsButton key="docs" path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]} />]}
-          onClose={onClose}
-        />
-      </Flex>
-      <Divider />
-      <Flex alignItems={AlignItems.START} padding={[8, 16]} fillWidth>
-        <TextInput
-          key="search"
-          placeholder="Search connectors..."
-          icon={MagnifyingGlassIcon}
-          trailing={search ? { icon: XIcon, onClick: handleSearchClear } : undefined}
-          onChange={onSearchChange}
-          value={search}
-          size={InputSize.LARGE}
-          fillWidth
-          autoFocus
-        />
-      </Flex>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+      <BaseHeader
+        size={BaseHeaderSize.LARGE}
+        title={CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind]}
+        description={CONNECTOR_KIND_TO_CREATE_DESCRIPTION_MAP[kind]}
+        actions={[<DocsButton key="docs" path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]} />]}
+      />
+      <SearchInput
+        placeholder="Search connectors..."
+        onChange={onSearchChange}
+        value={search}
+        size={InputSize.LARGE}
+        fillWidth
+        autoFocus
+      />
     </Flex>
   );
 };

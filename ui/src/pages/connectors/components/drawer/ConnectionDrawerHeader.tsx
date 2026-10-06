@@ -3,7 +3,6 @@ import { PencilIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
@@ -18,11 +17,7 @@ import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/
 import { useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetConnectorQuery } from "@/api/queries/connectors";
 
-interface ConnectionDrawerHeaderProps {
-  onClose: () => void;
-}
-
-const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
+const ConnectionDrawerHeader = () => {
   const navigate = useNavigate();
   const { connectionId } = useSearch({ from: "/_app" });
 
@@ -51,41 +46,39 @@ const ConnectionDrawerHeader = ({ onClose }: ConnectionDrawerHeaderProps) => {
   if (!connection) return null;
 
   return (
-    <Box padding={[12, 16]}>
-      <Flex fillWidth alignItems={AlignItems.CENTER} gap={12}>
-        <FlexItem shrink={0}>
-          <ConnectorTile
-            connector={connection.connector}
-            kind={connection.kind}
-            size={ConnectorTileSize.LARGE}
-            isDeleted={!!connection.deletedAt}
-          />
-        </FlexItem>
-        <Flex
-          alignItems={AlignItems.START}
-          fillWidth
-          minWidth={0}
-          direction={FlexDirection.COLUMN}
-          gap={4}
-        >
-          <BaseHeader
-            title={connection.name}
-            description={connector ? connector.displayName || connection.connector : undefined}
-            actions={[
-              <Button
-                key="edit"
-                icon={PencilIcon}
-                variant={ButtonVariant.SECONDARY}
-                size={ButtonSize.SMALL}
-                onClick={handleEdit}
-                isDisabled={!!connection.deletedAt}
-              />,
-            ]}
-            onClose={onClose}
-          />
-        </Flex>
+    <Flex fillWidth alignItems={AlignItems.CENTER} gap={12}>
+      <FlexItem shrink={0}>
+        <ConnectorTile
+          connector={connection.connector}
+          kind={connection.kind}
+          size={ConnectorTileSize.LARGE}
+          isDeleted={!!connection.deletedAt}
+        />
+      </FlexItem>
+      <Flex
+        alignItems={AlignItems.START}
+        fillWidth
+        minWidth={0}
+        direction={FlexDirection.COLUMN}
+        gap={4}
+      >
+        <BaseHeader
+          title={connection.name}
+          description={connector ? connector.displayName || connection.connector : undefined}
+          actions={[
+            <Button
+              key="edit"
+              icon={PencilIcon}
+              ariaLabel="Edit connection"
+              variant={ButtonVariant.SECONDARY}
+              size={ButtonSize.SMALL}
+              onClick={handleEdit}
+              isDisabled={!!connection.deletedAt}
+            />,
+          ]}
+        />
       </Flex>
-    </Box>
+    </Flex>
   );
 };
 

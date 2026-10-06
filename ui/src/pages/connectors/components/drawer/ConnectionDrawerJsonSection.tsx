@@ -33,7 +33,7 @@ const ConnectionDrawerJsonSection = ({
       <CodeEditor
         value={JSON.stringify(data, null, 2)}
         language={CodeEditorLanguage.JSON}
-        /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly
+        isReadOnly
         isGhost
         hasLineNumbers={false}
       />

@@ -24,7 +24,6 @@ interface ConnectionFormHeaderProps {
   connectorMaturity: ConnectorMaturity;
   connectorApiVersion: ConnectorSpec["apiVersion"];
   title: string;
-  onClose: () => void;
 }
 
 const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: ConnectorKind) => {
@@ -38,10 +37,9 @@ const ConnectionFormHeader = ({
   connectorMaturity,
   connectorApiVersion,
   title,
-  onClose,
 }: ConnectionFormHeaderProps) => {
   return (
-    <Flex alignItems={AlignItems.CENTER} padding={[12, 16]} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.CENTER} gap={12} fillWidth>
       <FlexItem shrink={0}>
         <ConnectorTile
           connector={connectorName}
@@ -57,7 +55,6 @@ const ConnectionFormHeader = ({
             actions={[
               <DocsButton key="docs" path={createDocsPath(connectorName, connectorKind)} />,
             ]}
-            onClose={onClose}
           />
           <Flex alignItems={AlignItems.CENTER} gap={8}>
             <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />

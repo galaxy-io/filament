@@ -5,6 +5,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -25,7 +26,6 @@ import ConnectionFormProvider, {
 } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
-import { CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH } from "@/pages/connectors/constants";
 
 import { useGetConnectionQuery, useUpdateConnectionMutation } from "@/api/queries/connections";
 
@@ -116,7 +116,7 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
 
   if (isError) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
         <ErrorLayout
           header="Connection not found"
           message="This connection no longer exists."
@@ -128,7 +128,7 @@ const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
 
   if (!connection) {
     return (
-      <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_CONFIGURE_WIDTH}>
+      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
         <PendingLayout />
       </ConnectionFormWrapper>
     );

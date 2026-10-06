@@ -4,6 +4,7 @@ import { GithubLogoIcon, SlackLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
@@ -37,12 +38,7 @@ const CreateConnectionSelectorCard = ({
 
   return (
     <Box minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}>
-      <Widget
-        isInteractive
-        /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */ fillWidth
-        variant={WidgetVariant.PRIMARY}
-        onClick={handleClick}
-      >
+      <Widget isInteractive variant={WidgetVariant.PRIMARY} onClick={handleClick}>
         <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} height="100%">
           <Flex
             justifyContent={JustifyContent.SPACE_BETWEEN}
@@ -87,19 +83,10 @@ export const CreateConnectionSelectorEmptyCard = () => {
 
   return (
     <Box minHeight={CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT}>
-      <Widget
-        /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */ fillWidth
-        variant={WidgetVariant.BASE}
-      >
+      <Widget variant={WidgetVariant.BASE}>
         <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} height="100%">
           <FlexItem grow={1}>
-            <Flex
-              alignItems={AlignItems.START}
-              direction={
-                FlexDirection.COLUMN
-              } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-              gap={6}
-            >
+            <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
               <Text weight={TextWeight.MEDIUM}>Looking for something different?</Text>
               <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
                 Request a connector by opening an issue on GitHub or message our Slack community.
@@ -109,18 +96,30 @@ export const CreateConnectionSelectorEmptyCard = () => {
           <Flex alignItems={AlignItems.START} gap={8} fillWidth>
             <Button
               label="GitHub"
-              icon={GithubLogoIcon}
+              leading={
+                <Icon
+                  component={GithubLogoIcon}
+                  size={14}
+                  weight={IconWeight.FILL}
+                  variant={IconVariant.INHERIT}
+                />
+              }
               variant={ButtonVariant.SECONDARY}
               onClick={handleCreateIssue}
-              /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
               fillWidth
             />
             <Button
               label="Slack"
-              icon={SlackLogoIcon}
+              leading={
+                <Icon
+                  component={SlackLogoIcon}
+                  size={14}
+                  weight={IconWeight.FILL}
+                  variant={IconVariant.INHERIT}
+                />
+              }
               variant={ButtonVariant.SECONDARY}
               onClick={handleContact}
-              /* @dls-migrate button.isIconFilled: Removed: pass the filled icon in `leading` at the rung's icon size. */ isIconFilled
               fillWidth
             />
           </Flex>

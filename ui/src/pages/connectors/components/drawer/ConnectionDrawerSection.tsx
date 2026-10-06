@@ -1,6 +1,7 @@
 import type { ComponentProps, PropsWithChildren } from "react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import Box from "@galaxy-io/dls/layout/Box";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
@@ -39,12 +40,12 @@ const ConnectionDrawerSection = ({
         />
       }
       defaultIsOpen={isOpenInitial}
-      /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */ padding={
-        count > 0 ? 0 : "24px"
-      }
+      isFlush={count > 0}
     >
       {count === 0 ? (
-        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+        <Box padding={12}>
+          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
+        </Box>
       ) : (
         children
       )}

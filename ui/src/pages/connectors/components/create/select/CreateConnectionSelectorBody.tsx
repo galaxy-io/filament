@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { styled } from "@linaria/react";
 import { useSearch } from "@tanstack/react-router";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Grid from "@galaxy-io/dls/layout/Grid";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -16,6 +16,7 @@ import CreateConnectionSelectorCard, {
 } from "@/pages/connectors/components/create/select/CreateConnectionSelectorCard";
 import { getConnectorFamily } from "@/pages/connectors/components/create/utils";
 import {
+  CREATE_CONNECTION_SELECTOR_BODY_HEIGHT,
   CREATE_CONNECTION_SELECTOR_GHOST_COUNT,
   CREATE_CONNECTION_SELECTOR_GRID_COLUMNS,
 } from "@/pages/connectors/constants";
@@ -26,16 +27,6 @@ import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
 interface CreateConnectionSelectorBodyProps {
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
-
-const BodyWrapper = styled.div`
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  overflow-y: auto;
-  background-color: ${t.color.background.base};
-  border-radius: 0 0 8px 8px;
-  padding: 16px;
-`;
 
 const GhostCard = styled.div`
   display: flex;
@@ -76,15 +67,13 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
 
   if (isLoading) {
     return (
-      <BodyWrapper>
+      <Box height={CREATE_CONNECTION_SELECTOR_BODY_HEIGHT} overflow="auto" fillWidth>
         <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
           {Array.from({ length: CREATE_CONNECTION_SELECTOR_GHOST_COUNT }, (_, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
             <GhostCard key={index}>
               <Box width={24}>
-                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-                  height={24}
-                />
+                <Skeleton variant={SkeletonVariant.RECT} size={SkeletonSize.SMALL} />
               </Box>
               <Box width={100}>
                 <Skeleton />
@@ -92,12 +81,12 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
             </GhostCard>
           ))}
         </Grid>
-      </BodyWrapper>
+      </Box>
     );
   }
 
   return (
-    <BodyWrapper>
+    <Box height={CREATE_CONNECTION_SELECTOR_BODY_HEIGHT} overflow="auto" fillWidth>
       <Grid columns={CREATE_CONNECTION_SELECTOR_GRID_COLUMNS} gap={12}>
         {filteredConnectors.map((connector) => (
           <CreateConnectionSelectorCard
@@ -108,7 +97,7 @@ const CreateConnectionSelectorBody = ({ onConnectorSelect }: CreateConnectionSel
         ))}
         <CreateConnectionSelectorEmptyCard />
       </Grid>
-    </BodyWrapper>
+    </Box>
   );
 };
 

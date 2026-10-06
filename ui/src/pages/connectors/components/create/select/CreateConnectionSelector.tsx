@@ -3,14 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
-import Divider from "@galaxy-io/dls/layout/Divider";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
 import type { CreateConnectionSelectorProps } from "@/pages/connectors/components/create/types";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
-import { CREATE_CONNECTION_MODAL_SELECTOR_WIDTH } from "@/pages/connectors/constants";
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
 
@@ -51,17 +49,13 @@ const CreateConnectionSelector = ({
   }, [debouncedSearch, connectorSearch, navigate]);
 
   return (
-    <ConnectionFormWrapper width={CREATE_CONNECTION_MODAL_SELECTOR_WIDTH}>
-      <FlexItem grow={0} shrink={0}>
-        <CreateConnectionSelectorHeader
-          search={state.search}
-          onSearchChange={handleSearchChange}
-          onClose={onClose}
-        />
-      </FlexItem>
-      <FlexItem grow={0} shrink={0}>
-        <Divider />
-      </FlexItem>
+    <ConnectionFormWrapper
+      size={ModalSize.LARGE}
+      header={
+        <CreateConnectionSelectorHeader search={state.search} onSearchChange={handleSearchChange} />
+      }
+      onClose={onClose}
+    >
       <CreateConnectionSelectorBody onConnectorSelect={onConnectorSelect} />
     </ConnectionFormWrapper>
   );

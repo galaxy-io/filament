@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, GalaxyTheme } from "@galaxy-io/dls/theme/enums";
@@ -26,6 +26,12 @@ const CONNECTOR_TILE_SIZE_TO_SIZE_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.SMALL]: 20,
   [ConnectorTileSize.MEDIUM]: 24,
   [ConnectorTileSize.LARGE]: 36,
+};
+
+const CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP: Record<ConnectorTileSize, SkeletonSize> = {
+  [ConnectorTileSize.SMALL]: SkeletonSize.X_SMALL,
+  [ConnectorTileSize.MEDIUM]: SkeletonSize.SMALL,
+  [ConnectorTileSize.LARGE]: SkeletonSize.LARGE,
 };
 
 const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
@@ -168,9 +174,8 @@ export const ConnectorTileShimmer = ({
   return (
     <Box width={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}>
       <Skeleton
-        /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */ height={
-          CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]
-        }
+        variant={SkeletonVariant.RECT}
+        size={CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP[size]}
       />
     </Box>
   );

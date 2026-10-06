@@ -1,14 +1,12 @@
 import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
 import { KeyIcon, LinkBreakIcon, SlidersIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Divider from "@galaxy-io/dls/layout/Divider";
+import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
+import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
@@ -30,26 +28,12 @@ import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/querie
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-const DrawerWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: ${t.color.background.primary};
-`;
-
-const DrawerBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  background-color: ${t.color.background.base};
-`;
-
 interface ConnectionDrawerProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
+const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
   const { connectionId } = useSearch({ from: "/_app" });
 
@@ -61,7 +45,13 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
 
   const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
 
-  const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Connection>({
+  const {
+    handleOpen,
+    isOpen: confirmIsOpen,
+    target,
+    handleClose,
+    handleConfirm,
+  } = useConfirm<Connection>({
     entityLabel: "Connection",
     entityName: (c) => c.name,
     onConfirm: (c, { onSuccess, onError }) =>
@@ -74,88 +64,83 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
     },
   });
 
-  if (isError) {
-    return (
-      <DrawerWrapper>
+  const renderContent = () => {
+    if (isError) {
+      return (
         <ErrorLayout
           icon={LinkBreakIcon}
           header="Connection not found"
           message="This connection no longer exists."
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
         />
-      </DrawerWrapper>
-    );
-  }
+      );
+    }
 
-  if (!connection) {
+    if (!connection) {
+      return <PendingLayout />;
+    }
+
     return (
-      <DrawerWrapper>
-        <PendingLayout />
-      </DrawerWrapper>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+        <ConnectionDrawerList>
+          <ConnectionDrawerKeyValueRow
+            label="Kind"
+            value={<ConnectionKindChip kind={connection.kind} />}
+          />
+          <ConnectionDrawerKeyValueRow
+            label="Version"
+            value={
+              <Text
+                size={TextSize.BODY_SM}
+                variant={TextVariant.SECONDARY}
+              >{`Version ${connection.version.toString()}`}</Text>
+            }
+          />
+        </ConnectionDrawerList>
+
+        <ConnectionDrawerJsonSection
+          header="Configuration"
+          icon={SlidersIcon}
+          data={connection.config}
+          emptyHeader="No configuration"
+          emptyMessage="This connection has no configuration values."
+        />
+        <ConnectionDrawerJsonSection
+          header="Secrets"
+          icon={KeyIcon}
+          data={connection.secretRefs}
+          emptyHeader="No secrets"
+          emptyMessage="This connection has no secret references."
+        />
+        <ConnectionDrawerPipelines />
+      </Flex>
     );
-  }
+  };
 
   return (
-    <DrawerWrapper>
-      <ConnectionDrawerHeader onClose={onClose} />
-
-      <Divider />
-
-      <DrawerBody>
-        <Flex
-          alignItems={AlignItems.START}
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding={16}
-          fillWidth
-        >
-          <ConnectionDrawerList>
-            <ConnectionDrawerKeyValueRow
-              label="Kind"
-              value={<ConnectionKindChip kind={connection.kind} />}
+    <Drawer
+      size={DrawerSize.MEDIUM}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      header={connection ? <ConnectionDrawerHeader /> : "Connection"}
+      footer={
+        connection && (
+          <Box fillWidth>
+            <DangerZone
+              title="Delete connection"
+              description="This will permanently delete this connection."
+              onDelete={() => handleOpen(connection)}
+              isDisabled={!!connection.deletedAt}
             />
-            <ConnectionDrawerKeyValueRow
-              label="Version"
-              value={
-                <Text
-                  size={TextSize.BODY_SM}
-                  variant={TextVariant.SECONDARY}
-                >{`Version ${connection.version.toString()}`}</Text>
-              }
-            />
-          </ConnectionDrawerList>
-
-          <ConnectionDrawerJsonSection
-            header="Configuration"
-            icon={SlidersIcon}
-            data={connection.config}
-            emptyHeader="No configuration"
-            emptyMessage="This connection has no configuration values."
-          />
-          <ConnectionDrawerJsonSection
-            header="Secrets"
-            icon={KeyIcon}
-            data={connection.secretRefs}
-            emptyHeader="No secrets"
-            emptyMessage="This connection has no secret references."
-          />
-          <ConnectionDrawerPipelines />
-        </Flex>
-      </DrawerBody>
-
-      <Divider />
-
-      <FlexItem shrink={0} grow={0} padding={16} fillWidth>
-        <DangerZone
-          title="Delete connection"
-          description="This will permanently delete this connection."
-          onDelete={() => handleOpen(connection)}
-          isDisabled={!!connection.deletedAt}
-        />
-      </FlexItem>
-
+          </Box>
+        )
+      }
+    >
+      {renderContent()}
       <Dialog
-        open={isOpen}
+        open={isOpen && confirmIsOpen}
         onClose={handleClose}
         onConfirm={handleConfirm}
         title="Delete connection"
@@ -165,7 +150,7 @@ const ConnectionDrawer = ({ onClose }: ConnectionDrawerProps) => {
         confirmVariant={ButtonVariant.ERROR}
         isPending={isDeleting}
       />
-    </DrawerWrapper>
+    </Drawer>
   );
 };
 
