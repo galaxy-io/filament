@@ -8,7 +8,7 @@ import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Link, { LinkSize, LinkUnderline } from "@galaxy-io/dls/links/Link";
+import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import IconTile from "@/components/IconTile";
@@ -116,9 +116,11 @@ export const AuthFormFooter = ({ prompt, to, label }: AuthFormFooterProps) => (
     <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
       {prompt}
     </Text>
-    <Link href={to} as={RouterLink} underline={LinkUnderline.HOVER} size={LinkSize.SMALL}>
-      {label}
-    </Link>
+    <Text size={TextSize.BODY_SM}>
+      <Link href={to} as={RouterLink} underline={LinkUnderline.HOVER}>
+        {label}
+      </Link>
+    </Text>
   </Flex>
 );
 

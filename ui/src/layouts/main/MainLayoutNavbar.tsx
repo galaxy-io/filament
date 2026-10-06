@@ -6,8 +6,9 @@ import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark"
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import { LinkSize, LinkUnderline } from "@galaxy-io/dls/links/Link";
+import { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Tabs, { type TabLinkItem, TabsSize } from "@galaxy-io/dls/navigation/Tabs";
+import { TextSize } from "@galaxy-io/dls/text/Text";
 import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
 
 import DocsLink from "@/components/DocsLink";
@@ -68,7 +69,7 @@ const MainLayoutNavbar = () => {
               <GalaxyFilamentWordmark size={18} />
             </Flex>
           </Link>
-          <DocsLink label="Docs" size={LinkSize.SMALL} underline={LinkUnderline.NONE} />
+          <DocsLink label="Docs" size={TextSize.BODY_SM} underline={LinkUnderline.NONE} />
         </MainLayoutNavbarRail>
         <Tabs
           ariaLabel="Main"

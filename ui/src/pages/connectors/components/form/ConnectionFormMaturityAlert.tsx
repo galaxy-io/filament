@@ -3,9 +3,10 @@ import pluralize from "pluralize";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Alert from "@galaxy-io/dls/feedback/Alert";
 import Box from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorMaturity, ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
@@ -42,8 +43,31 @@ const ConnectionFormMaturityAlert = ({
 
   return (
     <Box fillWidth>
-      <Alert
-        actions={
+      <Alert>
+        <Flex
+          alignItems={AlignItems.CENTER}
+          justifyContent={JustifyContent.SPACE_BETWEEN}
+          gap={8}
+          height={t.font.sans.height.body_md}
+        >
+          <Flex alignItems={AlignItems.CENTER} gap={4}>
+            This
+            <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
+            {connectorApiVersion && (
+              <>
+                at
+                <Chip
+                  label={connectorApiVersion}
+                  variant={ChipVariant.TERTIARY}
+                  size={ChipSize.SMALL}
+                />
+              </>
+            )}
+            is
+            <Text variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
+              {status}
+            </Text>
+          </Flex>
           <Link
             href={`${DOCUMENTATION_URL}${createDocsPath(connectorName, connectorKind)}`}
             underline={LinkUnderline.HOVER}
@@ -51,25 +75,6 @@ const ConnectionFormMaturityAlert = ({
           >
             Setup guide
           </Link>
-        }
-      >
-        <Flex alignItems={AlignItems.CENTER} gap={4}>
-          This
-          <ConnectionKindChip kind={connectorKind} size={ChipSize.SMALL} />
-          {connectorApiVersion && (
-            <>
-              at
-              <Chip
-                label={connectorApiVersion}
-                variant={ChipVariant.TERTIARY}
-                size={ChipSize.SMALL}
-              />
-            </>
-          )}
-          is
-          <Text variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-            {status}
-          </Text>
         </Flex>
       </Alert>
     </Box>
