@@ -3,7 +3,12 @@ import { useMemo } from "react";
 import { useSearch } from "@tanstack/react-router";
 
 import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
-import type { ChartCurve, ChartPalette, ChartValueFormatter } from "@galaxy-io/dls/charts/types";
+import {
+  type ChartCurve,
+  type ChartPalette,
+  ChartSwatch,
+  type ChartValueFormatter,
+} from "@galaxy-io/dls/charts/types";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -139,6 +144,7 @@ const ObservabilityTimeseriesChart = ({
         valueFormatter={valueFormatter}
         labelFormatter={bucketLabelFormatter}
         isLoading={isLoading}
+        swatch={ChartSwatch.SQUARE}
         hasLegend
         isFilterable
       />

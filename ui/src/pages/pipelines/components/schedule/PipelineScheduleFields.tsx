@@ -1,10 +1,12 @@
 import { type ComponentProps, type PropsWithChildren, useState } from "react";
 
 import CronInput from "@galaxy-io/dls/inputs/CronInput";
+import Field from "@galaxy-io/dls/inputs/Field";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import { Orientation } from "@galaxy-io/dls/theme/enums";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { PIPELINE_SCHEDULE_TIMEZONE_OPTIONS } from "@/pages/pipelines/settings/constants";
@@ -70,19 +72,18 @@ const PipelineScheduleFields = ({
       }
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
-        <CronInput
-          value={state.cron}
-          onChange={handleCronChange}
-          error={cronError}
-          ariaLabel={header}
-        />
-        <SelectInput
-          label="Timezone"
-          options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
-          value={state.timezone}
-          onChange={handleTimezoneChange}
-          isSearchable
-        />
+        <Field label="Cron" error={cronError} orientation={Orientation.HORIZONTAL} fillWidth>
+          <CronInput value={state.cron} onChange={handleCronChange} fillWidth />
+        </Field>
+        <Field label="Timezone" orientation={Orientation.HORIZONTAL} fillWidth>
+          <SelectInput
+            options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
+            value={state.timezone}
+            onChange={handleTimezoneChange}
+            isSearchable
+            fillWidth
+          />
+        </Field>
         {children}
       </Flex>
     </Widget>

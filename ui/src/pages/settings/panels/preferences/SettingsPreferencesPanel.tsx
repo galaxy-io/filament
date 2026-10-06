@@ -1,7 +1,6 @@
 import Field from "@galaxy-io/dls/inputs/Field";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-import { Orientation } from "@galaxy-io/dls/theme/enums";
 import ThemeSwitcher from "@galaxy-io/dls/theme/ThemeSwitcher";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -16,8 +15,7 @@ const SettingsPreferencesPanel = () => {
             <Flex padding={16} fillWidth>
               <Field
                 label="Theme"
-                description="System follows your operating system."
-                orientation={Orientation.HORIZONTAL}
+                description="Theme system follows your operating system."
                 fillWidth
               >
                 <ThemeSwitcher />

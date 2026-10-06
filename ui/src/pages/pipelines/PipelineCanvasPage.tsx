@@ -15,6 +15,7 @@ import {
   ReactFlow,
 } from "@xyflow/react";
 
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
@@ -97,7 +98,7 @@ const PipelineCanvasPageWrapper = styled.div`
     width: 160px;
     height: 92px;
     background-color: ${t.color.background.base};
-    border: 0.5px solid ${t.color.border.primary};
+    border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
     border-radius: ${t.radius.lg};
     overflow: hidden;
     display: flex;

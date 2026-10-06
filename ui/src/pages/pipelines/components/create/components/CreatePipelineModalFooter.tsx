@@ -5,10 +5,8 @@ import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import BulletedList, { BulletedListSize } from "@galaxy-io/dls/lists/BulletedList";
-import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -154,17 +152,13 @@ const CreatePipelineModalFooter = () => {
       />
       <Flex alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>
         {hints.length > 0 && (
-          <Tooltip
-            body={<BulletedList items={hints} size={BulletedListSize.SMALL} />}
-            placement={Placement.TOP}
-          >
-            <Chip
-              label="Invalid"
-              icon={WarningIcon}
-              variant={ChipVariant.ERROR}
-              size={ChipSize.LARGE}
-            />
-          </Tooltip>
+          <Chip
+            label="Invalid"
+            icon={WarningIcon}
+            variant={ChipVariant.ERROR}
+            size={ChipSize.LARGE}
+            tooltip={<BulletedList items={hints} size={BulletedListSize.SMALL} />}
+          />
         )}
         {renderAction()}
       </Flex>

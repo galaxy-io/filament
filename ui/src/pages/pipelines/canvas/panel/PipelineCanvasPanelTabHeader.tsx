@@ -27,7 +27,6 @@ const PipelineCanvasPanelTabHeader = () => {
           <Button
             icon={XIcon}
             ariaLabel="Close configuration panel"
-            tooltip="Close configuration panel"
             variant={ButtonVariant.TERTIARY}
             size={ButtonSize.SMALL}
             onClick={() => setShowPanel(false)}

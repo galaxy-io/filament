@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { match } from "ts-pattern";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Box from "@galaxy-io/dls/layout/Box";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { InviteMemberRequest } from "@/gen/auth/v1/members_pb";
@@ -120,6 +120,7 @@ const SettingsTeamPanelInvite = ({
       <Dialog
         open={open}
         title="Invite created"
+        description="Share this link with your new teammate"
         onClose={onClose}
         footer={
           <>
@@ -132,9 +133,6 @@ const SettingsTeamPanelInvite = ({
           </>
         }
       >
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4} fillWidth>
-          <Text variant={TextVariant.SECONDARY}>Share this link with your new teammate</Text>
-        </Flex>
         {inviteLink && <CopyInput value={inviteLink} fillWidth family={FontFamily.MONO} />}
       </Dialog>
     ))
@@ -193,9 +191,9 @@ const SettingsTeamPanelInvite = ({
           isRequired
         />
         {state.error && (
-          <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-            {state.error}
-          </Text>
+          <Box fillWidth>
+            <Alert variant={AlertVariant.ERROR}>{state.error}</Alert>
+          </Box>
         )}
       </Dialog>
     ));

@@ -77,3 +77,5 @@ export const AUTH_LAYOUT_ASIDE_LINKS: AuthLayoutAsideLink[] = [
     url: SLACK_COMMUNITY_URL,
   },
 ];
+
+export const SUPPORT_EMAIL = "support@getgalaxy.io";

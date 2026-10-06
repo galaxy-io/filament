@@ -7,7 +7,7 @@ import {
   SlidersIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -39,13 +39,13 @@ import { useGetConnectorQuery } from "@/api/queries/connectors";
 import { useConfirm } from "@/hooks/useConfirm";
 
 interface ConnectionDrawerProps {
+  connectionId?: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
+const ConnectionDrawer = ({ connectionId, isOpen, onClose }: ConnectionDrawerProps) => {
   const navigate = useNavigate();
-  const { connectionId } = useSearch({ from: "/_app" });
 
   const { data, isError } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
@@ -158,7 +158,7 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
           emptyHeader="No secrets"
           emptyMessage="This connection has no secret references."
         />
-        <ConnectionDrawerPipelines />
+        <ConnectionDrawerPipelines connectionId={connection.id} />
       </Flex>
     );
   };

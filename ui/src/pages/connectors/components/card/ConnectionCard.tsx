@@ -6,6 +6,7 @@ import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -22,7 +23,7 @@ const CardWrapper = styled.div`
 
   background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
 
   cursor: pointer;

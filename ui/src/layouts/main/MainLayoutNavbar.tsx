@@ -1,4 +1,4 @@
-import { type AnchorHTMLAttributes, forwardRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
 
@@ -13,6 +13,7 @@ import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwit
 
 import DocsLink from "@/components/DocsLink";
 import GithubButton from "@/components/GithubButton";
+import RouterLink from "@/components/RouterLink";
 
 import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
@@ -27,10 +28,6 @@ const MAIN_NAVBAR_ITEMS: TabLinkItem<TRoutes>[] = [
   { id: "/sources", label: "Sources", href: "/sources" },
   { id: "/sinks", label: "Sinks", href: "/sinks" },
 ];
-
-const MainLayoutNavbarLink = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
-  ({ href, ...rest }, ref) => <Link ref={ref} to={href as TRoutes} {...rest} />,
-);
 
 const MainLayoutNavbarRail = ({
   children,
@@ -79,10 +76,10 @@ const MainLayoutNavbar = () => {
           size={TabsSize.MEDIUM}
           items={MAIN_NAVBAR_ITEMS}
           value={activeItem?.id ?? null}
-          as={MainLayoutNavbarLink}
+          as={RouterLink}
         />
         <MainLayoutNavbarRail isEnd>
-          <GithubButton />
+          {!session.isAuthenticated && <GithubButton />}
           {!session.isAuthenticated && <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />}
           <MainLayoutSettingsButton />
         </MainLayoutNavbarRail>

@@ -4,6 +4,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import MultiSelectInput, { MultiSelectInputVariant } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import ToggleInput, {
   ToggleInputVariant,
   type ToggleOption,
@@ -30,8 +31,21 @@ import ObservabilityRunsChart from "@/pages/observability/components/runs/Observ
 import ObservabilityRunsScheduledChart from "@/pages/observability/components/runs/ObservabilityRunsScheduledChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
+import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
+
+const withStatusSwatch = (option: SelectOption): SelectOption => ({
+  ...option,
+  leading: <PipelineRunStatusSwatch status={Number(option.id) as RunStatus} />,
+});
+
+const STATUS_OPTIONS = getSelectAllOptions(
+  OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+  OBSERVABILITY_RUN_STATUS_OPTIONS.map(withStatusSwatch),
+);
+
+const SCHEDULED_STATUS_OPTIONS = [withStatusSwatch(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION)];
 
 const ObservabilityRunsWidget = () => {
   const navigate = useNavigate();
@@ -107,14 +121,7 @@ const ObservabilityRunsWidget = () => {
             <Box key="status-selector" width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
               <MultiSelectInput
                 fillWidth
-                options={
-                  isUpcoming
-                    ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
-                    : getSelectAllOptions(
-                        OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-                        OBSERVABILITY_RUN_STATUS_OPTIONS,
-                      )
-                }
+                options={isUpcoming ? SCHEDULED_STATUS_OPTIONS : STATUS_OPTIONS}
                 pinnedIds={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id]}
                 value={
                   isUpcoming

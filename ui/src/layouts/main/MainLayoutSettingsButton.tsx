@@ -1,31 +1,34 @@
 import { useCallback, useState } from "react";
 
 import { styled } from "@linaria/react";
-import { PlusIcon, SignOutIcon, UsersThreeIcon, WrenchIcon } from "@phosphor-icons/react";
+import {
+  GithubLogoIcon,
+  PlusIcon,
+  SignOutIcon,
+  UsersThreeIcon,
+  WrenchIcon,
+} from "@phosphor-icons/react";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
-import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/GridBackground";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Divider from "@galaxy-io/dls/layout/Divider";
-import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Popover from "@galaxy-io/dls/overlays/Popover";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Placement } from "@galaxy-io/dls/theme/enums";
 import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import type { Role } from "@/gen/auth/v1/members_pb";
-
 import { Flow } from "@/layouts/app/types";
+import { MAIN_LAYOUT_SETTINGS_MENU_WIDTH } from "@/layouts/main/constants";
 
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
-import { roleLabel } from "@/pages/settings/utils";
 
 import { useListMembersQuery } from "@/api/queries/auth";
+
+import { GITHUB_REPO_URL } from "@/constants";
 
 import { useSignOut } from "@/auth/hooks/useSignOut";
 import type { AppSession } from "@/auth/types";
@@ -38,57 +41,38 @@ const MenuHeader = styled.div`
 `;
 
 const AvatarButton = styled.button`
+  ${INTERACTIVE_RESET}
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: ${t.radius.pill};
-  background: transparent;
-  cursor: pointer;
-  overflow: hidden;
-  transition: background-color 100ms ease;
+  width: ${t.size.control.medium};
+  height: ${t.size.control.medium};
+  border-radius: ${t.radius.md};
 
-  &:hover,
-  &:focus-visible {
-    background-color: ${t.color.background.hovered};
-  }
-
-  &:focus-visible {
-    outline: 1px solid ${t.color.border.secondary};
-    outline-offset: 2px;
-  }
+  ${FOCUS_RING}
 `;
 
 const MenuItem = styled.button`
+  ${INTERACTIVE_RESET}
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${t.space[8]};
   width: 100%;
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 0;
+  min-height: ${t.size.control.large};
+  padding: ${t.space[4]} ${t.space[8]};
   border-radius: ${t.radius.md};
-  background-color: transparent;
   text-align: left;
-  cursor: pointer;
-  transition: background-color 100ms ease;
+  transition: background-color ${t.duration.fast} ease-in-out;
 
-  &:hover,
-  &:focus-visible {
+  &:hover {
     background-color: ${t.color.background.hovered};
   }
 
-  &:focus-visible {
-    outline: 1px solid ${t.color.border.secondary};
-    outline-offset: 1px;
-  }
+  ${FOCUS_RING}
 
   &:disabled {
-    opacity: 0.55;
     cursor: default;
+    opacity: 0.55;
   }
 
   &:disabled:hover {
@@ -96,37 +80,43 @@ const MenuItem = styled.button`
   }
 `;
 
+const MenuItemIcon = styled.span`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+`;
+
 const memberDisplayName = (member: { name?: string; email?: string }): string =>
   member.name || member.email || "Member";
 
 interface MainLayoutSettingsButtonMenuProps {
   name: string;
-  email?: string;
   avatarUrl?: string;
   seed?: string;
-  role?: Role;
   canManageTeam: boolean;
   isTeamActionsPending: boolean;
   onOpenTeamSettings: () => void;
   onOpenServiceAccounts: () => void;
   onOpenInvite: () => void;
+  onOpenGithub: () => void;
   onLogout: () => void;
 }
 
 const MainLayoutSettingsButtonMenu = ({
   name,
-  email,
   avatarUrl,
   seed,
-  role,
   canManageTeam,
   isTeamActionsPending,
   onOpenTeamSettings,
   onOpenServiceAccounts,
   onOpenInvite,
+  onOpenGithub,
   onLogout,
 }: MainLayoutSettingsButtonMenuProps) => {
-  const displayRole = role === undefined ? undefined : roleLabel(role);
   const shouldShowInvite = canManageTeam || isTeamActionsPending;
 
   return (
@@ -134,130 +124,66 @@ const MainLayoutSettingsButtonMenu = ({
       direction={FlexDirection.COLUMN}
       alignItems={AlignItems.STRETCH}
       overflow="hidden"
-      width={260}
+      width={MAIN_LAYOUT_SETTINGS_MENU_WIDTH}
     >
       <MenuHeader>
-        <GridBackground size={GridBackgroundSize.X_SMALL}>
-          <Flex
-            direction={FlexDirection.COLUMN}
-            alignItems={AlignItems.CENTER}
-            gap={12}
-            padding={16}
-            fillWidth
-            minWidth={0}
-          >
-            <Avatar img={avatarUrl} size={AvatarSize.LARGE} seed={seed} />
-            <Flex
-              direction={FlexDirection.COLUMN}
-              alignItems={AlignItems.CENTER}
-              gap={8}
-              fillWidth
-              minWidth={0}
-            >
-              <Flex
-                direction={FlexDirection.COLUMN}
-                alignItems={AlignItems.CENTER}
-                gap={2}
-                fillWidth
-                minWidth={0}
-              >
-                <Text
-                  size={TextSize.BODY_LG}
-                  weight={TextWeight.MEDIUM}
-                  align="center"
-                  lineClamp={1}
-                >
-                  {name}
-                </Text>
-                {email && (
-                  <Text
-                    size={TextSize.BODY_SM}
-                    variant={TextVariant.SECONDARY}
-                    align="center"
-                    lineClamp={1}
-                  >
-                    {email}
-                  </Text>
-                )}
-              </Flex>
-              {displayRole && (
-                <Chip label={displayRole} size={ChipSize.SMALL} variant={ChipVariant.SECONDARY} />
-              )}
-            </Flex>
-          </Flex>
-        </GridBackground>
+        <Flex
+          direction={FlexDirection.COLUMN}
+          alignItems={AlignItems.CENTER}
+          gap={12}
+          padding={16}
+          fillWidth
+          minWidth={0}
+        >
+          <Avatar img={avatarUrl} size={AvatarSize.LARGE} seed={seed} name={name} isSquare />
+          <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} align="center" lineClamp={1}>
+            {name}
+          </Text>
+          <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />
+        </Flex>
       </MenuHeader>
       <Divider />
       <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
         <MenuItem type="button" onClick={onOpenTeamSettings}>
-          <Flex
-            width={16}
-            height={16}
-            shrink={0}
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.CENTER}
-          >
+          <MenuItemIcon>
             <Icon component={UsersThreeIcon} variant={IconVariant.TERTIARY} />
-          </Flex>
+          </MenuItemIcon>
           <Text>Manage organization</Text>
         </MenuItem>
         {canManageTeam && (
           <MenuItem type="button" onClick={onOpenServiceAccounts}>
-            <Flex
-              width={16}
-              height={16}
-              shrink={0}
-              alignItems={AlignItems.CENTER}
-              justifyContent={JustifyContent.CENTER}
-            >
+            <MenuItemIcon>
               <Icon component={WrenchIcon} variant={IconVariant.TERTIARY} />
-            </Flex>
+            </MenuItemIcon>
             <Text>Service accounts</Text>
           </MenuItem>
         )}
       </Flex>
-      {shouldShowInvite && (
-        <>
-          <Divider />
-          <Flex
-            direction={FlexDirection.COLUMN}
-            alignItems={AlignItems.STRETCH}
-            padding={4}
-            fillWidth
-          >
-            <MenuItem type="button" onClick={onOpenInvite} disabled={isTeamActionsPending}>
-              <Flex
-                width={16}
-                height={16}
-                shrink={0}
-                alignItems={AlignItems.CENTER}
-                justifyContent={JustifyContent.CENTER}
-              >
-                <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
-              </Flex>
-              <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
-            </MenuItem>
-          </Flex>
-        </>
-      )}
       <Divider />
-      <Flex
-        alignItems={AlignItems.CENTER}
-        justifyContent={JustifyContent.SPACE_BETWEEN}
-        gap={8}
-        padding={4}
-        fillWidth
-      >
-        <FlexItem shrink={0} minWidth={0}>
-          <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />
-        </FlexItem>
-        <Button
-          label="Logout"
-          icon={SignOutIcon}
-          variant={ButtonVariant.TERTIARY}
-          size={ButtonSize.SMALL}
-          onClick={onLogout}
-        />
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
+        {shouldShowInvite && (
+          <MenuItem type="button" onClick={onOpenInvite} disabled={isTeamActionsPending}>
+            <MenuItemIcon>
+              <Icon component={PlusIcon} variant={IconVariant.TERTIARY} />
+            </MenuItemIcon>
+            <Text weight={TextWeight.MEDIUM}>Invite team member</Text>
+          </MenuItem>
+        )}
+        <MenuItem type="button" onClick={onOpenGithub}>
+          <MenuItemIcon>
+            <Icon component={GithubLogoIcon} variant={IconVariant.TERTIARY} />
+          </MenuItemIcon>
+          <Text>Star on GitHub</Text>
+        </MenuItem>
+      </Flex>
+      <Divider />
+      <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} padding={4} fillWidth>
+        <MenuItem type="button" onClick={onLogout}>
+          <MenuItemIcon>
+            <Icon component={SignOutIcon} variant={IconVariant.TERTIARY} />
+          </MenuItemIcon>
+          <Text>Log out</Text>
+        </MenuItem>
       </Flex>
     </Flex>
   );
@@ -279,7 +205,6 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const isTeamActionsPending = membersQuery.isLoading && !membersQuery.data;
   const profileName =
     (currentMember ? memberDisplayName(currentMember) : session.name || session.email) ?? "Member";
-  const profileEmail = currentMember?.email || session.email;
 
   const handleOpenSettings = useCallback(
     (panel: SettingsPanel, teamView?: TeamSettingsView) => {
@@ -310,6 +235,11 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
     handleOpenSettings(SettingsPanel.TEAM, TeamSettingsView.INVITE);
   }, [handleOpenSettings]);
 
+  const handleOpenGithub = useCallback(() => {
+    setIsOpen(false);
+    window.open(GITHUB_REPO_URL, "_blank");
+  }, []);
+
   const handleLogout = useCallback(() => {
     setIsOpen(false);
     void signOut();
@@ -323,21 +253,26 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
       body={
         <MainLayoutSettingsButtonMenu
           name={profileName}
-          email={profileEmail}
           avatarUrl={session.avatarUrl}
           seed={session.userId}
-          role={currentMember?.role}
           canManageTeam={canManageTeam}
           isTeamActionsPending={isTeamActionsPending}
           onOpenTeamSettings={handleOpenTeamSettings}
           onOpenServiceAccounts={handleOpenServiceAccounts}
           onOpenInvite={handleOpenInvite}
+          onOpenGithub={handleOpenGithub}
           onLogout={handleLogout}
         />
       }
     >
-      <AvatarButton type="button" title="Account settings">
-        <Avatar img={session.avatarUrl} size={26} seed={session.userId} />
+      <AvatarButton type="button" aria-label="Account settings">
+        <Avatar
+          img={session.avatarUrl}
+          size={AvatarSize.SMALL}
+          seed={session.userId}
+          name={session.name}
+          isSquare
+        />
       </AvatarButton>
     </Popover>
   );

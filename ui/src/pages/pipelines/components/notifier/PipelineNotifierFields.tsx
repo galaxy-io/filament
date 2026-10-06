@@ -1,4 +1,3 @@
-import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
@@ -26,7 +25,7 @@ import {
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
-import { PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP } from "@/pages/pipelines/history/constants";
+import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
 
@@ -35,10 +34,8 @@ const EVENT_OPTIONS: SelectOption[] = getSelectAllOptions(
   PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
     ...option,
     leading: (
-      <Beacon
-        {...PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[
-          PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]
-        ]}
+      <PipelineRunStatusSwatch
+        status={PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]}
       />
     ),
   })),

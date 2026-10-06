@@ -65,7 +65,7 @@ const ConnectionFormMaturityAlert = ({
             )}
             is
             <Text variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-              {status}.
+              {status}
             </Text>
           </Flex>
           <Link

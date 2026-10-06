@@ -6,7 +6,6 @@ import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -44,9 +43,13 @@ const PipelineName = ({
     }
 
     return (
-      <Tooltip body={`Deleted on ${formatTimestamp(pipeline.deletedAt)}`}>
-        <Chip icon={TrashIcon} label="Deleted" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />
-      </Tooltip>
+      <Chip
+        icon={TrashIcon}
+        label="Deleted"
+        variant={ChipVariant.ERROR}
+        size={ChipSize.SMALL}
+        tooltip={`Deleted on ${formatTimestamp(pipeline.deletedAt)}`}
+      />
     );
   };
 

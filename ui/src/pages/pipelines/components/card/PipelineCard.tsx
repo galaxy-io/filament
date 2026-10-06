@@ -2,6 +2,7 @@ import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -32,7 +33,7 @@ const CardWrapper = styled.div`
   justify-content: space-between;
   gap: 12px;
 
-  border-bottom: 0.5px solid ${t.color.border.primary};
+  border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
 
   cursor: pointer;
 

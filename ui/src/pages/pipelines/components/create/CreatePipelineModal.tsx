@@ -2,6 +2,7 @@ import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
 import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import CreatePipelineModalProvider, {
@@ -21,7 +22,7 @@ const FrameWrapper = styled.div`
   height: 100%;
 
   background-color: ${t.color.background.primary};
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
   overflow: hidden;
 `;

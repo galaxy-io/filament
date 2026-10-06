@@ -15,6 +15,20 @@
       "name": "filament-ui-attach",
       "url": "http://localhost:5173",
       "port": 5173
+    },
+    {
+      "name": "filament-ui-verify",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "ui",
+        "exec",
+        "vite",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
+      "port": 5175
     }
   ]
 }

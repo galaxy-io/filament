@@ -108,9 +108,12 @@ const PipelineLayoutNavbarRunButton = ({
               padding={[8, 12]}
             >
               {parsed.error && (
-                <Tooltip body={parsed.error} placement={Placement.TOP}>
-                  <Chip label="Invalid" icon={WarningIcon} variant={ChipVariant.ERROR} />
-                </Tooltip>
+                <Chip
+                  label="Invalid"
+                  icon={WarningIcon}
+                  variant={ChipVariant.ERROR}
+                  tooltip={parsed.error}
+                />
               )}
               <Button
                 label="Run custom"

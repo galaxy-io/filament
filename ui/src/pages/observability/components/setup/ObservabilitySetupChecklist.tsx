@@ -2,23 +2,26 @@ import { styled } from "@linaria/react";
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
-import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/GridBackground";
+import GridBackground, {
+  GRID_BACKGROUND_OPACITY_VAR,
+  GridBackgroundSize,
+} from "@galaxy-io/dls/backgrounds/GridBackground";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import DocsLink from "@/components/DocsLink";
-
 import { Flow } from "@/layouts/app/types";
 
 import {
   OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH,
+  OBSERVABILITY_SETUP_GRID_OPACITY,
   OBSERVABILITY_SETUP_STEP_COUNT,
   OBSERVABILITY_SETUP_STEP_ORDER,
 } from "@/pages/observability/components/setup/constants";
@@ -49,8 +52,8 @@ const SetupCard = styled.div`
 
   background-color: ${t.color.background.secondary};
 
-  border: 0.5px solid ${t.color.border.focused};
-  border-radius: ${t.radius.lg};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.focused};
+  border-radius: ${t.radius.md};
 
   overflow: hidden;
 `;
@@ -104,7 +107,10 @@ const ObservabilitySetupChecklist = () => {
 
   return (
     <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
-      <GridBackground size={GridBackgroundSize.X_SMALL}>
+      <GridBackground
+        size={GridBackgroundSize.X_SMALL}
+        style={{ [GRID_BACKGROUND_OPACITY_VAR]: OBSERVABILITY_SETUP_GRID_OPACITY }}
+      >
         <SetupContent>
           <GalaxyFilamentWordmark size={28} />
           <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>
@@ -131,10 +137,6 @@ const ObservabilitySetupChecklist = () => {
             ariaLabel="Setup progress"
             value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
             variant={ProgressBarVariant.SUCCESS}
-          />
-          <DocsLink
-            label="Learn about observability"
-            path="/pages/guides/usage/web#observability"
           />
         </SetupContent>
       </GridBackground>

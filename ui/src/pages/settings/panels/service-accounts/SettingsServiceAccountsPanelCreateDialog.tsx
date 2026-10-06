@@ -1,9 +1,10 @@
 import { useState } from "react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Box from "@galaxy-io/dls/layout/Box";
 
 import type { CreateServiceAccountRequest } from "@/gen/auth/v1/service_accounts_pb";
 
@@ -124,9 +125,9 @@ const SettingsServiceAccountsPanelCreateDialog = ({
         isRequired
       />
       {state.error && (
-        <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-          {state.error}
-        </Text>
+        <Box fillWidth>
+          <Alert variant={AlertVariant.ERROR}>{state.error}</Alert>
+        </Box>
       )}
     </Dialog>
   );

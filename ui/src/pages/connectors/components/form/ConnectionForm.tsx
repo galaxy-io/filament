@@ -10,7 +10,6 @@ import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
-import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -297,10 +296,7 @@ const ConnectionForm = ({
       ))
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
-          <Flex alignItems={AlignItems.CENTER} gap={4}>
-            <Beacon variant={BeaconVariant.SUCCESS} />
-            <Text variant={TextVariant.SUCCESS}>Connected</Text>
-          </Flex>
+          <Beacon variant={BeaconVariant.SUCCESS} label="Connected" />
           <Button label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
         </Flex>
       ))

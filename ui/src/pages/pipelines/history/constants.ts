@@ -1,8 +1,7 @@
-import { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import { ChartPalette } from "@galaxy-io/dls/charts/types";
-import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
-
 import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+
+import { type Hue, hueToChartPalette } from "@/utils/hue";
+import { mapRecordValues } from "@/utils/record";
 
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS = 120;
 export const PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION = 120;
@@ -22,40 +21,22 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.SCHEDULED]: "Scheduled",
 };
 
-export type PipelineRunStatusBeaconColor = { variant: BeaconVariant } | { color: PaletteColor };
-
-export const PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP: Record<
-  RunStatus,
-  PipelineRunStatusBeaconColor
-> = {
-  [RunStatus.UNSPECIFIED]: { variant: BeaconVariant.TERTIARY },
-  [RunStatus.REQUESTED]: { color: "orange" },
-  [RunStatus.RUNNING]: { color: "blue" },
-  [RunStatus.COMPLETED]: { variant: BeaconVariant.SUCCESS },
-  [RunStatus.FAILED]: { variant: BeaconVariant.ERROR },
-  [RunStatus.CANCELED]: { variant: BeaconVariant.TERTIARY },
-  [RunStatus.PAUSED]: { color: "teal" },
-  [RunStatus.PARTIAL]: { variant: BeaconVariant.WARNING },
-  [RunStatus.SCHEDULED]: { color: "yellow" },
+export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, Hue | null> = {
+  [RunStatus.UNSPECIFIED]: null,
+  [RunStatus.REQUESTED]: "orange",
+  [RunStatus.RUNNING]: "blue",
+  [RunStatus.COMPLETED]: "success",
+  [RunStatus.FAILED]: "error",
+  [RunStatus.CANCELED]: null,
+  [RunStatus.PAUSED]: "teal",
+  [RunStatus.PARTIAL]: "pink",
+  [RunStatus.SCHEDULED]: "yellow",
 };
 
-export const PIPELINE_RUN_STATUS_PULSING = new Set<RunStatus>([
-  RunStatus.REQUESTED,
-  RunStatus.RUNNING,
-]);
-
-export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPalette | undefined> =
-  {
-    [RunStatus.UNSPECIFIED]: undefined,
-    [RunStatus.REQUESTED]: ChartPalette.ORANGE,
-    [RunStatus.RUNNING]: ChartPalette.BLUE,
-    [RunStatus.COMPLETED]: ChartPalette.SUCCESS,
-    [RunStatus.FAILED]: ChartPalette.ERROR,
-    [RunStatus.CANCELED]: undefined,
-    [RunStatus.PAUSED]: ChartPalette.TEAL,
-    [RunStatus.PARTIAL]: ChartPalette.WARNING,
-    [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
-  };
+export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP = mapRecordValues(
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
+  hueToChartPalette,
+);
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
   ExecutionObservedState,
@@ -72,26 +53,19 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
   [ExecutionObservedState.FAILED]: "Failed",
 };
 
-export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP: Record<
+export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP: Record<
   ExecutionObservedState,
-  PipelineRunStatusBeaconColor
+  Hue | null
 > = {
-  [ExecutionObservedState.UNSPECIFIED]: { variant: BeaconVariant.TERTIARY },
-  [ExecutionObservedState.STARTING]: { color: "orange" },
-  [ExecutionObservedState.RUNNING]: { color: "blue" },
-  [ExecutionObservedState.DRAINING]: { color: "orange" },
-  [ExecutionObservedState.PAUSED]: { color: "teal" },
-  [ExecutionObservedState.STOPPED]: { variant: BeaconVariant.TERTIARY },
-  [ExecutionObservedState.RETRYING]: { color: "yellow" },
-  [ExecutionObservedState.BLOCKED]: { variant: BeaconVariant.ERROR },
-  [ExecutionObservedState.FAILED]: { variant: BeaconVariant.ERROR },
+  [ExecutionObservedState.UNSPECIFIED]: null,
+  [ExecutionObservedState.STARTING]: "orange",
+  [ExecutionObservedState.RUNNING]: "blue",
+  [ExecutionObservedState.DRAINING]: "orange",
+  [ExecutionObservedState.PAUSED]: "teal",
+  [ExecutionObservedState.STOPPED]: null,
+  [ExecutionObservedState.RETRYING]: "yellow",
+  [ExecutionObservedState.BLOCKED]: "error",
+  [ExecutionObservedState.FAILED]: "error",
 };
-
-export const PIPELINE_EXECUTION_OBSERVED_STATE_PULSING = new Set<ExecutionObservedState>([
-  ExecutionObservedState.STARTING,
-  ExecutionObservedState.RUNNING,
-  ExecutionObservedState.DRAINING,
-  ExecutionObservedState.RETRYING,
-]);
 
 export const PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH = 240;

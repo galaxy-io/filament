@@ -1,16 +1,18 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
-import { type Icon as PhosphorIcon, WarningIcon } from "@phosphor-icons/react";
-import { Link, type LinkProps } from "@tanstack/react-router";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import type { LinkProps } from "@tanstack/react-router";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
+import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import IconTile from "@/components/IconTile";
+import RouterLink from "@/components/RouterLink";
 
 import AuthLayout from "@/layouts/auth/AuthLayout";
 
@@ -20,29 +22,6 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 24px;
-`;
-
-const ErrorWrapper = styled.div`
-  width: 100%;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  padding: 8px 12px;
-
-  background-color: ${t.color.background.error};
-  border: 0.5px solid ${t.color.border.error};
-  border-radius: ${t.radius.lg};
-`;
-
-const FooterLink = styled(Link)`
-  cursor: pointer;
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
 `;
 
 export interface AuthFormProps {
@@ -108,12 +87,9 @@ const AuthForm = ({
             </Flex>
           )}
           {error && (
-            <ErrorWrapper>
-              <Icon component={WarningIcon} size={14} variant={IconVariant.ERROR} />
-              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-                {error}
-              </Text>
-            </ErrorWrapper>
+            <Box fillWidth>
+              <Alert variant={AlertVariant.ERROR}>{error}</Alert>
+            </Box>
           )}
           <Button
             label={submitLabel}
@@ -140,9 +116,11 @@ export const AuthFormFooter = ({ prompt, to, label }: AuthFormFooterProps) => (
     <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
       {prompt}
     </Text>
-    <FooterLink to={to}>
-      <Text size={TextSize.BODY_SM}>{label}</Text>
-    </FooterLink>
+    <Text size={TextSize.BODY_SM}>
+      <Link href={to} as={RouterLink} underline={LinkUnderline.HOVER}>
+        {label}
+      </Link>
+    </Text>
   </Flex>
 );
 

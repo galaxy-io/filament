@@ -2,6 +2,7 @@ import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -37,7 +38,7 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
   justify-content: center;
   flex-shrink: 0;
 
-  border: ${({ $isFilled }) => ($isFilled ? "0.5px solid" : "1px dashed")}
+  border: ${({ $isFilled }) => ($isFilled ? `${HAIRLINE_WIDTH} solid` : "1px dashed")}
     ${({ $isLive }) => ($isLive ? t.color.border.secondary : t.color.border.primary)};
   border-radius: ${t.radius.md};
 

@@ -2,6 +2,7 @@ import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 const TileWrapper = styled.div<{ $size: number }>`
@@ -13,7 +14,7 @@ const TileWrapper = styled.div<{ $size: number }>`
   justify-content: center;
   flex-shrink: 0;
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.md};
 `;
 

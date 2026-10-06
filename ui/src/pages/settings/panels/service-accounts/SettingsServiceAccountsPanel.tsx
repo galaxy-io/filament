@@ -1,23 +1,20 @@
 import { useState } from "react";
 
-import {
-  ArrowsClockwiseIcon,
-  DotsThreeVerticalIcon,
-  PlusIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CopyIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
-import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-import Menu, { MenuItem } from "@galaxy-io/dls/menu/Menu";
+import { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { FontFamily, Placement } from "@galaxy-io/dls/theme/enums";
+import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
 
@@ -27,7 +24,8 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 
 import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
 import {
-  SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ACTIONS,
+  SETTINGS_ROLE_TO_CHIP_PROPS_MAP,
+  SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_MIN_WIDTH_NAME,
   SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
   SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
 } from "@/pages/settings/constants";
@@ -53,8 +51,9 @@ interface SettingsServiceAccountsPanelProps {
 
 const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelProps) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [error, setError] = useState<string>();
   const [rotatedCredentials, setRotatedCredentials] = useState<ServiceAccountCredentials>();
+  const { toast } = useToast();
+  const { copy } = useClipboard();
 
   const accountsQuery = useListServiceAccountsQuery({
     options: { enabled: session.isAuthenticated },
@@ -92,38 +91,49 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
       ),
   });
 
-  const handleRemove = (account: ServiceAccount) => {
-    setError(undefined);
-    accountConfirm.handleOpen(account);
+  const handleCopyClientId = async (account: ServiceAccount) => {
+    const hasCopied = await copy(account.clientId);
+    toast(
+      hasCopied
+        ? {
+            header: "Client ID copied",
+            description: `${account.name}'s client ID is on your clipboard.`,
+            variant: ToastVariant.SUCCESS,
+          }
+        : {
+            header: "Copy failed",
+            description: "Your browser blocked clipboard access.",
+            variant: ToastVariant.ERROR,
+          },
+    );
   };
 
   const columns: TableColumn<ServiceAccount>[] = [
     {
       id: "name",
-      header: "Service account",
+      header: "Name",
       accessor: (account) => account.name,
-      canSort: false,
+      isRowHeader: true,
+      canSort: true,
+      minWidth: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_MIN_WIDTH_NAME,
       cell: ({ row }) => (
-        <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth minWidth={0}>
-          <FlexItem shrink={0}>
-            <Beacon variant={BeaconVariant.SUCCESS} />
-          </FlexItem>
-          <FlexItem grow={1} minWidth={0}>
-            <Text weight={TextWeight.MEDIUM} lineClamp={1}>
-              {row.name}
-            </Text>
-          </FlexItem>
-        </Flex>
+        <Text lineClamp={1} shouldTooltipOnOverflow>
+          {row.name}
+        </Text>
       ),
     },
     {
       id: "clientId",
       header: "Client ID",
       accessor: (account) => account.clientId,
-      width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
-      canSort: false,
+      minWidth: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
       cell: ({ row }) => (
-        <Text variant={TextVariant.SECONDARY} family={FontFamily.MONO} lineClamp={1}>
+        <Text
+          variant={TextVariant.SECONDARY}
+          family={FontFamily.MONO}
+          lineClamp={1}
+          shouldTooltipOnOverflow
+        >
           {row.clientId}
         </Text>
       ),
@@ -131,51 +141,23 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
     {
       id: "role",
       header: "Permissions",
+      accessor: (account) => serviceAccountRoleLabel(account.role),
       width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
-      canSort: false,
-      cell: ({ row }) => <Text>{serviceAccountRoleLabel(row.role)}</Text>,
-    },
-    {
-      id: "actions",
-      header: "",
-      align: "right",
-      width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ACTIONS,
-      canSort: false,
+      canSort: true,
       cell: ({ row }) => (
-        <Menu
-          placement={Placement.RIGHT_START}
-          ariaLabel={`Actions for ${row.name}`}
-          isDisabled={!canManage || isRotating || isRemoving}
-          trigger={
-            <Button
-              icon={DotsThreeVerticalIcon}
-              variant={ButtonVariant.TERTIARY}
-              size={ButtonSize.SMALL}
-              ariaLabel={`Actions for ${row.name}`}
-              tooltip={`Actions for ${row.name}`}
-              isDisabled={!canManage || isRotating || isRemoving}
-            />
-          }
-        >
-          <MenuItem
-            label="Rotate secret"
-            icon={ArrowsClockwiseIcon}
-            onSelect={() => {
-              setError(undefined);
-              rotateConfirm.handleOpen(row);
-            }}
-          />
-          <MenuItem label="Delete" icon={TrashIcon} onSelect={() => handleRemove(row)} />
-        </Menu>
+        <Chip
+          label={serviceAccountRoleLabel(row.role)}
+          size={ChipSize.SMALL}
+          {...SETTINGS_ROLE_TO_CHIP_PROPS_MAP[row.role]}
+        />
       ),
     },
   ];
 
-  const displayError =
-    error ??
-    (accountsQuery.error
-      ? getErrorMessage(accountsQuery.error, "Could not load service accounts")
-      : undefined);
+  const displayError = accountsQuery.error
+    ? getErrorMessage(accountsQuery.error, "Could not load service accounts")
+    : undefined;
+  const isActionPending = isRotating || isRemoving;
 
   return (
     <>
@@ -201,6 +183,33 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
               data={accountsQuery.data?.serviceAccounts ?? []}
               getRowId={(account) => account.userId}
               isLoading={accountsQuery.isLoading}
+              error={displayError}
+              rowActions={(row) =>
+                canManage ? (
+                  <>
+                    <MenuItem
+                      label="Copy client ID"
+                      icon={CopyIcon}
+                      onSelect={() => void handleCopyClientId(row)}
+                    />
+                    <MenuItem
+                      label="Rotate secret"
+                      icon={ArrowsClockwiseIcon}
+                      onSelect={() => rotateConfirm.handleOpen(row)}
+                      isDisabled={isActionPending}
+                    />
+                    <MenuSeparator />
+                    <MenuItem
+                      label="Delete"
+                      icon={TrashIcon}
+                      variant={MenuItemVariant.ERROR}
+                      onSelect={() => accountConfirm.handleOpen(row)}
+                      isDisabled={isActionPending}
+                    />
+                  </>
+                ) : null
+              }
+              ariaLabel="Service accounts"
               emptyState={
                 <EmptyLayout
                   header="No service accounts yet"
@@ -210,13 +219,6 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
             />
           </Box>
         </Flex>
-        {displayError && (
-          <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-            <Text size={TextSize.CAPTION} variant={TextVariant.ERROR}>
-              {displayError}
-            </Text>
-          </Flex>
-        )}
       </SettingsPanelLayout>
       {isCreateOpen && (
         <SettingsServiceAccountsPanelCreateDialog open onClose={() => setIsCreateOpen(false)} />

@@ -3,6 +3,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -54,7 +55,7 @@ const GhostCard = styled.div`
 
   background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
 `;
 

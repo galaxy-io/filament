@@ -5,13 +5,16 @@ import { styled } from "@linaria/react";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import GalaxyLogomark from "@galaxy-io/dls/brand/GalaxyLogomark";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
-import Bold from "@galaxy-io/dls/text/Bold";
-import Selectable from "@galaxy-io/dls/text/Selectable";
+import Link from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import AuthLayoutAside from "@/layouts/auth/AuthLayoutAside";
-import { AUTH_LAYOUT_CONTENT_WIDTH, AUTH_LAYOUT_INSET } from "@/layouts/auth/constants";
+import {
+  AUTH_LAYOUT_CONTENT_WIDTH,
+  AUTH_LAYOUT_INSET,
+  SUPPORT_EMAIL,
+} from "@/layouts/auth/constants";
 
 const LayoutWrapper = styled.div`
   flex: 1;
@@ -60,11 +63,8 @@ const AuthLayout = ({ children }: PropsWithChildren) => (
         <Content>{children}</Content>
       </ContentWrapper>
       <Flex alignItems={AlignItems.CENTER}>
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY}>
-          Need help? Email us at{" "}
-          <Selectable>
-            <Bold>support@getgalaxy.io</Bold>
-          </Selectable>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
+          Need help? Email us at <Link href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</Link>
         </Text>
       </Flex>
     </MainWrapper>

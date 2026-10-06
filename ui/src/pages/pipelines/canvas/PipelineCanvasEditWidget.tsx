@@ -1,6 +1,7 @@
 import { styled } from "@linaria/react";
 
 import Popover from "@galaxy-io/dls/overlays/Popover";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { Placement } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -27,7 +28,7 @@ const PipelineCanvasEditWidgetContainer = styled.div`
   padding: 8px;
 
   background-color: ${t.color.background.base};
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.pill};
 `;
 

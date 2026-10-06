@@ -10,9 +10,13 @@ import EditConnectionModal from "@/pages/connectors/components/edit/EditConnecti
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import SettingsPage from "@/pages/settings/SettingsPage";
 
+import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
+
 const AppLayout = () => {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "/_app" });
+  const isDrawerOpen = !!connectionId;
+  const drawerConnectionId = useRetainedWhileClosed(connectionId, isDrawerOpen);
 
   const handleCloseDrawer = useCallback(() => {
     void navigate({
@@ -43,7 +47,11 @@ const AppLayout = () => {
   return (
     <>
       <Outlet />
-      <ConnectionDrawer isOpen={!!connectionId} onClose={handleCloseDrawer} />
+      <ConnectionDrawer
+        connectionId={drawerConnectionId}
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+      />
       {flow === Flow.CREATE_CONNECTION && <CreateConnectionModal onClose={handleCloseFlow} />}
       {flow === Flow.EDIT_CONNECTION && !!connectionId && (
         <EditConnectionModal onClose={handleCloseFlow} />

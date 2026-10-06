@@ -37,7 +37,9 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   const search = useSearch({ from: "/_app/_main/observability" });
 
   const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
-  const pivot = search[pivotSearchKey] ?? defaultPivot;
+  const searchPivot = search[pivotSearchKey];
+  const pivot =
+    searchPivot === MetricDimension.UNSPECIFIED ? undefined : (searchPivot ?? defaultPivot);
 
   const { label, seriesLabel, metric, color, valueFormatter } = views[view];
 

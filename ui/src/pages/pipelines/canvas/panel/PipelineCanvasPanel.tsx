@@ -3,6 +3,7 @@ import { SidebarSimpleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { PIPELINE_CANVAS_OVERLAY_Z_INDEX } from "@/pages/pipelines/canvas/constants";
@@ -34,7 +35,7 @@ const PanelWrapper = styled.div`
 
   background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
 
   overflow: hidden;
@@ -48,7 +49,7 @@ const CollapsedWrapper = styled.div`
 
   padding: 8px 12px;
 
-  border: 0.5px solid transparent;
+  border: ${HAIRLINE_WIDTH} solid transparent;
 `;
 
 const PipelineCanvasPanel = () => {
@@ -65,7 +66,6 @@ const PipelineCanvasPanel = () => {
           size={ButtonSize.SMALL}
           onClick={() => setShowPanel(true)}
           ariaLabel="Open configuration panel"
-          tooltip="Open configuration panel"
         />
       </CollapsedWrapper>
     );

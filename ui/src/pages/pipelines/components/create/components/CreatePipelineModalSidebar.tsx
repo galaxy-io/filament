@@ -4,6 +4,7 @@ import { match } from "ts-pattern";
 
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Stepper, { StepperSize, type StepperStep } from "@galaxy-io/dls/navigation/Stepper";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -36,7 +37,7 @@ const SidebarWrapper = styled.div`
   width: ${CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH}px;
 
   background-color: ${t.color.background.primary};
-  border-right: 0.5px solid ${t.color.border.primary};
+  border-right: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
 `;
 
 const CreatePipelineModalSidebar = () => {

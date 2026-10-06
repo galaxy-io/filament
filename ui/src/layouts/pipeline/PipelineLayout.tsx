@@ -4,6 +4,7 @@ import { styled } from "@linaria/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
@@ -70,7 +71,7 @@ const ContentIsland = styled.div<{ $isPreview?: boolean }>`
 
   background-color: ${t.color.background.primary};
 
-  border: 0.5px solid
+  border: ${HAIRLINE_WIDTH} solid
     ${({ $isPreview }) => ($isPreview ? t.color.border.error : t.color.border.primary)};
   border-radius: ${t.radius.lg};
 

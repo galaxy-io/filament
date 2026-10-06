@@ -1,5 +1,6 @@
 import { styled } from "@linaria/react";
 
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 const PipelineCanvasPanelItem = styled.button`
@@ -18,7 +19,7 @@ const PipelineCanvasPanelItem = styled.button`
   transition: background-color 100ms ease;
 
   &:not(:last-child) {
-    border-bottom: 0.5px solid ${t.color.border.primary};
+    border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   }
 
   &:hover {

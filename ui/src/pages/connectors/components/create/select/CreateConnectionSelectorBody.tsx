@@ -11,6 +11,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Grid from "@galaxy-io/dls/layout/Grid";
 import Tabs, { type TabItem, TabsSize, TabsVariant } from "@galaxy-io/dls/navigation/Tabs";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -52,7 +53,7 @@ const FrameWrapper = styled.div`
   height: 100%;
 
   background-color: ${t.color.background.primary};
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
   overflow: hidden;
 `;
@@ -66,7 +67,7 @@ const SidebarWrapper = styled.div`
   width: ${CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH}px;
 
   background-color: ${t.color.background.primary};
-  border-right: 0.5px solid ${t.color.border.primary};
+  border-right: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
 `;
 
 const ContentWrapper = styled.div`
@@ -90,7 +91,7 @@ const GhostCard = styled.div`
   align-items: center;
   gap: 8px;
   padding: 12px;
-  border: 0.5px solid ${t.color.border.tertiary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.tertiary};
   border-radius: ${t.radius.lg};
   background-color: ${t.color.background.primary};
 `;
@@ -174,8 +175,9 @@ const CreateConnectionSelectorBody = ({
                 value={shelf}
                 onChange={onShelfChange}
                 orientation={Orientation.VERTICAL}
-                variant={TabsVariant.PILL}
+                variant={TabsVariant.UNDERLINE}
                 size={TabsSize.SMALL}
+                fillWidth
               />
             </Flex>
           </Widget>

@@ -1,5 +1,6 @@
 import { styled } from "@linaria/react";
 
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 export const EMPTY_GRAPHIC_WIDTH = 560;
@@ -25,7 +26,7 @@ export const EmptyGraphicGhostTileFallback = styled.div`
 
   background-color: ${t.color.background.secondary};
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.md};
 `;
 

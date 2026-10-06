@@ -9,9 +9,9 @@ import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Grid, { GridAlignItems } from "@galaxy-io/dls/layout/Grid";
+import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
@@ -20,10 +20,10 @@ import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/
 
 import {
   PIPELINES_TABLE_RECENT_RUNS_COUNT,
-  PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP,
   PIPELINES_TABLE_RECENT_RUNS_STATUSES,
 } from "@/pages/pipelines/components/table/constants";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
@@ -48,13 +48,9 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   }
 `;
 
-const PipelinesTableRecentRunSquare = styled.div<{ $status?: RunStatus; $isClickable?: boolean }>`
-  width: 10px;
-  height: 10px;
-  border-radius: ${t.radius.sm};
+const PipelinesTableRecentRun = styled.span<{ $isClickable?: boolean }>`
+  display: inline-flex;
   cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
-  background: ${({ $status = RunStatus.UNSPECIFIED }) =>
-    PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP[$status]};
 `;
 
 const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
@@ -153,23 +149,30 @@ const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecent
                 )
               }
             >
-              <PipelinesTableRecentRunSquare
-                $status={run.status}
+              <PipelinesTableRecentRun
                 $isClickable
                 onClick={(event) => handleRunClick(event, run.id)}
-              />
+              >
+                <PipelineRunStatusSwatch status={run.status} size={SquareSize.MEDIUM} />
+              </PipelinesTableRecentRun>
             </Tooltip>
           );
         }
         if (index === scheduledIndex && schedule) {
           return (
             <Tooltip key="scheduled" body={`Scheduled for ${formatTimestamp(schedule.nextFireAt)}`}>
-              <PipelinesTableRecentRunSquare $status={RunStatus.SCHEDULED} />
+              <PipelinesTableRecentRun>
+                <PipelineRunStatusSwatch status={RunStatus.SCHEDULED} size={SquareSize.MEDIUM} />
+              </PipelinesTableRecentRun>
             </Tooltip>
           );
         }
-        // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder slots with no identity
-        return <PipelinesTableRecentRunSquare key={`empty-${index}`} />;
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder slots with no identity
+          <PipelinesTableRecentRun key={`empty-${index}`}>
+            <Square size={SquareSize.MEDIUM} variant={SquareVariant.DISABLED} />
+          </PipelinesTableRecentRun>
+        );
       })}
     </PipelinesTableRecentRunsWrapper>
   );

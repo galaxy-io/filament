@@ -73,6 +73,6 @@ export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<
 export const CONNECTOR_MATURITY_TO_STATUS_MAP: Record<ConnectorMaturity, string | undefined> = {
   [ConnectorMaturity.UNSPECIFIED]: undefined,
   [ConnectorMaturity.ALPHA]: "experimental",
-  [ConnectorMaturity.BETA]: "in beta",
+  [ConnectorMaturity.BETA]: "beta",
   [ConnectorMaturity.STABLE]: undefined,
 };

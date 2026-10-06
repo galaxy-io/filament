@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 import { styled } from "@linaria/react";
 
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
@@ -33,7 +34,7 @@ const MainLayoutIslandWrapper = styled.div`
 
   background-color: ${t.color.background.primary};
 
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
 
   overflow: hidden;

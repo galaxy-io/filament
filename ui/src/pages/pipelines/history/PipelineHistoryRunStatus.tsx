@@ -1,6 +1,5 @@
 import { InfoIcon } from "@phosphor-icons/react";
 
-import Beacon, { BeaconSize } from "@galaxy-io/dls/beacons/Beacon";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -9,12 +8,12 @@ import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
+import HueSquare from "@/components/HueSquare";
+
 import {
-  PIPELINE_EXECUTION_OBSERVED_STATE_PULSING,
-  PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP,
+  PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP,
   PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP,
-  PIPELINE_RUN_STATUS_PULSING,
-  PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP,
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -34,24 +33,20 @@ const PipelineHistoryRunStatus = ({
     observedState !== undefined
       ? {
           label: PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP[observedState],
-          beacon: PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP[observedState],
-          isPulse: PIPELINE_EXECUTION_OBSERVED_STATE_PULSING.has(observedState),
+          hue: PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP[observedState],
         }
       : {
           label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-          beacon: PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[status],
-          isPulse: PIPELINE_RUN_STATUS_PULSING.has(status),
+          hue: PIPELINE_RUN_STATUS_TO_HUE_MAP[status],
         };
   const reason = executionStatus?.reason || error;
 
   return (
     <Flex alignItems={AlignItems.CENTER} gap={8}>
-      <Beacon
-        {...display.beacon}
-        label={display.label}
-        size={BeaconSize.SMALL}
-        isPulse={display.isPulse}
-      />
+      <HueSquare hue={display.hue} />
+      <Text size={TextSize.BODY_SM} lineClamp={1}>
+        {display.label}
+      </Text>
       {reason && (
         <Tooltip
           body={

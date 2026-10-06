@@ -2,6 +2,7 @@ import { memo } from "react";
 
 import { styled } from "@linaria/react";
 
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -42,7 +43,7 @@ const SelectorIsland = styled.div`
   height: ${PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT}px;
 
   background-color: ${t.color.background.primary};
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
   overflow: hidden;
 

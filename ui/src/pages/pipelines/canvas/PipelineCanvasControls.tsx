@@ -3,6 +3,7 @@ import { ArrowCounterClockwiseIcon, MinusIcon, PlusIcon } from "@phosphor-icons/
 import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
@@ -33,7 +34,7 @@ const ControlsContainer = styled.div`
   flex-direction: column;
 
   background-color: ${t.color.background.primary};
-  border: 0.5px solid ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.lg};
   overflow: hidden;
 `;
@@ -49,7 +50,7 @@ const ControlButton = styled.button`
 
   background-color: transparent;
   border: none;
-  border-bottom: 0.5px solid ${t.color.border.primary};
+  border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   cursor: pointer;
 
   transition: background-color 100ms ease;

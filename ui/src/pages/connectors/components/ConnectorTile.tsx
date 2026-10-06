@@ -6,6 +6,7 @@ import { match } from "ts-pattern";
 
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, GalaxyTheme } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -62,7 +63,7 @@ const TileWrapper = styled.div<{
   background-color: transparent;
 
   border-radius: ${t.radius.md};
-  border: 0.5px solid
+  border: ${HAIRLINE_WIDTH} solid
     ${({ $isDeleted }) => ($isDeleted ? t.color.border.error : t.color.border.tertiary)};
 
   overflow: hidden;
