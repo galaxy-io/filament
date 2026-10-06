@@ -3,9 +3,7 @@ import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-import OverlayProvider from "@galaxy-io/dls/overlay/OverlayProvider";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import ToastProvider from "@galaxy-io/dls/toast/ToastProvider";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 
@@ -42,15 +40,9 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
 
 const RootComponent = () => {
   return (
-    <ToastProvider /* @dls-migrate galaxyprovider.providers-nested: GalaxyProvider already mounts this provider: remove it unless it serves a second React root. */
-    >
-      <OverlayProvider /* @dls-migrate galaxyprovider.providers-nested: GalaxyProvider already mounts this provider: remove it unless it serves a second React root. */
-      >
-        <RootComponentWrapper>
-          <Outlet />
-        </RootComponentWrapper>
-      </OverlayProvider>
-    </ToastProvider>
+    <RootComponentWrapper>
+      <Outlet />
+    </RootComponentWrapper>
   );
 };
 

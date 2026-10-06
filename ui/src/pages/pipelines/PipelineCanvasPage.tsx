@@ -15,9 +15,8 @@ import {
   ReactFlow,
 } from "@xyflow/react";
 
-// @dls-migrate usegalaxytheme.useTheme: Removed: read `t` in styles, or `useGalaxyTheme().theme` for hex values in JS.
-import { useTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import "@xyflow/react/dist/style.css";
 
@@ -107,8 +106,7 @@ const PipelineCanvasPageWrapper = styled.div`
 `;
 
 const PipelineCanvasPage = () => {
-  // @dls-migrate tokens.dynamic: The codemod only rewrites static token paths: rewrite this theme access by hand.
-  const theme = useTheme();
+  const { theme } = useGalaxyTheme();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();

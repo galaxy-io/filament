@@ -1,5 +1,6 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "extends": ["@galaxy-io/dls/biome"],
   "files": {
     "includes": [
       "src/**",
