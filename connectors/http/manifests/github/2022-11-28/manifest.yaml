@@ -24,15 +24,15 @@ defaults:
       link: next
 field_sets:
   repository_scope:
-    repository_id: { path: parent.repository_id, type: int64 }
-    repository: { path: parent.repository, type: string }
+    repository_id: {path: parent.repository_id, type: int64}
+    repository: {path: parent.repository, type: string}
   repository_counts:
     stargazers_count: int64?
     forks_count: int64?
     open_issues_count: int64?
     size: int64?
   user_summary:
-    user_id: { path: id, type: int64 }
+    user_id: {path: id, type: int64}
     login: string
     node_id: string?
     html_url: string?
@@ -103,7 +103,7 @@ resources:
       pushed_at: timestamptz?
       topics: json?
       owner: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       repository: name
       repository_id: id
@@ -121,7 +121,7 @@ resources:
     fields:
       id: int64
       node_id: string
-      repository: { path: parent.repository, type: string }
+      repository: {path: parent.repository, type: string}
       number: int64
       title: string
       body: string?
@@ -136,7 +136,7 @@ resources:
       labels: json?
       milestone: json?
       pull_request: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     for_each: repositories
     incremental:
       cursor_field: updated_at
@@ -161,7 +161,7 @@ resources:
     fields:
       id: int64
       node_id: string
-      repository: { path: parent.repository, type: string }
+      repository: {path: parent.repository, type: string}
       number: int64
       title: string
       body: string?
@@ -179,7 +179,7 @@ resources:
       head: json?
       base: json?
       merged_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     for_each: repositories
     capture:
       pull_number: number
@@ -211,7 +211,7 @@ resources:
       created_at: timestamptz?
       updated_at: timestamptz?
       pushed_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: stargazers
     path: /repos/{organization}/{repository}/stargazers
     params:
@@ -223,14 +223,14 @@ resources:
     primary_key: [repository_id, user_id]
     use_fields: [repository_scope]
     fields:
-      user_id: { path: user.id, type: int64 }
-      login: { path: user.login, type: string }
-      node_id: { path: user.node_id, type: string, nullable: true }
-      html_url: { path: user.html_url, type: string, nullable: true }
-      avatar_url: { path: user.avatar_url, type: string, nullable: true }
-      type: { path: user.type, type: string, nullable: true }
+      user_id: {path: user.id, type: int64}
+      login: {path: user.login, type: string}
+      node_id: {path: user.node_id, type: string, nullable: true}
+      html_url: {path: user.html_url, type: string, nullable: true}
+      avatar_url: {path: user.avatar_url, type: string, nullable: true}
+      type: {path: user.type, type: string, nullable: true}
       starred_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: watchers
     path: /repos/{organization}/{repository}/subscribers
     params:
@@ -240,7 +240,7 @@ resources:
     primary_key: [repository_id, user_id]
     use_fields: [repository_scope, user_summary]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: star_history
     path: /repos/{organization}/{repository}/stargazers/history
     params:
@@ -255,7 +255,7 @@ resources:
       week: int64
       total: int64
       days: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: star_count
     path: /repos/{organization}/{repository}/stargazers/count
     params:
@@ -269,7 +269,7 @@ resources:
     use_fields: [repository_scope]
     fields:
       count: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: forks
     path: /repos/{organization}/{repository}/forks
     params:
@@ -293,14 +293,14 @@ resources:
       created_at: timestamptz?
       updated_at: timestamptz?
       pushed_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: issue_comments
     path: /repos/{organization}/{repository}/issues/comments
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { sort: updated, direction: asc }
+    query: {sort: updated, direction: asc}
     primary_key: [id]
     use_fields: [repository_scope, timestamps]
     fields:
@@ -312,7 +312,7 @@ resources:
       user: json?
       author_association: string?
       reactions: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: updated_at
       start_param: since
@@ -326,7 +326,7 @@ resources:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { sort: updated, direction: asc }
+    query: {sort: updated, direction: asc}
     primary_key: [id]
     use_fields: [repository_scope, timestamps]
     fields:
@@ -348,7 +348,7 @@ resources:
       in_reply_to_id: int64?
       author_association: string?
       reactions: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: updated_at
       start_param: since
@@ -368,8 +368,8 @@ resources:
     fields:
       id: int64
       node_id: string?
-      pull_request_id: { path: parent.pull_request_id, type: int64 }
-      pull_number: { path: parent.pull_number, type: int64 }
+      pull_request_id: {path: parent.pull_request_id, type: int64}
+      pull_number: {path: parent.pull_number, type: int64}
       user: json?
       body: string?
       state: string
@@ -377,7 +377,7 @@ resources:
       commit_id: string?
       html_url: string?
       author_association: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: labels
     path: /repos/{organization}/{repository}/labels
     params:
@@ -394,14 +394,14 @@ resources:
       color: string?
       default: bool?
       url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: milestones
     path: /repos/{organization}/{repository}/milestones
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { state: all }
+    query: {state: all}
     primary_key: [id]
     use_fields: [repository_scope, timestamps]
     fields:
@@ -417,7 +417,7 @@ resources:
       due_on: timestamptz?
       closed_at: timestamptz?
       html_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: releases
     path: /repos/{organization}/{repository}/releases
     params:
@@ -441,7 +441,7 @@ resources:
       author: json?
       html_url: string?
       assets: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       release_id: id
   - name: release_assets
@@ -456,7 +456,7 @@ resources:
     fields:
       id: int64
       node_id: string?
-      release_id: { path: parent.release_id, type: int64 }
+      release_id: {path: parent.release_id, type: int64}
       name: string
       label: string?
       state: string?
@@ -466,7 +466,7 @@ resources:
       digest: string?
       browser_download_url: string?
       uploader: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: issue_events
     path: /repos/{organization}/{repository}/issues/events
     params:
@@ -487,7 +487,7 @@ resources:
       assignee: json?
       milestone: json?
       rename: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   # Reaction parents must enumerate all history independently of incremental
   # issue/comment resources: new reactions can target old records.
   - name: issue_history
@@ -497,8 +497,8 @@ resources:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { state: all, sort: created, direction: asc }
-    capture: { issue_number: number, issue_id: id }
+    query: {state: all, sort: created, direction: asc}
+    capture: {issue_number: number, issue_id: id}
   - name: issue_reactions
     path: /repos/{organization}/{repository}/issues/{issue_number}/reactions
     params:
@@ -511,12 +511,12 @@ resources:
     fields:
       id: int64
       node_id: string?
-      issue_id: { path: parent.issue_id, type: int64 }
-      issue_number: { path: parent.issue_number, type: int64 }
+      issue_id: {path: parent.issue_id, type: int64}
+      issue_number: {path: parent.issue_number, type: int64}
       content: string
       user: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: reaction_issue_comments
     capture_only: true
     path: /repos/{organization}/{repository}/issues/comments
@@ -524,7 +524,7 @@ resources:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    capture: { comment_id: id }
+    capture: {comment_id: id}
   - name: issue_comment_reactions
     path: /repos/{organization}/{repository}/issues/comments/{comment_id}/reactions
     params:
@@ -537,11 +537,11 @@ resources:
     fields:
       id: int64
       node_id: string?
-      comment_id: { path: parent.comment_id, type: int64 }
+      comment_id: {path: parent.comment_id, type: int64}
       content: string
       user: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: reaction_review_comments
     capture_only: true
     path: /repos/{organization}/{repository}/pulls/comments
@@ -549,7 +549,7 @@ resources:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    capture: { comment_id: id }
+    capture: {comment_id: id}
   - name: pull_request_review_comment_reactions
     path: /repos/{organization}/{repository}/pulls/comments/{comment_id}/reactions
     params:
@@ -562,11 +562,11 @@ resources:
     fields:
       id: int64
       node_id: string?
-      comment_id: { path: parent.comment_id, type: int64 }
+      comment_id: {path: parent.comment_id, type: int64}
       content: string
       user: json?
       created_at: timestamptz
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: branches
     path: /repos/{organization}/{repository}/branches
     params:
@@ -579,8 +579,8 @@ resources:
       name: string
       protected: bool?
       commit: json?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { branch: name }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {branch: name}
   - name: tags
     path: /repos/{organization}/{repository}/tags
     params:
@@ -595,41 +595,41 @@ resources:
       commit: json?
       zipball_url: string?
       tarball_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: commits
     path: /repos/{organization}/{repository}/commits
     params:
       organization: config.organization
       repository: parent.repository
     for_each: branches
-    query: { sha: '{{ parent.branch }}' }
+    query: {sha: '{{ parent.branch }}'}
     primary_key: [repository_id, branch, sha]
     use_fields: [repository_scope]
     fields:
       sha: string
-      branch: { path: parent.branch, type: string }
+      branch: {path: parent.branch, type: string}
       node_id: string?
       html_url: string?
-      message: { path: commit.message, type: string, nullable: true }
+      message: {path: commit.message, type: string, nullable: true}
       author: json?
       committer: json?
-      commit_author: { path: commit.author, type: json, nullable: true }
-      commit_committer: { path: commit.committer, type: json, nullable: true }
-      verification: { path: commit.verification, type: json, nullable: true }
+      commit_author: {path: commit.author, type: json, nullable: true}
+      commit_committer: {path: commit.committer, type: json, nullable: true}
+      verification: {path: commit.verification, type: json, nullable: true}
       parents: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: contributors
     path: /repos/{organization}/{repository}/contributors
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { anon: 'false' }
+    query: {anon: 'false'}
     primary_key: [repository_id, user_id]
     use_fields: [repository_scope, user_summary]
     fields:
       contributions: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: languages
     path: /repos/{organization}/{repository}/languages
     params:
@@ -642,8 +642,8 @@ resources:
     primary_key: [repository_id]
     use_fields: [repository_scope]
     fields:
-      languages: { path: $, type: json }
-      raw: { path: $, type: json, mode: remainder }
+      languages: {path: $, type: json}
+      raw: {path: $, type: json, mode: remainder}
   - name: members
     path: /orgs/{organization}/members
     params:
@@ -651,7 +651,7 @@ resources:
     primary_key: [user_id]
     use_fields: [user_summary]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: teams
     path: /orgs/{organization}/teams
     params:
@@ -667,8 +667,8 @@ resources:
       permission: string?
       parent: json?
       html_url: string?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { team_slug: slug, team_id: id }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {team_slug: slug, team_id: id}
   - name: team_members
     path: /orgs/{organization}/teams/{team_slug}/members
     params:
@@ -678,22 +678,22 @@ resources:
     primary_key: [team_id, user_id]
     use_fields: [user_summary]
     fields:
-      team_id: { path: parent.team_id, type: int64 }
-      team_slug: { path: parent.team_slug, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      team_id: {path: parent.team_id, type: int64}
+      team_slug: {path: parent.team_slug, type: string}
+      raw: {path: $, type: json, mode: remainder}
   - name: collaborators
     path: /repos/{organization}/{repository}/collaborators
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { affiliation: all }
+    query: {affiliation: all}
     primary_key: [repository_id, user_id]
     use_fields: [repository_scope, user_summary]
     fields:
       permissions: json?
       role_name: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: workflows
     path: /repos/{organization}/{repository}/actions/workflows
     params:
@@ -711,7 +711,7 @@ resources:
       state: string
       html_url: string?
       badge_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: workflow_runs
     path: /repos/{organization}/{repository}/actions/runs
     params:
@@ -740,8 +740,8 @@ resources:
       html_url: string?
       pull_requests: json?
       head_commit: json?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { run_id: id }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {run_id: id}
   - name: workflow_jobs
     path: /repos/{organization}/{repository}/actions/runs/{run_id}/jobs
     params:
@@ -749,7 +749,7 @@ resources:
       repository: parent.repository
       run_id: parent.run_id
     for_each: workflow_runs
-    query: { filter: all }
+    query: {filter: all}
     records: $.jobs
     primary_key: [id]
     use_fields: [repository_scope]
@@ -771,7 +771,7 @@ resources:
       steps: json?
       labels: json?
       html_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: deployments
     path: /repos/{organization}/{repository}/deployments
     params:
@@ -792,8 +792,8 @@ resources:
       payload: json?
       transient_environment: bool?
       production_environment: bool?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { deployment_id: id }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {deployment_id: id}
   - name: deployment_statuses
     path: /repos/{organization}/{repository}/deployments/{deployment_id}/statuses
     params:
@@ -806,7 +806,7 @@ resources:
     fields:
       id: int64
       node_id: string?
-      deployment_id: { path: parent.deployment_id, type: int64 }
+      deployment_id: {path: parent.deployment_id, type: int64}
       state: string
       description: string?
       environment: string?
@@ -814,14 +814,14 @@ resources:
       log_url: string?
       target_url: string?
       creator: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: traffic_views
     path: /repos/{organization}/{repository}/traffic/views
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { per: day }
+    query: {per: day}
     pagination: none
     records: $.views
     primary_key: [repository_id, timestamp]
@@ -830,14 +830,14 @@ resources:
       timestamp: timestamptz
       count: int64
       uniques: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: traffic_clones
     path: /repos/{organization}/{repository}/traffic/clones
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { per: day }
+    query: {per: day}
     pagination: none
     records: $.clones
     primary_key: [repository_id, timestamp]
@@ -846,7 +846,7 @@ resources:
       timestamp: timestamptz
       count: int64
       uniques: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: traffic_referrers
     path: /repos/{organization}/{repository}/traffic/popular/referrers
     params:
@@ -860,7 +860,7 @@ resources:
       referrer: string
       count: int64
       uniques: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: traffic_paths
     path: /repos/{organization}/{repository}/traffic/popular/paths
     params:
@@ -875,7 +875,7 @@ resources:
       title: string?
       count: int64
       uniques: int64
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: projects
     path: /orgs/{organization}/projectsV2
     params:
@@ -895,8 +895,8 @@ resources:
       deleted_at: timestamptz?
       owner: json?
       creator: json?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { project_id: id, project_number: number }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {project_id: id, project_number: number}
   - name: project_fields
     path: /orgs/{organization}/projectsV2/{project_number}/fields
     params:
@@ -906,16 +906,16 @@ resources:
     primary_key: [project_id, id]
     use_fields: [timestamps]
     fields:
-      project_id: { path: parent.project_id, type: int64 }
-      project_number: { path: parent.project_number, type: int64 }
+      project_id: {path: parent.project_id, type: int64}
+      project_number: {path: parent.project_number, type: int64}
       id: int64
       node_id: string?
       name: string
       data_type: string
       options: json?
       configuration: json?
-      raw: { path: $, type: json, mode: remainder }
-    capture: { field_id: id }
+      raw: {path: $, type: json, mode: remainder}
+    capture: {field_id: id}
   - name: project_items
     path: /orgs/{organization}/projectsV2/{project_number}/items
     params:
@@ -925,8 +925,8 @@ resources:
     primary_key: [project_id, id]
     use_fields: [timestamps]
     fields:
-      project_id: { path: parent.project_id, type: int64 }
-      project_number: { path: parent.project_number, type: int64 }
+      project_id: {path: parent.project_id, type: int64}
+      project_number: {path: parent.project_number, type: int64}
       id: int64
       node_id: string?
       content_type: string
@@ -935,25 +935,25 @@ resources:
       archived_at: timestamptz?
       fields: json?
       item_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: project_item_field_values
     path: /orgs/{organization}/projectsV2/{project_number}/items
     params:
       organization: config.organization
       project_number: parent.project_number
     for_each: project_fields
-    query: { fields: '{{ parent.field_id }}' }
+    query: {fields: '{{ parent.field_id }}'}
     primary_key: [project_id, item_id, field_id]
     use_fields: [timestamps]
     fields:
-      project_id: { path: parent.project_id, type: int64 }
-      project_number: { path: parent.project_number, type: int64 }
-      item_id: { path: id, type: int64 }
-      field_id: { path: parent.field_id, type: int64 }
+      project_id: {path: parent.project_id, type: int64}
+      project_number: {path: parent.project_number, type: int64}
+      item_id: {path: id, type: int64}
+      field_id: {path: parent.field_id, type: int64}
       fields: json?
       content_type: string
       archived_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: dependabot_alerts
     path: /repos/{organization}/{repository}/dependabot/alerts
     params:
@@ -976,7 +976,7 @@ resources:
       auto_dismissed_at: timestamptz?
       html_url: string?
       assignees: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: code_scanning_alerts
     path: /repos/{organization}/{repository}/code-scanning/alerts
     params:
@@ -1000,14 +1000,14 @@ resources:
       dismissed_comment: string?
       html_url: string?
       assignees: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: secret_scanning_alerts
     path: /repos/{organization}/{repository}/secret-scanning/alerts
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { hide_secret: 'true' }
+    query: {hide_secret: 'true'}
     primary_key: [repository_id, number]
     use_fields: [repository_scope]
     fields:
@@ -1026,7 +1026,7 @@ resources:
       publicly_leaked: bool?
       multi_repo: bool?
       html_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: discussions
     path: /graphql
     method: POST
@@ -1036,21 +1036,21 @@ resources:
     fields:
       id: string
       body: string?
-      created_at: { path: createdAt, type: timestamptz }
-      updated_at: { path: updatedAt, type: timestamptz }
+      created_at: {path: createdAt, type: timestamptz}
+      updated_at: {path: updatedAt, type: timestamptz}
       url: string?
       author: json?
-      upvote_count: { path: upvoteCount, type: int64, nullable: true }
+      upvote_count: {path: upvoteCount, type: int64, nullable: true}
       number: int64
       title: string
       closed: bool?
-      closed_at: { path: closedAt, type: timestamptz, nullable: true }
+      closed_at: {path: closedAt, type: timestamptz, nullable: true}
       locked: bool?
       category: json?
       answer: json?
-      answer_chosen_at: { path: answerChosenAt, type: timestamptz, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
-    capture: { discussion_id: id, discussion_number: number }
+      answer_chosen_at: {path: answerChosenAt, type: timestamptz, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+    capture: {discussion_id: id, discussion_number: number}
     body:
       encoding: json
       template:
@@ -1063,10 +1063,10 @@ resources:
               }
             }
           }
-        variables: { owner: '{{ config.organization }}', name: '{{ parent.repository }}' }
+        variables: {owner: '{{ config.organization }}', name: '{{ parent.repository }}'}
     response:
       records: $.data.repository.discussions.nodes
-      error: { path: errors, when_present: true, message_path: errors.0.message }
+      error: {path: errors, when_present: true, message_path: errors.0.message}
       pagination:
         cursor:
           response: data.repository.discussions.pageInfo.endCursor
@@ -1082,24 +1082,24 @@ resources:
     fields:
       id: string
       body: string?
-      created_at: { path: createdAt, type: timestamptz }
-      updated_at: { path: updatedAt, type: timestamptz }
+      created_at: {path: createdAt, type: timestamptz}
+      updated_at: {path: updatedAt, type: timestamptz}
       url: string?
       author: json?
-      upvote_count: { path: upvoteCount, type: int64, nullable: true }
-      discussion_id: { path: parent.discussion_id, type: string }
-      discussion_number: { path: parent.discussion_number, type: int64 }
-      is_answer: { path: isAnswer, type: bool, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
-    capture: { discussion_comment_id: id }
+      upvote_count: {path: upvoteCount, type: int64, nullable: true}
+      discussion_id: {path: parent.discussion_id, type: string}
+      discussion_number: {path: parent.discussion_number, type: int64}
+      is_answer: {path: isAnswer, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+    capture: {discussion_comment_id: id}
     body:
       encoding: json
       template:
         query: 'query DiscussionComments($id: ID!, $after: String) { node(id: $id) { ... on Discussion { comments(first: 100, after: $after) { nodes { id body createdAt updatedAt url isAnswer upvoteCount author { login url avatarUrl } } pageInfo { hasNextPage endCursor } } } } }'
-        variables: { id: '{{ parent.discussion_id }}' }
+        variables: {id: '{{ parent.discussion_id }}'}
     response:
       records: $.data.node.comments.nodes
-      error: { path: errors, when_present: true, message_path: errors.0.message }
+      error: {path: errors, when_present: true, message_path: errors.0.message}
       pagination:
         cursor:
           response: data.node.comments.pageInfo.endCursor
@@ -1115,25 +1115,25 @@ resources:
     fields:
       id: string
       body: string?
-      created_at: { path: createdAt, type: timestamptz }
-      updated_at: { path: updatedAt, type: timestamptz }
+      created_at: {path: createdAt, type: timestamptz}
+      updated_at: {path: updatedAt, type: timestamptz}
       url: string?
       author: json?
-      upvote_count: { path: upvoteCount, type: int64, nullable: true }
-      discussion_id: { path: parent.discussion_id, type: string }
-      discussion_number: { path: parent.discussion_number, type: int64 }
-      discussion_comment_id: { path: parent.discussion_comment_id, type: string }
-      is_answer: { path: isAnswer, type: bool, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
-    capture: {  }
+      upvote_count: {path: upvoteCount, type: int64, nullable: true}
+      discussion_id: {path: parent.discussion_id, type: string}
+      discussion_number: {path: parent.discussion_number, type: int64}
+      discussion_comment_id: {path: parent.discussion_comment_id, type: string}
+      is_answer: {path: isAnswer, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+    capture: {}
     body:
       encoding: json
       template:
         query: 'query DiscussionReplies($id: ID!, $after: String) { node(id: $id) { ... on DiscussionComment { replies(first: 100, after: $after) { nodes { id body createdAt updatedAt url isAnswer upvoteCount author { login url avatarUrl } } pageInfo { hasNextPage endCursor } } } } }'
-        variables: { id: '{{ parent.discussion_comment_id }}' }
+        variables: {id: '{{ parent.discussion_comment_id }}'}
     response:
       records: $.data.node.replies.nodes
-      error: { path: errors, when_present: true, message_path: errors.0.message }
+      error: {path: errors, when_present: true, message_path: errors.0.message}
       pagination:
         cursor:
           response: data.node.replies.pageInfo.endCursor
@@ -1150,8 +1150,8 @@ resources:
     primary_key: [pull_request_id, filename]
     use_fields: [repository_scope]
     fields:
-      pull_request_id: { path: parent.pull_request_id, type: int64 }
-      pull_number: { path: parent.pull_number, type: int64 }
+      pull_request_id: {path: parent.pull_request_id, type: int64}
+      pull_number: {path: parent.pull_number, type: int64}
       filename: string
       sha: string?
       status: string?
@@ -1162,7 +1162,7 @@ resources:
       previous_filename: string?
       blob_url: string?
       raw_url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: repository_events
     path: /repos/{organization}/{repository}/events
     params:
@@ -1178,7 +1178,7 @@ resources:
       payload: json?
       public: bool?
       created_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: commit_activity
     path: /repos/{organization}/{repository}/stats/commit_activity
     params:
@@ -1194,7 +1194,7 @@ resources:
     use_fields: [repository_scope]
     fields:
       statistics: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: code_frequency
     path: /repos/{organization}/{repository}/stats/code_frequency
     params:
@@ -1210,7 +1210,7 @@ resources:
     use_fields: [repository_scope]
     fields:
       statistics: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: contributor_statistics
     path: /repos/{organization}/{repository}/stats/contributors
     params:
@@ -1226,7 +1226,7 @@ resources:
     use_fields: [repository_scope]
     fields:
       statistics: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: participation
     path: /repos/{organization}/{repository}/stats/participation
     params:
@@ -1242,7 +1242,7 @@ resources:
     use_fields: [repository_scope]
     fields:
       statistics: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: punch_card
     path: /repos/{organization}/{repository}/stats/punch_card
     params:
@@ -1258,14 +1258,14 @@ resources:
     use_fields: [repository_scope]
     fields:
       statistics: json
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: anonymous_contributors
     path: /repos/{organization}/{repository}/contributors
     params:
       organization: config.organization
       repository: parent.repository
     for_each: repositories
-    query: { anon: 'true' }
+    query: {anon: 'true'}
     records: '#(type=="Anonymous")#'
     primary_key: [repository_id, email]
     use_fields: [repository_scope]
@@ -1274,7 +1274,7 @@ resources:
       name: string?
       contributions: int64
       type: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   # Timeline event types do not share a stable key; use full replacement.
   - name: issue_timeline
     path: /repos/{organization}/{repository}/issues/{issue_number}/timeline
@@ -1286,8 +1286,8 @@ resources:
     primary_key: []
     use_fields: [repository_scope]
     fields:
-      issue_id: { path: parent.issue_id, type: int64 }
-      issue_number: { path: parent.issue_number, type: int64 }
+      issue_id: {path: parent.issue_id, type: int64}
+      issue_number: {path: parent.issue_number, type: int64}
       id: int64?
       node_id: string?
       event: string?
@@ -1299,7 +1299,7 @@ resources:
       source: json?
       comments: json?
       body: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 discovery:
   mode: static
   default_resources:

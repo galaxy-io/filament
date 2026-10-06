@@ -96,7 +96,7 @@ resources:
       shipping: json?
       tax_exempt: string?
       test_clock: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: charges
     path: /v1/charges
@@ -127,7 +127,7 @@ resources:
       statement_descriptor: string?
       status: string?
       transfer_group: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -164,7 +164,7 @@ resources:
       statement_descriptor: string?
       status: string?
       transfer_group: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -191,7 +191,7 @@ resources:
       # incremental caveat in the docs page.
       status: string?
       transfer_reversal: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -214,7 +214,7 @@ resources:
       payment_intent: string?
       reason: string?
       status: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -243,7 +243,7 @@ resources:
       source: string?
       status: string?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -274,7 +274,7 @@ resources:
       statement_descriptor: string?
       status: string?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -330,7 +330,7 @@ resources:
       total: int64?
       total_excluding_tax: int64?
       webhooks_delivered_at: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       invoice: id
     incremental:
@@ -352,7 +352,7 @@ resources:
     # Line items carry no creation timestamp of their own.
     exclude_fields: [created]
     fields:
-      invoice_id: { path: parent.invoice, type: string }
+      invoice_id: {path: parent.invoice, type: string}
       amount: int64?
       currency: string?
       description: string?
@@ -365,7 +365,7 @@ resources:
       quantity: int64?
       taxes: json?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: credit_notes
     path: /v1/credit_notes
@@ -395,7 +395,7 @@ resources:
       total_excluding_tax: int64?
       type: string?
       voided_at: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -439,7 +439,7 @@ resources:
       test_clock: string?
       trial_end: int64?
       trial_start: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     capture:
       subscription: id
 
@@ -463,7 +463,7 @@ resources:
       price: json?
       quantity: int64?
       tax_rates: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: products
     # `updated` is the only update timestamp Stripe exposes on any object. It
@@ -486,7 +486,7 @@ resources:
       unit_label: string?
       updated: int64?
       url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: prices
     path: /v1/prices
@@ -509,7 +509,7 @@ resources:
       # Stripe sends the decimal variants as strings to preserve precision
       # beyond the integer minor-unit amount.
       unit_amount_decimal: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: coupons
     path: /v1/coupons
@@ -526,7 +526,7 @@ resources:
       redeem_by: int64?
       times_redeemed: int64?
       valid: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: promotion_codes
     path: /v1/promotion_codes
@@ -541,7 +541,7 @@ resources:
       max_redemptions: int64?
       restrictions: json?
       times_redeemed: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: checkout_sessions
     path: /v1/checkout/sessions
@@ -570,7 +570,7 @@ resources:
       total_details: json?
       ui_mode: string?
       url: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]
@@ -596,7 +596,7 @@ resources:
       single_use_mandate: string?
       status: string?
       usage: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: payment_methods
     # Lists account-wide; customer and type are both optional filters. This is
@@ -611,7 +611,7 @@ resources:
       card: json?
       customer: string?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: tax_rates
     path: /v1/tax_rates
@@ -628,7 +628,7 @@ resources:
       percentage: float64?
       state: string?
       tax_type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: events
     # The account audit feed, and the only genuinely immutable resource here.
@@ -647,7 +647,7 @@ resources:
       pending_webhooks: int64?
       request: json?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: created
       start_param: created[gte]

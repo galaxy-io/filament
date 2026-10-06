@@ -117,14 +117,14 @@ defaults:
 field_sets:
   record:
     id: string
-    owner: { path: Owner, type: json, nullable: true }
-    created_time: { path: Created_Time, type: timestamptz, nullable: true }
-    modified_time: { path: Modified_Time, type: timestamptz, nullable: true }
+    owner: {path: Owner, type: json, nullable: true}
+    created_time: {path: Created_Time, type: timestamptz, nullable: true}
+    modified_time: {path: Modified_Time, type: timestamptz, nullable: true}
   incremental_record:
     id: string
-    owner: { path: Owner, type: json, nullable: true }
-    created_time: { path: Created_Time, type: timestamptz, nullable: true }
-    modified_time: { path: Modified_Time, type: timestamptz }
+    owner: {path: Owner, type: json, nullable: true}
+    created_time: {path: Created_Time, type: timestamptz, nullable: true}
+    modified_time: {path: Modified_Time, type: timestamptz}
   field_definition:
     id: string
     api_name: string?
@@ -133,7 +133,7 @@ field_sets:
     custom_field: bool?
     pick_list_values: json?
     lookup: json?
-    raw: { path: $, type: json, mode: remainder }
+    raw: {path: $, type: json, mode: remainder}
 connection:
   base_url: "{{ config.host }}"
   auth:
@@ -167,18 +167,18 @@ connection:
               client_secret: config.client_secret
               refresh_token: config.refresh_token
               header_prefix: Zoho-oauthtoken
-  headers: { Accept: application/json }
+  headers: {Accept: application/json}
   timeout_seconds: 60
 resources:
   # Probe users rather than requiring access to a particular CRM module.
   - name: users
     path: /crm/v8/users
-    capture: { user_id: id }
-    query: { type: AllUsers }
+    capture: {user_id: id}
+    query: {type: AllUsers}
     response:
       records: $.users
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
@@ -188,24 +188,24 @@ resources:
       role: json?
       profile: json?
       created_time: timestamptz?
-      modified_time: { path: Modified_Time, type: timestamptz, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      modified_time: {path: Modified_Time, type: timestamptz, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   # Incremental core reads scan IDs/timestamps, then hydrate only changed records.
   # Detail requests retain custom fields and use the same modified-since floor.
   - name: leads_index
     path: /crm/v8/Leads
-    query: { fields: "id,Modified_Time", per_page: "200", converted: both }
+    query: {fields: "id,Modified_Time", per_page: "200", converted: both}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: leads
     path: /crm/v8/Leads/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: leads_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -213,35 +213,35 @@ resources:
       comparator: time
       checkpoint_key: leads_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      first_name: { path: First_Name, type: string, nullable: true }
-      last_name: { path: Last_Name, type: string, nullable: true }
-      company: { path: Company, type: string, nullable: true }
-      email: { path: Email, type: string, nullable: true }
-      phone: { path: Phone, type: string, nullable: true }
-      lead_status: { path: Lead_Status, type: string, nullable: true }
-      lead_source: { path: Lead_Source, type: string, nullable: true }
-      converted: { path: Converted__s, type: bool, nullable: true }
-      converted_date_time: { path: Converted_Date_Time, type: timestamptz, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      first_name: {path: First_Name, type: string, nullable: true}
+      last_name: {path: Last_Name, type: string, nullable: true}
+      company: {path: Company, type: string, nullable: true}
+      email: {path: Email, type: string, nullable: true}
+      phone: {path: Phone, type: string, nullable: true}
+      lead_status: {path: Lead_Status, type: string, nullable: true}
+      lead_source: {path: Lead_Source, type: string, nullable: true}
+      converted: {path: Converted__s, type: bool, nullable: true}
+      converted_date_time: {path: Converted_Date_Time, type: timestamptz, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: accounts_index
     path: /crm/v8/Accounts
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: accounts
     path: /crm/v8/Accounts/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: accounts_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -249,31 +249,31 @@ resources:
       comparator: time
       checkpoint_key: accounts_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      account_name: { path: Account_Name, type: string, nullable: true }
-      website: { path: Website, type: string, nullable: true }
-      phone: { path: Phone, type: string, nullable: true }
-      industry: { path: Industry, type: string, nullable: true }
-      parent_account: { path: Parent_Account, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      account_name: {path: Account_Name, type: string, nullable: true}
+      website: {path: Website, type: string, nullable: true}
+      phone: {path: Phone, type: string, nullable: true}
+      industry: {path: Industry, type: string, nullable: true}
+      parent_account: {path: Parent_Account, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: contacts_index
     path: /crm/v8/Contacts
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: contacts
     path: /crm/v8/Contacts/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: contacts_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -281,31 +281,31 @@ resources:
       comparator: time
       checkpoint_key: contacts_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      first_name: { path: First_Name, type: string, nullable: true }
-      last_name: { path: Last_Name, type: string, nullable: true }
-      email: { path: Email, type: string, nullable: true }
-      phone: { path: Phone, type: string, nullable: true }
-      account: { path: Account_Name, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      first_name: {path: First_Name, type: string, nullable: true}
+      last_name: {path: Last_Name, type: string, nullable: true}
+      email: {path: Email, type: string, nullable: true}
+      phone: {path: Phone, type: string, nullable: true}
+      account: {path: Account_Name, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: deals_index
     path: /crm/v8/Deals
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: deals
     path: /crm/v8/Deals/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: deals_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -313,34 +313,34 @@ resources:
       comparator: time
       checkpoint_key: deals_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      deal_name: { path: Deal_Name, type: string, nullable: true }
-      account: { path: Account_Name, type: json, nullable: true }
-      contact: { path: Contact_Name, type: json, nullable: true }
-      stage: { path: Stage, type: string, nullable: true }
-      amount: { path: Amount, type: float64, nullable: true }
-      closing_date: { path: Closing_Date, type: date, nullable: true }
-      probability: { path: Probability, type: float64, nullable: true }
-      type: { path: Type, type: string, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      deal_name: {path: Deal_Name, type: string, nullable: true}
+      account: {path: Account_Name, type: json, nullable: true}
+      contact: {path: Contact_Name, type: json, nullable: true}
+      stage: {path: Stage, type: string, nullable: true}
+      amount: {path: Amount, type: float64, nullable: true}
+      closing_date: {path: Closing_Date, type: date, nullable: true}
+      probability: {path: Probability, type: float64, nullable: true}
+      type: {path: Type, type: string, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: tasks_index
     path: /crm/v8/Tasks
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: tasks
     path: /crm/v8/Tasks/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: tasks_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -348,32 +348,32 @@ resources:
       comparator: time
       checkpoint_key: tasks_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      subject: { path: Subject, type: string, nullable: true }
-      status: { path: Status, type: string, nullable: true }
-      priority: { path: Priority, type: string, nullable: true }
-      due_date: { path: Due_Date, type: date, nullable: true }
-      who: { path: Who_Id, type: json, nullable: true }
-      what: { path: What_Id, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      subject: {path: Subject, type: string, nullable: true}
+      status: {path: Status, type: string, nullable: true}
+      priority: {path: Priority, type: string, nullable: true}
+      due_date: {path: Due_Date, type: date, nullable: true}
+      who: {path: Who_Id, type: json, nullable: true}
+      what: {path: What_Id, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: events_index
     path: /crm/v8/Events
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: events
     path: /crm/v8/Events/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: events_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -381,32 +381,32 @@ resources:
       comparator: time
       checkpoint_key: events_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      title: { path: Event_Title, type: string, nullable: true }
-      start_time: { path: Start_DateTime, type: timestamptz, nullable: true }
-      end_time: { path: End_DateTime, type: timestamptz, nullable: true }
-      who: { path: Who_Id, type: json, nullable: true }
-      what: { path: What_Id, type: json, nullable: true }
-      cancelled: { path: $event_cancelled, type: bool, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      title: {path: Event_Title, type: string, nullable: true}
+      start_time: {path: Start_DateTime, type: timestamptz, nullable: true}
+      end_time: {path: End_DateTime, type: timestamptz, nullable: true}
+      who: {path: Who_Id, type: json, nullable: true}
+      what: {path: What_Id, type: json, nullable: true}
+      cancelled: {path: $event_cancelled, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: calls_index
     path: /crm/v8/Calls
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: calls
     path: /crm/v8/Calls/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: calls_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -414,32 +414,32 @@ resources:
       comparator: time
       checkpoint_key: calls_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      subject: { path: Subject, type: string, nullable: true }
-      call_type: { path: Call_Type, type: string, nullable: true }
-      start_time: { path: Call_Start_Time, type: timestamptz, nullable: true }
-      duration: { path: Call_Duration, type: string, nullable: true }
-      who: { path: Who_Id, type: json, nullable: true }
-      what: { path: What_Id, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      subject: {path: Subject, type: string, nullable: true}
+      call_type: {path: Call_Type, type: string, nullable: true}
+      start_time: {path: Call_Start_Time, type: timestamptz, nullable: true}
+      duration: {path: Call_Duration, type: string, nullable: true}
+      who: {path: Who_Id, type: json, nullable: true}
+      what: {path: What_Id, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaigns_index
     path: /crm/v8/Campaigns
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: campaigns
     path: /crm/v8/Campaigns/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: campaigns_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -447,31 +447,31 @@ resources:
       comparator: time
       checkpoint_key: campaigns_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      campaign_name: { path: Campaign_Name, type: string, nullable: true }
-      type: { path: Type, type: string, nullable: true }
-      status: { path: Status, type: string, nullable: true }
-      start_date: { path: Start_Date, type: date, nullable: true }
-      end_date: { path: End_Date, type: date, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      campaign_name: {path: Campaign_Name, type: string, nullable: true}
+      type: {path: Type, type: string, nullable: true}
+      status: {path: Status, type: string, nullable: true}
+      start_date: {path: Start_Date, type: date, nullable: true}
+      end_date: {path: End_Date, type: date, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: products_index
     path: /crm/v8/Products
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: products
     path: /crm/v8/Products/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: products_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -479,30 +479,30 @@ resources:
       comparator: time
       checkpoint_key: products_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      product_name: { path: Product_Name, type: string, nullable: true }
-      product_code: { path: Product_Code, type: string, nullable: true }
-      unit_price: { path: Unit_Price, type: float64, nullable: true }
-      active: { path: Product_Active, type: bool, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      product_name: {path: Product_Name, type: string, nullable: true}
+      product_code: {path: Product_Code, type: string, nullable: true}
+      unit_price: {path: Unit_Price, type: float64, nullable: true}
+      active: {path: Product_Active, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: cases_index
     path: /crm/v8/Cases
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: cases
     path: /crm/v8/Cases/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: cases_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -510,31 +510,31 @@ resources:
       comparator: time
       checkpoint_key: cases_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      subject: { path: Subject, type: string, nullable: true }
-      status: { path: Status, type: string, nullable: true }
-      priority: { path: Priority, type: string, nullable: true }
-      account: { path: Account_Name, type: json, nullable: true }
-      contact: { path: Related_To, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      subject: {path: Subject, type: string, nullable: true}
+      status: {path: Status, type: string, nullable: true}
+      priority: {path: Priority, type: string, nullable: true}
+      account: {path: Account_Name, type: json, nullable: true}
+      contact: {path: Related_To, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: solutions_index
     path: /crm/v8/Solutions
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: solutions
     path: /crm/v8/Solutions/{record_id}
-    params: { record_id: parent.record_id }
+    params: {record_id: parent.record_id}
     for_each: solutions_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -542,34 +542,34 @@ resources:
       comparator: time
       checkpoint_key: solutions_modified_time
       overlap_seconds: 60
-    response: { records: $.data, pagination: none }
-    capture: { record_id: id }
+    response: {records: $.data, pagination: none}
+    capture: {record_id: id}
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      title: { path: Solution_Title, type: string, nullable: true }
-      status: { path: Status, type: string, nullable: true }
-      question: { path: Question, type: string, nullable: true }
-      answer: { path: Answer, type: string, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      title: {path: Solution_Title, type: string, nullable: true}
+      status: {path: Status, type: string, nullable: true}
+      question: {path: Question, type: string, nullable: true}
+      answer: {path: Answer, type: string, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: notes
     path: /crm/v8/Notes
     query:
       fields: Owner,Created_Time,Modified_Time,Created_By,Modified_By,Note_Title,Note_Content,Parent_Id
     pagination:
-      page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+      page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     use_fields: [record]
     fields:
-      title: { path: Note_Title, type: string, nullable: true }
-      content: { path: Note_Content, type: string, nullable: true }
-      parent: { path: Parent_Id, type: json, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      title: {path: Note_Title, type: string, nullable: true}
+      content: {path: Note_Content, type: string, nullable: true}
+      parent: {path: Parent_Id, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: modules
     path: /crm/v8/settings/modules
-    response: { records: $.modules, pagination: none }
+    response: {records: $.modules, pagination: none}
     primary_key: [id]
     fields:
       id: string
@@ -578,12 +578,12 @@ resources:
       plural_label: string?
       api_supported: bool?
       profiles: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: organization
     path: /crm/v8/org
-    capture: { org_id: id }
-    response: { records: $.org, pagination: none }
+    capture: {org_id: id}
+    response: {records: $.org, pagination: none}
     primary_key: [id]
     fields:
       id: string
@@ -591,11 +591,11 @@ resources:
       iso_code: string?
       currency: string?
       time_zone: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: roles
     path: /crm/v8/settings/roles
-    response: { records: $.roles, pagination: none }
+    response: {records: $.roles, pagination: none}
     primary_key: [id]
     fields:
       id: string
@@ -603,12 +603,12 @@ resources:
       display_label: string?
       reporting_to: json?
       share_with_peers: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: profiles
     path: /crm/v8/settings/profiles
-    capture: { profile_id: id }
-    response: { records: $.profiles, pagination: none }
+    capture: {profile_id: id}
+    response: {records: $.profiles, pagination: none}
     primary_key: [id]
     fields:
       id: string
@@ -616,11 +616,11 @@ resources:
       display_label: string?
       description: string?
       type: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: currencies
     path: /crm/v8/org/currencies
-    response: { records: $.currencies, pagination: none }
+    response: {records: $.currencies, pagination: none}
     primary_key: [id]
     fields:
       id: string
@@ -631,75 +631,75 @@ resources:
       is_active: bool?
       is_base: bool?
       format: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lead_fields
     path: /crm/v8/settings/fields
-    query: { module: Leads }
-    response: { records: $.fields, pagination: none }
+    query: {module: Leads}
+    response: {records: $.fields, pagination: none}
     primary_key: [id]
     use_fields: [field_definition]
 
   - name: account_fields
     path: /crm/v8/settings/fields
-    query: { module: Accounts }
-    response: { records: $.fields, pagination: none }
+    query: {module: Accounts}
+    response: {records: $.fields, pagination: none}
     primary_key: [id]
     use_fields: [field_definition]
 
   - name: contact_fields
     path: /crm/v8/settings/fields
-    query: { module: Contacts }
-    response: { records: $.fields, pagination: none }
+    query: {module: Contacts}
+    response: {records: $.fields, pagination: none}
     primary_key: [id]
     use_fields: [field_definition]
 
   - name: deal_fields
     path: /crm/v8/settings/fields
-    query: { module: Deals }
-    response: { records: $.fields, pagination: none }
+    query: {module: Deals}
+    response: {records: $.fields, pagination: none}
     primary_key: [id]
     use_fields: [field_definition]
 
   - name: deal_layouts
     path: /crm/v8/settings/layouts
-    query: { module: Deals }
-    response: { records: $.layouts, pagination: none }
-    capture: { layout_id: id }
+    query: {module: Deals}
+    response: {records: $.layouts, pagination: none}
+    capture: {layout_id: id}
     primary_key: [id]
     fields:
       id: string
       name: string?
       status: string?
       sections: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: pipelines
     path: /crm/v8/settings/pipeline
     for_each: deal_layouts
-    query: { layout_id: "{{ parent.layout_id }}" }
-    response: { records: $.pipeline, pagination: none }
+    query: {layout_id: "{{ parent.layout_id }}"}
+    response: {records: $.pipeline, pagination: none}
     primary_key: [layout_id, id]
     fields:
-      layout_id: { path: parent.layout_id, type: string }
+      layout_id: {path: parent.layout_id, type: string}
       id: string
       display_value: string?
       actual_value: string?
       default: bool?
       maps: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
   - name: vendors_index
     path: /crm/v8/Vendors
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: vendors
     path: /crm/v8/Vendors/{record_id}
     for_each: vendors_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -715,20 +715,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: price_books_index
     path: /crm/v8/Price_Books
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: price_books
     path: /crm/v8/Price_Books/{record_id}
     for_each: price_books_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -744,20 +744,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: quotes_index
     path: /crm/v8/Quotes
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: quotes
     path: /crm/v8/Quotes/{record_id}
     for_each: quotes_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -773,20 +773,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: sales_orders_index
     path: /crm/v8/Sales_Orders
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: sales_orders
     path: /crm/v8/Sales_Orders/{record_id}
     for_each: sales_orders_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -802,20 +802,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: purchase_orders_index
     path: /crm/v8/Purchase_Orders
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: purchase_orders
     path: /crm/v8/Purchase_Orders/{record_id}
     for_each: purchase_orders_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -831,20 +831,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: invoices_index
     path: /crm/v8/Invoices
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: invoices
     path: /crm/v8/Invoices/{record_id}
     for_each: invoices_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -860,20 +860,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: services_index
     path: /crm/v8/Services__s
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: services
     path: /crm/v8/Services__s/{record_id}
     for_each: services_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -889,20 +889,20 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: appointments_index
     path: /crm/v8/Appointments__s
-    query: { fields: "id,Modified_Time", per_page: "200" }
+    query: {fields: "id,Modified_Time", per_page: "200"}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: appointments
     path: /crm/v8/Appointments__s/{record_id}
     for_each: appointments_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -918,21 +918,21 @@ resources:
     primary_key: [id]
     use_fields: [incremental_record]
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_record_index
     path: /crm/v8/{module}
-    params: { module: config.module_api_name }
-    query: { fields: "id,Modified_Time", per_page: "200", converted: both }
+    params: {module: config.module_api_name}
+    query: {fields: "id,Modified_Time", per_page: "200", converted: both}
     capture_only: true
-    capture: { record_id: id, modified_time: Modified_Time }
+    capture: {record_id: id, modified_time: Modified_Time}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: module_records
     path: /crm/v8/{module}/{record_id}
     for_each: module_record_index
-    parent: { since: modified_time }
+    parent: {since: modified_time}
     incremental:
       cursor_field: modified_time
       start_param: If-Modified-Since
@@ -949,8 +949,8 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      modified_time: { path: Modified_Time, type: timestamptz }
-      raw: { path: $, type: json, mode: remainder }
+      modified_time: {path: Modified_Time, type: timestamptz}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_fields
     path: /crm/v8/settings/fields
@@ -962,7 +962,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_layouts
     path: /crm/v8/settings/layouts
@@ -976,7 +976,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_related_lists
     path: /crm/v8/settings/related_lists
@@ -988,24 +988,24 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_custom_views
     path: /crm/v8/settings/custom_views
     query:
       module: '{{ config.module_api_name }}'
-    capture: { view_id: id }
+    capture: {view_id: id}
     response:
       records: $.custom_views
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_tags
-    capture: { tag_id: id }
+    capture: {tag_id: id}
     path: /crm/v8/settings/tags
     query:
       module: '{{ config.module_api_name }}'
@@ -1015,7 +1015,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_record_locking
     path: /crm/v8/settings/record_locking_configurations
@@ -1027,7 +1027,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_metadata
     path: /crm/v8/settings/modules/{module}
@@ -1039,7 +1039,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_deleted_records
     path: /crm/v8/{module}/deleted
@@ -1050,11 +1050,11 @@ resources:
     response:
       records: $.data
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_attachments
     path: /crm/v8/{module}/{record_id}/Attachments
@@ -1067,12 +1067,12 @@ resources:
     response:
       records: $.data
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [record_id, id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_rich_text
     path: /crm/v8/{module}/{record_id}/actions/fetch_full_data
@@ -1086,7 +1086,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_email_drafts
     path: /crm/v8/{module}/{record_id}/__email_drafts
@@ -1099,9 +1099,9 @@ resources:
       pagination: none
     primary_key: [record_id, id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_record_sharing
     path: /crm/v8/{module}/{record_id}/actions/share
@@ -1114,8 +1114,8 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      record_id: { path: parent.record_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      record_id: {path: parent.record_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_entity_scores
     path: /crm/v8/{module}/{record_id}/Entity_Scores__s
@@ -1129,12 +1129,12 @@ resources:
     response:
       records: $.data
       pagination:
-        cursor: { response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true }
+        cursor: {response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true}
     primary_key: [record_id, id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_related_records
     path: /crm/v8/{module}/{record_id}/{related_list}
@@ -1150,12 +1150,12 @@ resources:
     response:
       records: $.data
       pagination:
-        cursor: { response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true }
+        cursor: {response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true}
     primary_key: [record_id, id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: contact_roles
     path: /crm/v8/Contacts/roles
@@ -1167,7 +1167,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: territories
     path: /crm/v8/settings/territories
@@ -1176,11 +1176,11 @@ resources:
     response:
       records: $.territories
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: user_groups
     path: /crm/v8/settings/user_groups
@@ -1189,11 +1189,11 @@ resources:
     response:
       records: $.user_groups
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: user_unavailability
     path: /crm/v8/settings/users_unavailability
@@ -1202,11 +1202,11 @@ resources:
     response:
       records: $.users_unavailability
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: variables
     path: /crm/v8/settings/variables
@@ -1218,7 +1218,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: variable_groups
     path: /crm/v8/settings/variable_groups
@@ -1230,7 +1230,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: global_picklists
     path: /crm/v8/settings/global_picklists
@@ -1244,7 +1244,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: wizards
     path: /crm/v8/settings/wizards
@@ -1256,7 +1256,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: unsubscribe_links
     path: /crm/v8/settings/unsubscribe_links
@@ -1268,7 +1268,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: assignment_rules
     path: /crm/v8/settings/automation/assignment_rules
@@ -1281,7 +1281,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: assignment_thresholds
     path: /crm/v8/settings/automation/assignment_thresholds
@@ -1296,7 +1296,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: cadences
     path: /crm/v8/settings/automation/cadences
@@ -1305,11 +1305,11 @@ resources:
     response:
       records: $.cadences
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: scoring_rules
     path: /crm/v8/settings/automation/scoring_rules
@@ -1318,11 +1318,11 @@ resources:
     response:
       records: $.scoring_rules
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 50 }
+        page: {number: query.page, size: query.per_page, page_size: 50}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workflow_rules
     path: /crm/v8/settings/automation/workflow_rules
@@ -1331,11 +1331,11 @@ resources:
     response:
       records: $.workflow_rules
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: connected_workflows
     path: /crm/v8/settings/connected_workflows
@@ -1347,7 +1347,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: field_updates
     path: /crm/v8/settings/automation/field_updates
@@ -1356,11 +1356,11 @@ resources:
     response:
       records: $.field_updates
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: email_notifications
     path: /crm/v8/settings/automation/email_notifications
@@ -1369,11 +1369,11 @@ resources:
     response:
       records: $.email_notifications
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automation_tasks
     path: /crm/v8/settings/automation/tasks
@@ -1382,11 +1382,11 @@ resources:
     response:
       records: $.tasks
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200 }
+        page: {number: query.page, size: query.per_page, page_size: 200}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhooks
     path: /crm/v8/settings/automation/webhooks
@@ -1395,11 +1395,11 @@ resources:
     response:
       records: $.webhooks
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_failures
     path: /crm/v8/settings/automation/webhook_failures
@@ -1408,11 +1408,11 @@ resources:
     response:
       records: $.webhook_failures
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: inventory_templates
     path: /crm/v8/settings/inventory_templates
@@ -1421,11 +1421,11 @@ resources:
     response:
       records: $.inventory_templates
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: audit_log_exports
     path: /crm/v8/settings/audit_log_export
@@ -1437,7 +1437,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: recycle_bin
     path: /crm/v8/settings/recycle_bin
@@ -1446,11 +1446,11 @@ resources:
     response:
       records: $.recycle_bin
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: enrichment_configuration
     path: /crm/v8/settings/zia/data_enrichment
@@ -1462,7 +1462,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: organization_enrichment
     path: /crm/v8/__zia_org_enrichment
@@ -1471,11 +1471,11 @@ resources:
     response:
       records: $.__zia_org_enrichment
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 100, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 100, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: call_preferences
     path: /crm/v8/settings/call_preferences
@@ -1485,7 +1485,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: service_preferences
     path: /crm/v8/settings/service_preferences
@@ -1495,7 +1495,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: appointment_preferences
     path: /crm/v8/settings/appointment_preferences
@@ -1507,7 +1507,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: duplicate_check_preference
     path: /crm/v8/settings/duplicate_check_preference
@@ -1519,7 +1519,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workflow_limits
     path: /crm/v8/settings/automation/workflow_rules/actions/rules_count
@@ -1529,7 +1529,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: connected_workflow_configuration
     path: /crm/v8/settings/connected_workflows/actions/configurations
@@ -1539,7 +1539,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: fiscal_year
     path: /crm/v8/settings/fiscal_year
@@ -1550,7 +1550,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: from_addresses
     path: /crm/v8/settings/emails/actions/from_addresses
@@ -1559,7 +1559,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: data_sharing
     path: /crm/v8/settings/data_sharing
@@ -1569,7 +1569,7 @@ resources:
     primary_key: []
     fields:
       module: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: profile_details
     path: /crm/v8/settings/profiles/{parent_id}
@@ -1581,9 +1581,9 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.profile_id, type: string }
+      parent_id: {path: parent.profile_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: territory_users
     path: /crm/v8/settings/territories/{parent_id}/users
@@ -1593,12 +1593,12 @@ resources:
     response:
       records: $.users
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.territories_id, type: string }
+      parent_id: {path: parent.territories_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: user_territories
     path: /crm/v8/users/{parent_id}/territories
@@ -1608,12 +1608,12 @@ resources:
     response:
       records: $.territories
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.user_id, type: string }
+      parent_id: {path: parent.user_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workflow_rule_details
     path: /crm/v8/settings/automation/workflow_rules/{parent_id}
@@ -1625,9 +1625,9 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.workflow_rules_id, type: string }
+      parent_id: {path: parent.workflow_rules_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: connected_workflow_details
     path: /crm/v8/settings/connected_workflows/{parent_id}
@@ -1639,25 +1639,25 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.connected_workflows_id, type: string }
+      parent_id: {path: parent.connected_workflows_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_connected_workflow_rules
     path: /crm/v8/settings/connected_workflows/{parent_id}/rules
     for_each: connected_workflows
     params:
       parent_id: 'parent.connected_workflows_id'
-    query: { module: "{{ config.module_api_name }}" }
-    capture: { workflow_id: parent.connected_workflows_id, rule_id: id }
+    query: {module: "{{ config.module_api_name }}"}
+    capture: {workflow_id: parent.connected_workflows_id, rule_id: id}
     response:
       records: $.rules
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.connected_workflows_id, type: string }
+      parent_id: {path: parent.connected_workflows_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_details
     path: /crm/v8/settings/automation/webhooks/{parent_id}
@@ -1669,9 +1669,9 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.webhooks_id, type: string }
+      parent_id: {path: parent.webhooks_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: email_notification_details
     path: /crm/v8/settings/automation/email_notifications/{parent_id}
@@ -1683,9 +1683,9 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.email_notifications_id, type: string }
+      parent_id: {path: parent.email_notifications_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: inventory_template_details
     path: /crm/v8/settings/inventory_templates/{parent_id}
@@ -1697,9 +1697,9 @@ resources:
       pagination: none
     primary_key: [parent_id, id]
     fields:
-      parent_id: { path: parent.inventory_templates_id, type: string }
+      parent_id: {path: parent.inventory_templates_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: global_picklist_associations
     path: /crm/v8/settings/global_picklists/{parent_id}/actions/associations
@@ -1709,12 +1709,12 @@ resources:
     response:
       records: $.associations
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [parent_id, field_id]
     fields:
-      parent_id: { path: parent.global_picklists_id, type: string }
-      field_id: { path: field.id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      parent_id: {path: parent.global_picklists_id, type: string}
+      field_id: {path: field.id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: user_group_members
     path: /crm/v8/settings/user_groups/{group_id}/sources
@@ -1724,13 +1724,13 @@ resources:
     response:
       records: $.sources
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [group_id, type, source_id]
     fields:
-      group_id: { path: parent.user_groups_id, type: string }
+      group_id: {path: parent.user_groups_id, type: string}
       type: string
-      source_id: { path: source.id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      source_id: {path: source.id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: business_hours
     path: /crm/v8/settings/business_hours
@@ -1744,7 +1744,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: shift_hours
     path: /crm/v8/settings/business_hours/shift_hours
@@ -1757,7 +1757,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: holidays
     path: /crm/v8/settings/holidays
@@ -1767,11 +1767,11 @@ resources:
     response:
       records: $.holidays
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: backup
     path: /crm/bulk/v8/backup
@@ -1782,18 +1782,18 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: backup_history
     path: /crm/bulk/v8/backup/history
     response:
       records: $.history
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_map_dependencies
     path: /crm/v8/settings/layouts/{layout_id}/map_dependency
@@ -1802,15 +1802,15 @@ resources:
       layout_id: 'parent.layout_id'
     query:
       module: '{{ config.module_api_name }}'
-    capture: { layout_id: parent.layout_id, dependency_id: id }
+    capture: {layout_id: parent.layout_id, dependency_id: id}
     response:
       records: $.map_dependency
       pagination: none
     primary_key: [layout_id, id]
     fields:
-      layout_id: { path: parent.layout_id, type: string }
+      layout_id: {path: parent.layout_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: deal_contact_roles
     path: /crm/v8/Deals/{record_id}/Contact_Roles
@@ -1823,12 +1823,12 @@ resources:
     response:
       records: $.data
       pagination:
-        cursor: { response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true }
+        cursor: {response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true}
     primary_key: [deal_id, id]
     fields:
-      deal_id: { path: parent.record_id, type: string }
+      deal_id: {path: parent.record_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: appointments_rescheduled_history
     path: /crm/v8/Appointments_Rescheduled_History__s
@@ -1837,11 +1837,11 @@ resources:
     response:
       records: $.data
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_timeline
     path: /crm/v8/{module}/{record_id}/__timeline
@@ -1855,13 +1855,13 @@ resources:
     response:
       records: $.__timeline
       pagination:
-        cursor: { response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true }
+        cursor: {response: info.next_page_token, request: query.page_token, more: info.more_records, null_terminates: true}
     primary_key: [record_id, id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       id: string
       audited_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_blueprints
     path: /crm/v8/{module}/{record_id}/actions/blueprint
@@ -1875,8 +1875,8 @@ resources:
       pagination: none
     primary_key: [record_id]
     fields:
-      record_id: { path: parent.record_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      record_id: {path: parent.record_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_emails
     path: /crm/v8/{module}/{record_id}/Emails
@@ -1891,14 +1891,14 @@ resources:
     response:
       records: $.Emails
       pagination:
-        cursor: { response: info.next_index, request: query.index, more: info.more_records, null_terminates: true }
+        cursor: {response: info.next_index, request: query.index, more: info.more_records, null_terminates: true}
     primary_key: [record_id, message_id]
     fields:
-      record_id: { path: parent.record_id, type: string }
+      record_id: {path: parent.record_id, type: string}
       message_id: string
       subject: string?
       sent_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_email_details
     path: /crm/v8/{module}/{record_id}/Emails/{message_id}
@@ -1914,11 +1914,11 @@ resources:
       pagination: none
     primary_key: [record_id, message_id]
     fields:
-      record_id: { path: parent.record_id, type: string }
-      message_id: { path: parent.message_id, type: string }
+      record_id: {path: parent.record_id, type: string}
+      message_id: {path: parent.message_id, type: string}
       content: string?
       subject: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_email_sharing
     path: /crm/v8/{module}/{record_id}/__emails_sharing_details
@@ -1931,8 +1931,8 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      record_id: { path: parent.record_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      record_id: {path: parent.record_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_workflow_configuration
     path: /crm/v8/workflow_configurations
@@ -1944,7 +1944,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: email_templates
     path: /crm/v8/settings/email_templates
@@ -1953,11 +1953,11 @@ resources:
     response:
       records: $.email_templates
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: email_template_details
     path: /crm/v8/settings/email_templates/{template_id}
@@ -1970,7 +1970,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: data_sharing_rules
     path: /crm/v8/settings/data_sharing/rules
@@ -1979,11 +1979,11 @@ resources:
     response:
       records: $.sharing_rules
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: data_sharing_rule_details
     path: /crm/v8/settings/data_sharing/rules/{rule_id}
@@ -1996,7 +1996,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: unsubscribe_link_associations
     path: /crm/v8/settings/unsubscribe_link/actions/associations
@@ -2006,7 +2006,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: portals
     path: /crm/v8/settings/portals
@@ -2021,7 +2021,7 @@ resources:
       zaid: string
       name: string?
       active: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: portal_user_types
     path: /crm/v8/settings/portals/{portal_name}/user_type
@@ -2037,9 +2037,9 @@ resources:
       pagination: none
     primary_key: [portal_id, id]
     fields:
-      portal_id: { path: parent.portal_id, type: string }
+      portal_id: {path: parent.portal_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: portal_users
     path: /crm/v8/settings/portals/{portal_name}/user_type/{user_type_id}/users
@@ -2052,13 +2052,13 @@ resources:
     response:
       records: $.users
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [portal_id, user_type_id, personality_id]
     fields:
-      portal_id: { path: parent.portal_id, type: string }
-      user_type_id: { path: parent.user_type_id, type: string }
+      portal_id: {path: parent.portal_id, type: string}
+      user_type_id: {path: parent.user_type_id, type: string}
       personality_id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_threshold_unassigned_users
     path: /crm/v8/settings/automation/assignment_thresholds/actions/unassigned_users
@@ -2068,11 +2068,11 @@ resources:
     response:
       records: $.users
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: threshold_configured_users
     path: /crm/v8/settings/automation/assignment_thresholds/{threshold_id}/restrict_to
@@ -2084,30 +2084,30 @@ resources:
     response:
       records: $.restrict_to
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: []
     fields:
-      threshold_id: { path: parent.assignment_thresholds_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      threshold_id: {path: parent.assignment_thresholds_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: assignment_threshold_modules
     path: /crm/v8/settings/automation/assignment_thresholds/actions/groups
-    query: { group_by: module }
+    query: {group_by: module}
     response:
       records: $.groups
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_picklist_fields
     path: /crm/v8/settings/fields
-    query: { module: "{{ config.module_api_name }}" }
-    response: { records: '$.fields.#(data_type%"*picklist")#', pagination: none }
+    query: {module: "{{ config.module_api_name }}"}
+    response: {records: '$.fields.#(data_type%"*picklist")#', pagination: none}
     capture_only: true
-    capture: { field_id: id }
+    capture: {field_id: id}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: module_picklist_values
     path: /crm/v8/settings/fields/{field_id}/pick_list_values
@@ -2121,9 +2121,9 @@ resources:
       pagination: none
     primary_key: [field_id, id]
     fields:
-      field_id: { path: parent.field_id, type: string }
+      field_id: {path: parent.field_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_map_dependency_details
     path: /crm/v8/settings/layouts/{layout_id}/map_dependency/{dependency_id}
@@ -2138,9 +2138,9 @@ resources:
       pagination: none
     primary_key: [layout_id, id]
     fields:
-      layout_id: { path: parent.layout_id, type: string }
+      layout_id: {path: parent.layout_id, type: string}
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: email_notification_usage
     path: /crm/v8/settings/automation/email_notifications/actions/usage_reports
@@ -2150,10 +2150,10 @@ resources:
     response:
       records: $.data_usage
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_usage
     path: /crm/v8/settings/automation/webhooks/actions/usage_reports
@@ -2163,10 +2163,10 @@ resources:
     response:
       records: $.data_usage
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_associated_modules
     path: /crm/v8/settings/automation/webhooks/actions/associated_modules
@@ -2175,7 +2175,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workflow_usage
     path: /crm/v8/settings/automation/workflow_rules/{workflow_id}/actions/usage
@@ -2191,7 +2191,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: notification_subscriptions
     path: /crm/v8/actions/watch
@@ -2200,10 +2200,10 @@ resources:
     response:
       records: $.watch
       pagination:
-        page: { number: query.page, size: query.per_page, page_size: 200, more: info.more_records }
+        page: {number: query.page, size: query.per_page, page_size: 200, more: info.more_records}
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: backup_download_urls
     path: /crm/bulk/v8/backup/urls
@@ -2213,7 +2213,7 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_connected_workflow_rule_details
     path: /crm/v8/settings/connected_workflows/{workflow_id}/rules/{rule_id}
@@ -2227,7 +2227,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: scoring_rule_details
     path: /crm/v8/settings/automation/scoring_rules/{id}
@@ -2240,7 +2240,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: assignment_rule_details
     path: /crm/v8/settings/automation/assignment_rules/{id}
@@ -2255,7 +2255,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: field_update_details
     path: /crm/v8/settings/automation/field_updates/{id}
@@ -2268,7 +2268,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: automation_task_details
     path: /crm/v8/settings/automation/tasks/{id}
@@ -2281,7 +2281,7 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_custom_view_details
     path: /crm/v8/settings/custom_views/{id}
@@ -2296,28 +2296,28 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: module_blueprint_index
     path: /crm/v8/{module}
-    params: { module: config.module_api_name }
-    query: { fields: 'id,$process_flow', per_page: "200", converted: both }
+    params: {module: config.module_api_name}
+    query: {fields: 'id,$process_flow', per_page: "200", converted: both}
     response:
       records: '$.data.#($process_flow==true)#'
     capture_only: true
-    capture: { record_id: id }
+    capture: {record_id: id}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: global_picklist_options
     path: /crm/v8/settings/global_picklists/{picklist_id}
-    params: { picklist_id: parent.global_picklists_id }
+    params: {picklist_id: parent.global_picklists_id}
     for_each: global_picklists
-    response: { records: $.global_picklists.0.pick_list_values, pagination: none }
+    response: {records: $.global_picklists.0.pick_list_values, pagination: none}
     capture_only: true
-    capture: { picklist_id: parent.global_picklists_id, option_id: id }
+    capture: {picklist_id: parent.global_picklists_id, option_id: id}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: global_picklist_option_associations
     path: /crm/v8/settings/global_picklists/{picklist_id}/actions/pick_list_values_associations
@@ -2331,17 +2331,17 @@ resources:
       pagination: none
     primary_key: []
     fields:
-      picklist_id: { path: parent.picklist_id, type: string }
-      option_id: { path: parent.option_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      picklist_id: {path: parent.picklist_id, type: string}
+      option_id: {path: parent.option_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: unconverted_leads_index
     path: /crm/v8/Leads
-    query: { fields: id, per_page: "200", converted: "false" }
+    query: {fields: id, per_page: "200", converted: "false"}
     capture_only: true
-    capture: { record_id: id }
+    capture: {record_id: id}
     primary_key: [id]
-    fields: { id: string }
+    fields: {id: string}
 
   - name: lead_conversion_options
     path: /crm/v8/Leads/{record_id}/__conversion_options
@@ -2354,18 +2354,18 @@ resources:
       pagination: none
     primary_key: [lead_id]
     fields:
-      lead_id: { path: parent.record_id, type: string }
-      raw: { path: $, type: json, mode: remainder }
+      lead_id: {path: parent.record_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: wizard_layout_details
     path: /crm/v8/settings/wizards/{wizard_id}
-    params: { wizard_id: config.wizard_id }
-    query: { layout_id: "{{ config.wizard_layout_id }}" }
-    response: { records: $.wizards, pagination: none }
+    params: {wizard_id: config.wizard_id}
+    query: {layout_id: "{{ config.wizard_layout_id }}"}
+    response: {records: $.wizards, pagination: none}
     primary_key: [id]
     fields:
       id: string
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   # Optional administrative and relationship reads.
   - name: features

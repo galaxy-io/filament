@@ -23,6 +23,7 @@ jobs:
       ui: ${{ steps.filter.outputs.ui }}
       chart: ${{ steps.filter.outputs.chart }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      manifests: ${{ steps.filter.outputs.manifests }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -43,6 +44,11 @@ jobs:
               - ".github/workflows/lint.yaml"
             migrations:
               - "datastore/*/migrations/**"
+            manifests:
+              - "connectors/http/manifests/**"
+              - "connectors/http/.yamlfmt.yaml"
+              - "justfile"
+              - ".github/workflows/lint.yaml"
 
   go:
     needs: changes
@@ -201,8 +207,25 @@ jobs:
             exit 1
           fi
 
+  manifests:
+    needs: changes
+    if: needs.changes.outputs.manifests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/go.sum"
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Lint HTTP manifests
+        run: just manifest-lint
+
   lint-ok:
-    needs: [changes, go, ui, chart, migrations]
+    needs: [changes, go, ui, chart, migrations, manifests]
     if: always()
     runs-on: ubuntu-latest
     steps:
