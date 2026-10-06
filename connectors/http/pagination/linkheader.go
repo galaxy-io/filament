@@ -40,12 +40,15 @@ func (p *linkHeaderPaginator) Apply(req *http.Request, s State) (map[string]any,
 }
 
 func (p *linkHeaderPaginator) Next(resp *http.Response, _ map[string]any, _ int) (State, error) {
-	link := resp.Header.Get("Link")
-	if link == "" {
-		return State{Done: true}, nil
-	}
-	if next := parseLinkHeader(link, p.rel); next != "" {
-		return State{NextURL: next}, nil
+	// A response may carry the Link relations in several repeated Link fields
+	// instead of one comma-separated field; RFC 5988 section 5 treats both forms
+	// as the same list. Header.Get reads only the first field, so a server that
+	// sent rel="next" in a later one looked like the last page and the walk
+	// stopped after one request.
+	for _, link := range resp.Header.Values("Link") {
+		if next := parseLinkHeader(link, p.rel); next != "" {
+			return State{NextURL: next}, nil
+		}
 	}
 	return State{Done: true}, nil
 }
