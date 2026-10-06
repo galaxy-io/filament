@@ -39,7 +39,7 @@ const CardWrapper = styled.div`
   transition: background-color 100ms ease;
 
   &:hover {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 
   ${CardLinkWrapper}:last-child > & {

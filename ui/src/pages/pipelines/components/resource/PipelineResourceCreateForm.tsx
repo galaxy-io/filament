@@ -1,9 +1,8 @@
 import { useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
-  SelectInputSize,
   SelectInputVariant,
   type SelectOption,
 } from "@galaxy-io/dls/inputs/SelectInput";
@@ -31,6 +30,7 @@ interface PipelineResourceCreateFormProps {
   getError: (state: PipelineResourceCreateState) => string | null;
   onSave: (state: PipelineResourceCreateState) => void;
   onCancel: () => void;
+  variant?: WidgetVariant;
 }
 
 const PipelineResourceCreateForm = ({
@@ -38,6 +38,7 @@ const PipelineResourceCreateForm = ({
   getError,
   onSave,
   onCancel,
+  variant = WidgetVariant.TERTIARY,
 }: PipelineResourceCreateFormProps) => {
   const [state, setState] = useState<PipelineResourceCreateState>({
     resource: "",
@@ -55,7 +56,7 @@ const PipelineResourceCreateForm = ({
 
   return (
     <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
-      <Widget variant={WidgetVariant.TERTIARY} isFlush>
+      <Widget variant={variant} isFlush>
         <Flex
           alignItems={AlignItems.START}
           direction={FlexDirection.COLUMN}
@@ -71,9 +72,8 @@ const PipelineResourceCreateForm = ({
               if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
             }}
             placeholder="orders.>"
-            variant={InputVariant.TERTIARY}
-            size={InputSize.LARGE}
             autoFocus
+            variant={InputVariant.TERTIARY}
             fillWidth
           />
           {sinks.length > 1 && (
@@ -85,7 +85,6 @@ const PipelineResourceCreateForm = ({
                 if (sinkId !== null) setState((prev) => ({ ...prev, sinkId }));
               }}
               variant={SelectInputVariant.TERTIARY}
-              size={SelectInputSize.LARGE}
               fillWidth
             />
           )}
@@ -100,18 +99,8 @@ const PipelineResourceCreateForm = ({
             gap={8}
             fillWidth
           >
-            <Button
-              label="Cancel"
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
-              onClick={onCancel}
-            />
-            <Button
-              label="Add"
-              size={ButtonSize.MEDIUM}
-              onClick={() => onSave(trimmed)}
-              isDisabled={isSaveDisabled}
-            />
+            <Button label="Cancel" variant={ButtonVariant.SECONDARY} onClick={onCancel} />
+            <Button label="Add" onClick={() => onSave(trimmed)} isDisabled={isSaveDisabled} />
           </Flex>
         </Flex>
       </Widget>

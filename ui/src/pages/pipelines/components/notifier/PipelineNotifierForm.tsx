@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { TrashIcon } from "@phosphor-icons/react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -57,7 +57,6 @@ const PipelineNotifierForm = ({
                 label="Delete"
                 icon={TrashIcon}
                 variant={ButtonVariant.SECONDARY}
-                size={ButtonSize.MEDIUM}
                 onClick={onDelete}
                 isDisabled={isSaving}
                 ariaLabel="Delete notifier"
@@ -66,13 +65,11 @@ const PipelineNotifierForm = ({
             <Button
               label="Cancel"
               variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
               onClick={onCancel}
               isDisabled={isSaving}
             />
             <Button
               label="Save"
-              size={ButtonSize.MEDIUM}
               onClick={handleSave}
               isDisabled={!isPipelineNotifierValid(state)}
               isLoading={isSaving}

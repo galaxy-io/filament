@@ -66,7 +66,7 @@ const PipelineSettingsPage = () => {
         >
           <PipelineSettingsPageGeneral />
           <PipelineSettingsPageSchedule />
-          <PipelineSettingsPageNotifications />
+          <PipelineSettingsPageNotifications pipeline={data.pipeline} />
           <PipelineSettingsPageAdvanced />
           <PipelineSettingsPageDanger />
         </Flex>

@@ -1,23 +1,32 @@
 import { create } from "@bufbuild/protobuf";
-import { KeyIcon, LinkBreakIcon, SlidersIcon } from "@phosphor-icons/react";
+import {
+  DotsThreeIcon,
+  KeyIcon,
+  LinkBreakIcon,
+  PencilIcon,
+  SlidersIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
-import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Menu, { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
-import DangerZone from "@/components/DangerZone";
-
+import { Flow } from "@/layouts/app/types";
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
+import { getConnectorVariantName } from "@/pages/connectors/components/create/utils";
 import ConnectionDrawerHeader from "@/pages/connectors/components/drawer/ConnectionDrawerHeader";
 import ConnectionDrawerJsonSection from "@/pages/connectors/components/drawer/ConnectionDrawerJsonSection";
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
@@ -25,6 +34,7 @@ import ConnectionDrawerList from "@/pages/connectors/components/drawer/Connectio
 import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
 
 import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
+import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { useConfirm } from "@/hooks/useConfirm";
 
@@ -42,6 +52,16 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
     options: { enabled: !!connectionId, retry: false },
   });
   const connection = data?.connection;
+
+  const { data: connectorData } = useGetConnectorQuery({
+    input: create(GetConnectorRequestSchema, {
+      connector: connection?.connector ?? "",
+      kind: connection?.kind,
+    }),
+    options: { enabled: !!connection },
+  });
+  const connector = connectorData?.connector;
+  const connectorVariant = connection && getConnectorVariantName(connection.connector);
 
   const { mutate: deleteConnection } = useDeleteConnectionMutation();
 
@@ -63,6 +83,13 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
       });
     },
   });
+
+  const handleEdit = () => {
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, flow: Flow.EDIT_CONNECTION }),
+    });
+  };
 
   const renderContent = () => {
     if (isError) {
@@ -86,6 +113,25 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
           <ConnectionDrawerKeyValueRow
             label="Kind"
             value={<ConnectionKindChip kind={connection.kind} />}
+          />
+          <ConnectionDrawerKeyValueRow
+            label="Connector"
+            value={
+              <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+                {connector?.displayName && (
+                  <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY} lineClamp={1}>
+                    {connector.displayName}
+                  </Text>
+                )}
+                {connectorVariant && (
+                  <Chip
+                    label={connectorVariant}
+                    variant={ChipVariant.SECONDARY}
+                    size={ChipSize.SMALL}
+                  />
+                )}
+              </Flex>
+            }
           />
           <ConnectionDrawerKeyValueRow
             label="Version"
@@ -124,17 +170,34 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      header={connection ? <ConnectionDrawerHeader /> : "Connection"}
-      footer={
+      header={connection ? <ConnectionDrawerHeader connection={connection} /> : "Connection"}
+      actions={
         connection && (
-          <Box fillWidth>
-            <DangerZone
-              title="Delete connection"
-              description="This will permanently delete this connection."
-              onDelete={() => handleOpen(connection)}
+          <Menu
+            trigger={
+              <Button
+                icon={DotsThreeIcon}
+                ariaLabel="Connection actions"
+                variant={ButtonVariant.TERTIARY}
+                size={ButtonSize.SMALL}
+              />
+            }
+          >
+            <MenuItem
+              label="Edit connection"
+              icon={PencilIcon}
+              onSelect={handleEdit}
               isDisabled={!!connection.deletedAt}
             />
-          </Box>
+            <MenuSeparator />
+            <MenuItem
+              label="Delete connection"
+              icon={TrashIcon}
+              variant={MenuItemVariant.ERROR}
+              onSelect={() => handleOpen(connection)}
+              isDisabled={!!connection.deletedAt}
+            />
+          </Menu>
         )
       }
     >

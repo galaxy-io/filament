@@ -28,7 +28,6 @@ import {
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsScheduledChart from "@/pages/observability/components/runs/ObservabilityRunsScheduledChart";
-import ObservabilityRunsSelectionChips from "@/pages/observability/components/runs/ObservabilityRunsSelectionChips";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
@@ -98,7 +97,6 @@ const ObservabilityRunsWidget = () => {
             </Text>,
           ]}
           trailingActions={[
-            <ObservabilityRunsSelectionChips key="selection-chips" />,
             <ToggleInput
               key="view-switcher"
               variant={ToggleInputVariant.PRIMARY}

@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import Button from "@galaxy-io/dls/buttons/Button";
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
@@ -51,12 +51,12 @@ const RowWrapper = styled.div<{ $isDisabled?: boolean }>`
   padding: 6px 8px;
   flex-shrink: 0;
 
-  border-radius: 4px;
+  border-radius: ${t.radius.md};
   cursor: ${({ $isDisabled }) => ($isDisabled ? "default" : "pointer")};
 
   &:hover {
     background-color: ${({ $isDisabled }) =>
-      $isDisabled ? "transparent" : t.color.background.tertiary};
+      $isDisabled ? "transparent" : t.color.background.hovered};
   }
 `;
 
@@ -94,7 +94,6 @@ const CreatePipelineModalConnectionsState = ({
     <Button
       label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
       icon={PlusIcon}
-      size={ButtonSize.SMALL}
       onClick={handleCreateConnection}
     />
   );

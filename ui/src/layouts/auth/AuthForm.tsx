@@ -33,7 +33,7 @@ const ErrorWrapper = styled.div`
 
   background-color: ${t.color.background.error};
   border: 0.5px solid ${t.color.border.error};
-  border-radius: 5px;
+  border-radius: ${t.radius.lg};
 `;
 
 const FooterLink = styled(Link)`

@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 
 import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
-import type { ChartSelectionEvent } from "@galaxy-io/dls/charts/types";
+import type { ChartSelection } from "@galaxy-io/dls/charts/types";
 import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -100,24 +100,29 @@ export const mapTimeseriesToChartGroups = (
       {
         metric: "runs",
         components: series
-          .map((statusSeries) => {
+          .flatMap((statusSeries) => {
             const status = Number(statusSeries.key) as RunStatus;
-            return {
-              key: statusSeries.key,
-              label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-              value: statusSeries.points[bucketIndex].values[0],
-              color: PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status],
-            };
+            const color = PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[status];
+            return color
+              ? [
+                  {
+                    key: statusSeries.key,
+                    label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+                    value: statusSeries.points[bucketIndex].values[0],
+                    color,
+                  },
+                ]
+              : [];
           })
           .sort((a, b) => b.value - a.value),
       },
     ],
   }));
 
-export const mapChartSelectionToRunsFilter = (event: ChartSelectionEvent) => {
-  const status = Number(event.seriesKey);
+export const mapChartSelectionToRunsFilter = (selection: ChartSelection | undefined) => {
+  const status = Number(selection?.seriesKey);
   return {
-    runsBucket: BigInt(event.categoryKey),
+    runsBucket: selection?.categoryKey === undefined ? undefined : BigInt(selection.categoryKey),
     runsStatus: Number.isNaN(status) ? undefined : (status as RunStatus),
   };
 };

@@ -18,13 +18,13 @@ const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
 
   background-color: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: ${t.radius.md};
   cursor: ${({ $isDisabled }) => ($isDisabled ? "not-allowed" : "pointer")};
   opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
 
   &:hover {
     background-color: ${({ $isDisabled }) =>
-      $isDisabled ? "transparent" : t.color.background.tertiary};
+      $isDisabled ? "transparent" : t.color.background.hovered};
   }
 `;
 

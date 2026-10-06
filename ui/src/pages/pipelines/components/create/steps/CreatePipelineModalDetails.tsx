@@ -1,5 +1,4 @@
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaInputSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
@@ -26,7 +25,6 @@ const CreatePipelineModalDetails = () => {
         onChange={(name) =>
           dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name })
         }
-        size={InputSize.LARGE}
         placeholder="Enter pipeline name..."
         label="Name"
         isRequired
@@ -42,7 +40,6 @@ const CreatePipelineModalDetails = () => {
             payload: nextDescription,
           })
         }
-        size={TextAreaInputSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"
         minRows={12}

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { createGetPipelineQueryKey } from "@/api/queries/pipelines";
+import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
 export const useCreatePipelineScheduleMutation = (
@@ -21,6 +21,9 @@ export const useCreatePipelineScheduleMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(),
       });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),
@@ -45,6 +48,9 @@ export const useUpdatePipelineScheduleMutation = (
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(),
       });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(),

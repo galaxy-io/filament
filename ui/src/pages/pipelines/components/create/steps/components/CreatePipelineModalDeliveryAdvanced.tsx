@@ -1,5 +1,5 @@
+import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Widget, { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -33,7 +33,10 @@ const CreatePipelineModalDeliveryAdvanced = () => {
           kind={ConnectorKind.SINK}
         />
       ))}
-      <Widget isCollapsible header="Worker configuration" size={WidgetSize.LARGE}>
+      <Fieldset
+        label="Worker configuration"
+        description="Pod template merged into every run's worker."
+      >
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           error={workerConfigurationError}
@@ -44,7 +47,7 @@ const CreatePipelineModalDeliveryAdvanced = () => {
             })
           }
         />
-      </Widget>
+      </Fieldset>
     </Flex>
   );
 };

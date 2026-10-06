@@ -1,5 +1,4 @@
 import Field from "@galaxy-io/dls/inputs/Field";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -23,7 +22,6 @@ const FieldInt = ({
     >
       <NumberInput
         value={value !== null && value !== undefined ? Number(value) : undefined}
-        size={InputSize.LARGE}
         onChange={(v) => onChange(v)}
         variant={variant}
         placeholder={`Enter ${label}...`}

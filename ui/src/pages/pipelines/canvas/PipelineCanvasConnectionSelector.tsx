@@ -3,7 +3,6 @@ import { useState } from "react";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -33,7 +32,7 @@ const BodyWrapper = styled.div<{ $width: number; $fillHeight?: boolean }>`
   max-height: ${PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT}px;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: ${t.radius.lg};
   overflow: hidden;
 `;
 
@@ -100,7 +99,6 @@ const PipelineCanvasConnectionSelector = ({
           onChange={handleSearchChange}
           placeholder="Search connections..."
           icon={MagnifyingGlassIcon}
-          size={InputSize.LARGE}
           fillWidth
         />
       </SearchWrapper>

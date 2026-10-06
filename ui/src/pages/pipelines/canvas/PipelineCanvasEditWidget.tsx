@@ -28,7 +28,7 @@ const PipelineCanvasEditWidgetContainer = styled.div`
 
   background-color: ${t.color.background.base};
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 200px;
+  border-radius: ${t.radius.pill};
 `;
 
 const PipelineCanvasEditWidget = () => {

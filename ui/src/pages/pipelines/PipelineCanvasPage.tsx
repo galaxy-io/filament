@@ -98,7 +98,7 @@ const PipelineCanvasPageWrapper = styled.div`
     height: 92px;
     background-color: ${t.color.background.base};
     border: 0.5px solid ${t.color.border.primary};
-    border-radius: 6px;
+    border-radius: ${t.radius.lg};
     overflow: hidden;
     display: flex;
     align-items: center;

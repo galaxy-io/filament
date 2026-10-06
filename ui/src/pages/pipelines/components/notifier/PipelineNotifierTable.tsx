@@ -3,14 +3,14 @@ import { useState } from "react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import SwitchInput, { SwitchInputSize } from "@galaxy-io/dls/inputs/SwitchInput";
+import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import Widget, { type WidgetSize } from "@galaxy-io/dls/widget/Widget";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -26,8 +26,7 @@ import type {
 } from "@/pages/pipelines/components/notifier/types";
 
 interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
-  header: string;
-  size?: WidgetSize;
+  header?: string;
   rows: TRow[];
   isLoading?: boolean;
   isSaving?: boolean;
@@ -38,20 +37,17 @@ interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
 }
 
 interface PipelineNotifierTableState {
-  isOpen: boolean;
   isCreating: boolean;
   expandedRowIds: PipelineNotifier["id"][];
 }
 
 const DEFAULT_STATE: PipelineNotifierTableState = {
-  isOpen: false,
   isCreating: false,
   expandedRowIds: [],
 };
 
 const PipelineNotifierTable = <TRow extends PipelineNotifier>({
-  header,
-  size,
+  header = "Notifiers",
   rows,
   isLoading = false,
   isSaving = false,
@@ -62,15 +58,10 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
 }: PipelineNotifierTableProps<TRow>) => {
   const [state, setState] = useState<PipelineNotifierTableState>(DEFAULT_STATE);
 
-  const handleToggle = () => {
-    setState((prev) => ({ ...prev, isOpen: !prev.isOpen }));
-  };
-
   const handleCreatingChange = (isCreating: boolean) => {
     setState((prev) => ({
       ...prev,
       isCreating,
-      isOpen: isCreating || prev.isOpen,
       expandedRowIds: isCreating ? [] : prev.expandedRowIds,
     }));
   };
@@ -96,7 +87,6 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
       width: PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
       cell: ({ row }) => (
         <SwitchInput
-          size={SwitchInputSize.LARGE}
           isChecked={row.isEnabled}
           onChange={(isEnabled) => onToggleEnabled(row, isEnabled)}
           isDisabled={isSaving}
@@ -107,12 +97,8 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
 
   return (
     <Widget
-      isCollapsible
       header={header}
-      size={size}
       isFlush
-      isOpen={state.isOpen}
-      onOpenChange={handleToggle}
       actions={
         <Button
           label="Add notifier"

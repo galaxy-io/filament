@@ -1,9 +1,8 @@
 import Beacon from "@galaxy-io/dls/beacons/Beacon";
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import MultiSelectInput, { MultiSelectInputSize } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
-import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -27,7 +26,7 @@ import {
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
-import { PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP } from "@/pages/pipelines/history/constants";
+import { PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP } from "@/pages/pipelines/history/constants";
 
 import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
 
@@ -37,11 +36,9 @@ const EVENT_OPTIONS: SelectOption[] = getSelectAllOptions(
     ...option,
     leading: (
       <Beacon
-        variant={
-          PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[
-            PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]
-          ]
-        }
+        {...PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[
+          PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]
+        ]}
       />
     ),
   })),
@@ -113,7 +110,6 @@ const PipelineNotifierFields = ({
         value={state.name}
         onChange={handleNameChange}
         placeholder="Notifier name"
-        size={InputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
       />
@@ -123,7 +119,6 @@ const PipelineNotifierFields = ({
         value={String(state.notificationType)}
         onChange={handleTypeChange}
         placeholder="Select type"
-        size={SelectInputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
       />
@@ -135,7 +130,6 @@ const PipelineNotifierFields = ({
         renderValue={(options) => <Text>{formatPipelineNotifierEventsSelection(options)}</Text>}
         pinnedIds={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id]}
         placeholder="Select events"
-        size={MultiSelectInputSize.LARGE}
         isDisabled={isDisabled}
         fillWidth
       />
@@ -146,7 +140,6 @@ const PipelineNotifierFields = ({
           onChange={handleUrlChange}
           error={slackUrlError}
           placeholder={slackUrlPlaceholder}
-          size={InputSize.LARGE}
           isDisabled={isDisabled}
           fillWidth
         />
@@ -158,7 +151,6 @@ const PipelineNotifierFields = ({
             onChange={handleUrlChange}
             error={urlError}
             placeholder="https://example.com/hooks/filament"
-            size={InputSize.LARGE}
             isDisabled={isDisabled}
             fillWidth
           />

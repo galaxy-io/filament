@@ -11,10 +11,10 @@ import type { RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import {
   PIPELINE_EXECUTION_OBSERVED_STATE_PULSING,
-  PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP,
+  PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP,
   PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP,
   PIPELINE_RUN_STATUS_PULSING,
-  PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
+  PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -34,12 +34,12 @@ const PipelineHistoryRunStatus = ({
     observedState !== undefined
       ? {
           label: PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP[observedState],
-          variant: PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP[observedState],
+          beacon: PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP[observedState],
           isPulse: PIPELINE_EXECUTION_OBSERVED_STATE_PULSING.has(observedState),
         }
       : {
           label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-          variant: PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status],
+          beacon: PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[status],
           isPulse: PIPELINE_RUN_STATUS_PULSING.has(status),
         };
   const reason = executionStatus?.reason || error;
@@ -47,8 +47,8 @@ const PipelineHistoryRunStatus = ({
   return (
     <Flex alignItems={AlignItems.CENTER} gap={8}>
       <Beacon
+        {...display.beacon}
         label={display.label}
-        variant={display.variant}
         size={BeaconSize.SMALL}
         isPulse={display.isPulse}
       />

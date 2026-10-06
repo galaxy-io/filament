@@ -23,7 +23,7 @@ import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/run
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
+  PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
@@ -141,7 +141,7 @@ const ObservabilityMetricsWidget = () => {
                   {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
                 </Text>
               )}
-              <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
+              <Beacon {...PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[status]} />
             </Flex>
           }
         />
@@ -159,7 +159,7 @@ const ObservabilityMetricsWidget = () => {
                 {formatCount(BigInt(scheduledData?.runs.length ?? 0))}
               </Text>
             )}
-            <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[RunStatus.SCHEDULED]} />
+            <Beacon {...PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[RunStatus.SCHEDULED]} />
           </Flex>
         }
       />
@@ -188,7 +188,7 @@ const ObservabilityMetricsWidget = () => {
                       fillWidth
                     >
                       <Flex alignItems={AlignItems.CENTER} gap={8}>
-                        <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
+                        <Beacon {...PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP[status]} />
                         <Text size={TextSize.BODY_SM}>
                           {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
                         </Text>

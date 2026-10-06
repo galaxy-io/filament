@@ -35,7 +35,7 @@ const PipelineCanvasPanelSection = ({
     <Widget
       isCollapsible
       header={header}
-      variant={WidgetVariant.TERTIARY}
+      variant={WidgetVariant.SECONDARY}
       isFlush
       defaultIsOpen={isOpenInitial}
       isOpen={isOpen}

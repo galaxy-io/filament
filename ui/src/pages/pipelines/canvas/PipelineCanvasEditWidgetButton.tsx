@@ -19,7 +19,7 @@ const StyledButton = styled.button<{ $isActive: boolean }>`
     background-color: ${({ $isActive }) =>
       $isActive ? t.color.solid.primary.pressed : t.color.solid.primary.background};
     border: none;
-    border-radius: 50%;
+    border-radius: ${t.radius.pill};
     cursor: pointer;
 
     transition: background-color 100ms ease;

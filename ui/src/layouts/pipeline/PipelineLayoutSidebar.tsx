@@ -34,9 +34,9 @@ const SidebarButton = styled.button<{ $isActive?: boolean }>`
   align-items: center;
   justify-content: center;
 
-  background-color: ${({ $isActive }) => ($isActive ? t.color.background.tertiary : "transparent")};
+  background-color: ${({ $isActive }) => ($isActive ? t.color.background.selected : "transparent")};
   border: none;
-  border-radius: 6px;
+  border-radius: ${t.radius.md};
 
   color: ${({ $isActive }) => ($isActive ? t.color.text.primary : t.color.text.secondary)};
 
@@ -47,7 +47,7 @@ const SidebarButton = styled.button<{ $isActive?: boolean }>`
     color 100ms ease;
 
   &:hover {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
     color: ${t.color.text.primary};
   }
 `;

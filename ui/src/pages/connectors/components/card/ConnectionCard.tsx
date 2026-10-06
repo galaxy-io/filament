@@ -23,7 +23,7 @@ const CardWrapper = styled.div`
   background-color: ${t.color.background.primary};
 
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 5px;
+  border-radius: ${t.radius.lg};
 
   cursor: pointer;
 

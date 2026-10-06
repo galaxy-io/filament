@@ -3,7 +3,6 @@ import type { ClipboardEvent } from "react";
 import { styled } from "@linaria/react";
 
 import Field from "@galaxy-io/dls/inputs/Field";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
@@ -47,7 +46,6 @@ const FieldSecret = ({
         <PasswordInput
           value={(value as string) ?? ""}
           onChange={(v) => onChange(v)}
-          size={InputSize.LARGE}
           variant={variant}
           placeholder={placeholder}
           isDisabled={isDisabled}

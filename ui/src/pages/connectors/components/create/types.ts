@@ -8,3 +8,10 @@ export interface CreateConnectionSelectorProps {
   onClose: () => void;
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
+
+export enum CreateConnectionSelectorShelf {
+  ALL = "ALL",
+  STABLE = "STABLE",
+  BETA = "BETA",
+  ALPHA = "ALPHA",
+}

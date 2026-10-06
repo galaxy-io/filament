@@ -55,7 +55,7 @@ const GhostCard = styled.div`
   background-color: ${t.color.background.primary};
 
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 5px;
+  border-radius: ${t.radius.lg};
 `;
 
 const LiveCard = styled.div`
@@ -67,7 +67,7 @@ const LiveCard = styled.div`
   justify-content: center;
 
   border: 1px dashed ${t.color.border.secondary};
-  border-radius: 5px;
+  border-radius: ${t.radius.lg};
 `;
 
 const GhostCardRow = styled.div`
@@ -84,7 +84,7 @@ const GhostChip = styled.div`
 
   background-color: ${t.color.background.secondary};
 
-  border-radius: 4px;
+  border-radius: ${t.radius.sm};
 `;
 
 const ConnectionsPageSinksEmptyGraphic = () => {

@@ -1,5 +1,6 @@
 import { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import { ChartPalette } from "@galaxy-io/dls/charts/types";
+import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -21,16 +22,21 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.SCHEDULED]: "Scheduled",
 };
 
-export const PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP: Record<RunStatus, BeaconVariant> = {
-  [RunStatus.UNSPECIFIED]: BeaconVariant.TERTIARY,
-  [RunStatus.REQUESTED]: BeaconVariant.SECONDARY,
-  [RunStatus.RUNNING]: BeaconVariant.PRIMARY,
-  [RunStatus.COMPLETED]: BeaconVariant.SUCCESS,
-  [RunStatus.FAILED]: BeaconVariant.ERROR,
-  [RunStatus.CANCELED]: BeaconVariant.TERTIARY,
-  [RunStatus.PAUSED]: BeaconVariant.SECONDARY,
-  [RunStatus.PARTIAL]: BeaconVariant.WARNING,
-  [RunStatus.SCHEDULED]: BeaconVariant.TERTIARY,
+export type PipelineRunStatusBeaconColor = { variant: BeaconVariant } | { color: PaletteColor };
+
+export const PIPELINE_RUN_STATUS_TO_BEACON_COLOR_MAP: Record<
+  RunStatus,
+  PipelineRunStatusBeaconColor
+> = {
+  [RunStatus.UNSPECIFIED]: { variant: BeaconVariant.TERTIARY },
+  [RunStatus.REQUESTED]: { color: "orange" },
+  [RunStatus.RUNNING]: { color: "blue" },
+  [RunStatus.COMPLETED]: { variant: BeaconVariant.SUCCESS },
+  [RunStatus.FAILED]: { variant: BeaconVariant.ERROR },
+  [RunStatus.CANCELED]: { variant: BeaconVariant.TERTIARY },
+  [RunStatus.PAUSED]: { color: "teal" },
+  [RunStatus.PARTIAL]: { variant: BeaconVariant.WARNING },
+  [RunStatus.SCHEDULED]: { color: "yellow" },
 };
 
 export const PIPELINE_RUN_STATUS_PULSING = new Set<RunStatus>([
@@ -38,17 +44,18 @@ export const PIPELINE_RUN_STATUS_PULSING = new Set<RunStatus>([
   RunStatus.RUNNING,
 ]);
 
-export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPalette> = {
-  [RunStatus.UNSPECIFIED]: ChartPalette.TERTIARY,
-  [RunStatus.REQUESTED]: ChartPalette.SECONDARY,
-  [RunStatus.RUNNING]: ChartPalette.PRIMARY,
-  [RunStatus.COMPLETED]: ChartPalette.SUCCESS,
-  [RunStatus.FAILED]: ChartPalette.ERROR,
-  [RunStatus.CANCELED]: ChartPalette.TERTIARY,
-  [RunStatus.PAUSED]: ChartPalette.SECONDARY,
-  [RunStatus.PARTIAL]: ChartPalette.WARNING,
-  [RunStatus.SCHEDULED]: ChartPalette.TERTIARY,
-};
+export const PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP: Record<RunStatus, ChartPalette | undefined> =
+  {
+    [RunStatus.UNSPECIFIED]: undefined,
+    [RunStatus.REQUESTED]: ChartPalette.ORANGE,
+    [RunStatus.RUNNING]: ChartPalette.BLUE,
+    [RunStatus.COMPLETED]: ChartPalette.SUCCESS,
+    [RunStatus.FAILED]: ChartPalette.ERROR,
+    [RunStatus.CANCELED]: undefined,
+    [RunStatus.PAUSED]: ChartPalette.TEAL,
+    [RunStatus.PARTIAL]: ChartPalette.WARNING,
+    [RunStatus.SCHEDULED]: ChartPalette.YELLOW,
+  };
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
   ExecutionObservedState,
@@ -65,19 +72,19 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
   [ExecutionObservedState.FAILED]: "Failed",
 };
 
-export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_VARIANT_MAP: Record<
+export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_BEACON_COLOR_MAP: Record<
   ExecutionObservedState,
-  BeaconVariant
+  PipelineRunStatusBeaconColor
 > = {
-  [ExecutionObservedState.UNSPECIFIED]: BeaconVariant.TERTIARY,
-  [ExecutionObservedState.STARTING]: BeaconVariant.PRIMARY,
-  [ExecutionObservedState.RUNNING]: BeaconVariant.PRIMARY,
-  [ExecutionObservedState.DRAINING]: BeaconVariant.PRIMARY,
-  [ExecutionObservedState.PAUSED]: BeaconVariant.SECONDARY,
-  [ExecutionObservedState.STOPPED]: BeaconVariant.TERTIARY,
-  [ExecutionObservedState.RETRYING]: BeaconVariant.WARNING,
-  [ExecutionObservedState.BLOCKED]: BeaconVariant.ERROR,
-  [ExecutionObservedState.FAILED]: BeaconVariant.ERROR,
+  [ExecutionObservedState.UNSPECIFIED]: { variant: BeaconVariant.TERTIARY },
+  [ExecutionObservedState.STARTING]: { color: "orange" },
+  [ExecutionObservedState.RUNNING]: { color: "blue" },
+  [ExecutionObservedState.DRAINING]: { color: "orange" },
+  [ExecutionObservedState.PAUSED]: { color: "teal" },
+  [ExecutionObservedState.STOPPED]: { variant: BeaconVariant.TERTIARY },
+  [ExecutionObservedState.RETRYING]: { color: "yellow" },
+  [ExecutionObservedState.BLOCKED]: { variant: BeaconVariant.ERROR },
+  [ExecutionObservedState.FAILED]: { variant: BeaconVariant.ERROR },
 };
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_PULSING = new Set<ExecutionObservedState>([
@@ -86,3 +93,5 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_PULSING = new Set<ExecutionObserv
   ExecutionObservedState.DRAINING,
   ExecutionObservedState.RETRYING,
 ]);
+
+export const PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH = 240;

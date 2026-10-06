@@ -1,5 +1,4 @@
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -12,6 +11,7 @@ import {
   type Notifier,
   UpdatePipelineNotifierRequestSchema,
 } from "@/gen/ingestion/v1/notifiers_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineNotifierTable from "@/pages/pipelines/components/notifier/PipelineNotifierTable";
 import type {
@@ -44,9 +44,15 @@ const mapNotifierToRow = (notifier: Notifier): PipelineNotifier => ({
   id: notifier.id,
 });
 
-const PipelineSettingsPageNotifications = () => {
+interface PipelineSettingsPageNotificationsProps {
+  pipeline: Pipeline;
+}
+
+const PipelineSettingsPageNotifications = ({
+  pipeline,
+}: PipelineSettingsPageNotificationsProps) => {
   const { toast: showToast } = useToast();
-  const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
+  const pipelineId = pipeline.id;
 
   const { data, isLoading } = useListPipelineNotifiersQuery({
     input: create(ListPipelineNotifiersRequestSchema, { pipelineId }),
@@ -150,7 +156,6 @@ const PipelineSettingsPageNotifications = () => {
   return (
     <>
       <PipelineNotifierTable
-        header="Notifications"
         rows={rows}
         isLoading={isLoading}
         isSaving={isCreating || isUpdating || isDeleting}

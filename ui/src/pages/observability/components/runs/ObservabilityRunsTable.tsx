@@ -7,7 +7,7 @@ import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -95,7 +95,6 @@ const ObservabilityRunsTable = () => {
         id: "status",
         header: "Status",
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
-        pin: Side.LEFT,
         canSort: false,
         cell: ({ row }) => (
           <PipelineHistoryRunStatus
@@ -108,8 +107,7 @@ const ObservabilityRunsTable = () => {
       {
         id: "flow",
         header: "Flow",
-        minWidth: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
-        pin: Side.LEFT,
+        width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW,
         canSort: false,
         cell: ({ row }) => <ObservabilityRunsTableColumnFlow runInfo={row} />,
       },

@@ -1,13 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
-import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import SelectInput, {
-  SelectInputSize,
   SelectInputVariant,
   type SelectOption,
 } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
@@ -169,7 +169,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
         }
       />
       <PipelineCanvasPanelBody>
-        <ConnectionDrawerList>
+        <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
           <ConnectionDrawerKeyValueRow
             label="Source"
             value={
@@ -213,10 +213,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                 onChange={(id) => {
                   if (id !== null) handleReadModeChange(Number(id) as ReadMode);
                 }}
-                variant={SelectInputVariant.TERTIARY}
                 placeholder="Select a read mode..."
-                size={SelectInputSize.LARGE}
                 isDisabled={isReadOnly || isLoading}
+                variant={SelectInputVariant.TERTIARY}
                 fillWidth
               />
             )}
@@ -227,10 +226,9 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
               onChange={(id) => {
                 if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
               }}
-              variant={SelectInputVariant.TERTIARY}
               placeholder="Select a write mode..."
-              size={SelectInputSize.LARGE}
               isDisabled={isReadOnly || isLoading}
+              variant={SelectInputVariant.TERTIARY}
               fillWidth
             />
             {isContinuous && isNamedResource && (
@@ -239,9 +237,8 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                 value={destinationResource}
                 onChange={handleDestinationChange}
                 placeholder={getDefaultDestinationResource(resource)}
-                variant={InputVariant.TERTIARY}
-                size={InputSize.LARGE}
                 isDisabled={isReadOnly}
+                variant={InputVariant.TERTIARY}
                 fillWidth
               />
             )}

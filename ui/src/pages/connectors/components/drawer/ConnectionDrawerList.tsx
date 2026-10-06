@@ -2,17 +2,9 @@ import { Children, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-
-const ListWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  border-radius: 8px;
-  border: 0.5px solid ${t.color.border.primary};
-  background-color: ${t.color.background.primary};
-  overflow: hidden;
-`;
 
 const ListItem = styled.div`
   padding: 12px;
@@ -22,13 +14,20 @@ const ListItem = styled.div`
   }
 `;
 
-const ConnectionDrawerList = ({ children }: PropsWithChildren) => {
+interface ConnectionDrawerListProps {
+  variant?: BoxVariant;
+}
+
+const ConnectionDrawerList = ({
+  variant = BoxVariant.PRIMARY,
+  children,
+}: PropsWithChildren<ConnectionDrawerListProps>) => {
   return (
-    <ListWrapper>
+    <Box variant={variant} radius={Radius.LG} overflow="hidden" hasBorder fillWidth>
       {Children.map(children, (child) => (
         <ListItem>{child}</ListItem>
       ))}
-    </ListWrapper>
+    </Box>
   );
 };
 

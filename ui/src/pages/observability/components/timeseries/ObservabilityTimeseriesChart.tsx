@@ -69,7 +69,11 @@ const ObservabilityTimeseriesChart = ({
   });
 
   const { series, lines } = useMemo(() => {
-    const timeseries = data?.series ?? [];
+    const timeseries = (data?.series ?? []).filter(
+      (keySeries) =>
+        pivotDimension !== MetricDimension.STATUS ||
+        PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(keySeries.key) as RunStatus] !== undefined,
+    );
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
         pipeline.id,
@@ -136,6 +140,7 @@ const ObservabilityTimeseriesChart = ({
         labelFormatter={bucketLabelFormatter}
         isLoading={isLoading}
         hasLegend
+        isFilterable
       />
     </Flex>
   );

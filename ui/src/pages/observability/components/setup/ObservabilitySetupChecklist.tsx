@@ -4,7 +4,6 @@ import { match } from "ts-pattern";
 
 import GridBackground from "@galaxy-io/dls/backgrounds/GridBackground";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
-import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -14,7 +13,7 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 
 import { Flow } from "@/layouts/app/types";
 
@@ -51,7 +50,7 @@ const SetupCard = styled.div`
   background-color: ${t.color.background.secondary};
 
   border: 0.5px solid ${t.color.border.focused};
-  border-radius: 6px;
+  border-radius: ${t.radius.lg};
 
   overflow: hidden;
 `;
@@ -133,7 +132,10 @@ const ObservabilitySetupChecklist = () => {
             value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
             variant={ProgressBarVariant.SUCCESS}
           />
-          <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
+          <DocsLink
+            label="Learn about observability"
+            path="/pages/guides/usage/web#observability"
+          />
         </SetupContent>
       </GridBackground>
     </Box>

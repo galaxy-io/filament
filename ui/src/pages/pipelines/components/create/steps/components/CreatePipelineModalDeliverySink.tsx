@@ -1,6 +1,6 @@
 import { styled } from "@linaria/react";
 
-import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text from "@galaxy-io/dls/text/Text";
@@ -58,7 +58,6 @@ const CreatePipelineModalDeliverySink = ({
             options={options}
             value={String(sink.writeMode)}
             onChange={handleWriteModeChange}
-            size={SelectInputSize.LARGE}
           />
         </Box>
       </Flex>

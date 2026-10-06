@@ -14,7 +14,7 @@ const TileWrapper = styled.div<{ $size: number }>`
   flex-shrink: 0;
 
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 6px;
+  border-radius: ${t.radius.md};
 `;
 
 interface IconTileProps {

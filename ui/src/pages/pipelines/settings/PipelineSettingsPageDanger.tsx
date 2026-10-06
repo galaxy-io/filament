@@ -1,7 +1,11 @@
 import { create } from "@bufbuild/protobuf";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
   DeletePipelineRequestSchema,
@@ -9,7 +13,6 @@ import {
   type Pipeline,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
-import DangerZone from "@/components/DangerZone";
 import Dialog, { DialogVariant } from "@/components/Dialog";
 
 import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
@@ -51,11 +54,22 @@ const PipelineSettingsPageDanger = () => {
 
   return (
     <>
-      <DangerZone
-        title="Delete pipeline"
-        description="This will permanently delete this pipeline."
-        onDelete={() => handleOpen(pipeline)}
-      />
+      <Widget>
+        <Flex justifyContent={JustifyContent.SPACE_BETWEEN} alignItems={AlignItems.CENTER} gap={12}>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+            <Text weight={TextWeight.MEDIUM}>Delete pipeline</Text>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+              This will permanently delete this pipeline.
+            </Text>
+          </Flex>
+          <Button
+            label="Delete"
+            icon={TrashIcon}
+            variant={ButtonVariant.ERROR}
+            onClick={() => handleOpen(pipeline)}
+          />
+        </Flex>
+      </Widget>
       <Dialog
         open={isOpen}
         onClose={handleClose}

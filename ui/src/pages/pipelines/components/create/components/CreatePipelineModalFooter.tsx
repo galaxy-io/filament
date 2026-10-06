@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import BulletedList, { BulletedListSize } from "@galaxy-io/dls/lists/BulletedList";
@@ -118,15 +118,12 @@ const CreatePipelineModalFooter = () => {
 
   const renderAction = () => {
     if (isSubmitting) {
-      return (
-        <Button size={ButtonSize.LARGE} label="Creating..." onClick={NOOP} isLoading isDisabled />
-      );
+      return <Button label="Creating..." onClick={NOOP} isLoading isDisabled />;
     }
 
     if (isLastStep) {
       return (
         <Button
-          size={ButtonSize.LARGE}
           label="Create pipeline"
           icon={PlusIcon}
           onClick={handleCreate}
@@ -137,7 +134,6 @@ const CreatePipelineModalFooter = () => {
 
     return (
       <Button
-        size={ButtonSize.LARGE}
         label="Next"
         icon={ArrowRightIcon}
         onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_NEXT })}
@@ -150,7 +146,6 @@ const CreatePipelineModalFooter = () => {
   return (
     <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN} fillWidth>
       <Button
-        size={ButtonSize.LARGE}
         label="Back"
         icon={ArrowLeftIcon}
         variant={ButtonVariant.SECONDARY}

@@ -12,7 +12,7 @@ import Grid from "@galaxy-io/dls/layout/Grid";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import { Flow } from "@/layouts/app/types";
@@ -101,7 +101,7 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
           header={`No ${kindPlural} found`}
           message={CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP[kind]}
           actions={
-            <Flex alignItems={AlignItems.START} gap={8}>
+            <Flex alignItems={AlignItems.CENTER} gap={16}>
               <Button
                 label={`New ${kindLabel}`}
                 icon={PlusIcon}
@@ -109,10 +109,9 @@ const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
                 size={ButtonSize.LARGE}
                 onClick={handleOpenCreateConnectorModal}
               />
-              <DocsButton
-                label="Read the docs"
+              <DocsLink
+                label={`Learn about ${kindPlural}`}
                 path={CONNECTOR_KIND_TO_DOCS_PATH_MAP[kind]}
-                size={ButtonSize.LARGE}
               />
             </Flex>
           }

@@ -4,8 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import TextAreaInput, { TextAreaInputSize } from "@galaxy-io/dls/inputs/TextAreaInput";
+import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -107,7 +106,6 @@ const PipelineSettingsPageGeneral = () => {
         <TextInput
           value={state.name}
           onChange={handleNameChange}
-          size={InputSize.LARGE}
           placeholder={formatPipelineName(pipeline)}
           label="Name"
           fillWidth
@@ -115,7 +113,6 @@ const PipelineSettingsPageGeneral = () => {
         <TextAreaInput
           value={state.description}
           onChange={handleDescriptionChange}
-          size={TextAreaInputSize.LARGE}
           placeholder="Optional description"
           label="Description"
           fillWidth

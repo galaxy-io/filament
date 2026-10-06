@@ -13,8 +13,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorMaturityIcon from "@/pages/connectors/components/ConnectorMaturityIcon";
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
   CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
@@ -50,26 +49,27 @@ const CreateConnectionSelectorCard = ({
           gap={8}
           fillWidth
         >
-          <Flex gap={8} alignItems={AlignItems.CENTER} minWidth={0}>
-            <ConnectorTile connector={connector.name} kind={connector.kind} />
+          <Flex gap={12} alignItems={AlignItems.CENTER} minWidth={0}>
+            <ConnectorTile
+              connector={connector.name}
+              kind={connector.kind}
+              size={ConnectorTileSize.LARGE}
+            />
             <FlexItem minWidth={0} overflow="hidden">
-              <Text weight={TextWeight.MEDIUM} lineClamp={1}>
+              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} lineClamp={1}>
                 {connector.displayName || connector.name}
               </Text>
             </FlexItem>
           </Flex>
-          <Flex alignItems={AlignItems.CENTER} gap={8}>
-            <ConnectorMaturityIcon maturity={connector.maturity} />
-            <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
-          </Flex>
+          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
         </Flex>
 
         <FlexItem grow={1}>
-          <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
+          <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_MD}>
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
-        <Button label="Connect" onClick={handleClick} fillWidth />
+        <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
       </Flex>
     </Widget>
   );
@@ -95,8 +95,10 @@ export const CreateConnectionSelectorEmptyCard = () => {
       >
         <FlexItem grow={1}>
           <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
-            <Text weight={TextWeight.MEDIUM}>Looking for something different?</Text>
-            <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_SM}>
+            <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
+              Looking for something different?
+            </Text>
+            <Text variant={TextVariant.TERTIARY} size={TextSize.BODY_MD}>
               Request a connector by opening an issue on GitHub or message our Slack community.
             </Text>
           </Flex>

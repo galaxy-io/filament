@@ -3,7 +3,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import Button from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -67,7 +67,6 @@ const PipelineCanvasConnectionSelectorEmpty = ({
             key="create-connection"
             label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
             icon={PlusIcon}
-            size={ButtonSize.SMALL}
             onClick={handleCreateConnection}
           />,
         ]}

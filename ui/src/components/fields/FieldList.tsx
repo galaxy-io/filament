@@ -1,6 +1,6 @@
-import MultiSelectInput, { MultiSelectInputSize } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
-import TagInput, { TagInputSize } from "@galaxy-io/dls/inputs/TagInput";
+import TagInput from "@galaxy-io/dls/inputs/TagInput";
 
 import {
   INPUT_VARIANT_TO_MULTI_SELECT_INPUT_VARIANT_MAP,
@@ -48,7 +48,6 @@ const FieldList = ({
         <TagInput
           value={selected}
           onChange={onChange}
-          size={TagInputSize.LARGE}
           variant={variant && INPUT_VARIANT_TO_TAG_INPUT_VARIANT_MAP[variant]}
           placeholder="Press Enter or comma to add a value"
           error={error}
@@ -67,7 +66,6 @@ const FieldList = ({
         value={getSelectAllValue(selectAll, selected)}
         onChange={handleChange}
         isClearable
-        size={MultiSelectInputSize.LARGE}
         variant={variant && INPUT_VARIANT_TO_MULTI_SELECT_INPUT_VARIANT_MAP[variant]}
         placeholder={`Select ${label}...`}
         error={error}

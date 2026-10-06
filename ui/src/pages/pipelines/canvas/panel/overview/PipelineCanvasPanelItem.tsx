@@ -22,7 +22,7 @@ const PipelineCanvasPanelItem = styled.button`
   }
 
   &:hover {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 `;
 

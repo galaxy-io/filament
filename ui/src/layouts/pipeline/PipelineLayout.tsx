@@ -72,7 +72,7 @@ const ContentIsland = styled.div<{ $isPreview?: boolean }>`
 
   border: 0.5px solid
     ${({ $isPreview }) => ($isPreview ? t.color.border.error : t.color.border.primary)};
-  border-radius: 6px;
+  border-radius: ${t.radius.lg};
 
   overflow: hidden;
 `;

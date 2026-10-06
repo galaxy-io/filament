@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { match } from "ts-pattern";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -124,12 +124,11 @@ const SettingsTeamPanelInvite = ({
         footer={
           <>
             <Button
-              size={ButtonSize.LARGE}
               label="Add another teammate"
               variant={ButtonVariant.SECONDARY}
               onClick={handleAddAnother}
             />
-            <Button size={ButtonSize.LARGE} label="Done" onClick={onClose} />
+            <Button label="Done" onClick={onClose} />
           </>
         }
       >
@@ -148,14 +147,12 @@ const SettingsTeamPanelInvite = ({
         footer={
           <>
             <Button
-              size={ButtonSize.LARGE}
               label="Cancel"
               variant={ButtonVariant.SECONDARY}
               onClick={onClose}
               isDisabled={isInviting}
             />
             <Button
-              size={ButtonSize.LARGE}
               label="Create invite"
               onClick={handleSubmit}
               isLoading={isInviting}

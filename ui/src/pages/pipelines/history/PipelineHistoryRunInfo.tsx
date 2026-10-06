@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
+import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -21,6 +22,7 @@ import {
 
 import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
+  PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
@@ -37,7 +39,7 @@ const ResourceTableWrapper = styled.div`
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: ${t.color.background.tertiary};
+  background-color: ${t.color.background.primary};
 `;
 
 interface PipelineHistoryRunInfoProps {
@@ -97,13 +99,25 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
   );
 
   const resources = data?.snapshot?.resources ?? [];
-  const isEmpty = !isLoading && resources.length === 0;
+  const isEmpty = resources.length === 0;
 
   if (isError) {
     return (
       <ResourceTableWrapper>
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.ERROR}>Failed to load run details.</Text>
+        </Flex>
+      </ResourceTableWrapper>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <ResourceTableWrapper>
+        <Flex alignItems={AlignItems.CENTER} padding={16} fillWidth>
+          <Box width={PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH}>
+            <Skeleton />
+          </Box>
         </Flex>
       </ResourceTableWrapper>
     );
@@ -153,12 +167,11 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
 
   return (
     <ResourceTableWrapper>
-      <Box variant={BoxVariant.TERTIARY}>
+      <Box variant={BoxVariant.PRIMARY}>
         <InfiniteTable<RunResourceState>
           columns={columns}
           data={resources}
           getRowId={(resource) => resource.resourceName}
-          isLoading={isLoading}
         />
       </Box>
     </ResourceTableWrapper>

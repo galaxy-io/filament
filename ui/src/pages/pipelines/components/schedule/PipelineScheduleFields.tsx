@@ -1,8 +1,8 @@
 import { type ComponentProps, type PropsWithChildren, useState } from "react";
 
-import CronInput, { CronInputSize } from "@galaxy-io/dls/inputs/CronInput";
-import SelectInput, { SelectInputSize } from "@galaxy-io/dls/inputs/SelectInput";
-import SwitchInput, { SwitchInputSize } from "@galaxy-io/dls/inputs/SwitchInput";
+import CronInput from "@galaxy-io/dls/inputs/CronInput";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
+import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -65,11 +65,7 @@ const PipelineScheduleFields = ({
               {summary}
             </Text>
           )}
-          <SwitchInput
-            size={SwitchInputSize.MEDIUM}
-            isChecked={state.isEnabled}
-            onChange={handleEnabledChange}
-          />
+          <SwitchInput isChecked={state.isEnabled} onChange={handleEnabledChange} />
         </Flex>
       }
     >
@@ -78,7 +74,6 @@ const PipelineScheduleFields = ({
           value={state.cron}
           onChange={handleCronChange}
           error={cronError}
-          size={CronInputSize.MEDIUM}
           ariaLabel={header}
         />
         <SelectInput
@@ -86,7 +81,6 @@ const PipelineScheduleFields = ({
           options={PIPELINE_SCHEDULE_TIMEZONE_OPTIONS}
           value={state.timezone}
           onChange={handleTimezoneChange}
-          size={SelectInputSize.MEDIUM}
           isSearchable
         />
         {children}

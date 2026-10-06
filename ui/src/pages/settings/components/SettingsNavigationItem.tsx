@@ -16,17 +16,17 @@ const NavigationButton = styled.button<{ $isActive?: boolean }>`
     padding: 6px 8px;
     color: ${({ $isActive }) => ($isActive ? t.color.text.primary : t.color.text.secondary)};
     background-color: ${({ $isActive }) =>
-      $isActive ? t.color.background.tertiary : "transparent"};
+      $isActive ? t.color.background.selected : "transparent"};
     border: 0.5px solid
       ${({ $isActive }) => ($isActive ? t.color.border.primary : "transparent")};
-    border-radius: 5px;
+    border-radius: ${t.radius.md};
     text-align: left;
     cursor: pointer;
 
     &:hover,
     &:focus-visible {
       color: ${t.color.text.primary};
-      background-color: ${t.color.background.tertiary};
+      background-color: ${t.color.background.hovered};
     }
 
     &:focus-visible {

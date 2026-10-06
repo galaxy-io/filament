@@ -40,7 +40,10 @@ import {
 
 import PipelineName from "@/components/PipelineName";
 
-import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
+import {
+  PIPELINE_NAVBAR_HEIGHT,
+  PIPELINE_NAVBAR_VERSION_SELECT_WIDTH,
+} from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
@@ -307,13 +310,14 @@ const PipelineLayoutNavbar = () => {
           <PipelineName pipelineId={id} />
         </FlexItem>
         {versionOptions.length > 0 && (
-          <FlexItem shrink={0}>
+          <FlexItem shrink={0} width={PIPELINE_NAVBAR_VERSION_SELECT_WIDTH}>
             <SelectInput
               options={versionOptions}
               value={selectedVersionId}
               onChange={handleVersionChange}
               size={SelectInputSize.SMALL}
               isDisabled={hasUnsavedChanges}
+              fillWidth
             />
           </FlexItem>
         )}

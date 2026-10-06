@@ -26,7 +26,7 @@ export const EmptyGraphicGhostTileFallback = styled.div`
   background-color: ${t.color.background.secondary};
 
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 4px;
+  border-radius: ${t.radius.md};
 `;
 
 export const EmptyGraphicGhostBar = styled.div<{ $width: number }>`
@@ -35,7 +35,7 @@ export const EmptyGraphicGhostBar = styled.div<{ $width: number }>`
 
   background-color: ${t.color.background.secondary};
 
-  border-radius: 4px;
+  border-radius: ${t.radius.sm};
 `;
 
 export default EmptyGraphic;

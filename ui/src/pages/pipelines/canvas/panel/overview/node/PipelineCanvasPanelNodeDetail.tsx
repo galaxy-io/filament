@@ -1,5 +1,6 @@
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
@@ -89,7 +90,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
         }
       />
       <PipelineCanvasPanelBody>
-        <ConnectionDrawerList>
+        <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
           <ConnectionDrawerKeyValueRow
             label="Connector"
             value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? "—"}</Text>}

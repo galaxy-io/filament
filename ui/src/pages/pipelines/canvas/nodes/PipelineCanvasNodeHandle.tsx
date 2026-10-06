@@ -46,7 +46,7 @@ const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
       $isConnected ? "transparent" : t.color.text.tertiary};
     border: ${({ $isConnected }) =>
       $isConnected ? `2px solid ${t.color.solid.primary.background}` : "none"};
-    border-radius: 50%;
+    border-radius: ${t.radius.pill};
 
     transition:
       width 100ms ease,

@@ -35,7 +35,7 @@ const PanelWrapper = styled.div`
   background-color: ${t.color.background.primary};
 
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: 6px;
+  border-radius: ${t.radius.lg};
 
   overflow: hidden;
 `;

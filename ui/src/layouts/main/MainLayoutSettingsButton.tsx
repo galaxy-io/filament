@@ -45,7 +45,7 @@ const AvatarButton = styled.button`
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: ${t.radius.pill};
   background: transparent;
   cursor: pointer;
   overflow: hidden;
@@ -53,7 +53,7 @@ const AvatarButton = styled.button`
 
   &:hover,
   &:focus-visible {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 
   &:focus-visible {
@@ -70,7 +70,7 @@ const MenuItem = styled.button`
   min-height: 36px;
   padding: 6px 10px;
   border: 0;
-  border-radius: 5px;
+  border-radius: ${t.radius.md};
   background-color: transparent;
   text-align: left;
   cursor: pointer;
@@ -78,7 +78,7 @@ const MenuItem = styled.button`
 
   &:hover,
   &:focus-visible {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 
   &:focus-visible {

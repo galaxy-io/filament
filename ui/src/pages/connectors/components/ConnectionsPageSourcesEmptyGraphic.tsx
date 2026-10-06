@@ -39,7 +39,7 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
 
   border: ${({ $isFilled }) => ($isFilled ? "0.5px solid" : "1px dashed")}
     ${({ $isLive }) => ($isLive ? t.color.border.secondary : t.color.border.primary)};
-  border-radius: 6px;
+  border-radius: ${t.radius.md};
 
   animation: ${({ $isLive }) =>
     $isLive ? "sources-empty-slot-pulse 3s ease-in-out infinite" : "none"};

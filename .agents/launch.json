@@ -4,7 +4,11 @@
     {
       "name": "filament-ui",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "ui", "dev"],
+      "runtimeArgs": [
+        "--dir",
+        "ui",
+        "dev"
+      ],
       "port": 5173
     },
     {

@@ -239,13 +239,7 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
         onClose={() => setRotatedCredentials(undefined)}
         title="Client secret rotated"
         description="Copy the new credentials now. The client secret is only shown once."
-        footer={
-          <Button
-            size={ButtonSize.LARGE}
-            label="Done"
-            onClick={() => setRotatedCredentials(undefined)}
-          />
-        }
+        footer={<Button label="Done" onClick={() => setRotatedCredentials(undefined)} />}
       >
         {rotatedCredentials && (
           <SettingsServiceAccountsPanelCredentials credentials={rotatedCredentials} />

@@ -11,7 +11,6 @@ import { createNodeFromConnection } from "@/pages/pipelines/canvas/graph/rules";
 import {
   CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP,
   CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP,
-  PIPELINE_CANVAS_NODE_BORDER_RADIUS,
   PIPELINE_CANVAS_NODE_GAP,
   PIPELINE_CANVAS_NODE_PADDING,
   PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT,
@@ -30,7 +29,7 @@ const PlaceholderCard = styled.div`
 
   background-color: ${t.color.background.base};
   border: 1px dashed ${t.color.border.primary};
-  border-radius: ${PIPELINE_CANVAS_NODE_BORDER_RADIUS}px;
+  border-radius: ${t.radius.lg};
 `;
 
 const CardHeader = styled.div`
@@ -44,7 +43,7 @@ const SelectorIsland = styled.div`
 
   background-color: ${t.color.background.primary};
   border: 0.5px solid ${t.color.border.primary};
-  border-radius: ${PIPELINE_CANVAS_NODE_BORDER_RADIUS}px;
+  border-radius: ${t.radius.lg};
   overflow: hidden;
 
   transition: border-color 100ms ease;

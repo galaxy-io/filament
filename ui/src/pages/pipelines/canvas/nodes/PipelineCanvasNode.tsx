@@ -51,13 +51,13 @@ const ActionButton = styled.button`
 
   background-color: ${t.color.background.primary};
   border: none;
-  border-radius: 4px;
+  border-radius: ${t.radius.md};
   cursor: pointer;
 
   transition: background-color 100ms ease;
 
   &:hover {
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 `;
 

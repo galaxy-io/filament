@@ -34,12 +34,6 @@ const CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP: Record<ConnectorTileSize, Skelet
   [ConnectorTileSize.LARGE]: SkeletonSize.LARGE,
 };
 
-const CONNECTOR_TILE_SIZE_TO_RADIUS_MAP: Record<ConnectorTileSize, number> = {
-  [ConnectorTileSize.SMALL]: 4,
-  [ConnectorTileSize.MEDIUM]: 5,
-  [ConnectorTileSize.LARGE]: 6,
-};
-
 const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.SMALL]: 14,
   [ConnectorTileSize.MEDIUM]: 16,
@@ -65,10 +59,9 @@ const TileWrapper = styled.div<{
   justify-content: center;
   flex-shrink: 0;
 
-  background-color: ${({ $isDeleted }) =>
-    $isDeleted ? t.color.background.error : t.color.background.secondary};
+  background-color: transparent;
 
-  border-radius: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_RADIUS_MAP[$size]}px;
+  border-radius: ${t.radius.md};
   border: 0.5px solid
     ${({ $isDeleted }) => ($isDeleted ? t.color.border.error : t.color.border.tertiary)};
 

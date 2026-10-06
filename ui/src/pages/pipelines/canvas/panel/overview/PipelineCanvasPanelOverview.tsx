@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
+import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
@@ -65,7 +66,7 @@ const PipelineCanvasPanelOverview = () => {
 
   return (
     <PipelineCanvasPanelBody>
-      <ConnectionDrawerList>
+      <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
         <ConnectionDrawerKeyValueRow
           label="Name"
           value={

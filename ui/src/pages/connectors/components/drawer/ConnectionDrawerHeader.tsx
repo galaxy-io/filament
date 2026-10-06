@@ -1,86 +1,26 @@
-import { create } from "@bufbuild/protobuf";
-import { PencilIcon } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-
-import { GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
-
-import { Flow } from "@/layouts/app/types";
-import BaseHeader from "@/layouts/components/BaseHeader";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
 
-import { useGetConnectionQuery } from "@/api/queries/connections";
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+interface ConnectionDrawerHeaderProps {
+  connection: Connection;
+}
 
-const ConnectionDrawerHeader = () => {
-  const navigate = useNavigate();
-  const { connectionId } = useSearch({ from: "/_app" });
-
-  const { data: connectionData } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
-    options: { enabled: !!connectionId, retry: false },
-  });
-  const connection = connectionData?.connection;
-
-  const { data: connectorData } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, {
-      connector: connection?.connector ?? "",
-      kind: connection?.kind,
-    }),
-    options: { enabled: !!connection },
-  });
-  const connector = connectorData?.connector;
-
-  const handleEdit = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, flow: Flow.EDIT_CONNECTION }),
-    });
-  };
-
-  if (!connection) return null;
-
-  return (
-    <Flex fillWidth alignItems={AlignItems.CENTER} gap={12}>
-      <FlexItem shrink={0}>
-        <ConnectorTile
-          connector={connection.connector}
-          kind={connection.kind}
-          size={ConnectorTileSize.LARGE}
-          isDeleted={!!connection.deletedAt}
-        />
-      </FlexItem>
-      <Flex
-        alignItems={AlignItems.START}
-        fillWidth
-        minWidth={0}
-        direction={FlexDirection.COLUMN}
-        gap={4}
-      >
-        <BaseHeader
-          title={connection.name}
-          description={connector ? connector.displayName || connection.connector : undefined}
-          actions={[
-            <Button
-              key="edit"
-              icon={PencilIcon}
-              ariaLabel="Edit connection"
-              tooltip="Edit connection"
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.SMALL}
-              onClick={handleEdit}
-              isDisabled={!!connection.deletedAt}
-            />,
-          ]}
-        />
-      </Flex>
-    </Flex>
-  );
-};
+const ConnectionDrawerHeader = ({ connection }: ConnectionDrawerHeaderProps) => (
+  <Flex alignItems={AlignItems.CENTER} gap={12} minWidth={0}>
+    <ConnectorTile
+      connector={connection.connector}
+      kind={connection.kind}
+      size={ConnectorTileSize.LARGE}
+      isDeleted={!!connection.deletedAt}
+    />
+    <Text as="h2" size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} lineClamp={1}>
+      {connection.name}
+    </Text>
+  </Flex>
+);
 
 export default ConnectionDrawerHeader;

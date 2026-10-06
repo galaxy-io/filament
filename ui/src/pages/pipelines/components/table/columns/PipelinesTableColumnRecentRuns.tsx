@@ -11,6 +11,7 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Grid, { GridAlignItems } from "@galaxy-io/dls/layout/Grid";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
@@ -50,7 +51,7 @@ const PipelinesTableRecentRunsWrapper = styled.div`
 const PipelinesTableRecentRunSquare = styled.div<{ $status?: RunStatus; $isClickable?: boolean }>`
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: ${t.radius.sm};
   cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "default")};
   background: ${({ $status = RunStatus.UNSPECIFIED }) =>
     PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP[$status]};

@@ -5,9 +5,8 @@ import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react"
 import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { SelectInputSize } from "@galaxy-io/dls/inputs/SelectInput";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
@@ -40,6 +39,7 @@ import {
 } from "@/pages/connectors/components/create/utils";
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionFormHeader from "@/pages/connectors/components/form/ConnectionFormHeader";
+import ConnectionFormMaturityAlert from "@/pages/connectors/components/form/ConnectionFormMaturityAlert";
 import { useConnectionFormContext } from "@/pages/connectors/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connectors/components/form/types";
@@ -243,7 +243,6 @@ const ConnectionForm = ({
         <TextInput
           value={state.name}
           onChange={handleNameChange}
-          size={InputSize.LARGE}
           placeholder="Enter connection name..."
           label="Name"
           isRequired
@@ -261,7 +260,6 @@ const ConnectionForm = ({
                 if (id) onConnectorChange(id);
               }}
               isDisabled={isDisabled || versionOptions.length === 1}
-              size={SelectInputSize.LARGE}
               fillWidth
             />
           </FieldWrapper>
@@ -287,7 +285,6 @@ const ConnectionForm = ({
     return match(state.phase)
       .with(ConnectionFormPhase.IDLE, ConnectionFormPhase.ERROR, () => (
         <Button
-          size={ButtonSize.LARGE}
           label="Validate"
           icon={ArrowRightIcon}
           onClick={handleTestConnection}
@@ -296,13 +293,7 @@ const ConnectionForm = ({
         />
       ))
       .with(ConnectionFormPhase.VALIDATING, () => (
-        <Button
-          size={ButtonSize.LARGE}
-          label="Testing..."
-          onClick={NOOP}
-          isLoading={isValidating}
-          isDisabled
-        />
+        <Button label="Testing..." onClick={NOOP} isLoading={isValidating} isDisabled />
       ))
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
@@ -310,17 +301,11 @@ const ConnectionForm = ({
             <Beacon variant={BeaconVariant.SUCCESS} />
             <Text variant={TextVariant.SUCCESS}>Connected</Text>
           </Flex>
-          <Button size={ButtonSize.LARGE} label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
+          <Button label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
         </Flex>
       ))
       .with(ConnectionFormPhase.SUBMITTING, () => (
-        <Button
-          size={ButtonSize.LARGE}
-          label={submittingLabel}
-          onClick={NOOP}
-          isLoading={isSubmitting}
-          isDisabled
-        />
+        <Button label={submittingLabel} onClick={NOOP} isLoading={isSubmitting} isDisabled />
       ))
       .exhaustive();
   };
@@ -362,8 +347,6 @@ const ConnectionForm = ({
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
-          connectorMaturity={connector.maturity}
-          connectorApiVersion={connector.apiVersion}
           title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
         />
       }
@@ -375,7 +358,6 @@ const ConnectionForm = ({
         >
           {onBack && (
             <Button
-              size={ButtonSize.LARGE}
               onClick={onBack}
               icon={ArrowLeftIcon}
               label="Back"
@@ -388,6 +370,12 @@ const ConnectionForm = ({
       onClose={onClose}
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+        <ConnectionFormMaturityAlert
+          connectorName={connectorName}
+          connectorKind={connectorKind}
+          connectorMaturity={connector.maturity}
+          connectorApiVersion={connector.apiVersion}
+        />
         {renderBody()}
       </Flex>
     </ConnectionFormWrapper>

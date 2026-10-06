@@ -5,19 +5,26 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
 import CreateConnectionSelectorBody from "@/pages/connectors/components/create/select/CreateConnectionSelectorBody";
-import CreateConnectionSelectorHeader from "@/pages/connectors/components/create/select/CreateConnectionSelectorHeader";
-import type { CreateConnectionSelectorProps } from "@/pages/connectors/components/create/types";
+import {
+  type CreateConnectionSelectorProps,
+  CreateConnectionSelectorShelf,
+} from "@/pages/connectors/components/create/types";
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
+import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/pages/connectors/constants";
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
 
 interface CreateConnectionSelectorState {
   search: string;
+  shelf: CreateConnectionSelectorShelf;
 }
 
 const DEFAULT_STATE: CreateConnectionSelectorState = {
   search: "",
+  shelf: CreateConnectionSelectorShelf.ALL,
 };
 
 const CreateConnectionSelector = ({
@@ -25,7 +32,8 @@ const CreateConnectionSelector = ({
   onConnectorSelect,
 }: CreateConnectionSelectorProps) => {
   const navigate = useNavigate();
-  const { connectorSearch = "" } = useSearch({ from: "/_app" });
+  const { connectorSearch = "", connectorKind } = useSearch({ from: "/_app" });
+  const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const [state, setState] = useState<CreateConnectionSelectorState>(() => ({
     ...DEFAULT_STATE,
@@ -35,6 +43,10 @@ const CreateConnectionSelector = ({
 
   const handleSearchChange = useCallback((search: string) => {
     setState((prev) => ({ ...prev, search }));
+  }, []);
+
+  const handleShelfChange = useCallback((shelf: CreateConnectionSelectorShelf) => {
+    setState((prev) => ({ ...prev, shelf }));
   }, []);
 
   useEffect(() => {
@@ -50,13 +62,17 @@ const CreateConnectionSelector = ({
 
   return (
     <ConnectionFormWrapper
-      size={ModalSize.LARGE}
-      header={
-        <CreateConnectionSelectorHeader search={state.search} onSearchChange={handleSearchChange} />
-      }
+      size={ModalSize.X_LARGE}
+      header={CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind]}
       onClose={onClose}
     >
-      <CreateConnectionSelectorBody onConnectorSelect={onConnectorSelect} />
+      <CreateConnectionSelectorBody
+        search={state.search}
+        onSearchChange={handleSearchChange}
+        shelf={state.shelf}
+        onShelfChange={handleShelfChange}
+        onConnectorSelect={onConnectorSelect}
+      />
     </ConnectionFormWrapper>
   );
 };

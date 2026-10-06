@@ -1,3 +1,4 @@
+import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
@@ -7,23 +8,20 @@ import CreatePipelineModalDeliveryAdvanced from "@/pages/pipelines/components/cr
 import CreatePipelineModalDeliveryDestinations from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryDestinations";
 import CreatePipelineModalDeliveryNotifications from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNotifications";
 import CreatePipelineModalDeliverySchedule from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySchedule";
-import CreatePipelineModalDeliverySection from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySection";
 
 const CreatePipelineModalDelivery = () => {
   const { sinks, executionMode } = useCreatePipelineModalState();
 
   return (
-    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={24} fillWidth>
       {sinks.length > 0 && (
-        <CreatePipelineModalDeliverySection header="Destinations">
+        <Fieldset label="Destinations">
           <CreatePipelineModalDeliveryDestinations />
-        </CreatePipelineModalDeliverySection>
+        </Fieldset>
       )}
       {executionMode !== ExecutionMode.CONTINUOUS && <CreatePipelineModalDeliverySchedule />}
       <CreatePipelineModalDeliveryNotifications />
-      <CreatePipelineModalDeliverySection header="Advanced">
-        <CreatePipelineModalDeliveryAdvanced />
-      </CreatePipelineModalDeliverySection>
+      <CreatePipelineModalDeliveryAdvanced />
     </Flex>
   );
 };

@@ -4,14 +4,15 @@ import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
 
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import GalaxyLogomark from "@galaxy-io/dls/brand/GalaxyLogomark";
-import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Tabs, { type TabLinkItem, TabsSize } from "@galaxy-io/dls/navigation/Tabs";
+import { TextSize } from "@galaxy-io/dls/text/Text";
 import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 import GithubButton from "@/components/GithubButton";
 
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
@@ -72,7 +73,7 @@ const MainLayoutNavbar = () => {
               <GalaxyFilamentWordmark size={18} />
             </Flex>
           </Link>
-          <DocsButton variant={ButtonVariant.TERTIARY} />
+          <DocsLink label="Docs" size={TextSize.BODY_SM} underline={LinkUnderline.NONE} />
         </MainLayoutNavbarRail>
         <Tabs
           ariaLabel="Main"

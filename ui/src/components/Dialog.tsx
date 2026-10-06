@@ -1,6 +1,6 @@
 import { type PropsWithChildren, type ReactNode, useEffect, useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -100,14 +100,12 @@ const Dialog = ({
     (onConfirm && (
       <>
         <Button
-          size={ButtonSize.LARGE}
           label={cancelLabel}
           variant={ButtonVariant.SECONDARY}
           onClick={onClose}
           isDisabled={isPending}
         />
         <Button
-          size={ButtonSize.LARGE}
           label={confirmLabel}
           variant={confirmVariant}
           onClick={onConfirm}

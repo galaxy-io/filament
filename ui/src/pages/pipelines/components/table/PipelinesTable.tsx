@@ -1,19 +1,32 @@
+import { useEffect, useState } from "react";
+
+import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
+import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
+import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box from "@galaxy-io/dls/layout/Box";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
-import type { TableColumn } from "@galaxy-io/dls/table/types";
+import type { TableColumn, TableColumnLayout } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import {
+  type Pipeline,
+  UpdatePipelineScheduleRequestSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
+import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
+  PIPELINES_TABLE_COLUMN_LAYOUT_SAVE_DEBOUNCE_MS,
+  PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
@@ -23,15 +36,21 @@ import {
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
+import PipelinesTableRowActions from "@/pages/pipelines/components/table/PipelinesTableRowActions";
 import {
   PIPELINES_TABLE_COLUMN_ID_PIPELINE,
   type PipelinesTableSorting,
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
+import { formatPipelineName } from "@/pages/pipelines/utils";
+
+import { useRunPipelineMutation } from "@/api/queries/runs";
+import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
 import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
 import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
+import { getErrorMessage } from "@/utils/errors";
 import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
 
 const PipelinesTableWrapper = styled.div`
@@ -45,7 +64,6 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     id: "flow",
     header: "Flow",
     width: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
-    pin: Side.LEFT,
     canSort: false,
     cell: ({ row }) => <PipelinesTableFlowCell pipeline={row} />,
   },
@@ -55,6 +73,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     minWidth: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
     accessor: (pipeline) => pipeline.name,
     canSort: true,
+    canHide: false,
     cell: ({ row }) => <PipelinesTableColumnName pipeline={row} />,
   },
   {
@@ -136,12 +155,93 @@ const PipelinesTable = ({
   fetchNextPage,
 }: PipelinesTableProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const { mutate: runPipeline } = useRunPipelineMutation();
+  const { mutate: updateSchedule } = useUpdatePipelineScheduleMutation();
+
+  const [savedColumnLayout, setSavedColumnLayout] = useLocalStorage<TableColumnLayout>(
+    PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
+    {},
+  );
+  const [columnLayout, setColumnLayout] = useState<TableColumnLayout>(savedColumnLayout);
+  const debouncedColumnLayout = useDebouncedValue(
+    columnLayout,
+    PIPELINES_TABLE_COLUMN_LAYOUT_SAVE_DEBOUNCE_MS,
+  );
+
+  useEffect(() => {
+    setSavedColumnLayout(debouncedColumnLayout);
+  }, [debouncedColumnLayout, setSavedColumnLayout]);
 
   const handleRowClick = (row: Pipeline) => {
     navigate({
       to: "/pipelines/$id",
       params: { id: row.id },
     });
+  };
+
+  const handleRun = (pipeline: Pipeline) => {
+    runPipeline(
+      create(RunPipelineRequestSchema, {
+        pipelineId: pipeline.id,
+        options: { executionMode: pipeline.executionMode },
+      }),
+      {
+        onSuccess: () => {
+          toast({
+            header: "Run started",
+            description: `${formatPipelineName(pipeline)} is now running.`,
+            variant: ToastVariant.SUCCESS,
+          });
+        },
+        onError: (error) => {
+          toast({
+            header: "Run failed",
+            description: getErrorMessage(error, "Failed to run pipeline"),
+            variant: ToastVariant.ERROR,
+          });
+        },
+      },
+    );
+  };
+
+  const handleScheduleToggle = (pipeline: Pipeline) => {
+    const config = pipeline.schedule?.config;
+    if (!config) return;
+    const isEnabled = !config.isEnabled;
+    updateSchedule(
+      create(UpdatePipelineScheduleRequestSchema, {
+        pipelineId: pipeline.id,
+        schedule: { ...config, isEnabled },
+      }),
+      {
+        onSuccess: () => {
+          toast({
+            header: isEnabled ? "Schedule resumed" : "Schedule paused",
+            description: isEnabled
+              ? `${formatPipelineName(pipeline)} will run on its schedule.`
+              : `${formatPipelineName(pipeline)} will only run on demand.`,
+            variant: ToastVariant.SUCCESS,
+          });
+        },
+        onError: (error) => {
+          toast({
+            header: "Schedule update failed",
+            description: getErrorMessage(error, "Failed to update schedule"),
+            variant: ToastVariant.ERROR,
+          });
+        },
+      },
+    );
+  };
+
+  const handleEdit = (pipeline: Pipeline) => {
+    void navigate({ to: "/pipelines/$id/canvas", params: { id: pipeline.id } });
+  };
+
+  const handleSettings = (pipeline: Pipeline) => {
+    void navigate({ to: "/pipelines/$id/settings", params: { id: pipeline.id } });
   };
 
   return (
@@ -164,6 +264,19 @@ const PipelinesTable = ({
           }}
           sort={sorting}
           onSortChange={onSortingChange}
+          rowActions={(row) => (
+            <PipelinesTableRowActions
+              pipeline={row}
+              onRun={handleRun}
+              onScheduleToggle={handleScheduleToggle}
+              onEdit={handleEdit}
+              onSettings={handleSettings}
+            />
+          )}
+          canCustomizeColumns
+          columnLayout={columnLayout}
+          onColumnLayoutChange={setColumnLayout}
+          ariaLabel="Pipelines"
         />
       </Box>
     </PipelinesTableWrapper>

@@ -8,6 +8,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
@@ -93,12 +94,7 @@ const CreatePipelineModalResources = () => {
 
   return (
     <ResourcesWrapper>
-      {sinks.length > 1 && (
-        <>
-          <CreatePipelineModalResourcesTabs />
-          <Divider />
-        </>
-      )}
+      {sinks.length > 1 && <CreatePipelineModalResourcesTabs />}
       <Flex gap={8} padding={8} alignItems={AlignItems.CENTER} fillWidth>
         <TextInput
           value={localState.search}
@@ -127,6 +123,7 @@ const CreatePipelineModalResources = () => {
             getError={getCreateError}
             onSave={handleCreate}
             onCancel={() => setCreating(false)}
+            variant={WidgetVariant.PRIMARY}
           />
           <Divider />
         </>

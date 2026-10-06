@@ -2,7 +2,6 @@ import { styled } from "@linaria/react";
 import pluralize from "pluralize";
 import { match } from "ts-pattern";
 
-import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Stepper, { StepperSize, type StepperStep } from "@galaxy-io/dls/navigation/Stepper";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -12,7 +11,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -117,7 +116,7 @@ const CreatePipelineModalSidebar = () => {
         <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
           {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
         </Text>
-        <DocsButton label="Read the docs" path="/pipelines/create" size={ButtonSize.MEDIUM} />
+        <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
       </Flex>
     </SidebarWrapper>
   );

@@ -1,5 +1,3 @@
-import { WidgetSize } from "@galaxy-io/dls/widget/Widget";
-
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -48,8 +46,6 @@ const CreatePipelineModalDeliveryNotifications = () => {
 
   return (
     <PipelineNotifierTable
-      header="Notifications"
-      size={WidgetSize.LARGE}
       rows={notifiers}
       onCreate={handleCreate}
       onUpdate={handleUpdate}

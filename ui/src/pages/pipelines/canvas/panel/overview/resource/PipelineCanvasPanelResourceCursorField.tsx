@@ -1,4 +1,7 @@
-import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -33,8 +36,8 @@ const PipelineCanvasPanelResourceCursorField = ({
         if (id !== null) onChange(id);
       }}
       placeholder="Select a column..."
-      size={SelectInputSize.LARGE}
       isDisabled={isDisabled}
+      variant={SelectInputVariant.TERTIARY}
       fillWidth
     />
   );

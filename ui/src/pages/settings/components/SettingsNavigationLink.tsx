@@ -17,7 +17,7 @@ const NavigationAnchor = styled.a`
   color: ${t.color.text.secondary};
   background-color: transparent;
   border: 0.5px solid transparent;
-  border-radius: 5px;
+  border-radius: ${t.radius.md};
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -25,7 +25,7 @@ const NavigationAnchor = styled.a`
   &:hover,
   &:focus-visible {
     color: ${t.color.text.primary};
-    background-color: ${t.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
 
   &:focus-visible {

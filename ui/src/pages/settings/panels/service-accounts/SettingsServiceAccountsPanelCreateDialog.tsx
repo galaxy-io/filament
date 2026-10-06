@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -82,7 +82,7 @@ const SettingsServiceAccountsPanelCreateDialog = ({
         title="Service account created"
         description="Copy these credentials now. The client secret is only shown once."
         onClose={onClose}
-        footer={<Button size={ButtonSize.LARGE} label="Done" onClick={onClose} />}
+        footer={<Button label="Done" onClick={onClose} />}
       >
         <SettingsServiceAccountsPanelCredentials credentials={state.credentials} />
       </Dialog>
@@ -98,18 +98,12 @@ const SettingsServiceAccountsPanelCreateDialog = ({
       footer={
         <>
           <Button
-            size={ButtonSize.LARGE}
             label="Cancel"
             variant={ButtonVariant.SECONDARY}
             onClick={onClose}
             isDisabled={isCreating}
           />
-          <Button
-            size={ButtonSize.LARGE}
-            label="Create"
-            onClick={handleCreate}
-            isLoading={isCreating}
-          />
+          <Button label="Create" onClick={handleCreate} isLoading={isCreating} />
         </>
       }
     >

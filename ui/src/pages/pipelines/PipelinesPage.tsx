@@ -6,7 +6,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
-import DocsButton from "@/components/DocsButton";
+import DocsLink from "@/components/DocsLink";
 
 import { Flow } from "@/layouts/app/types";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
@@ -57,7 +57,7 @@ const PipelinesPage = () => {
       return (
         <PipelinesPageEmptyGraphic
           actions={
-            <Flex alignItems={AlignItems.START} gap={8}>
+            <Flex alignItems={AlignItems.CENTER} gap={16}>
               <Button
                 label="New pipeline"
                 icon={PlusIcon}
@@ -65,7 +65,7 @@ const PipelinesPage = () => {
                 size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <DocsButton label="Read the docs" path="/pipelines" size={ButtonSize.LARGE} />
+              <DocsLink label="Learn about pipelines" path="/pages/guides/usage/web#pipelines" />
             </Flex>
           }
         />
