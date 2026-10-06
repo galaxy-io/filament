@@ -45,7 +45,8 @@ const CreatePipelineModalDetails = () => {
         size={TextAreaInputSize.LARGE}
         placeholder="Enter an optional description..."
         label="Description"
-        /* @dls-migrate textareainput.fillHeight: Size the field in rows (`minRows`, `maxRows`) or let it grow with `isAutoGrow`. */ fillHeight
+        minRows={12}
+        isAutoGrow
         fillWidth
       />
     </Flex>

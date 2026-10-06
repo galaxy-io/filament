@@ -2,8 +2,6 @@ import { useCallback } from "react";
 
 import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 
-import Modal from "@galaxy-io/dls/modal/Modal";
-
 import { Flow } from "@/layouts/app/types";
 
 import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
@@ -50,14 +48,7 @@ const AppLayout = () => {
       {flow === Flow.EDIT_CONNECTION && !!connectionId && (
         <EditConnectionModal onClose={handleCloseFlow} />
       )}
-      <Modal /* @dls-migrate modal.ariaLabel: The dialog needs a name: give it a `header` (often the title from the old `Widget`) or an `ariaLabel`. */
-        isOpen={flow === Flow.CREATE_PIPELINE}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) handleCloseFlow();
-        }}
-      >
-        <CreatePipelineModal onClose={handleCloseFlow} />
-      </Modal>
+      {flow === Flow.CREATE_PIPELINE && <CreatePipelineModal onClose={handleCloseFlow} />}
       <SettingsPage />
     </>
   );

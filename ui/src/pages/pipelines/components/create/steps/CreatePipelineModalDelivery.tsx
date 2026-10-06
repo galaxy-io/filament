@@ -13,7 +13,7 @@ const CreatePipelineModalDelivery = () => {
   const { sinks, executionMode } = useCreatePipelineModalState();
 
   return (
-    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16} fillWidth>
       {sinks.length > 0 && (
         <CreatePipelineModalDeliverySection header="Destinations">
           <CreatePipelineModalDeliveryDestinations />

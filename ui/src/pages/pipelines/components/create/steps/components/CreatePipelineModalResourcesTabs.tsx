@@ -24,7 +24,6 @@ const TabsWrapper = styled.div`
   overflow-x: auto;
 `;
 
-// @dls-migrate tokens.background.alt: Inverse is a scope, not a token: render the opposite-theme surface as `<GalaxyProvider isScoped theme={…}>` around a `Box variant`, and read the normal roles inside it.
 const TabButton = styled.button<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
@@ -37,7 +36,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
 
   border: none;
   border-bottom: 2px solid
-    ${({ $isActive }) => ($isActive ? t.color.background.primaryAlt : "transparent")};
+    ${({ $isActive }) => ($isActive ? t.color.text.primary : "transparent")};
   background-color: transparent;
   cursor: pointer;
 `;

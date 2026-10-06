@@ -16,10 +16,7 @@ const CreatePipelineModalDeliveryDestinations = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Widget
-      isFlush /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-      fillWidth
-    >
+    <Widget isFlush>
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
         {sinks.map((sink, index) => (
           <Fragment key={sink.connection.id}>

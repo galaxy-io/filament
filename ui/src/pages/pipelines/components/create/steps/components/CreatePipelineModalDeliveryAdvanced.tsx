@@ -17,7 +17,7 @@ const CreatePipelineModalDeliveryAdvanced = () => {
   const dispatch = useCreatePipelineModalDispatch();
 
   return (
-    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
       {sourceConnection && (
         <CreatePipelineModalDeliveryNodeConfig
           header="Source configuration"
@@ -33,12 +33,7 @@ const CreatePipelineModalDeliveryAdvanced = () => {
           kind={ConnectorKind.SINK}
         />
       ))}
-      <Widget
-        isCollapsible
-        header="Worker configuration" /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */
-        padding="16px"
-        size={WidgetSize.LARGE}
-      >
+      <Widget isCollapsible header="Worker configuration" size={WidgetSize.LARGE}>
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           error={workerConfigurationError}

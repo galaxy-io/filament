@@ -10,7 +10,7 @@ const CreatePipelineModalDeliverySection = ({
   header,
   children,
 }: CreatePipelineModalDeliverySectionProps) => (
-  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+  <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
     <Text weight={TextWeight.MEDIUM}>{header}</Text>
     {children}
   </Flex>

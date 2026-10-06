@@ -2,15 +2,12 @@ import { styled } from "@linaria/react";
 
 import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import Icon from "@galaxy-io/dls/icons/Icon";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import DocsButton from "@/components/DocsButton";
-
-import BaseHeader from "@/layouts/components/BaseHeader";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -73,17 +70,13 @@ const CreatePipelineModalSidebar = () => {
   return (
     <SidebarWrapper>
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} padding={16}>
-          <BaseHeader title="Create a new pipeline" />
-        </Flex>
-        <Divider />
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} padding={12} fillWidth>
-          <Widget
-            variant={
-              WidgetVariant.SECONDARY
-            } /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-            fillWidth
-          >
+        <Flex
+          alignItems={AlignItems.STRETCH}
+          direction={FlexDirection.COLUMN}
+          padding={12}
+          fillWidth
+        >
+          <Widget variant={WidgetVariant.SECONDARY}>
             <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12}>
               <Text
                 size={TextSize.BODY_SM}
@@ -105,10 +98,8 @@ const CreatePipelineModalSidebar = () => {
                   <Flex
                     alignItems={AlignItems.START}
                     key={item}
-                    direction={
-                      FlexDirection.COLUMN
-                    } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-                    gap={6}
+                    direction={FlexDirection.COLUMN}
+                    gap={4}
                     fillWidth
                   >
                     <StepButton
@@ -137,8 +128,9 @@ const CreatePipelineModalSidebar = () => {
                     </StepButton>
                     {hasSinkRows && (
                       <Flex
-                        alignItems={AlignItems.START}
+                        alignItems={AlignItems.STRETCH}
                         direction={FlexDirection.COLUMN}
+                        padding={[0, 0, 0, 16]}
                         fillWidth
                       >
                         {sinks.map((sink) => (

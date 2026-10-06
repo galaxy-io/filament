@@ -13,7 +13,6 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import { CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const CellWrapper = styled.div`
@@ -50,28 +49,22 @@ const CreatePipelineModalResourcesCursorCell = ({
   const options: SelectOption[] = row.cursorOptions.map((column) => ({
     id: column.name,
     label: column.name,
-    value: column.name,
   }));
 
-  const selectedOption = options.find((option) => option.value === row.cursorField) ?? null;
+  const handleCursorChange = (id: string | null) => {
+    if (id === null) return;
+    dispatch({
+      type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
+      payload: { sinkId: activeSinkId, resource: row.name, cursorField: id },
+    });
+  };
 
   return (
     <CellWrapper>
       <SelectInput
         options={options}
-        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-          selectedOption
-        }
-        onChange={(option) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
-            payload: {
-              sinkId: activeSinkId,
-              resource: row.name,
-              cursorField: option.value as string,
-            },
-          })
-        }
+        value={row.cursorField || null}
+        onChange={handleCursorChange}
         placeholder="Select a column..."
         variant={SelectInputVariant.TERTIARY}
         fillWidth

@@ -6,7 +6,7 @@ import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
+import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -214,9 +214,7 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
                 <Skeleton />
               </Box>
               <Box width={24}>
-                <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-                  height={24}
-                />
+                <Skeleton variant={SkeletonVariant.RECT} size={SkeletonSize.SMALL} />
               </Box>
               <Box width={140}>
                 <Skeleton />

@@ -1,13 +1,11 @@
-import { styled } from "@linaria/react";
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import BulletedList, { BulletedListSize } from "@galaxy-io/dls/lists/BulletedList";
 import { Placement } from "@galaxy-io/dls/theme/enums";
-import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
@@ -33,14 +31,6 @@ import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 import { NOOP } from "@/constants";
 
 import { getErrorMessage } from "@/utils/errors";
-
-const FooterWrapper = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background-color: ${t.color.background.primary};
-`;
 
 const CreatePipelineModalFooter = () => {
   const navigate = useNavigate();
@@ -158,7 +148,7 @@ const CreatePipelineModalFooter = () => {
   };
 
   return (
-    <FooterWrapper>
+    <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN} fillWidth>
       <Button
         size={ButtonSize.LARGE}
         label="Back"
@@ -183,7 +173,7 @@ const CreatePipelineModalFooter = () => {
         )}
         {renderAction()}
       </Flex>
-    </FooterWrapper>
+    </Flex>
   );
 };
 

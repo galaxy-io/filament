@@ -12,10 +12,7 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import {
-  CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH,
-  READ_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+import { READ_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const CellWrapper = styled.div`
@@ -33,26 +30,22 @@ const CreatePipelineModalResourcesReadModeCell = ({
   const options: SelectOption[] = row.readModeOptions.map((mode) => ({
     id: String(mode),
     label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
   }));
+
+  const handleReadModeChange = (id: string | null) => {
+    if (id === null) return;
+    dispatch({
+      type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
+      payload: { sinkId: activeSinkId, resource: row.name, readMode: Number(id) as ReadMode },
+    });
+  };
 
   return (
     <CellWrapper>
       <SelectInput
         options={options}
-        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-          options.find((option) => option.value === row.readMode) ?? null
-        }
-        onChange={(option) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-            payload: {
-              sinkId: activeSinkId,
-              resource: row.name,
-              readMode: option.value as ReadMode,
-            },
-          })
-        }
+        value={String(row.readMode)}
+        onChange={handleReadModeChange}
         variant={SelectInputVariant.TERTIARY}
         isDisabled={!row.isSelected}
         fillWidth

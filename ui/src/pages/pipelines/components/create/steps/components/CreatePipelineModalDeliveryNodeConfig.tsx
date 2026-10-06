@@ -37,14 +37,7 @@ const CreatePipelineModalDeliveryNodeConfig = ({
   if (nodeConfig.fields.length === 0) return null;
 
   return (
-    <Widget
-      isCollapsible
-      header={
-        header
-      } /* @dls-migrate accordion.padding-other: The body inset follows `size`: remove `padding` (use `isFlush` for 0). */
-      padding="16px"
-      size={WidgetSize.LARGE}
-    >
+    <Widget isCollapsible header={header} size={WidgetSize.LARGE}>
       <PipelineNodeConfigFields
         {...nodeConfig}
         config={config}

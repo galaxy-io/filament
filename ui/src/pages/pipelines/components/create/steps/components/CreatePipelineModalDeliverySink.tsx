@@ -30,8 +30,12 @@ const CreatePipelineModalDeliverySink = ({
   const options: SelectOption[] = sink.writeModeOptions.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],
-    value: mode,
   }));
+
+  const handleWriteModeChange = (id: string | null) => {
+    if (id === null) return;
+    onChange(sink.connection.id, Number(id) as WriteMode);
+  };
 
   return (
     <Flex
@@ -41,12 +45,7 @@ const CreatePipelineModalDeliverySink = ({
       padding={[12, 16]}
       fillWidth
     >
-      <Flex
-        alignItems={
-          AlignItems.CENTER
-        } /* @dls-migrate layout.off-scale: Pick a value on the space scale (or a CSS-order tuple of them). */
-        gap={10}
-      >
+      <Flex alignItems={AlignItems.CENTER} gap={8}>
         <ConnectorTile connector={sink.connection.connector} kind={sink.connection.kind} />
         <SinkNameWrapper>
           <Text lineClamp={1}>{sink.connection.name}</Text>
@@ -57,10 +56,8 @@ const CreatePipelineModalDeliverySink = ({
           <SelectInput
             fillWidth
             options={options}
-            /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-              options.find((option) => option.value === sink.writeMode) ?? null
-            }
-            onChange={(option) => onChange(sink.connection.id, option.value as WriteMode)}
+            value={String(sink.writeMode)}
+            onChange={handleWriteModeChange}
             size={SelectInputSize.LARGE}
           />
         </Box>
