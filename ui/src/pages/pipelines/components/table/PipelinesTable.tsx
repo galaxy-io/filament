@@ -2,11 +2,9 @@ import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box from "@galaxy-io/dls/layout/Box";
-// @dls-migrate infinitetable.Row: Removed: TanStack types are not exposed; use `TableColumn`, `TableColumnLayout`, `TableCellContext`, `TableSort`.
-import InfiniteTable, { type Row } from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
@@ -49,8 +47,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     width: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
     pin: Side.LEFT,
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
-    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
+    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row} />,
   },
   {
     id: PIPELINES_TABLE_COLUMN_ID_PIPELINE,
@@ -58,26 +55,23 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     minWidth: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
     accessor: (pipeline) => pipeline.name,
     canSort: true,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
-    cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
+    cell: ({ row }) => <PipelinesTableColumnName pipeline={row} />,
   },
   {
     id: "recentRuns",
     header: "Runs",
     width: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
-    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
+    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row} />,
   },
   {
     id: "lastRun",
     header: "Ran",
     width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} lineClamp={1}>
-        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.requestedAt) : "—"}
+        {row.lastRun ? formatTimeAgo(row.lastRun.requestedAt) : "—"}
       </Text>
     ),
   },
@@ -86,13 +80,12 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     header: "Status",
     width: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
     cell: ({ row }) =>
-      row.original.lastRun ? (
+      row.lastRun ? (
         <PipelineHistoryRunStatus
-          status={row.original.lastRun.status}
-          error={row.original.lastRun.error}
-          executionStatus={row.original.lastRun.executionStatus}
+          status={row.lastRun.status}
+          error={row.lastRun.error}
+          executionStatus={row.lastRun.executionStatus}
         />
       ) : (
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
@@ -105,12 +98,9 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     header: "Duration",
     width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.original.lastRun
-          ? formatDuration(row.original.lastRun.startedAt, row.original.lastRun.endedAt)
-          : "—"}
+        {row.lastRun ? formatDuration(row.lastRun.startedAt, row.lastRun.endedAt) : "—"}
       </Text>
     ),
   },
@@ -120,10 +110,9 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
     align: "right",
     canSort: false,
-    // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.original.lastRun ? formatCount(row.original.lastRun.records) : "—"}
+        {row.lastRun ? formatCount(row.lastRun.records) : "—"}
       </Text>
     ),
   },
@@ -148,16 +137,16 @@ const PipelinesTable = ({
 }: PipelinesTableProps) => {
   const navigate = useNavigate();
 
-  const handleRowClick = (row: Row<Pipeline>) => {
+  const handleRowClick = (row: Pipeline) => {
     navigate({
       to: "/pipelines/$id",
-      params: { id: row.original.id },
+      params: { id: row.id },
     });
   };
 
   return (
     <PipelinesTableWrapper>
-      <Box height="100%">
+      <Box height="100%" fillWidth>
         <InfiniteTable<Pipeline>
           columns={PIPELINES_TABLE_COLUMNS}
           data={pipelines}
@@ -168,20 +157,13 @@ const PipelinesTable = ({
               message="No pipelines match your search"
             />
           }
-          /* @dls-migrate infinitetable.onRowClick: `row` is now the data object: `row.original` → `row`. */ onRowClick={
-            handleRowClick
-          }
+          onRowClick={handleRowClick}
           isLoading={isFetchingNextPage}
           onEndReached={() => {
-            if (hasNextPage) fetchNextPage();
+            if (hasNextPage) fetchNextPage?.();
           }}
-          /* @dls-migrate infinitetable.enableSorting: Sorting is per column (`canSort`) with a `TableSort` value. */ enableSorting
-          /* @dls-migrate infinitetable.sorting: Sorting is per column (`canSort`) with a `TableSort` value. */ sorting={
-            sorting
-          }
-          /* @dls-migrate infinitetable.onSortingChange: Sorting is per column (`canSort`) with a `TableSort` value. */ onSortingChange={
-            onSortingChange
-          }
+          sort={sorting}
+          onSortChange={onSortingChange}
         />
       </Box>
     </PipelinesTableWrapper>

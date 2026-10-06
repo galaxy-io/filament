@@ -25,7 +25,6 @@ export const PIPELINE_SCHEDULE_TIMEZONE_OPTIONS: SelectOption[] = Intl.supported
 ).map((timezone) => ({
   id: timezone,
   label: timezone,
-  value: timezone,
 }));
 
 export const PIPELINE_SCHEDULE_FREQUENCY_OPTIONS: PipelineScheduleFrequencyOption[] = [
@@ -47,13 +46,13 @@ export const PIPELINE_SCHEDULE_CRON_FIELD_BOUNDS: [number, number][] = [
 export const PIPELINE_SCHEDULE_CRON_PART_PATTERN = /^(\*|\d+(?:-\d+)?)(?:\/(\d+))?$/;
 
 export const PIPELINE_SCHEDULE_DAY_OPTIONS: SelectOption[] = [
-  { id: "1", label: "Monday", value: 1 },
-  { id: "2", label: "Tuesday", value: 2 },
-  { id: "3", label: "Wednesday", value: 3 },
-  { id: "4", label: "Thursday", value: 4 },
-  { id: "5", label: "Friday", value: 5 },
-  { id: "6", label: "Saturday", value: 6 },
-  { id: "0", label: "Sunday", value: 0 },
+  { id: "1", label: "Monday" },
+  { id: "2", label: "Tuesday" },
+  { id: "3", label: "Wednesday" },
+  { id: "4", label: "Thursday" },
+  { id: "5", label: "Friday" },
+  { id: "6", label: "Saturday" },
+  { id: "0", label: "Sunday" },
 ];
 
 export const PIPELINE_SCHEDULE_HOUR_OPTIONS: SelectOption[] = Array.from(
@@ -61,7 +60,6 @@ export const PIPELINE_SCHEDULE_HOUR_OPTIONS: SelectOption[] = Array.from(
   (_, hour) => ({
     id: `${hour}`,
     label: `${String(hour).padStart(2, "0")}:00`,
-    value: hour,
   }),
 );
 
@@ -81,6 +79,5 @@ export const PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS: SelectOption[] = Array.from
   (_, index) => ({
     id: `${index + 1}`,
     label: `${index + 1}${PIPELINE_SCHEDULE_ORDINAL_SUFFIX_MAP[index + 1] ?? "th"}`,
-    value: index + 1,
   }),
 );

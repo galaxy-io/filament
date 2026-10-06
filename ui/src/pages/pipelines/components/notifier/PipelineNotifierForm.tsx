@@ -36,12 +36,15 @@ const PipelineNotifierForm = ({
   };
 
   return (
-    <Flex alignItems={AlignItems.START} padding={12} fillWidth>
-      <Widget /* @dls-migrate widget.padding-other: The body inset is fixed at 12px: remove `padding` (use `isFlush` for 0). */
-        padding="16px" /* @dls-migrate widget.fillWidth: Grow the card with a `FlexItem` or a `Grid` track. */
-        fillWidth
-      >
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
+      <Widget isFlush>
+        <Flex
+          alignItems={AlignItems.START}
+          direction={FlexDirection.COLUMN}
+          gap={12}
+          padding={16}
+          fillWidth
+        >
           <PipelineNotifierFields state={state} onChange={handleChange} isDisabled={isSaving} />
           <Flex
             alignItems={AlignItems.CENTER}

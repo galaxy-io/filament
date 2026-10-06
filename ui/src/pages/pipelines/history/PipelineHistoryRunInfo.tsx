@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -26,7 +25,6 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-  PIPELINE_RUN_RESOURCE_LOADING_ROW_COUNT,
 } from "@/pages/pipelines/history/constants";
 import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/PipelineHistoryRunContinuousSummary";
 
@@ -58,67 +56,39 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       {
         id: "resource",
         header: "Resource",
-        cellLoading: () => (
-          <Box width={160}>
-            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-              height={14}
-            />
-          </Box>
-        ),
         cell: ({ row }) => (
           <PipelineHistoryRunInfoConnectionColumn
             connectionId={sourceConnectionId}
-            resourceName={row.original.resourceName}
+            resourceName={row.resourceName}
           />
         ),
       },
       {
         id: "sink",
         header: "Sink",
-        size:
+        width:
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION +
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-        cellLoading: () => (
-          <Box width={48}>
-            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-              height={14}
-            />
-          </Box>
-        ),
         cell: () => <PipelineHistoryRunInfoConnectionColumn connectionId={sinkConnectionId} />,
       },
       {
         id: "records",
         header: "Records",
-        size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-        cellLoading: () => (
-          <Box width={48}>
-            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-              height={14}
-            />
-          </Box>
-        ),
+        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatCount(row.original.records)}
+            {formatCount(row.records)}
           </Text>
         ),
       },
       {
         id: "volume",
         header: "Volume",
-        size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
         align: "right",
-        cellLoading: () => (
-          <Box width={52}>
-            <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-              height={14}
-            />
-          </Box>
-        ),
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatBytes(row.original.bytes)}
+            {formatBytes(row.bytes)}
           </Text>
         ),
       },

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import SwitchInput, { SwitchInputSize } from "@galaxy-io/dls/inputs/SwitchInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -84,10 +83,9 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
     {
       id: "name",
       header: "Name",
-      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => (
         <Text size={TextSize.BODY_SM} lineClamp={1}>
-          {row.original.name}
+          {row.name}
         </Text>
       ),
     },
@@ -96,12 +94,11 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
       header: "",
       align: "right",
       width: PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
-      // @dls-migrate infinitetable.column.row-original: `row` is now the data object: `row.original` → `row`.
       cell: ({ row }) => (
         <SwitchInput
           size={SwitchInputSize.LARGE}
-          isChecked={row.original.isEnabled}
-          onChange={(isEnabled) => onToggleEnabled(row.original, isEnabled)}
+          isChecked={row.isEnabled}
+          onChange={(isEnabled) => onToggleEnabled(row, isEnabled)}
           isDisabled={isSaving}
         />
       ),
@@ -139,7 +136,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
             <Divider />
           </>
         )}
-        <Box variant={BoxVariant.PRIMARY}>
+        <Box variant={BoxVariant.PRIMARY} fillWidth>
           <InfiniteTable<TRow>
             columns={columns}
             data={rows}
@@ -156,14 +153,13 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
             onExpandedIdsChange={handleExpandedChange}
             renderExpandedRow={(row) => (
               <PipelineNotifierForm
-                initialState={row.original}
+                initialState={row}
                 isSaving={isSaving}
-                onSave={(next) => onUpdate(row.original, next, () => handleExpandedChange([]))}
+                onSave={(next) => onUpdate(row, next, () => handleExpandedChange([]))}
                 onCancel={() => handleExpandedChange([])}
-                onDelete={() => onDelete(row.original)}
+                onDelete={() => onDelete(row)}
               />
             )}
-            /* @dls-migrate infinitetable.noHeader: Removed: a header-less key–value grid is a `DescriptionList`. */ noHeader
           />
         </Box>
       </Flex>

@@ -37,8 +37,7 @@ const PipelinesPage = () => {
 
   const sorting = useMemo(() => createPipelinesTableSorting(search), [search]);
 
-  const handleSortingChange: PipelinesTableSortingChange = (updater) => {
-    const next = typeof updater === "function" ? updater(sorting) : updater;
+  const handleSortingChange: PipelinesTableSortingChange = (next) => {
     void navigate({
       to: ".",
       replace: true,

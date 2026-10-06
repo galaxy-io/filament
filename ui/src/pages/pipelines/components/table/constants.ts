@@ -24,12 +24,12 @@ export const PIPELINES_TABLE_RECENT_RUNS_STATUSES: RunStatus[] = [
 
 export const PIPELINES_TABLE_RECENT_RUNS_STATUS_TO_COLOR_MAP: Record<RunStatus, string> = {
   [RunStatus.UNSPECIFIED]: t.color.border.primary,
-  [RunStatus.REQUESTED]: t.color.text.orange,
-  [RunStatus.RUNNING]: t.color.text.blue,
+  [RunStatus.REQUESTED]: t.color.text.secondary,
+  [RunStatus.RUNNING]: t.color.text.primary,
   [RunStatus.COMPLETED]: t.color.text.success,
   [RunStatus.FAILED]: t.color.text.error,
-  [RunStatus.CANCELED]: t.color.text.secondary,
-  [RunStatus.PAUSED]: t.color.text.teal,
-  [RunStatus.PARTIAL]: t.color.text.pink,
-  [RunStatus.SCHEDULED]: t.color.text.yellow,
+  [RunStatus.CANCELED]: t.color.text.tertiary,
+  [RunStatus.PAUSED]: t.color.text.secondary,
+  [RunStatus.PARTIAL]: t.color.text.warning,
+  [RunStatus.SCHEDULED]: t.color.text.tertiary,
 };

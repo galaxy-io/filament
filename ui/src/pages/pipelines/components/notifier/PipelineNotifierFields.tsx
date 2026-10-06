@@ -29,18 +29,23 @@ import {
 } from "@/pages/pipelines/components/notifier/utils";
 import { PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP } from "@/pages/pipelines/history/constants";
 
-const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
-  ...option,
-  icon: (
-    <Beacon
-      variant={
-        PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[
-          PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[option.value as NotifierEvent]
-        ]
-      }
-    />
-  ),
-}));
+import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
+
+const EVENT_OPTIONS: SelectOption[] = getSelectAllOptions(
+  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
+    ...option,
+    leading: (
+      <Beacon
+        variant={
+          PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[
+            PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]
+          ]
+        }
+      />
+    ),
+  })),
+);
 
 interface PipelineNotifierFieldsProps {
   state: PipelineNotifierState;
@@ -73,23 +78,24 @@ const PipelineNotifierFields = ({
     PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY in state.secretRefs
       ? PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT
       : PIPELINE_NOTIFIER_HEADERS_PLACEHOLDER_TEXT;
-  const selectedTypeOption =
-    PIPELINE_NOTIFIER_TYPE_OPTIONS.find((option) => option.value === state.notificationType) ??
-    null;
-  const selectedEventOptions = EVENT_OPTIONS.filter((option) =>
-    state.events.includes(option.value as NotifierEvent),
-  );
+  const selectedEventIds = state.events.map(String);
 
   const handleNameChange = (name: string) => {
     onChange({ name });
   };
 
-  const handleTypeChange = (option: SelectOption) => {
-    onChange({ notificationType: option.value as NotificationType, url: "", headers: "" });
+  const handleTypeChange = (id: string | null) => {
+    if (id === null) return;
+    onChange({ notificationType: Number(id) as NotificationType, url: "", headers: "" });
   };
 
-  const handleEventsChange = (options: SelectOption[]) => {
-    onChange({ events: options.map((option) => option.value as NotifierEvent) });
+  const handleEventsChange = (ids: string[]) => {
+    const next = getSelectAllChange(
+      PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+      ids,
+      selectedEventIds,
+    );
+    onChange({ events: next.map((id) => Number(id) as NotifierEvent) });
   };
 
   const handleUrlChange = (url: string) => {
@@ -114,9 +120,7 @@ const PipelineNotifierFields = ({
       <SelectInput
         label="Type"
         options={PIPELINE_NOTIFIER_TYPE_OPTIONS}
-        /* @dls-migrate selectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-          selectedTypeOption
-        }
+        value={String(state.notificationType)}
         onChange={handleTypeChange}
         placeholder="Select type"
         size={SelectInputSize.LARGE}
@@ -126,16 +130,10 @@ const PipelineNotifierFields = ({
       <MultiSelectInput
         label="Events"
         options={EVENT_OPTIONS}
-        /* @dls-migrate multiselectinput.value: `value` and `onChange` now carry option ids, not option objects. */ value={
-          selectedEventOptions
-        }
+        value={getSelectAllValue(PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION, selectedEventIds)}
         onChange={handleEventsChange}
-        /* @dls-migrate multiselectinput.renderSelectedText: Merged into `renderValue(options)`. */ renderSelectedText={
-          formatPipelineNotifierEventsSelection
-        }
-        /* @dls-migrate multiselectinput.pinnedOptions: Pinned rows are now option ids: pass `pinnedIds`. */ pinnedOptions={[
-          PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
-        ]}
+        renderValue={(options) => <Text>{formatPipelineNotifierEventsSelection(options)}</Text>}
+        pinnedIds={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id]}
         placeholder="Select events"
         size={MultiSelectInputSize.LARGE}
         isDisabled={isDisabled}
@@ -173,9 +171,7 @@ const PipelineNotifierFields = ({
               onChange={handleHeadersChange}
               language={CodeEditorLanguage.JSON}
               placeholder={headersPlaceholder}
-              /* @dls-migrate codeeditor.isReadOnly: A read-only editor used to show code is a `CodeBlock` (or `JsonViewer` for JSON). */ isReadOnly={
-                isDisabled
-              }
+              isReadOnly={isDisabled}
               hasLineNumbers={false}
             />
             {headersError && (

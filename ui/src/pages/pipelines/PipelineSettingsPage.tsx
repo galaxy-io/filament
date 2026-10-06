@@ -57,7 +57,7 @@ const PipelineSettingsPage = () => {
       <Divider />
       <ScrollWrapper>
         <Flex
-          alignItems={AlignItems.START}
+          alignItems={AlignItems.STRETCH}
           direction={FlexDirection.COLUMN}
           gap={12}
           padding={16}

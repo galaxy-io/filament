@@ -4,7 +4,6 @@ import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
-import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -60,34 +59,20 @@ const createRunTableColumns = (
   {
     id: "status",
     header: "Status",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
-    cellLoading: () => (
-      <Box width={64}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={18}
-        />
-      </Box>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cell: ({ row }) => (
       <PipelineHistoryRunStatus
-        status={row.original.status}
-        error={row.original.error}
-        executionStatus={row.original.executionStatus}
+        status={row.status}
+        error={row.error}
+        executionStatus={row.executionStatus}
       />
     ),
   },
   {
     id: "startedAt",
     header: "Started",
-    cellLoading: () => (
-      <Box width={160}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={14}
-        />
-      </Box>
-    ),
     cell: ({ row }) => {
-      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row.original);
+      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row);
       return (
         <Text
           size={TextSize.BODY_SM}
@@ -102,70 +87,42 @@ const createRunTableColumns = (
   {
     id: "version",
     header: "Version",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-    cellLoading: () => (
-      <Box width={32}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={14}
-        />
-      </Box>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cell: ({ row }) => {
-      const version = versionById.get(row.original.pipelineVersionId);
+      const version = versionById.get(row.pipelineVersionId);
       return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
     },
   },
   {
     id: "duration",
     header: "Duration",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cellLoading: () => (
-      <Box width={160}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={14}
-        />
-      </Box>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
     cell: ({ row }) => (
       <PipelineHistoryRunDuration
-        status={row.original.status}
-        startedAt={row.original.startedAt}
-        endedAt={row.original.endedAt}
+        status={row.status}
+        startedAt={row.startedAt}
+        endedAt={row.endedAt}
       />
     ),
   },
   {
     id: "records",
     header: "Records",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cellLoading: () => (
-      <Box width={48}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={14}
-        />
-      </Box>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.original.startedAt ? formatCount(row.original.records) : "—"}
+        {row.startedAt ? formatCount(row.records) : "—"}
       </Text>
     ),
   },
   {
     id: "volume",
     header: "Volume",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
     align: "right",
-    cellLoading: () => (
-      <Box width={52}>
-        <Skeleton /* @dls-migrate skeleton.TextShimmer.height-other: Pick a rung, or wrap the real `Text` in `<Skeleton isLoading>` (wrapper mode). */
-          height={14}
-        />
-      </Box>
-    ),
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.original.startedAt ? formatBytes(row.original.bytes) : "—"}
+        {row.startedAt ? formatBytes(row.bytes) : "—"}
       </Text>
     ),
   },
@@ -233,7 +190,7 @@ const PipelineHistoryPage = () => {
             expandedIds={runIds}
             onExpandedIdsChange={handleExpandedChange}
             renderExpandedRow={(row) => {
-              return <PipelineHistoryRunInfo runId={row.original.id} />;
+              return <PipelineHistoryRunInfo runId={row.id} />;
             }}
             isLoading={isFetchingNextPage}
             onEndReached={() => {

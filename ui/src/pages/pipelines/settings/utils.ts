@@ -121,7 +121,7 @@ export const formatPipelineScheduleSummary = (
   const time = `${String(state.hour).padStart(2, "0")}:00 ${state.timezone}`;
   if (state.frequency === PipelineScheduleFrequency.WEEKLY) {
     const labels = PIPELINE_SCHEDULE_DAY_OPTIONS.filter((option) =>
-      state.days.includes(option.value as number),
+      state.days.includes(Number(option.id)),
     ).map((option) => option.label);
     if (labels.length === 0) return null;
     if (labels.length === 7) return `Runs every day at ${time}`;
@@ -133,7 +133,7 @@ export const formatPipelineScheduleSummary = (
   }
   if (state.frequency === PipelineScheduleFrequency.MONTHLY) {
     const dayLabel = PIPELINE_SCHEDULE_DAY_OF_MONTH_OPTIONS.find(
-      (option) => option.value === state.dayOfMonth,
+      (option) => option.id === String(state.dayOfMonth),
     )?.label;
     return `Runs on the ${dayLabel} of every month at ${time}`;
   }

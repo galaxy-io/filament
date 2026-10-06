@@ -15,7 +15,6 @@ const CreatePipelineModalDeliverySchedule = () => {
     <PipelineScheduleFields
       header="Schedule"
       size={WidgetSize.LARGE}
-      padding="16px"
       state={schedule}
       isOpenInitial
       onChange={(partial) =>
