@@ -71,7 +71,7 @@ resources:
         timeout_seconds: 600
 
       result:
-        url: "{{ config.host }}/services/search/jobs/{{ job.sid }}/results?output_mode=json&count=0"
+        url: "{{ config.host }}/services/search/v2/jobs/{{ job.sid }}/results?output_mode=json&count=0"
         auth: connection
         format: json
         records_path: results
