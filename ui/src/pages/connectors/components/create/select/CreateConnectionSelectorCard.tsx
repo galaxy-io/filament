@@ -69,6 +69,7 @@ const CreateConnectionSelectorCard = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
+        <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
       </Flex>
     </Widget>
   );
