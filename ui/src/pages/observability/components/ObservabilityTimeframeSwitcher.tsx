@@ -20,7 +20,7 @@ const ObservabilityTimeframeSwitcher = ({
 
   return (
     <ToggleInput
-      variant={ToggleInputVariant.TERTIARY}
+      variant={ToggleInputVariant.PRIMARY}
       options={items}
       value={value}
       onChange={onChange}

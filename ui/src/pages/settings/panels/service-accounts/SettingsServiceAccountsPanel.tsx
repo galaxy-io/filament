@@ -13,6 +13,7 @@ import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Menu, { MenuItem } from "@galaxy-io/dls/menu/Menu";
+import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -250,16 +251,17 @@ const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelP
           <SettingsServiceAccountsPanelCredentials credentials={rotatedCredentials} />
         )}
       </Dialog>
-      <Dialog
-        open={accountConfirm.isOpen}
-        onClose={accountConfirm.handleClose}
+      <ConfirmDialog
+        isOpen={accountConfirm.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) accountConfirm.handleClose();
+        }}
         onConfirm={accountConfirm.handleConfirm}
-        title="Delete service account"
-        body="This service account will be deleted and its credentials will stop working immediately."
-        confirmationPhrase={accountConfirm.target?.name}
-        confirmLabel="Delete service account"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isRemoving}
+        header="Delete service account?"
+        description="This service account will be deleted and its credentials will stop working immediately."
+        confirmValue={accountConfirm.target?.name}
+        label="Delete service account"
+        isDestructive
       />
     </>
   );

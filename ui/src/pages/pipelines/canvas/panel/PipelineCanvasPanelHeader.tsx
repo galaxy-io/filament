@@ -38,6 +38,7 @@ const PipelineCanvasPanelHeader = ({
             size={ButtonSize.SMALL}
             onClick={onBack}
             ariaLabel="Back to configuration"
+            tooltip="Back to configuration"
           />
         </FlexItem>
       )}
@@ -58,6 +59,7 @@ const PipelineCanvasPanelHeader = ({
                     size={ButtonSize.SMALL}
                     onClick={onDelete}
                     ariaLabel="Delete"
+                    tooltip="Delete"
                   />,
                 ]
               : undefined

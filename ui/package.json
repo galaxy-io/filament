@@ -26,7 +26,7 @@
     "@connectrpc/connect": "^2.1.0",
     "@connectrpc/connect-query": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.0",
-    "@galaxy-io/dls": "^2.0.0",
+    "@galaxy-io/dls": "^2.0.2",
     "@lezer/highlight": "^1.2.3",
     "@linaria/core": "^7.0.0",
     "@linaria/react": "^7.0.1",
@@ -47,6 +47,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-intersection-observer": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.1",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   },

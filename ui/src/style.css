@@ -1,5 +1,6 @@
-* {
-  outline: none;
+:where([data-gx-theme] :focus-visible) {
+  outline: 1px solid var(--gx-color-border-focused);
+  outline-offset: 1px;
 }
 
 html,

@@ -34,6 +34,7 @@ const PipelineLayoutNavbarBackButton = () => {
         size={ButtonSize.SMALL}
         icon={ArrowLeftIcon}
         ariaLabel="Back to pipelines"
+        tooltip="Back to pipelines"
         onClick={handleBack}
       />
     </PipelineLayoutNavbarBackButtonWrapper>

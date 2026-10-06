@@ -10,6 +10,7 @@ import ToggleInput, {
 } from "@galaxy-io/dls/inputs/ToggleInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -89,68 +90,70 @@ const ObservabilityRunsWidget = () => {
 
   return (
     <Widget isFlush>
-      <BaseToolbar
-        leadingActions={[
-          <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-            Runs
-          </Text>,
-        ]}
-        trailingActions={[
-          <ObservabilityRunsSelectionChips key="selection-chips" />,
-          <ToggleInput
-            key="view-switcher"
-            variant={ToggleInputVariant.TERTIARY}
-            options={switcherItems}
-            value={view}
-            onChange={handleViewChange}
-          />,
-          <Box key="status-selector" width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
-            <MultiSelectInput
-              fillWidth
-              options={
-                isUpcoming
-                  ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
-                  : getSelectAllOptions(
-                      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-                      OBSERVABILITY_RUN_STATUS_OPTIONS,
-                    )
-              }
-              pinnedIds={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id]}
-              value={
-                isUpcoming
-                  ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id]
-                  : getSelectAllValue(
-                      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-                      selectedStatusIds,
-                    )
-              }
-              variant={MultiSelectInputVariant.TERTIARY}
-              onChange={handleStatusChange}
-              placeholder="Select statuses..."
-              isDisabled={isUpcoming}
-              renderValue={(options) => (
-                <Text>
-                  {pluralize(
-                    "status",
-                    options.filter(
-                      (option) => option.id !== OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id,
-                    ).length,
-                    true,
-                  )}
-                </Text>
-              )}
-            />
-          </Box>,
-        ]}
-      />
-      <Divider />
-      {view === ObservabilityRunsView.PAST ? (
-        <ObservabilityRunsChart />
-      ) : (
-        <ObservabilityRunsScheduledChart />
-      )}
-      <Divider />
-      <ObservabilityRunsTable />
+      <Flex direction={FlexDirection.COLUMN}>
+        <BaseToolbar
+          leadingActions={[
+            <Text key="title" variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
+              Runs
+            </Text>,
+          ]}
+          trailingActions={[
+            <ObservabilityRunsSelectionChips key="selection-chips" />,
+            <ToggleInput
+              key="view-switcher"
+              variant={ToggleInputVariant.PRIMARY}
+              options={switcherItems}
+              value={view}
+              onChange={handleViewChange}
+            />,
+            <Box key="status-selector" width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
+              <MultiSelectInput
+                fillWidth
+                options={
+                  isUpcoming
+                    ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION]
+                    : getSelectAllOptions(
+                        OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+                        OBSERVABILITY_RUN_STATUS_OPTIONS,
+                      )
+                }
+                pinnedIds={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id]}
+                value={
+                  isUpcoming
+                    ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id]
+                    : getSelectAllValue(
+                        OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+                        selectedStatusIds,
+                      )
+                }
+                variant={MultiSelectInputVariant.PRIMARY}
+                onChange={handleStatusChange}
+                placeholder="Select statuses..."
+                isDisabled={isUpcoming}
+                renderValue={(options) => (
+                  <Text>
+                    {pluralize(
+                      "status",
+                      options.filter(
+                        (option) => option.id !== OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id,
+                      ).length,
+                      true,
+                    )}
+                  </Text>
+                )}
+              />
+            </Box>,
+          ]}
+        />
+        <Divider />
+        {view === ObservabilityRunsView.PAST ? (
+          <ObservabilityRunsChart />
+        ) : (
+          <ObservabilityRunsScheduledChart />
+        )}
+        <Divider />
+        <ObservabilityRunsTable />
+      </Flex>
     </Widget>
   );
 };

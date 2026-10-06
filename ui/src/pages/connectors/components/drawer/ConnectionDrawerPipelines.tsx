@@ -30,7 +30,7 @@ const ConnectionDrawerPipelines = () => {
       emptyMessage="This connection is not used in any pipelines."
       isOpenInitial
     >
-      <Flex alignItems={AlignItems.START} fillWidth direction={FlexDirection.COLUMN}>
+      <Flex alignItems={AlignItems.STRETCH} fillWidth direction={FlexDirection.COLUMN}>
         {connectedPipelines.map((pipeline) => (
           <PipelineCard key={pipeline.id} pipeline={pipeline} />
         ))}

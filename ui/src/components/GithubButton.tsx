@@ -21,7 +21,7 @@ const GithubButton = () => {
           variant={IconVariant.INHERIT}
         />
       }
-      variant={ButtonVariant.SECONDARY}
+      variant={ButtonVariant.TERTIARY}
       size={ButtonSize.SMALL}
       onClick={handleGithub}
     />

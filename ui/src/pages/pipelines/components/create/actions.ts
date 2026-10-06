@@ -15,7 +15,6 @@ export enum CreatePipelineModalActionType {
   SELECT_SOURCE = "SELECT_SOURCE",
   TOGGLE_SINK = "TOGGLE_SINK",
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
-  OPEN_SINK_RESOURCES = "OPEN_SINK_RESOURCES",
   SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
   ADD_RESOURCE = "ADD_RESOURCE",
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
@@ -48,11 +47,6 @@ export interface ToggleSinkAction {
 
 export interface SetActiveSinkAction {
   type: CreatePipelineModalActionType.SET_ACTIVE_SINK;
-  payload: Connection["id"];
-}
-
-export interface OpenSinkResourcesAction {
-  type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES;
   payload: Connection["id"];
 }
 
@@ -158,7 +152,6 @@ export type CreatePipelineModalAction =
   | SetActiveSinkAction
   | SetExecutionModeAction
   | AddResourceAction
-  | OpenSinkResourcesAction
   | SetResourceSelectionAction
   | SetResourceReadModeAction
   | SetResourceCursorAction

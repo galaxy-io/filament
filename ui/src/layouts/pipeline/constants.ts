@@ -20,3 +20,9 @@ export const PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP: Record<PipelineSidebarItem, Icon
   [PipelineSidebarItem.HISTORY]: ClockCounterClockwiseIcon,
   [PipelineSidebarItem.SETTINGS]: GearFineIcon,
 };
+
+export const PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP: Record<PipelineSidebarItem, string> = {
+  [PipelineSidebarItem.CANVAS]: "Canvas",
+  [PipelineSidebarItem.HISTORY]: "History",
+  [PipelineSidebarItem.SETTINGS]: "Settings",
+};

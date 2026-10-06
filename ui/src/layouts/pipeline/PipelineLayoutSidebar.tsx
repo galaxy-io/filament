@@ -7,6 +7,7 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import {
   PIPELINE_SIDEBAR_BUTTON_SIZE,
   PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP,
+  PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP,
   PIPELINE_SIDEBAR_ITEMS,
   PIPELINE_SIDEBAR_WIDTH,
 } from "@/layouts/pipeline/constants";
@@ -63,7 +64,14 @@ const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSideba
         {PIPELINE_SIDEBAR_ITEMS.map((item) => {
           const isActive = activeItem === item;
           return (
-            <SidebarButton key={item} $isActive={isActive} onClick={() => onItemClick(item)}>
+            <SidebarButton
+              key={item}
+              $isActive={isActive}
+              onClick={() => onItemClick(item)}
+              aria-label={PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP[item]}
+              aria-current={isActive ? "page" : undefined}
+              title={PIPELINE_SIDEBAR_ITEM_TO_LABEL_MAP[item]}
+            >
               <Icon
                 component={PIPELINE_SIDEBAR_ITEM_TO_ICON_MAP[item]}
                 size={18}

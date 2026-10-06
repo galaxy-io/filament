@@ -22,8 +22,6 @@ import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settin
 import {
   formatPipelineScheduleSummary,
   hasPipelineScheduleChanges,
-  mapPipelineScheduleCronToState,
-  mapPipelineScheduleStateToCron,
 } from "@/pages/pipelines/settings/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -48,7 +46,7 @@ const PipelineSettingsPageSchedule = () => {
 
   const createInitialState = (): PipelineSettingsPageScheduleState => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
-    ...(schedule?.config ? mapPipelineScheduleCronToState(schedule.config.cron) : {}),
+    cron: schedule?.config?.cron || PIPELINE_SCHEDULE_DEFAULT_STATE.cron,
     isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   });
@@ -65,7 +63,7 @@ const PipelineSettingsPageSchedule = () => {
 
   const handleSave = () => {
     const config: Omit<PipelineScheduleConfig, "$typeName" | "overlapPolicy"> = {
-      cron: mapPipelineScheduleStateToCron(state),
+      cron: state.cron.trim(),
       timezone: state.timezone,
       isEnabled: state.isEnabled,
     };

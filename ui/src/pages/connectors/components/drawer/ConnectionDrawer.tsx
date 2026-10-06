@@ -6,13 +6,13 @@ import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import DangerZone from "@/components/DangerZone";
-import Dialog from "@/components/Dialog";
 
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
@@ -43,7 +43,7 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
   });
   const connection = data?.connection;
 
-  const { mutate: deleteConnection, isPending: isDeleting } = useDeleteConnectionMutation();
+  const { mutate: deleteConnection } = useDeleteConnectionMutation();
 
   const {
     handleOpen,
@@ -81,7 +81,7 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
     }
 
     return (
-      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+      <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
         <ConnectionDrawerList>
           <ConnectionDrawerKeyValueRow
             label="Kind"
@@ -139,16 +139,17 @@ const ConnectionDrawer = ({ isOpen, onClose }: ConnectionDrawerProps) => {
       }
     >
       {renderContent()}
-      <Dialog
-        open={isOpen && confirmIsOpen}
-        onClose={handleClose}
+      <ConfirmDialog
+        isOpen={isOpen && confirmIsOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) handleClose();
+        }}
         onConfirm={handleConfirm}
-        title="Delete connection"
-        body="Are you sure you want to delete this connection? This is a destructive action and cannot be undone."
-        confirmationPhrase={target?.name}
-        confirmLabel="Delete connection"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isDeleting}
+        header="Delete connection?"
+        description="This deletes the connection. It cannot be undone."
+        confirmValue={target?.name}
+        label="Delete connection"
+        isDestructive
       />
     </Drawer>
   );

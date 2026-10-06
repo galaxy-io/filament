@@ -70,6 +70,7 @@ const ConnectionDrawerHeader = () => {
               key="edit"
               icon={PencilIcon}
               ariaLabel="Edit connection"
+              tooltip="Edit connection"
               variant={ButtonVariant.SECONDARY}
               size={ButtonSize.SMALL}
               onClick={handleEdit}

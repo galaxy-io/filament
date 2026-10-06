@@ -2,9 +2,7 @@ import type { PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import MainLayoutNavbar from "@/layouts/main/MainLayoutNavbar";
@@ -44,9 +42,6 @@ const MainLayout = ({ children }: PropsWithChildren) => {
   return (
     <Flex alignItems={AlignItems.START} height="100%" fillWidth direction={FlexDirection.COLUMN}>
       <MainLayoutNavbar />
-      <FlexItem grow={0} shrink={0} fillWidth>
-        <Divider />
-      </FlexItem>
       <MainLayoutBodyWrapper>
         <MainLayoutIslandWrapper>{children}</MainLayoutIslandWrapper>
       </MainLayoutBodyWrapper>

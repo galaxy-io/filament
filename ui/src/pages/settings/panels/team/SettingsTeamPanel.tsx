@@ -8,6 +8,7 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -15,8 +16,6 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { type Member, Role } from "@/gen/auth/v1/members_pb";
-
-import Dialog from "@/components/Dialog";
 
 import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
 import {
@@ -113,6 +112,7 @@ const memberColumns = ({
                 <Button
                   icon={TrashIcon}
                   ariaLabel="Remove member"
+                  tooltip="Remove member"
                   variant={ButtonVariant.SECONDARY}
                   size={ButtonSize.SMALL}
                   onClick={() => onRemove(row)}
@@ -251,16 +251,17 @@ const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
           </Flex>
         )}
       </SettingsPanelLayout>
-      <Dialog
-        open={memberConfirm.isOpen}
-        onClose={memberConfirm.handleClose}
+      <ConfirmDialog
+        isOpen={memberConfirm.isOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) memberConfirm.handleClose();
+        }}
         onConfirm={memberConfirm.handleConfirm}
-        title="Remove team member"
-        body="This member will immediately lose access to the organization and its resources."
-        confirmationPhrase={memberConfirm.target && memberDisplayName(memberConfirm.target)}
-        confirmLabel="Remove member"
-        confirmVariant={ButtonVariant.ERROR}
-        isPending={isRemovingMember}
+        header="Remove team member?"
+        description="This member will immediately lose access to the organization and its resources."
+        confirmValue={memberConfirm.target && memberDisplayName(memberConfirm.target)}
+        label="Remove member"
+        isDestructive
       />
     </>
   );

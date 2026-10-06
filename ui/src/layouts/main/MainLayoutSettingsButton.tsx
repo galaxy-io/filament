@@ -9,15 +9,14 @@ import GridBackground, { GridBackgroundSize } from "@galaxy-io/dls/backgrounds/G
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import ToggleInput, { ToggleInputSize, type ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Popover from "@galaxy-io/dls/overlays/Popover";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import { GalaxyTheme, Placement } from "@galaxy-io/dls/theme/enums";
+import { Placement } from "@galaxy-io/dls/theme/enums";
+import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import type { Role } from "@/gen/auth/v1/members_pb";
 
@@ -97,12 +96,6 @@ const MenuItem = styled.button`
   }
 `;
 
-const MAIN_LAYOUT_SETTINGS_THEME_OPTIONS: ToggleOption<GalaxyTheme>[] = [
-  { id: GalaxyTheme.LIGHT, label: "Light" },
-  { id: GalaxyTheme.DARK, label: "Dark" },
-  { id: GalaxyTheme.SYSTEM, label: "System" },
-];
-
 const memberDisplayName = (member: { name?: string; email?: string }): string =>
   member.name || member.email || "Member";
 
@@ -118,8 +111,6 @@ interface MainLayoutSettingsButtonMenuProps {
   onOpenServiceAccounts: () => void;
   onOpenInvite: () => void;
   onLogout: () => void;
-  selectedTheme: GalaxyTheme;
-  onThemeChange: (theme: GalaxyTheme) => void;
 }
 
 const MainLayoutSettingsButtonMenu = ({
@@ -134,8 +125,6 @@ const MainLayoutSettingsButtonMenu = ({
   onOpenServiceAccounts,
   onOpenInvite,
   onLogout,
-  selectedTheme,
-  onThemeChange,
 }: MainLayoutSettingsButtonMenuProps) => {
   const displayRole = role === undefined ? undefined : roleLabel(role);
   const shouldShowInvite = canManageTeam || isTeamActionsPending;
@@ -260,12 +249,7 @@ const MainLayoutSettingsButtonMenu = ({
         fillWidth
       >
         <FlexItem shrink={0} minWidth={0}>
-          <ToggleInput
-            options={MAIN_LAYOUT_SETTINGS_THEME_OPTIONS}
-            value={selectedTheme}
-            onChange={onThemeChange}
-            size={ToggleInputSize.SMALL}
-          />
+          <ThemeSwitcher size={ThemeSwitcherSize.SMALL} isIconOnly />
         </FlexItem>
         <Button
           label="Logout"
@@ -282,7 +266,6 @@ const MainLayoutSettingsButtonMenu = ({
 const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   const navigate = useNavigate();
   const signOut = useSignOut();
-  const { selectedTheme, setTheme } = useGalaxyTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   const membersQuery = useListMembersQuery({
@@ -350,8 +333,6 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
           onOpenServiceAccounts={handleOpenServiceAccounts}
           onOpenInvite={handleOpenInvite}
           onLogout={handleLogout}
-          selectedTheme={selectedTheme}
-          onThemeChange={setTheme}
         />
       }
     >

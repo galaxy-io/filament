@@ -24,7 +24,7 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
         fillWidth
         options={METRIC_DIMENSION_PIVOT_OPTIONS}
         value={value === undefined ? null : String(value)}
-        variant={SelectInputVariant.TERTIARY}
+        variant={SelectInputVariant.PRIMARY}
         onChange={handleChange}
         isClearable
         placeholder="Pivot"

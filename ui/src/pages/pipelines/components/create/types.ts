@@ -19,12 +19,6 @@ export enum CreatePipelineModalStep {
   DETAILS = "DETAILS",
 }
 
-export enum CreatePipelineModalStepStatus {
-  COMPLETED = "COMPLETED",
-  CURRENT = "CURRENT",
-  UPCOMING = "UPCOMING",
-}
-
 export interface CreatePipelineModalState {
   executionMode: ExecutionMode;
   manualResources: Resource["name"][];

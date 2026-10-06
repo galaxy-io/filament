@@ -6,6 +6,7 @@ import ToggleInput, {
   type ToggleOption,
 } from "@galaxy-io/dls/inputs/ToggleInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -63,36 +64,38 @@ const ObservabilityTimeseriesWidget = <View extends string>({
 
   return (
     <Widget isFlush>
-      <BaseToolbar
-        leadingActions={[
-          <Text key="title" weight={TextWeight.MEDIUM}>
-            {label}
-          </Text>,
-        ]}
-        trailingActions={[
-          <ToggleInput
-            key="view-switcher"
-            variant={ToggleInputVariant.TERTIARY}
-            options={switcherItems}
-            value={view}
-            onChange={handleViewChange}
-          />,
-          <ObservabilityPivotSelect
-            key="pivot-selector"
-            value={pivot}
-            onChange={handlePivotChange}
-          />,
-        ]}
-      />
-      <Divider />
-      <ObservabilityTimeseriesChart
-        seriesLabel={seriesLabel}
-        metric={metric}
-        color={color}
-        pivot={pivot}
-        curve={ChartCurve.LINEAR}
-        valueFormatter={valueFormatter}
-      />
+      <Flex direction={FlexDirection.COLUMN}>
+        <BaseToolbar
+          leadingActions={[
+            <Text key="title" weight={TextWeight.MEDIUM}>
+              {label}
+            </Text>,
+          ]}
+          trailingActions={[
+            <ToggleInput
+              key="view-switcher"
+              variant={ToggleInputVariant.PRIMARY}
+              options={switcherItems}
+              value={view}
+              onChange={handleViewChange}
+            />,
+            <ObservabilityPivotSelect
+              key="pivot-selector"
+              value={pivot}
+              onChange={handlePivotChange}
+            />,
+          ]}
+        />
+        <Divider />
+        <ObservabilityTimeseriesChart
+          seriesLabel={seriesLabel}
+          metric={metric}
+          color={color}
+          pivot={pivot}
+          curve={ChartCurve.LINEAR}
+          valueFormatter={valueFormatter}
+        />
+      </Flex>
     </Widget>
   );
 };

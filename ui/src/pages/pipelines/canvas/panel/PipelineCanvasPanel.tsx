@@ -65,6 +65,7 @@ const PipelineCanvasPanel = () => {
           size={ButtonSize.SMALL}
           onClick={() => setShowPanel(true)}
           ariaLabel="Open configuration panel"
+          tooltip="Open configuration panel"
         />
       </CollapsedWrapper>
     );

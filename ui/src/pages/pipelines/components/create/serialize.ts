@@ -34,7 +34,6 @@ import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/Pipel
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
-import { mapPipelineScheduleStateToCron } from "@/pages/pipelines/settings/utils";
 
 const buildNodes = (
   sourceConnection: Connection | null,
@@ -194,7 +193,7 @@ export const mapCreatePipelineStateToRequest = (
     schedule:
       state.executionMode !== ExecutionMode.CONTINUOUS && state.schedule.isEnabled
         ? {
-            cron: mapPipelineScheduleStateToCron(state.schedule),
+            cron: state.schedule.cron.trim(),
             timezone: state.schedule.timezone,
             isEnabled: true,
           }

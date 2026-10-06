@@ -63,6 +63,7 @@ const ObservabilityToolbar = () => {
           icon={ArrowsClockwiseIcon}
           variant={ButtonVariant.SECONDARY}
           ariaLabel="Refresh"
+          tooltip="Refresh"
           onClick={handleRefresh}
         />,
       ]}
