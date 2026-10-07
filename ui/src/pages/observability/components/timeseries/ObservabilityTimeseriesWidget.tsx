@@ -2,6 +2,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { ChartCurve } from "@galaxy-io/dls/charts/types";
 import ToggleInput, {
+  ToggleInputSize,
   ToggleInputVariant,
   type ToggleOption,
 } from "@galaxy-io/dls/inputs/ToggleInput";
@@ -67,6 +68,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
       actions={
         <>
           <ToggleInput
+            size={ToggleInputSize.SMALL}
             variant={ToggleInputVariant.PRIMARY}
             options={switcherItems}
             value={view}
