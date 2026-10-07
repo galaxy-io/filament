@@ -3,9 +3,13 @@ import { useMemo } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
-import MultiSelectInput, { MultiSelectInputVariant } from "@galaxy-io/dls/inputs/MultiSelectInput";
+import MultiSelectInput, {
+  MultiSelectInputSize,
+  MultiSelectInputVariant,
+} from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import ToggleInput, {
+  ToggleInputSize,
   ToggleInputVariant,
   type ToggleOption,
 } from "@galaxy-io/dls/inputs/ToggleInput";
@@ -106,6 +110,7 @@ const ObservabilityRunsWidget = () => {
       actions={
         <>
           <ToggleInput
+            size={ToggleInputSize.SMALL}
             variant={ToggleInputVariant.PRIMARY}
             options={switcherItems}
             value={view}
@@ -124,6 +129,7 @@ const ObservabilityRunsWidget = () => {
                       selectedStatusIds,
                     )
               }
+              size={MultiSelectInputSize.SMALL}
               variant={MultiSelectInputVariant.PRIMARY}
               onChange={handleStatusChange}
               placeholder="Select statuses..."

@@ -15,6 +15,7 @@ import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metr
 
 import MetricGroup from "@/components/metrics/MetricGroup";
 
+import ObservabilityMetricsValue from "@/pages/observability/components/metrics/ObservabilityMetricsValue";
 import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
@@ -101,16 +102,24 @@ const ObservabilityMetricsWidget = () => {
     >
       <StatChart
         label="Total records"
-        value={formatCount(BigInt(Math.round(totalRecords)))}
-        trailing={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
+        value={
+          <ObservabilityMetricsValue
+            value={formatCount(BigInt(Math.round(totalRecords)))}
+            mark={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
+          />
+        }
         variant={StatChartVariant.TERTIARY}
         isLoading={isTotalsLoading}
         hasBorder
       />
       <StatChart
         label="Total volume"
-        value={formatBytes(BigInt(Math.round(totalBytes)))}
-        trailing={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
+        value={
+          <ObservabilityMetricsValue
+            value={formatBytes(BigInt(Math.round(totalBytes)))}
+            mark={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
+          />
+        }
         variant={StatChartVariant.TERTIARY}
         isLoading={isTotalsLoading}
         hasBorder
@@ -119,50 +128,62 @@ const ObservabilityMetricsWidget = () => {
         <StatChart
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-          value={formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
-          trailing={<PipelineRunStatusSwatch status={status} />}
+          value={
+            <ObservabilityMetricsValue
+              value={formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+              mark={<PipelineRunStatusSwatch status={status} />}
+            />
+          }
           isLoading={isStatusCountsLoading}
           hasBorder
         />
       ))}
       <StatChart
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
-        value={formatCount(BigInt(scheduledData?.runs.length ?? 0))}
-        trailing={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
+        value={
+          <ObservabilityMetricsValue
+            value={formatCount(BigInt(scheduledData?.runs.length ?? 0))}
+            mark={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
+          />
+        }
         isLoading={isScheduledLoading}
         hasBorder
       />
       <StatChart
         label="Other"
-        value={formatCount(BigInt(Math.round(otherStatusesCount)))}
-        trailing={
-          <Tooltip
-            body={
-              <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
-                {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
-                  <Flex
-                    key={status}
-                    alignItems={AlignItems.CENTER}
-                    justifyContent={JustifyContent.SPACE_BETWEEN}
-                    gap={48}
-                    fillWidth
-                  >
-                    <Flex alignItems={AlignItems.CENTER} gap={8}>
-                      <PipelineRunStatusSwatch status={status} />
-                      <Text size={TextSize.BODY_SM}>
-                        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-                      </Text>
-                    </Flex>
-                    <Text size={TextSize.BODY_SM}>
-                      {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
-                    </Text>
+        value={
+          <ObservabilityMetricsValue
+            value={formatCount(BigInt(Math.round(otherStatusesCount)))}
+            mark={
+              <Tooltip
+                body={
+                  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+                    {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
+                      <Flex
+                        key={status}
+                        alignItems={AlignItems.CENTER}
+                        justifyContent={JustifyContent.SPACE_BETWEEN}
+                        gap={48}
+                        fillWidth
+                      >
+                        <Flex alignItems={AlignItems.CENTER} gap={8}>
+                          <PipelineRunStatusSwatch status={status} />
+                          <Text size={TextSize.BODY_SM}>
+                            {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
+                          </Text>
+                        </Flex>
+                        <Text size={TextSize.BODY_SM}>
+                          {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+                        </Text>
+                      </Flex>
+                    ))}
                   </Flex>
-                ))}
-              </Flex>
+                }
+              >
+                <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+              </Tooltip>
             }
-          >
-            <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-          </Tooltip>
+          />
         }
         isLoading={isStatusCountsLoading}
         hasBorder
