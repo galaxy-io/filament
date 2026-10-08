@@ -92,6 +92,12 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		return nil, err
 	}
 	ss := &session{done: make(chan struct{}), streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
+	cleanup := func() {
+		close(ss.done)
+		for _, opened := range ss.streams {
+			_ = opened.consumer.Close()
+		}
+	}
 	known := map[filament.DomainKey]bool{}
 	for _, name := range names {
 		domain := streamDomain(opts.SourceConnectionID, name)
@@ -101,6 +107,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		if p, ok := opts.CommittedPositions[domain]; ok {
 			next, err = offset(p)
 			if err != nil {
+				cleanup()
 				return nil, err
 			}
 			initial = false
@@ -121,26 +128,20 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		}
 		state.consumer, err = s.env.NewConsumer(name, handler, consumerOpts)
 		if err != nil {
-			for _, opened := range ss.streams {
-				_ = opened.consumer.Close()
-			}
+			cleanup()
 			return nil, fmt.Errorf("rabbitmq: open stream %s: %w", name, err)
 		}
 		ss.streams[name] = state
 	}
 	for d := range opts.CommittedPositions {
 		if !known[d] {
-			for _, opened := range ss.streams {
-				_ = opened.consumer.Close()
-			}
+			cleanup()
 			return nil, filament.ErrPositionIncomparable
 		}
 	}
 	ss.lifecycle, err = istream.NewSourceLifecycle(opts.Attempt, opts.CheckAuthority)
 	if err != nil {
-		for _, opened := range ss.streams {
-			_ = opened.consumer.Close()
-		}
+		cleanup()
 		return nil, err
 	}
 	return ss, nil
