@@ -69,7 +69,11 @@ type GetAuthConfigResponse struct {
 	ServiceAccountScopes []string `protobuf:"bytes,2,rep,name=service_account_scopes,json=serviceAccountScopes,proto3" json:"service_account_scopes,omitempty"`
 	// invite_only means sign-up is closed: Register is refused and the UI
 	// offers no way to create an organization. People join by invitation.
-	InviteOnly    bool `protobuf:"varint,3,opt,name=invite_only,json=inviteOnly,proto3" json:"invite_only,omitempty"`
+	InviteOnly bool `protobuf:"varint,3,opt,name=invite_only,json=inviteOnly,proto3" json:"invite_only,omitempty"`
+	// login_url is where people sign in when authentication happens upstream
+	// of filament, behind a gateway that forwards identity headers. Set with
+	// an empty issuer: filament authenticates but has no login of its own.
+	LoginUrl      string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,6 +127,13 @@ func (x *GetAuthConfigResponse) GetInviteOnly() bool {
 		return x.InviteOnly
 	}
 	return false
+}
+
+func (x *GetAuthConfigResponse) GetLoginUrl() string {
+	if x != nil {
+		return x.LoginUrl
+	}
+	return ""
 }
 
 // LoginRequest carries the credentials filament's own login page collected.
@@ -728,12 +739,13 @@ var File_auth_v1_session_proto protoreflect.FileDescriptor
 const file_auth_v1_session_proto_rawDesc = "" +
 	"\n" +
 	"\x15auth/v1/session.proto\x12\aauth.v1\"\x16\n" +
-	"\x14GetAuthConfigRequest\"\x86\x01\n" +
+	"\x14GetAuthConfigRequest\"\xa3\x01\n" +
 	"\x15GetAuthConfigResponse\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x124\n" +
 	"\x16service_account_scopes\x18\x02 \x03(\tR\x14serviceAccountScopes\x12\x1f\n" +
 	"\vinvite_only\x18\x03 \x01(\bR\n" +
-	"inviteOnly\"I\n" +
+	"inviteOnly\x12\x1b\n" +
+	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\"I\n" +
 	"\fLoginRequest\x12\x1d\n" +
 	"\n" +
 	"login_name\x18\x01 \x01(\tR\tloginName\x12\x1a\n" +
