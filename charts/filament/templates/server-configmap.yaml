@@ -24,6 +24,17 @@ data:
   # Auth
   {{- if .Values.auth.enabled }}
   AUTH_PROVIDER: {{ .Values.auth.type | quote }}
+  {{- if eq .Values.auth.type "proxy" }}
+  AUTH_PROXY_USER_HEADER: {{ required "auth.proxy.userHeader is required for auth.type=proxy" .Values.auth.proxy.userHeader | quote }}
+  AUTH_PROXY_TENANT_HEADER: {{ required "auth.proxy.tenantHeader is required for auth.type=proxy" .Values.auth.proxy.tenantHeader | quote }}
+  {{- with .Values.auth.proxy.roleHeader }}
+  AUTH_PROXY_ROLE_HEADER: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.auth.proxy.serviceHeader }}
+  AUTH_PROXY_SERVICE_HEADER: {{ . | quote }}
+  {{- end }}
+  AUTH_PROXY_TENANT: {{ required "auth.proxy.tenant is required for auth.type=proxy" .Values.auth.proxy.tenant | quote }}
+  {{- end }}
   {{- if eq .Values.auth.type "zitadel" }}
   AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}
   {{- end }}

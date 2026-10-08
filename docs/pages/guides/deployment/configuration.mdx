@@ -113,8 +113,8 @@ Filament does not export logs through OTLP.
 
 | Variable | Default | Description |
 |---|---|---|
-| `AUTH_PROVIDER` | unset | Unset disables authentication. Supported providers are `zitadel` and `keycloak` |
-| `AUTH_ISSUER` | — | Issuer URL. The Zitadel base URL, or the Keycloak realm URL in the form `https://<host>/realms/<realm>`. Required when `AUTH_PROVIDER` is set |
+| `AUTH_PROVIDER` | unset | Unset disables authentication. Supported providers are `zitadel`, `keycloak` and `proxy` |
+| `AUTH_ISSUER` | — | Issuer URL. The Zitadel base URL, or the Keycloak realm URL in the form `https://<host>/realms/<realm>`. Required when `AUTH_PROVIDER` is `zitadel` or `keycloak` |
 | `AUTH_PAT` | — | Zitadel machine-user personal access token. Required when `AUTH_PROVIDER=zitadel` |
 | `AUTH_CLIENT_ID` | — | Filament's confidential client in the Keycloak realm. Required when `AUTH_PROVIDER=keycloak` |
 | `AUTH_CLIENT_SECRET` | — | That client's secret. Required when `AUTH_PROVIDER=keycloak` |
@@ -125,7 +125,12 @@ Filament does not export logs through OTLP.
 | `AUTH_BOOTSTRAP_ADMIN_PASSWORD` | unset | That person's initial password, chosen by you. Required with `AUTH_BOOTSTRAP_ADMIN_EMAIL` |
 | `AUTH_BOOTSTRAP_CLIENT_ID` | unset | Admin service account on the bootstrap tenant, so an SDK can act before any person signs in. Keycloak only; set with `AUTH_BOOTSTRAP_CLIENT_SECRET` or not at all |
 | `AUTH_BOOTSTRAP_CLIENT_SECRET` | unset | Secret that service account authenticates with, chosen by you |
-| `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies |
+| `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies. With `AUTH_PROVIDER=proxy` it is reported to clients as the place to sign in |
+| `AUTH_PROXY_USER_HEADER` | — | Header carrying the gateway's user id. Required when `AUTH_PROVIDER=proxy` |
+| `AUTH_PROXY_TENANT_HEADER` | — | Header carrying the gateway's tenant id. Required when `AUTH_PROVIDER=proxy` |
+| `AUTH_PROXY_ROLE_HEADER` | unset | Header carrying one of `admin`, `creator` or `viewer`. Unset leaves callers without roles |
+| `AUTH_PROXY_SERVICE_HEADER` | unset | Header naming a trusted service calling on its own behalf. A request carrying it needs no user header. Unset disables service callers |
+| `AUTH_PROXY_TENANT` | — | The one gateway tenant this server serves. Requests for any other tenant are refused. Required when `AUTH_PROVIDER=proxy` |
 
 <Warning>
 When `AUTH_PROVIDER` is unset, the API and web application are unauthenticated.
