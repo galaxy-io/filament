@@ -28,6 +28,8 @@ type delivery struct {
 type streamState struct {
 	domain filament.DomainKey
 	next int64
+	lastRead int64
+	hasRead bool
 	initial bool
 	consumer *rmq.Consumer
 	deliveries chan delivery
@@ -41,6 +43,7 @@ type session struct {
 	columns map[string]*streamkit.MessageColumns
 	projectors map[string]*streamkit.Projector
 	codecs filament.CodecResolver
+	done chan struct{}
 	closeOnce sync.Once
 	closeErr error
 }
@@ -88,7 +91,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err != nil {
 		return nil, err
 	}
-	ss := &session{streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
+	ss := &session{done: make(chan struct{}), streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
 	known := map[filament.DomainKey]bool{}
 	for _, name := range names {
 		domain := streamDomain(opts.SourceConnectionID, name)
@@ -107,9 +110,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 			d := delivery{stream: name, offset: cc.Consumer.GetOffset(), msg: msg}
 			select {
 			case state.deliveries <- d:
-			default:
-				// InitialCredits bounds normal delivery. A full queue means the
-				// session is no longer safe to advance; Close will force replay.
+			case <-ss.done:
 			}
 		}
 		consumerOpts := rmq.NewConsumerOptions().SetManualCommit().SetInitialCredits(1)
@@ -185,7 +186,7 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 
 func (s *session) readDelivery(ctx context.Context, out filament.StreamRecordSink, d delivery) (coverage filament.Coverage, result error) {
 	st := s.streams[d.stream]
-	if st == nil || d.offset < st.next {
+	if st == nil || d.offset < st.next || (st.hasRead && d.offset != st.lastRead+1) || (!st.initial && !st.hasRead && d.offset != st.next) {
 		return coverage, errors.New("rabbitmq: invalid delivery position")
 	}
 	payload := d.msg.GetData()
@@ -209,7 +210,9 @@ func (s *session) readDelivery(ctx context.Context, out filament.StreamRecordSin
 	if err := s.projectors[d.stream].EndEvent(envelope, rowmodel.Meta{}); err != nil { return coverage, err }
 	if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: st.domain, Position: next}); err != nil { return coverage, err }
 	coverage.Positions = filament.DomainPositions{st.domain: next}
-	return coverage, s.lifecycle.MarkRead(coverage)
+	if err := s.lifecycle.MarkRead(coverage); err != nil { return coverage, err }
+	st.lastRead, st.hasRead = d.offset, true
+	return coverage, nil
 }
 
 func (s *session) Acknowledge(ctx context.Context, c filament.Coverage) error {
@@ -228,6 +231,7 @@ func (s *session) Acknowledge(ctx context.Context, c filament.Coverage) error {
 
 func (s *session) Close(ctx context.Context) error {
 	s.closeOnce.Do(func() {
+		close(s.done)
 		for _, st := range s.streams {
 			if err := st.consumer.Close(); err != nil && s.closeErr == nil {
 				s.closeErr = err
