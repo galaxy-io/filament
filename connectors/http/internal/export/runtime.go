@@ -39,7 +39,10 @@ type Sink interface {
 type Runtime struct {
 	Observe filament.SourceObserver
 	// WaitDownload applies the API limiter to authenticated artifact requests.
-	WaitDownload                func(context.Context) error
+	WaitDownload func(context.Context) error
+	// Locate reads a direct export's plain-text locator with the connector's
+	// authentication and request policy, retrying transient failures.
+	Locate                      func(context.Context, string, manifest.ExportRequest, template.Scope) ([]byte, error)
 	Authenticate                func(context.Context, *http.Request, template.Scope) error
 	Control                     Control
 	Transport                   http.RoundTripper

@@ -407,6 +407,34 @@ endpoint. Download 429 and 5xx responses use bounded retries. Job polling retrie
 transient API failures separately from the pending-job loop. The deadline covers
 creation, polling, downloading, and decoding and remains fixed across recovery.
 
+A `direct: true` export downloads a published file without creating a job.
+When the provider names the current file in a plain-text index, add `locate`
+to read that index first. This one follows the GDELT 2.0 update list.
+
+```yaml
+export:
+  direct: true
+  locate:
+    request: {method: GET, path: /gdeltv2/lastupdate.txt}
+    capture:
+      export_file: {regex: 'gdeltv2/(\d{14}\.export\.CSV\.zip)'}
+  wait: {type: download, interval_seconds: 1, timeout_seconds: 600}
+  result:
+    url: 'https://data.gdeltproject.org/gdeltv2/{{ job.export_file }}'
+    allowed_hosts: [data.gdeltproject.org]
+    archive: zip
+    files: '*.export.CSV'
+    format: csv
+```
+
+The locate request is an authenticated GET relative to `base_url`, retried like
+a status request, and its response is limited to 1 MiB. Each capture takes the
+first group of its pattern's first match, and a pattern with no match fails the
+read before any download. The result URL may then use `job`, and it is still
+checked against `allowed_hosts`. The located values are saved in the checkpoint
+before the download starts, so an interrupted read replays the same file even
+after the index has moved on. Locate request templates accept `config` and `env`.
+
 `result` separates file compression, archive layout, and record encoding:
 
 | Setting | Values and behavior |

@@ -51,6 +51,32 @@ func readExportControl(r io.Reader) ([]byte, error) {
 // Poll retries only transient HTTP errors. The export runtime owns pending-job
 // polling. Keep response bodies and URLs out of errors on this control path.
 func (c *Connector) pollExport(ctx context.Context, name string, r manifest.ExportRequest, scope template.Scope) ([]byte, error) {
+	raw, err := c.getExportControl(ctx, name, "poll", r, scope)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > 1024*1024 || !gjson.ValidBytes(raw) {
+		return nil, fmt.Errorf("export %s: invalid job response", name)
+	}
+	return raw, nil
+}
+
+// locateExport reads a direct export's plain-text locator with the poll
+// retry policy. The body is not JSON and is never included in errors.
+func (c *Connector) locateExport(ctx context.Context, name string, r manifest.ExportRequest, scope template.Scope) ([]byte, error) {
+	raw, err := c.getExportControl(ctx, name, "locator", r, scope)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > 1024*1024 {
+		return nil, fmt.Errorf("export %s: locator response is larger than 1 MiB", name)
+	}
+	return raw, nil
+}
+
+// getExportControl returns at most 1 MiB plus one byte so callers can reject
+// oversized bodies.
+func (c *Connector) getExportControl(ctx context.Context, name, step string, r manifest.ExportRequest, scope template.Scope) ([]byte, error) {
 	client := *c.client
 	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	for attempt := 0; attempt < maxRetries; attempt++ {
@@ -82,15 +108,12 @@ func (c *Connector) pollExport(ctx context.Context, name string, r manifest.Expo
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("export %s poll returned HTTP %d", name, resp.StatusCode)
+			return nil, fmt.Errorf("export %s %s returned HTTP %d", name, step, resp.StatusCode)
 		}
 		if readErr != nil {
-			return nil, fmt.Errorf("export %s: reading poll response failed", name)
-		}
-		if len(raw) > 1024*1024 || !gjson.ValidBytes(raw) {
-			return nil, fmt.Errorf("export %s: invalid job response", name)
+			return nil, fmt.Errorf("export %s: reading %s response failed", name, step)
 		}
 		return raw, nil
 	}
-	return nil, fmt.Errorf("export %s: poll retries exhausted", name)
+	return nil, fmt.Errorf("export %s: %s retries exhausted", name, step)
 }

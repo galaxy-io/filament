@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -51,6 +52,13 @@ func (c *Runtime) runFull(ctx context.Context, res manifest.Resource, sink Sink)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("export %s deadline: %w", res.Name, err)
+	}
+	// A located artifact is checkpointed before download, so recovery replays
+	// the same file even after the locator has moved on.
+	if spec.Locate != nil && len(state.Captures) == 0 {
+		if state.Captures, err = c.locateExport(ctx, res, scope); err != nil {
+			return err
+		}
 	}
 	if spec.Direct && c.ResumeToken == "" {
 		if err := target.Checkpoint(res.Name, state.Token()); err != nil {
@@ -174,6 +182,27 @@ func captureExport(raw []byte, captures, job map[string]string) error {
 		job[key] = v.String()
 	}
 	return nil
+}
+
+// locateExport reads the locator and captures the first group of each
+// pattern's first match. A pattern without a match fails the read.
+func (c *Runtime) locateExport(ctx context.Context, res manifest.Resource, scope template.Scope) (map[string]string, error) {
+	if c.Locate == nil {
+		return nil, fmt.Errorf("export %s: locator requests are unavailable", res.Name)
+	}
+	raw, err := c.Locate(ctx, res.Name, res.Export.Locate.Request, scope)
+	if err != nil {
+		return nil, err
+	}
+	captures := map[string]string{}
+	for key, capture := range res.Export.Locate.Capture {
+		match := regexp.MustCompile(capture.Regex).FindSubmatch(raw)
+		if len(match) < 2 || len(match[1]) == 0 {
+			return nil, fmt.Errorf("export %s: locator capture %q did not match", res.Name, key)
+		}
+		captures[key] = string(match[1])
+	}
+	return captures, nil
 }
 
 func (c *Runtime) waitExport(ctx context.Context, res manifest.Resource, scope template.Scope, progress *jobProgress) error {
