@@ -1,8 +1,20 @@
 # syntax=docker/dockerfile:1
+ARG DUCKDB_VERSION=v1.4.1
+
+FROM debian:13-slim AS extensions
+ARG DUCKDB_VERSION
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && \
+    curl -fsSL -o /tmp/duckdb.zip "https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${TARGETARCH}.zip" && \
+    unzip -q /tmp/duckdb.zip -d /usr/local/bin && \
+    mkdir -p /extensions && HOME=/extensions duckdb -c "INSTALL motherduck; LOAD motherduck;"
+
 FROM gcr.io/distroless/cc-debian13:nonroot
 
+COPY --from=extensions --chown=65532:65532 /extensions/.duckdb /home/nonroot/.duckdb
 COPY bin/filament/worker-libc /app
 
+ENV HOME=/home/nonroot
 USER 65532:65532
 
 ENTRYPOINT ["/app"]
