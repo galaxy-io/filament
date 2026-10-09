@@ -213,6 +213,7 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
 | auth.keycloak.clientSecret | string | required unless `keycloak.existingSecret` is set | The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated Keycloak Secret. Supply a stable value; the chart never generates it. |
 | auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |
+| auth.proxy.loginUrl | string | required when `auth.type=proxy` | The gateway's sign-in URL, stored as `AUTH_PROXY_LOGIN_URL`. |
 | auth.proxy.roleHeader | string | `""` | Header carrying one of `admin`, `creator` or `viewer`, stored as `AUTH_PROXY_ROLE_HEADER`. Empty leaves callers without roles. |
 | auth.proxy.serviceHeader | string | `""` | Header naming a trusted service calling on its own behalf, stored as `AUTH_PROXY_SERVICE_HEADER`. Empty disables service callers. |
 | auth.proxy.tenant | string | required when `auth.type=proxy` | The one gateway tenant this release serves, stored as `AUTH_PROXY_TENANT`. Requests for any other tenant are refused. |

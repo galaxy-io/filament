@@ -32,7 +32,8 @@ type Options struct {
 	// Tenant is the gateway's id for the one tenant this deployment serves.
 	// A request for any other tenant is refused.
 	Tenant string
-	// LoginURL is where people sign in, reported in the auth config document.
+	// LoginURL is where the gateway signs people in, reported in the auth
+	// config document.
 	LoginURL string
 }
 
@@ -41,11 +42,11 @@ type Authenticator struct {
 	opts Options
 }
 
-// New returns an Authenticator for opts. The user header, tenant header and
-// tenant are required.
+// New returns an Authenticator for opts. The user header, tenant header,
+// tenant and login URL are required.
 func New(opts Options) (*Authenticator, error) {
-	if opts.UserHeader == "" || opts.TenantHeader == "" || opts.Tenant == "" {
-		return nil, errors.New("proxy: user header, tenant header and tenant are required")
+	if opts.UserHeader == "" || opts.TenantHeader == "" || opts.Tenant == "" || opts.LoginURL == "" {
+		return nil, errors.New("proxy: user header, tenant header, tenant and login url are required")
 	}
 	return &Authenticator{opts: opts}, nil
 }

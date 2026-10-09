@@ -37,6 +37,7 @@ data:
   AUTH_PROXY_SERVICE_HEADER: {{ . | quote }}
   {{- end }}
   AUTH_PROXY_TENANT: {{ required "auth.proxy.tenant is required for auth.type=proxy" .Values.auth.proxy.tenant | quote }}
+  AUTH_PROXY_LOGIN_URL: {{ required "auth.proxy.loginUrl is required for auth.type=proxy" .Values.auth.proxy.loginUrl | quote }}
   {{- end }}
   {{- if eq .Values.auth.type "zitadel" }}
   AUTH_ISSUER: {{ .Values.auth.zitadel.issuer | quote }}

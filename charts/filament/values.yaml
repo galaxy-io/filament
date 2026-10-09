@@ -315,6 +315,9 @@ auth:
     # `AUTH_PROXY_TENANT`. Requests for any other tenant are refused.
     # @default -- required when `auth.type=proxy`
     tenant: ""
+    # -- The gateway's sign-in URL, stored as `AUTH_PROXY_LOGIN_URL`.
+    # @default -- required when `auth.type=proxy`
+    loginUrl: ""
 
   zitadel:
     # -- Server-only Secret containing `AUTH_PAT` for external Zitadel, plus
