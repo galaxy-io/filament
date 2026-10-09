@@ -136,46 +136,57 @@ controlPlane:
     # -- How long a Running run may go without a heartbeat write before the reaper fails it, in seconds. Empty uses the binary default (300).
     staleAfterSeconds: ""
 
-  dispatch:
-    # -- Worker dispatch backend.
-    mode: kubernetes
+worker:
+  # -- Minimum worker log level. Valid values: INFO, DEBUG, TRACE.
+  logLevel: INFO
 
-    worker:
-      # -- Minimum worker log level. Valid values: INFO, DEBUG, TRACE.
-      logLevel: INFO
+  image:
+    # -- Worker image repository.
+    repository: ghcr.io/galaxy-io/filament/worker
+    # -- Worker image tag.
+    # @default -- `""` (defaults to chart appVersion)
+    tag: ""
+    # -- Worker image pull policy.
+    pullPolicy: IfNotPresent
+    # -- Image pull secrets for the worker Deployment and Jobs.
+    pullSecrets: []
+  serviceAccount:
+    # -- Existing ServiceAccount name for the worker Deployment and Jobs. When set, the chart does not create one.
+    name: ""
+    # -- Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN.
+    annotations: {}
 
-      image:
-        # -- Worker image repository used for dispatched Jobs.
-        repository: ghcr.io/galaxy-io/filament/worker
-        # -- Worker image tag.
-        # @default -- `""` (defaults to chart appVersion)
-        tag: ""
-        # -- Worker image pull policy.
-        pullPolicy: IfNotPresent
-        # -- Image pull secrets for dispatched worker Jobs.
-        pullSecrets: []
-      serviceAccount:
-        # -- Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one.
-        name: ""
-        # -- Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN.
-        annotations: {}
-      # -- Restart policy for dispatched worker Jobs.
-      restartPolicy: Never
-      # -- Worker Job termination grace period in seconds.
-      terminationGraceSeconds: 30
-      # -- Worker Job active deadline in seconds. Leave empty for no deadline.
-      activeDeadlineSeconds: ""
-      # -- Interval in seconds between worker heartbeats, stored in the worker
-      # ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default.
-      heartbeatSeconds: 30
+  # -- Number of persistent worker replicas. The persistent worker is stateless.
+  replicas: 1
+  service:
+    # -- Persistent worker service and container port.
+    port: 8080
+  networkPolicy:
+    # -- Restrict persistent worker ingress to this release's server and control plane. Requires a network plugin that enforces NetworkPolicy.
+    enabled: true
+    # -- Additional ingress rules for the persistent worker, passed through verbatim.
+    extraIngress: []
+  # -- Persistent worker resource requests and limits.
+  # @default -- `{}` (See [values.yaml])
+  resources: {}
 
-    job:
-      # -- Prefix used when naming dispatched worker Jobs.
-      namePrefix: filament
-      # -- Kubernetes Job backoff limit for dispatched workers.
-      backoffLimit: 1
-      # -- Seconds to retain completed dispatched worker Jobs.
-      ttlSecondsAfterFinished: 3600
+  # -- Interval in seconds between run heartbeats, stored in the worker
+  # ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default.
+  heartbeatSeconds: 30
+
+  job:
+    # -- Restart policy for dispatched worker Jobs.
+    restartPolicy: Never
+    # -- Worker Job termination grace period in seconds.
+    terminationGraceSeconds: 30
+    # -- Worker Job active deadline in seconds. Leave empty for no deadline.
+    activeDeadlineSeconds: ""
+    # -- Prefix used when naming dispatched worker Jobs.
+    namePrefix: filament
+    # -- Kubernetes Job backoff limit for dispatched workers.
+    backoffLimit: 1
+    # -- Seconds to retain completed dispatched worker Jobs.
+    ttlSecondsAfterFinished: 3600
 
 metrics:
   # -- Metrics backend for the dashboard query API. `datastore` answers from

@@ -1,0 +1,32 @@
+// worker.v1 is the contract between the control services and the worker, the
+// one process that links connector drivers. It is served in-cluster and is not
+// part of the public API: the server and control plane consume it through
+// filament.Worker and never expose it.
+//
+// Public connector types are reused as they are. Messages here only wrap them
+// with the facts the public API omits: policies, capabilities, stream
+// semantics and replication plans. Verdicts travel as Connect codes: NotFound
+// for an unknown connector, Unimplemented for a contract the connector lacks,
+// FailedPrecondition for a connector rejecting its config.
+syntax = "proto3";
+
+package worker.v1;
+
+import "worker/v1/connectors.proto";
+import "worker/v1/replication.proto";
+import "worker/v1/resources.proto";
+
+service WorkerService {
+  // Describe lists every registered connector with its full spec.
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+  // Validate asks the connector to check a config without connecting.
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+  // TestConnection asks the connector to reach its system with a config.
+  rpc TestConnection(TestConnectionRequest) returns (TestConnectionResponse);
+  // Discover configures a source and lists its resources.
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+  // Inspect configures a source and reports keys and columns per resource.
+  rpc Inspect(InspectRequest) returns (InspectResponse);
+  // PlanReplicationStream asks a source to plan its external consumer.
+  rpc PlanReplicationStream(PlanReplicationStreamRequest) returns (PlanReplicationStreamResponse);
+}

@@ -14,8 +14,11 @@ data:
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
   NATS_TTL_SECONDS: {{ .Values.eventBus.nats.ttlSeconds | quote }}
 
+  # Worker
+  WORKER_URL: "http://{{ include "filament.worker.fullname" . }}:{{ .Values.worker.service.port }}"
+
   # Dispatch
-  DISPATCH_MODE: {{ .Values.controlPlane.dispatch.mode | quote }}
+  DISPATCH_MODE: "kubernetes"
 
   # Health
   HEALTH_ADDR: ":{{ .Values.controlPlane.health.port }}"
@@ -61,22 +64,22 @@ data:
 
   # Worker
   K8S_NAMESPACE: {{ include "filament.namespace" . }}
-  K8S_WORKER_IMAGE: {{ .Values.controlPlane.dispatch.worker.image.repository }}:{{ .Values.controlPlane.dispatch.worker.image.tag | default .Chart.AppVersion }}
-  K8S_WORKER_IMAGE_PULL_POLICY: {{ .Values.controlPlane.dispatch.worker.image.pullPolicy | quote }}
+  K8S_WORKER_IMAGE: {{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}
+  K8S_WORKER_IMAGE_PULL_POLICY: {{ .Values.worker.image.pullPolicy | quote }}
   K8S_WORKER_SERVICE_ACCOUNT: {{ include "filament.worker.serviceAccountName" . | quote }}
-  K8S_WORKER_RESTART_POLICY: {{ .Values.controlPlane.dispatch.worker.restartPolicy | quote }}
+  K8S_WORKER_RESTART_POLICY: {{ .Values.worker.job.restartPolicy | quote }}
   K8S_WORKER_SECRET_NAME: {{ include "filament.secretName" . | quote }}
   K8S_WORKER_CONFIGMAP_NAME: {{ include "filament.worker.fullname" . | quote }}
   K8S_WORKER_APP_NAME: {{ include "filament.name" . | quote }}
-  {{- with .Values.controlPlane.dispatch.worker.terminationGraceSeconds }}
+  {{- with .Values.worker.job.terminationGraceSeconds }}
   K8S_WORKER_TERMINATION_GRACE_SECONDS: {{ . | quote }}
   {{- end }}
-  {{- with .Values.controlPlane.dispatch.worker.activeDeadlineSeconds }}
+  {{- with .Values.worker.job.activeDeadlineSeconds }}
   K8S_WORKER_ACTIVE_DEADLINE_SECONDS: {{ . | quote }}
   {{- end }}
 
   # Jobs
-  K8S_JOB_NAME_PREFIX: {{ .Values.controlPlane.dispatch.job.namePrefix | quote }}
-  K8S_JOB_BACKOFF_LIMIT: {{ .Values.controlPlane.dispatch.job.backoffLimit | quote }}
-  K8S_JOB_TTL_SECONDS_AFTER_FINISHED: {{ .Values.controlPlane.dispatch.job.ttlSecondsAfterFinished | quote }}
+  K8S_JOB_NAME_PREFIX: {{ .Values.worker.job.namePrefix | quote }}
+  K8S_JOB_BACKOFF_LIMIT: {{ .Values.worker.job.backoffLimit | quote }}
+  K8S_JOB_TTL_SECONDS_AFTER_FINISHED: {{ .Values.worker.job.ttlSecondsAfterFinished | quote }}
 {{- end }}

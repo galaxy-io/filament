@@ -7,7 +7,7 @@ A Helm chart for Filament
 
 ## Introduction
 
-This chart deploys Filament server, control plane, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
+This chart deploys Filament server, control plane, a persistent worker that answers connector calls, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
 
 > [!CAUTION]
 > We strongly recommend running exactly one control-plane replica. Multiple replicas may race while coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and leave `controlPlane.autoscaling.enabled` disabled.
@@ -55,6 +55,19 @@ helm upgrade --install filament \
   --set-string secrets.datastore.encryptionKey="$ENC_KEY" \
   --set-string eventBus.nats.url='nats://filament-nats:4222'
 ```
+
+## Worker access
+
+The persistent worker's NetworkPolicy is enabled by default. Only this release's
+server and control plane in the same namespace can reach `worker.service.port`.
+The policy is ingress-only, so connector operations retain outbound access to
+their databases, brokers, and APIs. It does not select dispatched worker Jobs.
+
+The cluster's network plugin must enforce NetworkPolicy. Other policies can
+allow additional traffic. Configure `worker.networkPolicy.extraIngress` for
+additional callers, or disable this policy when access is managed externally.
+NetworkPolicy does not encrypt the RPC connection; use TLS or service mesh
+encryption to protect resolved connection credentials in transit.
 
 ## Overrides
 
@@ -107,21 +120,6 @@ helm upgrade --install filament \
 | controlPlane.autoscaling.maxReplicas | int | `10` | Maximum control plane replicas when autoscaling is enabled. |
 | controlPlane.autoscaling.minReplicas | int | `1` | Minimum control plane replicas when autoscaling is enabled. |
 | controlPlane.autoscaling.targetCpu | int | `80` | Target average CPU utilization percentage for control plane autoscaling. |
-| controlPlane.dispatch.job.backoffLimit | int | `1` | Kubernetes Job backoff limit for dispatched workers. |
-| controlPlane.dispatch.job.namePrefix | string | `"filament"` | Prefix used when naming dispatched worker Jobs. |
-| controlPlane.dispatch.job.ttlSecondsAfterFinished | int | `3600` | Seconds to retain completed dispatched worker Jobs. |
-| controlPlane.dispatch.mode | string | `"kubernetes"` | Worker dispatch backend. |
-| controlPlane.dispatch.worker.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
-| controlPlane.dispatch.worker.heartbeatSeconds | int | `30` | Interval in seconds between worker heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
-| controlPlane.dispatch.worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
-| controlPlane.dispatch.worker.image.pullSecrets | list | `[]` | Image pull secrets for dispatched worker Jobs. |
-| controlPlane.dispatch.worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository used for dispatched Jobs. |
-| controlPlane.dispatch.worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
-| controlPlane.dispatch.worker.logLevel | string | `"INFO"` | Minimum worker log level. Valid values: INFO, DEBUG, TRACE. |
-| controlPlane.dispatch.worker.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
-| controlPlane.dispatch.worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
-| controlPlane.dispatch.worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for dispatched worker Jobs. When set, the chart does not create one. |
-| controlPlane.dispatch.worker.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
 | controlPlane.enabled | bool | `true` | Deploy the Filament control plane. |
 | controlPlane.health.port | int | `8081` | Port the control plane serves `/livez`, `/startupz`, and `/readyz` on, stored in the ConfigMap as `HEALTH_ADDR` and used for the container port and probes. |
 | controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Control plane image pull policy. |
@@ -135,6 +133,30 @@ helm upgrade --install filament \
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.serviceAccount.name | string | `""` | Existing ServiceAccount name for the control plane. When set, the chart does not create one. |
+
+## Worker parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| worker.heartbeatSeconds | int | `30` | Interval in seconds between run heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
+| worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
+| worker.image.pullSecrets | list | `[]` | Image pull secrets for the worker Deployment and Jobs. |
+| worker.image.repository | string | `"ghcr.io/galaxy-io/filament/worker"` | Worker image repository. |
+| worker.image.tag | string | `""` (defaults to chart appVersion) | Worker image tag. |
+| worker.job.activeDeadlineSeconds | string | `""` | Worker Job active deadline in seconds. Leave empty for no deadline. |
+| worker.job.backoffLimit | int | `1` | Kubernetes Job backoff limit for dispatched workers. |
+| worker.job.namePrefix | string | `"filament"` | Prefix used when naming dispatched worker Jobs. |
+| worker.job.restartPolicy | string | `"Never"` | Restart policy for dispatched worker Jobs. |
+| worker.job.terminationGraceSeconds | int | `30` | Worker Job termination grace period in seconds. |
+| worker.job.ttlSecondsAfterFinished | int | `3600` | Seconds to retain completed dispatched worker Jobs. |
+| worker.logLevel | string | `"INFO"` | Minimum worker log level. Valid values: INFO, DEBUG, TRACE. |
+| worker.networkPolicy.enabled | bool | `true` | Restrict persistent worker ingress to this release's server and control plane. Requires a network plugin that enforces NetworkPolicy. |
+| worker.networkPolicy.extraIngress | list | `[]` | Additional ingress rules for the persistent worker, passed through verbatim. |
+| worker.replicas | int | `1` | Number of persistent worker replicas. The persistent worker is stateless. |
+| worker.resources | object | `{}` (See [values.yaml]) | Persistent worker resource requests and limits. |
+| worker.service.port | int | `8080` | Persistent worker service and container port. |
+| worker.serviceAccount.annotations | object | `{}` | Annotations for the chart-created worker ServiceAccount, e.g. an IRSA role ARN. |
+| worker.serviceAccount.name | string | `""` | Existing ServiceAccount name for the worker Deployment and Jobs. When set, the chart does not create one. |
 
 ## Metrics parameters
 

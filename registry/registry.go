@@ -27,12 +27,16 @@ type providerRegistry[P, S any] struct {
 	aliases     map[string]string
 	specOf      func(P) S
 	setMaturity func(*S, filament.ConnectorMaturity)
+	// contracts reports a capability the spec declares but the type does not
+	// implement. Registration refuses it so spec readers never need the instance.
+	contracts func(P) error
 }
 
 func newProviderRegistry[P, S any](
 	kind string,
 	specOf func(P) S,
 	setMaturity func(*S, filament.ConnectorMaturity),
+	contracts func(P) error,
 ) *providerRegistry[P, S] {
 	return &providerRegistry[P, S]{
 		kind:        kind,
@@ -40,6 +44,7 @@ func newProviderRegistry[P, S any](
 		aliases:     make(map[string]string),
 		specOf:      specOf,
 		setMaturity: setMaturity,
+		contracts:   contracts,
 	}
 }
 
@@ -51,6 +56,9 @@ func (r *providerRegistry[P, S]) register(name string, maturity filament.Connect
 	}
 	if factory == nil {
 		panic("registry: nil " + r.kind + " factory for " + name)
+	}
+	if err := r.contracts(factory()); err != nil {
+		panic("registry: " + r.kind + " " + name + ": " + err.Error())
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -129,7 +137,23 @@ func NewSources() *Sources {
 		"source",
 		func(source filament.Source) filament.ConnectorSpec { return source.Spec() },
 		func(spec *filament.ConnectorSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		sourceContracts,
 	)}
+}
+
+// sourceContracts requires a source that declares stream capabilities to
+// implement the native stream session and planning contracts.
+func sourceContracts(source filament.Source) error {
+	if source.Spec().Stream == nil {
+		return nil
+	}
+	if _, ok := source.(filament.StreamSource); !ok {
+		return errors.New("declares stream capabilities but does not implement filament.StreamSource")
+	}
+	if _, ok := source.(filament.ReplicationStreamPlanner); !ok {
+		return errors.New("declares stream capabilities but does not implement filament.ReplicationStreamPlanner")
+	}
+	return nil
 }
 
 var _ filament.SourceRegistry = (*Sources)(nil)
@@ -264,7 +288,20 @@ func NewSinks() *Sinks {
 		"sink",
 		func(sink filament.Sink) filament.SinkSpec { return sink.Spec() },
 		func(spec *filament.SinkSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		sinkContracts,
 	)}
+}
+
+// sinkContracts requires a sink that declares streaming capabilities to
+// implement the native epoch contract.
+func sinkContracts(sink filament.Sink) error {
+	if sink.Spec().Capabilities.Stream == nil {
+		return nil
+	}
+	if _, ok := sink.(filament.StreamingSink); !ok {
+		return errors.New("declares streaming capabilities but does not implement filament.StreamingSink")
+	}
+	return nil
 }
 
 var _ filament.SinkRegistry = (*Sinks)(nil)

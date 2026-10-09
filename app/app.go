@@ -45,6 +45,7 @@ import (
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/worker"
 )
 
 // Config is the resolved composition for a run. Zero value is invalid; build it
@@ -156,14 +157,15 @@ func Serve(ctx context.Context, ln net.Listener, opts ...Option) error {
 // bus, and store.
 func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []string, cleanup func(), err error) {
 	orch := orchestrator.New()
-	api := server.New(cfg.Sources, cfg.Sinks, cfg.Store, orch, cfg.Bus,
+	w := worker.Local(cfg.Sources, cfg.Sinks)
+	api := server.New(w, cfg.Store, orch, cfg.Bus,
 		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {
 		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}
+	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Worker: w, Log: cfg.Log}
 	modules := []module.Module{tracker.New(), engine.New(), orch, sched}
 	if cfg.notifierEnabled {
 		modules = append(modules, notifier.New())

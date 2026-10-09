@@ -19,11 +19,10 @@ type runSubmitter interface {
 	Submit(context.Context, filament.RunSubmission) (filament.RunID, error)
 }
 
-// Server implements the ingestion Connect API over the registries, store,
+// Server implements the ingestion Connect API over the worker, store,
 // orchestrator, and bus.
 type Server struct {
-	sources   filament.SourceRegistry
-	sinks     filament.SinkRegistry
+	worker    filament.Worker
 	store     filament.DataStore
 	orch      runSubmitter
 	bus       eventbus.Bus
@@ -73,16 +72,16 @@ func WithLogger(log filament.Logger) Option {
 	}
 }
 
-// New returns a Server wired to the given providers.
-func New(sources filament.SourceRegistry, sinks filament.SinkRegistry, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
+// New returns a Server wired to the given providers. worker answers every
+// connector question; the server never holds a driver.
+func New(worker filament.Worker, store filament.DataStore, orch runSubmitter, bus eventbus.Bus, opts ...Option) *Server {
 	s := &Server{
-		sources:       sources,
-		sinks:         sinks,
+		worker:        worker,
 		store:         store,
 		orch:          orch,
 		bus:           bus,
 		defaultTenant: filament.DefaultTenantID,
-		compiler:      &compile.Compiler{Store: store, Sources: sources, Sinks: sinks},
+		compiler:      &compile.Compiler{Store: store, Worker: worker},
 	}
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules

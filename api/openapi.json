@@ -5470,7 +5470,8 @@
         "enum": [
           "READ_MODE_UNSPECIFIED",
           "READ_MODE_FULL",
-          "READ_MODE_INCREMENTAL"
+          "READ_MODE_INCREMENTAL",
+          "READ_MODE_CDC"
         ],
         "description": "ReadMode is the per-resource read lever on Standard connections."
       },
@@ -6566,7 +6567,8 @@
           "WRITE_MODE_APPEND",
           "WRITE_MODE_REPLACE",
           "WRITE_MODE_UPSERT",
-          "WRITE_MODE_MERGE"
+          "WRITE_MODE_MERGE",
+          "WRITE_MODE_DELETE"
         ],
         "description": "WriteMode is the destination-route write lever. Delete remains an internal\n engine policy; merge is selectable for CDC routes."
       },

@@ -9,6 +9,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/worker"
 )
 
 func TestCreateConnectionPinsDefaultConnectorVersion(t *testing.T) {
@@ -16,7 +17,7 @@ func TestCreateConnectionPinsDefaultConnectorVersion(t *testing.T) {
 	sources := registry.NewSources()
 	sources.Register("example@v1", func() filament.Source { return &catalogSource{name: "example@v1"} })
 	sources.RegisterAlias("example", "example@v1")
-	api := New(sources, registry.NewSinks(), store, nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), store, nil, nil)
 	created, err := api.CreateConnection(testCtx(), connect.NewRequest(&ingestionv1.CreateConnectionRequest{
 		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, Name: "example", Connector: "example",
 	}))
