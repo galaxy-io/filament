@@ -69,6 +69,7 @@ func (s *layoutMemorySink) BeginEpoch(ctx context.Context, ref filament.EpochRef
 	s.emails = nil
 	return s.continuousTestSink.BeginEpoch(ctx, ref)
 }
+
 func (s *layoutMemorySink) EnsureSchema(ctx context.Context, _ string, model rowmodel.Schema) error {
 	if s.ref.Epoch == 0 {
 		return errors.New("schema preparation outside epoch")
@@ -79,6 +80,7 @@ func (s *layoutMemorySink) EnsureSchema(ctx context.Context, _ string, model row
 	}
 	return schema.Reconcile(ctx, layoutMemoryTarget{&s.model}, model, s.policy)
 }
+
 func (s *layoutMemorySink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	expected := arrowbatch.Schema(s.model)
 	if expected.NumFields() != int(b.Rows().NumCols()) {
@@ -103,6 +105,7 @@ func (s *layoutMemorySink) Apply(ctx context.Context, b *arrowbatch.Batch, opts 
 	s.applied += b.NumRows()
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
+
 func (s *layoutMemorySink) CommitEpoch(ctx context.Context, ref filament.EpochRef) ([]filament.EpochReceipt, error) {
 	receipts, err := s.continuousTestSink.CommitEpoch(ctx, ref)
 	if err != nil {
@@ -113,6 +116,7 @@ func (s *layoutMemorySink) CommitEpoch(ctx context.Context, ref filament.EpochRe
 	s.destination.committed = ref
 	return receipts, nil
 }
+
 func (s *layoutMemorySink) AbortEpoch(context.Context, filament.EpochRef) error {
 	s.model = rowmodel.Schema{}
 	s.emails = nil
@@ -124,6 +128,7 @@ type layoutMemoryTarget struct{ model *rowmodel.Schema }
 func (t layoutMemoryTarget) Inspect(context.Context) (rowmodel.Schema, error) {
 	return t.model.Clone(), nil
 }
+
 func (t layoutMemoryTarget) AddNullable(_ context.Context, fields []rowmodel.Field) error {
 	t.model.Fields = append(t.model.Fields, fields...)
 	return nil
@@ -140,6 +145,7 @@ type layoutMemorySource struct {
 func (s *layoutMemorySource) OpenStream(context.Context, filament.StreamOpenOpts) (filament.StreamSession, error) {
 	return nil, errors.New("runner skipped message negotiation")
 }
+
 func (s *layoutMemorySource) OpenMessageStream(_ context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
 	var err error
 	s.layouts, err = streamkit.NewMessageBatches(opts, func(resource string) rowmodel.Schema { return rowmodel.Schema{Resource: resource} })
@@ -154,6 +160,7 @@ func (s *layoutMemorySource) OpenMessageStream(_ context.Context, opts filament.
 	}
 	return s, nil
 }
+
 func (s *layoutMemorySource) Read(ctx context.Context, out filament.StreamRecordSink, _ filament.Boundary) (filament.Coverage, error) {
 	if s.next >= len(s.epochs) {
 		return filament.Coverage{}, errors.New("unexpected read beyond supplied epochs")
@@ -187,6 +194,7 @@ func (s *layoutMemorySource) Read(ctx context.Context, out filament.StreamRecord
 	}
 	return filament.Coverage{Positions: filament.DomainPositions{domain: position}}, nil
 }
+
 func (s *layoutMemorySource) Acknowledge(_ context.Context, coverage filament.Coverage) error {
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
