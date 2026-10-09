@@ -129,7 +129,7 @@ const PipelineFlow = ({
   }
 
   if (!isLinked) {
-    return <Chip label="Invalid pipeline" variant={ChipVariant.WARNING} size={ChipSize.SMALL} />;
+    return <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />;
   }
 
   return (

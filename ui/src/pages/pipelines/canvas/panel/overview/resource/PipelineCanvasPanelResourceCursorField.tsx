@@ -1,14 +1,14 @@
-import SelectInput, {
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+
+import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 interface PipelineCanvasPanelResourceCursorFieldProps {
   value: ResourceColumn["name"];
   options: ResourceColumn[];
   isDisabled: boolean;
+  error?: string;
   onChange: (field: ResourceColumn["name"]) => void;
 }
 
@@ -16,16 +16,14 @@ const PipelineCanvasPanelResourceCursorField = ({
   value,
   options,
   isDisabled,
+  error,
   onChange,
 }: PipelineCanvasPanelResourceCursorFieldProps) => {
   if (!options.length) {
     return null;
   }
 
-  const selectOptions: SelectOption[] = options.map((column) => ({
-    id: column.name,
-    label: column.name,
-  }));
+  const selectOptions = getCursorSelectOptions(options);
 
   return (
     <SelectInput
@@ -38,6 +36,7 @@ const PipelineCanvasPanelResourceCursorField = ({
       placeholder="Select a column..."
       isDisabled={isDisabled}
       variant={SelectInputVariant.TERTIARY}
+      error={error}
       fillWidth
     />
   );

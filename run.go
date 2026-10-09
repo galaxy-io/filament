@@ -43,6 +43,9 @@ type RunSpec struct {
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
 	// pipeline's configuration with the request's override folded in.
 	WorkerConfiguration WorkerConfiguration
+	// Transform is the yaml transform definition applied between source and
+	// sink; empty when the route has no transform node.
+	Transform string
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -76,6 +79,8 @@ type RunRequest struct {
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
 	// later edit to the pipeline cannot reshape a run already requested.
 	WorkerConfiguration WorkerConfiguration `json:",omitzero"`
+	// Transform is the route's yaml transform definition, empty when none.
+	Transform string `json:",omitempty"`
 }
 
 // StreamRef identifies one admitted generation of a durable replication stream.
@@ -841,5 +846,6 @@ func (s RunState) ExecutionSpec() RunSpec {
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,
 		WritePolicies:       r.WritePolicies,
+		Transform:           r.Transform,
 	}
 }

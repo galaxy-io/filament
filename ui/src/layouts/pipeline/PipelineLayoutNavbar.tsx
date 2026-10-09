@@ -7,20 +7,22 @@ import {
   PauseIcon,
   PlayIcon,
   StopIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
+import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import { IconWeight } from "@galaxy-io/dls/icons/Icon";
+import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Popover from "@galaxy-io/dls/overlays/Popover";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
@@ -43,6 +45,7 @@ import {
   PIPELINE_NAVBAR_VERSION_SELECT_WIDTH,
 } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
+import PipelineLayoutNavbarSaveIssues from "@/layouts/pipeline/PipelineLayoutNavbarSaveIssues";
 
 import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
@@ -51,6 +54,11 @@ import {
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+  usePipelineCanvasValidation,
+} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import {
   usePipelineCanvasActions,
@@ -115,6 +123,18 @@ const PipelineLayoutNavbar = () => {
         tab: PipelineCanvasPanelTab.ACTIVITY,
       }),
     });
+  const showResource = (edgeId: string) =>
+    void navigate({
+      to: "/pipelines/$id/canvas",
+      params: { id },
+      search: (prev) => ({
+        ...prev,
+        node: undefined,
+        resource: edgeId,
+        showPanel: true,
+        tab: undefined,
+      }),
+    });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
@@ -158,6 +178,25 @@ const PipelineLayoutNavbar = () => {
   const graphConflicts = useMemo(
     () => getPipelineGraphConflicts(state.edges, connectionByNodeId),
     [state.edges, connectionByNodeId],
+  );
+  const { issues, isPending: isValidatingCanvas, isError } = usePipelineCanvasValidation();
+  const saveIssues = useMemo(
+    () => [
+      ...graphConflicts.map<PipelineCanvasValidationIssue>((message) => ({
+        kind: PipelineCanvasValidationIssueKind.GRAPH,
+        message,
+      })),
+      ...issues,
+      ...(isError
+        ? [
+            {
+              kind: PipelineCanvasValidationIssueKind.GRAPH,
+              message: "Unable to validate this pipeline.",
+            },
+          ]
+        : []),
+    ],
+    [graphConflicts, issues, isError],
   );
 
   const runErrors = useMemo(
@@ -322,16 +361,21 @@ const PipelineLayoutNavbar = () => {
 
       <Flex alignItems={AlignItems.CENTER} gap={12} shrink={0}>
         {isPreview && (
-          <Button
-            label="Back to latest"
-            icon={ArrowUUpLeftIcon}
-            variant={ButtonVariant.TERTIARY}
-            size={ButtonSize.SMALL}
-            onClick={() => handlePreviewVersionChange(null)}
-          />
+          <>
+            <Button
+              label="Back to latest"
+              icon={ArrowUUpLeftIcon}
+              variant={ButtonVariant.TERTIARY}
+              size={ButtonSize.SMALL}
+              onClick={() => handlePreviewVersionChange(null)}
+            />
+            <Chip label={`Version ${previewVersion}`} variant={ChipVariant.ERROR} />
+          </>
         )}
         {!isPreview && hasUnsavedChanges && (
-          <Chip label="Unsaved changes" variant={ChipVariant.ERROR} />
+          <Text size={TextSize.BODY_SM} variant={TextVariant.WARNING}>
+            Unsaved changes
+          </Text>
         )}
         {!isPreview &&
           (hasUnsavedChanges ? (
@@ -343,21 +387,35 @@ const PipelineLayoutNavbar = () => {
                 size={ButtonSize.SMALL}
                 onClick={handleUndo}
               />
-              <Tooltip
-                body={graphConflicts.join("\n")}
-                placement={Placement.BOTTOM}
-                isDisabled={graphConflicts.length === 0}
-              >
-                <Button
-                  label="Save"
-                  icon={FloppyDiskIcon}
-                  variant={ButtonVariant.PRIMARY}
-                  size={ButtonSize.SMALL}
-                  isLoading={isSaving}
-                  isDisabled={graphConflicts.length > 0}
-                  onClick={handleSave}
-                />
-              </Tooltip>
+              {saveIssues.length > 0 && (
+                <Popover
+                  placement={Placement.BOTTOM_END}
+                  ariaLabel="Save issues"
+                  body={
+                    <PipelineLayoutNavbarSaveIssues
+                      issues={saveIssues}
+                      onSelectResource={showResource}
+                    />
+                  }
+                >
+                  <Button
+                    label={saveIssues.length.toString()}
+                    ariaLabel={pluralize("save issue", saveIssues.length, true)}
+                    leading={<Icon component={WarningIcon} variant={IconVariant.ERROR} />}
+                    variant={ButtonVariant.TERTIARY}
+                    size={ButtonSize.SMALL}
+                  />
+                </Popover>
+              )}
+              <Button
+                label="Save"
+                icon={FloppyDiskIcon}
+                variant={ButtonVariant.PRIMARY}
+                size={ButtonSize.SMALL}
+                isLoading={isSaving || isValidatingCanvas}
+                isDisabled={saveIssues.length > 0}
+                onClick={handleSave}
+              />
             </>
           ) : (
             <>

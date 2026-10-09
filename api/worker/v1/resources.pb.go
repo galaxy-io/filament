@@ -252,8 +252,10 @@ type Inspection struct {
 	Columns            []*v1.ResourceColumn   `protobuf:"bytes,5,rep,name=columns,proto3" json:"columns,omitempty"`
 	Ranked             bool                   `protobuf:"varint,6,opt,name=ranked,proto3" json:"ranked,omitempty"`
 	ManagedIncremental bool                   `protobuf:"varint,7,opt,name=managed_incremental,json=managedIncremental,proto3" json:"managed_incremental,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// schema is unset when the source provides none.
+	Schema        *Schema `protobuf:"bytes,8,opt,name=schema,proto3" json:"schema,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Inspection) Reset() {
@@ -335,6 +337,158 @@ func (x *Inspection) GetManagedIncremental() bool {
 	return false
 }
 
+func (x *Inspection) GetSchema() *Schema {
+	if x != nil {
+		return x.Schema
+	}
+	return nil
+}
+
+// Schema is a resource's record schema exactly as the source reports it.
+type Schema struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fields        []*SchemaField         `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
+	PrimaryKey    []string               `protobuf:"bytes,2,rep,name=primary_key,json=primaryKey,proto3" json:"primary_key,omitempty"`
+	Engine        string                 `protobuf:"bytes,3,opt,name=engine,proto3" json:"engine,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Schema) Reset() {
+	*x = Schema{}
+	mi := &file_worker_v1_resources_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Schema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Schema) ProtoMessage() {}
+
+func (x *Schema) ProtoReflect() protoreflect.Message {
+	mi := &file_worker_v1_resources_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Schema.ProtoReflect.Descriptor instead.
+func (*Schema) Descriptor() ([]byte, []int) {
+	return file_worker_v1_resources_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Schema) GetFields() []*SchemaField {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
+func (x *Schema) GetPrimaryKey() []string {
+	if x != nil {
+		return x.PrimaryKey
+	}
+	return nil
+}
+
+func (x *Schema) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+type SchemaField struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Nullable      bool                   `protobuf:"varint,2,opt,name=nullable,proto3" json:"nullable,omitempty"`
+	LogicalType   string                 `protobuf:"bytes,3,opt,name=logical_type,json=logicalType,proto3" json:"logical_type,omitempty"`
+	NativeType    string                 `protobuf:"bytes,4,opt,name=native_type,json=nativeType,proto3" json:"native_type,omitempty"`
+	Precision     int32                  `protobuf:"varint,5,opt,name=precision,proto3" json:"precision,omitempty"`
+	Scale         int32                  `protobuf:"varint,6,opt,name=scale,proto3" json:"scale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SchemaField) Reset() {
+	*x = SchemaField{}
+	mi := &file_worker_v1_resources_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SchemaField) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SchemaField) ProtoMessage() {}
+
+func (x *SchemaField) ProtoReflect() protoreflect.Message {
+	mi := &file_worker_v1_resources_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SchemaField.ProtoReflect.Descriptor instead.
+func (*SchemaField) Descriptor() ([]byte, []int) {
+	return file_worker_v1_resources_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SchemaField) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SchemaField) GetNullable() bool {
+	if x != nil {
+		return x.Nullable
+	}
+	return false
+}
+
+func (x *SchemaField) GetLogicalType() string {
+	if x != nil {
+		return x.LogicalType
+	}
+	return ""
+}
+
+func (x *SchemaField) GetNativeType() string {
+	if x != nil {
+		return x.NativeType
+	}
+	return ""
+}
+
+func (x *SchemaField) GetPrecision() int32 {
+	if x != nil {
+		return x.Precision
+	}
+	return 0
+}
+
+func (x *SchemaField) GetScale() int32 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
 type InspectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Inspections   []*Inspection          `protobuf:"bytes,1,rep,name=inspections,proto3" json:"inspections,omitempty"`
@@ -344,7 +498,7 @@ type InspectResponse struct {
 
 func (x *InspectResponse) Reset() {
 	*x = InspectResponse{}
-	mi := &file_worker_v1_resources_proto_msgTypes[4]
+	mi := &file_worker_v1_resources_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -356,7 +510,7 @@ func (x *InspectResponse) String() string {
 func (*InspectResponse) ProtoMessage() {}
 
 func (x *InspectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_resources_proto_msgTypes[4]
+	mi := &file_worker_v1_resources_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -369,7 +523,7 @@ func (x *InspectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectResponse.ProtoReflect.Descriptor instead.
 func (*InspectResponse) Descriptor() ([]byte, []int) {
-	return file_worker_v1_resources_proto_rawDescGZIP(), []int{4}
+	return file_worker_v1_resources_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *InspectResponse) GetInspections() []*Inspection {
@@ -393,7 +547,7 @@ const file_worker_v1_resources_proto_rawDesc = "" +
 	"\x0eInspectRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1c\n" +
-	"\tresources\x18\x03 \x03(\tR\tresources\"\x8e\x02\n" +
+	"\tresources\x18\x03 \x03(\tR\tresources\"\xb9\x02\n" +
 	"\n" +
 	"Inspection\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
@@ -403,7 +557,21 @@ const file_worker_v1_resources_proto_rawDesc = "" +
 	"primaryKey\x126\n" +
 	"\acolumns\x18\x05 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\x12\x16\n" +
 	"\x06ranked\x18\x06 \x01(\bR\x06ranked\x12/\n" +
-	"\x13managed_incremental\x18\a \x01(\bR\x12managedIncremental\"J\n" +
+	"\x13managed_incremental\x18\a \x01(\bR\x12managedIncremental\x12)\n" +
+	"\x06schema\x18\b \x01(\v2\x11.worker.v1.SchemaR\x06schema\"q\n" +
+	"\x06Schema\x12.\n" +
+	"\x06fields\x18\x01 \x03(\v2\x16.worker.v1.SchemaFieldR\x06fields\x12\x1f\n" +
+	"\vprimary_key\x18\x02 \x03(\tR\n" +
+	"primaryKey\x12\x16\n" +
+	"\x06engine\x18\x03 \x01(\tR\x06engine\"\xb5\x01\n" +
+	"\vSchemaField\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
+	"\bnullable\x18\x02 \x01(\bR\bnullable\x12!\n" +
+	"\flogical_type\x18\x03 \x01(\tR\vlogicalType\x12\x1f\n" +
+	"\vnative_type\x18\x04 \x01(\tR\n" +
+	"nativeType\x12\x1c\n" +
+	"\tprecision\x18\x05 \x01(\x05R\tprecision\x12\x14\n" +
+	"\x05scale\x18\x06 \x01(\x05R\x05scale\"J\n" +
 	"\x0fInspectResponse\x127\n" +
 	"\vinspections\x18\x01 \x03(\v2\x15.worker.v1.InspectionR\vinspections*\x81\x01\n" +
 	"\rInspectStatus\x12\x1e\n" +
@@ -427,30 +595,34 @@ func file_worker_v1_resources_proto_rawDescGZIP() []byte {
 }
 
 var file_worker_v1_resources_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_worker_v1_resources_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_worker_v1_resources_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_worker_v1_resources_proto_goTypes = []any{
 	(InspectStatus)(0),        // 0: worker.v1.InspectStatus
 	(*DiscoverRequest)(nil),   // 1: worker.v1.DiscoverRequest
 	(*DiscoverResponse)(nil),  // 2: worker.v1.DiscoverResponse
 	(*InspectRequest)(nil),    // 3: worker.v1.InspectRequest
 	(*Inspection)(nil),        // 4: worker.v1.Inspection
-	(*InspectResponse)(nil),   // 5: worker.v1.InspectResponse
-	(*structpb.Struct)(nil),   // 6: google.protobuf.Struct
-	(*v1.Resource)(nil),       // 7: ingestion.v1.Resource
-	(*v1.ResourceColumn)(nil), // 8: ingestion.v1.ResourceColumn
+	(*Schema)(nil),            // 5: worker.v1.Schema
+	(*SchemaField)(nil),       // 6: worker.v1.SchemaField
+	(*InspectResponse)(nil),   // 7: worker.v1.InspectResponse
+	(*structpb.Struct)(nil),   // 8: google.protobuf.Struct
+	(*v1.Resource)(nil),       // 9: ingestion.v1.Resource
+	(*v1.ResourceColumn)(nil), // 10: ingestion.v1.ResourceColumn
 }
 var file_worker_v1_resources_proto_depIdxs = []int32{
-	6, // 0: worker.v1.DiscoverRequest.config:type_name -> google.protobuf.Struct
-	7, // 1: worker.v1.DiscoverResponse.resources:type_name -> ingestion.v1.Resource
-	6, // 2: worker.v1.InspectRequest.config:type_name -> google.protobuf.Struct
-	0, // 3: worker.v1.Inspection.status:type_name -> worker.v1.InspectStatus
-	8, // 4: worker.v1.Inspection.columns:type_name -> ingestion.v1.ResourceColumn
-	4, // 5: worker.v1.InspectResponse.inspections:type_name -> worker.v1.Inspection
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8,  // 0: worker.v1.DiscoverRequest.config:type_name -> google.protobuf.Struct
+	9,  // 1: worker.v1.DiscoverResponse.resources:type_name -> ingestion.v1.Resource
+	8,  // 2: worker.v1.InspectRequest.config:type_name -> google.protobuf.Struct
+	0,  // 3: worker.v1.Inspection.status:type_name -> worker.v1.InspectStatus
+	10, // 4: worker.v1.Inspection.columns:type_name -> ingestion.v1.ResourceColumn
+	5,  // 5: worker.v1.Inspection.schema:type_name -> worker.v1.Schema
+	6,  // 6: worker.v1.Schema.fields:type_name -> worker.v1.SchemaField
+	4,  // 7: worker.v1.InspectResponse.inspections:type_name -> worker.v1.Inspection
+	8,  // [8:8] is the sub-list for method output_type
+	8,  // [8:8] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_worker_v1_resources_proto_init() }
@@ -464,7 +636,7 @@ func file_worker_v1_resources_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worker_v1_resources_proto_rawDesc), len(file_worker_v1_resources_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -155,6 +155,7 @@ function setRouteWriteMode(
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: action.payload.writeMode,
               cursors: edge.data?.cursors ?? [],
+              transform: edge.data?.transform,
             },
           }
         : edge,

@@ -16,12 +16,15 @@ import {
 } from "@/pages/pipelines/canvas/nodes/constants";
 import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
+type HandleFlags = { $isConnected?: boolean; $isInvalid?: boolean };
+
 const HandleBase = ({
   $isConnected: _isConnected,
+  $isInvalid: _isInvalid,
   ...props
-}: { $isConnected?: boolean } & ComponentProps<typeof Handle>) => <Handle {...props} />;
+}: HandleFlags & ComponentProps<typeof Handle>) => <Handle {...props} />;
 
-const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
+const StyledHandle = styled(HandleBase)<HandleFlags>`
   &.react-flow__handle {
     position: relative;
     top: auto;
@@ -35,8 +38,10 @@ const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
 
     background-color: ${({ $isConnected }) =>
       $isConnected ? "transparent" : t.color.text.tertiary};
-    border: ${({ $isConnected }) =>
-      $isConnected ? `2px solid ${t.color.solid.primary.background}` : "none"};
+    border: ${({ $isConnected, $isInvalid }) =>
+      $isConnected
+        ? `2px solid ${$isInvalid ? t.color.text.error : t.color.solid.primary.background}`
+        : "none"};
     border-radius: ${t.radius.pill};
 
     transition:
@@ -55,6 +60,7 @@ interface PipelineCanvasNodeHandleProps {
   kind: ConnectorKind;
   position: Position;
   isConnected?: boolean;
+  isInvalid?: boolean;
 }
 
 const PipelineCanvasNodeHandle = ({
@@ -62,6 +68,7 @@ const PipelineCanvasNodeHandle = ({
   kind,
   position,
   isConnected,
+  isInvalid,
 }: PipelineCanvasNodeHandleProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
 
@@ -79,6 +86,7 @@ const PipelineCanvasNodeHandle = ({
         position={position}
         isConnectable={!isReadOnly}
         $isConnected={isConnected}
+        $isInvalid={isInvalid}
       />
     </Flex>
   );

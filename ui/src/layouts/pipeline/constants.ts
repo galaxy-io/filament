@@ -6,7 +6,6 @@ import { PipelineSidebarItem } from "@/layouts/pipeline/types";
 export const PIPELINE_SIDEBAR_WIDTH = 48;
 export const PIPELINE_SIDEBAR_BUTTON_SIZE = 28;
 export const PIPELINE_NAVBAR_HEIGHT = 48;
-export const PIPELINE_PREVIEW_CHIP_Z_INDEX = 1002;
 export const PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH = 500;
 export const PIPELINE_NAVBAR_VERSION_SELECT_WIDTH = 128;
 

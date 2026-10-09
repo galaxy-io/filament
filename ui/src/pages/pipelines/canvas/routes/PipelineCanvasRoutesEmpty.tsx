@@ -1,0 +1,24 @@
+import { FlowArrowIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+
+import EmptyLayout from "@/layouts/EmptyLayout";
+
+interface PipelineCanvasRoutesEmptyProps {
+  hasRoutes: boolean;
+}
+
+const PipelineCanvasRoutesEmpty = ({ hasRoutes }: PipelineCanvasRoutesEmptyProps) =>
+  hasRoutes ? (
+    <EmptyLayout
+      icon={MagnifyingGlassIcon}
+      header="No matching resources"
+      description="Try a different search or clear the sink filter."
+    />
+  ) : (
+    <EmptyLayout
+      icon={FlowArrowIcon}
+      header="No routes"
+      description="Connect a source to a sink to route resources."
+    />
+  );
+
+export default PipelineCanvasRoutesEmpty;

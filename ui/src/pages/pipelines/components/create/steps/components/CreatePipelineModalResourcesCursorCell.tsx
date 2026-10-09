@@ -1,7 +1,4 @@
-import SelectInput, {
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
@@ -13,6 +10,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 interface CreatePipelineModalResourcesCursorCellProps {
   row: CreatePipelineModalResourceRow;
@@ -40,10 +38,7 @@ const CreatePipelineModalResourcesCursorCell = ({
     );
   }
 
-  const options: SelectOption[] = row.cursorOptions.map((column) => ({
-    id: column.name,
-    label: column.name,
-  }));
+  const options = getCursorSelectOptions(row.cursorOptions);
 
   const handleCursorChange = (id: string | null) => {
     if (id === null) return;

@@ -15,11 +15,10 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import EmptyGraphic, {
   EmptyGraphicGhostBar,
   EmptyGraphicGhostTileFallback,
+  useEmptyGraphicConnectors,
 } from "@/components/EmptyGraphic";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-
-import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 interface PipelinesEmptyRow {
   sinkCount: number;
@@ -33,7 +32,11 @@ const PIPELINES_EMPTY_ROWS: PipelinesEmptyRow[] = [
   { sinkCount: 3, nameWidth: 140, metaWidth: 70 },
 ];
 
-const PIPELINES_EMPTY_SINK_OFFSETS = [0, 1, 2];
+const PIPELINES_EMPTY_SINK_SLOTS = [0, 1, 2];
+
+const PIPELINES_EMPTY_SINK_START_INDEXES = PIPELINES_EMPTY_ROWS.map((_, rowIndex) =>
+  PIPELINES_EMPTY_ROWS.slice(0, rowIndex).reduce((total, row) => total + row.sinkCount, 0),
+);
 
 const VeilWrapper = styled.div`
   width: 100%;
@@ -79,10 +82,8 @@ interface PipelinesPageEmptyGraphicProps {
 }
 
 const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) => {
-  const { data } = useListConnectorsQuery();
-  const connectors = data?.connectors ?? [];
-  const sourceSpecs = connectors.filter((connector) => connector.kind === ConnectorKind.SOURCE);
-  const sinkSpecs = connectors.filter((connector) => connector.kind === ConnectorKind.SINK);
+  const sourceSpecs = useEmptyGraphicConnectors(ConnectorKind.SOURCE);
+  const sinkSpecs = useEmptyGraphicConnectors(ConnectorKind.SINK);
 
   return (
     <Flex
@@ -96,9 +97,7 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
       <EmptyGraphic>
         <VeilWrapper>
           {PIPELINES_EMPTY_ROWS.map((row, rowIndex) => {
-            const sourceSpec = sourceSpecs.length
-              ? sourceSpecs[rowIndex % sourceSpecs.length]
-              : undefined;
+            const sourceSpec = sourceSpecs[rowIndex];
 
             return (
               <GhostRow key={row.nameWidth}>
@@ -115,19 +114,14 @@ const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) 
                     weight={IconWeight.REGULAR}
                   />
                   <GhostSinkCluster>
-                    {PIPELINES_EMPTY_SINK_OFFSETS.slice(0, row.sinkCount).map((offset) => {
-                      const sinkSpec = sinkSpecs.length
-                        ? sinkSpecs[(rowIndex + offset) % sinkSpecs.length]
-                        : undefined;
+                    {PIPELINES_EMPTY_SINK_SLOTS.slice(0, row.sinkCount).map((slot) => {
+                      const sinkSpec =
+                        sinkSpecs[PIPELINES_EMPTY_SINK_START_INDEXES[rowIndex] + slot];
 
                       return sinkSpec ? (
-                        <ConnectorTile
-                          key={offset}
-                          connector={sinkSpec.name}
-                          kind={sinkSpec.kind}
-                        />
+                        <ConnectorTile key={slot} connector={sinkSpec.name} kind={sinkSpec.kind} />
                       ) : (
-                        <EmptyGraphicGhostTileFallback key={offset} />
+                        <EmptyGraphicGhostTileFallback key={slot} />
                       );
                     })}
                   </GhostSinkCluster>

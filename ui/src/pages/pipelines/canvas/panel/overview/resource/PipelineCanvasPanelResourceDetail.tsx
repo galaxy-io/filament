@@ -1,11 +1,10 @@
-import { create } from "@bufbuild/protobuf";
+import { Suspense } from "react";
+
 import { FlowArrowIcon } from "@phosphor-icons/react";
+import { CatchBoundary } from "@tanstack/react-router";
 
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, {
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -14,33 +13,34 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
-import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { ConnectorKind, ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
+import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
+import PipelineCanvasPanelResourceTransformSectionError from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionError";
+import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
-  usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import {
   getCanvasEdgeResourceLabel,
   getDefaultDestinationResource,
+  getEdgeResourceStatuses,
 } from "@/pages/pipelines/canvas/utils";
-import {
-  READ_MODE_TO_LABEL_MAP,
-  WRITE_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
+import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
+import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -48,110 +48,80 @@ interface PipelineCanvasPanelResourceDetailProps {
 
 const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResourceDetailProps) => {
   const isReadOnly = usePipelineCanvasReadOnly();
-  const { edges } = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
-  const { setEdgeConfig, setRouteWriteMode, applyEdgeChanges } = usePipelineCanvasActions();
+  const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
 
   const resource = getCanvasEdgeResource(edge);
 
+  const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
     isContinuous,
     hasReadLevers,
+    isTransformable,
     isLoading,
+    isLoadingColumns,
+    sourceConnectionId,
     coveredResources,
+    columnsByResource,
+    verdict,
     readModeOptions,
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
     cursorOptionsByResource,
-    recommendedCursorByResource,
+    defaultCursorByResource,
     managedIncrementalResources,
-  } = usePipelineCanvasPanelResourceOptions(edge);
+  } = options;
 
   const { label: resourceLabel, isNamedResource } = getCanvasEdgeResourceLabel(
     resource,
     coveredResources.length,
   );
 
-  const configuredReadMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
-  const configuredWriteMode = edge.data?.writeMode ?? WriteMode.UNSPECIFIED;
-  const readMode =
-    configuredReadMode === ReadMode.UNSPECIFIED ? effectiveReadMode : configuredReadMode;
-  const writeMode =
-    configuredWriteMode === WriteMode.UNSPECIFIED ? effectiveWriteMode : configuredWriteMode;
-  const cursors = edge.data?.cursors ?? [];
+  const {
+    configuredReadMode,
+    configuredWriteMode,
+    readMode,
+    writeMode,
+    cursors,
+    cursorsByResource,
+    readModeSelectOptions,
+    writeModeSelectOptions,
+    handleReadModeChange,
+    handleWriteModeChange,
+    handleCursorChange,
+  } = usePipelineCanvasEdgeConfig(edge, {
+    readModeOptions,
+    writeModeOptions,
+    effectiveReadMode,
+    effectiveWriteMode,
+    coveredResources,
+    defaultCursorByResource,
+  });
   const destinationResource = edge.data?.destinationResource ?? "";
+  const statuses = getEdgeResourceStatuses(options, {
+    verdict,
+    readMode,
+    writeMode,
+    cursorsByResource,
+  });
+  const getFieldError = (field: PipelineResourceStatusField, resourceName?: string) =>
+    statuses.find(
+      (status) =>
+        status.isBlocking &&
+        status.field === field &&
+        (resourceName === undefined || status.resource === resourceName),
+    )?.message;
 
-  const buildRecommendedCursors = () =>
-    coveredResources
-      .filter(
-        (resourceName) =>
-          !managedIncrementalResources.has(resourceName) &&
-          (recommendedCursorByResource[resourceName] ?? "") !== "",
-      )
-      .map((resourceName) =>
-        create(ResourceCursorConfigSchema, {
-          resource: resourceName,
-          field: recommendedCursorByResource[resourceName],
-          lookbackSeconds: 0n,
-        }),
-      );
-
-  const routeHasIncremental = edges.some(
-    (candidate) =>
-      candidate.source === edge.source &&
-      candidate.target === edge.target &&
-      (candidate.id === edge.id ? readMode : candidate.data?.readMode) === ReadMode.INCREMENTAL,
-  );
-  const compatibleWriteModes = writeModeOptions.filter(
-    (mode) => !routeHasIncremental || mode !== WriteMode.REPLACE,
-  );
-
-  const handleReadModeChange = (mode: ReadMode) => {
-    const nextWriteMode =
-      mode === ReadMode.INCREMENTAL && writeMode === WriteMode.REPLACE
-        ? writeModeOptions.includes(WriteMode.UPSERT)
-          ? WriteMode.UPSERT
-          : (writeModeOptions.find((candidate) => candidate !== WriteMode.REPLACE) ?? writeMode)
-        : writeMode;
+  const handleTransformChange = (transform: TransformDefinition | undefined) =>
     setEdgeConfig(edge.id, {
-      readMode: mode,
-      writeMode: nextWriteMode,
-      cursors: mode === ReadMode.INCREMENTAL ? buildRecommendedCursors() : [],
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      transform,
     });
-    if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
-  };
-
-  const handleWriteModeChange = (mode: WriteMode) =>
-    setRouteWriteMode(edge.source, edge.target, mode);
-
-  const handleCursorChange = (resourceName: Resource["name"], field: ResourceColumn["name"]) =>
-    setEdgeConfig(edge.id, {
-      readMode,
-      writeMode,
-      cursors: [
-        ...cursors.filter((cursor) => cursor.resource !== resourceName),
-        create(ResourceCursorConfigSchema, {
-          resource: resourceName,
-          field,
-          lookbackSeconds: 0n,
-        }),
-      ],
-    });
-
   const handleDestinationChange = (value: string) =>
     setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value.trim() });
-
-  const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
-
-  const readModeSelectOptions: SelectOption[] = readModeOptions.map((mode) => ({
-    id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-  }));
-  const writeModeSelectOptions: SelectOption[] = compatibleWriteModes.map((mode) => ({
-    id: String(mode),
-    label: WRITE_MODE_TO_LABEL_MAP[mode],
-  }));
 
   return (
     <>
@@ -226,6 +196,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                     }}
                     placeholder="Select a read mode..."
                     isDisabled={isReadOnly || isLoading}
+                    error={getFieldError(PipelineResourceStatusField.READ_MODE)}
                     variant={SelectInputVariant.TERTIARY}
                     fillWidth
                   />
@@ -239,6 +210,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   }}
                   placeholder="Select a write mode..."
                   isDisabled={isReadOnly || isLoading}
+                  error={getFieldError(PipelineResourceStatusField.WRITE_MODE)}
                   variant={SelectInputVariant.TERTIARY}
                   fillWidth
                 />
@@ -266,12 +238,35 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                         value={cursorsByResource.get(resourceName) ?? ""}
                         options={cursorOptionsByResource[resourceName] ?? []}
                         isDisabled={isReadOnly || isLoading}
+                        error={getFieldError(PipelineResourceStatusField.CURSOR, resourceName)}
                         onChange={(field) => handleCursorChange(resourceName, field)}
                       />
                     ),
                   )}
               </Flex>
             </PipelineCanvasPanelSection>
+            {isTransformable &&
+              (isLoadingColumns ? (
+                <PipelineCanvasPanelResourceTransformSectionPending />
+              ) : (
+                <CatchBoundary
+                  getResetKey={() => edge.id}
+                  errorComponent={PipelineCanvasPanelResourceTransformSectionError}
+                >
+                  <Suspense fallback={<PipelineCanvasPanelResourceTransformSectionPending />}>
+                    <PipelineTransformFieldsProvider
+                      definition={edge.data?.transform}
+                      onChange={handleTransformChange}
+                      resources={coveredResources}
+                      columnsByResource={columnsByResource}
+                      sourceConnectionId={sourceConnectionId}
+                      isReadOnly={isReadOnly}
+                    >
+                      <PipelineCanvasPanelResourceTransformSection />
+                    </PipelineTransformFieldsProvider>
+                  </Suspense>
+                </CatchBoundary>
+              ))}
           </Flex>
         </ScrollArea>
       </FlexItem>

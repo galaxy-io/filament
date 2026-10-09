@@ -1,13 +1,14 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { PlusIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, PlusIcon, TreeStructureIcon } from "@phosphor-icons/react";
 import { type HandleType, Position } from "@xyflow/react";
 
+import type { Space } from "@galaxy-io/dls/theme/enums";
 import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canvas/types";
-import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType, PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_MIN_ZOOM = 0.5;
 export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
@@ -93,3 +94,17 @@ export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
 
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;
+
+export const PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS = 250;
+
+export const PIPELINE_CANVAS_VIEW_TO_LABEL_MAP: Record<PipelineCanvasView, string> = {
+  [PipelineCanvasView.CANVAS]: "Canvas",
+  [PipelineCanvasView.ROUTES]: "Routes",
+};
+
+export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, PhosphorIcon> = {
+  [PipelineCanvasView.CANVAS]: TreeStructureIcon,
+  [PipelineCanvasView.ROUTES]: FlowArrowIcon,
+};
+
+export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 12;

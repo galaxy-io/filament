@@ -1,19 +1,14 @@
 import type { PropsWithChildren } from "react";
 
 import { css } from "@linaria/core";
-import { styled } from "@linaria/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem, { FlexItemVariant } from "@galaxy-io/dls/layout/FlexItem";
 import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import {
-  PIPELINE_PREVIEW_CHIP_Z_INDEX,
-  PIPELINE_SIDEBAR_WIDTH,
-} from "@/layouts/pipeline/constants";
+import { PIPELINE_SIDEBAR_WIDTH } from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 import PipelineLayoutNavbarBackButton from "@/layouts/pipeline/PipelineLayoutNavbarBackButton";
 import PipelineLayoutSidebar from "@/layouts/pipeline/PipelineLayoutSidebar";
@@ -27,19 +22,11 @@ const PREVIEW_ISLAND_CSS = css`
   border-color: ${t.color.border.error};
 `;
 
-const PreviewChipOverlay = styled.div`
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: ${PIPELINE_PREVIEW_CHIP_Z_INDEX};
-`;
-
 const PipelineLayout = ({ children }: PropsWithChildren) => {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
-  const previewed = usePipelinePreviewVersion();
-  const isPreview = previewed !== undefined;
+  const isPreview = usePipelinePreviewVersion() !== undefined;
 
   const { isRouteMatch: isHistoryActive } = useRouteMatch({
     route: "/pipelines/$id/history",
@@ -88,11 +75,6 @@ const PipelineLayout = ({ children }: PropsWithChildren) => {
             overflow="hidden"
             className={isPreview ? PREVIEW_ISLAND_CSS : undefined}
           >
-            {isPreview && (
-              <PreviewChipOverlay>
-                <Chip label={`Version ${previewed.version}`} variant={ChipVariant.ERROR} />
-              </PreviewChipOverlay>
-            )}
             {children}
           </FlexItem>
         </Flex>

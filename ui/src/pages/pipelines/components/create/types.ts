@@ -10,6 +10,7 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
+import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
 export enum CreatePipelineModalStep {
@@ -40,11 +41,6 @@ export interface CreatePipelineModalState {
   isSubmitting: boolean;
 }
 
-export interface CreatePipelineModalResourceStatus {
-  message: string;
-  isBlocking: boolean;
-}
-
 export interface CreatePipelineModalResourceRow {
   name: Resource["name"];
   displayName: Resource["displayName"];
@@ -55,7 +51,7 @@ export interface CreatePipelineModalResourceRow {
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   managedIncremental: boolean;
-  status?: CreatePipelineModalResourceStatus;
+  status?: PipelineResourceStatus;
 }
 
 export interface CreatePipelineModalSinkRow {

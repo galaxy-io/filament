@@ -1,5 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
@@ -7,6 +9,7 @@ import EmptyLayout from "@/layouts/EmptyLayout";
 import { LayoutSize } from "@/layouts/types";
 
 interface PipelineCanvasPanelSectionProps {
+  icon?: PhosphorIcon;
   header: string;
   isEmpty: boolean;
   emptyHeader: string;
@@ -19,6 +22,7 @@ interface PipelineCanvasPanelSectionProps {
 }
 
 const PipelineCanvasPanelSection = ({
+  icon,
   header,
   isEmpty,
   emptyHeader,
@@ -33,6 +37,7 @@ const PipelineCanvasPanelSection = ({
   return (
     <Widget
       isCollapsible
+      icon={icon}
       header={header}
       variant={WidgetVariant.SECONDARY}
       isFlush={isEmpty || !hasInset}

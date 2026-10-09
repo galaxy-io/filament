@@ -7,11 +7,12 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import EmptyGraphic, { EmptyGraphicGhostTile } from "@/components/EmptyGraphic";
+import EmptyGraphic, {
+  EmptyGraphicGhostTile,
+  useEmptyGraphicConnectors,
+} from "@/components/EmptyGraphic";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-
-import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 const SLOT_COLUMN_COUNT = 9;
 const SLOT_COUNT = 27;
@@ -57,10 +58,7 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
 `;
 
 const ConnectionsPageSourcesEmptyGraphic = () => {
-  const { data } = useListConnectorsQuery();
-  const sourceSpecs = (data?.connectors ?? []).filter(
-    (connector) => connector.kind === ConnectorKind.SOURCE,
-  );
+  const sourceSpecs = useEmptyGraphicConnectors(ConnectorKind.SOURCE);
 
   return (
     <EmptyGraphic>
@@ -74,10 +72,7 @@ const ConnectionsPageSourcesEmptyGraphic = () => {
             );
           }
 
-          const row = Math.floor(slot / SLOT_COLUMN_COUNT);
-          const spec = sourceSpecs.length
-            ? sourceSpecs[(slot + row * 4) % sourceSpecs.length]
-            : undefined;
+          const spec = sourceSpecs[slot < SLOT_LIVE_INDEX ? slot : slot - 1];
 
           return (
             <Slot key={slot} $isLive={false} $isFilled={!!spec}>

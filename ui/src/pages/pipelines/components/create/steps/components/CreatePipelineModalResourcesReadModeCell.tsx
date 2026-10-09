@@ -1,7 +1,4 @@
-import SelectInput, {
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 
 import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
@@ -11,8 +8,8 @@ import {
   useCreatePipelineModalDispatch,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import { READ_MODE_TO_LABEL_MAP } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 const CreatePipelineModalResourcesReadModeCell = ({
   row,
@@ -21,10 +18,7 @@ const CreatePipelineModalResourcesReadModeCell = ({
 }) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
-  const options: SelectOption[] = row.readModeOptions.map((mode) => ({
-    id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-  }));
+  const options = getReadModeSelectOptions(row.readModeOptions);
 
   const handleReadModeChange = (id: string | null) => {
     if (id === null) return;
