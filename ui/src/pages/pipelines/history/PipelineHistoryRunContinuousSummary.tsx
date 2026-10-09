@@ -15,7 +15,7 @@ interface PipelineHistoryRunContinuousSummaryProps {
 const PipelineHistoryRunContinuousSummary = ({ run }: PipelineHistoryRunContinuousSummaryProps) => {
   const lastCommittedAt = run.executionStatus?.lastCommittedAt;
   return (
-    <ConnectionDrawerList>
+    <ConnectionDrawerList hasBorder={false}>
       <ConnectionDrawerKeyValueRow
         label="Status"
         value={

@@ -1,0 +1,115 @@
+---
+title: "Live Tennis API"
+description: "Read tennis matches, players, tournaments, historical results, and rankings"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-livetennisapi-dark.svg"
+---
+
+The Live Tennis API source reads current match data, player and tournament
+reference data, and optional historical results and rankings. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests) targeting
+API `v1` and is **alpha**. It has been checked against the official API reference
+and Filament's manifest validation. Live account validation is pending.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Secret. Live Tennis API key. |
+| `match_status` | Connection | `live` | Status for `matches` and `match_details`. Choose `live`, `upcoming`, `completed`, or `cancelled`. |
+| `ranking_system` | Connection | `atp` | Official ranking table. Choose `atp`, `wta`, `itf_jt`, `itf_mt`, `itf_wt`, `atp_doubles`, or `wta_doubles`. |
+
+Get a key from your [Live Tennis API account](https://livetennisapi.com/account).
+Connection testing reads `/usage`, which is authenticated and quota-exempt.
+See the [official API reference](https://docs.livetennisapi.com/reference.html)
+for authentication and plan entitlements.
+
+Live and upcoming matches, fixtures, players, tournaments, and usage are available
+with a free key. Completed and cancelled matches and the history resources need
+BASIC or an eligible Historical Data API plan. The limited free history allowance
+is unsuitable for backfills. Rankings need PRO or higher. Match detail includes
+market and analysis fields only when your plan allows them.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `usage` | `GET /api/public/v1/usage` | |
+| `matches` | `GET /api/public/v1/matches` | |
+| `match_details` | `GET /api/public/v1/matches/{matchId}` | `matches` |
+| `fixtures` | `GET /api/public/v1/fixtures` | |
+| `players` | `GET /api/public/v1/players` | |
+| `tournaments` | `GET /api/public/v1/tournaments` | |
+| `history_matches` | `GET /api/public/v1/history/matches` | |
+| `history_tapes` | `GET /api/public/v1/history/matches/{matchId}` | `history_matches` |
+| `history_coverage` | `GET /api/public/v1/history/coverage` | |
+| `history_incidents` | `GET /api/public/v1/history/incidents` | |
+| `archive_matches` | `GET /api/public/v1/history/archive/matches` | |
+| `archive_match_details` | `GET /api/public/v1/history/archive/matches/{archiveId}` | `archive_matches` |
+| `archive_players` | `GET /api/public/v1/history/archive/players` | |
+| `rankings` | `GET /api/public/v1/rankings` | |
+
+Only `matches` and `fixtures` are selected by default. Reference tables, detail
+reads, and paid resources are optional. Selecting a child also reads its parent,
+even if the parent is not selected for writing.
+
+Matches and fixtures each emit one row per returned record. Matches follow
+`match_status`, while fixtures list upcoming scheduled fixtures. Players and
+tournaments emit one row per catalog entry. Tournament IDs remain stable across
+seasons. Usage emits one row for the calling key, including its daily history.
+
+History matches cover completed matches from January 2023 onward. Each history
+tape is one row per match with the score sequence, profiles, and coverage metadata
+kept as JSON. The default raw sequence is requested. It may be incomplete or
+include reconstruction with null timestamps and model values. Read the tape's
+`meta` before using it for analysis.
+
+Archive matches cover results from 1968 through 2022 in a separate ID space.
+`event_date` is the tournament start date. Archive detail adds serve statistics
+where recorded. Archive players use the composite key `tour`, `id`, which joins
+the archive result's player IDs within the same tour. These are not roster IDs.
+
+Rankings emit the latest published table for the selected system. They have no
+primary key because players outside the roster have null IDs and ranks can tie.
+History coverage is also keyless and emits one rollup object. History incidents
+emit one row per published incident, including correction and affected-match
+metadata. Incident exports are not downloaded.
+
+Nested data stays in JSON columns. Each resource has a trailing `raw` column
+for fields not projected separately. Match detail's plan-dependent market and
+analysis objects remain in `raw`.
+
+Dedicated event, stoppage, status-transition, withdrawal, live point, price-tick,
+statistics, rally, and charting feeds are outside this version's scope. So are
+archive reconstructed tapes, career and head-to-head queries, Elo and per-player
+as-of rankings, bulk packages, WebSocket feeds, broadcast overlays, and webhooks.
+Player and tournament detail lookups duplicate the catalog schemas and are not
+separate resources.
+
+## Modes
+
+All resources support full reads. Use full replace for keyless rankings and
+history coverage. Full replace also removes matches that leave the selected
+status. Full upsert refreshes keyed records but retains rows no longer returned.
+
+Incremental reads are not supported. The upstream match change feed requires a
+server watermark and a cursor that replaces the initial filter. This connector
+uses ordinary full listings. Historical tapes and results may receive later
+corrections, so play dates are not used as update cursors.
+
+## Behavior
+
+- **Auth** uses the `X-API-Key` header on every request.
+- **Pagination** reads list records from `data` in pages of 50, advances `offset`
+  by 50, and stops when `meta.has_more` is false. It can continue through short
+  or empty pages. Detail objects, usage, coverage, and incidents are unpaginated.
+- **Rate limiting** allows one request every two seconds with a burst of one,
+  matching the free plan's 30 requests per minute. The HTTP engine retries
+  throttled requests and honors `Retry-After`. Daily allowances are shared with
+  other clients and are not tracked by Filament.
+- **Backfills** request unbounded listings without date filters. Player catalogs,
+  archives, and per-match tapes can exceed daily quotas. Select these resources
+  deliberately and use a plan with sufficient allowance.
+- **Consistency** reflects the API while pages are fetched. Offset reads are not
+  atomic snapshots, and live matches can enter or leave the listing during a run.
+- **Errors** remain visible. Missing entitlement and unavailable detail responses
+  fail the read rather than silently dropping records.

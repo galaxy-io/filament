@@ -500,6 +500,7 @@
               "required": ["offset", "limit", "page_size"],
               "additionalProperties": false,
               "properties": {
+                "more": { "type": "string", "minLength": 1 },
                 "offset": { "type": "string" },
                 "limit": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 }

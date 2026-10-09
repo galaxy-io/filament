@@ -1,0 +1,267 @@
+version: 1
+name: livetennisapi
+display_name: Live Tennis API
+description: Tennis data API providing real-time scores, player profiles, historical results, market prices, and model-driven match analysis across professional and junior tours.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-livetennisapi-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-livetennisapi-light.svg
+api_version: "v1"
+config:
+  api_key:
+    type: secret
+    required: true
+    help: API key from your Live Tennis API account.
+  match_status:
+    type: enum
+    enum: [live, upcoming, completed, cancelled]
+    default: live
+    help: Lifecycle status for matches and match_details. Completed and cancelled require history access.
+  ranking_system:
+    type: enum
+    enum: [atp, wta, itf_jt, itf_mt, itf_wt, atp_doubles, wta_doubles]
+    default: atp
+    help: Official ranking table to read. Requires PRO or higher.
+defaults:
+  method: GET
+  response:
+    records: $.data
+    pagination:
+      offset: {offset: offset, limit: limit, page_size: 50, more: meta.has_more}
+field_sets:
+  match:
+    id: string
+    tournament_id: string?
+    tournament: string?
+    tour: string?
+    tier: string?
+    surface: string?
+    status: string?
+    scheduled_time: timestamptz?
+    is_qualifying: bool?
+    players: json?
+    score: json?
+    winner: int64?
+    outcome: string?
+connection:
+  base_url: https://api.livetennisapi.com
+  auth:
+    header: {name: X-API-Key, value: config.api_key}
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 0.5
+    burst: 1
+resources:
+  - name: usage
+    path: /api/public/v1/usage
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [principal]
+    fields:
+      principal: string
+      tier: string?
+      limits: json?
+      today: json?
+      history: json?
+      as_of: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: matches
+    path: /api/public/v1/matches
+    query: {status: "{{ config.match_status }}"}
+    capture: {match_id: id}
+    primary_key: [id]
+    use_fields: [match]
+    fields:
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: match_details
+    path: /api/public/v1/matches/{matchId}
+    for_each: matches
+    params: {matchId: parent.match_id}
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    use_fields: [match]
+    fields:
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: fixtures
+    path: /api/public/v1/fixtures
+    primary_key: [id]
+    fields:
+      id: string
+      event_date: date?
+      start_time: timestamptz?
+      player1_id: string?
+      player2_id: string?
+      player1_name: string?
+      player2_name: string?
+      tournament: string?
+      tour: string?
+      status: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: players
+    path: /api/public/v1/players
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      tour: string?
+      country: string?
+      ranking: int64?
+      ranking_points: int64?
+      birthday: date?
+      stats: json?
+      data_completeness: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: tournaments
+    path: /api/public/v1/tournaments
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      tour: string?
+      surface: string?
+      city: string?
+      country: string?
+      category: string?
+      tier: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: history_matches
+    path: /api/public/v1/history/matches
+    capture: {match_id: id}
+    primary_key: [id]
+    use_fields: [match]
+    fields:
+      tape: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: history_tapes
+    path: /api/public/v1/history/matches/{matchId}
+    for_each: history_matches
+    params: {matchId: parent.match_id}
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [match_id]
+    fields:
+      match_id: {path: parent.match_id, type: string}
+      match: json?
+      tape: json?
+      profiles: json?
+      tiebreaks: json?
+      meta: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: history_coverage
+    path: /api/public/v1/history/coverage
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: []
+    fields:
+      as_of: timestamptz?
+      built_at: timestamptz?
+      method: string?
+      buckets: json?
+      totals: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: history_incidents
+    path: /api/public/v1/history/incidents
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      kind: string?
+      title: string?
+      window_utc: json?
+      affected_surfaces: json?
+      corrections: json?
+      matches: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: archive_matches
+    path: /api/public/v1/history/archive/matches
+    capture: {archive_id: id}
+    primary_key: [id]
+    fields:
+      id: string
+      source_id: string?
+      tour: string?
+      tournament: string?
+      event_date: date?
+      surface: string?
+      round: string?
+      winner: json?
+      loser: json?
+      score: string?
+      outcome: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: archive_match_details
+    path: /api/public/v1/history/archive/matches/{archiveId}
+    for_each: archive_matches
+    params: {archiveId: parent.archive_id}
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      source_id: string?
+      tour: string?
+      tournament: string?
+      event_date: date?
+      surface: string?
+      round: string?
+      winner: json?
+      loser: json?
+      score: string?
+      outcome: string?
+      stats: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: archive_players
+    path: /api/public/v1/history/archive/players
+    primary_key: [tour, id]
+    fields:
+      id: string
+      tour: string
+      name: string?
+      country: string?
+      hand: string?
+      dob: date?
+      height_cm: int64?
+      career_high_rank: int64?
+      career_high_date: date?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: rankings
+    path: /api/public/v1/rankings
+    query: {system: "{{ config.ranking_system }}"}
+    primary_key: []
+    fields:
+      system: string?
+      player_id: string?
+      player_name: string?
+      rank: int64?
+      points: int64?
+      effective_date: date?
+      observed_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+discovery:
+  mode: static
+  default_resources: [matches, fixtures]

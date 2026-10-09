@@ -428,7 +428,7 @@ type PaginationSpec struct {
 	Strict bool   `yaml:"strict,omitempty"` // require an explicit cursor envelope, including terminal pages
 	Type   string `yaml:"type"`             // cursor | offset | page | link_header | next_url | none
 
-	// Shared by cursor and page pagination.
+	// Shared by cursor, offset, and page pagination.
 	InjectInto  string `yaml:"inject_into,omitempty"` // body | query | header (cursor only)
 	HasMorePath string `yaml:"has_more_path,omitempty"`
 
@@ -516,6 +516,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	case "offset":
 		var spec struct {
+			More     string `yaml:"more"`
 			Offset   string `yaml:"offset"`
 			Limit    string `yaml:"limit"`
 			PageSize int    `yaml:"page_size"`
@@ -528,6 +529,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body") {
 			return fmt.Errorf("offset pagination fields must share a query or body target")
 		}
+		p.HasMorePath = spec.More
 		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
 		var spec struct {
