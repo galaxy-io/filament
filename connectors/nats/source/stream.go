@@ -31,6 +31,12 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	// retain an identity derived for a previous connection.
 	bound := *s
 	bound.identity = identity
+	bound.live = nil
+	bound.live, err = streamkit.NewMessageBatches(opts, messageBaseSchema)
+	if err != nil {
+		return nil, err
+	}
+
 	s = &bound
 	if len(s.bindings) == 0 {
 		return s.openSubjects(ctx, opts)
@@ -83,7 +89,7 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	if s.js == nil || len(opts.Resources) != 1 || opts.Resources[0] != binding.stream {
 		return nil, errors.New("nats: select exactly the configured stream")
 	}
-	session := &session{binding: binding}
+	session := &session{binding: binding, live: s.live}
 	lifecycle, err := stream.NewSourceLifecycle(opts.Attempt, func(ctx context.Context) error {
 		if err := session.authority(ctx); err != nil {
 			return err
@@ -146,21 +152,7 @@ func (s *Source) openSingleStream(ctx context.Context, binding consumerBinding, 
 	session.committed = committed
 	session.codecs = r
 	session.maxPending = c.MaxAckPending
-	hb, err := streamkit.StartHeartbeat(ctx, c.AckWait/3, func(ctx context.Context) error {
-		session.mu.Lock()
-		defer session.mu.Unlock()
-		if session.prefetched != nil {
-			if err := session.prefetched.InProgress(); err != nil {
-				return err
-			}
-		}
-		for _, msg := range session.pending {
-			if err := msg.InProgress(); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	hb, err := streamkit.StartHeartbeat(ctx, c.AckWait/3, session.keepMessagesAlive)
 	if err != nil {
 		return nil, err
 	}
@@ -211,4 +203,14 @@ func committedSequence(positions filament.DomainPositions, domain filament.Domai
 		}
 	}
 	return committed, nil
+}
+
+var _ filament.MessageSchemaSource = (*Source)(nil)
+
+// OpenMessageStream uses the same transport with whole-batch schema negotiation.
+func (s *Source) OpenMessageStream(ctx context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
+	if err := opts.MessageSchemaPolicy.Validate(); err != nil {
+		return nil, err
+	}
+	return s.OpenStream(ctx, opts)
 }

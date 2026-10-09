@@ -19,6 +19,8 @@ import (
 )
 
 type session struct {
+	live                     *streamkit.MessageBatches
+	buffered                 []jetstream.Msg
 	lifecycle                stream.SourceLifecycle
 	stream                   jetstream.Stream
 	consumer                 jetstream.Consumer
@@ -80,6 +82,9 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 // readBatch owns one coverage containing up to the consumer's pending credit.
 // The optional first message was prefetched by multiSession on this same owner.
 func (s *session) readBatch(ctx context.Context, out filament.StreamRecordSink, b filament.Boundary, first jetstream.Msg) (coverage filament.Coverage, result error) {
+	if s.live != nil {
+		return s.readSchemaBatch(ctx, out, b, first)
+	}
 	if err := s.lifecycle.CheckRead(ctx); err != nil {
 		return coverage, err
 	}
@@ -264,4 +269,22 @@ func (s *session) Close(ctx context.Context) error {
 	// Consumer handles hold no client resources; the pull expires server-side.
 	s.closed, s.closeErr = true, err
 	return err
+}
+
+func (s *session) keepMessagesAlive(context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.prefetched != nil {
+		if err := s.prefetched.InProgress(); err != nil {
+			return err
+		}
+	}
+	for _, messages := range [][]jetstream.Msg{s.pending, s.buffered} {
+		for _, msg := range messages {
+			if err := msg.InProgress(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
