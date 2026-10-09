@@ -89,3 +89,17 @@ local development.
 `-tags embedui` so the compiled UI ships inside them. A plain `go build ./cmd/server` without
 the tag serves a placeholder page at `/`, not the UI. `just ui-dist` produces
 the embeddable bundle on its own.
+
+## Building the worker images
+
+The worker image is published in two builds. The plain tag is a static binary
+on the static distroless base, like the server and control plane. The `-libc`
+tag is the same program built with cgo on a glibc base, and it is the only
+build that carries connectors linking native libraries. Each has its own
+Dockerfile under `cmd/worker`, and anything such a connector needs at runtime
+beyond the binary belongs in `Dockerfile.libc` alone.
+
+`just binaries` cross-compiles the static binaries and builds the `-libc`
+worker inside a Go container through the selected engine, because a cgo build
+targets the host it runs on and cannot cross-compile from macOS. `just images`
+tags it `worker:latest-libc`.

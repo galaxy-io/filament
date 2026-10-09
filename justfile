@@ -123,11 +123,15 @@ ui-dist:
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-dist (_each "GOWORK=off go build ./...")
 
-# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist)
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist; the worker -libc build is cgo, so it compiles in a linux container)
 binaries: ui-dist
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
+    bash scripts/container.sh run --rm --platform "linux/$(go env GOARCH)" \
+      -v "{{ justfile_directory() }}:/src" -v "$(go env GOMODCACHE):/go/pkg/mod" -v filament-go-build:/root/.cache/go-build \
+      -w /src/cmd/worker -e GOWORK=off -e CGO_ENABLED=1 -e GOFLAGS=-buildvcs=false \
+      golang:1.26-trixie go build -trimpath -ldflags="-s -w" -o ../../bin/filament/worker-libc .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
@@ -136,6 +140,7 @@ images: binaries
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile.libc -t galaxy-io/filament/worker:latest-libc .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)

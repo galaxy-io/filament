@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1
+FROM gcr.io/distroless/cc-debian13:nonroot
+
+COPY bin/filament/worker-libc /app
+
+USER 65532:65532
+
+ENTRYPOINT ["/app"]
