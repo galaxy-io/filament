@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/datastore/postgres/sqlcgen"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 var _ filament.StreamRuntimeStore = (*Store)(nil)
@@ -72,6 +73,9 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if err := validateEpochResources(ctx, q, stream, activation, cert); err != nil {
 		return filament.CommittedEpoch{}, err
 	}
+	if err := validateEpochMessageSchemas(ctx, q, stream, activation, cert); err != nil {
+		return filament.CommittedEpoch{}, err
+	}
 	snapshot, err := s.validateProgress(ctx, q, stream, activation, cert.Coverage.Positions)
 	if err != nil {
 		return filament.CommittedEpoch{}, err
@@ -128,7 +132,36 @@ func validateEpochResources(ctx context.Context, q *sqlcgen.Queries, stream *sql
 			return filament.ErrMembershipChanged
 		}
 	}
+	for resource := range cert.MessageSchemas {
+		if !active[resource] {
+			return filament.ErrMembershipChanged
+		}
+	}
 	return nil
+}
+
+func validateEpochMessageSchemas(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, cert filament.EpochCertificate) error {
+	if activation.LastEpoch == 0 {
+		return nil
+	}
+	row, err := q.GetStreamEpoch(ctx, sqlcgen.GetStreamEpochParams{StreamID: stream.ID, TenantID: stream.TenantID, Epoch: activation.LastEpoch})
+	if err != nil {
+		return err
+	}
+	previous, err := committedFromRow(row)
+	if err != nil {
+		return err
+	}
+	if err := previous.Certificate.ValidateMessageSchemas(); err != nil {
+		return err
+	}
+	if (previous.Certificate.MessageSchemas == nil) != (cert.MessageSchemas == nil) {
+		return filament.ErrEpochConflict
+	}
+	if cert.MessageSchemas != nil && previous.Certificate.PipelineVersionID != cert.PipelineVersionID {
+		return filament.ErrEpochConflict
+	}
+	return schema.CheckMessageLayouts(previous.Certificate.MessageSchemas, cert.MessageSchemas)
 }
 
 // validateProgress checks the new coverage against the last snapshot and returns
