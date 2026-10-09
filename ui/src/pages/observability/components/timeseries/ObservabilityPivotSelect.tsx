@@ -1,4 +1,7 @@
-import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, {
+  SelectInputSize,
+  SelectInputVariant,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 
 import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
@@ -24,6 +27,7 @@ const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectP
         fillWidth
         options={METRIC_DIMENSION_PIVOT_OPTIONS}
         value={value === undefined ? null : String(value)}
+        size={SelectInputSize.SMALL}
         variant={SelectInputVariant.PRIMARY}
         onChange={handleChange}
         isClearable

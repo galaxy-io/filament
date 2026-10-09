@@ -418,6 +418,7 @@ creation, polling, downloading, and decoding and remains fixed across recovery.
 | `files` | Required for archives. A Go `path.Match` pattern over member names; `*` does not cross `/`. No matching files is an error. |
 | `format` | Required: `json` (an array), `ndjson` (one object per line), or `csv` (header row and string values). |
 | `records_path` | Optional dot path to an array inside a JSON document. Missing paths fail rather than producing an empty export. |
+| `csv` | Optional CSV dialect with `delimiter`, `header`, `columns`, and `quoting`, described below. |
 | `allowed_hosts` | Required exact download hostnames, without ports or wildcards. Checked on the initial HTTPS URL and every redirect. |
 | `auth` | Only `none` is supported. Downloads never inherit API authentication, connection headers, or cookies. |
 | `max_download_bytes` | Maximum downloaded bytes; default 1 GiB. |
@@ -427,6 +428,28 @@ JSON numbers retain their precision. Records are limited to 10 MiB. Archives
 are limited to 10,000 entries and cannot contain links or unsafe file paths.
 ZIP downloads use a temporary file, removed when the read ends; gzip and tar
 are processed as streams. CSV headers must be nonempty and unique.
+
+CSV defaults to commas, a header row, and standard double-quote handling. A
+`csv` block changes the dialect. This one reads a tab-separated file that has
+no header and never quotes its fields.
+
+```yaml
+result:
+  format: csv
+  csv:
+    delimiter: "\t"
+    header: false
+    columns: [GLOBALEVENTID, SQLDATE, Actor1Code]
+    quoting: none
+```
+
+`delimiter` is one character other than a double quote, CR, or LF. With
+`header: false`, `columns` names the fields in order and is required. Fields
+then map by these names exactly as they do by header names. `columns` is
+rejected when the file has a header. `quoting: none` splits each line on the
+delimiter and keeps quotes as data, for files that never quote but may contain
+a stray `"`. Every row must have as many fields as there are columns, and a
+short or long row fails the export.
 
 Batch-operation archives can contain envelopes rather than records. Add an
 `envelope` to require operation success and parse a JSON string inside each

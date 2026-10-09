@@ -101,6 +101,37 @@ func TestTextDecode(t *testing.T) {
 	}
 }
 
+// TestTextDecodeFiveDigitYear reads a year past 9999, which Postgres prints
+// with five digits in pgoutput text (and textDate renders the same way).
+func TestTextDecodeFiveDigitYear(t *testing.T) {
+	rs := rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "d", Logical: rowmodel.LogicalDate},
+		{Name: "at", Logical: rowmodel.LogicalTimestampTZ},
+	}}
+	oids := []uint32{pgtype.DateOID, pgtype.TimestamptzOID}
+	texts := []string{"10000-01-01", "10000-01-01 12:00:00+00"}
+	c := &collect{}
+	b := arrowbatch.NewBuilder(arrowbatch.Schema(rs), nil, arrowbatch.Options{MaxRows: 1}, c)
+	for i, f := range rs.Fields {
+		pt, _ := typeFor(oids[i], f)
+		if err := pt.fromText(b, []byte(texts[i])); err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+	}
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
+		t.Fatal(err)
+	}
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
+	days := arrowtext.DateToDays(10000, 1, 1)
+	if got := int64(rows.Column(0).(*array.Date32).Value(0)); got != days {
+		t.Errorf("d = %d want %d", got, days)
+	}
+	if got, want := int64(rows.Column(1).(*array.Timestamp).Value(0)), days*arrowtext.MicrosPerDay+12*arrowtext.MicrosPerHour; got != want {
+		t.Errorf("at = %d want %d", got, want)
+	}
+}
+
 // TestDecDecimal covers the wire forms Postgres actually sends: trailing zero
 // groups stripped (50000.00 is one group at weight 1), fraction groups past the
 // scale, and the extremes of a 38-digit column.
