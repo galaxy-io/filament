@@ -70,7 +70,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "scheduler"})
 	}
 	m.mx = d.Metrics
-	m.compiler = &compile.Compiler{Store: d.DataStore, Sources: d.Sources, Sinks: d.Sinks}
+	m.compiler = &compile.Compiler{Store: d.DataStore, Worker: d.Worker}
 	return nil
 }
 

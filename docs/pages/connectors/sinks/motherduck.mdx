@@ -1,0 +1,73 @@
+---
+title: "MotherDuck"
+description: "Write typed analytical tables to MotherDuck"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-motherduck-dark.svg"
+---
+
+The MotherDuck sink (**alpha**) uses DuckDB's native MotherDuck extension and
+bulk appender. It does not use the PostgreSQL wire endpoint.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `token` | Connection | — | Required MotherDuck service token. Secret. |
+| `database` | Connection | — | Required destination MotherDuck database. It must already exist. |
+| `schema` | Pipeline | `main` | Destination schema. |
+
+The sink opens `md:<database>` with the token as DuckDB's
+`motherduck_token` option and creates the configured schema if it does not
+exist. It prefers batches of 100,000 rows or 64 MiB. Use one sink connection
+per configured snapshot worker; a DuckDB connection is never shared between
+concurrent writes.
+
+## Supported write modes
+
+| Write mode | Destination table | When data becomes visible |
+|---|---|---|
+| `full_replace` | Run-scoped staging table | At commit, per resource |
+| `full_append` | Live destination table | During the run |
+| `full_upsert` | Run-scoped staging table, then `ON CONFLICT` merge | At commit, per resource |
+| `incremental_upsert` | Run-scoped staging table, then `ON CONFLICT` merge | At commit, per resource |
+| `cdc_append` | Live destination table | During the run |
+
+Every table is fully qualified as
+`"database"."schema"."table"`. Replace promotes its staging table in a
+transaction. Upsert creates a primary key from the resolved write-policy keys
+and transactionally merges a keyless staging table on commit. An existing
+destination whose primary key does not match those keys, such as a table an
+earlier append run created, is refused when the run starts rather than
+migrated. Append writes directly to the destination.
+
+## Type mapping
+
+| Logical type | DuckDB type |
+| --- | --- |
+| `bool` | `BOOLEAN` |
+| `int16` / `int32` / `int64` | `SMALLINT` / `INTEGER` / `BIGINT` |
+| `float32` / `float64` | `FLOAT` / `DOUBLE` |
+| `decimal` with precision 1–38 | `DECIMAL(p,s)` |
+| Unbounded `decimal`, `string`, `json`, `array`, unknown | `VARCHAR` |
+| `bytes` | `BLOB` |
+| `date` | `DATE` |
+| `time` | `TIME` |
+| `timestamp` | `TIMESTAMP` |
+| `timestamptz` | `TIMESTAMPTZ` |
+| `uuid` | `UUID` |
+
+New tables preserve source nullability with `NOT NULL`. Schema evolution is
+additive. DuckDB does not currently support constraints on `ADD COLUMN`, so a
+new non-null source field added to an existing destination is added without the
+constraint.
+
+## Runtime requirements
+
+The sink links DuckDB natively, so it is available only in the worker's
+`-libc` image tag, which ships with the MotherDuck extension installed. The
+standalone binary and the CLI do not include it.
+
+## Failure behavior
+
+`Abort` removes replace and upsert staging tables. It cannot undo append rows
+already flushed to a live table. The configured token is passed only as a
+DuckDB option and is never included in receipts or error context by Filament.

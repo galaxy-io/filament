@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/worker"
 )
 
 // leverSource declares the full grid plus CDC and answers replication from
@@ -41,13 +42,6 @@ func (leverSource) Teardown(context.Context) error                   { return ni
 
 func (leverSource) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
 	return nil
-}
-
-func (leverSource) Replication(cfg filament.Config) filament.ReplicationMode {
-	if cfg.String("replication") == string(filament.ReplicationCDC) {
-		return filament.ReplicationCDC
-	}
-	return filament.ReplicationStandard
 }
 
 func (leverSource) Discover(context.Context, filament.DiscoverOpts) (filament.DiscoverResult, error) {
@@ -116,7 +110,8 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	sources.Register("leversource", func() filament.Source { return leverSource{} })
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
-	api := New(sources, sinks, sqlite.NewMemory(), nil, nil)
+	sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
+	api := New(worker.Local(sources, sinks), sqlite.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
 		var cfg *structpb.Struct
@@ -394,10 +389,13 @@ func (managedLeverSource) CursorColumns(context.Context, string) ([]filament.Cur
 }
 
 func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
-	server := &Server{}
-	probes := &sourceProbes{sources: map[string]filament.Source{"src": managedLeverSource{}}}
+	sources := registry.NewSources()
+	sources.Register("managedlever", func() filament.Source { return managedLeverSource{} })
+	server := &Server{worker: worker.Local(sources, registry.NewSinks())}
+	edge := &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders"}
+	probes := newNodeInspections(server, []*ingestionv1.PipelineEdge{edge})
 	ev := &ingestionv1.EdgeValidation{}
-	server.resourceBreakdown(context.Background(), &ingestionv1.PipelineEdge{Resource: "orders"}, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{}, leverSink{}.Spec(), filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
+	server.resourceBreakdown(context.Background(), edge, &ingestionv1.PipelineNode{Id: "src"}, filament.Connection{Connector: "managedlever"}, leverSink{}.Spec(), filament.IngestionIncrementalUpsert, []ingestionv1.ReadMode{ingestionv1.ReadMode_READ_MODE_FULL, ingestionv1.ReadMode_READ_MODE_INCREMENTAL}, probes, ev)
 	if len(ev.Resources) != 1 {
 		t.Fatal(ev)
 	}

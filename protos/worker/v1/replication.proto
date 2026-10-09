@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package worker.v1;
+
+import "google/protobuf/struct.proto";
+
+message PlanReplicationStreamRequest {
+  string source = 1;
+  string source_connection_id = 2;
+  string replication_stream_id = 3;
+  google.protobuf.Struct config = 4;
+  repeated string resources = 5;
+}
+
+message ReplicationStreamPlan {
+  repeated string resources = 1;
+  string consumer_name = 2;
+  google.protobuf.Struct consumer_config = 3;
+  google.protobuf.Struct continuity_config = 4;
+}
+
+message PlanReplicationStreamResponse {
+  ReplicationStreamPlan plan = 1;
+}

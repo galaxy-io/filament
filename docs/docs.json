@@ -179,6 +179,7 @@
               "pages/connectors/sinks/mysql",
               "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
+              "pages/connectors/sinks/motherduck",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
               "pages/connectors/sinks/redshift",

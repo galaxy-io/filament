@@ -5,5 +5,6 @@ export const IngestionV1ReadMode = {
     ReadModeUnspecified: "READ_MODE_UNSPECIFIED",
     ReadModeFull: "READ_MODE_FULL",
     ReadModeIncremental: "READ_MODE_INCREMENTAL",
+    ReadModeCdc: "READ_MODE_CDC",
 } as const;
 export type IngestionV1ReadMode = (typeof IngestionV1ReadMode)[keyof typeof IngestionV1ReadMode];

@@ -76,6 +76,7 @@ enum ReadMode {
   READ_MODE_UNSPECIFIED = 0;
   READ_MODE_FULL = 1;
   READ_MODE_INCREMENTAL = 2;
+  READ_MODE_CDC = 3;
 }
 
 // WriteMode is the destination-route write lever. Delete remains an internal
@@ -86,6 +87,7 @@ enum WriteMode {
   WRITE_MODE_REPLACE = 2;
   WRITE_MODE_UPSERT = 3;
   WRITE_MODE_MERGE = 4;
+  WRITE_MODE_DELETE = 5;
 }
 
 enum FieldScope {

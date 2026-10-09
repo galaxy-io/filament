@@ -153,3 +153,66 @@ func TestSourcesWithOverridesRejectsConcreteOverAlias(t *testing.T) {
 		t.Fatalf("concrete replacement of alias accepted: %v, %v", merged, err)
 	}
 }
+
+type streamSpecSource struct{ filament.Source }
+
+func (streamSpecSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Name: "stream", Stream: &filament.StreamCapabilities{}}
+}
+
+type streamSource struct {
+	streamSpecSource
+	filament.StreamSource
+	filament.ReplicationStreamPlanner
+}
+
+type streamSpecSink struct{ filament.Sink }
+
+func (streamSpecSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}}}
+}
+
+type streamSink struct {
+	streamSpecSink
+	filament.StreamingSink
+}
+
+func TestRegisterRequiresDeclaredContracts(t *testing.T) {
+	mustPanic := func(t *testing.T, want string, register func()) {
+		t.Helper()
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected registration panic")
+			}
+			if msg := fmt.Sprint(r); !strings.Contains(msg, want) {
+				t.Fatalf("panic %q does not mention %q", msg, want)
+			}
+		}()
+		register()
+	}
+	t.Run("source without stream contracts", func(t *testing.T) {
+		mustPanic(t, "filament.StreamSource", func() {
+			NewSources().Register("stream", func() filament.Source { return streamSpecSource{} })
+		})
+	})
+	t.Run("source with stream contracts", func(t *testing.T) {
+		sources := NewSources()
+		sources.Register("stream", func() filament.Source { return streamSource{} })
+		if _, err := sources.Spec("stream"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("sink without stream contract", func(t *testing.T) {
+		mustPanic(t, "filament.StreamingSink", func() {
+			NewSinks().Register("stream", func() filament.Sink { return streamSpecSink{} })
+		})
+	})
+	t.Run("sink with stream contract", func(t *testing.T) {
+		sinks := NewSinks()
+		sinks.Register("stream", func() filament.Sink { return streamSink{} })
+		if _, err := sinks.Spec("stream"); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

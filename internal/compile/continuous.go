@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -51,33 +52,33 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if connections[group.source.ConnectionId].Kind != filament.ConnectorKindSource || connections[group.sink.ConnectionId].Kind != filament.ConnectorKindSink {
 			return nil, fmt.Errorf("%w: route must connect a source to a sink", ErrInvalid)
 		}
-		sourceRef, err := c.resolveNodeRef(group.source, connections)
+		sourceRef, err := c.resolveNodeRef(ctx, group.source, connections)
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(group.sink, connections)
+		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
 		if err != nil {
 			return nil, err
 		}
-		source, err := c.Sources.Resolve(sourceRef.Connector)
+		sourceSpec, err := c.Worker.SourceSpec(ctx, sourceRef.Connector)
 		if err != nil {
 			return nil, err
 		}
-		sink, err := c.Sinks.Resolve(sinkRef.Connector)
+		sinkSpec, err := c.Worker.SinkSpec(ctx, sinkRef.Connector)
 		if err != nil {
 			return nil, err
 		}
-		if err := filament.ValidateContinuousConnectors(source, sink); err != nil {
+		if err := filament.ValidateContinuous(sourceSpec, sinkSpec); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
 		resources, _ := routeResources(group)
 		streamID := uuid.NewString()
-		plan, err := planContinuousSource(source, sourceRef, resources, streamID, group.source.ConnectionId)
+		plan, err := planContinuousSource(ctx, c.Worker, sourceRef, resources, streamID, group.source.ConnectionId)
 		if err != nil {
 			return nil, err
 		}
 		resources = plan.Resources
-		writePlan, err := filament.PlanContinuousWrite(source.Spec(), sink.Spec(), group.writeMode)
+		writePlan, err := filament.PlanContinuousWrite(sourceSpec, sinkSpec, group.writeMode)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
@@ -105,16 +106,15 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 
 // PlanContinuousSource delegates provider config and fixed membership to the
 // source planner. API validation and run compilation use this same pure path.
-func PlanContinuousSource(source filament.Source, ref filament.Ref, resources []string, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
-	return planContinuousSource(source, ref, resources, uuid.NewString(), sourceConnectionID)
+func PlanContinuousSource(ctx context.Context, w filament.Worker, ref filament.Ref, resources []string, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
+	return planContinuousSource(ctx, w, ref, resources, uuid.NewString(), sourceConnectionID)
 }
 
-func planContinuousSource(source filament.Source, ref filament.Ref, resources []string, streamID, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
-	planner, ok := source.(filament.ReplicationStreamPlanner)
-	if !ok {
+func planContinuousSource(ctx context.Context, w filament.Worker, ref filament.Ref, resources []string, streamID, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
+	plan, err := w.PlanReplicationStream(ctx, ref.Connector, filament.ReplicationStreamPlanningRequest{ReplicationStreamID: streamID, SourceConnectionID: sourceConnectionID, Config: filament.NewConfig(ref.Config), Resources: resources})
+	if errors.Is(err, filament.ErrUnsupported) {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("%w: source cannot plan durable stream admission", ErrPrecondition)
 	}
-	plan, err := planner.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{ReplicationStreamID: streamID, SourceConnectionID: sourceConnectionID, Config: filament.NewConfig(ref.Config), Resources: resources})
 	if err != nil {
 		return plan, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}

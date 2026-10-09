@@ -67,8 +67,13 @@ app.kubernetes.io/component: control-plane
 app.kubernetes.io/component: worker
 {{- end -}}
 
+{{- define "filament.worker.selectorLabels" -}}
+{{ include "filament.selectorLabels" . }}
+app.kubernetes.io/component: worker
+{{- end -}}
+
 {{- define "filament.worker.serviceAccountName" -}}
-{{- .Values.controlPlane.dispatch.worker.serviceAccount.name | default (include "filament.worker.fullname" .) -}}
+{{- .Values.worker.serviceAccount.name | default (include "filament.worker.fullname" .) -}}
 {{- end -}}
 
 

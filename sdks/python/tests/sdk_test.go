@@ -18,6 +18,7 @@ import (
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/worker"
 )
 
 // Opt in with FILAMENT_SDK_PYTHON pointing to an interpreter with the SDK installed.
@@ -33,7 +34,7 @@ func TestPythonSDK(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	mux := http.NewServeMux()
-	server.New(registry.NewSources(), registry.NewSinks(), store, nil, nil,
+	server.New(worker.Local(registry.NewSources(), registry.NewSinks()), store, nil, nil,
 		server.WithIdentity(testIdentity{})).Mount(mux)
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Connect-Protocol-Version"); got != "1" {

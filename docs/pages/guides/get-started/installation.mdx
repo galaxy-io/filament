@@ -52,11 +52,14 @@ Filament publishes these container images:
 |---|---|
 | `ghcr.io/galaxy-io/filament/server` | API and web application |
 | `ghcr.io/galaxy-io/filament/control-plane` | Scheduling and run coordination |
-| `ghcr.io/galaxy-io/filament/worker` | Runs dispatched as Kubernetes Jobs |
+| `ghcr.io/galaxy-io/filament/worker` | Connector host and run executor |
 | `ghcr.io/galaxy-io/filament/standalone` | Single-process evaluation image |
 
 Use the same release tag for the server, control plane, and worker. A split
 deployment also needs a datastore, an event bus, and a secret provider.
+
+Worker tags with a `-libc` suffix include the connectors that depend on native
+libraries.
 
 Kubernetes with Helm is the recommended production installation. Railway and
 Render are available when runs can execute inside the control plane. Choose a
