@@ -21,6 +21,10 @@ type table struct {
 	stage     string
 	mode      filament.WriteMode
 	mergeSQL  string
+	// columns is the destination's column order, lowercased, for a write into
+	// a live table the sink did not necessarily create. Nil means the write
+	// target was built from the source schema, so source order already matches.
+	columns []string
 }
 
 func quoteIdent(identifier string) string {
@@ -167,7 +171,42 @@ func (s *Sink) ensureAppendTable(ctx context.Context, conn *pooledConnection, re
 	if err := s.ensureLiveTable(ctx, conn, resource, target, schema, nil); err != nil {
 		return nil, err
 	}
-	return &table{name: resource, qualified: target, writeName: resource, writeTo: target, mode: filament.WriteAppend}, nil
+	columns, err := s.destinationColumns(ctx, conn, resource)
+	if err != nil {
+		return nil, err
+	}
+	return &table{
+		name: resource, qualified: target, writeName: resource, writeTo: target,
+		mode: filament.WriteAppend, columns: columns,
+	}, nil
+}
+
+// destinationColumns reads a live table's column order. The appender binds by
+// position, and an existing table may hold its columns in another order or
+// carry columns the source lacks.
+func (s *Sink) destinationColumns(ctx context.Context, conn *pooledConnection, resource string) ([]string, error) {
+	query := "SELECT column_name FROM duckdb_columns() WHERE schema_name = " + quoteLiteral(s.schema) +
+		" AND table_name = " + quoteLiteral(resource)
+	if s.database != "" {
+		query += " AND database_name = " + quoteLiteral(s.database)
+	}
+	rows, err := conn.conn.(driver.QueryerContext).QueryContext(ctx, query+" ORDER BY column_index", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s sink: inspect columns for %q: %w", s.Name(), resource, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var columns []string
+	values := make([]driver.Value, 1)
+	for {
+		err := rows.Next(values)
+		if errors.Is(err, io.EOF) {
+			return columns, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s sink: inspect columns for %q: %w", s.Name(), resource, err)
+		}
+		columns = append(columns, strings.ToLower(fmt.Sprint(values[0])))
+	}
 }
 
 func (s *Sink) ensureReplaceTable(ctx context.Context, conn *pooledConnection, resource string, schema rowmodel.Schema) (*table, error) {

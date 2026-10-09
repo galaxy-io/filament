@@ -117,6 +117,36 @@ func TestLocalUpsertIntegration(t *testing.T) {
 	}
 }
 
+func TestLocalAppendMapsColumnsByNameIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "reordered.duckdb")
+	queryLocal(t, path, `CREATE TABLE "main"."events" (
+		"note" VARCHAR,
+		"event_id" UUID,
+		"Created_At" TIMESTAMP,
+		"amount" DECIMAL(18, 2),
+		"NAME" VARCHAR,
+		"id" BIGINT NOT NULL
+	)`)
+	schema := integrationSchema()
+	policy := writePolicy(filament.WriteAppend, nil)
+	sink := openLocalSink(t, ctx, path, "append-run", policy, 1, schema)
+	applyBatch(t, ctx, sink, integrationBatch(t, schema, "events", 1, 2), policy)
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows := queryLocal(t, path, `SELECT id, name, amount, created_at, event_id, note FROM "main"."events" WHERE id = 1`)
+	if rows[0][0] != int64(1) || rows[0][1] != "name-1" || text(rows[0][2]) != "1.25" || rows[0][5] != nil {
+		t.Fatalf("mapped values = %#v", rows[0])
+	}
+	if got, ok := rows[0][3].(time.Time); !ok || got.UnixMicro() != 1704067200_000001 {
+		t.Fatalf("timestamp = %#v", rows[0][3])
+	}
+	if got, want := text(rows[0][4]), testUUID(1); got != want {
+		t.Fatalf("uuid = %q, want %q", got, want)
+	}
+}
+
 func TestLocalUpsertRefusesKeylessTableIntegration(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "keyless.duckdb")

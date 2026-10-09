@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"strings"
 
 	duckdb "github.com/marcboeker/go-duckdb/v2"
 
@@ -74,7 +75,7 @@ func (s *Sink) write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 	}
 	rows := batch.Rows()
 	writeCRC := batch.IntegrityCRC()
-	if err := appendRows(appender, batch); err != nil {
+	if err := appendRows(appender, batch, tbl.columns); err != nil {
 		s.discardAppender(conn, batch.Resource)
 		return filament.WriteReceipt{}, fmt.Errorf("%s sink: append %s seq %d: %w", s.Name(), batch.Resource, batch.Seq, err)
 	}
@@ -89,22 +90,42 @@ func (s *Sink) write(ctx context.Context, batch *arrowbatch.Batch) (filament.Wri
 }
 
 // appendRows hands every row of the batch to the appender, column by column
-// through the converters chosen from the Arrow schema.
-func appendRows(appender *duckdb.Appender, batch *arrowbatch.Batch) error {
+// through the converters chosen from the Arrow schema. With destination
+// columns, each value goes to its column's position and columns the source
+// lacks are written as NULL.
+func appendRows(appender *duckdb.Appender, batch *arrowbatch.Batch, destination []string) error {
 	rows := batch.Rows()
 	cols := rows.Columns()
+	fields := rows.Schema().Fields()
 	fns := make([]valueFn, len(cols))
-	for i, f := range rows.Schema().Fields() {
+	positions := make([]int, len(cols))
+	for i, f := range fields {
 		fns[i] = valueFor(f)
+		positions[i] = i
 	}
-	values := make([]driver.Value, len(cols))
+	width := len(cols)
+	if destination != nil {
+		index := make(map[string]int, len(destination))
+		for i, name := range destination {
+			index[name] = i
+		}
+		for i, f := range fields {
+			position, ok := index[strings.ToLower(f.Name)]
+			if !ok {
+				return fmt.Errorf("column %q is missing from the destination", f.Name)
+			}
+			positions[i] = position
+		}
+		width = len(destination)
+	}
+	values := make([]driver.Value, width)
 	for i := range batch.NumRows() {
 		for c, col := range cols {
 			if col.IsNull(i) {
-				values[c] = nil
+				values[positions[c]] = nil
 				continue
 			}
-			values[c] = fns[c](col, i)
+			values[positions[c]] = fns[c](col, i)
 		}
 		if err := appender.AppendRow(values...); err != nil {
 			return fmt.Errorf("row %d: %w", i, err)
