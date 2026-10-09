@@ -30,6 +30,19 @@ class AuthV1GetAuthConfigResponse(UniversalBaseModel):
      project IDs or reserved scope knowledge.
     """
 
+    invite_only: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="inviteOnly"),
+        pydantic.Field(
+            alias="inviteOnly",
+            description="invite_only means sign-up is closed: Register is refused and the UI\n offers no way to create an organization. People join by invitation.",
+        ),
+    ] = None
+    """
+    invite_only means sign-up is closed: Register is refused and the UI
+     offers no way to create an organization. People join by invitation.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:

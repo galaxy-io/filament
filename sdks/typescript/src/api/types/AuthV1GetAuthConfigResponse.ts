@@ -13,4 +13,9 @@ export interface AuthV1GetAuthConfigResponse {
      *  project IDs or reserved scope knowledge.
      */
     serviceAccountScopes?: string[] | undefined;
+    /**
+     * invite_only means sign-up is closed: Register is refused and the UI
+     *  offers no way to create an organization. People join by invitation.
+     */
+    inviteOnly?: boolean | undefined;
 }
