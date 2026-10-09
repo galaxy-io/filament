@@ -251,6 +251,7 @@ const (
 	ReadMode_READ_MODE_UNSPECIFIED ReadMode = 0
 	ReadMode_READ_MODE_FULL        ReadMode = 1
 	ReadMode_READ_MODE_INCREMENTAL ReadMode = 2
+	ReadMode_READ_MODE_CDC         ReadMode = 3
 )
 
 // Enum value maps for ReadMode.
@@ -259,11 +260,13 @@ var (
 		0: "READ_MODE_UNSPECIFIED",
 		1: "READ_MODE_FULL",
 		2: "READ_MODE_INCREMENTAL",
+		3: "READ_MODE_CDC",
 	}
 	ReadMode_value = map[string]int32{
 		"READ_MODE_UNSPECIFIED": 0,
 		"READ_MODE_FULL":        1,
 		"READ_MODE_INCREMENTAL": 2,
+		"READ_MODE_CDC":         3,
 	}
 )
 
@@ -304,6 +307,7 @@ const (
 	WriteMode_WRITE_MODE_REPLACE     WriteMode = 2
 	WriteMode_WRITE_MODE_UPSERT      WriteMode = 3
 	WriteMode_WRITE_MODE_MERGE       WriteMode = 4
+	WriteMode_WRITE_MODE_DELETE      WriteMode = 5
 )
 
 // Enum value maps for WriteMode.
@@ -314,6 +318,7 @@ var (
 		2: "WRITE_MODE_REPLACE",
 		3: "WRITE_MODE_UPSERT",
 		4: "WRITE_MODE_MERGE",
+		5: "WRITE_MODE_DELETE",
 	}
 	WriteMode_value = map[string]int32{
 		"WRITE_MODE_UNSPECIFIED": 0,
@@ -321,6 +326,7 @@ var (
 		"WRITE_MODE_REPLACE":     2,
 		"WRITE_MODE_UPSERT":      3,
 		"WRITE_MODE_MERGE":       4,
+		"WRITE_MODE_DELETE":      5,
 	}
 )
 
@@ -930,17 +936,19 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\rExecutionMode\x12\x1e\n" +
 	"\x1aEXECUTION_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16EXECUTION_MODE_BOUNDED\x10\x01\x12\x1d\n" +
-	"\x19EXECUTION_MODE_CONTINUOUS\x10\x02*T\n" +
+	"\x19EXECUTION_MODE_CONTINUOUS\x10\x02*g\n" +
 	"\bReadMode\x12\x19\n" +
 	"\x15READ_MODE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eREAD_MODE_FULL\x10\x01\x12\x19\n" +
-	"\x15READ_MODE_INCREMENTAL\x10\x02*\x83\x01\n" +
+	"\x15READ_MODE_INCREMENTAL\x10\x02\x12\x11\n" +
+	"\rREAD_MODE_CDC\x10\x03*\x9a\x01\n" +
 	"\tWriteMode\x12\x1a\n" +
 	"\x16WRITE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11WRITE_MODE_APPEND\x10\x01\x12\x16\n" +
 	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
 	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x14\n" +
-	"\x10WRITE_MODE_MERGE\x10\x04*_\n" +
+	"\x10WRITE_MODE_MERGE\x10\x04\x12\x15\n" +
+	"\x11WRITE_MODE_DELETE\x10\x05*_\n" +
 	"\n" +
 	"FieldScope\x12\x1b\n" +
 	"\x17FIELD_SCOPE_UNSPECIFIED\x10\x00\x12\x1a\n" +

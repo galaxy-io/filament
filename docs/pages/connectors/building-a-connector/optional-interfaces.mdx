@@ -16,7 +16,7 @@ fails planning or the run; it does not always degrade to a simpler mode.
 | Create typed destination tables | `SchemaProvider` (when paired with a `Schematized` sink) |
 | Resume a checkpointed snapshot | `Resumable` and `ResumePlanner` |
 | Read incrementally across runs | `Resumable`, `IncrementalPlanner`, and usually `CursorColumnProvider` |
-| Read a database change stream | `ChangeSource` and a CDC `ReplicationAware` configuration |
+| Read a database change stream | `ChangeSource` and a CDC source policy in the spec |
 | Keep a source session open across continuous commits | `StreamSource`, `StreamSession`, and registered position codecs |
 | Release upstream CDC retention after durability | `ChangeAcknowledger` |
 | Resolve selectors into concrete resources | `ResourcePlanner` |
@@ -61,10 +61,11 @@ recovery ambiguous.
 
 ## CDC
 
-`ReplicationAware.Replication` reports whether a particular connection config
-is standard or CDC. Without this interface, Filament treats the source as
-standard. A CDC route then uses `ChangeSource.ExtractChanges`, supplying selected
-resources, prior checkpoints, limits, and an observation callback.
+A connection is CDC when the source spec declares a CDC source policy and the
+connection config sets `replication` to `cdc`. Filament derives this with
+`ReplicationFor`; a source without a CDC policy is always standard. A CDC route
+then uses `ChangeSource.ExtractChanges`, supplying selected resources, prior
+checkpoints, limits, and an observation callback.
 
 `ChangeAcknowledger` is narrower: after sink commit and durable checkpoint
 observation, the runner can tell the source which upstream positions are safe to

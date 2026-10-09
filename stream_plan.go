@@ -94,7 +94,7 @@ func PlanContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode) (C
 // stale or weakened submitted capabilities
 // are rejected. It is safe to repeat this before opening I/O.
 func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]WritePolicy, Ordering, error) {
-	if err := ValidateContinuousConnectors(source, sink); err != nil {
+	if err := ValidateContinuous(source.Spec(), sink.Spec()); err != nil {
 		return nil, "", err
 	}
 	policies := make(map[string]WritePolicy, len(spec.Resources))

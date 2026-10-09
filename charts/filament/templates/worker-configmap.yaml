@@ -1,4 +1,3 @@
-{{- if .Values.controlPlane.enabled }}
 {{/* envFrom'd whole into dispatched worker Jobs; the control plane only learns
      this ConfigMap's name. Worker env belongs here, not in the dispatcher. */}}
 apiVersion: v1
@@ -16,13 +15,16 @@ data:
   NATS_SUBJECTS: {{ .Values.eventBus.nats.subjects | quote }}
   NATS_TTL_SECONDS: {{ .Values.eventBus.nats.ttlSeconds | quote }}
 
+  # Listener
+  WORKER_ADDR: ":{{ .Values.worker.service.port }}"
+
   # Heartbeat
-  {{- with .Values.controlPlane.dispatch.worker.heartbeatSeconds }}
+  {{- with .Values.worker.heartbeatSeconds }}
   HEARTBEAT_SECONDS: {{ . | quote }}
   {{- end }}
 
   # Observability
-  LOG_LEVEL: {{ .Values.controlPlane.dispatch.worker.logLevel | quote }}
+  LOG_LEVEL: {{ .Values.worker.logLevel | quote }}
   {{- with .Values.observability.otel.endpoint }}
   OTEL_SERVICE_NAME: {{ include "filament.worker.fullname" $ | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ . | quote }}
@@ -51,4 +53,3 @@ data:
   GCP_PROJECT_ID: {{ required "secrets.gcp.projectId is required for gcp-secret-manager" .Values.secrets.gcp.projectId | quote }}
   GCP_REGION: {{ required "secrets.gcp.region is required for gcp-secret-manager" .Values.secrets.gcp.region | quote }}
   {{- end }}
-{{- end }}

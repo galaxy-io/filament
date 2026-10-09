@@ -14,6 +14,8 @@ file.
 ## Shared configuration
 
 The server, control plane, and worker read the variables in this section.
+Only the worker links connector drivers; the server and control plane reach
+them through `WORKER_URL`.
 
 ### Private HTTP manifests
 
@@ -21,9 +23,9 @@ The server, control plane, and worker read the variables in this section.
 |---|---|---|
 | `HTTP_MANIFESTS_DIR` | unset | Directory containing private `<connector>/registry.json` files and API-version manifest folders. Adds private versions and can change default aliases; collisions with concrete bundled registrations fail startup. |
 
-Provide the same catalog to the server, control plane, and all workers. Files
-are loaded once at startup; missing, empty, or invalid configured directories
-stop startup. The variable does not mount or distribute files. See
+Set it on every worker: the persistent worker that answers connector calls and
+the workers that execute runs. Files are loaded once at startup; missing,
+empty, or invalid configured directories stop startup. The variable does not mount or distribute files. See
 [private catalog setup](/pages/connectors/building-a-connector/http-manifests#load-a-private-catalog-at-startup)
 for the directory structure and override behavior.
 
@@ -50,8 +52,7 @@ different hosts.
 | `NATS_TTL_SECONDS` | `604800` | Maximum message age in seconds. Set to `0` to disable age-based expiration |
 
 <Note>
-`DISPATCH_MODE=inproc` changes where runs execute; it does not replace the
-event bus.
+`DISPATCH_MODE` changes where runs execute; it does not replace the event bus.
 </Note>
 
 ### Secret provider
@@ -106,6 +107,7 @@ Filament does not export logs through OTLP.
 | Variable | Default | Description |
 |---|---|---|
 | `SERVER_ADDR` | `:8080` | Listen address for the API, web application, and health endpoints |
+| `WORKER_URL` | — | **Required.** Address of the persistent worker that answers connector calls, for example `http://filament-worker:8080` |
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
 | `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
 
@@ -143,14 +145,16 @@ coordinating schedules and runs.
 | Variable | Default | Description |
 |---|---|---|
 | `HEALTH_ADDR` | `:8081` | Listen address for `/livez`, `/startupz`, and `/readyz` |
-| `DISPATCH_MODE` | `kubernetes` | Run execution mode: `kubernetes` or `inproc` |
+| `WORKER_URL` | — | **Required.** Address of the persistent worker that answers connector calls |
+| `DISPATCH_MODE` | `kubernetes` | Run execution mode: `kubernetes` or `worker` |
 | `REAPER_INTERVAL_SECONDS` | `60` | Interval between stale-run sweeps in Kubernetes mode |
 | `REAPER_STALE_AFTER_SECONDS` | `300` | Time without a worker heartbeat before a running run is failed |
 
 In `kubernetes` mode, the control plane creates a worker Job for each run and
-uses the reaper to detect workers that stop reporting heartbeats. In `inproc`
-mode, runs execute inside the control-plane process. There are no worker Jobs,
-heartbeats, or reaper.
+uses the reaper to detect workers that stop reporting heartbeats. In `worker`
+mode, the control plane dispatches nothing: a long-lived worker started with
+`-execute` consumes requested runs from the event bus. There are no worker
+Jobs, heartbeats, or reaper.
 
 Pipeline webhooks run automatically in the control plane and standalone app,
 using the existing datastore and secrets provider. Standalone uses environment
@@ -159,7 +163,7 @@ secret references for destinations. See [Notifications](/pages/api-reference/ser
 ### Kubernetes dispatch
 
 These variables apply only when `DISPATCH_MODE=kubernetes`. The Helm chart
-sets them from its `controlPlane.dispatch` values.
+sets them from its `worker` values.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -180,10 +184,24 @@ sets them from its `controlPlane.dispatch` values.
 
 ## Worker
 
+The worker is the one binary that links connector drivers. Without flags it
+executes one dispatched run and exits. With `-serve` it runs long-lived and
+answers connector calls for the server and control plane, needing neither
+datastore nor event bus. With `-execute` it runs long-lived and executes
+requested runs from the event bus, for deployments without Kubernetes. The two
+flags combine; neither combines with `RUN_ID`.
+
+With `-serve`, `/readyz` reports whether connector serving is available. This
+also applies to `-serve -execute`: a datastore or event-bus outage does not remove
+the connector service from its Service endpoints. An execution-only worker's
+readiness checks its datastore and event bus. Both modes report not ready before
+startup completes and during shutdown.
+
 | Variable | Default | Description |
 |---|---|---|
-| `TENANT_ID` | — | **Required.** Tenant that owns the run |
-| `RUN_ID` | — | **Required.** Persisted run to execute |
+| `TENANT_ID` | — | **Required** for a dispatched run. Tenant that owns the run |
+| `RUN_ID` | — | **Required** for a dispatched run. Persisted run to execute |
+| `WORKER_ADDR` | `:8080` | Listen address for connector calls and health endpoints when long-lived |
 | `HEARTBEAT_SECONDS` | `30` | Interval between worker heartbeats |
 
 The Kubernetes dispatcher injects `TENANT_ID` and `RUN_ID`. The worker loads

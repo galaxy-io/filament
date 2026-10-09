@@ -10,6 +10,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform"
 )
@@ -72,20 +73,31 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
-	connector, source, err := a.openSource(ctx, tenant, "", req.Msg.GetSourceConnectionId(), nil)
+	conn, err := a.store.LoadConnection(ctx, tenant, req.Msg.GetSourceConnectionId())
 	if err != nil {
-		return nil, err
+		if errors.Is(err, filament.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	defer func() { _ = source.Teardown(ctx) }()
-	provider, ok := source.(filament.SchemaProvider)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource schemas", connector))
+	config := compile.MergeConfig(conn.Config, nil)
+	if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	schema, err := provider.Schema(ctx, resource)
+	inspections, err := a.worker.Inspect(ctx, conn.Connector, filament.NewConfig(config), []string{resource})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("schema for %q: %w", resource, err))
+		return nil, connectorError(err)
 	}
-	schema.Resource = resource
+	if len(inspections) != 1 {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource %q was not inspected", resource))
+	}
+	switch inspection := inspections[0]; {
+	case inspection.Status == filament.InspectFailed:
+		return nil, connect.NewError(connect.CodeInternal, errors.New(inspection.Message))
+	case inspection.Schema == nil:
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource schemas", conn.Connector))
+	}
+	schema := *inspections[0].Schema
 
 	// A Struct is JSON, and JSON is yaml, so the transform takes the same
 	// path a hand-written one does.

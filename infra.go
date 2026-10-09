@@ -481,6 +481,7 @@ const (
 type SourceRegistry interface {
 	Register(name string, f SourceFactory)
 	Resolve(name string) (Source, error)
+	Spec(name string) (ConnectorSpec, error)
 	Specs() []ConnectorSpec
 }
 
@@ -489,6 +490,7 @@ type SourceRegistry interface {
 type SinkRegistry interface {
 	Register(name string, f SinkFactory)
 	Resolve(name string) (Sink, error)
+	Spec(name string) (SinkSpec, error)
 	Specs() []SinkSpec
 }
 

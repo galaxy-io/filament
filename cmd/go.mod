@@ -9,6 +9,7 @@ require (
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/motherduck v0.0.0
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/redshift v0.0.0
 	github.com/galaxy-io/filament/connectors/snowflake v0.0.0
@@ -121,6 +122,12 @@ require (
 	github.com/creasty/defaults v1.8.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/duckdb/duckdb-go-bindings v0.1.21 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.21 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.21 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.21 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.21 // indirect
+	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.21 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
@@ -154,6 +161,7 @@ require (
 	github.com/go-openapi/swag/typeutils v0.26.0 // indirect
 	github.com/go-openapi/swag/yamlutils v0.26.0 // indirect
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-zookeeper/zk v1.0.4 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect
@@ -184,6 +192,9 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
+	github.com/marcboeker/go-duckdb/arrowmapping v0.0.21 // indirect
+	github.com/marcboeker/go-duckdb/mapping v0.0.21 // indirect
+	github.com/marcboeker/go-duckdb/v2 v2.4.3 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
@@ -302,6 +313,8 @@ require (
 replace github.com/galaxy-io/filament => ..
 
 replace github.com/galaxy-io/filament/connectors/bigquery => ../connectors/bigquery
+
+replace github.com/galaxy-io/filament/connectors/motherduck => ../connectors/motherduck
 
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
 
