@@ -273,7 +273,7 @@ auth:
   # request scoped to the default tenant.
   enabled: false
 
-  # -- Identity provider. Valid values are `zitadel` and `keycloak`.
+  # -- Identity provider. Valid values are `zitadel`, `keycloak` and `proxy`.
   type: zitadel
 
   bootstrap:
@@ -293,6 +293,31 @@ auth:
   # `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the
   # session cookie Secure.
   uiOrigin: ""
+
+  proxy:
+    # -- Header carrying the gateway's user id, stored as
+    # `AUTH_PROXY_USER_HEADER`. The gateway in front of Filament has already
+    # authenticated the caller; the network policy is what makes its headers
+    # trustworthy.
+    # @default -- required when `auth.type=proxy`
+    userHeader: ""
+    # -- Header carrying the gateway's tenant id, stored as
+    # `AUTH_PROXY_TENANT_HEADER`.
+    # @default -- required when `auth.type=proxy`
+    tenantHeader: ""
+    # -- Header carrying one of `admin`, `creator` or `viewer`, stored as
+    # `AUTH_PROXY_ROLE_HEADER`. Empty leaves callers without roles.
+    roleHeader: ""
+    # -- Header naming a trusted service calling on its own behalf, stored as
+    # `AUTH_PROXY_SERVICE_HEADER`. Empty disables service callers.
+    serviceHeader: ""
+    # -- The one gateway tenant this release serves, stored as
+    # `AUTH_PROXY_TENANT`. Requests for any other tenant are refused.
+    # @default -- required when `auth.type=proxy`
+    tenant: ""
+    # -- The gateway's sign-in URL, stored as `AUTH_PROXY_LOGIN_URL`.
+    # @default -- required when `auth.type=proxy`
+    loginUrl: ""
 
   zitadel:
     # -- Server-only Secret containing `AUTH_PAT` for external Zitadel, plus

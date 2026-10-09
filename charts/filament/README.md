@@ -213,7 +213,13 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
 | auth.keycloak.clientSecret | string | required unless `keycloak.existingSecret` is set | The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated Keycloak Secret. Supply a stable value; the chart never generates it. |
 | auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |
-| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel` and `keycloak`. |
+| auth.proxy.loginUrl | string | required when `auth.type=proxy` | The gateway's sign-in URL, stored as `AUTH_PROXY_LOGIN_URL`. |
+| auth.proxy.roleHeader | string | `""` | Header carrying one of `admin`, `creator` or `viewer`, stored as `AUTH_PROXY_ROLE_HEADER`. Empty leaves callers without roles. |
+| auth.proxy.serviceHeader | string | `""` | Header naming a trusted service calling on its own behalf, stored as `AUTH_PROXY_SERVICE_HEADER`. Empty disables service callers. |
+| auth.proxy.tenant | string | required when `auth.type=proxy` | The one gateway tenant this release serves, stored as `AUTH_PROXY_TENANT`. Requests for any other tenant are refused. |
+| auth.proxy.tenantHeader | string | required when `auth.type=proxy` | Header carrying the gateway's tenant id, stored as `AUTH_PROXY_TENANT_HEADER`. |
+| auth.proxy.userHeader | string | required when `auth.type=proxy` | Header carrying the gateway's user id, stored as `AUTH_PROXY_USER_HEADER`. The gateway in front of Filament has already authenticated the caller; the network policy is what makes its headers trustworthy. |
+| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel`, `keycloak` and `proxy`. |
 | auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
 | auth.zitadel.existingSecret | string | `""` | Server-only Secret containing `AUTH_PAT` for external Zitadel, plus `AUTH_BOOTSTRAP_ADMIN_PASSWORD` when bootstrapping an admin. Kept apart from `existingSecret`, which every worker receives. Unset, the chart creates a dedicated Secret from `auth.zitadel.pat` and `auth.bootstrap.adminPassword`. Vendored Zitadel mints its own PAT. |
 | auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |

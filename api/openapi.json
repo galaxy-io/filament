@@ -2966,6 +2966,11 @@
             "type": "boolean",
             "title": "invite_only",
             "description": "invite_only means sign-up is closed: Register is refused and the UI\n offers no way to create an organization. People join by invitation."
+          },
+          "loginUrl": {
+            "type": "string",
+            "title": "login_url",
+            "description": "login_url is where people sign in when authentication happens upstream\n of filament, behind a gateway that forwards identity headers. Set with\n an empty issuer: filament authenticates but has no login of its own."
           }
         },
         "title": "GetAuthConfigResponse",
