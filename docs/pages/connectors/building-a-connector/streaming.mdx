@@ -182,6 +182,11 @@ without a separate migration state machine. Keep native type mapping and
 unsupported-feature checks in each connector. Implementing reconciliation
 alone does not establish continuous sink support.
 
+The MySQL bounded sink demonstrates this adapter with independently committed
+DDL. It applies approved additions together and reacquires its table lock
+before verification. Its schema-policy support does not advertise continuous
+epoch support.
+
 ### Schema diagnostics
 
 Call `schema.Observe` with the operation context and the complete diff before
