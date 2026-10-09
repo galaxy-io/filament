@@ -126,21 +126,19 @@ type StreamSource interface {
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
-// ValidateContinuousConnectors checks native lifecycle support and whether at least
-// one declared streaming write policy is compatible with the source.
-func ValidateContinuousConnectors(source Source, sink Sink) error {
-	if _, ok := source.(StreamSource); !ok {
-		return errors.New("continuous execution requires a native stream source with position codecs")
+// ValidateContinuous checks that both specs declare streaming support and that
+// at least one declared streaming write policy is compatible with the source.
+// Registration guarantees a declaring connector implements the native contracts.
+func ValidateContinuous(source ConnectorSpec, sink SinkSpec) error {
+	if source.Stream == nil {
+		return errors.New("source does not advertise streaming support")
 	}
-	if _, ok := sink.(StreamingSink); !ok {
-		return errors.New("continuous execution requires a native epoch sink")
-	}
-	caps := sink.Spec().Capabilities.Stream
+	caps := sink.Capabilities.Stream
 	if caps == nil {
 		return errors.New("sink does not advertise streaming support")
 	}
 	for _, policy := range caps.WritePolicies {
-		if _, err := PlanContinuousWrite(source.Spec(), sink.Spec(), policy.Mode); err == nil {
+		if _, err := PlanContinuousWrite(source, sink, policy.Mode); err == nil {
 			return nil
 		}
 	}

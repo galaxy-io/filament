@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package worker.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "ingestion/v1/common.proto";
+import "ingestion/v1/connectors.proto";
+
+// Ref names one registered connector.
+message Ref {
+  ingestion.v1.ConnectorKind kind = 1;
+  string name = 2;
+}
+
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  OPERATION_INSERT = 1;
+  OPERATION_UPDATE = 2;
+  OPERATION_DELETE = 3;
+}
+
+enum CheckpointPolicy {
+  CHECKPOINT_POLICY_UNSPECIFIED = 0;
+  CHECKPOINT_POLICY_NONE = 1;
+  CHECKPOINT_POLICY_AFTER_BATCH = 2;
+  CHECKPOINT_POLICY_AFTER_COMMIT = 3;
+}
+
+enum InputSemantics {
+  INPUT_SEMANTICS_UNSPECIFIED = 0;
+  INPUT_SEMANTICS_ROWS = 1;
+  INPUT_SEMANTICS_CHANGES = 2;
+  INPUT_SEMANTICS_MESSAGES = 3;
+}
+
+enum Ordering {
+  ORDERING_UNSPECIFIED = 0;
+  ORDERING_NONE = 1;
+  ORDERING_PARTITION = 2;
+  ORDERING_TRANSACTION = 3;
+  ORDERING_GLOBAL_STRICT = 4;
+}
+
+enum DeliveryGuarantee {
+  DELIVERY_GUARANTEE_UNSPECIFIED = 0;
+  DELIVERY_GUARANTEE_REPLAYABLE_AT_LEAST_ONCE = 1;
+  DELIVERY_GUARANTEE_BEST_EFFORT = 2;
+}
+
+enum WriteAtomicity {
+  WRITE_ATOMICITY_UNSPECIFIED = 0;
+  WRITE_ATOMICITY_RECORD = 1;
+  WRITE_ATOMICITY_BATCH = 2;
+  WRITE_ATOMICITY_RESOURCE = 3;
+  WRITE_ATOMICITY_RUN = 4;
+}
+
+enum WriteDurability {
+  WRITE_DURABILITY_UNSPECIFIED = 0;
+  WRITE_DURABILITY_AFTER_APPLY = 1;
+  WRITE_DURABILITY_AFTER_COMMIT = 2;
+}
+
+message SourcePolicy {
+  ingestion.v1.ReadMode mode = 1;
+  repeated Operation emits_ops = 2;
+  bool ordered = 3;
+  CheckpointPolicy checkpointing = 4;
+}
+
+message StreamCapabilities {
+  repeated Operation emits_ops = 1;
+  InputSemantics input = 2;
+  repeated Ordering ordering = 3;
+  DeliveryGuarantee delivery = 4;
+}
+
+message ResourceCapabilities {
+  bool discoverable = 1;
+  bool per_resource_cursor = 2;
+}
+
+message WritePolicyCapability {
+  ingestion.v1.WriteMode mode = 1;
+  bool requires_pk = 2;
+  bool requires_order = 3;
+  repeated Operation accepts_ops = 4;
+  WriteAtomicity atomicity = 5;
+  WriteDurability durability = 6;
+}
+
+message StreamingSinkCapabilities {
+  repeated WritePolicyCapability write_policies = 1;
+  bool owner_fencing = 2;
+  bool isolated_epochs = 3;
+  optional google.protobuf.Duration in_flight_bound = 4;
+}
+
+message SinkCapabilities {
+  StreamingSinkCapabilities stream = 1;
+  bool transactional = 2;
+  bool schematized = 3;
+  bool encoded_integrity = 4;
+  repeated WritePolicyCapability write_policies = 5;
+  int64 preferred_batch_rows = 6;
+  int64 preferred_batch_bytes = 7;
+  google.protobuf.Duration preferred_flush_interval = 8;
+}
+
+// Source is a source spec: the public projection plus the facts the engine
+// and compiler read. The public spec reduces read modes to replication modes,
+// so the engine's read modes travel alongside it.
+message Source {
+  ingestion.v1.ConnectorSpec spec = 1;
+  repeated ingestion.v1.ReadMode read_modes = 2;
+  repeated SourcePolicy policies = 3;
+  ResourceCapabilities resources = 4;
+  StreamCapabilities stream = 5;
+}
+
+// Sink is a sink spec: the public projection plus its write capabilities.
+message Sink {
+  ingestion.v1.ConnectorSpec spec = 1;
+  SinkCapabilities capabilities = 2;
+}
+
+message DescribeRequest {}
+
+// DescribeResponse lists sources as registered: alias entries keep their
+// lookup name and carry alias_target in the spec.
+message DescribeResponse {
+  repeated Source sources = 1;
+  repeated Sink sinks = 2;
+}
+
+message ValidateRequest {
+  Ref connector = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message ValidateResponse {}
+
+message TestConnectionRequest {
+  Ref connector = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message TestConnectionResponse {}

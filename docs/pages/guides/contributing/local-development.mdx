@@ -48,9 +48,10 @@ day.
 |---|---|
 | `just infra` | Start PostgreSQL and NATS via Compose (`down` stops, `volumes` also drops data) |
 | `just migrate` | Run datastore migrations against the local database |
-| `just dev` | Control plane + server in the background, wait for `:8080/startupz` and `:8081/startupz`, then the UI |
-| `just server` | API server alone (runs `migrate` first) |
-| `just control-plane` | Control plane alone, with `DISPATCH_MODE=inproc` |
+| `just dev` | Worker + control plane + server in the background, wait for `:8082`, `:8080` and `:8081` `/startupz`, then the UI |
+| `just worker` | Worker alone on `:8082`, answering connector calls and executing runs |
+| `just server` | API server alone (runs `migrate` first), reaching the worker at `WORKER_URL` |
+| `just control-plane` | Control plane alone, with `DISPATCH_MODE=worker` |
 | `just ui` | Vite dev server on `:5173`, proxying the API to `:8080` |
 | `just gen` | Regenerate protobuf/ConnectRPC stubs (`buf generate`) and sqlc code |
 | `just ui-dist` | Build the UI bundle the server embeds |
@@ -88,3 +89,17 @@ local development.
 `-tags embedui` so the compiled UI ships inside them. A plain `go build ./cmd/server` without
 the tag serves a placeholder page at `/`, not the UI. `just ui-dist` produces
 the embeddable bundle on its own.
+
+## Building the worker images
+
+The worker image is published in two builds. The plain tag is a static binary
+on the static distroless base, like the server and control plane. The `-libc`
+tag is the same program built with cgo on a glibc base, and it is the only
+build that carries connectors linking native libraries. Each has its own
+Dockerfile under `cmd/worker`, and anything such a connector needs at runtime
+beyond the binary belongs in `Dockerfile.libc` alone.
+
+`just binaries` cross-compiles the static binaries and builds the `-libc`
+worker inside a Go container through the selected engine, because a cgo build
+targets the host it runs on and cannot cross-compile from macOS. `just images`
+tags it `worker:latest-libc`.

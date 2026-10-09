@@ -158,3 +158,70 @@ func TestExportRecordSizeLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestExportCSVDialect(t *testing.T) {
+	headerless := func(quoting string) *manifest.ExportCSV {
+		no := false
+		return &manifest.ExportCSV{Delimiter: "\t", Header: &no, Columns: []string{"id", "title", "url"}, Quoting: quoting}
+	}
+	// GDELT-style rows: tab-separated, no header, never quoted, but values may
+	// contain a stray quote, including at the start of a field.
+	tsv := "9007199254740993\t\"Starts quoted\thttps://a.example/x\n\n2\tsays \"hi\"\thttps://b.example/y\n"
+	for _, tc := range []struct {
+		name, raw string
+		dialect   *manifest.ExportCSV
+		want      []map[string]any
+	}{
+		{"headed-tab", "id\ttitle\n1\tA\n", &manifest.ExportCSV{Delimiter: "\t"}, []map[string]any{{"id": "1", "title": "A"}}},
+		{"headerless-unquoted", tsv, headerless("none"), []map[string]any{
+			{"id": "9007199254740993", "title": `"Starts quoted`, "url": "https://a.example/x"},
+			{"id": "2", "title": `says "hi"`, "url": "https://b.example/y"},
+		}},
+		{"headerless-crlf", "1\tA\tu\r\n", headerless("none"), []map[string]any{{"id": "1", "title": "A", "url": "u"}}},
+		{"headerless-standard", "1\t\"A\tB\"\tu\n", headerless("standard"), []map[string]any{{"id": "1", "title": "A\tB", "url": "u"}}},
+		{"default-unchanged", "id,title\n1,\"A,B\"\n", nil, []map[string]any{{"id": "1", "title": "A,B"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []map[string]any
+			err := decodeExport(t.Context(), strings.NewReader(tc.raw), manifest.ExportResult{Format: "csv", CSV: tc.dialect}, func(row map[string]any) error {
+				got = append(got, row)
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tc.want) {
+				t.Fatalf("rows = %v, want %v", got, tc.want)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name, raw string
+		dialect   *manifest.ExportCSV
+	}{
+		// The reason quoting: none exists: standard parsing reads the opening
+		// quote as a quoted field and fails on the GDELT-style rows above.
+		{"stray-quote-standard", tsv, headerless("standard")},
+		{"short-row", "1\tA\n", headerless("none")},
+		{"long-row", "1\tA\tu\textra\n", headerless("none")},
+		{"short-row-standard", "1\tA\n", headerless("standard")},
+		{"oversize-unquoted", "1\t" + strings.Repeat("x", maxExportRecordBytes+1) + "\tu\n", headerless("none")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			count := 0
+			err := decodeExport(t.Context(), strings.NewReader(tc.raw), manifest.ExportResult{Format: "csv", CSV: tc.dialect}, func(map[string]any) error { count++; return nil })
+			if err == nil {
+				t.Fatalf("accepted malformed CSV: rows=%d", count)
+			}
+		})
+	}
+}
+
+// Without a csv block, a short row still fails with encoding/csv's own error,
+// which names the line in the file.
+func TestExportCSVDefaultRowErrorUnchanged(t *testing.T) {
+	err := decodeExport(t.Context(), strings.NewReader("id,name\n1,A\n2\n"), manifest.ExportResult{Format: "csv"}, func(map[string]any) error { return nil })
+	if err == nil || !strings.Contains(err.Error(), "record on line 3: wrong number of fields") {
+		t.Fatalf("err = %v", err)
+	}
+}

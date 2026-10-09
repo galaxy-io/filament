@@ -85,6 +85,7 @@ export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {
   [ReadMode.UNSPECIFIED]: "Unknown",
   [ReadMode.FULL]: "Full",
   [ReadMode.INCREMENTAL]: "Incremental",
+  [ReadMode.CDC]: "CDC",
 };
 
 export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
@@ -93,6 +94,7 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.REPLACE]: "Replace",
   [WriteMode.UPSERT]: "Upsert",
   [WriteMode.MERGE]: "Merge",
+  [WriteMode.DELETE]: "Delete",
 };
 
 export const CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE = ReadMode.FULL;

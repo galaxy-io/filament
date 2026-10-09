@@ -211,12 +211,6 @@ const (
 	SnapshotNone    SnapshotMode = "none"
 )
 
-// ReplicationAware lets a source report which replication mode a connection
-// config selects. Sources without the contract are always standard.
-type ReplicationAware interface {
-	Replication(cfg Config) ReplicationMode
-}
-
 // ReplicationStreamPlanningRequest is the connector-owned input for planning
 // an independently advancing source consumer.
 type ReplicationStreamPlanningRequest struct {
@@ -254,10 +248,17 @@ type ReplicationStreamCleaner interface {
 	CleanupReplicationStream(ctx context.Context, stream ReplicationStream) error
 }
 
-// ReplicationOf resolves a connection's replication mode from its source.
-func ReplicationOf(src Source, cfg Config) ReplicationMode {
-	if aware, ok := src.(ReplicationAware); ok {
-		return aware.Replication(cfg)
+// ReplicationFor resolves a connection's replication mode from the source's
+// declared policies and the connection config. CDC requires both: a CDC source
+// policy on the spec and replication=cdc in the config.
+func ReplicationFor(spec ConnectorSpec, cfg Config) ReplicationMode {
+	if cfg.String("replication") != string(ReplicationCDC) {
+		return ReplicationStandard
+	}
+	for _, policy := range spec.SourcePolicies {
+		if policy.Mode == ModeCDC {
+			return ReplicationCDC
+		}
 	}
 	return ReplicationStandard
 }
