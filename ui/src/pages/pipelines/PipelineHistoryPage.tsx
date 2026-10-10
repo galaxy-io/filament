@@ -11,6 +11,7 @@ import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
@@ -71,7 +72,11 @@ const createRunTableColumns = (
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cell: ({ row }) => {
       const version = versionById.get(row.pipelineVersionId);
-      return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
+      return (
+        <Text size={TextSize.BODY_SM}>
+          {version ? `Version ${version.toString()}` : EMPTY_VALUE}
+        </Text>
+      );
     },
   },
   {
@@ -92,7 +97,7 @@ const createRunTableColumns = (
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.startedAt ? formatCount(row.records) : "—"}
+        {row.startedAt ? formatCount(row.records) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -103,7 +108,7 @@ const createRunTableColumns = (
     align: "right",
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.startedAt ? formatBytes(row.bytes) : "—"}
+        {row.startedAt ? formatBytes(row.bytes) : EMPTY_VALUE}
       </Text>
     ),
   },

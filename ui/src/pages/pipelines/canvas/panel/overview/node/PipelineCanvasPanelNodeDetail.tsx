@@ -7,6 +7,7 @@ import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
@@ -99,7 +100,7 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
             <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
               <ConnectionDrawerKeyValueRow
                 label="Connector"
-                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? "—"}</Text>}
+                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? EMPTY_VALUE}</Text>}
               />
               <ConnectionDrawerKeyValueRow
                 label="Kind"

@@ -4,6 +4,7 @@ import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -21,8 +22,6 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-
-import { isSearchMatch } from "@/utils/search";
 
 interface PipelineCanvasConnectionSelectorProps {
   kindFilter?: ConnectorKind;

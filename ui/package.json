@@ -43,7 +43,6 @@
     "@phosphor-icons/react": "^2.1.10",
     "@xyflow/react": "^12.11.2",
     "pluralize": "^8.0.0",
-    "react-intersection-observer": "^10.1.0",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"
   },

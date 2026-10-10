@@ -13,6 +13,7 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import {
   type Pipeline,
@@ -80,7 +81,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} lineClamp={1}>
-        {row.lastRun ? formatTimeAgo(row.lastRun.requestedAt) : "—"}
+        {row.lastRun ? formatTimeAgo(row.lastRun.requestedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -109,7 +110,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatDuration(row.lastRun.startedAt, row.lastRun.endedAt) : "—"}
+        {row.lastRun ? formatDuration(row.lastRun.startedAt, row.lastRun.endedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -121,7 +122,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatCount(row.lastRun.records) : "—"}
+        {row.lastRun ? formatCount(row.lastRun.records) : EMPTY_VALUE}
       </Text>
     ),
   },

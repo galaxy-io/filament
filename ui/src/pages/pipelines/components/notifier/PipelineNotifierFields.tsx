@@ -12,7 +12,7 @@ import Text from "@galaxy-io/dls/text/Text";
 import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 
 import {
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENT_OPTIONS,
   PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP,
   PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT,
@@ -30,19 +30,14 @@ import {
 } from "@/pages/pipelines/components/notifier/utils";
 import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
-import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
-
-const EVENT_OPTIONS: SelectOption[] = getSelectAllOptions(
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
-  PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
-    ...option,
-    leading: (
-      <PipelineRunStatusSwatch
-        status={PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]}
-      />
-    ),
-  })),
-);
+const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
+  ...option,
+  leading: (
+    <PipelineRunStatusSwatch
+      status={PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]}
+    />
+  ),
+}));
 
 interface PipelineNotifierFieldsProps {
   state: PipelineNotifierState;
@@ -87,12 +82,7 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
   };
 
   const handleEventsChange = (ids: string[]) => {
-    const next = getSelectAllChange(
-      PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
-      ids,
-      selectedEventIds,
-    );
-    onChange({ events: next.map((id) => Number(id) as NotifierEvent) });
+    onChange({ events: ids.map((id) => Number(id) as NotifierEvent) });
   };
 
   const handleUrlChange = (url: string) => {
@@ -125,10 +115,10 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
       <MultiSelectInput
         label="Events"
         options={EVENT_OPTIONS}
-        value={getSelectAllValue(PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION, selectedEventIds)}
+        selectAllLabel={PIPELINE_NOTIFIER_ALL_EVENTS_LABEL}
+        value={selectedEventIds}
         onChange={handleEventsChange}
         renderValue={(options) => <Text>{formatPipelineNotifierEventsSelection(options)}</Text>}
-        pinnedIds={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id]}
         placeholder="Select events"
         isDisabled={isDisabled}
         fillWidth

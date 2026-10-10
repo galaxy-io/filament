@@ -24,14 +24,11 @@ import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasV
 import {
   PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH,
-  PIPELINE_CANVAS_ROUTES_SINKS_PINNED_OPTION_ID,
 } from "@/pages/pipelines/canvas/routes/constants";
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
-
-import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
 
 interface PipelineCanvasRoutesToolbarProps {
   onSearch: (search: string) => void;
@@ -63,16 +60,10 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
       })),
     [sinks],
   );
-  const selectAll = {
-    id: PIPELINE_CANVAS_ROUTES_SINKS_PINNED_OPTION_ID,
-    label: "All sinks",
-    optionIds: sinkOptions.map((option) => option.id),
-  };
-  const selectedSinkIds = sinkIds.length ? sinkIds : selectAll.optionIds;
+  const selectedSinkIds = sinkIds.length ? sinkIds : sinkOptions.map((option) => option.id);
 
   const handleSinksChange = (ids: CanvasNode["id"][]) => {
-    const next = getSelectAllChange(selectAll, ids, selectedSinkIds);
-    setSinkIds(next.length === sinkOptions.length ? [] : next);
+    setSinkIds(ids.length === sinkOptions.length ? [] : ids);
   };
 
   return (
@@ -97,22 +88,14 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
         <MultiSelectInput
           ariaLabel="Sinks"
           fillWidth
-          options={getSelectAllOptions(selectAll, sinkOptions)}
-          pinnedIds={[selectAll.id]}
-          value={getSelectAllValue(selectAll, selectedSinkIds)}
+          options={sinkOptions}
+          selectAllLabel="All sinks"
+          value={selectedSinkIds}
           onChange={handleSinksChange}
           placeholder="Sinks..."
           variant={MultiSelectInputVariant.TERTIARY}
           size={MultiSelectInputSize.MEDIUM}
-          renderValue={(options) => (
-            <Text>
-              {pluralize(
-                "sink",
-                options.filter((option) => option.id !== selectAll.id).length,
-                true,
-              )}
-            </Text>
-          )}
+          renderValue={(options) => <Text>{pluralize("sink", options.length, true)}</Text>}
         />
       </Box>
       <FlexItem grow={1} />

@@ -8,6 +8,7 @@ import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -186,7 +187,7 @@ const ObservabilityRunsTable: FC = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {row.cpuSeconds ? formatSeconds(row.cpuSeconds) : "—"}
+            {row.cpuSeconds ? formatSeconds(row.cpuSeconds) : EMPTY_VALUE}
           </Text>
         ),
       },
@@ -197,7 +198,7 @@ const ObservabilityRunsTable: FC = () => {
         align: "right",
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {row.memoryPeakBytes ? formatBytes(row.memoryPeakBytes) : "—"}
+            {row.memoryPeakBytes ? formatBytes(row.memoryPeakBytes) : EMPTY_VALUE}
           </Text>
         ),
       },

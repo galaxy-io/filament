@@ -10,13 +10,9 @@ import SettingsPage from "@/pages/settings/SettingsPage";
 
 import { Flow } from "@/module/types";
 
-import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
-
 const AppLayout: FC = () => {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "/_app" });
-  const isDrawerOpen = !!connectionId;
-  const drawerConnectionId = useRetainedWhileClosed(connectionId, isDrawerOpen);
 
   const handleCloseDrawer = useCallback(() => {
     void navigate({
@@ -48,8 +44,8 @@ const AppLayout: FC = () => {
     <>
       <Outlet />
       <ConnectionDrawer
-        connectionId={drawerConnectionId}
-        isOpen={isDrawerOpen}
+        connectionId={connectionId}
+        isOpen={!!connectionId}
         onClose={handleCloseDrawer}
       />
       {flow === Flow.CREATE_CONNECTION && <CreateConnectionModal onClose={handleCloseFlow} />}

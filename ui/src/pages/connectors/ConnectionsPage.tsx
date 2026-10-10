@@ -1,10 +1,11 @@
-import { type FC, useMemo } from "react";
+import { type FC, type RefObject, useMemo } from "react";
 
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { useEndReached } from "@galaxy-io/dls/hooks/useEndReached";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Grid from "@galaxy-io/dls/layout/Grid";
@@ -13,7 +14,6 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import DocsLink from "@/components/DocsLink";
-import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
@@ -69,6 +69,11 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
     () => data.pages.flatMap((page) => page.connections),
     [data.pages],
   );
+  const endRef = useEndReached({
+    onEndReached: hasNextPage ? () => void fetchNextPage() : undefined,
+    isEnabled: !isFetchingNextPage,
+    itemCount: kindConnections.length,
+  });
 
   const { connectionIdsByPipelineId } = usePipelineConnectionMap();
   const pipelineCountsByConnectionId = useMemo(() => {
@@ -137,11 +142,7 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
             />
           ))}
         </Grid>
-        <InfiniteScrollSentinel
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-        />
+        <div ref={endRef as RefObject<HTMLDivElement>} />
       </>
     );
   };

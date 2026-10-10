@@ -5,8 +5,6 @@ import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
-import type { SelectAllOption } from "@/utils/select";
-
 export const PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY = "headers";
 export const PIPELINE_NOTIFIER_URL_SECRET_REF_KEY = "url";
 
@@ -74,11 +72,7 @@ export const PIPELINE_NOTIFIER_EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER
   }),
 );
 
-export const PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION: SelectAllOption = {
-  id: "all-events",
-  label: "All events",
-  optionIds: PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => option.id),
-};
+export const PIPELINE_NOTIFIER_ALL_EVENTS_LABEL = "All events";
 
 export const PIPELINE_NOTIFIER_DEFAULT_STATE: PipelineNotifierState = {
   name: "",

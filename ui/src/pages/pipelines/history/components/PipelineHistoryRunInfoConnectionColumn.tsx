@@ -7,6 +7,7 @@ import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
@@ -55,7 +56,7 @@ const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectio
           onClick={handleConnectorTileClick}
         />
         <FlexItem shrink={0}>
-          <Text size={TextSize.BODY_SM}>{connectionData?.connection?.name ?? "—"}</Text>
+          <Text size={TextSize.BODY_SM}>{connectionData?.connection?.name ?? EMPTY_VALUE}</Text>
         </FlexItem>
         {resourceName && (
           <>

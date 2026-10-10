@@ -1,4 +1,4 @@
-import { type FC, useState } from "react";
+import { type FC, type RefObject, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
@@ -7,6 +7,7 @@ import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
+import { useEndReached } from "@galaxy-io/dls/hooks/useEndReached";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -20,11 +21,10 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
-import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
@@ -41,8 +41,6 @@ import { Flow } from "@/module/types";
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
 import { IS_DEBUG, NOOP } from "@/constants";
-
-import { isSearchMatch } from "@/utils/search";
 
 const RowWrapper = styled.div<{ $isDisabled?: boolean }>`
   display: flex;
@@ -190,6 +188,11 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
     useListConnectionsInfiniteQuery({ input: { kind } });
 
   const kindConnections = data?.pages.flatMap((page) => page.connections) ?? [];
+  const endRef = useEndReached({
+    onEndReached: hasNextPage ? () => void fetchNextPage() : undefined,
+    isEnabled: !isFetchingNextPage,
+    itemCount: kindConnections.length,
+  });
   const filteredConnections = kindConnections.filter((connection) =>
     isSearchMatch(state.search, connection.name),
   );
@@ -268,11 +271,7 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
                 kind={kind}
               />
             ))}
-            <InfiniteScrollSentinel
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              fetchNextPage={fetchNextPage}
-            />
+            <div ref={endRef as RefObject<HTMLDivElement>} />
           </Flex>
         </ScrollArea>
       </FlexItem>

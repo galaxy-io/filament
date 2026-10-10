@@ -13,8 +13,6 @@ import {
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
 
-import type { SelectAllOption } from "@/utils/select";
-
 export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: { label: "Runs" },
 };
@@ -52,11 +50,7 @@ export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectOption = {
   label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
 };
 
-export const OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION: SelectAllOption = {
-  id: "all-statuses",
-  label: "All statuses",
-  optionIds: OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id),
-};
+export const OBSERVABILITY_RUNS_ALL_STATUSES_LABEL = "All statuses";
 
 export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.COMPLETED,

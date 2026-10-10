@@ -1,3 +1,5 @@
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
+
 export const formatCount = (value: bigint): string => {
   return Number(value).toLocaleString();
 };
@@ -18,7 +20,7 @@ export const formatTimeAgo = (unixMillis: bigint): string => {
 };
 
 export const formatTimeUntil = (unixMillis: bigint): string => {
-  if (!unixMillis) return "—";
+  if (!unixMillis) return EMPTY_VALUE;
   const remainingMs = Number(unixMillis) - Date.now();
   if (remainingMs < 0) return "soon";
   const minutes = Math.floor(remainingMs / 60_000);
@@ -35,7 +37,7 @@ export const formatTimeUntil = (unixMillis: bigint): string => {
 };
 
 export const formatTimestamp = (unixMillis: bigint): string => {
-  if (!unixMillis) return "—";
+  if (!unixMillis) return EMPTY_VALUE;
   return new Date(Number(unixMillis)).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -46,7 +48,7 @@ export const formatTimestamp = (unixMillis: bigint): string => {
 };
 
 export const formatDuration = (startMillis: bigint, endMillis: bigint): string => {
-  if (!startMillis || !endMillis) return "—";
+  if (!startMillis || !endMillis) return EMPTY_VALUE;
   const elapsedMs = Number(endMillis - startMillis);
   if (elapsedMs < 1_000) return `${elapsedMs}ms`;
   const seconds = elapsedMs / 1_000;

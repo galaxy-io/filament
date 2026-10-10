@@ -22,7 +22,7 @@ import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
-  OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
+  OBSERVABILITY_RUNS_ALL_STATUSES_LABEL,
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION,
   OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH,
@@ -34,17 +34,12 @@ import ObservabilityRunsTable from "@/pages/observability/components/runs/Observ
 import { ObservabilityRunsView } from "@/pages/observability/types";
 import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
-import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
-
 const withStatusSwatch = (option: SelectOption): SelectOption => ({
   ...option,
   leading: <PipelineRunStatusSwatch status={Number(option.id) as RunStatus} />,
 });
 
-const STATUS_OPTIONS = getSelectAllOptions(
-  OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-  OBSERVABILITY_RUN_STATUS_OPTIONS.map(withStatusSwatch),
-);
+const STATUS_OPTIONS = OBSERVABILITY_RUN_STATUS_OPTIONS.map(withStatusSwatch);
 
 const SCHEDULED_STATUS_OPTIONS = [withStatusSwatch(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION)];
 
@@ -78,16 +73,11 @@ const ObservabilityRunsWidget: FC = () => {
   };
 
   const handleStatusChange = (ids: string[]) => {
-    const next = getSelectAllChange(
-      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-      ids,
-      selectedStatusIds,
-    );
     void navigate({
       to: ".",
       search: (prev) => ({
         ...prev,
-        statuses: next.map((id) => Number(id) as RunStatus),
+        statuses: ids.map((id) => Number(id) as RunStatus),
         runsBucket: undefined,
         runsStatus: undefined,
       }),
@@ -120,31 +110,16 @@ const ObservabilityRunsWidget: FC = () => {
             <MultiSelectInput
               fillWidth
               options={isUpcoming ? SCHEDULED_STATUS_OPTIONS : STATUS_OPTIONS}
-              pinnedIds={[OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id]}
+              selectAllLabel={isUpcoming ? undefined : OBSERVABILITY_RUNS_ALL_STATUSES_LABEL}
               value={
-                isUpcoming
-                  ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id]
-                  : getSelectAllValue(
-                      OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION,
-                      selectedStatusIds,
-                    )
+                isUpcoming ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id] : selectedStatusIds
               }
               size={MultiSelectInputSize.SMALL}
               variant={MultiSelectInputVariant.PRIMARY}
               onChange={handleStatusChange}
               placeholder="Select statuses..."
               isDisabled={isUpcoming}
-              renderValue={(options) => (
-                <Text>
-                  {pluralize(
-                    "status",
-                    options.filter(
-                      (option) => option.id !== OBSERVABILITY_RUNS_ALL_STATUSES_PINNED_OPTION.id,
-                    ).length,
-                    true,
-                  )}
-                </Text>
-              )}
+              renderValue={(options) => <Text>{pluralize("status", options.length, true)}</Text>}
             />
           </Box>
         </>

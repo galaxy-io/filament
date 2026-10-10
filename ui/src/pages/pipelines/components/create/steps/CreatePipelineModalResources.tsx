@@ -8,6 +8,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
@@ -24,8 +25,6 @@ import PipelineResourceCreateForm, {
 } from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
 
 import { IS_DEBUG } from "@/constants";
-
-import { isSearchMatch } from "@/utils/search";
 
 interface CreatePipelineModalResourcesState {
   search: string;

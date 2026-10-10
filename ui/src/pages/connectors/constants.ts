@@ -1,5 +1,6 @@
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { ConnectorMaturity } from "@/gen/ingestion/v1/connectors_pb";
@@ -30,7 +31,7 @@ export const CREATE_CONNECTION_SELECTOR_SHELF_TO_LABEL_MAP: Record<
 export const CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT = 150;
 
 export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "—",
+  [ConnectorKind.UNSPECIFIED]: EMPTY_VALUE,
   [ConnectorKind.SOURCE]: "Source",
   [ConnectorKind.SINK]: "Sink",
 };

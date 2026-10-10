@@ -12,7 +12,7 @@ import {
 
 import { isNameValid } from "@/pages/connectors/components/form/validation";
 import {
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENTS,
   PIPELINE_NOTIFIER_SLACK_URL_PREFIXES,
   PIPELINE_NOTIFIER_URL_SECRET_REF_KEY,
@@ -20,14 +20,9 @@ import {
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
 export const formatPipelineNotifierEventsSelection = (options: SelectOption[]): string => {
-  const selectedOptions = options.filter(
-    (option) => option.id !== PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id,
-  );
-  if (selectedOptions.length === 1) return selectedOptions[0].label;
-  if (selectedOptions.length === PIPELINE_NOTIFIER_EVENTS.length) {
-    return PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.label;
-  }
-  return pluralize("event", selectedOptions.length, true);
+  if (options.length === 1) return options[0].label;
+  if (options.length === PIPELINE_NOTIFIER_EVENTS.length) return PIPELINE_NOTIFIER_ALL_EVENTS_LABEL;
+  return pluralize("event", options.length, true);
 };
 
 export const isPipelineNotifierUrlValid = (url: string): boolean => {

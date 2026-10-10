@@ -20,8 +20,6 @@ import { Flow } from "@/module/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 
-import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
-
 import type { AppSession } from "@/auth/types";
 
 interface SettingsPageContentProps {
@@ -115,7 +113,7 @@ const SettingsPage: FC = () => {
   const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;
-  const settingsPanel = useRetainedWhileClosed(settings ?? SettingsPanel.TEAM, isSettingsOpen);
+  const settingsPanel = settings ?? SettingsPanel.TEAM;
   const isTeamViewOpen =
     isSettingsOpen &&
     (settings ?? SettingsPanel.TEAM) === SettingsPanel.TEAM &&
