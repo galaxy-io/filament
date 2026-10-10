@@ -30,7 +30,7 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";

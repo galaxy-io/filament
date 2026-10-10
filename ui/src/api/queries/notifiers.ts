@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ListPipelineNotifiersRequest } from "@/gen/ingestion/v1/notifiers_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-export const createListPipelineNotifiersQueryKey = (
+const createListPipelineNotifiersQueryKey = (
   input?: ListPipelineNotifiersRequest,
   transport?: Transport,
 ) =>

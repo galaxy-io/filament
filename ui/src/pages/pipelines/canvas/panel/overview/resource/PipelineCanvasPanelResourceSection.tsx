@@ -35,9 +35,8 @@ import {
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
 import { getCanvasEdgeResourceLabel, isConnectionNode } from "@/pages/pipelines/canvas/utils";
-import PipelineResourceCreateForm, {
-  type PipelineResourceCreateState,
-} from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsMarker from "@/pages/pipelines/components/transform/PipelineTransformFieldsMarker";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 

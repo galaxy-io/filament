@@ -1,9 +1,11 @@
 import { styled } from "@linaria/react";
 
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { FOCUS_RING, HAIRLINE_WIDTH, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 const PipelineCanvasPanelItem = styled.button`
+  ${INTERACTIVE_RESET}
+  ${FOCUS_RING}
   width: 100%;
   padding: ${t.space[12]};
 
@@ -11,12 +13,9 @@ const PipelineCanvasPanelItem = styled.button`
   align-items: center;
   gap: ${t.space[8]};
 
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
   text-align: left;
 
-  transition: background-color 100ms ease;
+  transition: background-color ${t.duration.fast};
 
   &:not(:last-child) {
     border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};

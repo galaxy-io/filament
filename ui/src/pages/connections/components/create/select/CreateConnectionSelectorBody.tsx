@@ -26,9 +26,8 @@ import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/cons
 import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
 import DocsLink from "@/components/DocsLink";
 
-import CreateConnectionSelectorCard, {
-  CreateConnectionSelectorEmptyCard,
-} from "@/pages/connections/components/create/select/CreateConnectionSelectorCard";
+import CreateConnectionSelectorCard from "@/pages/connections/components/create/select/CreateConnectionSelectorCard";
+import CreateConnectionSelectorEmptyCard from "@/pages/connections/components/create/select/CreateConnectionSelectorEmptyCard";
 import type { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
 import { isConnectorOnShelf } from "@/pages/connections/components/create/utils";
 import {

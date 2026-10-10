@@ -4,7 +4,8 @@ import type { FitViewOptions } from "@xyflow/react";
 import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -229,3 +230,8 @@ export const isConnectionNode = (
   node: CanvasNode,
 ): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
   node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;
+
+export const isPipelineCanvasConnectionDisabled = (
+  connection: Connection,
+  isSourceDisabled: boolean,
+) => isSourceDisabled && connection.kind === ConnectorKind.SOURCE;

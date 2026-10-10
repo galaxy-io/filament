@@ -45,8 +45,8 @@ const StyledHandle = styled(HandleBase)<HandleFlags>`
     border-radius: ${t.radius.pill};
 
     transition:
-      width 100ms ease,
-      height 100ms ease;
+      width ${t.duration.fast},
+      height ${t.duration.fast};
   }
 
   &.react-flow__handle:hover {

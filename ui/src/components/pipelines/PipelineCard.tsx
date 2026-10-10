@@ -39,7 +39,7 @@ const CardWrapper = styled.div`
 
   cursor: pointer;
 
-  transition: background-color 100ms ease;
+  transition: background-color ${t.duration.fast};
 
   &:hover {
     background-color: ${t.color.background.hovered};

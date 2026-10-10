@@ -4,7 +4,7 @@ import { RouterProvider } from "@tanstack/react-router";
 
 import { router } from "@/host/router";
 
-export const App: FC = () => {
+const App: FC = () => {
   return <RouterProvider router={router} />;
 };
 

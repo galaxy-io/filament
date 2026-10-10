@@ -17,7 +17,7 @@ const PipelineCanvasNodeIsland = styled.div<{ $isSelected?: boolean }>`
     $isSelected ? `1px solid ${t.color.solid.primary.background}` : "none"};
   outline-offset: -${HAIRLINE_WIDTH};
 
-  transition: border-color 100ms ease;
+  transition: border-color ${t.duration.fast};
 `;
 
 export default PipelineCanvasNodeIsland;

@@ -19,9 +19,8 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
 import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
-import PipelineResourceCreateForm, {
-  type PipelineResourceCreateState,
-} from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
 import { IS_DEBUG } from "@/constants";
 

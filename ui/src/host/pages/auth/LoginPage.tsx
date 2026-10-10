@@ -10,7 +10,8 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import type { LoginRequest } from "@/gen/auth/v1/session_pb";
 
 import { getReturnToPath } from "@/host/auth/utils";
-import AuthForm, { AuthFormFooter } from "@/host/layouts/auth/AuthForm";
+import AuthForm from "@/host/layouts/auth/AuthForm";
+import AuthFormFooter from "@/host/layouts/auth/AuthFormFooter";
 
 import { useLoginMutation } from "@/api/queries/auth";
 

@@ -43,7 +43,7 @@ const SelectorIsland = styled.div`
   border-radius: ${t.radius.lg};
   overflow: hidden;
 
-  transition: border-color 100ms ease;
+  transition: border-color ${t.duration.fast};
 
   &:hover,
   &:focus-within {

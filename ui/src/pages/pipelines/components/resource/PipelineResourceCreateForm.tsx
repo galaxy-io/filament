@@ -11,18 +11,12 @@ import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
-
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
 interface PipelineResourceCreateSink {
   id: CanvasNode["id"];
   label: string;
-}
-
-export interface PipelineResourceCreateState {
-  resource: Resource["name"];
-  sinkId: CanvasNode["id"];
 }
 
 interface PipelineResourceCreateFormProps {

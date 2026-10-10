@@ -10,7 +10,8 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import type { RegisterRequest } from "@/gen/auth/v1/session_pb";
 
-import AuthForm, { AuthFormFooter } from "@/host/layouts/auth/AuthForm";
+import AuthForm from "@/host/layouts/auth/AuthForm";
+import AuthFormFooter from "@/host/layouts/auth/AuthFormFooter";
 
 import { useRegisterMutation } from "@/api/queries/auth";
 

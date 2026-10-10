@@ -208,7 +208,7 @@ const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
 };
 
-export const createGetRunQueryKey = (input?: GetRunRequest, transport?: Transport) => {
+const createGetRunQueryKey = (input?: GetRunRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getRun,
     input,

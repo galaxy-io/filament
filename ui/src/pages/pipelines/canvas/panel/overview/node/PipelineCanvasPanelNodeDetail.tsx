@@ -31,9 +31,8 @@ import type {
   PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
-import PipelineNodeConfigFields, {
-  usePipelineNodeConfig,
-} from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import { usePipelineNodeConfig } from "@/pages/pipelines/components/node/hooks/usePipelineNodeConfig";
+import PipelineNodeConfigFields from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 
 import { formatIdentifier } from "@/utils/naming";
 

@@ -15,11 +15,10 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { useConnectorFamilies } from "@/components/connections/hooks/useConnectorFamilies";
-import EmptyGraphic, {
-  EmptyGraphicGhostBar,
-  EmptyGraphicGhostTile,
-  EmptyGraphicGhostTileFallback,
-} from "@/components/EmptyGraphic";
+import EmptyGraphic from "@/components/EmptyGraphic";
+import EmptyGraphicGhostBar from "@/components/EmptyGraphicGhostBar";
+import EmptyGraphicGhostTile from "@/components/EmptyGraphicGhostTile";
+import EmptyGraphicGhostTileFallback from "@/components/EmptyGraphicGhostTileFallback";
 
 interface SinkEmptyCard {
   nameWidth: number;

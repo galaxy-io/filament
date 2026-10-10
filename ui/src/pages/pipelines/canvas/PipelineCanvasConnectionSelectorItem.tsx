@@ -3,6 +3,8 @@ import type { FC } from "react";
 import { styled } from "@linaria/react";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -12,36 +14,25 @@ import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
 
-const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
+const ItemWrapper = styled.button`
+  ${INTERACTIVE_RESET}
+  ${FOCUS_RING}
   display: flex;
   align-items: center;
   gap: ${t.space[8]};
   padding: ${t.space[8]};
   width: 100%;
-
-  background-color: transparent;
-  border: none;
   border-radius: ${t.radius.md};
-  cursor: ${({ $isDisabled }) => ($isDisabled ? "not-allowed" : "pointer")};
-  opacity: ${({ $isDisabled }) => ($isDisabled ? 0.5 : 1)};
+  transition: background-color ${t.duration.fast};
 
-  &:hover {
-    background-color: ${({ $isDisabled }) =>
-      $isDisabled ? "transparent" : t.color.background.hovered};
+  &:hover:not(:disabled) {
+    background-color: ${t.color.background.hovered};
   }
-`;
 
-const ItemName = styled.div`
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const ChipWrapper = styled.div`
-  flex-shrink: 0;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 `;
 
 interface PipelineCanvasConnectionSelectorItemProps {
@@ -56,23 +47,24 @@ const PipelineCanvasConnectionSelectorItem: FC<PipelineCanvasConnectionSelectorI
   onClick,
 }) => {
   return (
-    <ItemWrapper $isDisabled={isDisabled} onClick={isDisabled ? undefined : onClick}>
+    <ItemWrapper type="button" disabled={isDisabled} onClick={onClick}>
       <ConnectorTile
         connector={connection.connector}
         kind={connection.kind}
         size={ConnectorTileSize.SMALL}
       />
-      <ItemName>
+      <FlexItem grow={1} minWidth={0}>
         <Text
           size={TextSize.BODY_SM}
           variant={isDisabled ? TextVariant.DISABLED : TextVariant.PRIMARY}
+          lineClamp={1}
         >
           {connection.name}
         </Text>
-      </ItemName>
-      <ChipWrapper>
+      </FlexItem>
+      <FlexItem shrink={0}>
         <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
-      </ChipWrapper>
+      </FlexItem>
     </ItemWrapper>
   );
 };

@@ -108,10 +108,7 @@ export const useSuspenseListConnectionsInfiniteQuery = ({
   );
 };
 
-export const createGetConnectionQueryKey = (
-  input?: GetConnectionRequest,
-  transport?: Transport,
-) => {
+const createGetConnectionQueryKey = (input?: GetConnectionRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getConnection,
     input,

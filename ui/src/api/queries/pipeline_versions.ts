@@ -13,7 +13,7 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
-export const createGetPipelineVersionQueryKey = (
+const createGetPipelineVersionQueryKey = (
   input?: GetPipelineVersionRequest,
   transport?: Transport,
 ) => {

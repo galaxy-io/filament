@@ -18,7 +18,7 @@ import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-export const createListMembersQueryKey = (input?: ListMembersRequest, transport?: Transport) =>
+const createListMembersQueryKey = (input?: ListMembersRequest, transport?: Transport) =>
   createConnectQueryKey({
     schema: AuthService.method.listMembers,
     input,
@@ -26,7 +26,7 @@ export const createListMembersQueryKey = (input?: ListMembersRequest, transport?
     cardinality: "finite",
   });
 
-export const createListServiceAccountsQueryKey = (
+const createListServiceAccountsQueryKey = (
   input?: ListServiceAccountsRequest,
   transport?: Transport,
 ) =>

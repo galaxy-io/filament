@@ -1,63 +1,18 @@
 import type { FC } from "react";
 
-import { PlusIcon } from "@phosphor-icons/react";
-
-import Button from "@galaxy-io/dls/buttons/Button";
-import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import {
-  CONNECTOR_KIND_TO_NOUN_MAP,
-  CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
-} from "@/components/connections/constants";
+import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 
+import PipelineCanvasConnectionSelectorEmpty from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorEmpty";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-import { useFilamentFlowOpen } from "@/module/hooks";
-import { Flow } from "@/module/types";
-
-const PipelineCanvasConnectionSelectorEmpty: FC<{
-  message: string;
-  connectorKind: ConnectorKind;
-}> = ({ message, connectorKind }) => {
-  const openFlow = useFilamentFlowOpen();
-
-  const handleCreateConnection = () => {
-    openFlow(Flow.CREATE_CONNECTION, connectorKind);
-  };
-
-  return (
-    <Flex
-      fillWidth
-      height="100%"
-      minHeight={240}
-      alignItems={AlignItems.CENTER}
-      justifyContent={JustifyContent.CENTER}
-      padding={24}
-    >
-      <EmptyLayout
-        size={EmptyLayoutSize.SMALL}
-        header={message}
-        actions={
-          <Button
-            label={`Create ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]}`}
-            icon={PlusIcon}
-            onClick={handleCreateConnection}
-          />
-        }
-      />
-    </Flex>
-  );
-};
-
-const isConnectionDisabled = (connection: Connection, isSourceDisabled: boolean) =>
-  isSourceDisabled && connection.kind === ConnectorKind.SOURCE;
+import { isPipelineCanvasConnectionDisabled } from "@/pages/pipelines/canvas/utils";
 
 interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
@@ -108,8 +63,12 @@ const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorL
   }
 
   const orderedConnections = [
-    ...connections.filter((connection) => !isConnectionDisabled(connection, isSourceDisabled)),
-    ...connections.filter((connection) => isConnectionDisabled(connection, isSourceDisabled)),
+    ...connections.filter(
+      (connection) => !isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
+    ...connections.filter((connection) =>
+      isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
   ];
 
   return (
@@ -120,7 +79,7 @@ const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorL
             <PipelineCanvasConnectionSelectorItem
               key={connection.id}
               connection={connection}
-              isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
+              isDisabled={isPipelineCanvasConnectionDisabled(connection, isSourceDisabled)}
               onClick={() => onConnectionClick(connection)}
             />
           ))}

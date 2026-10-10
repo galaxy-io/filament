@@ -2,7 +2,12 @@ import type { FC } from "react";
 
 import { styled } from "@linaria/react";
 import { BugIcon } from "@phosphor-icons/react";
-import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  type ErrorComponentProps,
+  Outlet,
+  useRouter,
+} from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
@@ -28,7 +33,7 @@ const RootComponentWrapper = styled.div`
   }
 `;
 
-const RootErrorComponent: FC<{ error: Error }> = ({ error }) => {
+const RootErrorComponent: FC<ErrorComponentProps> = ({ error }) => {
   const router = useRouter();
 
   return (

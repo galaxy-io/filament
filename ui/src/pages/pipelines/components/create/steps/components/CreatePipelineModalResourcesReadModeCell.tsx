@@ -14,9 +14,13 @@ import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
-const CreatePipelineModalResourcesReadModeCell: FC<{
+interface CreatePipelineModalResourcesReadModeCellProps {
   row: CreatePipelineModalResourceRow;
-}> = ({ row }) => {
+}
+
+const CreatePipelineModalResourcesReadModeCell: FC<
+  CreatePipelineModalResourcesReadModeCellProps
+> = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const { setResourceReadMode } = useCreatePipelineModalActions();
   const options = getReadModeSelectOptions(row.readModeOptions);

@@ -82,7 +82,7 @@ Naming inside the file.
 | Export | Purpose |
 |---|---|
 | `createXInput(…)` | Builds the request from an id or URL state so every caller hits the same cache entry. `createGetPipelineInput(id)`, `createGetConnectionInput(id)`, `createListPipelinesInput(search)`, `createListConnectionsInput(kind, search)`. |
-| `createXQueryKey(input?, transport?)` | Only when something invalidates it. Called with no input it matches the whole family. |
+| `createXQueryKey(input?, transport?)` | Only when something invalidates it, and exported only when another file does. Called with no input it matches the whole family. |
 | `createXQueryOptions` | Only for `useQueries` or the host's `beforeLoad` probes (`createGetAuthConfigQueryOptions`, `createGetSessionQueryOptions`). |
 | `useXQuery({ input, options })` | Plain query. Resource defaults go before `...options`. |
 | `useSuspenseXQuery({ input })` | For pages. Takes no `enabled`. |

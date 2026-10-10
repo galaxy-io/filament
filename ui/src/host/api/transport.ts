@@ -35,7 +35,7 @@ const createLoggingInterceptor = (): Interceptor => {
 
 const DEFAULT_INTERCEPTORS = IS_DEBUG ? [createLoggingInterceptor()] : [];
 
-export const createTransport = ({
+const createTransport = ({
   baseUrl = API_URL,
   interceptors = DEFAULT_INTERCEPTORS,
   useBinaryFormat = IS_PRODUCTION,

@@ -2,6 +2,7 @@ import type { FC } from "react";
 
 import { styled } from "@linaria/react";
 
+import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -15,19 +16,18 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
 const EndpointButton = styled.button`
+  ${INTERACTIVE_RESET}
+  ${FOCUS_RING}
   min-width: 0;
-  padding: 0;
 
   display: flex;
   align-items: center;
   gap: ${t.space[8]};
 
-  background-color: transparent;
-  border: none;
   text-align: left;
 
-  &:not(:disabled) {
-    cursor: pointer;
+  &:disabled {
+    cursor: default;
   }
 `;
 

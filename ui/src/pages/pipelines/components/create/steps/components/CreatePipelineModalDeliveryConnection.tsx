@@ -24,9 +24,8 @@ import {
   CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT,
 } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
-import PipelineNodeConfigFields, {
-  usePipelineNodeConfig,
-} from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import { usePipelineNodeConfig } from "@/pages/pipelines/components/node/hooks/usePipelineNodeConfig";
+import PipelineNodeConfigFields from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 import { getWriteModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 import { formatIdentifier } from "@/utils/naming";

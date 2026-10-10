@@ -2,18 +2,15 @@ import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import type { LinkProps } from "@tanstack/react-router";
 
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
-import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import IconTile from "@/components/IconTile";
-import RouterLink from "@/components/RouterLink";
 
 import AuthLayout from "@/host/layouts/auth/AuthLayout";
 
@@ -105,24 +102,5 @@ const AuthForm: FC<PropsWithChildren<AuthFormProps>> = ({
     </AuthLayout>
   );
 };
-
-interface AuthFormFooterProps {
-  prompt: string;
-  to: LinkProps["to"];
-  label: string;
-}
-
-export const AuthFormFooter: FC<AuthFormFooterProps> = ({ prompt, to, label }) => (
-  <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth>
-    <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-      {prompt}
-    </Text>
-    <Text size={TextSize.BODY_SM}>
-      <Link href={to} as={RouterLink} underline={LinkUnderline.HOVER}>
-        {label}
-      </Link>
-    </Text>
-  </Flex>
-);
 
 export default AuthForm;

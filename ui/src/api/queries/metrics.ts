@@ -23,10 +23,7 @@ import { createListRunsQueryKey } from "@/api/queries/runs";
 
 const METRICS_REFETCH_INTERVAL = 30 * 1000;
 
-export const createQueryTimeseriesQueryKey = (
-  input?: QueryTimeseriesRequest,
-  transport?: Transport,
-) => {
+const createQueryTimeseriesQueryKey = (input?: QueryTimeseriesRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: MetricsService.method.queryTimeseries,
     input,
@@ -51,10 +48,7 @@ export const useQueryTimeseriesQuery = ({
   });
 };
 
-export const createQueryAggregateQueryKey = (
-  input?: QueryAggregateRequest,
-  transport?: Transport,
-) => {
+const createQueryAggregateQueryKey = (input?: QueryAggregateRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: MetricsService.method.queryAggregate,
     input,

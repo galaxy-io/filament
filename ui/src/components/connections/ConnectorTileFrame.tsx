@@ -29,7 +29,7 @@ const ConnectorTileFrame = styled.div<{
 
   cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "inherit")};
 
-  transition: opacity 100ms ease;
+  transition: opacity ${t.duration.fast};
 
   &:hover {
     opacity: ${({ $isClickable }) => ($isClickable ? 0.8 : 1)};

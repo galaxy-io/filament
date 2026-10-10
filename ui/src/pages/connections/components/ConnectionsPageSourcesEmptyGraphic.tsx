@@ -11,7 +11,8 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { useConnectorFamilies } from "@/components/connections/hooks/useConnectorFamilies";
-import EmptyGraphic, { EmptyGraphicGhostTile } from "@/components/EmptyGraphic";
+import EmptyGraphic from "@/components/EmptyGraphic";
+import EmptyGraphicGhostTile from "@/components/EmptyGraphicGhostTile";
 
 const SLOT_COLUMN_COUNT = 9;
 const SLOT_COUNT = 27;

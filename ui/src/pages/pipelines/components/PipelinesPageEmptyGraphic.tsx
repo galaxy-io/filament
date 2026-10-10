@@ -14,10 +14,9 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { useConnectorFamilies } from "@/components/connections/hooks/useConnectorFamilies";
-import EmptyGraphic, {
-  EmptyGraphicGhostBar,
-  EmptyGraphicGhostTileFallback,
-} from "@/components/EmptyGraphic";
+import EmptyGraphic from "@/components/EmptyGraphic";
+import EmptyGraphicGhostBar from "@/components/EmptyGraphicGhostBar";
+import EmptyGraphicGhostTileFallback from "@/components/EmptyGraphicGhostTileFallback";
 
 const PIPELINES_PAGE_EMPTY_GRAPHIC_ROW_HEIGHT = 44;
 
@@ -72,12 +71,6 @@ const GhostFlowWrapper = styled.div`
   opacity: 0.35;
 `;
 
-const GhostSinkCluster = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${t.space[4]};
-`;
-
 interface PipelinesPageEmptyGraphicProps {
   actions?: ReactNode;
 }
@@ -114,7 +107,7 @@ const PipelinesPageEmptyGraphic: FC<PipelinesPageEmptyGraphicProps> = ({ actions
                     variant={IconVariant.PRIMARY}
                     weight={IconWeight.REGULAR}
                   />
-                  <GhostSinkCluster>
+                  <Flex alignItems={AlignItems.CENTER} gap={4}>
                     {PIPELINES_EMPTY_SINK_SLOTS.slice(0, row.sinkCount).map((slot) => {
                       const sinkSpec =
                         sinkSpecs[PIPELINES_EMPTY_SINK_START_INDEXES[rowIndex] + slot];
@@ -125,7 +118,7 @@ const PipelinesPageEmptyGraphic: FC<PipelinesPageEmptyGraphicProps> = ({ actions
                         <EmptyGraphicGhostTileFallback key={slot} />
                       );
                     })}
-                  </GhostSinkCluster>
+                  </Flex>
                 </GhostFlowWrapper>
                 <EmptyGraphicGhostBar $width={row.nameWidth} />
                 <FlexItem grow={1} />
