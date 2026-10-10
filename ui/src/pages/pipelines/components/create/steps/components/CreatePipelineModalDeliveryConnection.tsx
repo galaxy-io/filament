@@ -3,6 +3,7 @@ import { type FC, useState } from "react";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -90,6 +91,7 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
           kind={kind}
           size={ConnectorTileSize.SMALL}
         />
+        <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />
         <FlexItem grow={1} minWidth={0}>
           <Text weight={TextWeight.MEDIUM} lineClamp={1}>
             {connection.name}
@@ -106,7 +108,6 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
             />
           </Box>
         )}
-        <ConnectionKindChip kind={kind} />
         <Box width={CREATE_PIPELINE_MODAL_CONNECTION_TOGGLE_WIDTH}>
           {hasOptions && (
             <Button
