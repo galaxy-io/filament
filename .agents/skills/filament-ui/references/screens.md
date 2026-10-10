@@ -1,210 +1,139 @@
 # Screens
 
-The shells Filament already has, and how a new screen fits into one. Reuse these before building a frame. Every screen is one of a handful of shapes.
+The shells Filament has and the rules a screen inside one follows. Reuse a shell before building a frame. Every screen is one of these shapes.
 
 | You are building | Shell | Reference screen |
 |---|---|---|
-| A top-level list (one row or card per entity, search, a primary "New X") | `MainLayout` → `MainLayoutListPage` | `pages/pipelines/PipelinesPage.tsx`, `pages/connectors/ConnectionsPage.tsx` |
-| A dashboard | `MainLayout` with a `BaseToolbar` and a scrolling column of `Widget`s | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
-| A detail area with its own sub-navigation | `PipelineLayout` (icon sidebar, navbar, content island) | `pages/pipelines/PipelinePage.tsx` and its canvas / history / settings children |
-| A settings surface for one entity | `BaseHeader` + `Divider` + a scrolling column of `Widget` sections, each with its own Save | `pages/pipelines/PipelineSettingsPage.tsx` |
-| Details of an item while the list stays visible | DLS `Drawer` opened by a search param | `pages/connectors/components/drawer/ConnectionDrawer.tsx` |
-| A task the user must finish or abandon | DLS `Modal` opened by a `Flow` param, a `ConnectionFormWrapper`-style shell | `pages/connectors/components/edit/EditConnectionModal.tsx`, `CreatePipelineModal.tsx` |
-| A yes/no before an action | `useConfirm` + DLS `ConfirmDialog` (rows, drawers and the page-level danger zone) | `ConnectionDrawer.tsx`, `pages/pipelines/settings/PipelineSettingsPageDanger.tsx` |
-| App-wide settings | the `SettingsPage` modal with a `SidebarNav` of panels | `pages/settings/SettingsPage.tsx` |
+| A top-level list (one row or card per entity, search, a primary "New X") | `PageLayout` with `header`, `actions` and a `ListSearch` `toolbar` | `pages/pipelines/PipelinesPage.tsx`, `pages/connections/ConnectionsPage.tsx` |
+| A dashboard | `PageLayout` with `actions`, a `ScrollArea` of `Widget`s | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
+| An entity with sub-pages | `PageLayout` with a node `header`, `actions`, `banner` and `tabs`, children in the `Outlet` | `pages/pipelines/PipelinePage.tsx` and its canvas, history and settings children |
+| A settings surface for one entity | a `ScrollArea` of collapsible `Widget` sections, each with its own Save | `pages/pipelines/PipelineSettingsPage.tsx` |
+| Details of an item while the list stays visible | DLS `Drawer` opened by a search param | `pages/connections/components/drawer/ConnectionDrawer.tsx` |
+| A task the user must finish or abandon | DLS `Modal` opened by a `Flow` param | `pages/connections/components/edit/EditConnectionModal.tsx`, `pages/pipelines/components/create/CreatePipelineModal.tsx` |
+| A yes/no before an action | `useConfirm` + DLS `ConfirmDialog` | `ConnectionDrawer.tsx`, `pages/pipelines/settings/PipelineSettingsPageDanger.tsx` |
+| Anything not found | a red `ErrorLayout` with RouterLink buttons | `pages/NotFoundPage.tsx`, `pages/pipelines/PipelineNotFoundPage.tsx` |
 
 ## The frame
 
-`MainLayout` is a 48px navbar over a body with a 12px gutter, and inside the gutter the **island**, `background.primary` with a hairline border and `t.radius.lg`, `overflow: hidden`. Pages render inside the island and own their scrolling.
+`FilamentLayout` renders `MainLayout`, which is DLS `AppFrame`. The frame is flat, with no island, gutter, border or radius. `AppFrame` draws a fixed 240px sidebar column, a vertical divider and the content column.
 
-The navbar (`MainLayoutNavbar`) is three rails. The Filament wordmark and a Docs link on the left, DLS `Tabs` with `as={RouterLink}` for Observability / Pipelines / Sources / Sinks in the middle, and the account `Popover` (plus GitHub and theme controls when auth is off) on the right. A new top-level destination is one entry in `MAIN_NAVBAR_ITEMS` plus a route under `_main`.
+`MainLayoutSidebar` is a DLS `SidebarNav` with `hasDividers={false}`, `ariaLabel` "Filament", one item per `FilamentNavItem` (`module/nav.ts` maps each to a label, icon, path and keywords), and a footer with the host's `sidebarFooter` above DLS `PoweredBy`. A new top-level destination is one `FilamentNavItem` member with an entry in each map, a `FilamentPath`, a `*RouteOptions` and its route files.
 
-`PipelineLayout` is the detail frame. A 48px left column with a back button and an icon-only sidebar (Canvas / History / Settings, driven by `PipelineSidebarItem` and its `_TO_ICON_MAP` / `_TO_LABEL_MAP`), a navbar with the pipeline's name, version select and run controls, and the island on the right. When a past version is previewed the island's border turns `border.error` and a red "Version N" chip floats in its corner.
+Every page renders DLS `PageLayout`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
 
 ## List page
 
 ```tsx
-const PipelinesPage = () => {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_app/_main/pipelines" });
-
-  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useSuspenseListPipelinesInfiniteQuery({ input: createListPipelinesInput(search) });
-  const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
-
-  const handleNewPipeline = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
-    });
-  };
-
-  const renderContent = () => {
-    if (!pipelines.length && !search.q) {
-      return <PipelinesPageEmptyGraphic actions={…} />;
-    }
-    return <PipelinesTable pipelines={pipelines} … />;
-  };
-
-  return (
-    <MainLayoutListPage
-      actions={[<Button key="new-pipeline" label="New pipeline" icon={PlusIcon} variant={ButtonVariant.PRIMARY} onClick={handleNewPipeline} />]}
-      noPadding
-    >
-      {renderContent()}
-    </MainLayoutListPage>
-  );
-};
+return (
+  <PageLayout
+    header="Pipelines"
+    actions={<Button label={PIPELINE_CREATE_TITLE} icon={PlusIcon} variant={ButtonVariant.PRIMARY} onClick={handleNewPipeline} />}
+    toolbar={<ListSearch placeholder="Search pipelines" />}
+  >
+    {renderContent()}
+  </PageLayout>
+);
 ```
 
-- **`MainLayoutListPage` owns the search box.** It reads `q`, debounces 300ms and writes it back with `replace: true`. The page passes `actions` (an array of keyed nodes, the one `PRIMARY` button last) and children. `noPadding` for a full-bleed table, default 12px padding for a card grid.
-- **Two empty states.** Nothing at all and no search → the feature's `*PageEmptyGraphic` (ghost tiles built from `components/EmptyGraphic`) with a `LARGE` primary button and a `DocsLink`. Nothing matching a search → `EmptyLayout` with a `MagnifyingGlassIcon` and "No pipelines match your search", passed to the table's `emptyState` or rendered in place of the grid.
-- **Table or grid.** Entities with many scannable columns are an `InfiniteTable` (pipelines, runs, members). Entities that are mostly a tile and a name are a `Grid` of cards (`columns={`repeat(auto-fill, minmax(${MIN}px, 1fr))`}`) followed by `InfiniteScrollSentinel`.
-- **Row click opens the entity.** `onRowClick` navigates to the detail route, or writes the entity's id into the drawer param. Row actions live in `rowActions` as `MenuItem`s inside a presentational `*TableRowActions` component that takes `onX(row)` callbacks. The table owns the mutations.
-- **Sorting is URL state.** `sort` / `onSortChange` map between column ids and the proto `SortBy` in the table's `utils.ts`, and the default sort is written as `undefined`.
+- **`ListSearch` owns the search box.** It reads `q`, debounces `LIST_SEARCH_DEBOUNCE_MS` and writes it back with `replace: true`. The server filters by `q`, and the route's `remountDeps` re-suspends the list.
+- **Two empty states.** Nothing at all and no search shows the feature's first-run graphic with a `LARGE` primary button and a `DocsLink`. Nothing matching a search shows `EmptyLayout icon={MagnifyingGlassIcon}` with "No pipelines match your search".
+- **Table or grid.** Entities with many scannable columns are an `InfiniteTable`. Entities that are mostly a tile and a name are a `Grid` of cards (`columns={`repeat(auto-fill, minmax(${MIN}px, 1fr))`}`) in a `ScrollArea`, paged by DLS `useEndReached`.
+- **Row click opens the entity.** It navigates to the detail page or writes the entity's id into the drawer param. Row actions are `MenuItem`s in a presentational `*TableRowActions` that takes `onX(row)` callbacks. The table owns the mutations.
+- **Sorting is URL state.** `createTableSorting` and `createTableSortSearch` (`utils/sort.ts`) map column ids to the proto `SortBy` through the table's `*_SORT_BY_TO_COLUMN_ID_MAP`. The default sort is written as `undefined`.
 
-### Table conventions
+### Table rules
 
-- Columns are a module-level `TableColumn<Row>[]` const named `X_TABLE_COLUMNS` when static, or a `createXColumns(deps)` factory in `useMemo` when they depend on data. Widths are constants in the folder's `constants.ts` (`PIPELINES_TABLE_COLUMN_WIDTH_STATUS = 140`).
-- Cells are `Text size={TextSize.BODY_SM} lineClamp={1}`. Numbers, ids and durations add `family={FontFamily.MONO}` and the column is `align: "right"`. A missing value is an em dash `—`. Muted states are `TextVariant.TERTIARY` ("Never run").
-- A cell with its own logic is its own component in `columns/` (`PipelinesTableColumnRecentRuns`) or `*Cell.tsx`.
-- `getRowId`, `ariaLabel`, `isRowHeader` on the naming column. `canSort` only where the server sorts.
-- The table sits in a wrapper with `flex: 1; min-height: 0` and a `Box height="100%" fillWidth`, so it scrolls inside the island. `isLoading={isFetchingNextPage}` and `onEndReached` page in.
-- `canCustomizeColumns` + `columnLayout` persisted through `useLocalStorage` (key `filament:<table>:column-layout`) and debounced.
-- Expanded rows are URL state (`?runId=`) through `expandedIds` / `onExpandedIdsChange`, and the expanded component fetches its own entity with a plain query.
+- Columns are a module-level `TableColumn<Row>[]` when static, or a `createXColumns(deps)` factory in `useMemo` when they depend on data. Widths are constants in the folder's `constants.ts`.
+- Cells are `Text size={TextSize.BODY_SM} lineClamp={1}`. Numbers, ids and durations add `family={FontFamily.MONO}` and the column aligns right. A missing value is DLS `EMPTY_VALUE`.
+- A cell with its own logic is its own component in `columns/`.
+- Pass `getRowId`, `ariaLabel`, and `isRowHeader` on the naming column. `canSort` only where the server sorts.
+- A bounded table sits in `Flex direction={COLUMN} grow={1} basis={0} minHeight={0}` and never scrolls the page. `isLoading={isFetchingNextPage}` and `onEndReached` page in.
+- Expanded rows are URL state (`?runId=`), and the expanded component fetches its own entity.
+- A nested table with no header row uses `hasHeader={false}`, which keeps the header for screen readers.
 
-## Detail and settings pages
+## Entity page with tabs
 
-A page inside `PipelineLayout` is a column. `PageWrapper` (full size, `overflow: hidden`, `background.base`), a `Box padding={16}` holding `BaseHeader size={BaseHeaderSize.LARGE} title="Settings"`, a `Divider`, then a `ScrollWrapper` (`flex: 1; min-height: 0; overflow-y: auto`).
+`PipelinePage` reads `usePipelineParams`, suspends on `GetPipeline`, throws `notFound()` when the pipeline is missing, and renders `PageLayout` inside the canvas provider. Its header pieces live in `pages/pipelines/components/header/`.
+
+- The heading starts with an icon-only `TERTIARY` back button, `ArrowLeftIcon`, `ariaLabel` and `tooltip` "All pipelines", `href={createFilamentHref(FilamentPath.PIPELINES)}`, `as={RouterLink}`.
+- `tabs` are DLS `Tabs` whose items link to `FilamentPath` children.
+- `banner` is one `Alert` at a time. A previewed version shows the preview banner, otherwise a scheduled pipeline shows `Alert color="yellow"` with the next run.
+- The children render in the `Outlet` and fill `main`.
+
+## Settings sections
 
 ```tsx
-<ScrollWrapper>
+<ScrollArea>
   <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} padding={16} minWidth={400} maxWidth={640}>
     <PipelineSettingsPageGeneral />
     <PipelineSettingsPageSchedule />
-    <PipelineSettingsPageNotifications pipeline={data.pipeline} />
+    <PipelineSettingsPageNotifications />
     <PipelineSettingsPageAdvanced />
     <PipelineSettingsPageDanger />
   </Flex>
-</ScrollWrapper>
+</ScrollArea>
 ```
 
-- **The page composes flat section components.** No intermediate `*Form`. Each section fetches the entity itself and returns `null` when it does not apply (the schedule section for a continuous pipeline).
-- **A section is a collapsible `Widget`** (`isCollapsible header="General" defaultIsOpen`). Related fields share one widget, a standalone toggle gets its own. `gap={12}` between widgets.
-- **Every section has local state applied by one Save.** Toggles included. No immediate-action RPCs on a settings page. The Save / Cancel row is right-aligned, Cancel `SECONDARY` disabled unless dirty, Save `PRIMARY` with `isDisabled={!canSave}` and `isLoading={isSaving}`. Dirty and valid are derived at render. See [forms.md](./forms.md).
-- **No add-step friction.** Fields are always visible. No "Add X" empty state for cheap config and no remove button for config that is trivially re-created.
-- **Danger zone** is a plain `Widget` with a space-between row, a medium-weight title over a `BODY_SM` `SECONDARY` description, and a `ButtonVariant.ERROR` button with `TrashIcon` (not `Widget header actions` with no body: a header-only Widget still draws its divider above the bottom border). It confirms through `useConfirm` and DLS `ConfirmDialog` with `confirmValue` set to the entity's name, `isMatch={isPipelineNameMatch}` so a typed `->` matches the shown `→`, and a WARNING `Alert` as `children` for a caveat.
-- `BaseHeader` (`layouts/components/BaseHeader.tsx`) is the house title row for pages, panels and dropdowns. `title`, optional `icon`, `description`, `actions` and `onClose`. Sizes `SMALL` (dropdown panels), `MEDIUM`, `LARGE` (page headers). `BaseToolbar` is the matching row of `leadingActions` and `trailingActions`.
+- **The page composes flat sections.** Each section fetches the entity itself and returns `null` when it does not apply.
+- **A section is a collapsible `Widget`** (`isCollapsible header="General" defaultIsOpen`), `gap={12}` between widgets.
+- **Every section has local state applied by one Save.** Toggles included. No immediate-action RPCs on a settings page. Cancel is `SECONDARY` and disabled unless dirty, Save is `PRIMARY` with `isDisabled={!canSave}` and `isLoading`. See [forms.md](./forms.md).
+- **Fields are always visible.** No "Add X" step for cheap config.
+- **The danger zone** is a plain `Widget` with a space-between row, a title over a `BODY_SM` `SECONDARY` description, and an `ERROR` button with `TrashIcon`. It confirms through `useConfirm` and `ConfirmDialog` with `confirmValue` set to the entity's name and `isMatch={isPipelineNameMatch}` so a typed `->` matches the shown `→`.
 
 ## Drawer
 
-```tsx
-<Drawer
-  size={DrawerSize.MEDIUM}
-  isOpen={isOpen}
-  onOpenChange={(open) => { if (!open) onClose(); }}
-  header={connection ? <ConnectionDrawerHeader connection={connection} /> : "Connection"}
-  actions={connection && (
-    <Menu trigger={<Button icon={DotsThreeIcon} ariaLabel="Connection actions" variant={ButtonVariant.TERTIARY} size={ButtonSize.SMALL} />}>
-      <MenuItem label="Edit connection" icon={PencilIcon} onSelect={handleEdit} />
-      <MenuSeparator />
-      <MenuItem label="Delete connection" icon={TrashIcon} variant={MenuItemVariant.ERROR} onSelect={() => handleOpen(connection)} />
-    </Menu>
-  )}
->
-  {renderContent()}
-  <ConfirmDialog isOpen={isOpen && confirmIsOpen} … />
-</Drawer>
-```
-
-- Opened by `?connectionId=`, owned by `AppLayout`, id held with `useRetainedWhileClosed`. The drawer takes `connectionId`, `isOpen`, `onClose` as props and reads no search params. See [routing.md](./routing.md).
-- `renderContent()` checks `isError` (an `ErrorLayout` with a Close button), then `!entity` (`PendingLayout`), then the content.
+- Opened by `?connectionId=` and rendered by `FilamentLayout`. It takes `connectionId`, `isOpen` and `onClose` as props and reads no search params. See [routing.md](./routing.md).
+- `renderContent()` checks `isError` (an `ErrorLayout` with a Close button), then a missing entity (`PendingLayout`), then the content.
 - Actions on the thing the drawer shows go in `actions` as a ⋯ `Menu`, Delete last and red. A read-only drawer has no footer.
-- Body building blocks, reused by the canvas panel too. `ConnectionDrawerList` (a bordered list with hairline separators between `ConnectionDrawerKeyValueRow`s, label medium on the left and a node on the right; Mitch chose this look over DLS `DescriptionList isValueTrailing` on 2026-10-06, so keep it), `ConnectionDrawerSection` (a collapsible `Widget` with a count chip in `actions`, `isFlush` when it has items, `EmptyLayout size={LayoutSize.SMALL}` when it does not), `ConnectionDrawerJsonSection` (a section around `CodeBlock language=JSON canCopy`).
-- A related-entities list inside a drawer is a stack of compact `PipelineCard` rows (40px, hairline bottom border, hover background), not a table.
+- Body blocks, shared with the canvas panel. `KeyValueList` with `KeyValueListRow`s (label on the left, a node on the right, hairline separators), a collapsible section `Widget` with a count `Chip` in `actions` (the chip hides a zero count) and `EmptyLayout size={EmptyLayoutSize.SMALL}` when empty, and a JSON section around `CodeBlock`.
+- A related-entities list inside a drawer is a stack of compact `PipelineCard` rows, not a table.
 
 ## Modal
 
-- Opened by `?flow=`, rendered by `AppLayout`, mounted conditionally so its reducer resets per open. The modal takes `onClose` and maps `onOpenChange(false)` to it. `isOpen` is always true while mounted.
-- `ModalSize.MEDIUM` for a form or a dialog, `X_LARGE` for a chooser or a multi-step wizard, which lays out a sidebar and body inside a `FrameWrapper` (hairline border, `t.radius.lg`).
-- The same shell shows every state. Error → `ErrorLayout` with a Close button inside the modal body. Loading → `PendingLayout` inside the body. Loaded → the provider and the content component.
-- `header` is a string, or a header component with a `ConnectorTile` and a `BaseHeader size={BaseHeaderSize.LARGE}` for connector forms. Title copy is `${isEdit ? "Edit" : "New"} ${displayName} connection`.
-- The footer is end-aligned, Cancel or Back `SECONDARY` first and the one `PRIMARY` action last. A pending action reads as a gerund with an ellipsis, "Saving...", `isLoading isDisabled onClick={NOOP}`.
-- A wizard's sidebar is a DLS `Stepper` (vertical, `SMALL`) in a `Widget variant={WidgetVariant.SECONDARY}`, with completed steps summarised in `description` and the current step's description plus a `DocsLink` beneath. The footer shows a red "Invalid" `Chip` whose `tooltip` is a `BulletedList` of blocking hints while Next is disabled.
+- Opened by `?flow=` and rendered by `FilamentLayout`. It stays mounted, takes `isOpen`, `onClose` and its record as props, and keys its provider with `useOverlaySession(isOpen)` so each open starts fresh while the exit still animates.
+- `ModalSize.MEDIUM` for a form or a dialog, `X_LARGE` for a chooser or a multi-step wizard.
+- The same shell shows every state. Error is an `ErrorLayout` with a Close button inside the body, loading is `PendingLayout`, loaded is the provider and the content.
+- The footer is end-aligned, Back or Cancel `SECONDARY` first and the one `PRIMARY` action last. A pending action uses the button's `isLoading`.
+- A wizard's sidebar is a DLS `Stepper`. While Next is disabled the footer shows a red "Invalid" `Chip` whose `tooltip` lists the blocking hints.
 
 ## Confirmation
 
-```tsx
-const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Connection>({
-  entityLabel: "Connection",
-  entityName: (c) => c.name,
-  onConfirm: (c, { onSuccess, onError }) => deleteConnection({ id: c.id }, { onSuccess, onError }),
-  onConfirmed: (c) => navigate({ to: c.kind === ConnectorKind.SINK ? "/sinks" : "/sources" }),
-});
-
-<ConfirmDialog
-  isOpen={isOpen}
-  onOpenChange={(next) => { if (!next) handleClose(); }}
-  onConfirm={handleConfirm}
-  header="Delete connection?"
-  description="This deletes the connection. It cannot be undone."
-  confirmValue={target?.name}
-  label="Delete connection"
-  isDestructive
-/>
-```
-
-- `useConfirm` (`src/hooks/useConfirm.ts`) holds the target, runs the mutation, toasts success ("Connection deleted") and failure ("Delete failed"), closes, then calls `onConfirmed`. Override copy through `messages`.
-- Rows and drawer items use DLS `ConfirmDialog` with `isDestructive`, a question header, a consequence description, a verb label and `confirmValue` for type-to-confirm.
-- `ConfirmDialog` consumes the promise `useConfirm.handleConfirm` returns: it shows the spinner, locks dismissal and closes on resolve, so no `isPending` plumbing. A caveat is an `Alert` passed as `children`. Create forms and info dialogs ("Service account created" with credentials and a Done footer) are a plain `Modal` with `header`, `footer`, `isDismissable={!isPending}` and a secondary `Text` as the first body line.
-- `ConfirmDialog` is gated on the host's `isOpen` too (`isOpen && confirmIsOpen`) so it closes with its drawer.
+- `useConfirm` (`hooks/useConfirm.ts`) holds the target, runs the mutation, toasts success and failure, closes, then calls `onConfirmed`.
+- DLS `ConfirmDialog` with `isDestructive`, a question header ("Delete connection?"), a consequence description, a verb label and `confirmValue` for type-to-confirm. It consumes the promise `handleConfirm` returns, so there is no `isPending` plumbing. A caveat is an `Alert` passed as `children`.
+- Gate a dialog on its host's `isOpen` too (`isOpen && confirmIsOpen`) so it closes with its drawer.
+- Create forms and info dialogs are a plain `Modal`.
 
 ## State layouts
 
-Three components in `src/layouts/` share one `LayoutSize` scale (`SMALL` / `MEDIUM` / `LARGE`) through the `LAYOUT_SIZE_TO_*_MAP` constants. Never re-derive a per-layout size.
+The three DLS state layouts fill their region. Each has its own size enum (`EmptyLayoutSize`, `ErrorLayoutSize`, `PendingLayoutSize`) exported from its module.
 
-| | Props | Use |
-|---|---|---|
-| `PendingLayout` | `size`, `message` | Whole-view loading. The router's pending component, a drawer or modal body before its entity arrives, a form body before its schema arrives. The animated Galaxy logomark. |
-| `EmptyLayout` | `size`, `icon: PhosphorIcon` or `graphic: ReactNode`, `header`, `description`, `actions` | Nothing to show. A centred DLS `EmptyState`; `graphic` carries an illustration (`EmptyGraphic`) with no tile. `header` is required, so a message-only state promotes its line to `header`. |
-| `ErrorLayout` | `size`, `icon: PhosphorIcon`, `header`, `description`, `error`, `actions` | Something failed, including not found. DLS `EmptyState variant={ERROR}` (red tile and icon) with `error.message` in mono under it in dev. Always red. |
+| | Use |
+|---|---|
+| `PendingLayout` | Whole-view loading. The route pending component, a drawer or modal body before its entity arrives, a form body before its schema arrives. |
+| `EmptyLayout` | Nothing to show. `icon` for a plain state, `graphic` for a first-run illustration built from `components/EmptyGraphic`. |
+| `ErrorLayout` | Something failed, including not found. Always red. `detail={IS_DEBUG ? error.message : undefined}`. |
 
-- Whole-view loading is `PendingLayout`. Content-shaped loading is a DLS `Skeleton` sized to the value (`<Box width={160}><Skeleton /></Box>`), for table cells, repeated rows, KPI numbers and inline names. Do not hand-roll shimmer scaffolds for a drawer.
-- An error branch gets `ErrorLayout`, never an `EmptyLayout` with a red icon. When a component picks between the two from an `error` prop, split it into a tiny `*State` component that chooses.
-- Sections inside panels use `EmptyLayout size={LayoutSize.SMALL}` with a header and description. Table `emptyState`s use `EmptyLayout` with an icon and header, or the DLS `EmptyState header role="status"` directly for dense dashboard tables.
+- Content-shaped loading is a DLS `Skeleton` in a sized `Box`, for table cells, KPI numbers and inline names.
+- An error branch gets `ErrorLayout`, never an `EmptyLayout` with a red icon.
+- Panel sections use the `SMALL` size with a header and description.
 
 ## Status marks
 
-- **Every run status is a square.** `PipelineRunStatusSwatch` (`pages/pipelines/history/PipelineRunStatusSwatch.tsx`) draws a DLS `Square` straight from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]` (a DLS `RoleColor | null`; `null` leaves the default tertiary fill, otherwise it is the `color` prop). The same map feeds chart series `color`. `PipelineHistoryRunStatus` is that square plus a `BODY_SM` label and an info tooltip with the reason in mono. Charts showing run statuses pass `swatch={ChartSwatch.SQUARE}` so legends match.
-- **One map owns every status color.** `PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, Hue | null>` in `pages/pipelines/history/constants.ts`. `Hue` is a DLS status color or palette family, `null` is neutral. `hueToSquareMark` and `hueToChartPalette` in `src/utils/hue.ts` translate it, and `PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP` is derived with `mapRecordValues`. Add a status there and nowhere else.
-- **`Beacon` is not for run status.** It remains for non-run live state, the connection form's "Connected". The DLS pattern page's "Beacon for the live state of a row" is overridden here.
-- **`Chip` is for small meta badges**, a kind, a version, "Deleted", "Unsaved changes", "Next run in 5m". Status through `variant`, category through `color`. Pass `tooltip` on the Chip. Never wrap a Chip in `Tooltip`, which injects an `onClick` and turns the chip into a button.
-- Permission-gated actions are hidden or passed as `undefined`, not disabled.
+- **Every run status is a square.** `PipelineRunStatusSwatch` (`components/runs/`) draws a DLS `Square` from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]`, a `RoleColor | undefined` where `undefined` leaves the neutral fill. The same map feeds chart series colours, and run-status charts pass `swatch={ChartSwatch.SQUARE}` so legends match.
+- **One map owns each status colour.** Run status lives in `components/runs/constants.ts`, beside `PIPELINE_RUN_STATUS_TO_LABEL_MAP`. Add a status there and nowhere else.
+- **`Beacon` is the live state of one thing**, never a run status. The connection form's "Connected" is one.
+- **`Chip` is for small meta badges.** Status through `variant`, category through `color`. Pass `tooltip` on the Chip, never wrap it in `Tooltip`.
+- Permission-gated actions are hidden or passed as `undefined`, not disabled. A page the viewer cannot use renders an `ErrorLayout` ("Admins only").
 
 ## Formatting and copy
 
-`src/utils/format.ts` takes the proto's `bigint` millis and returns `—` for zero.
+DLS `utils/format` formats values and accepts `bigint` (`formatNumber`, `formatBytes`, `formatDuration`, `formatRelativeTime`, `formatDate`, `EMPTY_VALUE`). `utils/format.ts` keeps only Filament's rules, `formatTimestamp` (proto `0n` is `EMPTY_VALUE`) and `formatVersion`. Entity formatters live in the domain's `utils.ts` (`formatPipelineName`, `formatMemberName`). Counts with nouns go through `pluralize("sink", n, true)`.
 
-| Helper | Output |
-|---|---|
-| `formatCount(bigint)` | `48,210` |
-| `formatBytes(bigint)` | `1.2 GB` |
-| `formatTimeAgo(bigint)` | `just now`, `5m ago`, `3h ago`, `2d ago`, `Mar 4` |
-| `formatTimeUntil(bigint)` | `in 5m`, `soon` |
-| `formatTimestamp(bigint)` | `Mar 4, 3:04:05 PM` |
-| `formatDuration(start, end)` | `850ms`, `1.2s`, `3m 4s` |
-| `formatSeconds(number)` | same, from seconds |
-| `stripDeletedName(name)` | drops the `__deleted__<iso>` suffix |
-
-Entity formatters live in the feature's `utils.ts` (`formatPipelineName(pipeline, includeDeleted = false)`, `formatPipelineScheduleSummary`). Counts with nouns go through `pluralize("sink", n, true)`.
-
-Copy, as the app writes it.
-
-- Sentence case everywhere. Buttons are a verb or verb plus noun ("New pipeline", "Run now", "Delete connection", "Create invite"). Never "OK", "Submit", "Yes".
-- Pending labels are a gerund with three dots, "Saving...", "Testing...". Placeholders end with three dots too, "Select a column...", "Enter connection name...".
-- Toasts. Success header is noun plus past tense ("Pipeline saved", "Run started", "Role updated"), description names the entity and ends with a period. Error header is "<Verb> failed" ("Save failed", "Run failed"), description from `getErrorMessage` with a "Failed to …" or "Could not …" fallback.
-- Confirm dialogs ask a question with the entity ("Delete connection?") and describe the consequence ("This deletes the connection. It cannot be undone.").
-- Empty states. Header "No <things> yet" or "No <things>", message a full sentence that says what to do ("Create one to give CLI, CI, and automation access to your organization."). A filtered empty result says "No pipelines match your search".
-- Inline validation is short and imperative with no period ("Name is required", "Use an absolute http or https URL").
-- Missing values are an em dash `—`. Arrows in summaries are `→`.
-- Ids, emails, numbers, commands and log lines are mono. Error text in tooltips is mono and `isSelectable`.
+- Sentence case everywhere. Buttons are a verb or verb plus noun ("New pipeline", "Run now", "Delete connection"). Never "OK", "Submit", "Yes".
+- Placeholders end with three dots ("Enter connection name...").
+- Toasts. Success is noun plus past tense ("Pipeline saved"), with a description that names the entity. Error is "<Verb> failed" with `getErrorMessage(error, fallback)`.
+- Confirm dialogs ask a question with the entity and describe the consequence.
+- Empty states say "No <things> yet" or "No <things>" with a sentence that says what to do. A filtered empty result says "No <things> match your search".
+- Inline validation is short and imperative with no period ("Name is required").
+- Missing values are `EMPTY_VALUE`. Arrows in summaries are `→`.
+- Ids, emails, numbers, commands and log lines are mono. Error text in tooltips is mono and selectable.

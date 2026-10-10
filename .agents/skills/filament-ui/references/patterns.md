@@ -1,5 +1,3 @@
-<!-- Generated from docs/patterns.md by `pnpm skill:sync`. Edit that file, not this one. -->
-
 # Patterns
 
 How Galaxy product surfaces (Filament, the GX app, every Galaxy React app) are put together with the DLS. Grounded in the Storybook examples and Do / Don't stories; when a story and this page disagree, the story wins and this page gets fixed.
@@ -8,7 +6,7 @@ The short version: **quiet, dense, monochrome**. Layout and type carry the hiera
 
 ## Page structure
 
-An app frame is plain layout, not a frame component: a row with the nav column, a vertical hairline, and a column with a `Topbar` over the one scrolling region.
+There are two frames and they never mix. A Galaxy module inside the host is an `AppFrame` around a `SidebarNav` with no `header`, with a `PageLayout` for each page. A standalone app is plain layout: a row with the nav column, a vertical hairline, and a column with a `Topbar` over the one scrolling region.
 
 ```tsx
 import { useState } from "react";
@@ -26,7 +24,7 @@ import Topbar from "@galaxy-io/dls/navigation/Topbar";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 
-export function AppFrame() {
+export function StandaloneFrame() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   return (
     <Flex height="100vh">
@@ -77,10 +75,11 @@ export function AppFrame() {
 ```
 
 - `SidebarNav` holds top-level destinations only, active from the route. In-page views are `Tabs`.
+- **Module pages** use `PageLayout`. It draws the header band with the title and actions, then `banner`, `tabs` and `toolbar`, then a body that never scrolls, so the page wraps its scrolling content in a `ScrollArea`.
 - `Topbar` holds the page title or `Breadcrumbs` and app-wide controls (search, account) at `SMALL`. Record actions and view tabs belong in the page header, not the bar.
 - One scrolling region per page (the column under the `Topbar`), so the bar never scrolls away. Give it `minHeight={0}`.
 - **Navigation bars with tabs** (a product navbar with destinations in the middle): put `Tabs` straight into the 48px row, which stretches it, not in a column pinned to the bottom. The labels then center on the same line as the logo and buttons, and the indicator sits on the bar's bottom hairline; lay the bar's hairline over the row's bottom edge so it meets the tabs' own in one line.
-- **Page header:** an `h1` (`HEADING_MD`, medium), an optional secondary line, and the page's actions at the end of the same row (one `PRIMARY`, the rest `SECONDARY`). Then `Tabs` if the object has peer views.
+- **Page header** (drawn by `PageLayout` in a module): an `h1` (`HEADING_MD`, medium), an optional secondary line, and the page's actions at the end of the same row (one `PRIMARY`, the rest `SECONDARY`). Then `Tabs` if the object has peer views.
 - **Page padding** `24`; gaps between page sections `16` or `24`; inside a card `12` or `16`.
 - A detail view beside a list is a `Drawer` (modal or docked with `isModal={false}`) or `ResizablePanels`, not a new page, when the list stays relevant.
 
@@ -218,7 +217,7 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 - **Toasts** are transient, one per event, one short line, never the only record of an outcome. Use `toast.promise` for async work.
 - **Alerts** stay until the condition is resolved; `ERROR` alerts give a way out (a retry or a link). The way out is one `PRIMARY` `SMALL` button, any other action `TERTIARY`. Don't stack several alerts about one thing.
 - **Statuses** use the status variants only: success, warning, error. Neutral news is `PRIMARY`.
-- **Loading:** a `Skeleton` where the content's shape is known (the default for pages, cards and tables); a `Spinner` where it is not, or in a small space; a `ProgressBar` / `ProgressCircle` when the total is known; `isLoading` on the button that started it. Set `aria-busy` on the region.
+- **Loading:** a `Skeleton` where the content's shape is known (the default for pages, cards and tables); a `Spinner` where it is not, or in a small space; a `ProgressBar` / `ProgressCircle` when the total is known; `isLoading` on the button that started it. Set `aria-busy` on the region. A whole region waiting on its first load takes `PendingLayout`.
 - Don't block the whole page for a partial load; load regions independently.
 
 ## Empty states
@@ -227,12 +226,13 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 - Size by placement: `SMALL` in a cell, chart or menu; `MEDIUM` in a card; `LARGE` for a whole page.
 - One `PRIMARY` and at most one `SECONDARY` action (or a `Link` to docs).
 - A search or filter with no results: "No results for “orders”", a description that suggests changing the search, and a "Clear filters" action; `role="status"`.
-- A failure is not an empty state: show an `Alert` with a retry.
+- A whole region (a page body, a panel) that is empty, failed or loading takes `EmptyLayout`, `ErrorLayout` or `PendingLayout`, which fill it and centre the state.
+- A region that failed to load is an `ErrorLayout` with a retry, not an empty state. A problem with content that stays on screen is an `Alert`.
 - Charts and tables have `placeholder` / `emptyState`; use them instead of overlaying your own.
 
 ## Charts
 
-- **Pick by question:** trend over time → `LineChart`; volume or parts of a total over time → `AreaChart`; compare categories → `BarChart`; parts of one whole (two to six) → `PieChart`; two categorical dimensions → `Heatmap`; a trend beside a number → `Sparkline`; a KPI → `StatChart`.
+- **Pick by question:** trend over time → `LineChart`; volume or parts of a total over time → `AreaChart`; compare categories → `BarChart`; parts of one whole (two to six) → `PieChart`; two categorical dimensions → `Heatmap`; a trend beside a number → `Sparkline`; a KPI → `BigNumber`, or a `BigNumberGroup` for a lead KPI and its breakdown.
 - **Labels.** Give every chart an `ariaLabel` that states what it shows and the trend ("Signups, last 30 days, rising"). Name series in `series.label`; title axes with `axisLabels` when the unit is not obvious; format values with `valueFormatter` (`formatNumber`, `formatPercent`, `formatBytes`).
 - **Small sizes.** Charts thin their ticks and labels to fit; at card size, hide the legend (`hasLegend={false}`) when the card header names the single series. Below about 120 × 80px, use a `Sparkline`.
 - **Color.** Let series take the automatic palette order. Use a status slot (`ChartPalette.ERROR`) only when the series *is* a status (failures). Use one hue in a `Heatmap` whose meaning fits the value.
@@ -281,7 +281,6 @@ export function ConnectionForm({ onSave }: { onSave: (name: string, host: string
 - Use the component that has the right pattern instead of building one: `Tabs` (arrows), `Menu` (arrows, typeahead), `Tree`, `ToggleInput`, `RadioGroup`, `SelectInput`.
 - Shortcuts: show them with `hotKeys` (Button, Tooltip, MenuItem, CommandPalette items) and bind them with `shouldBindHotKey` or `useHotkey`. Use `mod` for ⌘ / Ctrl. Single-key shortcuts must not fire in text fields (`shouldIgnoreInputs`).
 - Context menus and hover popovers are shortcuts, never the only way to an action.
-- See [accessibility.md](https://github.com/galaxy-io/dls/blob/main/docs/accessibility.md) for the keyboard map of every pattern.
 
 ## Writing
 
