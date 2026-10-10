@@ -88,7 +88,6 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
     handleConfirm,
   } = useConfirm<Connection>({
     entityLabel: "Connection",
-    entityName: (c) => c.name,
     onConfirm: (c, { onSuccess, onError }) =>
       deleteConnection(create(DeleteConnectionRequestSchema, { id: c.id }), { onSuccess, onError }),
     onConfirmed: (c) => {

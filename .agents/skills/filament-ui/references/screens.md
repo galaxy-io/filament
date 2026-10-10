@@ -133,7 +133,7 @@ DLS `utils/format` formats values and accepts `bigint` (`formatNumber`, `formatB
 
 - Sentence case everywhere. Buttons are a verb or verb plus noun ("New pipeline", "Run now", "Delete connection"). Never "OK", "Submit", "Yes".
 - Placeholders end with three dots ("Enter connection name...").
-- Toasts. Success is noun plus past tense ("Pipeline saved"), with a description that names the entity. Error is "<Verb> failed" with `getErrorMessage(error, fallback)`.
+- Toasts. Success is one line, noun plus past tense ("Pipeline saved"). Error is "<Verb> failed" with `getErrorMessage(error, fallback)` as the description. Don't toast what the screen already shows.
 - Confirm dialogs ask a question with the entity and describe the consequence.
 - Empty states say "No <things> yet" or "No <things>" with a sentence that says what to do. A filtered empty result says "No <things> match your search".
 - Inline validation is short and imperative with no period ("Name is required").

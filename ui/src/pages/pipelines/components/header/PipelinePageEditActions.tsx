@@ -11,8 +11,6 @@ import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { formatPipelineName } from "@/components/pipelines/utils";
-
 import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
 import {
   mapCanvasStateToVersionRequest,
@@ -93,7 +91,6 @@ const PipelinePageEditActions: FC = () => {
         onSuccess: () => {
           toast({
             header: "Pipeline saved",
-            description: `${formatPipelineName(pipeline)} has been saved successfully.`,
             variant: ToastVariant.SUCCESS,
           });
         },

@@ -37,11 +37,6 @@ import { useConfirm } from "@/hooks/useConfirm";
 
 import { getErrorMessage } from "@/utils/errors";
 
-interface PipelineSettingsPageNotifierToast {
-  header: string;
-  subheader: string;
-}
-
 const mapNotifierToRow = (notifier: Notifier): PipelineNotifier => ({
   ...mapNotifierToPipelineNotifierState(notifier),
   id: notifier.id,
@@ -62,7 +57,6 @@ const PipelineSettingsPageNotifications: FC = () => {
 
   const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<PipelineNotifier>({
     entityLabel: "Notifier",
-    entityName: (row) => row.name,
     onConfirm: (row, { onSuccess, onError }) =>
       deleteNotifier(
         create(DeletePipelineNotifierRequestSchema, { pipelineId, notifierId: row.id }),
@@ -80,7 +74,6 @@ const PipelineSettingsPageNotifications: FC = () => {
         onSuccess: () => {
           showToast({
             header: "Notifier created",
-            description: `${state.name} will now send notifications.`,
             variant: ToastVariant.SUCCESS,
           });
           onSuccess();
@@ -99,7 +92,7 @@ const PipelineSettingsPageNotifications: FC = () => {
   const updateRow = (
     row: PipelineNotifier,
     state: PipelineNotifierState,
-    toast: PipelineSettingsPageNotifierToast,
+    successHeader: string,
     onSuccess?: () => void,
   ) => {
     updateNotifier(
@@ -110,7 +103,7 @@ const PipelineSettingsPageNotifications: FC = () => {
       }),
       {
         onSuccess: () => {
-          showToast({ ...toast, variant: ToastVariant.SUCCESS });
+          showToast({ header: successHeader, variant: ToastVariant.SUCCESS });
           onSuccess?.();
         },
         onError: (error) => {
@@ -129,25 +122,11 @@ const PipelineSettingsPageNotifications: FC = () => {
     state: PipelineNotifierState,
     onSuccess: () => void,
   ) => {
-    updateRow(
-      row,
-      state,
-      { header: "Notifier saved", subheader: `${state.name} has been saved.` },
-      onSuccess,
-    );
+    updateRow(row, state, "Notifier saved", onSuccess);
   };
 
   const handleToggleEnabled = (row: PipelineNotifier, isEnabled: boolean) => {
-    updateRow(
-      row,
-      { ...row, isEnabled },
-      isEnabled
-        ? { header: "Notifier enabled", subheader: `${row.name} will now send notifications.` }
-        : {
-            header: "Notifier disabled",
-            subheader: `${row.name} will no longer send notifications.`,
-          },
-    );
+    updateRow(row, { ...row, isEnabled }, isEnabled ? "Notifier enabled" : "Notifier disabled");
   };
 
   return (

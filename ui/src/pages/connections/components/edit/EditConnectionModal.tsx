@@ -82,7 +82,6 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
           toast({
             variant: ToastVariant.SUCCESS,
             header: "Connection updated",
-            description: `${name} has been updated successfully.`,
           });
           onClose();
         },

@@ -122,11 +122,8 @@ const TeamPage: FC = () => {
   const isMutatingMembers = isSettingRole || isRemovingMember;
   const memberConfirm = useConfirm<Member>({
     entityLabel: "Team member",
-    entityName: formatMemberName,
     messages: {
       successHeader: "Team member removed",
-      successSubheader: (member) =>
-        `${formatMemberName(member)} no longer has access to this organization.`,
       errorHeader: "Remove failed",
       errorFallback: "Could not remove team member",
     },
@@ -163,7 +160,6 @@ const TeamPage: FC = () => {
         onSuccess: () => {
           toast({
             header: "Role updated",
-            description: `${formatMemberName(member)}'s role is now ${SETTINGS_ROLE_TO_LABEL_MAP[nextRole]}.`,
             variant: ToastVariant.SUCCESS,
           });
         },

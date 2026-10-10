@@ -21,7 +21,6 @@ import {
 
 import PipelineName from "@/components/pipelines/PipelineName";
 import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
-import { formatPipelineName } from "@/components/pipelines/utils";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
 import PipelinesTableColumnFlow from "@/pages/pipelines/components/table/columns/PipelinesTableColumnFlow";
@@ -61,6 +60,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     header: "Pipeline",
     minWidth: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
     accessor: (pipeline) => pipeline.name,
+    isRowHeader: true,
     canSort: true,
     canHide: false,
     cell: ({ row }) => (
@@ -152,7 +152,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   const { toast } = useToast();
 
   const { startRun } = usePipelineRun();
-  const { mutate: updateSchedule } = useUpdatePipelineScheduleMutation();
+  const { mutateAsync: updateSchedule } = useUpdatePipelineScheduleMutation();
 
   const [columnLayout, setColumnLayout] = useLocalStorage<TableColumnLayout>(
     PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
@@ -174,28 +174,24 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
     const config = pipeline.schedule?.config;
     if (!config) return;
     const isEnabled = !config.isEnabled;
-    updateSchedule(
-      create(UpdatePipelineScheduleRequestSchema, {
-        pipelineId: pipeline.id,
-        schedule: { ...config, isEnabled },
-      }),
+    toast.promise(
+      updateSchedule(
+        create(UpdatePipelineScheduleRequestSchema, {
+          pipelineId: pipeline.id,
+          schedule: { ...config, isEnabled },
+        }),
+      ),
       {
-        onSuccess: () => {
-          toast({
-            header: isEnabled ? "Schedule resumed" : "Schedule paused",
-            description: isEnabled
-              ? `${formatPipelineName(pipeline)} will run on its schedule.`
-              : `${formatPipelineName(pipeline)} will only run on demand.`,
-            variant: ToastVariant.SUCCESS,
-          });
+        loading: isEnabled ? "Resuming schedule..." : "Pausing schedule...",
+        success: {
+          header: isEnabled ? "Schedule resumed" : "Schedule paused",
+          variant: ToastVariant.SUCCESS,
         },
-        onError: (error) => {
-          toast({
-            header: "Schedule update failed",
-            description: getErrorMessage(error, "Failed to update schedule"),
-            variant: ToastVariant.ERROR,
-          });
-        },
+        error: (error) => ({
+          header: "Schedule update failed",
+          description: getErrorMessage(error, "Failed to update schedule"),
+          variant: ToastVariant.ERROR,
+        }),
       },
     );
   };

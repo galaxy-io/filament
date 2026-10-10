@@ -86,7 +86,6 @@ const PipelineSettingsPageGeneral: FC = () => {
       onSuccess: () => {
         toast({
           header: "Pipeline saved",
-          description: "Your pipeline has been saved successfully.",
           variant: ToastVariant.SUCCESS,
         });
       },

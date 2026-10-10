@@ -90,7 +90,6 @@ const CreatePipelineModalFooter: FC = () => {
             toast({
               variant: ToastVariant.SUCCESS,
               header: "Pipeline created",
-              description: "Your pipeline has been created successfully.",
             });
             void handleFinish(pipelineId, state.notifiers);
           },

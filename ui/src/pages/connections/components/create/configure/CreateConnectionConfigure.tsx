@@ -63,7 +63,6 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
           toast({
             variant: ToastVariant.SUCCESS,
             header: "Connection created",
-            description: `${name} has been created successfully.`,
           });
 
           if (response.connection?.id) {

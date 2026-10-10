@@ -43,7 +43,6 @@ const PipelineSettingsPageDanger: FC = () => {
 
   const { handleOpen, isOpen, target, handleClose, handleConfirm } = useConfirm<Pipeline>({
     entityLabel: "Pipeline",
-    entityName: formatPipelineName,
     onConfirm: (_, { onSuccess, onError }) =>
       deletePipeline(create(DeletePipelineRequestSchema, { id }), {
         onSuccess,

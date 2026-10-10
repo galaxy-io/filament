@@ -208,11 +208,7 @@ const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutatio
 const handleSave = () => {
   updatePipeline(request, {
     onSuccess: () => {
-      toast({
-        header: "Pipeline saved",
-        description: "Your pipeline has been saved successfully.",
-        variant: ToastVariant.SUCCESS,
-      });
+      toast({ header: "Pipeline saved", variant: ToastVariant.SUCCESS });
     },
     onError: (error) => {
       toast({
@@ -227,8 +223,10 @@ const handleSave = () => {
 
 - Destructure and rename, `const { mutate: verbEntity, isPending } = useXMutation()`. `isPending` drives `isLoading` on the button.
 - Toast per call in `onSuccess` and `onError`. The hook already invalidated.
+- A success toast is one line, the header only ("Pipeline saved", "Run started"). An error toast keeps a description, the server's message through `getErrorMessage`, because that is the part the user needs. Add a success description only when it says something the header cannot (none do today).
+- When the trigger shows no progress of its own (a row menu that closes on select), use `toast.promise(mutateAsync(request), { loading, success, error })`, so one toast goes from "Starting run..." to "Run started" or "Run failed". `usePipelineRun` and the pipelines table's schedule toggle do this. A button with `isLoading` already shows progress, so it keeps plain `mutate` and a toast on settle.
 - Branch on a code with `ConnectError.from(error).code` only when it changes the copy. In `EditConnectionModal` a `Code.Aborted` becomes "Connection changed elsewhere".
-- `mutateAsync` only for sequences. `CreatePipelineModalFooter` creates the pipeline, then its version, then each notifier, toasts "Pipeline created without all notifiers" when a later step fails, and still navigates.
+- Otherwise `mutateAsync` only for sequences. `CreatePipelineModalFooter` creates the pipeline, then its version, then each notifier, toasts "Pipeline created without all notifiers" when a later step fails, and still navigates.
 - Deletes go through `useConfirm` (`src/hooks/useConfirm.ts`), which owns the target, the toasts and the close. See [screens.md](./screens.md).
 - Navigate after success only when the thing on screen is gone (a delete) or the result lives elsewhere (a created pipeline opens its canvas).
 

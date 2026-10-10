@@ -61,7 +61,6 @@ const PipelineSettingsPageAdvanced: FC = () => {
         onSuccess: () => {
           toast({
             header: "Configuration saved",
-            description: "Your worker configuration has been saved successfully.",
             variant: ToastVariant.SUCCESS,
           });
         },

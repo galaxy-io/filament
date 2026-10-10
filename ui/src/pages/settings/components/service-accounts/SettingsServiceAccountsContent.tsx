@@ -68,7 +68,6 @@ const SettingsServiceAccountsContent: FC = () => {
 
   const accountConfirm = useConfirm<ServiceAccount>({
     entityLabel: "Service account",
-    entityName: (account) => account.name,
     onConfirm: (account, { onSuccess, onError }) =>
       removeAccount(create(RemoveServiceAccountRequestSchema, { userId: account.userId }), {
         onSuccess,
@@ -78,10 +77,8 @@ const SettingsServiceAccountsContent: FC = () => {
 
   const rotateConfirm = useConfirm<ServiceAccount>({
     entityLabel: "Client secret",
-    entityName: (account) => account.name,
     messages: {
       successHeader: "Client secret rotated",
-      successSubheader: (account) => `A new client secret was generated for ${account.name}.`,
       errorHeader: "Rotate failed",
       errorFallback: "Could not rotate client secret",
     },
@@ -101,7 +98,6 @@ const SettingsServiceAccountsContent: FC = () => {
       hasCopied
         ? {
             header: "Client ID copied",
-            description: `${account.name}'s client ID is on your clipboard.`,
             variant: ToastVariant.SUCCESS,
           }
         : {

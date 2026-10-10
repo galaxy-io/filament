@@ -78,7 +78,6 @@ const PipelineSettingsPageSchedule: FC = () => {
           onSuccess: () => {
             toast({
               header: "Schedule saved",
-              description: "Your schedule has been saved successfully.",
               variant: ToastVariant.SUCCESS,
             });
           },
@@ -103,7 +102,6 @@ const PipelineSettingsPageSchedule: FC = () => {
         onSuccess: () => {
           toast({
             header: "Schedule created",
-            description: "Your pipeline will now run on a schedule.",
             variant: ToastVariant.SUCCESS,
           });
         },
