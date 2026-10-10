@@ -13,6 +13,7 @@ import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 import ObservabilityMetricsWidget from "@/pages/observability/components/metrics/ObservabilityMetricsWidget";
 import ObservabilityPageActions from "@/pages/observability/components/ObservabilityPageActions";
 import ObservabilityRunsChartWidget from "@/pages/observability/components/runs/ObservabilityRunsChartWidget";
+import ObservabilityRunsTableWidget from "@/pages/observability/components/runs/ObservabilityRunsTableWidget";
 import ObservabilitySetupChecklist from "@/pages/observability/components/setup/ObservabilitySetupChecklist";
 import {
   OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP,
@@ -76,6 +77,9 @@ const ObservabilityPage: FC = () => {
             </Flex>
             <FlexItem fillWidth>
               <ObservabilityRunsChartWidget />
+            </FlexItem>
+            <FlexItem fillWidth>
+              <ObservabilityRunsTableWidget />
             </FlexItem>
           </Flex>
         </ScrollArea>

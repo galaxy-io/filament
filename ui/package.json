@@ -30,6 +30,10 @@
       "types": "./dist/pages/NotFoundPage.d.ts",
       "import": "./dist/pages/NotFoundPage.js"
     },
+    "./pages/ObservabilityPage": {
+      "types": "./dist/pages/observability/ObservabilityPage.d.ts",
+      "import": "./dist/pages/observability/ObservabilityPage.js"
+    },
     "./pages/PipelinesPage": {
       "types": "./dist/pages/pipelines/PipelinesPage.d.ts",
       "import": "./dist/pages/pipelines/PipelinesPage.js"

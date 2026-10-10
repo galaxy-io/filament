@@ -18,6 +18,7 @@ import { FilamentPath } from "@galaxy-io/filament/paths";
 import {
   filamentLayoutRouteOptions,
   filamentNotFoundRouteOptions,
+  observabilityRouteOptions,
   pipelineCanvasRouteOptions,
   pipelineHistoryRouteOptions,
   pipelineRouteOptions,
@@ -59,6 +60,21 @@ const mountRoute = createRoute({
   path: MOUNT_PATH,
   ...filamentLayoutRouteOptions,
   component: MountLayout,
+});
+
+const mountIndexRoute = createRoute({
+  getParentRoute: () => mountRoute,
+  path: "/",
+  beforeLoad: () => {
+    throw redirect({ to: `/${MOUNT_PATH}/observability` });
+  },
+});
+
+const observabilityRoute = createRoute({
+  getParentRoute: () => mountRoute,
+  path: "observability",
+  ...observabilityRouteOptions,
+  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/ObservabilityPage")),
 });
 
 const notFoundRoute = createRoute({
@@ -128,6 +144,8 @@ const sinksRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   mountRoute.addChildren([
+    mountIndexRoute,
+    observabilityRoute,
     pipelinesRoute,
     pipelineRoute.addChildren([
       pipelineIndexRoute,

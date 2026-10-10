@@ -5,7 +5,8 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const DIST = path.join(ROOT, "dist");
 const HOST_DIR = path.join(DIST, "host");
 const CHECKED_EXTENSIONS = [".js", ".d.ts"];
-const SPECIFIER = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
+const SPECIFIER =
+  /^\s*(?:import|export)\b[^"';]*?\bfrom\s*["']([^"']+)["']|^\s*import\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/gm;
 const NODE_BUILTIN = /^node:/;
 const RELATIVE = /^\.{1,2}\//;
 const ALIAS = /^@\//;
@@ -27,7 +28,8 @@ const isChecked = (file) => CHECKED_EXTENSIONS.some((extension) => file.endsWith
 
 const getFileProblems = (file) => {
   const source = fs.readFileSync(path.join(DIST, file), "utf8");
-  return [...source.matchAll(SPECIFIER)].flatMap(([, specifier]) => {
+  return [...source.matchAll(SPECIFIER)].flatMap(([, ...groups]) => {
+    const specifier = groups.find(Boolean) ?? "";
     if (ALIAS.test(specifier)) {
       return [`${file}: unresolved alias ${specifier}`];
     }

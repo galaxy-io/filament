@@ -14,7 +14,6 @@ import ToggleInput, {
   type ToggleOption,
 } from "@galaxy-io/dls/inputs/ToggleInput";
 import Box from "@galaxy-io/dls/layout/Box";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Text from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
@@ -31,7 +30,6 @@ import {
 } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsChart from "@/pages/observability/components/runs/ObservabilityRunsChart";
 import ObservabilityRunsScheduledChart from "@/pages/observability/components/runs/ObservabilityRunsScheduledChart";
-import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
@@ -127,8 +125,6 @@ const ObservabilityRunsChartWidget: FC = () => {
       ) : (
         <ObservabilityRunsScheduledChart />
       )}
-      <Divider />
-      <ObservabilityRunsTable />
     </Widget>
   );
 };

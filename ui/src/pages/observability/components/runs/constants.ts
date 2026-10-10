@@ -35,6 +35,11 @@ export const OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP: Record<ObservabilityRunsView,
   [ObservabilityRunsView.UPCOMING]: "Upcoming",
 };
 
+export const OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP: Record<ObservabilityRunsView, string> = {
+  [ObservabilityRunsView.PAST]: "Recent runs",
+  [ObservabilityRunsView.UPCOMING]: "Upcoming runs",
+};
+
 export const OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP: Record<ObservabilityRunsView, string> = {
   [ObservabilityRunsView.PAST]: "No runs in the selected timeframe",
   [ObservabilityRunsView.UPCOMING]: "No upcoming runs",
