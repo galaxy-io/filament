@@ -14,6 +14,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router";
 
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Menu, { MenuItem, MenuRadioGroup, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -86,10 +87,14 @@ const AppLayoutAccountMenuContent: FC = () => {
             name={name}
             isSquare
           />
-          <Text size={TextSize.BODY_SM} lineClamp={1}>
-            {name}
-          </Text>
-          <Icon component={CaretUpDownIcon} variant={IconVariant.TERTIARY} />
+          <FlexItem grow={1} minWidth={0}>
+            <Text size={TextSize.BODY_SM} align="left" lineClamp={1}>
+              {name}
+            </Text>
+          </FlexItem>
+          <FlexItem shrink={0}>
+            <Icon component={CaretUpDownIcon} variant={IconVariant.TERTIARY} />
+          </FlexItem>
         </AccountButton>
       }
     >

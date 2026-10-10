@@ -38,6 +38,7 @@ import {
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_BOTTOM,
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_TOP,
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X,
+  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y,
   PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT,
   PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_GAP,
   PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_INSET,
@@ -236,7 +237,10 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
           <Flex
             alignItems={AlignItems.CENTER}
             gap={PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_GAP}
-            padding={[0, PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X]}
+            padding={[
+              PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y,
+              PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X,
+            ]}
             fillWidth
             height="100%"
           >
