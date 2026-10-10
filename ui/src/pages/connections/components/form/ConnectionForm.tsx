@@ -6,8 +6,10 @@ import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Box from "@galaxy-io/dls/layout/Box";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
@@ -41,6 +43,7 @@ import {
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
+import { getUnplacedValidationErrors } from "@/pages/connections/components/form/utils";
 import { createRequiredFieldsValidationErrorMap } from "@/pages/connections/components/form/validation";
 
 import {
@@ -196,8 +199,13 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     return state.config[fieldName] ?? fieldDefaults[fieldName] ?? null;
   };
 
+  const fieldValues = Object.fromEntries(fields.map((f) => [f.name, getFieldValue(f.name)]));
+  const visibleFields = fields.filter((field) => isFieldVisible(field, fieldValues));
+  const unplacedErrors = state.shouldShowErrors
+    ? getUnplacedValidationErrors(state.validationErrors, visibleFields)
+    : [];
+
   const renderBody = () => {
-    const fieldValues = Object.fromEntries(fields.map((f) => [f.name, getFieldValue(f.name)]));
     return (
       <>
         <TextInput
@@ -223,19 +231,17 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
             fillWidth
           />
         )}
-        {fields
-          .filter((field) => isFieldVisible(field, fieldValues))
-          .map((field) => (
-            <Field
-              key={field.name}
-              field={field}
-              value={getFieldValue(field.name)}
-              onChange={(value) => handleFieldChange(field.name, value)}
-              getError={getFieldError}
-              isDisabled={isDisabled}
-              storedSecretRefs={secretRefs}
-            />
-          ))}
+        {visibleFields.map((field) => (
+          <Field
+            key={field.name}
+            field={field}
+            value={getFieldValue(field.name)}
+            onChange={(value) => handleFieldChange(field.name, value)}
+            getError={getFieldError}
+            isDisabled={isDisabled}
+            storedSecretRefs={secretRefs}
+          />
+        ))}
       </>
     );
   };
@@ -335,6 +341,11 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
           connectorMaturity={connector.maturity}
           connectorApiVersion={connector.apiVersion}
         />
+        {unplacedErrors.map((error) => (
+          <Box key={`${error.field}:${error.message}`} fillWidth>
+            <Alert variant={AlertVariant.ERROR}>{error.message}</Alert>
+          </Box>
+        ))}
         {renderBody()}
       </Flex>
     </ConnectionFormWrapper>

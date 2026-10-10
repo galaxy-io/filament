@@ -24,7 +24,7 @@ export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, RoleColor | undef
   [RunStatus.RUNNING]: "blue",
   [RunStatus.COMPLETED]: "success",
   [RunStatus.FAILED]: "error",
-  [RunStatus.CANCELED]: undefined,
+  [RunStatus.CANCELED]: "violet",
   [RunStatus.PAUSED]: "teal",
   [RunStatus.PARTIAL]: "pink",
   [RunStatus.SCHEDULED]: "yellow",

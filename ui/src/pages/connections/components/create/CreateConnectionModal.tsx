@@ -10,6 +10,7 @@ import type { CreateConnectionModalProps } from "@/pages/connections/components/
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
+import { useOverlayRecord } from "@/hooks/useOverlayRecord";
 import { useOverlaySession } from "@/hooks/useOverlaySession";
 
 const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
@@ -21,6 +22,8 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
 }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const session = useOverlaySession(isOpen);
+  const shownConnector = useOverlayRecord(isOpen, connector);
+  const shownConnectorKind = useOverlayRecord(isOpen, connectorKind);
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {
@@ -45,13 +48,13 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
     return null;
   }
 
-  if (connector && connectorKind) {
+  if (shownConnector && shownConnectorKind) {
     return (
       <CreateConnectionConfigure
-        key={`${session}:${connectorKind}:${connector}`}
+        key={`${session}:${shownConnectorKind}:${shownConnector}`}
         isOpen={isOpen}
-        connector={connector}
-        connectorKind={connectorKind}
+        connector={shownConnector}
+        connectorKind={shownConnectorKind}
         onClose={onClose}
         onBack={handleBack}
       />
@@ -62,7 +65,7 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
     <CreateConnectionSelector
       key={session}
       isOpen={isOpen}
-      connectorKind={connectorKind ?? ConnectorKind.UNSPECIFIED}
+      connectorKind={shownConnectorKind ?? ConnectorKind.UNSPECIFIED}
       connectorSearch={connectorSearch ?? ""}
       onClose={onClose}
       onConnectorSelect={handleConnectorSelect}
