@@ -5,11 +5,18 @@ import viteReact from "@vitejs/plugin-react";
 import wyw from "@wyw-in-js/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
+const VERIFY_MODE = "verify";
+const VERIFY_CACHE_DIR = "node_modules/.vite-verify";
+
+export default defineConfig(({ mode }) => ({
+  cacheDir: mode === VERIFY_MODE ? VERIFY_CACHE_DIR : undefined,
   plugins: [
     tanstackRouter({
       target: "react",
       autoCodeSplitting: true,
+      routesDirectory: "./src/host/routes",
+      generatedRouteTree: "./src/host/routeTree.gen.ts",
     }),
     viteReact(),
     wyw({
@@ -30,15 +37,15 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/ingestion.v1.IngestionService": {
-        target: "http://localhost:8080",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
       "/metrics.v1.MetricsService": {
-        target: "http://localhost:8080",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
       "/auth.v1.AuthService": {
-        target: "http://localhost:8080",
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },
@@ -63,4 +70,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

@@ -107,7 +107,7 @@ jobs:
         run: just ui-build
 
       - name: Route tree
-        run: git diff --exit-code ui/src/routeTree.gen.ts
+        run: git diff --exit-code ui/src/host/routeTree.gen.ts
 
   chart:
     needs: changes

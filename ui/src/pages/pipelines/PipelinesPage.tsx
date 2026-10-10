@@ -8,7 +8,6 @@ import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 
 import DocsLink from "@/components/DocsLink";
 
-import { Flow } from "@/layouts/app/types";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
@@ -18,6 +17,8 @@ import {
   createPipelinesTableSortSearch,
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
+
+import { Flow } from "@/module/types";
 
 import {
   createListPipelinesInput,

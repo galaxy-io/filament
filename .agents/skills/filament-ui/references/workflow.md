@@ -54,7 +54,7 @@ pnpm build
 ```
 
 ```bash
-git diff --exit-code src/routeTree.gen.ts
+git diff --exit-code src/host/routeTree.gen.ts
 ```
 
 `pnpm format` and `pnpm lint` fix what they can. Biome enforces import order, no hex, no margins, no raw text tags, no barrels, `import type`.

@@ -1,6 +1,6 @@
 import { useMatchRoute } from "@tanstack/react-router";
 
-import type { FileRoutesByTo } from "@/routeTree.gen";
+import type { FileRoutesByTo } from "@/host/routeTree.gen";
 
 export type TRoutes = keyof FileRoutesByTo;
 

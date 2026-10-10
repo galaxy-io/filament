@@ -23,7 +23,6 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
-import { Flow } from "@/layouts/app/types";
 import ErrorLayout from "@/layouts/ErrorLayout";
 import PendingLayout from "@/layouts/PendingLayout";
 
@@ -34,6 +33,8 @@ import ConnectionDrawerJsonSection from "@/pages/connectors/components/drawer/Co
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import ConnectionDrawerPipelines from "@/pages/connectors/components/drawer/ConnectionDrawerPipelines";
+
+import { Flow } from "@/module/types";
 
 import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
 import { useGetConnectorQuery } from "@/api/queries/connectors";

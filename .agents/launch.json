@@ -24,6 +24,8 @@
         "ui",
         "exec",
         "vite",
+        "--mode",
+        "verify",
         "--port",
         "5175",
         "--strictPort"

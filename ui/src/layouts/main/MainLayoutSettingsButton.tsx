@@ -22,10 +22,11 @@ import { Placement } from "@galaxy-io/dls/theme/enums";
 import ThemeSwitcher, { ThemeSwitcherSize } from "@galaxy-io/dls/theme/ThemeSwitcher";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import { Flow } from "@/layouts/app/types";
 import { MAIN_LAYOUT_SETTINGS_MENU_WIDTH } from "@/layouts/main/constants";
 
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
+
+import { Flow } from "@/module/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 

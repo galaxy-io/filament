@@ -17,8 +17,6 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { Flow } from "@/layouts/app/types";
-
 import {
   OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH,
   OBSERVABILITY_SETUP_GRID_OPACITY,
@@ -31,6 +29,8 @@ import {
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
+
+import { Flow } from "@/module/types";
 
 const ObservabilitySetupChecklist: FC = () => {
   const navigate = useNavigate();

@@ -9,14 +9,14 @@ import Flex, { FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
 import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 
-import { Flow } from "@/layouts/app/types";
-
 import SettingsPreferencesPanel from "@/pages/settings/panels/preferences/SettingsPreferencesPanel";
 import SettingsServiceAccountsPanel from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanel";
 import SettingsTeamPanel from "@/pages/settings/panels/team/SettingsTeamPanel";
 import SettingsTeamPanelInvite from "@/pages/settings/panels/team/SettingsTeamPanelInvite";
 import SettingsPageSidebar from "@/pages/settings/SettingsPageSidebar";
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
+
+import { Flow } from "@/module/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
 

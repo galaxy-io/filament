@@ -24,7 +24,6 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
-import { Flow } from "@/layouts/app/types";
 import EmptyLayout from "@/layouts/EmptyLayout";
 import ErrorLayout from "@/layouts/ErrorLayout";
 import { LayoutSize } from "@/layouts/types";
@@ -38,6 +37,8 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalConnectionsExecutionMode from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionsExecutionMode";
+
+import { Flow } from "@/module/types";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 

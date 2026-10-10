@@ -4,10 +4,10 @@
   "files": {
     "includes": [
       "src/**",
-      "!src/routeTree.gen.ts",
-      "!src/gen/**",
-      "!src/assets/components/**",
-      "!src/assets/svgr/**"
+      "!src/host/routeTree.gen.ts",
+      "!src/gen",
+      "!src/assets/components",
+      "!src/assets/svgr"
     ]
   },
   "formatter": {
@@ -52,7 +52,9 @@
               ":BLANK_LINE:",
               "@/pages/**",
               ":BLANK_LINE:",
-              "@/routes/**",
+              "@/module/**",
+              ":BLANK_LINE:",
+              "@/host/**",
               ":BLANK_LINE:",
               "@/api/**",
               ":BLANK_LINE:",
