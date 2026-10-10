@@ -4,6 +4,8 @@ import { ExecutionObservedState, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import { getEnumValues } from "@/utils/select";
 
+export const PIPELINE_RUN_DURATION_TICK_MS = 1_000;
+
 export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.UNSPECIFIED]: "Unknown",
   [RunStatus.REQUESTED]: "Requested",

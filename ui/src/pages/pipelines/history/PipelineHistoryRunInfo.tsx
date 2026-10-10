@@ -5,7 +5,7 @@ import { create } from "@bufbuild/protobuf";
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
-import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable, { InfiniteTableSize } from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
@@ -22,6 +22,7 @@ import {
 import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
   PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH,
+  PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
@@ -67,7 +68,8 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       {
         id: "records",
         header: "Records",
-        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+        width:
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS - PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
             {formatNumber(row.records)}
@@ -77,7 +79,8 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       {
         id: "volume",
         header: "Volume",
-        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+        width:
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME - PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
         align: "right",
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
@@ -149,6 +152,8 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
         columns={columns}
         data={resources}
         getRowId={(resource) => resource.resourceName}
+        size={InfiniteTableSize.SMALL}
+        inset={PIPELINE_HISTORY_RUN_INFO_TABLE_INSET}
       />
     );
   };

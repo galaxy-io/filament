@@ -1,19 +1,17 @@
 import { type FC, useMemo } from "react";
 
-import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { FontFamily } from "@galaxy-io/dls/theme/enums";
-import { EMPTY_VALUE, formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
-import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
+import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
+import PipelineRunDuration from "@/components/runs/PipelineRunDuration";
+import PipelineRunRecords from "@/components/runs/PipelineRunRecords";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
+import PipelineRunVolume from "@/components/runs/PipelineRunVolume";
 
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
@@ -22,7 +20,6 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
-import PipelineHistoryRunDuration from "@/pages/pipelines/history/PipelineHistoryRunDuration";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
@@ -82,34 +79,20 @@ const createRunTableColumns = (
     id: "duration",
     header: "Duration",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cell: ({ row }) => (
-      <PipelineHistoryRunDuration
-        status={row.status}
-        startedAt={row.startedAt}
-        endedAt={row.endedAt}
-      />
-    ),
+    cell: ({ row }) => <PipelineRunDuration run={row} />,
   },
   {
     id: "records",
     header: "Records",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.startedAt ? formatNumber(row.records) : EMPTY_VALUE}
-      </Text>
-    ),
+    cell: ({ row }) => <PipelineRunRecords run={row} />,
   },
   {
     id: "volume",
     header: "Volume",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
     align: "right",
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.startedAt ? formatBytes(row.bytes) : EMPTY_VALUE}
-      </Text>
-    ),
+    cell: ({ row }) => <PipelineRunVolume run={row} />,
   },
 ];
 
@@ -146,38 +129,25 @@ const PipelineHistoryPage: FC = () => {
   };
 
   return (
-    <Box variant={BoxVariant.BASE} fillWidth height="100%" overflow="hidden">
-      <Flex direction={FlexDirection.COLUMN} height="100%">
-        <Box padding={16} fillWidth>
-          <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
-        </Box>
-
-        <Divider />
-
-        <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
-          <InfiniteTable<RunInfo>
-            columns={columns}
-            data={runs}
-            getRowId={(run) => run.id}
-            emptyState={
-              <EmptyLayout
-                header="No runs yet"
-                description="Run a pipeline to see its history here."
-              />
-            }
-            expandedIds={runIds}
-            onExpandedIdsChange={handleExpandedChange}
-            renderExpandedRow={(row) => {
-              return <PipelineHistoryRunInfo runId={row.id} />;
-            }}
-            isLoading={isFetchingNextPage}
-            onEndReached={() => {
-              if (hasNextPage) fetchNextPage();
-            }}
-          />
-        </Flex>
-      </Flex>
-    </Box>
+    <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+      <InfiniteTable<RunInfo>
+        columns={columns}
+        data={runs}
+        getRowId={(run) => run.id}
+        emptyState={
+          <EmptyLayout header="No runs yet" description="Run a pipeline to see its history here." />
+        }
+        expandedIds={runIds}
+        onExpandedIdsChange={handleExpandedChange}
+        renderExpandedRow={(row) =>
+          row.status === RunStatus.SCHEDULED ? null : <PipelineHistoryRunInfo runId={row.id} />
+        }
+        isLoading={isFetchingNextPage}
+        onEndReached={() => {
+          if (hasNextPage) fetchNextPage();
+        }}
+      />
+    </Flex>
   );
 };
 
