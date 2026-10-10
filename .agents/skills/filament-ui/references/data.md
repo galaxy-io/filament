@@ -140,7 +140,7 @@ const request = create(UpdatePipelineRequestSchema, {
 });
 ```
 
-- Static inputs are module constants (`OBSERVABILITY_CONNECTIONS_INPUT`, `OBSERVABILITY_RUNS_SCHEDULED_INPUT`).
+- Static inputs are module constants (`OBSERVABILITY_SETUP_SOURCES_INPUT`, `OBSERVABILITY_RUNS_SCHEDULED_INPUT`).
 - An input that depends on props and feeds a hook every render is built in a `useMemo` or through a `createXInput` helper.
 - `include*` flags (`includeVersions`, `includeSchedule`, `includeDeleted`) pick the payload. Different flags are different cache entries, which is why `createGetPipelineInput` fixes them.
 - **`bigint` wherever the proto says int64.** Timestamps are unix millis as `bigint`. Charts want `number`, so bridge with `Number(x)`.
@@ -224,7 +224,7 @@ const handleSave = () => {
 - Destructure and rename, `const { mutate: verbEntity, isPending } = useXMutation()`. `isPending` drives `isLoading` on the button.
 - Toast per call in `onSuccess` and `onError`. The hook already invalidated.
 - A success toast is one line, the header only ("Pipeline saved", "Run started"). An error toast keeps a description, the server's message through `getErrorMessage`, because that is the part the user needs. Add a success description only when it says something the header cannot (none do today).
-- When the trigger shows no progress of its own (a row menu that closes on select), use `toast.promise(mutateAsync(request), { loading, success, error })`, so one toast goes from "Starting run..." to "Run started" or "Run failed". `usePipelineRun` and the pipelines table's schedule toggle do this. A button with `isLoading` already shows progress, so it keeps plain `mutate` and a toast on settle.
+- When the trigger shows no progress of its own (a row menu that closes on select), use `toast.promise(mutateAsync(request), { loading, success, error })`, so one toast goes from "Starting run..." to "Run started" or "Start failed". `usePipelineRun` and the pipelines table's schedule toggle do this. A button with `isLoading` already shows progress, so it keeps plain `mutate` and a toast on settle.
 - Branch on a code with `ConnectError.from(error).code` only when it changes the copy. In `EditConnectionModal` a `Code.Aborted` becomes "Connection changed elsewhere".
 - Otherwise `mutateAsync` only for sequences. `CreatePipelineModalFooter` creates the pipeline, then its version, then each notifier, toasts "Pipeline created without all notifiers" when a later step fails, and still navigates.
 - Deletes go through `useConfirm` (`src/hooks/useConfirm.ts`), which owns the target, the toasts and the close. See [screens.md](./screens.md).
@@ -233,6 +233,6 @@ const handleSave = () => {
 ## Gotchas that have cost real time
 
 - **`queryClient.ensureQueryData` ignores staleness.** It returns cached data whenever it exists. This is why `beforeLoad` only probes auth and nothing else loads there.
-- **One suspense hook on a key makes `isLoading` dead everywhere else on that key.** `useObservabilitySetup` suspends on `OBSERVABILITY_CONNECTIONS_INPUT` and `OBSERVABILITY_PIPELINES_INPUT`, so `ObservabilityTimeseriesChart`'s plain `useListPipelinesQuery` on the same input is never loading. Check whether a page already suspends on a key before writing skeleton code for it.
+- **One suspense hook on a key makes `isLoading` dead everywhere else on that key.** A plain query on a key that `useObservabilitySetup` suspends on is never loading, because the suspense hook already resolved it. Check whether a page already suspends on a key before writing skeleton code for it.
 - **`refetchOnWindowFocus` is on.** A screen that holds unsaved local state seeded from server data must not reset on refetch. Seed it once with `useState(createInitialState)` and reset by `key`, never by syncing in an effect. See [forms.md](./forms.md).
 - **An unfocused tab pauses retries.** TanStack waits for focus before retrying, so a retryable failure can look like an empty table. Non-retryable codes fail at once.

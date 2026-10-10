@@ -1,16 +1,13 @@
 import { type FC, memo, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
-import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasSourceResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceResources";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import PipelineCanvasNode from "@/pages/pipelines/canvas/nodes/PipelineCanvasNode";
 import PipelineCanvasNodeSourceIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIsland";
@@ -23,21 +20,6 @@ import {
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
-import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
-
-const useSourceResources = (connectionId: Connection["id"]) => {
-  const { data, error, isFetching, refetch } = useDiscoverResourcesQuery({
-    input: create(DiscoverResourcesRequestSchema, { connectionId }),
-    options: { enabled: connectionId !== "", retry: false, networkMode: "always" },
-  });
-
-  const names = useMemo<Resource["name"][]>(
-    () => data?.resources.map((resource) => resource.name) ?? [],
-    [data?.resources],
-  );
-
-  return { names, error, isLoading: isFetching, refresh: () => void refetch() };
-};
 
 const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data, selected }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
@@ -53,7 +35,7 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
     error,
     isLoading,
     refresh,
-  } = useSourceResources(data.connectionId);
+  } = usePipelineCanvasSourceResources(data.connectionId);
 
   const connectedHandleIds = useMemo(
     () => new Set(connections.map((connection) => connection.sourceHandle)),

@@ -8,7 +8,6 @@ import BigNumberGroup, { BigNumberGroupVariant } from "@galaxy-io/dls/charts/Big
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -18,9 +17,11 @@ import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/components/runs/constants";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import {
-  OBSERVABILITY_RUN_STATUSES,
-  OBSERVABILITY_RUNS_SCHEDULED_INPUT,
-} from "@/pages/observability/components/runs/constants";
+  OBSERVABILITY_METRICS_FEATURED_STATUSES,
+  OBSERVABILITY_METRICS_OTHER_STATUSES,
+} from "@/pages/observability/components/metrics/constants";
+import { OBSERVABILITY_RUNS_SCHEDULED_INPUT } from "@/pages/observability/components/runs/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import { createTimeframeSince } from "@/pages/observability/utils";
 
 import { useObservabilitySearch } from "@/module/hooks";
@@ -30,22 +31,13 @@ import { useListRunsQuery } from "@/api/queries/runs";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
-const OBSERVABILITY_METRICS_FEATURED_STATUSES = [
-  RunStatus.COMPLETED,
-  RunStatus.FAILED,
-  RunStatus.RUNNING,
-];
-
-const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
-  (status) =>
-    !OBSERVABILITY_METRICS_FEATURED_STATUSES.includes(status) && status !== RunStatus.SCHEDULED,
-);
-
 const ObservabilityMetricsWidget: FC = () => {
   const { timeframe } = useObservabilitySearch();
 
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
+
   const { totalsInput, statusCountsInput } = useMemo(() => {
-    const sinceMs = createTimeframeSince(timeframe);
+    const sinceMs = createTimeframeSince(timeframe, bucketStartMs);
     return {
       totalsInput: create(QueryAggregateRequestSchema, {
         metrics: [Metric.RUN_COUNT, Metric.RUN_RECORDS, Metric.RUN_BYTES],
@@ -57,7 +49,7 @@ const ObservabilityMetricsWidget: FC = () => {
         groupBy: MetricDimension.STATUS,
       }),
     };
-  }, [timeframe]);
+  }, [timeframe, bucketStartMs]);
 
   const { data: totalsData, isLoading: isTotalsLoading } = useQueryAggregateQuery({
     input: totalsInput,
@@ -125,7 +117,7 @@ const ObservabilityMetricsWidget: FC = () => {
       ))}
       <BigNumber
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
-        value={formatNumber(scheduledData?.runs.length ?? 0, { precision: 0 })}
+        value={formatNumber(scheduledData?.pagination?.total ?? 0, { precision: 0 })}
         suffix={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
         isLoading={isScheduledLoading}
       />
@@ -133,8 +125,12 @@ const ObservabilityMetricsWidget: FC = () => {
         label="Other"
         value={formatNumber(otherStatusesCount, { precision: 0 })}
         suffix={
-          <Tooltip
-            body={
+          <Icon
+            component={InfoIcon}
+            variant={IconVariant.TERTIARY}
+            size={14}
+            ariaLabel="Other statuses"
+            tooltip={
               <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
                 {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
                   <Flex
@@ -157,9 +153,7 @@ const ObservabilityMetricsWidget: FC = () => {
                 ))}
               </Flex>
             }
-          >
-            <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-          </Tooltip>
+          />
         }
         isLoading={isStatusCountsLoading}
       />

@@ -10,7 +10,7 @@ import { FOCUS_RING, HAIRLINE_WIDTH, INTERACTIVE_RESET } from "@galaxy-io/dls/st
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import type { PipelineCanvasValidationIssue } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+import type { PipelineCanvasValidationIssue } from "@/pages/pipelines/canvas/types";
 import {
   PIPELINE_PAGE_MAX_VISIBLE_SAVE_ISSUES,
   PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_ICON_MAP,

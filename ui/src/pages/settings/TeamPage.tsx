@@ -141,7 +141,9 @@ const TeamPage: FC = () => {
   const inviteSession = useOverlaySession(isInviteOpen);
 
   const handleViewChange = (nextView: SettingsTeamView | undefined, token?: string) => {
-    void updateSearch((prev) => ({ ...prev, view: nextView, inviteToken: token }));
+    void updateSearch((prev) => ({ ...prev, view: nextView, inviteToken: token }), {
+      replace: true,
+    });
   };
 
   const sortedMembers = useMemo(() => {

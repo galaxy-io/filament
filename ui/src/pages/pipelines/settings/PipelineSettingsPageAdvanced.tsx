@@ -8,13 +8,14 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
+import { WorkerConfigurationSchema } from "@/gen/ingestion/v1/common_pb";
 import { UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
+  isWorkerConfigurationEqual,
   parseWorkerConfiguration,
-  workerConfigurationEquals,
 } from "@/pages/pipelines/components/worker/utils";
 
 import { usePipelineParams } from "@/module/hooks";
@@ -42,7 +43,10 @@ const PipelineSettingsPageAdvanced: FC = () => {
   if (!pipeline) return null;
 
   const parsed = parseWorkerConfiguration(workerConfiguration);
-  const hasChanges = !workerConfigurationEquals(parsed.configuration, pipeline.workerConfiguration);
+  const hasChanges = !isWorkerConfigurationEqual(
+    parsed.configuration,
+    pipeline.workerConfiguration,
+  );
   const canSave = hasChanges && !parsed.error;
 
   const handleCancel = () => {
@@ -55,7 +59,7 @@ const PipelineSettingsPageAdvanced: FC = () => {
         pipelineId: pipeline.id,
         name: pipeline.name,
         description: pipeline.description,
-        workerConfiguration: parsed.configuration,
+        workerConfiguration: parsed.configuration ?? create(WorkerConfigurationSchema),
       }),
       {
         onSuccess: () => {

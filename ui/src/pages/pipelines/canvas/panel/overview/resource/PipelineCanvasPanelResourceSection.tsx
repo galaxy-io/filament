@@ -22,6 +22,7 @@ import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { PIPELINE_CANVAS_NODE_TYPE_TO_RESOURCE_EMPTY_MESSAGE_MAP } from "@/pages/pipelines/canvas/panel/constants";
 import PipelineCanvasPanelItem from "@/pages/pipelines/canvas/panel/overview/PipelineCanvasPanelItem";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import {
@@ -43,21 +44,22 @@ import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExe
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-const PIPELINE_CANVAS_NODE_TYPE_TO_RESOURCE_EMPTY_MESSAGE_MAP: Record<
-  PipelineCanvasNodeType,
-  string
-> = {
-  [PipelineCanvasNodeType.SOURCE]: "Connect this source to a sink to route resources.",
-  [PipelineCanvasNodeType.SINK]: "Connect a source to this sink to route resources.",
-  [PipelineCanvasNodeType.PLACEHOLDER]: "Connect a source to a sink to route resources.",
-};
-
 interface PipelineCanvasPanelResourceSectionProps {
   edges: CanvasEdge[];
   nodeId?: CanvasNode["id"];
   nodeType?: PipelineCanvasNodeType;
   isOpenInitial?: boolean;
 }
+
+interface PipelineCanvasPanelResourceSectionState {
+  isOpen: boolean;
+  isCreating: boolean;
+}
+
+const DEFAULT_STATE: PipelineCanvasPanelResourceSectionState = {
+  isOpen: true,
+  isCreating: false,
+};
 
 const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionProps> = ({
   edges,
@@ -71,8 +73,10 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
   const { connect } = usePipelineCanvasActions();
   const { selectResource } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();
-  const [isOpen, setIsOpen] = useState(isOpenInitial);
-  const [isCreating, setIsCreating] = useState(false);
+  const [localState, setLocalState] = useState<PipelineCanvasPanelResourceSectionState>(() => ({
+    ...DEFAULT_STATE,
+    isOpen: isOpenInitial,
+  }));
 
   const connectionNodes = state.nodes.filter(isConnectionNode);
   const sourceNode = connectionNodes.find((node) => node.type === PipelineCanvasNodeType.SOURCE);
@@ -98,7 +102,7 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
   const getCreateError = ({ resource, sinkId }: PipelineResourceCreateState) =>
     sourceNode &&
     canConnectEdge({ source: sourceNode.id, sourceHandle: resource, target: sinkId }, state.edges)
-      ? null
+      ? undefined
       : "This resource is already routed to that sink.";
 
   const handleCreate = ({ resource, sinkId }: PipelineResourceCreateState) => {
@@ -109,17 +113,17 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
       target: sinkId,
       targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
     });
-    setIsCreating(false);
+    setLocalState((prev) => ({ ...prev, isCreating: false }));
   };
 
   return (
     <PipelineCanvasPanelSection
       header="Resources"
-      isEmpty={edges.length === 0 && !isCreating}
+      isEmpty={edges.length === 0 && !localState.isCreating}
       emptyHeader="No resources"
       emptyMessage={PIPELINE_CANVAS_NODE_TYPE_TO_RESOURCE_EMPTY_MESSAGE_MAP[nodeType]}
-      isOpen={isOpen}
-      onToggle={() => setIsOpen((prev) => !prev)}
+      isOpen={localState.isOpen}
+      onToggle={() => setLocalState((prev) => ({ ...prev, isOpen: !prev.isOpen }))}
       trailing={
         canCreate ? (
           <Button
@@ -127,17 +131,14 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
             icon={PlusIcon}
             variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
-            onClick={() => {
-              setIsOpen(true);
-              setIsCreating(true);
-            }}
-            isDisabled={isCreating}
+            onClick={() => setLocalState({ isOpen: true, isCreating: true })}
+            isDisabled={localState.isCreating}
           />
         ) : undefined
       }
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
-        {isCreating && (
+        {localState.isCreating && (
           <>
             <PipelineResourceCreateForm
               sinks={sinkNodes.map((node) => ({
@@ -146,7 +147,7 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
               }))}
               getError={getCreateError}
               onSave={handleCreate}
-              onCancel={() => setIsCreating(false)}
+              onCancel={() => setLocalState((prev) => ({ ...prev, isCreating: false }))}
             />
             {edges.length > 0 && <Divider />}
           </>

@@ -107,7 +107,7 @@ const CreatePipelineModalFooter: FC = () => {
         setSubmitting(false);
         toast({
           variant: ToastVariant.ERROR,
-          header: "Failed to create pipeline",
+          header: "Create failed",
           description: getErrorMessage(error, "Failed to create pipeline"),
         });
       },

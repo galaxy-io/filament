@@ -7,7 +7,6 @@ import MultiSelectInput, {
   MultiSelectInputSize,
   MultiSelectInputVariant,
 } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import ToggleInput, {
   ToggleInputSize,
   ToggleInputVariant,
@@ -19,11 +18,10 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
-
 import {
-  OBSERVABILITY_RUN_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_ALL_STATUSES_LABEL,
+  OBSERVABILITY_RUNS_CHART_SCHEDULED_STATUS_OPTIONS,
+  OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION,
   OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH,
   OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP,
@@ -37,25 +35,13 @@ import type { ObservabilitySearch } from "@/module/schemas";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
-const mapOptionToSwatchOption = (option: SelectOption): SelectOption => ({
-  ...option,
-  leading: <PipelineRunStatusSwatch status={mapOptionIdToEnum(RunStatus, option.id)} />,
-});
-
-const OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS =
-  OBSERVABILITY_RUN_STATUS_OPTIONS.map(mapOptionToSwatchOption);
-
-const OBSERVABILITY_RUNS_CHART_SCHEDULED_STATUS_OPTIONS = [
-  mapOptionToSwatchOption(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION),
-];
-
 const ObservabilityRunsChartWidget: FC = () => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const { runs: view, statuses } = useObservabilitySearch();
 
   const selectedStatusIds = useMemo(
     () =>
-      OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id).filter((id) =>
+      OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS.map((option) => option.id).filter((id) =>
         statuses.includes(mapOptionIdToEnum(RunStatus, id)),
       ),
     [statuses],
@@ -101,6 +87,7 @@ const ObservabilityRunsChartWidget: FC = () => {
             options={switcherItems}
             value={view}
             onChange={handleViewChange}
+            ariaLabel="Runs view"
           />
           <Box width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
             <MultiSelectInput
@@ -118,6 +105,7 @@ const ObservabilityRunsChartWidget: FC = () => {
               variant={MultiSelectInputVariant.PRIMARY}
               onChange={handleStatusChange}
               placeholder="Select statuses..."
+              ariaLabel="Run statuses"
               isDisabled={isUpcoming}
               renderValue={(options) => <Text>{pluralize("status", options.length, true)}</Text>}
             />

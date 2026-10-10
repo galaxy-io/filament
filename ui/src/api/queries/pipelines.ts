@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -10,7 +11,7 @@ import {
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { type UseQueryResult, useQueries, useQueryClient } from "@tanstack/react-query";
 
 import {
   type GetPipelineRequest,
@@ -129,6 +130,21 @@ export const useGetPipelineQuery = ({
 
 export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineRequest }) => {
   return useSuspenseQuery(IngestionService.method.getPipeline, input);
+};
+
+const selectPipelines = (results: UseQueryResult<GetPipelineResponse>[]) =>
+  results.flatMap((result) => result.data?.pipeline ?? []);
+
+export const useGetPipelineQueries = (ids: Pipeline["id"][]) => {
+  const transport = useTransport();
+  return useQueries({
+    queries: ids.map((id) =>
+      createQueryOptions(IngestionService.method.getPipeline, createGetPipelineInput(id), {
+        transport,
+      }),
+    ),
+    combine: selectPipelines,
+  });
 };
 
 export const useCreatePipelineMutation = (

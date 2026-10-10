@@ -25,7 +25,7 @@ const Island = styled.div<{ $width: number; $isSelected: boolean }>`
       $isSelected ? t.color.solid.primary.background : t.color.border.primary};
   border-radius: ${t.radius.lg};
   outline: ${({ $isSelected }) =>
-    $isSelected ? `1px solid ${t.color.solid.primary.background}` : "none"};
+    $isSelected ? `${HAIRLINE_WIDTH} solid ${t.color.solid.primary.background}` : "none"};
   outline-offset: -${HAIRLINE_WIDTH};
 
   cursor: pointer;

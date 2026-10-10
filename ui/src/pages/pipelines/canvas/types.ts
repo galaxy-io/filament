@@ -57,3 +57,17 @@ export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode"
 };
 
 export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
+
+export enum PipelineCanvasValidationIssueKind {
+  TRANSFORM = "TRANSFORM",
+  EDGE = "EDGE",
+  GRAPH = "GRAPH",
+}
+
+export interface PipelineCanvasValidationIssue {
+  kind: PipelineCanvasValidationIssueKind;
+  resource?: string;
+  edgeId?: CanvasEdge["id"];
+  invalidSteps?: number;
+  message: string;
+}

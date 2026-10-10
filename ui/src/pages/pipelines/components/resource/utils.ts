@@ -24,7 +24,7 @@ export const getWriteModeSelectOptions = (modes: WriteMode[]): SelectOption[] =>
 export const getCursorSelectOptions = (columns: ResourceColumn[]): SelectOption[] =>
   columns.map((column) => ({ id: column.name, label: column.name }));
 
-export const intersectModes = <TMode>(sets: TMode[][]): TMode[] =>
+export const getSharedModes = <TMode>(sets: TMode[][]): TMode[] =>
   sets.length
     ? sets
         .slice(1)

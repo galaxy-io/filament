@@ -9,7 +9,7 @@ interface ParsedWorkerConfiguration {
   error?: string;
 }
 
-const stripEmptyValues = (values: Record<string, string>): Record<string, string> =>
+const getNonEmptyValues = (values: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ""));
 
 const isEmpty = (configuration: WorkerConfiguration | undefined) =>
@@ -55,8 +55,8 @@ export const parseWorkerConfiguration = (text: string): ParsedWorkerConfiguratio
   try {
     const configuration = fromJson(WorkerConfigurationSchema, parsed);
     if (configuration.resources) {
-      configuration.resources.requests = stripEmptyValues(configuration.resources.requests);
-      configuration.resources.limits = stripEmptyValues(configuration.resources.limits);
+      configuration.resources.requests = getNonEmptyValues(configuration.resources.requests);
+      configuration.resources.limits = getNonEmptyValues(configuration.resources.limits);
     }
     return isEmpty(configuration) ? {} : { configuration };
   } catch (error) {
@@ -64,7 +64,7 @@ export const parseWorkerConfiguration = (text: string): ParsedWorkerConfiguratio
   }
 };
 
-export const workerConfigurationEquals = (
+export const isWorkerConfigurationEqual = (
   left: WorkerConfiguration | undefined,
   right: WorkerConfiguration | undefined,
 ): boolean =>

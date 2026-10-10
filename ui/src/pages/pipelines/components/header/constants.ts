@@ -10,7 +10,7 @@ import {
 import {
   type PipelineCanvasValidationIssue,
   PipelineCanvasValidationIssueKind,
-} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+} from "@/pages/pipelines/canvas/types";
 import { PipelinePageTab } from "@/pages/pipelines/components/header/types";
 
 import { FilamentPath } from "@/module/paths";

@@ -10,7 +10,6 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorOverflowTile from "@/components/connections/ConnectorOverflowTile";
-import ConnectorTileShimmer from "@/components/connections/ConnectorTileShimmer";
 import { ConnectorTileSize } from "@/components/connections/types";
 import PipelineFlowTile from "@/components/pipelines/PipelineFlowTile";
 
@@ -39,7 +38,6 @@ interface PipelineFlowProps {
   sinkIds?: Connection["id"][];
   size?: PipelineFlowSize;
   hasEdges?: boolean;
-  isLoading?: boolean;
 }
 
 const PipelineFlow: FC<PipelineFlowProps> = ({
@@ -47,7 +45,6 @@ const PipelineFlow: FC<PipelineFlowProps> = ({
   sinkIds = [],
   size = PipelineFlowSize.MEDIUM,
   hasEdges = true,
-  isLoading = false,
 }) => {
   const visibleSinkIds = sinkIds.slice(0, PIPELINE_FLOW_MAX_VISIBLE_SINKS);
   const overflowCount = sinkIds.length - visibleSinkIds.length;
@@ -91,21 +88,6 @@ const PipelineFlow: FC<PipelineFlowProps> = ({
       );
     }
   };
-
-  if (isLoading) {
-    return (
-      <Flex alignItems={AlignItems.CENTER} gap={8}>
-        <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
-        <Icon
-          component={FlowArrowIcon}
-          variant={IconVariant.TERTIARY}
-          size={PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP[size]}
-          weight={IconWeight.REGULAR}
-        />
-        <ConnectorTileShimmer size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]} />
-      </Flex>
-    );
-  }
 
   if (!isLinked) {
     return <Chip label="Invalid pipeline" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />;

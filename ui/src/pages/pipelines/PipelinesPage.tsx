@@ -60,8 +60,10 @@ const PipelinesPage: FC = () => {
     openFlow(Flow.CREATE_PIPELINE);
   };
 
+  const isFirstRun = !pipelines.length && !search.q;
+
   const renderContent = () => {
-    if (!pipelines.length && !search.q) {
+    if (isFirstRun) {
       return (
         <PipelinesPageEmptyGraphic
           actions={
@@ -96,12 +98,14 @@ const PipelinesPage: FC = () => {
     <PageLayout
       header="Pipelines"
       actions={
-        <Button
-          label={PIPELINE_CREATE_TITLE}
-          icon={PlusIcon}
-          variant={ButtonVariant.PRIMARY}
-          onClick={handleNewPipeline}
-        />
+        isFirstRun ? undefined : (
+          <Button
+            label={PIPELINE_CREATE_TITLE}
+            icon={PlusIcon}
+            variant={ButtonVariant.PRIMARY}
+            onClick={handleNewPipeline}
+          />
+        )
       }
       toolbar={<ListSearch placeholder="Search pipelines" />}
     >

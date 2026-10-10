@@ -4,7 +4,7 @@ import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { HAIRLINE_WIDTH, REDUCED_MOTION } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -14,16 +14,17 @@ import { useConnectorFamilies } from "@/components/connections/hooks/useConnecto
 import EmptyGraphic from "@/components/EmptyGraphic";
 import EmptyGraphicGhostTile from "@/components/EmptyGraphicGhostTile";
 
-const SLOT_COLUMN_COUNT = 9;
-const SLOT_COUNT = 27;
-const SLOT_LIVE_INDEX = (SLOT_COUNT - 1) / 2;
-const SLOT_SIZE = 44;
+const SOURCES_EMPTY_SLOT_COLUMN_COUNT = 9;
+const SOURCES_EMPTY_SLOT_COUNT = 27;
+const SOURCES_EMPTY_SLOT_LIVE_INDEX = (SOURCES_EMPTY_SLOT_COUNT - 1) / 2;
+const SOURCES_EMPTY_SLOT_SIZE = 44;
+const SOURCES_EMPTY_SLOT_PULSE_DURATION = "3s";
 
-const SLOTS = Array.from({ length: SLOT_COUNT }, (_, index) => index);
+const SOURCES_EMPTY_SLOTS = Array.from({ length: SOURCES_EMPTY_SLOT_COUNT }, (_, index) => index);
 
 const SlotsWrapper = styled.div`
   display: grid;
-  grid-template-columns: repeat(${SLOT_COLUMN_COUNT}, ${SLOT_SIZE}px);
+  grid-template-columns: repeat(${SOURCES_EMPTY_SLOT_COLUMN_COUNT}, ${SOURCES_EMPTY_SLOT_SIZE}px);
   gap: ${t.space[12]};
 
   mask-image: linear-gradient(180deg, black 55%, transparent 110%);
@@ -31,8 +32,8 @@ const SlotsWrapper = styled.div`
 `;
 
 const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
-  width: ${SLOT_SIZE}px;
-  height: ${SLOT_SIZE}px;
+  width: ${SOURCES_EMPTY_SLOT_SIZE}px;
+  height: ${SOURCES_EMPTY_SLOT_SIZE}px;
 
   display: flex;
   align-items: center;
@@ -44,7 +45,9 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
   border-radius: ${t.radius.md};
 
   animation: ${({ $isLive }) =>
-    $isLive ? "sources-empty-slot-pulse 3s ease-in-out infinite" : "none"};
+    $isLive
+      ? `sources-empty-slot-pulse ${SOURCES_EMPTY_SLOT_PULSE_DURATION} ease-in-out infinite`
+      : "none"};
 
   @keyframes sources-empty-slot-pulse {
     0%,
@@ -55,6 +58,8 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
       opacity: 1;
     }
   }
+
+  ${REDUCED_MOTION}
 `;
 
 const ConnectionsPageSourcesEmptyGraphic: FC = () => {
@@ -63,8 +68,8 @@ const ConnectionsPageSourcesEmptyGraphic: FC = () => {
   return (
     <EmptyGraphic>
       <SlotsWrapper>
-        {SLOTS.map((slot) => {
-          if (slot === SLOT_LIVE_INDEX) {
+        {SOURCES_EMPTY_SLOTS.map((slot) => {
+          if (slot === SOURCES_EMPTY_SLOT_LIVE_INDEX) {
             return (
               <Slot key={slot} $isLive $isFilled={false}>
                 <Icon component={PlusIcon} size={16} variant={IconVariant.SECONDARY} />
@@ -72,7 +77,7 @@ const ConnectionsPageSourcesEmptyGraphic: FC = () => {
             );
           }
 
-          const spec = sourceSpecs[slot < SLOT_LIVE_INDEX ? slot : slot - 1];
+          const spec = sourceSpecs[slot < SOURCES_EMPTY_SLOT_LIVE_INDEX ? slot : slot - 1];
 
           return (
             <Slot key={slot} $isLive={false} $isFilled={!!spec}>

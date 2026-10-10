@@ -23,16 +23,18 @@ import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import {
-  OBSERVABILITY_PIPELINES_INPUT,
-  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
-} from "@/pages/observability/constants";
-import { createObservabilityTimeseriesInput, formatBucketKey } from "@/pages/observability/utils";
+  createObservabilityTimeseriesInput,
+  formatBucketKey,
+  getBucketLabelFormatter,
+} from "@/pages/observability/utils";
 
 import { useObservabilitySearch } from "@/module/hooks";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
-import { useListPipelinesQuery } from "@/api/queries/pipelines";
+import { useGetPipelineQueries } from "@/api/queries/pipelines";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
@@ -59,21 +61,32 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
-  const bucketLabelFormatter = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel;
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
+
+  const bucketLabelFormatter = getBucketLabelFormatter(
+    OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
+  );
 
   const input = useMemo(
     () =>
-      createObservabilityTimeseriesInput(timeframe, {
+      createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
         metrics: [metric],
         groupBy: pivotDimension,
       }),
-    [timeframe, metric, pivotDimension],
+    [timeframe, bucketStartMs, metric, pivotDimension],
   );
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
-  const { data: pipelinesData } = useListPipelinesQuery({
-    input: OBSERVABILITY_PIPELINES_INPUT,
-  });
+
+  const pivotPipelineIds = useMemo(
+    () =>
+      pivotDimension === MetricDimension.PIPELINE_ID
+        ? (data?.series ?? []).map((keySeries) => keySeries.key)
+        : [],
+    [data, pivotDimension],
+  );
+
+  const pivotPipelines = useGetPipelineQueries(pivotPipelineIds);
 
   const { series, lines } = useMemo(() => {
     const timeseries = (data?.series ?? []).filter(
@@ -82,10 +95,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
         PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, keySeries.key)] !== undefined,
     );
     const pipelineNamesByPipelineId = new Map(
-      (pipelinesData?.pipelines ?? []).map((pipeline) => [
-        pipeline.id,
-        formatPipelineName(pipeline, true),
-      ]),
+      pivotPipelines.map((pipeline) => [pipeline.id, formatPipelineName(pipeline, true)]),
     );
 
     const keyToLabel = (key: Timeseries["key"]) => {
@@ -129,7 +139,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
         })),
       })),
     };
-  }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
+  }, [data, pivotPipelines, pivotDimension, seriesLabel, color]);
 
   return (
     <Flex

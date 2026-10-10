@@ -79,7 +79,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
   },
   {
     id: "lastRun",
-    header: "Ran",
+    header: "Last run",
     width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
     canSort: false,
     cell: ({ row }) => (
@@ -110,6 +110,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     id: "lastDuration",
     header: "Duration",
     width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
+    align: "right",
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>

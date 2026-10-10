@@ -30,11 +30,14 @@ interface PipelinePageActiveRunActionsProps {
 
 const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({ run }) => {
   const { toast } = useToast();
-  const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
+  const { mutate: signalRun, isPending: isSignaling, variables } = useSignalRunMutation();
 
-  const isResuming = getRunPauseSignal(run) === RunSignal.RESUME;
+  const pauseSignal = getRunPauseSignal(run);
+  const isResuming = pauseSignal === RunSignal.RESUME;
   const isBlocked = run.executionStatus?.observedState === ExecutionObservedState.BLOCKED;
   const isStopping = run.executionStatus?.desiredState === ExecutionDesiredState.STOPPED;
+  const stopSignal = getRunStopSignal(run);
+  const pendingSignal = isSignaling ? variables?.signal : undefined;
 
   const handleSignal = (signal: RunSignal) => {
     signalRun(
@@ -67,18 +70,18 @@ const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({ r
         icon={isResuming ? PlayIcon : PauseIcon}
         iconWeight={IconWeight.FILL}
         variant={ButtonVariant.SECONDARY}
-        isLoading={isSignaling}
-        isDisabled={isStopping || isBlocked}
-        onClick={() => handleSignal(getRunPauseSignal(run))}
+        isLoading={pendingSignal === pauseSignal}
+        isDisabled={isStopping || isBlocked || pendingSignal === stopSignal}
+        onClick={() => handleSignal(pauseSignal)}
       />
       <Button
         label="Stop"
         icon={StopIcon}
         iconWeight={IconWeight.FILL}
         variant={ButtonVariant.ERROR}
-        isLoading={isSignaling}
-        isDisabled={isStopping}
-        onClick={() => handleSignal(getRunStopSignal(run))}
+        isLoading={pendingSignal === stopSignal}
+        isDisabled={isStopping || pendingSignal === pauseSignal}
+        onClick={() => handleSignal(stopSignal)}
       />
     </>
   );

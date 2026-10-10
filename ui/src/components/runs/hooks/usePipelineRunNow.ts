@@ -7,6 +7,7 @@ export const usePipelineRunNow = (isTicking: boolean) => {
 
   useEffect(() => {
     if (!isTicking) return;
+    setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), PIPELINE_RUN_DURATION_TICK_MS);
     return () => clearInterval(interval);
   }, [isTicking]);

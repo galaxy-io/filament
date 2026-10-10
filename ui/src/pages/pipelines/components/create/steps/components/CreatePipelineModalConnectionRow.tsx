@@ -18,8 +18,6 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalConnectionRowFrame from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionRowFrame";
 
-import { NOOP } from "@/constants";
-
 const RowControlWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -57,18 +55,20 @@ const CreatePipelineModalConnectionRow: FC<CreatePipelineModalConnectionRowProps
       $isDisabled={isDisabled}
       onClick={isDisabled ? undefined : handleClick}
     >
-      <RowControlWrapper>
+      <RowControlWrapper onClick={(event) => event.stopPropagation()}>
         {isSource ? (
           <RadioInput
+            name="create-pipeline-source"
             isSelected={sourceConnection?.id === connection.id}
             isDisabled={isDisabled}
-            onChange={NOOP}
+            onChange={() => selectSource(connection)}
+            ariaLabel={connection.name}
           />
         ) : (
           <CheckboxInput
             isChecked={sinkConnections.some((sink) => sink.id === connection.id)}
             isDisabled={isDisabled}
-            onChange={NOOP}
+            onChange={() => toggleSink(connection)}
             ariaLabel={connection.name}
           />
         )}

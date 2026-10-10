@@ -9,7 +9,7 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 interface ConnectionDrawerSectionProps {
   header: string;
   icon: ComponentProps<typeof Widget>["icon"];
-  count: number;
+  count: number | undefined;
   emptyHeader: string;
   emptyMessage: string;
   actions?: ReactNode;
@@ -36,17 +36,19 @@ const ConnectionDrawerSection: FC<PropsWithChildren<ConnectionDrawerSectionProps
       actions={
         <Flex alignItems={AlignItems.CENTER} gap={8}>
           {actions}
-          <Chip
-            hasBorder
-            isPill
-            count={count}
-            size={ChipSize.SMALL}
-            variant={ChipVariant.SECONDARY}
-          />
+          {count !== undefined && (
+            <Chip
+              hasBorder
+              isPill
+              count={count}
+              size={ChipSize.SMALL}
+              variant={ChipVariant.SECONDARY}
+            />
+          )}
         </Flex>
       }
       defaultIsOpen={isOpenInitial}
-      isFlush={count > 0 && isFlush}
+      isFlush={!!count && isFlush}
     >
       {count === 0 ? (
         <Box padding={12}>

@@ -59,6 +59,7 @@ const PipelineCanvasEditWidget: FC = () => {
           isRound
           isActive={isAddNodeOpen}
           ariaLabel="Add a connection"
+          tooltip="Add a connection"
         />
       </Popover>
     </PipelineCanvasEditWidgetContainer>

@@ -36,7 +36,11 @@ export const getCanvasEdgeConfig = (
   edge: Pick<CanvasEdge, "data">,
   baseEdge: PipelineEdgeProto | undefined,
 ): PipelineCanvasEdgeData => ({
-  destinationResource: edge.data?.destinationResource ?? baseEdge?.destinationResource ?? "",
+  destinationResource: (
+    edge.data?.destinationResource ??
+    baseEdge?.destinationResource ??
+    ""
+  ).trim(),
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],

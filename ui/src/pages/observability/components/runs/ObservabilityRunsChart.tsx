@@ -7,6 +7,7 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
   OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH,
+  OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER,
   OBSERVABILITY_RUNS_SERIES,
 } from "@/pages/observability/components/runs/constants";
 import {
@@ -15,6 +16,8 @@ import {
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
 import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
+import { getBucketLabelFormatter } from "@/pages/observability/utils";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
 import type { ObservabilitySearch } from "@/module/schemas";
@@ -25,14 +28,21 @@ const ObservabilityRunsChart: FC = () => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const { timeframe, statuses, runsBucket, runsStatus } = useObservabilitySearch();
 
-  const bucketLabelFormatter = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel;
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
 
-  const input = useMemo(
-    () => createRunCountTimeseriesInput(timeframe, statuses),
-    [timeframe, statuses],
+  const bucketLabelFormatter = getBucketLabelFormatter(
+    OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
   );
 
-  const { data, isLoading } = useQueryTimeseriesQuery({ input });
+  const input = useMemo(
+    () => createRunCountTimeseriesInput(timeframe, bucketStartMs, statuses),
+    [timeframe, bucketStartMs, statuses],
+  );
+
+  const { data, isLoading } = useQueryTimeseriesQuery({
+    input,
+    options: { enabled: statuses.length > 0 },
+  });
 
   const groups = useMemo(() => {
     if (!statuses.length) {
@@ -73,6 +83,8 @@ const ObservabilityRunsChart: FC = () => {
         onSelectionChange={handleSelectionChange}
         isFilterable
         isLoading={isLoading}
+        placeholder={statuses.length ? undefined : OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER}
+        ariaLabel="Runs by status"
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
       />
     </Flex>

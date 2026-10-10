@@ -6,7 +6,7 @@ import { PIPELINE_UNTITLED_NAME } from "@/components/pipelines/constants";
 
 const DELETED_NAME_SUFFIX = /__deleted__\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
-export const stripDeletedName = (name: string) => name.replace(DELETED_NAME_SUFFIX, "");
+export const formatDeletedName = (name: string) => name.replace(DELETED_NAME_SUFFIX, "");
 
 export interface PipelineFlowEndpoints {
   sourceId?: Connection["id"];
@@ -23,7 +23,7 @@ export const mapVersionNodesToFlowEndpoints = (
 });
 
 export const formatPipelineName = (pipeline: Pipeline, includeDeleted = false): string => {
-  const name = includeDeleted ? pipeline.name : stripDeletedName(pipeline.name);
+  const name = includeDeleted ? pipeline.name : formatDeletedName(pipeline.name);
   return name ? name.replace(/->/g, "→") : PIPELINE_UNTITLED_NAME;
 };
 

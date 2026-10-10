@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
@@ -18,6 +19,7 @@ interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
   isLoading: boolean;
+  isError: boolean;
   connectorKind: ConnectorKind;
   isSourceDisabled: boolean;
   onConnectionClick: (connection: Connection) => void;
@@ -27,6 +29,7 @@ const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorL
   connections,
   hasConnections,
   isLoading,
+  isError,
   connectorKind,
   isSourceDisabled,
   onConnectionClick,
@@ -40,6 +43,14 @@ const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorL
         justifyContent={JustifyContent.CENTER}
       >
         <PendingLayout size={PendingLayoutSize.SMALL} />
+      </Flex>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
+        <ErrorLayout size={ErrorLayoutSize.SMALL} header="Failed to load connections" />
       </Flex>
     );
   }

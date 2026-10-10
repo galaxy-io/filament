@@ -69,7 +69,7 @@ export const getFieldDefaults = (
   return defaults;
 };
 
-export const updateConfigField = (
+export const createConfigFieldValues = (
   fields: ConfigField[],
   values: Record<string, JsonValue>,
   fieldName: string,

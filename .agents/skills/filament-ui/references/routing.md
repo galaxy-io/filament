@@ -10,7 +10,7 @@ Library code never knows where it is mounted. The standalone mounts it at `/`, a
 |---|---|---|
 | `FilamentPath` | `module/paths.ts` | the only module-relative path strings (`"./pipelines/$id/canvas"`) |
 | `createFilamentHref(path, params)` | `module/paths.ts` | fills `$params` for an `href` |
-| `*RouteOptions` | `module/routes.tsx` | what each route needs (search schema, `remountDeps`, pending, error, not found) |
+| `*RouteOptions` | `module/routes.tsx` | what each route needs (search schema, pending, error, not found) |
 | schemas | `module/schemas.ts` | every search schema and the one params schema |
 | read and write hooks | `module/hooks.ts` | the only callers of `useSearch`, `useParams` and `useNavigate` in library code |
 | file routes | `host/routes/**` | the standalone's tree, each file spreads one `*RouteOptions` |
@@ -70,7 +70,14 @@ export const Route = createFileRoute("/_app/_filament/")({
 Every exported page, the layout and the splat get one `*RouteOptions`, built by the private `createFilamentRouteOptions` in `module/routes.tsx`.
 
 ```tsx
-const createFilamentRouteOptions = <TOptions extends object>(options: TOptions) => ({
+interface FilamentRouteComponents {
+  errorComponent: FC<ErrorComponentProps>;
+  pendingComponent: FC;
+}
+
+const createFilamentRouteOptions = <TOptions extends object>(
+  options: TOptions,
+): FilamentRouteComponents & TOptions => ({
   errorComponent: FilamentErrorComponent,
   pendingComponent: FilamentPendingComponent,
   ...options,
@@ -78,19 +85,14 @@ const createFilamentRouteOptions = <TOptions extends object>(options: TOptions) 
 
 export const pipelinesRouteOptions = createFilamentRouteOptions({
   validateSearch: pipelinesSearchSchema,
-  remountDeps: ({ search }: { search: PipelinesSearch }) => ({
-    q: search.q,
-    sortBy: search.sortBy,
-    sortOrder: search.sortOrder,
-  }),
 });
 ```
 
 | Option | When |
 |---|---|
 | `validateSearch` | the route owns search params |
-| `remountDeps` | a list page whose suspense query must re-suspend when its list params change |
-| `errorComponent` / `notFoundComponent` | `pipelineRouteOptions` maps `Code.NotFound` to `PipelineNotFoundPage` through `PipelineErrorComponent` |
+| never `remountDeps` | the router navigates in a transition, so a list whose query key changes keeps showing the old rows until the new ones arrive. Remounting would recreate the toolbar and drop focus from the search box mid-typing |
+| `errorComponent` / `notFoundComponent` | `pipelineRouteOptions` maps `Code.NotFound` to `PipelineNotFoundPage` through `FilamentPipelineErrorComponent` |
 | `staticData: { filament: true }` | the layout only, so `useFilamentMountedBase` can find the mount |
 
 A new page means a new `*RouteOptions`, a host file in `host/routes/`, a route in `fixtures/host/router.tsx`, and an `./pages/<Page>` entry in `package.json` `exports` if hosts may mount it.

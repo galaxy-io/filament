@@ -42,6 +42,7 @@ const CreatePipelineModalResourcesReadModeCell: FC<
         onChange={handleReadModeChange}
         variant={SelectInputVariant.TERTIARY}
         isDisabled={!row.isSelected}
+        ariaLabel={`Read mode for ${row.displayName}`}
         fillWidth
       />
     </Box>

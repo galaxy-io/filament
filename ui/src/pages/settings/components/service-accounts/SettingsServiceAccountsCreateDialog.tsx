@@ -28,12 +28,14 @@ import { useCreateServiceAccountMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
 import { mapOptionIdToEnum } from "@/utils/select";
+import { getNameError } from "@/utils/validation";
 
 interface SettingsServiceAccountsCreateDialogState {
   name: CreateServiceAccountRequest["name"];
   role: CreateServiceAccountRequest["role"];
   credentials: ServiceAccountCredentials | undefined;
   error: string | undefined;
+  shouldShowErrors: boolean;
 }
 
 const DEFAULT_STATE: SettingsServiceAccountsCreateDialogState = {
@@ -41,6 +43,7 @@ const DEFAULT_STATE: SettingsServiceAccountsCreateDialogState = {
   role: SETTINGS_SERVICE_ACCOUNT_DEFAULT_ROLE,
   credentials: undefined,
   error: undefined,
+  shouldShowErrors: false,
 };
 
 interface SettingsServiceAccountsCreateDialogProps {
@@ -55,10 +58,12 @@ const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialo
   const [state, setState] = useState<SettingsServiceAccountsCreateDialogState>(DEFAULT_STATE);
   const { mutate: createAccount, isPending: isCreating } = useCreateServiceAccountMutation();
 
+  const nameError = getNameError(state.name, state.shouldShowErrors);
+
   const handleCreate = () => {
     const name = state.name.trim();
     if (name === "") {
-      setState((prev) => ({ ...prev, error: "Name is required" }));
+      setState((prev) => ({ ...prev, error: undefined, shouldShowErrors: true }));
       return;
     }
     setState((prev) => ({ ...prev, error: undefined }));
@@ -123,7 +128,7 @@ const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialo
             onClick={onClose}
             isDisabled={isCreating}
           />
-          <Button label="Create" onClick={handleCreate} isLoading={isCreating} />
+          <Button label="Create service account" onClick={handleCreate} isLoading={isCreating} />
         </>
       }
     >
@@ -135,6 +140,7 @@ const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialo
           label="Name"
           value={state.name}
           onChange={(name) => setState((prev) => ({ ...prev, name }))}
+          error={nameError}
           fillWidth
           isRequired
           autoFocus

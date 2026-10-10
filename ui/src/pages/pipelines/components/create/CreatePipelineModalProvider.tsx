@@ -221,7 +221,7 @@ const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProvi
       isLoading,
       discoverError,
       effectiveName,
-      nameError: getNameError(effectiveName, state.isNameTouched) ?? undefined,
+      nameError: getNameError(effectiveName, state.isNameTouched),
       workerConfigurationError,
       isNextDisabled,
       hints: isNextDisabled ? blockingHints : [],

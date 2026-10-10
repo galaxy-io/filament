@@ -3,8 +3,9 @@ import type {
   Requirement,
   ValidatePipelineResponse,
 } from "@/gen/ingestion/v1/capabilities_pb";
-import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, type ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   ExecutionDesiredState,
   type RunInfo,
@@ -47,3 +48,8 @@ export const getPipelineValidationErrors = (
     ...(validation?.edges ?? []).flatMap(getEdgeValidationErrors),
   ]),
 ];
+
+export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
+  (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
+  (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&
+  (version?.graph?.edges ?? []).length > 0;

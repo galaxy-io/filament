@@ -1,4 +1,4 @@
-import { type ComponentProps, type FC, type PropsWithChildren, useState } from "react";
+import { type FC, type PropsWithChildren, useState } from "react";
 
 import CronInput from "@galaxy-io/dls/inputs/CronInput";
 import Field from "@galaxy-io/dls/inputs/Field";
@@ -18,7 +18,6 @@ import {
 
 interface PipelineScheduleFieldsProps {
   header: string;
-  size?: ComponentProps<typeof Widget>["size"];
   isOpenInitial?: boolean;
   state: PipelineScheduleState;
   onChange: (partial: Partial<PipelineScheduleState>) => void;
@@ -26,7 +25,6 @@ interface PipelineScheduleFieldsProps {
 
 const PipelineScheduleFields: FC<PropsWithChildren<PipelineScheduleFieldsProps>> = ({
   header,
-  size,
   isOpenInitial = false,
   state,
   onChange,
@@ -57,7 +55,6 @@ const PipelineScheduleFields: FC<PropsWithChildren<PipelineScheduleFieldsProps>>
     <Widget
       isCollapsible
       header={header}
-      size={size}
       isOpen={isOpen}
       onOpenChange={() => setIsOpen((prev) => !prev)}
       actions={
@@ -67,7 +64,11 @@ const PipelineScheduleFields: FC<PropsWithChildren<PipelineScheduleFieldsProps>>
               {summary}
             </Text>
           )}
-          <SwitchInput isChecked={state.isEnabled} onChange={handleEnabledChange} />
+          <SwitchInput
+            isChecked={state.isEnabled}
+            onChange={handleEnabledChange}
+            ariaLabel="Enable schedule"
+          />
         </Flex>
       }
     >

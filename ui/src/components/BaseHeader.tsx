@@ -99,6 +99,7 @@ const BaseHeader: FC<BaseHeaderProps> = ({
           <Button
             icon={XIcon}
             ariaLabel="Close"
+            tooltip="Close"
             variant={ButtonVariant.SECONDARY}
             size={ButtonSize.SMALL}
             onClick={onClose}

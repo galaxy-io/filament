@@ -26,6 +26,7 @@ const ObservabilityTimeframeSwitcher: FC<ObservabilityTimeframeSwitcherProps> = 
       options={items}
       value={value}
       onChange={onChange}
+      ariaLabel="Timeframe"
     />
   );
 };

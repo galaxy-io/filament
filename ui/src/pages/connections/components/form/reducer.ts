@@ -69,6 +69,15 @@ function setShouldShowErrors(
   };
 }
 
+function resetValidation(state: ConnectionFormState): ConnectionFormState {
+  return {
+    ...state,
+    phase: ConnectionFormPhase.IDLE,
+    validationErrors: [],
+    shouldShowErrors: false,
+  };
+}
+
 const connectionFormReducer = (
   state: ConnectionFormState,
   action: ConnectionFormAction,
@@ -84,6 +93,8 @@ const connectionFormReducer = (
       return setValidationErrors(state, action);
     case ConnectionFormActionType.SET_SHOULD_SHOW_ERRORS:
       return setShouldShowErrors(state, action);
+    case ConnectionFormActionType.RESET_VALIDATION:
+      return resetValidation(state);
   }
 };
 

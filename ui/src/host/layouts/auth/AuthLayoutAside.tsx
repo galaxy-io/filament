@@ -35,7 +35,7 @@ const AuthLayoutAside: FC = () => {
                 key={label}
                 variant={WidgetVariant.SECONDARY}
                 isFlush
-                onClick={() => window.open(url, "_blank")}
+                onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
               >
                 <Flex alignItems={AlignItems.CENTER} gap={12} padding={[12, 16]} fillWidth>
                   <Icon

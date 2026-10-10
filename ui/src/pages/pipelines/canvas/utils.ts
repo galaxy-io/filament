@@ -38,7 +38,7 @@ import type { PipelineResourceStatus } from "@/pages/pipelines/components/resour
 import {
   getPipelineResourceStatus,
   getRecommendedCursor,
-  intersectModes,
+  getSharedModes,
 } from "@/pages/pipelines/components/resource/utils";
 
 export interface PipelineCanvasEdgeModeOptions {
@@ -54,7 +54,7 @@ export const getEdgeModeOptions = (
 ): PipelineCanvasEdgeModeOptions => ({
   readModeOptions:
     verdict && hasReadLevers
-      ? intersectModes(verdict.resources.map((resource) => resource.supportedReadModes))
+      ? getSharedModes(verdict.resources.map((resource) => resource.supportedReadModes))
       : [],
   writeModeOptions: verdict?.supportedWriteModes ?? [],
   effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,

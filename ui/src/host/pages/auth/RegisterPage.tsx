@@ -1,5 +1,8 @@
 import { type FC, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
+import { useTransport } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
@@ -7,13 +10,15 @@ import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { RegisterRequest } from "@/gen/auth/v1/session_pb";
+import { type RegisterRequest, RegisterRequestSchema } from "@/gen/auth/v1/session_pb";
 
 import AuthForm from "@/host/layouts/auth/AuthForm";
 import AuthFormFooter from "@/host/layouts/auth/AuthFormFooter";
 
-import { useRegisterMutation } from "@/api/queries/auth";
+import { createGetSessionQueryOptions, useRegisterMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -37,6 +42,9 @@ const DEFAULT_STATE: RegisterPageState = {
 
 const RegisterPage: FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const transport = useTransport();
+  const { toast } = useToast();
   const [state, setState] = useState<RegisterPageState>(DEFAULT_STATE);
   const { mutate: register, isPending } = useRegisterMutation();
 
@@ -53,16 +61,20 @@ const RegisterPage: FC = () => {
     }
     setState((prev) => ({ ...prev, error: undefined }));
     register(
-      {
+      create(RegisterRequestSchema, {
         orgName: state.orgName,
         givenName: state.givenName,
         familyName: state.familyName,
         email: state.email,
         password: state.password,
-      },
+      }),
       {
         onSuccess: () => {
-          void navigate({ to: "/", replace: true });
+          queryClient.removeQueries({
+            queryKey: createGetSessionQueryOptions({ transport }).queryKey,
+          });
+          toast({ header: "Organization created", variant: ToastVariant.SUCCESS });
+          void navigate({ to: "/login", replace: true });
         },
         onError: (err) => {
           setState((prev) => ({

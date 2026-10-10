@@ -58,6 +58,7 @@ export const useConnectionFormActions = () => {
         dispatch({ type: ConnectionFormActionType.SET_VALIDATION_ERRORS, payload }),
       setShouldShowErrors: (payload: SetShouldShowErrorsAction["payload"]) =>
         dispatch({ type: ConnectionFormActionType.SET_SHOULD_SHOW_ERRORS, payload }),
+      resetValidation: () => dispatch({ type: ConnectionFormActionType.RESET_VALIDATION }),
     }),
     [dispatch],
   );

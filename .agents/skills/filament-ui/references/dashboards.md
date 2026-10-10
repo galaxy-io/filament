@@ -53,7 +53,7 @@ const ObservabilityPage: FC = () => {
 };
 ```
 
-- **Gate first.** `useObservabilitySetup()` suspends on `OBSERVABILITY_CONNECTIONS_INPUT` and `OBSERVABILITY_PIPELINES_INPUT`. Until a source, a sink and a pipeline exist the page renders `ObservabilitySetupChecklist`. After that nothing suspends.
+- **Gate first.** `useObservabilitySetup()` suspends on three `pageSize: 1` inputs in `components/setup/constants.ts` (sources and sinks filtered by kind, pipelines including deleted). Until a source, a sink and a pipeline exist the page renders `ObservabilitySetupChecklist`. After that nothing suspends.
 - **The page is a DLS `PageLayout`.** `ObservabilityPageActions` fills `actions` with `ObservabilityTimeframeSwitcher` (a `ToggleInput` over `ObservabilityTimeframe`) and an icon-only Refresh `Button` (`ariaLabel`, `tooltip`) that calls `useRefreshObservabilityQueries()`.
 - **Scroll with `ScrollArea`**, never `overflow="auto"`.
 - **The responsive grid is flex wrap**, not CSS grid. Each card is a `FlexItem grow={1} basis={OBSERVABILITY_WIDGET_BASIS} minWidth={0}` (`"400px"`) in a `FlexWrap.WRAP` row.
@@ -63,22 +63,20 @@ const ObservabilityPage: FC = () => {
 ## View state in the URL
 
 ```ts
-export const observabilitySearchSchema = listSearchParamsSchema
-  .pick({ sortBy: true, sortOrder: true })
-  .extend({
-    timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
-    runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
-    throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
-    throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
-    usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
-    usagePivot: z.enum(MetricDimension).optional().catch(undefined),
-    statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-    runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-    runsStatus: z.enum(RunStatus).optional().catch(undefined),
-  });
+export const observabilitySearchSchema = z.object({
+  timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
+  throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
+  throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
+  usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
+  usagePivot: z.enum(MetricDimension).optional().catch(undefined),
+  statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
+  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
+  runsStatus: z.enum(RunStatus).optional().catch(undefined),
+});
 ```
 
-- Timeframe, the runs view, each card's view and pivot, the status filter, the selected bar and the table sort are all search params. There is no context provider for page state, and a link reproduces the dashboard.
+- Timeframe, the runs view, each card's view and pivot, the status filter and the selected bar are all search params. There is no context provider for page state, and a link reproduces the dashboard.
 - **Defaults are applied in the read hook, never in the schema.** `useObservabilitySearch` in `module/hooks.ts` parses and fills them in its `select`, so every widget reads a complete value.
 
 ```ts
@@ -156,7 +154,7 @@ DLS charts come from `@galaxy-io/dls/charts/*` and use the DLS's own d3 dependen
 - **Colours.** A view config pins one `ChartPalette` slot (Records `PURPLE`, Volume `TEAL`, CPU `ORANGE`, Memory `PINK`). A pivot by pipeline cycles `OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[index % length]`. Anything keyed by run status reads `PIPELINE_RUN_STATUS_TO_HUE_MAP`, the same `RoleColor` map that colours `PipelineRunStatusSwatch`, so swatches match everywhere.
 - **Hue maps are typed `Record<RunStatus, RoleColor | undefined>`.** `undefined` means no colour (`UNSPECIFIED` only, cancelled runs are `violet`). Status series and bar components without a hue are dropped, never drawn with a fallback.
 - **Run statuses use square swatches.** Pass `swatch={ChartSwatch.SQUARE}`.
-- **Formatters.** `valueFormatter` receives a `number` and comes from the view config (`formatNumber(value, { precision: 0 })`, `formatBytes`, `formatDuration`). The x key is the bucket start in millis as a string (`formatBucketKey`), and `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel` turns it into `HH:00` or `MM/DD`.
+- **Formatters.** `valueFormatter` receives a `number` and comes from the view config (`formatNumber(value, { precision: 0 })`, `formatBytes`, `formatDuration`). The x key is the bucket start in millis as a string (`formatBucketKey`), and `getBucketLabelFormatter(granularity)` turns it into `HH:00` or `MM/DD`. A day label reads the bucket midpoint, so a daylight saving shift never moves it to the previous date.
 - **Filtering.** `isFilterable` lets the legend toggle series. When a click on a bar should filter something else, control `selection` and `onSelectionChange` and write the result to the URL through `mapChartSelectionToRunsFilter(next[next.length - 1])`, which yields `runsBucket` and `runsStatus`.
 - **Legends.** `hasLegend` where more than one series can show.
 
@@ -204,7 +202,7 @@ export const OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP: Record<
 ```
 
 - `ObservabilityPivotSelect` is a clearable `SelectInput` over `OBSERVABILITY_TIMESERIES_PIVOT_OPTIONS`. Clearing it writes `MetricDimension.UNSPECIFIED`.
-- `ObservabilityTimeseriesChart` builds its request with `createObservabilityTimeseriesInput(timeframe, { metrics, groupBy })` in a `useMemo`, and labels a pipeline pivot from `useListPipelinesQuery({ input: OBSERVABILITY_PIPELINES_INPUT })`.
+- `ObservabilityTimeseriesChart` builds its request with `createObservabilityTimeseriesInput(timeframe, bucketStartMs, { metrics, groupBy })` in a `useMemo`, and labels a pipeline pivot from `useGetPipelineQueries(ids)` over the series it got back.
 
 ## KPI tiles
 
@@ -246,7 +244,7 @@ Runs are two cards, a chart and a table, both switched by the `runs` param (`Obs
 - **`ObservabilityRunsChartWidget`** holds the view `ToggleInput` and the status `MultiSelectInput` (options prefixed with their swatch, `selectAllLabel={OBSERVABILITY_RUNS_ALL_STATUSES_LABEL}`, the collapsed value rendered as `pluralize("status", n, true)`, in a `Box width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}`). Past renders `ObservabilityRunsChart`, a selectable `BarChart` over `createRunCountTimeseriesInput(timeframe, statuses)`. Upcoming renders `ObservabilityRunsScheduledChart`, which buckets scheduled runs with `createScheduledRunsChartGroups` and disables the status select.
 - **`ObservabilityRunsTableWidget`** titles itself from `OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP[view]` and renders `ObservabilityRunsPastTable` or `ObservabilityRunsUpcomingTable`, each a DLS `InfiniteTable` in a `Box height={OBSERVABILITY_RUNS_TABLE_HEIGHT}`.
 - **Shared columns.** `OBSERVABILITY_RUNS_TABLE_BASE_COLUMNS` in `runs/columns/constants.tsx` holds status, flow and pipeline. Each table spreads it and appends its own columns as a private module constant (`OBSERVABILITY_RUNS_PAST_TABLE_COLUMNS`, `OBSERVABILITY_RUNS_UPCOMING_TABLE_COLUMNS`). Cells self-fetch by id (`PipelineName`, `PipelineFlow`).
-- **Past table input.** The selected bar's status or the status filter (without `SCHEDULED`), a time window from `createRunsWindowInput(timeframe, runsBucket)`, and the sort through `createListSortingInput` when `sortBy` is set. Sort maps to the URL with `createTableSorting` and `createTableSortSearch` over `OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP`.
+- **Past table input.** The selected bar's status or the status filter (without `SCHEDULED`), and a time window from `createRunsWindowInput(timeframe, bucketStartMs, runsBucket)`. The table has no sortable column, because the API cannot sort runs by start time and the default order already is.
 - **Drill-down.** A row click deep-links to the run in history.
 
 ```ts
@@ -259,10 +257,10 @@ navigate({
 
 ## Maps and constants
 
-- Page-wide maps live in `pages/observability/constants.ts`. `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP` gives each timeframe its `durationMs`, `granularity` and `formatBucketLabel`, and the `OBSERVABILITY_GRANULARITY_TO_*_MAP` records give each granularity its bucket length, start and offset. Shared inputs and defaults (`OBSERVABILITY_CONNECTIONS_INPUT`, `OBSERVABILITY_DEFAULT_TIMEFRAME`) sit beside them.
+- Page-wide maps live in `pages/observability/constants.ts`. `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP` gives each timeframe its `durationMs` and `granularity`, and `OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP` gives each granularity its bucket length. Defaults (`OBSERVABILITY_DEFAULT_TIMEFRAME`) sit beside them. Bucket start, offset and label are functions in `utils.ts`.
 - Card-level maps live in the card folder's `constants.ts` (`components/timeseries/constants.ts`, `components/runs/constants.ts`, `components/setup/constants.ts`).
 - Enums live in `pages/observability/types.ts` (`ObservabilityTimeframe`, `ObservabilityRunsView`, `ObservabilityThroughputView`, `ObservabilityUsageView`).
-- Pure request builders live in `utils.ts` (`createTimeframeSince`, `createObservabilityTimeseriesInput`, `createRunsWindowInput`, `mapTimeseriesToChartGroups`).
+- Pure request builders live in `utils.ts` (`createTimeframeSince`, `createObservabilityTimeseriesInput`, `createRunsWindowInput`, `mapTimeseriesToChartGroups`). Each takes `bucketStartMs` from `useObservabilityBucketStart`, which moves at every hour or day boundary, so the window slides forward instead of freezing at mount.
 
 ## Setup checklist
 

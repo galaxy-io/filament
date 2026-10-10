@@ -276,7 +276,7 @@ Each target is a `{ types, import }` pair under `dist/`. `vite.lib.config.ts` re
 
 **Paths.** One `enum <Product>Path` of module-relative strings (`"./pipelines/$id/canvas"`) and `create<Product>Href(path, params)`. These are the only path strings in library code. The module never names an absolute route, so it works under any mount.
 
-**Route options.** Every exported page, the layout and the `$` splat get one `*RouteOptions` object built by a private `create<Product>RouteOptions`. It carries `validateSearch`, `remountDeps` for list params, and the product's own `errorComponent` and `pendingComponent`, so the module looks the same under any host and the host sets no router defaults for it. The layout's options carry `staticData: { <product>: true }`, which lets `use<Product>Base` find the mount.
+**Route options.** Every exported page, the layout and the `$` splat get one `*RouteOptions` object built by a private `create<Product>RouteOptions`. It carries `validateSearch` and the product's own `errorComponent` and `pendingComponent`, so the module looks the same under any host and the host sets no router defaults for it. The layout's options carry `staticData: { <product>: true }`, which lets `use<Product>Base` find the mount.
 
 **URL hooks.** Library code never calls `useSearch`, `useParams` or `useNavigate` directly. It reads through hooks that parse with the zod schema, `useSearch({ strict: false, structuralSharing: true, select: (search) => schema.parse(search) })`, and writes through `use<Product>SearchUpdate` and `use<Product>Navigate`. Defaults apply in the read hook's `select`, never in the schema.
 

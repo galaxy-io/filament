@@ -101,7 +101,7 @@ const PipelinePageHeading: FC = () => {
     if (!isNameValid(name)) {
       toast({
         header: "Rename failed",
-        description: getNameError(name, true) ?? undefined,
+        description: getNameError(name, true),
         variant: ToastVariant.ERROR,
       });
       return;

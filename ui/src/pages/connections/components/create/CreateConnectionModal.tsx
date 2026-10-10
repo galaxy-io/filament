@@ -5,13 +5,20 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import CreateConnectionConfigure from "@/pages/connections/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connections/components/create/select/CreateConnectionSelector";
-import type { CreateConnectionModalProps } from "@/pages/connections/components/create/types";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
 import { useOverlayRecord } from "@/hooks/useOverlayRecord";
 import { useOverlaySession } from "@/hooks/useOverlaySession";
+
+interface CreateConnectionModalProps {
+  isOpen: boolean;
+  connector: FilamentLayoutSearch["connector"];
+  connectorKind: FilamentLayoutSearch["connectorKind"];
+  connectorSearch: FilamentLayoutSearch["connectorSearch"];
+  onClose: () => void;
+}
 
 const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
   isOpen,
@@ -51,7 +58,7 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
   if (shownConnector && shownConnectorKind) {
     return (
       <CreateConnectionConfigure
-        key={`${session}:${shownConnectorKind}:${shownConnector}`}
+        key={`${session}:${shownConnectorKind}`}
         isOpen={isOpen}
         connector={shownConnector}
         connectorKind={shownConnectorKind}

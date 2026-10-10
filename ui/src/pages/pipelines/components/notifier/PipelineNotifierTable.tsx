@@ -30,7 +30,6 @@ interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
   header?: string;
   rows: TRow[];
   isOpenInitial?: boolean;
-  isLoading?: boolean;
   isSaving?: boolean;
   onCreate: (state: PipelineNotifierState, onSuccess: () => void) => void;
   onUpdate: (row: TRow, state: PipelineNotifierState, onSuccess: () => void) => void;
@@ -48,7 +47,6 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
   header = "Notifiers",
   rows,
   isOpenInitial = true,
-  isLoading = false,
   isSaving = false,
   onCreate,
   onUpdate,
@@ -82,6 +80,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
     {
       id: "name",
       header: "Name",
+      isRowHeader: true,
       cell: ({ row }) => (
         <Flex alignItems={AlignItems.CENTER} gap={8}>
           <PipelineNotifierTypeTile notificationType={row.notificationType} />
@@ -101,12 +100,13 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
           isChecked={row.isEnabled}
           onChange={(isEnabled) => onToggleEnabled(row, isEnabled)}
           isDisabled={isSaving}
+          ariaLabel={`Enable ${row.name}`}
         />
       ),
     },
   ];
 
-  const hasRows = isLoading || rows.length > 0;
+  const hasRows = rows.length > 0;
 
   return (
     <Widget
@@ -125,15 +125,13 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
             onClick={() => handleCreatingChange(true)}
             isDisabled={state.isCreating || isSaving}
           />
-          {!isLoading && (
-            <Chip
-              hasBorder
-              isPill
-              count={rows.length}
-              size={ChipSize.SMALL}
-              variant={ChipVariant.SECONDARY}
-            />
-          )}
+          <Chip
+            hasBorder
+            isPill
+            count={rows.length}
+            size={ChipSize.SMALL}
+            variant={ChipVariant.SECONDARY}
+          />
         </Flex>
       }
     >
@@ -166,7 +164,6 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
               columns={columns}
               data={rows}
               getRowId={(row) => row.id}
-              isLoading={isLoading}
               expandedIds={state.expandedRowIds}
               onExpandedIdsChange={handleExpandedChange}
               renderExpandedRow={(row) => (

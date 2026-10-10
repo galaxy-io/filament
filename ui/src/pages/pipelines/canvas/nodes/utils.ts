@@ -1,12 +1,5 @@
+import type { PipelineCanvasNodeIslandMeasurements } from "@/pages/pipelines/canvas/nodes/types";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
-
-export interface PipelineCanvasNodeIslandMeasurements {
-  listTop: number;
-  listBottom: number;
-  badgeAnchorX: number | null;
-  badgeAnchorY: number | null;
-  hiddenHandleIds: string[];
-}
 
 const pipelineCanvasNodeMeasurementsMap = new Map<
   CanvasNode["id"],

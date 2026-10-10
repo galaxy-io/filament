@@ -113,7 +113,7 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
         label="Name"
         value={state.name}
         onChange={handleNameChange}
-        placeholder="Notifier name"
+        placeholder="Notifier name..."
         isDisabled={isDisabled}
         fillWidth
       />
@@ -124,7 +124,7 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
             options={TYPE_OPTIONS}
             value={String(state.notificationType)}
             onChange={handleTypeChange}
-            placeholder="Select type"
+            placeholder="Select a type..."
             isDisabled={isDisabled}
             fillWidth
           />
@@ -142,7 +142,7 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
                 <Text lineClamp={1}>{formatPipelineNotifierEventsSelection(options)}</Text>
               </Flex>
             )}
-            placeholder="Select events"
+            placeholder="Select events..."
             isDisabled={isDisabled}
             fillWidth
           />

@@ -37,7 +37,7 @@ const FieldList: FC<FieldComponentProps> = ({
         value={selected}
         onChange={onChange}
         variant={variant && INPUT_VARIANT_TO_TAG_INPUT_VARIANT_MAP[variant]}
-        placeholder="Press Enter or comma to add a value"
+        placeholder="Press Enter or comma to add a value..."
         isDisabled={isDisabled}
         fillWidth
       />

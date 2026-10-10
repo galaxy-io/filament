@@ -86,6 +86,7 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
       <Box variant={BoxVariant.PRIMARY} height="100%">
         <InfiniteTable<CreatePipelineModalResourceRow>
+          ariaLabel="Resources"
           columns={columns}
           data={rows}
           getRowId={(row) => row.name}

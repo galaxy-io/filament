@@ -86,6 +86,7 @@ const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewK
             options={switcherItems}
             value={view}
             onChange={handleViewChange}
+            ariaLabel={`${header} view`}
           />
           <ObservabilityPivotSelect value={pivot} onChange={handlePivotChange} />
         </>

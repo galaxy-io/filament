@@ -2,6 +2,7 @@ import { type FC, useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { match } from "ts-pattern";
 
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
@@ -28,11 +29,7 @@ import {
 import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
 import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
 import Field from "@/components/fields/Field";
-import {
-  getConnectionScopedFields,
-  getFieldDefaults,
-  isFieldVisible,
-} from "@/components/fields/utils";
+import { getConnectionScopedFields, isFieldVisible } from "@/components/fields/utils";
 
 import { getConnectorVersions } from "@/pages/connections/components/create/utils";
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
@@ -42,8 +39,14 @@ import {
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
-import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
-import { getUnplacedValidationErrors } from "@/pages/connections/components/form/utils";
+import {
+  ConnectionFormPhase,
+  type ConnectionFormState,
+} from "@/pages/connections/components/form/types";
+import {
+  getConnectionFormConfig,
+  getUnplacedValidationErrors,
+} from "@/pages/connections/components/form/utils";
 import { createRequiredFieldsValidationErrorMap } from "@/pages/connections/components/form/validation";
 
 import {
@@ -52,7 +55,9 @@ import {
   useValidateConfigMutation,
 } from "@/api/queries/connectors";
 
-import { getErrorMessage } from "@/utils/errors";
+import { IS_DEBUG } from "@/constants";
+
+import { getErrorMessage, isNotFoundError } from "@/utils/errors";
 import { getNameError, isNameValid } from "@/utils/validation";
 
 interface ConnectionFormProps {
@@ -61,10 +66,10 @@ interface ConnectionFormProps {
   connectorKind: ConnectorKind;
   connectionId?: Connection["id"];
   secretRefs?: Connection["secretRefs"];
-  onSubmit: () => void;
+  onSubmit: (config: ConnectionFormState["config"]) => void;
   onClose: () => void;
   onBack?: () => void;
-  onConnectorChange?: (connectorName: string) => void;
+  onConnectorChange?: (connectorName: ConnectorSpec["name"]) => void;
 }
 
 const ConnectionForm: FC<ConnectionFormProps> = ({
@@ -79,13 +84,19 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   onConnectorChange,
 }) => {
   const state = useConnectionFormState();
-  const { setConfigField, setName, setPhase, setShouldShowErrors, setValidationErrors } =
-    useConnectionFormActions();
+  const {
+    resetValidation,
+    setConfigField,
+    setName,
+    setPhase,
+    setShouldShowErrors,
+    setValidationErrors,
+  } = useConnectionFormActions();
   const { toast } = useToast();
 
-  const { data, isError } = useGetConnectorQuery({
+  const { data, error, isError } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
-    options: { retry: false },
+    options: { retry: false, placeholderData: keepPreviousData },
   });
   const connector = data?.connector;
   const { data: catalogData } = useListConnectorsQuery({
@@ -99,13 +110,18 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     label: `${version.apiVersion || version.version}${version.name === family?.aliasTarget ? " (default)" : ""}`,
   }));
 
-  const submitLabel = connectionId ? "Save" : "Create";
+  const submitLabel = connectionId ? "Save connection" : "Create connection";
 
   const { mutate: validateConfig } = useValidateConfigMutation();
 
   const fields = useMemo(
     () => getConnectionScopedFields(connector?.configSchema?.fields ?? []),
     [connector],
+  );
+
+  const config = useMemo(
+    () => getConnectionFormConfig(fields, state.config),
+    [fields, state.config],
   );
 
   const isDisabled =
@@ -142,7 +158,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       create(ValidateConfigRequestSchema, {
         kind: connectorKind,
         connector: connectorName,
-        config: state.config,
+        config,
         connectionId: connectionId ?? "",
       }),
       {
@@ -171,7 +187,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     );
   }, [
     state.name,
-    state.config,
+    config,
     connectorName,
     connectorKind,
     connectionId,
@@ -190,13 +206,18 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     [setConfigField],
   );
 
-  const fieldDefaults = useMemo(
-    () => getFieldDefaults(fields, state.config),
-    [fields, state.config],
-  );
+  const handleConnectorVersionChange = (version: string | null) => {
+    if (!version || !onConnectorChange) return;
+    resetValidation();
+    onConnectorChange(version);
+  };
+
+  const handleSubmit = () => {
+    onSubmit(config);
+  };
 
   const getFieldValue = (fieldName: ConfigField["name"]): JsonValue => {
-    return state.config[fieldName] ?? fieldDefaults[fieldName] ?? null;
+    return config[fieldName] ?? null;
   };
 
   const fieldValues = Object.fromEntries(fields.map((f) => [f.name, getFieldValue(f.name)]));
@@ -214,7 +235,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
           placeholder="Enter connection name..."
           label="Name"
           isRequired
-          error={nameError ?? undefined}
+          error={nameError}
           isDisabled={isDisabled}
           fillWidth
           autoFocus
@@ -224,10 +245,8 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
             label="API version"
             options={versionOptions}
             value={connector?.name ?? null}
-            onChange={(id) => {
-              if (id) onConnectorChange(id);
-            }}
-            isDisabled={isDisabled || versionOptions.length === 1}
+            onChange={handleConnectorVersionChange}
+            isDisabled={isDisabled}
             fillWidth
           />
         )}
@@ -261,7 +280,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
           <Beacon variant={BeaconVariant.SUCCESS} label="Connected" />
-          <Button label={submitLabel} icon={CheckIcon} onClick={onSubmit} />
+          <Button label={submitLabel} icon={CheckIcon} onClick={handleSubmit} />
         </Flex>
       ))
       .with(ConnectionFormPhase.SUBMITTING, () => <Button label={submitLabel} isLoading />)
@@ -269,16 +288,24 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   };
 
   if (isError) {
+    const isNotFound = isNotFoundError(error);
+    const header = isNotFound ? "Connector not found" : "Failed to load connector";
+
     return (
       <ConnectionFormWrapper
         isOpen={isOpen}
         size={ModalSize.MEDIUM}
-        header="Connector not found"
+        header={header}
         onClose={onClose}
       >
         <ErrorLayout
-          header="Connector not found"
-          description={`No ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]} connector named "${connectorName}" is available.`}
+          header={header}
+          description={
+            isNotFound
+              ? `No ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]} connector named "${connectorName}" is available.`
+              : "The connector could not be loaded. Try again later."
+          }
+          detail={IS_DEBUG ? error?.message : undefined}
           actions={
             <Button
               label={onBack ? "Choose a connector" : "Close"}

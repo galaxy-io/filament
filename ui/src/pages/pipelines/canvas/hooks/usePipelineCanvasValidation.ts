@@ -18,6 +18,10 @@ import {
 } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+} from "@/pages/pipelines/canvas/types";
 import { groupTransformIssuesByStep } from "@/pages/pipelines/components/transform/grammar/paths";
 import { getEdgeBlockingRequirements, getEdgeValidationErrors } from "@/pages/pipelines/utils";
 
@@ -27,20 +31,6 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { VALIDATION_DEBOUNCE_MS } from "@/constants";
-
-export enum PipelineCanvasValidationIssueKind {
-  TRANSFORM = "transform",
-  EDGE = "edge",
-  GRAPH = "graph",
-}
-
-export interface PipelineCanvasValidationIssue {
-  kind: PipelineCanvasValidationIssueKind;
-  resource?: string;
-  edgeId?: CanvasEdge["id"];
-  invalidSteps?: number;
-  message: string;
-}
 
 interface PipelineCanvasValidation {
   validation: ValidatePipelineResponse | undefined;

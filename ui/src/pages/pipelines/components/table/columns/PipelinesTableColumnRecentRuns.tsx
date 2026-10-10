@@ -8,6 +8,7 @@ import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex from "@galaxy-io/dls/layout/Flex";
 import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
+import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
@@ -47,6 +48,13 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   &:hover > *:not(:hover):not([data-tippy-root]) {
     opacity: 0.4;
   }
+`;
+
+const PipelinesTableRecentRunsButton = styled.button`
+  ${INTERACTIVE_RESET}
+  ${FOCUS_RING}
+  display: flex;
+  border-radius: ${t.radius.sm};
 `;
 
 const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = ({ pipeline }) => {
@@ -100,9 +108,13 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
                 )
               }
             >
-              <Flex onClick={(event) => handleRunClick(event, run.id)}>
+              <PipelinesTableRecentRunsButton
+                type="button"
+                aria-label={`View ${PIPELINE_RUN_STATUS_TO_LABEL_MAP[run.status].toLowerCase()} run`}
+                onClick={(event) => handleRunClick(event, run.id)}
+              >
                 <PipelineRunStatusSwatch status={run.status} size={SquareSize.MEDIUM} />
-              </Flex>
+              </PipelinesTableRecentRunsButton>
             </Tooltip>
           );
         }

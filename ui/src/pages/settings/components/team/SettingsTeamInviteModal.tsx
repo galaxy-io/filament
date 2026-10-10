@@ -23,6 +23,7 @@ import {
 import { SETTINGS_INVITE_DEFAULT_ROLE, SETTINGS_ROLE_OPTIONS } from "@/pages/settings/constants";
 import { SettingsTeamView } from "@/pages/settings/types";
 import { createInviteUrl, encodeInviteToken } from "@/pages/settings/utils";
+import { getRequiredFieldError } from "@/pages/settings/validation";
 
 import { useInviteMemberMutation } from "@/api/queries/auth";
 
@@ -35,6 +36,7 @@ interface SettingsTeamInviteModalState {
   familyName: InviteMemberRequest["familyName"];
   role: InviteMemberRequest["role"];
   error: string | undefined;
+  shouldShowErrors: boolean;
 }
 
 const DEFAULT_STATE: SettingsTeamInviteModalState = {
@@ -43,6 +45,7 @@ const DEFAULT_STATE: SettingsTeamInviteModalState = {
   familyName: "",
   role: SETTINGS_INVITE_DEFAULT_ROLE,
   error: undefined,
+  shouldShowErrors: false,
 };
 
 interface SettingsTeamInviteModalProps {
@@ -66,17 +69,32 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
 
   const inviteLink = inviteToken ? createInviteUrl(inviteToken) : undefined;
 
+  const emailError = getRequiredFieldError(state.email, "Email", state.shouldShowErrors);
+  const givenNameError = getRequiredFieldError(
+    state.givenName,
+    "First name",
+    state.shouldShowErrors,
+  );
+  const familyNameError = getRequiredFieldError(
+    state.familyName,
+    "Last name",
+    state.shouldShowErrors,
+  );
+
   const handleSubmit = () => {
-    if (state.email === "" || state.givenName === "" || state.familyName === "") {
-      setState((prev) => ({ ...prev, error: "All fields are required" }));
+    const email = state.email.trim();
+    const givenName = state.givenName.trim();
+    const familyName = state.familyName.trim();
+    if (email === "" || givenName === "" || familyName === "") {
+      setState((prev) => ({ ...prev, error: undefined, shouldShowErrors: true }));
       return;
     }
     setState((prev) => ({ ...prev, error: undefined }));
     inviteMember(
       create(InviteMemberRequestSchema, {
-        email: state.email,
-        givenName: state.givenName,
-        familyName: state.familyName,
+        email,
+        givenName,
+        familyName,
         role: state.role,
       }),
       {
@@ -125,7 +143,7 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
       ),
     }))
     .otherwise(() => ({
-      header: "Invite team",
+      header: "Invite member",
       footer: (
         <>
           <Button
@@ -146,7 +164,8 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
             label="Email"
             value={state.email}
             onChange={(email) => setState((prev) => ({ ...prev, email }))}
-            placeholder="name@example.com"
+            placeholder="Enter email..."
+            error={emailError ?? undefined}
             fillWidth
             isRequired
             autoFocus
@@ -155,6 +174,7 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
             label="First name"
             value={state.givenName}
             onChange={(givenName) => setState((prev) => ({ ...prev, givenName }))}
+            error={givenNameError ?? undefined}
             fillWidth
             isRequired
           />
@@ -162,6 +182,7 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
             label="Last name"
             value={state.familyName}
             onChange={(familyName) => setState((prev) => ({ ...prev, familyName }))}
+            error={familyNameError ?? undefined}
             fillWidth
             isRequired
           />

@@ -1,9 +1,9 @@
 import { type FC, useMemo, useState } from "react";
 
-import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -60,7 +60,7 @@ const CreatePipelineModalResources: FC = () => {
   };
 
   const getCreateError = ({ resource }: PipelineResourceCreateState) =>
-    rows.some((row) => row.name === resource) ? "This resource is already listed." : null;
+    rows.some((row) => row.name === resource) ? "This resource is already listed." : undefined;
 
   const handleCreate = ({ resource }: PipelineResourceCreateState) => {
     addResource({ sinkId: activeSinkId, name: resource });
@@ -83,11 +83,11 @@ const CreatePipelineModalResources: FC = () => {
     <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0}>
       {sinks.length > 1 && <CreatePipelineModalResourcesTabs />}
       <Flex gap={8} padding={8} alignItems={AlignItems.CENTER} fillWidth>
-        <TextInput
+        <SearchInput
           value={localState.search}
           onChange={handleSearchChange}
           placeholder="Search resources..."
-          icon={MagnifyingGlassIcon}
+          ariaLabel="Search resources"
           fillWidth
         />
         {isContinuous && (

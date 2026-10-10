@@ -1,4 +1,4 @@
-import { type FC, useState } from "react";
+import type { FC } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -58,7 +58,6 @@ const AppLayoutAccountMenuContent: FC = () => {
   const signOut = useSignOut();
   const { session } = useRouteContext({ from: "/_app" });
   const { selectedTheme, setTheme } = useGalaxyTheme();
-  const [isOpen, setIsOpen] = useState(false);
 
   const membersQuery = useListMembersQuery();
   const currentMember = membersQuery.data?.members.find(
@@ -76,11 +75,9 @@ const AppLayoutAccountMenuContent: FC = () => {
     <Menu
       placement={Placement.TOP_START}
       shouldMatchTriggerWidth
-      isOpen={isOpen}
-      onOpenChange={setIsOpen}
       ariaLabel="Account"
       trigger={
-        <AccountButton type="button" aria-label="Account">
+        <AccountButton type="button">
           <Avatar
             img={session.avatarUrl}
             size={AvatarSize.SMALL}

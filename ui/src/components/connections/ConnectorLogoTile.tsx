@@ -5,8 +5,10 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
+import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
@@ -23,6 +25,14 @@ const ConnectorLogo = styled.img<{ $height: number }>`
   width: ${({ $height }) => $height}px;
   height: ${({ $height }) => $height}px;
   object-fit: contain;
+`;
+
+const ConnectorLogoTileButton = styled.button`
+  ${INTERACTIVE_RESET}
+  display: flex;
+  flex-shrink: 0;
+  border-radius: ${t.radius.md};
+  ${FOCUS_RING}
 `;
 
 interface ConnectorLogoTileProps {
@@ -88,13 +98,8 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
     );
   };
 
-  return (
-    <ConnectorTileFrame
-      $size={size}
-      $isClickable={!!onClick}
-      onClick={onClick}
-      $isDeleted={isDeleted}
-    >
+  const tile = (
+    <ConnectorTileFrame $size={size} $isClickable={!!onClick} $isDeleted={isDeleted}>
       {showLogo ? (
         <ConnectorLogo
           src={logoURL}
@@ -106,6 +111,16 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
         renderFallback()
       )}
     </ConnectorTileFrame>
+  );
+
+  if (!onClick) {
+    return tile;
+  }
+
+  return (
+    <ConnectorLogoTileButton type="button" aria-label={name} onClick={onClick}>
+      {tile}
+    </ConnectorLogoTileButton>
   );
 };
 

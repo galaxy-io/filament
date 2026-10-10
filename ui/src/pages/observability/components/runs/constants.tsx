@@ -4,18 +4,19 @@ import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import { SortBy, SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
+import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
 import {
   PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/components/runs/constants";
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
-import { createEnumSelectOptions, getEnumValues } from "@/utils/select";
+import { getEnumValues } from "@/utils/select";
 
 export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: { label: "Runs" },
@@ -45,17 +46,27 @@ export const OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP: Record<ObservabilityRunsVi
   [ObservabilityRunsView.UPCOMING]: "No upcoming runs",
 };
 
-export const OBSERVABILITY_RUN_STATUS_OPTIONS = createEnumSelectOptions(
-  PIPELINE_RUN_EXECUTED_STATUSES,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-);
-
 export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectOption = {
   id: String(RunStatus.SCHEDULED),
   label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
 };
 
+export const OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS: SelectOption[] =
+  PIPELINE_RUN_EXECUTED_STATUSES.map((status) => ({
+    id: String(status),
+    label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
+    leading: <PipelineRunStatusSwatch status={status} />,
+  }));
+
+export const OBSERVABILITY_RUNS_CHART_SCHEDULED_STATUS_OPTIONS: SelectOption[] = [
+  {
+    ...OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION,
+    leading: <PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />,
+  },
+];
+
 export const OBSERVABILITY_RUNS_ALL_STATUSES_LABEL = "All statuses";
+export const OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER = "No statuses selected";
 
 export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.COMPLETED,
@@ -63,17 +74,18 @@ export const OBSERVABILITY_RUNS_DEFAULT_STATUSES: RunStatus[] = [
   RunStatus.RUNNING,
 ];
 
+const OBSERVABILITY_RUNS_SCHEDULED_PAGE_SIZE = 1000;
+
 export const OBSERVABILITY_RUNS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
   sorting: create(SortingRequestSchema, { sortOrder: SortOrder.ASC }),
+  pagination: { pageSize: OBSERVABILITY_RUNS_SCHEDULED_PAGE_SIZE },
 });
-
-export const OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT = "startedAt";
 
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS = 110;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE = 240;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_FLOW = 100;
-export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT = 160;
+export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_TIMESTAMP = 160;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME = 100;
@@ -84,10 +96,3 @@ export const OBSERVABILITY_RUNS_TABLE_HEIGHT = 450;
 export const OBSERVABILITY_RUNS_CHART_HEIGHT = 240;
 export const OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH = 160;
 export const OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH = 4;
-
-export const OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP: Record<SortBy, string | undefined> = {
-  [SortBy.UNSPECIFIED]: undefined,
-  [SortBy.NAME]: undefined,
-  [SortBy.CREATED_AT]: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
-  [SortBy.UPDATED_AT]: undefined,
-};

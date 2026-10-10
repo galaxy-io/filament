@@ -12,7 +12,7 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { type Pipeline, UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { formatPipelineName, stripDeletedName } from "@/components/pipelines/utils";
+import { formatDeletedName, formatPipelineName } from "@/components/pipelines/utils";
 
 import { usePipelineParams } from "@/module/hooks";
 
@@ -47,7 +47,7 @@ const PipelineSettingsPageGeneral: FC = () => {
 
   const createInitialState = (): PipelineSettingsPageGeneralState => ({
     ...DEFAULT_STATE,
-    name: stripDeletedName(pipeline?.name ?? ""),
+    name: formatDeletedName(pipeline?.name ?? ""),
     description: pipeline?.description ?? "",
   });
 
@@ -55,7 +55,7 @@ const PipelineSettingsPageGeneral: FC = () => {
 
   if (!pipeline) return null;
 
-  const pipelineName = stripDeletedName(pipeline.name);
+  const pipelineName = formatDeletedName(pipeline.name);
 
   const handleNameChange = (name: string) => {
     setState((prev) => ({ ...prev, name }));
@@ -112,7 +112,7 @@ const PipelineSettingsPageGeneral: FC = () => {
         <TextAreaInput
           value={state.description}
           onChange={handleDescriptionChange}
-          placeholder="Optional description"
+          placeholder="Add a description..."
           label="Description"
           fillWidth
         />

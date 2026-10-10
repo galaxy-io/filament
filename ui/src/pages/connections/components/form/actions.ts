@@ -12,6 +12,7 @@ export enum ConnectionFormActionType {
   SET_PHASE = "SET_PHASE",
   SET_VALIDATION_ERRORS = "SET_VALIDATION_ERRORS",
   SET_SHOULD_SHOW_ERRORS = "SET_SHOULD_SHOW_ERRORS",
+  RESET_VALIDATION = "RESET_VALIDATION",
 }
 
 export interface SetNameAction {
@@ -39,9 +40,14 @@ export interface SetShouldShowErrorsAction {
   payload: boolean;
 }
 
+export interface ResetValidationAction {
+  type: ConnectionFormActionType.RESET_VALIDATION;
+}
+
 export type ConnectionFormAction =
   | SetNameAction
   | SetConfigFieldAction
   | SetPhaseAction
   | SetValidationErrorsAction
-  | SetShouldShowErrorsAction;
+  | SetShouldShowErrorsAction
+  | ResetValidationAction;

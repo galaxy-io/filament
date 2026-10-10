@@ -17,15 +17,14 @@ import {
   OBSERVABILITY_SETUP_STATUS_TO_ICON_VARIANT_MAP,
   OBSERVABILITY_SETUP_STATUS_TO_ICON_WEIGHT_MAP,
   OBSERVABILITY_SETUP_STATUS_TO_TITLE_VARIANT_MAP,
+  OBSERVABILITY_SETUP_STEP_MARKER_HEIGHT,
+  OBSERVABILITY_SETUP_STEP_MARKER_SIZE,
   OBSERVABILITY_SETUP_STEP_TO_ACTION_LABEL_MAP,
   OBSERVABILITY_SETUP_STEP_TO_DESCRIPTION_MAP,
   OBSERVABILITY_SETUP_STEP_TO_TITLE_MAP,
 } from "@/pages/observability/components/setup/constants";
 import type { ObservabilitySetupStep } from "@/pages/observability/components/setup/types";
 import { ObservabilitySetupStepStatus } from "@/pages/observability/components/setup/types";
-
-const OBSERVABILITY_SETUP_STEP_MARKER_SIZE = 18;
-const OBSERVABILITY_SETUP_STEP_MARKER_HEIGHT = 20;
 
 interface ObservabilitySetupChecklistStepProps {
   step: ObservabilitySetupStep;

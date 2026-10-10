@@ -14,7 +14,10 @@ import ConnectionFormProvider, {
   useConnectionFormActions,
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
-import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
+import {
+  ConnectionFormPhase,
+  type ConnectionFormState,
+} from "@/pages/connections/components/form/types";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -45,52 +48,55 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
 
   const { mutate: createConnection } = useCreateConnectionMutation();
 
-  const handleCreateConnection = useCallback(() => {
-    const name = state.name.trim();
-    if (!name) return;
+  const handleCreateConnection = useCallback(
+    (config: ConnectionFormState["config"]) => {
+      const name = state.name.trim();
+      if (!name) return;
 
-    setPhase(ConnectionFormPhase.SUBMITTING);
+      setPhase(ConnectionFormPhase.SUBMITTING);
 
-    createConnection(
-      create(CreateConnectionRequestSchema, {
-        kind,
-        connector,
-        name,
-        config: state.config,
-      }),
-      {
-        onSuccess: (response) => {
-          toast({
-            variant: ToastVariant.SUCCESS,
-            header: "Connection created",
-          });
+      createConnection(
+        create(CreateConnectionRequestSchema, {
+          kind,
+          connector,
+          name,
+          config,
+        }),
+        {
+          onSuccess: (response) => {
+            toast({
+              variant: ToastVariant.SUCCESS,
+              header: "Connection created",
+            });
 
-          if (response.connection?.id) {
-            void updateSearch((prev) => ({
-              ...prev,
-              flow: undefined,
-              connector: undefined,
-              connectorKind: undefined,
-              connectorSearch: undefined,
-              connectionId: response.connection?.id,
-            }));
-          }
+            if (response.connection?.id) {
+              void updateSearch((prev) => ({
+                ...prev,
+                flow: undefined,
+                connector: undefined,
+                connectorKind: undefined,
+                connectorSearch: undefined,
+                connectionId: response.connection?.id,
+              }));
+            }
+          },
+          onError: (error) => {
+            setPhase(ConnectionFormPhase.ERROR);
+            toast({
+              variant: ToastVariant.ERROR,
+              header: "Creation failed",
+              description: getErrorMessage(error, "Creation failed"),
+            });
+          },
         },
-        onError: (error) => {
-          setPhase(ConnectionFormPhase.ERROR);
-          toast({
-            variant: ToastVariant.ERROR,
-            header: "Creation failed",
-            description: getErrorMessage(error, "Creation failed"),
-          });
-        },
-      },
-    );
-  }, [state.name, state.config, connector, kind, createConnection, toast, updateSearch, setPhase]);
+      );
+    },
+    [state.name, connector, kind, createConnection, toast, updateSearch, setPhase],
+  );
 
-  const handleConnectionChange = useCallback(
-    (version: string) => {
-      void updateSearch((prev) => ({ ...prev, connector: version }));
+  const handleConnectorVersionChange = useCallback(
+    (version: ConnectorSpec["name"]) => {
+      void updateSearch((prev) => ({ ...prev, connector: version }), { replace: true });
     },
     [updateSearch],
   );
@@ -100,7 +106,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
       isOpen={isOpen}
       connectorName={connector}
       connectorKind={kind}
-      onConnectorChange={handleConnectionChange}
+      onConnectorChange={handleConnectorVersionChange}
       onSubmit={handleCreateConnection}
       onClose={onClose}
       onBack={onBack}

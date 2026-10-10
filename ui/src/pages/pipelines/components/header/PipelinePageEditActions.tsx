@@ -17,15 +17,15 @@ import {
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
-import {
-  type PipelineCanvasValidationIssue,
-  PipelineCanvasValidationIssueKind,
-  usePipelineCanvasValidation,
-} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+} from "@/pages/pipelines/canvas/types";
 import PipelinePageSaveIssues from "@/pages/pipelines/components/header/PipelinePageSaveIssues";
 import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
 

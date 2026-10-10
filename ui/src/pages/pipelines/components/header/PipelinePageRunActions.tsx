@@ -5,13 +5,13 @@ import { create } from "@bufbuild/protobuf";
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
-import { isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import PipelinePageActiveRunActions from "@/pages/pipelines/components/header/PipelinePageActiveRunActions";
 import PipelinePageRunButton from "@/pages/pipelines/components/header/PipelinePageRunButton";
+import { formatWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
 import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
-import { getPipelineValidationErrors } from "@/pages/pipelines/utils";
+import { getPipelineValidationErrors, isPipelineRunnable } from "@/pages/pipelines/utils";
 
 import { usePipelineParams } from "@/module/hooks";
 
@@ -19,6 +19,7 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListActivePipelineRunsQuery } from "@/api/queries/runs";
 
+import { getErrorMessage } from "@/utils/errors";
 import { isContinuousRunActive } from "@/utils/runs";
 
 const PipelinePageRunActions: FC = () => {
@@ -44,13 +45,14 @@ const PipelinePageRunActions: FC = () => {
       }),
     [currentVersion, pipeline?.executionMode],
   );
-  const {
-    data: validation,
-    isFetching: isValidating,
-    error: validationError,
-  } = useValidatePipelineQuery({ input: validateInput });
+  const { data: validation, error: validationError } = useValidatePipelineQuery({
+    input: validateInput,
+  });
   const runErrors = useMemo(
-    () => (validationError ? [validationError.message] : getPipelineValidationErrors(validation)),
+    () =>
+      validationError
+        ? [getErrorMessage(validationError, "Failed to validate pipeline")]
+        : getPipelineValidationErrors(validation),
     [validation, validationError],
   );
 
@@ -77,10 +79,11 @@ const PipelinePageRunActions: FC = () => {
 
   return (
     <PipelinePageRunButton
+      key={formatWorkerConfiguration(pipeline.workerConfiguration)}
       workerConfiguration={pipeline.workerConfiguration}
       runErrors={runErrors}
       isRunnable={isPipelineRunnable(currentVersion)}
-      isRunning={isRunning || isValidating}
+      isRunning={isRunning}
       onRun={handleRun}
     />
   );

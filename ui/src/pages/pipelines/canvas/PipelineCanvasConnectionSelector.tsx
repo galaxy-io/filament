@@ -56,7 +56,7 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
     setState((prev) => ({ ...prev, q }));
   };
 
-  const { data } = useListConnectionsQuery({
+  const { data, isLoading, isError } = useListConnectionsQuery({
     input: create(
       ListConnectionsRequestSchema,
       createListConnectionsInput(kindFilter, { q: state.q }),
@@ -96,7 +96,8 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
       <PipelineCanvasConnectionSelectorList
         connections={connections}
         hasConnections={!!state.q || connections.length > 0}
-        isLoading={!data}
+        isLoading={isLoading}
+        isError={isError}
         connectorKind={kindFilter}
         isSourceDisabled={!canAddSourceNode(canvasState.nodes)}
         onConnectionClick={handleConnectionClick}

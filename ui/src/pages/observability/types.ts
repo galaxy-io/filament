@@ -24,5 +24,4 @@ export enum ObservabilityUsageView {
 export interface ObservabilityTimeframeQuery {
   durationMs: number;
   granularity: MetricGranularity;
-  formatBucketLabel: (bucketKey: string) => string;
 }

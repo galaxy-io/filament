@@ -94,7 +94,8 @@ export const usePipelineCanvasEdgeConfig = (
         create(ResourceCursorConfigSchema, {
           resource: resourceName,
           field,
-          lookbackSeconds: 0n,
+          lookbackSeconds:
+            cursors.find((cursor) => cursor.resource === resourceName)?.lookbackSeconds ?? 0n,
         }),
       ],
     });

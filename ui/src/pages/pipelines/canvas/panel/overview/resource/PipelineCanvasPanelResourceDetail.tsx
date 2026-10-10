@@ -126,7 +126,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
       transform,
     });
   const handleDestinationChange = (value: string) =>
-    setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value.trim() });
+    setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value });
 
   return (
     <>

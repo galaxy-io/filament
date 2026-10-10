@@ -19,8 +19,6 @@ import {
 
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import {
-  OBSERVABILITY_GRANULARITY_TO_BUCKET_OFFSET_MAP,
-  OBSERVABILITY_GRANULARITY_TO_BUCKET_START_MAP,
   OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/constants";
@@ -29,15 +27,17 @@ import {
   createObservabilityTimeseriesInput,
   createTimeframeSince,
   formatBucketKey,
+  getBucketOffset,
 } from "@/pages/observability/utils";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
 export const createRunCountTimeseriesInput = (
   timeframe: ObservabilityTimeframe,
+  bucketStartMs: number,
   statuses: RunStatus[],
 ): QueryTimeseriesRequest =>
-  createObservabilityTimeseriesInput(timeframe, {
+  createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
     metrics: [Metric.RUN_COUNT],
     groupBy: MetricDimension.STATUS,
     filters: [
@@ -51,14 +51,15 @@ export const createRunCountTimeseriesInput = (
 export const createScheduledRunsChartGroups = (
   runs: RunInfo[],
   timeframe: ObservabilityTimeframe,
+  bucketStartMs: number,
 ): BarChartGroupDatum<ObservabilityRunMetric>[] => {
   const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const start = OBSERVABILITY_GRANULARITY_TO_BUCKET_START_MAP[granularity](new Date());
+  const start = new Date(bucketStartMs);
   const bucketCount = Math.round(
-    durationMs / Number(OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity]),
+    durationMs / OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
   );
   const bucketBounds = Array.from({ length: bucketCount + 1 }, (_, index) =>
-    OBSERVABILITY_GRANULARITY_TO_BUCKET_OFFSET_MAP[granularity](start, index),
+    getBucketOffset(granularity, start, index),
   );
   return bucketBounds.slice(0, -1).map((bucketStartMs, bucketIndex) => ({
     label: formatBucketKey(BigInt(bucketStartMs)),
@@ -120,15 +121,16 @@ export const mapChartSelectionToRunsFilter = (selection: ChartSelection | undefi
 
 export const createRunsWindowInput = (
   timeframe: ObservabilityTimeframe,
+  bucketStartMs: number,
   runsBucket: bigint | undefined,
 ): Pick<ListRunsRequest, "sinceMs" | "untilMs"> => {
-  const sinceMs = createTimeframeSince(timeframe);
+  const sinceMs = createTimeframeSince(timeframe, bucketStartMs);
   if (runsBucket === undefined) {
     return { sinceMs, untilMs: 0n };
   }
   const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
   return {
     sinceMs: runsBucket > sinceMs ? runsBucket : sinceMs,
-    untilMs: runsBucket + OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
+    untilMs: runsBucket + BigInt(OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity]),
   };
 };

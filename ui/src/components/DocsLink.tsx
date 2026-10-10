@@ -9,17 +9,11 @@ interface DocsLinkProps {
   label: string;
   path?: string;
   size?: TextSize;
-  underline?: LinkUnderline;
 }
 
-const DocsLink: FC<DocsLinkProps> = ({
-  label,
-  path = "/",
-  size = TextSize.BODY_MD,
-  underline = LinkUnderline.HOVER,
-}) => (
+const DocsLink: FC<DocsLinkProps> = ({ label, path = "/", size = TextSize.BODY_MD }) => (
   <Text size={size}>
-    <Link href={`${DOCUMENTATION_URL}${path}`} underline={underline} isExternal>
+    <Link href={`${DOCUMENTATION_URL}${path}`} underline={LinkUnderline.HOVER} isExternal>
       {label}
     </Link>
   </Text>

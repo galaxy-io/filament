@@ -9,18 +9,25 @@ interface PipelineWorkerConfigurationEditorProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
-  label?: string;
-  help?: string;
+  isPerRun?: boolean;
 }
 
 const PipelineWorkerConfigurationEditor: FC<PipelineWorkerConfigurationEditorProps> = ({
   value,
   onChange,
   error,
-  label = "Pod template",
-  help = "Applied to the Kubernetes Job for every run of this pipeline",
+  isPerRun = false,
 }) => (
-  <Field label={label} labelTooltip={help} error={error} fillWidth>
+  <Field
+    label="Pod template"
+    labelTooltip={
+      isPerRun
+        ? "Applied to the Kubernetes Job for this run only"
+        : "Applied to the Kubernetes Job for every run of this pipeline"
+    }
+    error={error}
+    fillWidth
+  >
     <CodeEditor
       value={value}
       onChange={onChange}

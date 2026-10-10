@@ -8,12 +8,19 @@ import {
   type PipelineNode,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { CONNECTION_PIPELINES_PAGE_SIZE } from "@/pages/connections/constants";
+
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
-const CONNECTION_PIPELINES_INPUT = create(ListPipelinesRequestSchema, { includeSchedule: true });
+const CONNECTION_PIPELINES_INPUT = create(ListPipelinesRequestSchema, {
+  includeSchedule: true,
+  pagination: { pageSize: CONNECTION_PIPELINES_PAGE_SIZE },
+});
 
 export const useConnectionPipelines = () => {
-  const { data } = useListPipelinesQuery({ input: CONNECTION_PIPELINES_INPUT });
+  const { data, isError, isLoading } = useListPipelinesQuery({
+    input: CONNECTION_PIPELINES_INPUT,
+  });
   const pipelines = useMemo(() => data?.pipelines ?? [], [data?.pipelines]);
 
   const connectionIdsByPipelineId = useMemo(
@@ -27,5 +34,5 @@ export const useConnectionPipelines = () => {
     [pipelines],
   );
 
-  return { pipelines, connectionIdsByPipelineId };
+  return { pipelines, connectionIdsByPipelineId, isError, isLoading };
 };

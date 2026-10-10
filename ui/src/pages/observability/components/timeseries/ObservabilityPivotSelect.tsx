@@ -35,7 +35,8 @@ const ObservabilityPivotSelect: FC<ObservabilityPivotSelectProps> = ({ value, on
         variant={SelectInputVariant.PRIMARY}
         onChange={handleChange}
         isClearable
-        placeholder="Pivot"
+        placeholder="Group by..."
+        ariaLabel="Group by"
       />
     </Box>
   );

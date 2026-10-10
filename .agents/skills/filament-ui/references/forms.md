@@ -303,7 +303,7 @@ const CreatePipelineModal: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) 
 ```
 
 - The record arrives as a prop. `EditConnectionModal` fetches the connection by id with a plain query gated on `!!session && !!connectionId`, shows `PendingLayout` or `ErrorLayout` inside `ConnectionFormWrapper`, then mounts `ConnectionFormProvider key={session}` seeded from it and hands `connection` to `EditConnectionModalContent`.
-- A key can carry more than the session. `CreateConnectionModal` keys the configure step on `` `${session}:${connectorKind}:${connector}` `` so switching connectors resets the form.
+- A key can carry more than the session. `CreateConnectionModal` keys the configure step on `` `${session}:${connectorKind}` `` so switching kinds resets the form. Switching the connector version keeps the typed name and config and dispatches `resetValidation` instead.
 - A closed overlay fetches nothing. `CreatePipelineModalProvider` passes `isOpen` to `useCreatePipelineResources`, which folds it into every `enabled`.
 - `ConnectionDrawer` needs no session key because it holds no form state. It fetches by `connectionId` with `enabled: !!connectionId, retry: false`.
 - Overlays close with `replace: true`.

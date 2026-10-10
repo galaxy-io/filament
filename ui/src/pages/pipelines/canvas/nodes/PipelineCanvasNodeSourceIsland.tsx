@@ -74,7 +74,12 @@ const PipelineCanvasNodeSourceIsland: FC<PipelineCanvasNodeSourceIslandProps> = 
         padding={PIPELINE_CANVAS_NODE_PADDING}
         className="nodrag"
       >
-        <SearchInput value={state.search} onChange={handleSearchChange} fillWidth />
+        <SearchInput
+          value={state.search}
+          onChange={handleSearchChange}
+          ariaLabel="Search resources"
+          fillWidth
+        />
         {connectedCount > 0 && (
           <Flex
             ref={badgeRef}

@@ -8,7 +8,6 @@ import SelectInput, {
 } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
@@ -21,11 +20,16 @@ interface PipelineResourceCreateSink {
 
 interface PipelineResourceCreateFormProps {
   sinks: PipelineResourceCreateSink[];
-  getError: (state: PipelineResourceCreateState) => string | null;
+  getError: (state: PipelineResourceCreateState) => string | undefined;
   onSave: (state: PipelineResourceCreateState) => void;
   onCancel: () => void;
   variant?: WidgetVariant;
 }
+
+const DEFAULT_STATE: PipelineResourceCreateState = {
+  resource: "",
+  sinkId: "",
+};
 
 const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   sinks,
@@ -34,14 +38,14 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   onCancel,
   variant = WidgetVariant.TERTIARY,
 }) => {
-  const [state, setState] = useState<PipelineResourceCreateState>({
-    resource: "",
-    sinkId: sinks[0]?.id ?? "",
-  });
+  const [state, setState] = useState<PipelineResourceCreateState>(() => ({
+    ...DEFAULT_STATE,
+    sinkId: sinks[0]?.id ?? DEFAULT_STATE.sinkId,
+  }));
 
   const trimmed = { ...state, resource: state.resource.trim() };
-  const error = trimmed.resource === "" ? null : getError(trimmed);
-  const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== null;
+  const error = trimmed.resource === "" ? undefined : getError(trimmed);
+  const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== undefined;
 
   const sinkOptions: SelectOption[] = sinks.map((sink) => ({
     id: sink.id,
@@ -59,6 +63,7 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
             if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
           }}
           placeholder="orders.>"
+          error={error}
           autoFocus
           variant={InputVariant.TERTIARY}
           fillWidth
@@ -75,14 +80,13 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
             fillWidth
           />
         )}
-        {error && (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-            {error}
-          </Text>
-        )}
         <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
           <Button label="Cancel" variant={ButtonVariant.SECONDARY} onClick={onCancel} />
-          <Button label="Add" onClick={() => onSave(trimmed)} isDisabled={isSaveDisabled} />
+          <Button
+            label="Add resource"
+            onClick={() => onSave(trimmed)}
+            isDisabled={isSaveDisabled}
+          />
         </Flex>
       </Widget>
     </Flex>

@@ -1,4 +1,4 @@
-import { type FC, useCallback } from "react";
+import { type FC, useCallback, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
@@ -22,7 +22,10 @@ import ConnectionFormProvider, {
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
-import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
+import {
+  ConnectionFormPhase,
+  type ConnectionFormState,
+} from "@/pages/connections/components/form/types";
 
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
@@ -34,7 +37,9 @@ import {
 
 import { useOverlaySession } from "@/hooks/useOverlaySession";
 
-import { getErrorMessage } from "@/utils/errors";
+import { IS_DEBUG } from "@/constants";
+
+import { getErrorMessage, isNotFoundError } from "@/utils/errors";
 
 interface EditConnectionModalProps {
   isOpen: boolean;
@@ -44,61 +49,65 @@ interface EditConnectionModalProps {
 
 interface EditConnectionModalContentProps {
   isOpen: boolean;
-  connection: Connection;
+  initialConnection: Connection;
   onClose: () => void;
 }
 
 const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
   isOpen,
-  connection,
+  initialConnection,
   onClose,
 }) => {
   const state = useConnectionFormState();
   const { setPhase } = useConnectionFormActions();
   const { toast } = useToast();
+  const [connection] = useState(initialConnection);
 
   const { mutate: updateConnection } = useUpdateConnectionMutation();
 
-  const handleUpdateConnection = useCallback(() => {
-    const name = state.name.trim();
-    if (!name) return;
+  const handleUpdateConnection = useCallback(
+    (config: ConnectionFormState["config"]) => {
+      const name = state.name.trim();
+      if (!name) return;
 
-    setPhase(ConnectionFormPhase.SUBMITTING);
+      setPhase(ConnectionFormPhase.SUBMITTING);
 
-    updateConnection(
-      create(UpdateConnectionRequestSchema, {
-        connection: create(ConnectionSchema, {
-          id: connection.id,
-          kind: connection.kind,
-          connector: connection.connector,
-          name,
-          config: state.config,
-          secretRefs: connection.secretRefs,
-          version: connection.version,
+      updateConnection(
+        create(UpdateConnectionRequestSchema, {
+          connection: create(ConnectionSchema, {
+            id: connection.id,
+            kind: connection.kind,
+            connector: connection.connector,
+            name,
+            config,
+            secretRefs: connection.secretRefs,
+            version: connection.version,
+          }),
         }),
-      }),
-      {
-        onSuccess: () => {
-          toast({
-            variant: ToastVariant.SUCCESS,
-            header: "Connection updated",
-          });
-          onClose();
+        {
+          onSuccess: () => {
+            toast({
+              variant: ToastVariant.SUCCESS,
+              header: "Connection updated",
+            });
+            onClose();
+          },
+          onError: (error) => {
+            setPhase(ConnectionFormPhase.ERROR);
+            const isConflict = ConnectError.from(error).code === Code.Aborted;
+            toast({
+              variant: ToastVariant.ERROR,
+              header: isConflict ? "Connection changed elsewhere" : "Update failed",
+              description: isConflict
+                ? "This connection was modified since you opened it. Close the editor and reopen it to load the latest version."
+                : getErrorMessage(error, "Update failed"),
+            });
+          },
         },
-        onError: (error) => {
-          setPhase(ConnectionFormPhase.ERROR);
-          const isConflict = ConnectError.from(error).code === Code.Aborted;
-          toast({
-            variant: ToastVariant.ERROR,
-            header: isConflict ? "Connection changed elsewhere" : "Update failed",
-            description: isConflict
-              ? "This connection was modified since you opened it. Close the editor and reopen it to load the latest version."
-              : getErrorMessage(error, "Update failed"),
-          });
-        },
-      },
-    );
-  }, [state.name, state.config, connection, updateConnection, toast, onClose, setPhase]);
+      );
+    },
+    [state.name, connection, updateConnection, toast, onClose, setPhase],
+  );
 
   return (
     <ConnectionForm
@@ -116,7 +125,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
 const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionId, onClose }) => {
   const session = useOverlaySession(isOpen);
 
-  const { data, isError } = useGetConnectionQuery({
+  const { data, error, isError } = useGetConnectionQuery({
     input: createGetConnectionInput(connectionId ?? ""),
     options: { enabled: !!session && !!connectionId, retry: false },
   });
@@ -127,6 +136,8 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionI
   }
 
   if (isError) {
+    const isNotFound = isNotFoundError(error);
+
     return (
       <ConnectionFormWrapper
         isOpen={isOpen}
@@ -135,8 +146,13 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionI
         onClose={onClose}
       >
         <ErrorLayout
-          header="Connection not found"
-          description="This connection no longer exists."
+          header={isNotFound ? "Connection not found" : "Failed to load connection"}
+          description={
+            isNotFound
+              ? "This connection no longer exists."
+              : "The connection could not be loaded. Try again later."
+          }
+          detail={IS_DEBUG ? error?.message : undefined}
           actions={<Button label="Close" onClick={onClose} variant={ButtonVariant.SECONDARY} />}
         />
       </ConnectionFormWrapper>
@@ -161,7 +177,11 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionI
       key={session}
       initialState={{ name: connection.name, config: connection.config ?? {} }}
     >
-      <EditConnectionModalContent isOpen={isOpen} connection={connection} onClose={onClose} />
+      <EditConnectionModalContent
+        isOpen={isOpen}
+        initialConnection={connection}
+        onClose={onClose}
+      />
     </ConnectionFormProvider>
   );
 };

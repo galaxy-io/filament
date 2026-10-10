@@ -74,7 +74,12 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
     itemCount: kindConnections.length,
   });
 
-  const { connectionIdsByPipelineId } = useConnectionPipelines();
+  const {
+    connectionIdsByPipelineId,
+    isError: isPipelinesError,
+    isLoading: isPipelinesLoading,
+  } = useConnectionPipelines();
+  const hasPipelineCounts = !isPipelinesLoading && !isPipelinesError;
   const pipelineCountsByConnectionId = useMemo(() => {
     const counts = new Map<Connection["id"], number>();
     for (const connectionIds of connectionIdsByPipelineId.values()) {
@@ -134,7 +139,11 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
               <ConnectionCard
                 key={connection.id}
                 connection={connection}
-                pipelineCount={pipelineCountsByConnectionId.get(connection.id) ?? 0}
+                pipelineCount={
+                  hasPipelineCounts
+                    ? (pipelineCountsByConnectionId.get(connection.id) ?? 0)
+                    : undefined
+                }
                 onClick={() => handleConnectionClick(connection.id)}
               />
             ))}

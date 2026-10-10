@@ -37,7 +37,7 @@ export const usePipelineRun = () => {
         loading: "Starting run...",
         success: { header: "Run started", variant: ToastVariant.SUCCESS },
         error: (error) => ({
-          header: "Run failed",
+          header: "Start failed",
           description: getErrorMessage(error, "Failed to run pipeline"),
           variant: ToastVariant.ERROR,
         }),

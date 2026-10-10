@@ -4,7 +4,7 @@ import type { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import Field from "@/components/fields/Field";
-import { updateConfigField } from "@/components/fields/utils";
+import { createConfigFieldValues } from "@/components/fields/utils";
 
 import type {
   PipelineNodeConfig,
@@ -34,7 +34,9 @@ const PipelineNodeConfigFields: FC<PipelineNodeConfigFieldsProps> = ({
         field={field}
         value={displayValue[field.name] ?? null}
         variant={variant}
-        onChange={(value) => onChange(updateConfigField(scopedFields, config, field.name, value))}
+        onChange={(value) =>
+          onChange(createConfigFieldValues(scopedFields, config, field.name, value))
+        }
         isDisabled={isDisabled}
       />
     ))}

@@ -93,6 +93,7 @@ const getActiveRunsRefetchInterval = (
   if (runs?.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
   if (!nextFireAt) return IDLE_RUNS_REFETCH_INTERVAL;
   const wait = Number(nextFireAt) - Date.now();
+  if (wait <= 0) return IDLE_RUNS_REFETCH_INTERVAL;
   return Math.min(Math.max(wait, ACTIVE_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
 };
 

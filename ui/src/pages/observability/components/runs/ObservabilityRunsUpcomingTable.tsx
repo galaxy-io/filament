@@ -12,7 +12,7 @@ import { OBSERVABILITY_RUNS_TABLE_BASE_COLUMNS } from "@/pages/observability/com
 import {
   OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP,
   OBSERVABILITY_RUNS_SCHEDULED_INPUT,
-  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
+  OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_TIMESTAMP,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import { ObservabilityRunsView } from "@/pages/observability/types";
@@ -29,8 +29,7 @@ const OBSERVABILITY_RUNS_UPCOMING_TABLE_COLUMNS: TableColumn<RunInfo>[] = [
   {
     id: "scheduledAt",
     header: "Scheduled",
-    width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STARTED_AT,
-    align: "right",
+    width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_TIMESTAMP,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} lineClamp={1}>
         {formatTimestamp(row.scheduledAt)}
@@ -65,6 +64,7 @@ const ObservabilityRunsUpcomingTable: FC = () => {
         getRowId={(run) => run.id}
         onRowClick={handleRowClick}
         isLoading={isLoading}
+        ariaLabel="Upcoming runs"
         emptyState={
           <EmptyLayout
             size={EmptyLayoutSize.SMALL}

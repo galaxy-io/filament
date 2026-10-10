@@ -76,6 +76,7 @@ const PipelineCanvasControls: FC = () => {
           variant={ButtonVariant.SECONDARY}
           size={ButtonSize.SMALL}
           ariaLabel="Zoom in"
+          tooltip="Zoom in"
           onClick={() => zoomIn()}
         />
         <Button
@@ -83,6 +84,7 @@ const PipelineCanvasControls: FC = () => {
           variant={ButtonVariant.SECONDARY}
           size={ButtonSize.SMALL}
           ariaLabel="Zoom out"
+          tooltip="Zoom out"
           onClick={() => zoomOut()}
         />
         <Button
@@ -90,6 +92,7 @@ const PipelineCanvasControls: FC = () => {
           variant={ButtonVariant.SECONDARY}
           size={ButtonSize.SMALL}
           ariaLabel="Reset view"
+          tooltip="Reset view"
           onClick={handleResetView}
         />
       </ButtonGroup>

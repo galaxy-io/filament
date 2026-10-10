@@ -201,7 +201,7 @@ const SettingsServiceAccountsContent: FC = () => {
                 />
                 <MenuSeparator />
                 <MenuItem
-                  label="Delete"
+                  label="Delete service account"
                   icon={TrashIcon}
                   variant={MenuItemVariant.ERROR}
                   onSelect={() => accountConfirm.handleOpen(row)}
@@ -231,7 +231,8 @@ const SettingsServiceAccountsContent: FC = () => {
         }}
         onConfirm={rotateConfirm.handleConfirm}
         header="Rotate client secret?"
-        description={`Generate a new credential for ${rotateConfirm.target?.name ?? "this service account"}`}
+        description={`Generate a new credential for ${rotateConfirm.target?.name ?? "this service account"}.`}
+        confirmValue={rotateConfirm.target?.name}
         label="Rotate secret"
         isDestructive
       >

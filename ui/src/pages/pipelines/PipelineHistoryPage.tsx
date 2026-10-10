@@ -79,12 +79,14 @@ const createRunTableColumns = (
     id: "duration",
     header: "Duration",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
+    align: "right",
     cell: ({ row }) => <PipelineRunDuration run={row} />,
   },
   {
     id: "records",
     header: "Records",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+    align: "right",
     cell: ({ row }) => <PipelineRunRecords run={row} />,
   },
   {
@@ -131,6 +133,7 @@ const PipelineHistoryPage: FC = () => {
   return (
     <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
       <InfiniteTable<RunInfo>
+        ariaLabel="Run history"
         columns={columns}
         data={runs}
         getRowId={(run) => run.id}

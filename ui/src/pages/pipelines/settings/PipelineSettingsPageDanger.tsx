@@ -48,7 +48,9 @@ const PipelineSettingsPageDanger: FC = () => {
         onSuccess,
         onError,
       }),
-    onConfirmed: () => navigate({ to: FilamentPath.PIPELINES }),
+    onConfirmed: () => {
+      void navigate({ to: FilamentPath.PIPELINES, replace: true });
+    },
   });
 
   if (!pipeline) return null;

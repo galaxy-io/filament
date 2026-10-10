@@ -1,5 +1,6 @@
 import { type FC, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 
@@ -7,7 +8,7 @@ import { InputSize } from "@galaxy-io/dls/inputs/Input";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
-import type { LoginRequest } from "@/gen/auth/v1/session_pb";
+import { type LoginRequest, LoginRequestSchema } from "@/gen/auth/v1/session_pb";
 
 import { getReturnToPath } from "@/host/auth/utils";
 import AuthForm from "@/host/layouts/auth/AuthForm";
@@ -42,23 +43,20 @@ const LoginPage: FC = () => {
       return;
     }
     setState((prev) => ({ ...prev, error: undefined }));
-    login(
-      { loginName: state.loginName, password: state.password },
-      {
-        onSuccess: () => {
-          void navigate({ href: getReturnToPath(returnTo), replace: true });
-        },
-        onError: (err) => {
-          setState((prev) => ({
-            ...prev,
-            error:
-              ConnectError.from(err).code === Code.Unauthenticated
-                ? "Incorrect email or password"
-                : getErrorMessage(err, "Sign-in failed, please try again"),
-          }));
-        },
+    login(create(LoginRequestSchema, { loginName: state.loginName, password: state.password }), {
+      onSuccess: () => {
+        void navigate({ href: getReturnToPath(returnTo), replace: true });
       },
-    );
+      onError: (err) => {
+        setState((prev) => ({
+          ...prev,
+          error:
+            ConnectError.from(err).code === Code.Unauthenticated
+              ? "Incorrect email or password"
+              : getErrorMessage(err, "Sign-in failed, please try again"),
+        }));
+      },
+    });
   };
 
   return (

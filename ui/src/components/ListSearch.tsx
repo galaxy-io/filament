@@ -23,7 +23,7 @@ const ListSearch: FC<ListSearchProps> = ({ placeholder }) => {
   return (
     <SearchInput
       ariaLabel={placeholder}
-      placeholder={placeholder}
+      placeholder={`${placeholder}...`}
       defaultValue={q}
       debounceMs={LIST_SEARCH_DEBOUNCE_MS}
       onSearch={handleSearch}

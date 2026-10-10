@@ -50,6 +50,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       {
         id: "resource",
         header: "Resource",
+        isRowHeader: true,
         cell: ({ row }) => (
           <PipelineHistoryRunInfoConnectionColumn
             connectionId={sourceConnectionId}
@@ -70,6 +71,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
         header: "Records",
         width:
           PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS - PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
+        align: "right",
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
             {formatNumber(row.records)}
@@ -118,21 +120,13 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       return <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />;
     }
 
-    if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
-      return (
-        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-          <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
-        </Flex>
-      );
-    }
-
     if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
-      const cancelledAt = data.snapshot.run.endedAt;
+      const canceledAt = data.snapshot.run.endedAt;
       return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>
-            {cancelledAt
-              ? `The run was cancelled at ${formatTimestamp(cancelledAt)}, before it started.`
+            {canceledAt
+              ? `The run was cancelled at ${formatTimestamp(canceledAt)}, before it started.`
               : "The run was cancelled before it started."}
           </Text>
         </Flex>
@@ -149,6 +143,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
 
     return (
       <InfiniteTable<RunResourceState>
+        ariaLabel="Run resources"
         columns={columns}
         data={resources}
         getRowId={(resource) => resource.resourceName}

@@ -35,7 +35,7 @@ return (
 );
 ```
 
-- **`ListSearch` owns the search box.** It reads `q`, debounces `LIST_SEARCH_DEBOUNCE_MS` and writes it back with `replace: true`. The server filters by `q`, and the route's `remountDeps` re-suspends the list.
+- **`ListSearch` owns the search box.** Its `placeholder` is also the accessible name, so pass it without the ellipsis and the box adds one. It reads `q`, debounces `LIST_SEARCH_DEBOUNCE_MS` and writes it back with `replace: true`. The server filters by `q`. The route has no `remountDeps`, so the box keeps focus while the list reloads.
 - **Two empty states.** Nothing at all and no search shows the feature's first-run graphic with a `LARGE` primary button and a `DocsLink`. Nothing matching a search shows `EmptyLayout icon={MagnifyingGlassIcon}` with "No pipelines match your search".
 - **Table or grid.** Entities with many scannable columns are an `InfiniteTable`. Entities that are mostly a tile and a name are a `Grid` of cards (`columns={`repeat(auto-fill, minmax(${MIN}px, 1fr))`}`) in a `ScrollArea`, paged by DLS `useEndReached`.
 - **Row click opens the entity.** It navigates to the detail page or writes the entity's id into the drawer param. Row actions are `MenuItem`s in a presentational `*TableRowActions` that takes `onX(row)` callbacks. The table owns the mutations.

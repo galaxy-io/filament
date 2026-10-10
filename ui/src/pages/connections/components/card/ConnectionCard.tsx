@@ -7,6 +7,7 @@ import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -14,14 +15,17 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 
+import { formatVersion } from "@/utils/format";
+
 interface ConnectionCardProps {
   connection: Connection;
-  pipelineCount?: number;
+  pipelineCount: number | undefined;
   onClick: () => void;
 }
 
-const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount = 0, onClick }) => {
-  const pipelineLabel = pluralize("pipeline", pipelineCount, true);
+const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount, onClick }) => {
+  const pipelineLabel =
+    pipelineCount === undefined ? EMPTY_VALUE : pluralize("pipeline", pipelineCount, true);
 
   return (
     <Widget
@@ -30,7 +34,7 @@ const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount = 0
       ariaLabel={connection.name}
       footer={
         <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-          Version {connection.version.toString()}
+          {formatVersion(connection.version)}
         </Text>
       }
     >
