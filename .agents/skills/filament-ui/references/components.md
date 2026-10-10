@@ -1452,7 +1452,7 @@ import Flex, { JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 ### Menu
 
-`@galaxy-io/dls/menu/Menu` · A trigger that opens a list of commands: `trigger`, rows as children, `size` (`SMALL` 24px / `MEDIUM` 32px rows), `placement`, `isSearchable`. Rows, from the same module: `MenuItem` (`label`, `description`, `icon`, `hotKeys`, `onSelect` or `href`, `variant={MenuItemVariant.ERROR}` for destructive rows, `isDisabled` + `disabledReason`, or `children` for a submenu), `MenuCheckboxItem`, `MenuRadioGroup`, `MenuGroup` (a labelled section) and `MenuSeparator`.
+`@galaxy-io/dls/menu/Menu` · A trigger that opens a list of commands: `trigger`, rows as children, `size` (`SMALL` 24px / `MEDIUM` 32px rows), `placement`, `isSearchable`, `shouldMatchTriggerWidth` (the panel takes the trigger's width, for a full-width row trigger such as a sidebar account button, 2.10.2+). Rows, from the same module: `MenuItem` (`label`, `description`, `icon`, `hotKeys`, `onSelect` or `href`, `variant={MenuItemVariant.ERROR}` for destructive rows, `isDisabled` + `disabledReason`, or `children` for a submenu), `MenuCheckboxItem`, `MenuRadioGroup`, `MenuGroup` (a labelled section) and `MenuSeparator`.
 
 - Commands only: no fields, no form values (that is `SelectInput`). Color only on `ERROR` rows.
 

@@ -75,6 +75,7 @@ const AppLayoutAccountMenuContent: FC = () => {
   return (
     <Menu
       placement={Placement.TOP_START}
+      shouldMatchTriggerWidth
       isOpen={isOpen}
       onOpenChange={setIsOpen}
       ariaLabel="Account"
