@@ -3,14 +3,13 @@ import { type FC, useMemo } from "react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {

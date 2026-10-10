@@ -5,6 +5,7 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn, TableColumnLayout } from "@galaxy-io/dls/table/types";
@@ -20,8 +21,6 @@ import {
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/PipelineName";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
   PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,

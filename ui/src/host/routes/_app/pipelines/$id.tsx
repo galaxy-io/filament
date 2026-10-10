@@ -6,8 +6,7 @@ import { createFileRoute, type ErrorComponentProps, useNavigate } from "@tanstac
 import z from "zod";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 
 import PipelinePage from "@/pages/pipelines/PipelinePage";
 

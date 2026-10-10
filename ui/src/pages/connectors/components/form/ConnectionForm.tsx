@@ -8,7 +8,9 @@ import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -27,9 +29,6 @@ import {
   getFieldDefaults,
   isFieldVisible,
 } from "@/components/fields/utils";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import PendingLayout from "@/layouts/PendingLayout";
 
 import {
   getConnectorFamily,

@@ -6,6 +6,7 @@ import Button from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
@@ -18,8 +19,6 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
 
 import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
 import {

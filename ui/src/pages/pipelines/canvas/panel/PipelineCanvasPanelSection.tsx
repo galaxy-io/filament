@@ -2,11 +2,9 @@ import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
 
 interface PipelineCanvasPanelSectionProps {
   icon?: PhosphorIcon;
@@ -53,7 +51,11 @@ const PipelineCanvasPanelSection: FC<PropsWithChildren<PipelineCanvasPanelSectio
         fillWidth
       >
         {isEmpty ? (
-          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} description={emptyMessage} />
+          <EmptyLayout
+            size={EmptyLayoutSize.SMALL}
+            header={emptyHeader}
+            description={emptyMessage}
+          />
         ) : (
           children
         )}

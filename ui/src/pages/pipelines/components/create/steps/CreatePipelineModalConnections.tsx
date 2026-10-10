@@ -12,6 +12,8 @@ import RadioInput from "@galaxy-io/dls/inputs/RadioInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
+import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
@@ -23,10 +25,6 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import ErrorLayout from "@/layouts/ErrorLayout";
-import { LayoutSize } from "@/layouts/types";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
@@ -42,7 +40,7 @@ import { Flow } from "@/module/types";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
 
-import { NOOP } from "@/constants";
+import { IS_DEBUG, NOOP } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -106,9 +104,14 @@ const CreatePipelineModalConnectionsState: FC<{
       padding={24}
     >
       {error ? (
-        <ErrorLayout size={LayoutSize.SMALL} header={message} error={error} actions={actions} />
+        <ErrorLayout
+          size={ErrorLayoutSize.SMALL}
+          header={message}
+          detail={IS_DEBUG ? error.message : undefined}
+          actions={actions}
+        />
       ) : (
-        <EmptyLayout size={LayoutSize.SMALL} header={message} actions={actions} />
+        <EmptyLayout size={EmptyLayoutSize.SMALL} header={message} actions={actions} />
       )}
     </Flex>
   );

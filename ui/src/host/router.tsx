@@ -4,11 +4,12 @@ import { ArrowLeftIcon, BugIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { createRouter, useNavigate } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import PendingLayout from "@/layouts/PendingLayout";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
+import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
 
 import { routeTree } from "@/host/routeTree.gen";
+
+import { IS_DEBUG } from "@/constants";
 
 const DEFAULT_PRELOAD = "intent";
 const DEFAULT_PRELOAD_STALE_TIME = 0;
@@ -19,7 +20,7 @@ export const DefaultErrorComponent: FC<{ error: Error }> = ({ error }) => {
       icon={BugIcon}
       header="Looks like there was a glitch in the matrix"
       description="Please try again later"
-      error={error}
+      detail={IS_DEBUG ? error.message : undefined}
     />
   );
 };

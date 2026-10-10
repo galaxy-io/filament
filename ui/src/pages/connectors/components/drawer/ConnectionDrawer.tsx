@@ -14,7 +14,9 @@ import { useNavigate } from "@tanstack/react-router";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
 import Menu, { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -22,9 +24,6 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import PendingLayout from "@/layouts/PendingLayout";
 
 import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
 import { getConnectorVariantName } from "@/pages/connectors/components/create/utils";

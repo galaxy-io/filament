@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
 import { useSearch } from "@tanstack/react-router";
 
-import StatChart, { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
+import BigNumber, { BigNumberVariant } from "@galaxy-io/dls/charts/BigNumber";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -93,14 +93,14 @@ const ObservabilityMetricsWidget: FC = () => {
   return (
     <MetricGroup
       primary={
-        <StatChart
+        <BigNumber
           label="Total runs"
           value={formatCount(BigInt(Math.round(totalRuns)))}
           isLoading={isTotalsLoading}
         />
       }
     >
-      <StatChart
+      <BigNumber
         label="Total records"
         value={
           <ObservabilityMetricsValue
@@ -108,11 +108,11 @@ const ObservabilityMetricsWidget: FC = () => {
             mark={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
           />
         }
-        variant={StatChartVariant.TERTIARY}
+        variant={BigNumberVariant.TERTIARY}
         isLoading={isTotalsLoading}
         hasBorder
       />
-      <StatChart
+      <BigNumber
         label="Total volume"
         value={
           <ObservabilityMetricsValue
@@ -120,12 +120,12 @@ const ObservabilityMetricsWidget: FC = () => {
             mark={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
           />
         }
-        variant={StatChartVariant.TERTIARY}
+        variant={BigNumberVariant.TERTIARY}
         isLoading={isTotalsLoading}
         hasBorder
       />
       {OBSERVABILITY_METRICS_FEATURED_STATUSES.map((status) => (
-        <StatChart
+        <BigNumber
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
           value={
@@ -138,7 +138,7 @@ const ObservabilityMetricsWidget: FC = () => {
           hasBorder
         />
       ))}
-      <StatChart
+      <BigNumber
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
         value={
           <ObservabilityMetricsValue
@@ -149,7 +149,7 @@ const ObservabilityMetricsWidget: FC = () => {
         isLoading={isScheduledLoading}
         hasBorder
       />
-      <StatChart
+      <BigNumber
         label="Other"
         value={
           <ObservabilityMetricsValue

@@ -5,14 +5,15 @@ import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
 
 import Button from "@galaxy-io/dls/buttons/Button";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
 
 import { queryClient } from "@/host/api/queryClient";
 import { transport } from "@/host/api/transport";
 
 import { createGetAuthConfigQueryOptions } from "@/api/queries/auth";
+
+import { IS_DEBUG } from "@/constants";
 
 const RootComponentWrapper = styled.div`
   display: flex;
@@ -35,7 +36,7 @@ const RootErrorComponent: FC<{ error: Error }> = ({ error }) => {
       icon={BugIcon}
       header="Could not reach the server"
       description="Please try again later"
-      error={error}
+      detail={IS_DEBUG ? error.message : undefined}
       actions={<Button label="Retry" onClick={() => void router.invalidate()} />}
     />
   );

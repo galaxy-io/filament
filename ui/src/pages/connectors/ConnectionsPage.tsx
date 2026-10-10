@@ -5,6 +5,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Grid from "@galaxy-io/dls/layout/Grid";
 
@@ -14,7 +15,6 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import DocsLink from "@/components/DocsLink";
 import InfiniteScrollSentinel from "@/components/InfiniteScrollSentinel";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
 import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
 
 import ConnectionsPageSinksEmptyGraphic from "@/pages/connectors/components/ConnectionsPageSinksEmptyGraphic";

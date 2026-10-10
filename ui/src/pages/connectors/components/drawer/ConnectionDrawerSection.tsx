@@ -2,10 +2,8 @@ import type { ComponentProps, FC, PropsWithChildren } from "react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Box from "@galaxy-io/dls/layout/Box";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Widget from "@galaxy-io/dls/widget/Widget";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
 
 interface ConnectionDrawerSectionProps {
   header: string;
@@ -46,7 +44,11 @@ const ConnectionDrawerSection: FC<PropsWithChildren<ConnectionDrawerSectionProps
     >
       {count === 0 ? (
         <Box padding={12}>
-          <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} description={emptyMessage} />
+          <EmptyLayout
+            size={EmptyLayoutSize.SMALL}
+            header={emptyHeader}
+            description={emptyMessage}
+          />
         </Box>
       ) : (
         children

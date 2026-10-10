@@ -5,15 +5,13 @@ import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
 
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
@@ -48,7 +46,7 @@ const PipelineCanvasConnectionSelectorEmpty: FC<{
       padding={24}
     >
       <EmptyLayout
-        size={LayoutSize.SMALL}
+        size={EmptyLayoutSize.SMALL}
         header={message}
         actions={
           <Button

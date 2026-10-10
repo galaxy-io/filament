@@ -2,9 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 import viteReact from "@vitejs/plugin-react";
-import wyw from "@wyw-in-js/vite";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+
+import { galaxyDls } from "@galaxy-io/dls/vite";
+
+import { CLASS_PREFIX } from "./vite.config";
 
 interface PackageExportTarget {
   types: string;
@@ -44,18 +47,7 @@ const isPackageImport = (id: string) => !/^(\.|\/|@\/|\0)/.test(id) && !id.endsW
 export default defineConfig({
   plugins: [
     viteReact(),
-    wyw({
-      include: ["**/*.{ts,tsx}"],
-      exclude: ["**/node_modules/**", "**/dist/**", "**/*.d.ts", "**/src/gen/**"],
-      babelOptions: {
-        presets: [
-          ["@babel/preset-typescript", { isTSX: true, allExtensions: true }],
-          ["@babel/preset-react", { runtime: "automatic" }],
-        ],
-      },
-      classNameSlug: (hash) => hash,
-      evaluate: true,
-    }),
+    galaxyDls({ prefix: CLASS_PREFIX }),
     dts({ tsconfigPath: "./tsconfig.lib.json", entryRoot: "src" }),
   ],
   resolve: {

@@ -5,13 +5,12 @@ import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -23,6 +22,8 @@ import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/creat
 import PipelineResourceCreateForm, {
   type PipelineResourceCreateState,
 } from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+
+import { IS_DEBUG } from "@/constants";
 
 import { isSearchMatch } from "@/utils/search";
 
@@ -78,7 +79,7 @@ const CreatePipelineModalResources: FC = () => {
         <ErrorLayout
           header="Could not list resources"
           description="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
-          error={discoverError}
+          detail={IS_DEBUG ? discoverError.message : undefined}
         />
       </Flex>
     );

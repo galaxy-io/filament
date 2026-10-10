@@ -5,10 +5,10 @@ import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
 import { notFound, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import ErrorLayout from "@/layouts/ErrorLayout";
 import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
 
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";

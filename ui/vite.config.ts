@@ -2,9 +2,12 @@ import path from "node:path";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import wyw from "@wyw-in-js/vite";
 import { defineConfig } from "vite";
 
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { galaxyDls } from "@galaxy-io/dls/vite";
+
+export const CLASS_PREFIX = "filament";
 const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
 const VERIFY_MODE = "verify";
 const VERIFY_CACHE_DIR = "node_modules/.vite-verify";
@@ -19,18 +22,7 @@ export default defineConfig(({ mode }) => ({
       generatedRouteTree: "./src/host/routeTree.gen.ts",
     }),
     viteReact(),
-    wyw({
-      include: ["**/*.{ts,tsx}"],
-      exclude: ["**/node_modules/**", "**/dist/**", "**/*.d.ts", "**/src/gen/**"],
-      babelOptions: {
-        presets: [
-          ["@babel/preset-typescript", { isTSX: true, allExtensions: true }],
-          ["@babel/preset-react", { runtime: "automatic" }],
-        ],
-      },
-      classNameSlug: (hash) => hash,
-      evaluate: true,
-    }),
+    galaxyDls({ prefix: CLASS_PREFIX, theme: GalaxyTheme.SYSTEM }),
   ],
   server: {
     port: 5173,

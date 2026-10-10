@@ -2,7 +2,7 @@ import type { FC } from "react";
 
 import { FlowArrowIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 
 interface PipelineCanvasRoutesEmptyProps {
   hasRoutes: boolean;

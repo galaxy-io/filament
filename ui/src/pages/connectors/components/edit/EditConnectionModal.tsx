@@ -5,6 +5,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
+import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -15,9 +17,6 @@ import {
   GetConnectionRequestSchema,
   UpdateConnectionRequestSchema,
 } from "@/gen/ingestion/v1/connections_pb";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import PendingLayout from "@/layouts/PendingLayout";
 
 import { ConnectionFormActionType } from "@/pages/connectors/components/form/actions";
 import ConnectionForm from "@/pages/connectors/components/form/ConnectionForm";

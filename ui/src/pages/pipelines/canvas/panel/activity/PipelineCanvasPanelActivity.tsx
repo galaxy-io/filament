@@ -6,6 +6,7 @@ import { PulseIcon } from "@phosphor-icons/react";
 import { useParams } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
@@ -14,8 +15,6 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import Flasher from "@galaxy-io/dls/transform/Flasher";
 
 import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
 
 import { PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelActivityLine from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivityLine";

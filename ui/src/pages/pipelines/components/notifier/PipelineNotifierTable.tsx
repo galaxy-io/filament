@@ -6,14 +6,12 @@ import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button
 import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
 
 import {
   PIPELINE_NOTIFIER_DEFAULT_STATE,
@@ -130,7 +128,7 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
             isLoading={isLoading}
             emptyState={
               <EmptyLayout
-                size={LayoutSize.SMALL}
+                size={EmptyLayoutSize.SMALL}
                 header="No notifiers"
                 description="Add a notifier to get notified when runs complete or fail."
               />

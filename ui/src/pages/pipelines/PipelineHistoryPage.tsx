@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
@@ -15,7 +16,6 @@ import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
-import EmptyLayout from "@/layouts/EmptyLayout";
 
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
