@@ -11,7 +11,7 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
 import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSettingsPageAdvanced";
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";

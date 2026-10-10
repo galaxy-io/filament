@@ -7,7 +7,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
 interface PipelineCanvasPanelHeaderProps {
   title: string;

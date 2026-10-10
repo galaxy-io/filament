@@ -10,7 +10,8 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+
 import { PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH } from "@/pages/pipelines/canvas/routes/constants";
 import PipelineCanvasRoutesIsland from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesIsland";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";

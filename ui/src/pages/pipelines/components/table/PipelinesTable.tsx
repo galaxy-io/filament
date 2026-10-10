@@ -21,8 +21,11 @@ import {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineName from "@/components/PipelineName";
+import PipelineName from "@/components/pipelines/PipelineName";
+import { formatPipelineName } from "@/components/pipelines/utils";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
+import PipelinesTableColumnRecentRuns from "@/pages/pipelines/components/table/columns/PipelinesTableColumnRecentRuns";
 import {
   PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
@@ -40,13 +43,10 @@ import {
   type PipelinesTableSorting,
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
 import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
-import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
 import { getErrorMessage } from "@/utils/errors";
 import { formatRunDuration } from "@/utils/runs";
 
@@ -92,7 +92,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) =>
       row.lastRun ? (
-        <PipelineHistoryRunStatus
+        <PipelineRunStatus
           status={row.lastRun.status}
           error={row.lastRun.error}
           executionStatus={row.lastRun.executionStatus}

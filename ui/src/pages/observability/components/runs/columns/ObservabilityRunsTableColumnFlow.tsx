@@ -2,9 +2,10 @@ import { type FC, useMemo } from "react";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
+import PipelineFlow, { PipelineFlowSize } from "@/components/pipelines/PipelineFlow";
+import { mapConnectionIdToFlowConnection } from "@/components/pipelines/utils";
+
 import { OBSERVABILITY_CONNECTIONS_INPUT } from "@/pages/observability/constants";
-import PipelineFlow, { PipelineFlowSize } from "@/pages/pipelines/components/flow/PipelineFlow";
-import { mapConnectionIdToFlowConnection } from "@/pages/pipelines/components/flow/utils";
 
 import { useListConnectionsQuery } from "@/api/queries/connections";
 

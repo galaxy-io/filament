@@ -15,13 +15,13 @@ import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
 import MetricGroup from "@/components/metrics/MetricGroup";
+import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/components/runs/constants";
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import ObservabilityMetricsValue from "@/pages/observability/components/metrics/ObservabilityMetricsValue";
 import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
-import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
-import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";

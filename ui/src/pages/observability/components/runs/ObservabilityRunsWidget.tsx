@@ -20,6 +20,8 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
+
 import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_ALL_STATUSES_LABEL,
@@ -32,7 +34,6 @@ import ObservabilityRunsChart from "@/pages/observability/components/runs/Observ
 import ObservabilityRunsScheduledChart from "@/pages/observability/components/runs/ObservabilityRunsScheduledChart";
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
-import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 

@@ -15,8 +15,9 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -146,8 +147,8 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
       <FlexItem grow={1} minHeight={0}>
         <ScrollArea>
           <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-              <ConnectionDrawerKeyValueRow
+            <KeyValueList variant={BoxVariant.SECONDARY}>
+              <KeyValueListRow
                 label="Source"
                 value={
                   <PipelineCanvasPanelResourceEndpoint
@@ -156,7 +157,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   />
                 }
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Resource"
                 value={
                   <Text
@@ -167,7 +168,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   </Text>
                 }
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Sink"
                 value={
                   <PipelineCanvasPanelResourceEndpoint
@@ -176,7 +177,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   />
                 }
               />
-            </ConnectionDrawerList>
+            </KeyValueList>
             <PipelineCanvasPanelSection
               header="Configuration"
               isEmpty={false}

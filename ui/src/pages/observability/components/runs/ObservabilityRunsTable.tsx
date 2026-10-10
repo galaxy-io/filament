@@ -17,7 +17,8 @@ import {
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineName from "@/components/PipelineName";
+import PipelineName from "@/components/pipelines/PipelineName";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
 import ObservabilityRunsTableColumnFlow from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnFlow";
 import {
@@ -43,7 +44,6 @@ import {
   type ObservabilityRunsTableSortingChange,
 } from "@/pages/observability/components/runs/utils";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
 import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
 import { createListSortingInput } from "@/api/utils";
@@ -97,7 +97,7 @@ const ObservabilityRunsTable: FC = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_STATUS,
         canSort: false,
         cell: ({ row }) => (
-          <PipelineHistoryRunStatus
+          <PipelineRunStatus
             status={row.status}
             error={row.error}
             executionStatus={row.executionStatus}

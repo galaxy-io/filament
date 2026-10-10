@@ -16,7 +16,8 @@ import { EMPTY_VALUE, formatBytes, formatNumber } from "@galaxy-io/dls/utils/for
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
@@ -27,7 +28,6 @@ import {
 } from "@/pages/pipelines/history/constants";
 import PipelineHistoryRunDuration from "@/pages/pipelines/history/PipelineHistoryRunDuration";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -43,7 +43,7 @@ const createRunTableColumns = (
     header: "Status",
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cell: ({ row }) => (
-      <PipelineHistoryRunStatus
+      <PipelineRunStatus
         status={row.status}
         error={row.error}
         executionStatus={row.executionStatus}

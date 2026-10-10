@@ -14,7 +14,8 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";

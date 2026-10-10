@@ -2,9 +2,9 @@ import { type FC, useCallback } from "react";
 
 import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 
-import CreateConnectionModal from "@/pages/connectors/components/create/CreateConnectionModal";
-import ConnectionDrawer from "@/pages/connectors/components/drawer/ConnectionDrawer";
-import EditConnectionModal from "@/pages/connectors/components/edit/EditConnectionModal";
+import CreateConnectionModal from "@/pages/connections/components/create/CreateConnectionModal";
+import ConnectionDrawer from "@/pages/connections/components/drawer/ConnectionDrawer";
+import EditConnectionModal from "@/pages/connections/components/edit/EditConnectionModal";
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import SettingsPage from "@/pages/settings/SettingsPage";
 

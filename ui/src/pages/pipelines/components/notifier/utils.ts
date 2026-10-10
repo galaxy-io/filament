@@ -10,7 +10,6 @@ import {
   NotifierInputSchema,
 } from "@/gen/ingestion/v1/notifiers_pb";
 
-import { isNameValid } from "@/pages/connectors/components/form/validation";
 import {
   PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENTS,
@@ -18,6 +17,8 @@ import {
   PIPELINE_NOTIFIER_URL_SECRET_REF_KEY,
 } from "@/pages/pipelines/components/notifier/constants";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
+
+import { isNameValid } from "@/utils/validation";
 
 export const formatPipelineNotifierEventsSelection = (options: SelectOption[]): string => {
   if (options.length === 1) return options[0].label;

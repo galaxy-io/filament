@@ -12,13 +12,12 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { useConnectorFamilies } from "@/components/connections/hooks/useConnectorFamilies";
 import EmptyGraphic, {
   EmptyGraphicGhostBar,
   EmptyGraphicGhostTileFallback,
-  useEmptyGraphicConnectors,
 } from "@/components/EmptyGraphic";
-
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
 
 interface PipelinesEmptyRow {
   sinkCount: number;
@@ -82,8 +81,8 @@ interface PipelinesPageEmptyGraphicProps {
 }
 
 const PipelinesPageEmptyGraphic: FC<PipelinesPageEmptyGraphicProps> = ({ actions }) => {
-  const sourceSpecs = useEmptyGraphicConnectors(ConnectorKind.SOURCE);
-  const sinkSpecs = useEmptyGraphicConnectors(ConnectorKind.SINK);
+  const sourceSpecs = useConnectorFamilies(ConnectorKind.SOURCE);
+  const sinkSpecs = useConnectorFamilies(ConnectorKind.SINK);
 
   return (
     <Flex

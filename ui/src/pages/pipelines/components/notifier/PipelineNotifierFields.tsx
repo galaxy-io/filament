@@ -11,6 +11,8 @@ import Text from "@galaxy-io/dls/text/Text";
 
 import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
+
 import {
   PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENT_OPTIONS,
@@ -28,7 +30,6 @@ import {
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
-import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 

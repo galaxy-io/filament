@@ -8,8 +8,8 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
 
 const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
   display: flex;

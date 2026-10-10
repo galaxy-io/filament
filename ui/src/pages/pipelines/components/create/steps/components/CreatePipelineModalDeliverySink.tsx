@@ -9,7 +9,8 @@ import Text from "@galaxy-io/dls/text/Text";
 import { WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+
 import { CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
 import { getWriteModeSelectOptions } from "@/pages/pipelines/components/resource/utils";

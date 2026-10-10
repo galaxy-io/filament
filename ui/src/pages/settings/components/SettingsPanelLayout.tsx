@@ -3,7 +3,7 @@ import type { FC, PropsWithChildren, ReactNode } from "react";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
 interface SettingsPanelLayoutProps {
   title: string;

@@ -38,7 +38,11 @@ import {
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineName from "@/components/PipelineName";
+import PipelineFlow from "@/components/pipelines/PipelineFlow";
+import PipelineName from "@/components/pipelines/PipelineName";
+import PipelineScheduleChip from "@/components/pipelines/PipelineScheduleChip";
+import { formatPipelineName } from "@/components/pipelines/utils";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
 import {
   PIPELINE_NAVBAR_HEIGHT,
@@ -64,13 +68,9 @@ import {
   usePipelineCanvasActions,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
-import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/components/flow/utils";
-import PipelineScheduleChip from "@/pages/pipelines/components/schedule/PipelineScheduleChip";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
+import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/canvas/utils";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import {
-  formatPipelineName,
   getPipelineValidationErrors,
   getRunPauseSignal,
   getRunStopSignal,
@@ -432,7 +432,7 @@ const PipelineLayoutNavbar: FC = () => {
                 />
               ) : (
                 <>
-                  <PipelineHistoryRunStatus
+                  <PipelineRunStatus
                     status={activeRun.status}
                     executionStatus={activeRun.executionStatus}
                     error={activeRun.error}

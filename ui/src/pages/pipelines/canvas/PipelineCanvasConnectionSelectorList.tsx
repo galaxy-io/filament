@@ -13,7 +13,8 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
 import { Flow } from "@/module/types";

@@ -26,8 +26,9 @@ import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,

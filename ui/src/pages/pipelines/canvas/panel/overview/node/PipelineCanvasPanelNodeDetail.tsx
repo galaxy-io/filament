@@ -9,10 +9,11 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
-import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+
 import { PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -97,16 +98,16 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
       <FlexItem grow={1} minHeight={0}>
         <ScrollArea>
           <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-              <ConnectionDrawerKeyValueRow
+            <KeyValueList variant={BoxVariant.SECONDARY}>
+              <KeyValueListRow
                 label="Connector"
                 value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? EMPTY_VALUE}</Text>}
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Kind"
                 value={<ConnectionKindChip kind={kind} size={ChipSize.SMALL} />}
               />
-            </ConnectionDrawerList>
+            </KeyValueList>
 
             <PipelineCanvasPanelSection
               header="Configuration"

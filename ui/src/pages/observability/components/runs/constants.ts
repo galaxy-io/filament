@@ -6,13 +6,14 @@ import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
-import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
-import { ObservabilityRunsView } from "@/pages/observability/types";
 import {
   PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
+} from "@/components/runs/constants";
+
+import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
+import { ObservabilityRunsView } from "@/pages/observability/types";
 
 import { createEnumSelectOptions, getEnumValues } from "@/utils/select";
 

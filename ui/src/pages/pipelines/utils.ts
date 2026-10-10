@@ -5,15 +5,12 @@ import type {
 } from "@/gen/ingestion/v1/capabilities_pb";
 import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   ExecutionDesiredState,
   type RunInfo,
   RunSignal,
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
-
-import { stripDeletedName } from "@/components/pipelines/utils";
 
 import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
 
@@ -50,14 +47,3 @@ export const getPipelineValidationErrors = (
     ...(validation?.edges ?? []).flatMap(getEdgeValidationErrors),
   ]),
 ];
-
-export const formatPipelineName = (pipeline: Pipeline, includeDeleted = false): string => {
-  const name = includeDeleted ? pipeline.name : stripDeletedName(pipeline.name);
-  if (name) {
-    return name.replace(/->/g, "→");
-  }
-  return pipeline.id;
-};
-
-export const isPipelineNameMatch = (typed: string, name: string): boolean =>
-  typed.trim().replace(/->/g, "→") === name.trim();

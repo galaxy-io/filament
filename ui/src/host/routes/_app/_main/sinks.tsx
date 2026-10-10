@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectionsPage from "@/pages/connectors/ConnectionsPage";
+import ConnectionsPage from "@/pages/connections/ConnectionsPage";
 
 import { listSearchParamsSchema } from "@/api/utils";
 

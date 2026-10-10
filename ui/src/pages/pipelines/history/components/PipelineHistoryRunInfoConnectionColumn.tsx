@@ -12,7 +12,7 @@ import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
 
 import { useGetConnectionQuery } from "@/api/queries/connections";
 

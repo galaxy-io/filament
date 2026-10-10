@@ -14,7 +14,8 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
+
 import { PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH } from "@/layouts/pipeline/constants";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";

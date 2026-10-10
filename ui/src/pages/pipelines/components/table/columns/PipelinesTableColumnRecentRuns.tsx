@@ -19,12 +19,13 @@ import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import { PIPELINES_TABLE_RECENT_RUNS_COUNT } from "@/pages/pipelines/components/table/constants";
 import {
   PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
-import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
+} from "@/components/runs/constants";
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
+
+import { PIPELINES_TABLE_RECENT_RUNS_COUNT } from "@/pages/pipelines/components/table/constants";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";

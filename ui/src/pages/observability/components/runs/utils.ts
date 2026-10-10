@@ -15,6 +15,11 @@ import {
   type Timeseries,
 } from "@/gen/metrics/v1/metrics_pb";
 
+import {
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/components/runs/constants";
+
 import { OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT } from "@/pages/observability/components/runs/constants";
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
@@ -25,10 +30,6 @@ import {
   OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
-import {
-  PIPELINE_RUN_STATUS_TO_HUE_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
 
 import type { ListSearchParams } from "@/api/utils";
 

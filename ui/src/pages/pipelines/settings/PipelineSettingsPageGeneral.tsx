@@ -17,9 +17,7 @@ import {
   UpdatePipelineRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { stripDeletedName } from "@/components/pipelines/utils";
-
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { formatPipelineName, stripDeletedName } from "@/components/pipelines/utils";
 
 import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 

@@ -2,8 +2,8 @@ import type { FC } from "react";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
-import { usePipelineFlowEndpoints } from "@/pages/pipelines/hooks/usePipelineFlowEndpoints";
+import { usePipelineFlowEndpoints } from "@/components/pipelines/hooks/usePipelineFlowEndpoints";
+import PipelineFlow from "@/components/pipelines/PipelineFlow";
 
 interface PipelinesTableFlowCellProps {
   pipeline: Pipeline;

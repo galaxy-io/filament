@@ -14,6 +14,12 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
 
+import { formatPipelineName } from "@/components/pipelines/utils";
+import {
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/components/runs/constants";
+
 import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
@@ -25,11 +31,6 @@ import {
   formatBucketKey,
   useBucketLabelFormatter,
 } from "@/pages/observability/utils";
-import {
-  PIPELINE_RUN_STATUS_TO_HUE_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 import { useListPipelinesQuery } from "@/api/queries/pipelines";

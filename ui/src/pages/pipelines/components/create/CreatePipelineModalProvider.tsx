@@ -12,7 +12,6 @@ import { match } from "ts-pattern";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
   CREATE_PIPELINE_MODAL_STEP_ORDER,
@@ -34,6 +33,8 @@ import {
 import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
+
+import { getNameError, isNameValid } from "@/utils/validation";
 
 const DEFAULT_STATE: CreatePipelineModalState = {
   executionMode: ExecutionMode.BOUNDED,

@@ -17,8 +17,9 @@ import {
   type Pipeline,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { formatPipelineName, isPipelineNameMatch } from "@/components/pipelines/utils";
+
 import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
-import { formatPipelineName, isPipelineNameMatch } from "@/pages/pipelines/utils";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";

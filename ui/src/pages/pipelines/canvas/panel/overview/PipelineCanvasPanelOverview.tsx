@@ -11,9 +11,11 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+import { formatPipelineName } from "@/components/pipelines/utils";
+
 import { PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -28,7 +30,6 @@ import {
   type PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
@@ -73,8 +74,8 @@ const PipelineCanvasPanelOverview: FC = () => {
     <FlexItem grow={1} minHeight={0}>
       <ScrollArea>
         <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-          <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-            <ConnectionDrawerKeyValueRow
+          <KeyValueList variant={BoxVariant.SECONDARY}>
+            <KeyValueListRow
               label="Name"
               value={
                 <Text size={TextSize.BODY_SM}>
@@ -82,7 +83,7 @@ const PipelineCanvasPanelOverview: FC = () => {
                 </Text>
               }
             />
-            <ConnectionDrawerKeyValueRow
+            <KeyValueListRow
               label="Version"
               value={
                 <Text
@@ -93,7 +94,7 @@ const PipelineCanvasPanelOverview: FC = () => {
                 </Text>
               }
             />
-          </ConnectionDrawerList>
+          </KeyValueList>
 
           <PipelineCanvasPanelSection
             header="Source"
