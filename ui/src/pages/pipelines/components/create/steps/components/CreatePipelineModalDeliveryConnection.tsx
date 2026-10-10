@@ -2,7 +2,6 @@ import type { FC } from "react";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
-import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
@@ -19,11 +18,7 @@ import {
   useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import {
-  CREATE_PIPELINE_MODAL_CONNECTION_CARET_SLOT_WIDTH,
-  CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT,
-  CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH,
-} from "@/pages/pipelines/components/create/constants";
+import { CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
 import PipelineNodeConfigFields, {
   usePipelineNodeConfig,
@@ -71,45 +66,39 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
     </Flex>
   );
 
-  const writeMode = sink && (
-    <Box width={CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH}>
-      <SelectInput
-        ariaLabel={`Write mode for ${connection.name}`}
-        options={getWriteModeSelectOptions(sink.writeModeOptions)}
-        value={String(sink.writeMode)}
-        onChange={handleWriteModeChange}
-        fillWidth
-      />
-    </Box>
-  );
-
-  if (nodeConfig.fields.length === 0) {
+  if (!sink && nodeConfig.fields.length === 0) {
     return (
       <Widget isFlush>
         <Flex
           alignItems={AlignItems.CENTER}
-          gap={8}
-          padding={[8, 12]}
+          padding={[0, 12]}
           minHeight={CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT}
           fillWidth
         >
-          <FlexItem grow={1} minWidth={0}>
-            {title}
-          </FlexItem>
-          {writeMode}
-          <Box width={CREATE_PIPELINE_MODAL_CONNECTION_CARET_SLOT_WIDTH} />
+          {title}
         </Flex>
       </Widget>
     );
   }
 
   return (
-    <Widget isCollapsible header={title} actions={writeMode}>
-      <PipelineNodeConfigFields
-        {...nodeConfig}
-        config={config}
-        onChange={(payload) => setNodeConfig({ connectionId: connection.id, config: payload })}
-      />
+    <Widget isCollapsible header={title} defaultIsOpen>
+      {sink && (
+        <SelectInput
+          label="Write mode"
+          options={getWriteModeSelectOptions(sink.writeModeOptions)}
+          value={String(sink.writeMode)}
+          onChange={handleWriteModeChange}
+          fillWidth
+        />
+      )}
+      {nodeConfig.fields.length > 0 && (
+        <PipelineNodeConfigFields
+          {...nodeConfig}
+          config={config}
+          onChange={(payload) => setNodeConfig({ connectionId: connection.id, config: payload })}
+        />
+      )}
     </Widget>
   );
 };
