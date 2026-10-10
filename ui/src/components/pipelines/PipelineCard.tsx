@@ -9,10 +9,10 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
-import { usePipelineFlowEndpoints } from "@/components/pipelines/hooks/usePipelineFlowEndpoints";
 import PipelineFlow, { PipelineFlowSize } from "@/components/pipelines/PipelineFlow";
 import PipelineName from "@/components/pipelines/PipelineName";
 import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
+import { mapVersionNodesToFlowEndpoints } from "@/components/pipelines/utils";
 import RouterLink from "@/components/RouterLink";
 
 import { createFilamentHref, FilamentPath } from "@/module/paths";
@@ -55,7 +55,8 @@ interface PipelineCardProps {
 }
 
 const PipelineCard: FC<PipelineCardProps> = ({ pipeline }) => {
-  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline);
+  const graph = pipeline.currentVersion?.graph;
+  const { sourceId, sinkIds } = mapVersionNodesToFlowEndpoints(graph?.nodes ?? []);
 
   return (
     <CardLinkWrapper href={createFilamentHref(FilamentPath.PIPELINE, { id: pipeline.id })}>
@@ -66,11 +67,10 @@ const PipelineCard: FC<PipelineCardProps> = ({ pipeline }) => {
         </Flex>
         <Flex alignItems={AlignItems.CENTER} gap={12}>
           <PipelineFlow
-            source={source}
-            sinks={sinks}
-            hasEdges={hasEdges}
+            sourceId={sourceId}
+            sinkIds={sinkIds}
+            hasEdges={(graph?.edges ?? []).length > 0}
             size={PipelineFlowSize.SMALL}
-            isLoading={isLoading}
           />
         </Flex>
       </CardWrapper>

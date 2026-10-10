@@ -1,14 +1,12 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
-
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
-import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
@@ -16,7 +14,7 @@ import ConnectorTile, { ConnectorTileSize } from "@/components/connections/Conne
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
-import { useGetConnectionQuery } from "@/api/queries/connections";
+import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 
 interface PipelineHistoryRunInfoConnectionColumnProps {
   connectionId: Connection["id"];
@@ -30,7 +28,7 @@ const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectio
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const { data: connectionData } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, { id: connectionId }),
+    input: createGetConnectionInput(connectionId),
     options: { enabled: !!connectionId },
   });
 

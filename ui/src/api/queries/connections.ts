@@ -1,6 +1,8 @@
+import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -10,14 +12,16 @@ import {
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { type UseQueryResult, useQueries, useQueryClient } from "@tanstack/react-query";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type {
-  GetConnectionRequest,
-  GetConnectionResponse,
-  ListConnectionsRequest,
-  ListConnectionsResponse,
+import {
+  type Connection,
+  type GetConnectionRequest,
+  GetConnectionRequestSchema,
+  type GetConnectionResponse,
+  type ListConnectionsRequest,
+  type ListConnectionsResponse,
 } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
@@ -113,6 +117,24 @@ export const createGetConnectionQueryKey = (
     input,
     transport,
     cardinality: "finite",
+  });
+};
+
+export const createGetConnectionInput = (id: Connection["id"]) =>
+  create(GetConnectionRequestSchema, { id });
+
+const selectConnections = (results: UseQueryResult<GetConnectionResponse>[]) =>
+  results.flatMap((result) => result.data?.connection ?? []);
+
+export const useGetConnectionQueries = (ids: Connection["id"][]) => {
+  const transport = useTransport();
+  return useQueries({
+    queries: ids.map((id) =>
+      createQueryOptions(IngestionService.method.getConnection, createGetConnectionInput(id), {
+        transport,
+      }),
+    ),
+    combine: selectConnections,
   });
 };
 

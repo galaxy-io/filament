@@ -13,7 +13,6 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import {
   type Connection,
   ConnectionSchema,
-  GetConnectionRequestSchema,
   UpdateConnectionRequestSchema,
 } from "@/gen/ingestion/v1/connections_pb";
 
@@ -27,7 +26,11 @@ import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
 
 import { useFilamentLayoutSearch } from "@/module/hooks";
 
-import { useGetConnectionQuery, useUpdateConnectionMutation } from "@/api/queries/connections";
+import {
+  createGetConnectionInput,
+  useGetConnectionQuery,
+  useUpdateConnectionMutation,
+} from "@/api/queries/connections";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -112,7 +115,7 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
   const { connectionId } = useFilamentLayoutSearch();
 
   const { data, isError } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
+    input: createGetConnectionInput(connectionId ?? ""),
     options: { enabled: !!connectionId, retry: false },
   });
   const connection = data?.connection;

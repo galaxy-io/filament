@@ -9,14 +9,12 @@ import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile, {
+import {
   ConnectorOverflowTile,
   ConnectorTileShimmer,
   ConnectorTileSize,
 } from "@/components/connections/ConnectorTile";
-
-import { useFilamentSearchUpdate } from "@/module/hooks";
-import type { FilamentLayoutSearch } from "@/module/schemas";
+import PipelineFlowTile from "@/components/pipelines/PipelineFlowTile";
 
 const PIPELINE_FLOW_MAX_VISIBLE_SINKS = 3;
 
@@ -24,12 +22,6 @@ export enum PipelineFlowSize {
   SMALL = "SMALL",
   MEDIUM = "MEDIUM",
   LARGE = "LARGE",
-}
-
-export interface PipelineFlowConnection {
-  connectionId: Connection["id"];
-  connector: Connection["connector"];
-  isDeleted?: boolean;
 }
 
 const PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP: Record<PipelineFlowSize, ConnectorTileSize> = {
@@ -45,44 +37,34 @@ const PIPELINE_FLOW_SIZE_TO_ICON_SIZE_MAP: Record<PipelineFlowSize, number> = {
 };
 
 interface PipelineFlowProps {
-  source?: PipelineFlowConnection;
-  sinks?: PipelineFlowConnection[];
+  sourceId?: Connection["id"];
+  sinkIds?: Connection["id"][];
   size?: PipelineFlowSize;
   hasEdges?: boolean;
   isLoading?: boolean;
 }
 
 const PipelineFlow: FC<PipelineFlowProps> = ({
-  source,
-  sinks = [],
+  sourceId,
+  sinkIds = [],
   size = PipelineFlowSize.MEDIUM,
   hasEdges = true,
   isLoading = false,
 }) => {
-  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const visibleSinkIds = sinkIds.slice(0, PIPELINE_FLOW_MAX_VISIBLE_SINKS);
+  const overflowCount = sinkIds.length - visibleSinkIds.length;
 
-  const visibleSinks = sinks.slice(0, PIPELINE_FLOW_MAX_VISIBLE_SINKS);
-  const overflowCount = sinks.length - visibleSinks.length;
-
-  const hasSource = !!source && source.connectionId.length > 0;
-  const hasSinks = sinks.length > 0;
+  const hasSource = !!sourceId;
+  const hasSinks = sinkIds.length > 0;
   const isLinked = hasSource && hasSinks && hasEdges;
 
-  const handleConnectionClick = (connectionId: Connection["id"], e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    updateSearch((prev) => ({ ...prev, connectionId }));
-  };
-
   const renderSource = () => {
-    if (hasSource) {
+    if (sourceId) {
       return (
-        <ConnectorTile
-          connector={source.connector}
+        <PipelineFlowTile
+          connectionId={sourceId}
           kind={ConnectorKind.SOURCE}
-          onClick={(e) => handleConnectionClick(source.connectionId, e)}
           size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
-          isDeleted={source.isDeleted}
         />
       );
     }
@@ -92,15 +74,13 @@ const PipelineFlow: FC<PipelineFlowProps> = ({
     if (hasSinks) {
       return (
         <Flex alignItems={AlignItems.CENTER} gap={4}>
-          {visibleSinks.map((sink, index) => (
-            <ConnectorTile
+          {visibleSinkIds.map((sinkId, index) => (
+            <PipelineFlowTile
               // biome-ignore lint/suspicious/noArrayIndexKey: two sink nodes can share a connection
-              key={`${sink.connectionId}-${index}`}
-              connector={sink.connector}
+              key={`${sinkId}-${index}`}
+              connectionId={sinkId}
               kind={ConnectorKind.SINK}
               size={PIPELINE_FLOW_SIZE_TO_CONNECTOR_TILE_SIZE_MAP[size]}
-              onClick={(e) => handleConnectionClick(sink.connectionId, e)}
-              isDeleted={sink.isDeleted}
             />
           ))}
           {overflowCount > 0 && (

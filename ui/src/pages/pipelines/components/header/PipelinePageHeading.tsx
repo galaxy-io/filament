@@ -22,7 +22,6 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 import { usePipelineParams } from "@/module/hooks";
 import { createFilamentHref, FilamentPath } from "@/module/paths";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { formatVersion } from "@/utils/format";
@@ -37,15 +36,14 @@ const PipelinePageHeading: FC = () => {
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: createGetPipelineInput(id),
   });
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
 
   const pipeline = pipelineData.pipeline;
   const versions = pipeline?.versions ?? [];
   const latestVersion = versions[0]?.version;
 
-  const { source, sinks } = useMemo(
-    () => mapCanvasNodesToFlowEndpoints(state.nodes, connectionsData.connections),
-    [state.nodes, connectionsData.connections],
+  const { sourceId, sinkIds } = useMemo(
+    () => mapCanvasNodesToFlowEndpoints(state.nodes),
+    [state.nodes],
   );
 
   const versionOptions = useMemo<SelectOption[]>(
@@ -78,7 +76,7 @@ const PipelinePageHeading: FC = () => {
         as={RouterLink}
       />
       <FlexItem shrink={0}>
-        <PipelineFlow source={source} sinks={sinks} hasEdges={state.edges.length > 0} />
+        <PipelineFlow sourceId={sourceId} sinkIds={sinkIds} hasEdges={state.edges.length > 0} />
       </FlexItem>
       <Text as="h1" size={TextSize.HEADING_MD} weight={TextWeight.MEDIUM} lineClamp={1}>
         {formatPipelineName(pipeline)}

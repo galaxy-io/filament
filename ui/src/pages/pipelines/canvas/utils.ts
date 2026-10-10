@@ -5,15 +5,11 @@ import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { isJsonObject } from "@/components/fields/utils";
-import {
-  mapConnectionIdToFlowConnection,
-  type PipelineFlowEndpoints,
-} from "@/components/pipelines/utils";
+import type { PipelineFlowEndpoints } from "@/components/pipelines/utils";
 
 import {
   PIPELINE_CANVAS_EDGE_Z_INDEX,
@@ -226,24 +222,14 @@ export const mapEdgesToStyledEdges = (
   });
 };
 
-export const mapCanvasNodesToFlowEndpoints = (
-  nodes: CanvasNode[],
-  connections: Connection[],
-): PipelineFlowEndpoints => {
-  const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));
-
-  const sourceNode = nodes.find(
+export const mapCanvasNodesToFlowEndpoints = (nodes: CanvasNode[]): PipelineFlowEndpoints => ({
+  sourceId: nodes.find(
     (node): node is PipelineCanvasSourceNode => node.type === PipelineCanvasNodeType.SOURCE,
-  );
-  return {
-    source: sourceNode
-      ? mapConnectionIdToFlowConnection(sourceNode.data.connectionId, connectionsById)
-      : undefined,
-    sinks: nodes
-      .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
-      .map((node) => mapConnectionIdToFlowConnection(node.data.connectionId, connectionsById)),
-  };
-};
+  )?.data.connectionId,
+  sinkIds: nodes
+    .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
+    .map((node) => node.data.connectionId),
+});
 
 export const isConnectionNode = (
   node: CanvasNode,

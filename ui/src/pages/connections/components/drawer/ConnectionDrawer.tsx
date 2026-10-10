@@ -20,7 +20,7 @@ import Menu, { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/m
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
@@ -41,7 +41,11 @@ import { useFilamentNavigate, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
-import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
+import {
+  createGetConnectionInput,
+  useDeleteConnectionMutation,
+  useGetConnectionQuery,
+} from "@/api/queries/connections";
 import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { useConfirm } from "@/hooks/useConfirm";
@@ -59,7 +63,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const { data, isError } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
+    input: createGetConnectionInput(connectionId ?? ""),
     options: { enabled: !!connectionId, retry: false },
   });
   const connection = data?.connection;

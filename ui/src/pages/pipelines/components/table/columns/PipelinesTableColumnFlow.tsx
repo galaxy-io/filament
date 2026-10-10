@@ -2,17 +2,24 @@ import type { FC } from "react";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { usePipelineFlowEndpoints } from "@/components/pipelines/hooks/usePipelineFlowEndpoints";
 import PipelineFlow from "@/components/pipelines/PipelineFlow";
+import { mapVersionNodesToFlowEndpoints } from "@/components/pipelines/utils";
 
 interface PipelinesTableColumnFlowProps {
   pipeline: Pipeline;
 }
 
 const PipelinesTableColumnFlow: FC<PipelinesTableColumnFlowProps> = ({ pipeline }) => {
-  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline);
+  const graph = pipeline.currentVersion?.graph;
+  const { sourceId, sinkIds } = mapVersionNodesToFlowEndpoints(graph?.nodes ?? []);
 
-  return <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} isLoading={isLoading} />;
+  return (
+    <PipelineFlow
+      sourceId={sourceId}
+      sinkIds={sinkIds}
+      hasEdges={(graph?.edges ?? []).length > 0}
+    />
+  );
 };
 
 export default PipelinesTableColumnFlow;

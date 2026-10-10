@@ -22,7 +22,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
+import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
 
 const useSourceResources = (connectionId: Connection["id"]) => {
@@ -44,8 +44,10 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode } = usePipelineCanvasActions();
   const { selectNode } = usePipelineCanvasSelection();
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
-  const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
+  const { data: connectionData } = useGetConnectionQuery({
+    input: createGetConnectionInput(data.connectionId),
+  });
+  const connection = connectionData?.connection;
   const {
     names: discoveredNames,
     error,

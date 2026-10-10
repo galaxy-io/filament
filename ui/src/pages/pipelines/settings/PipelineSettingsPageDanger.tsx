@@ -10,16 +10,17 @@ import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
+import { ReplicationMode } from "@/gen/ingestion/v1/common_pb";
 import { DeletePipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { formatPipelineName, isPipelineNameMatch } from "@/components/pipelines/utils";
 
-import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
+import { getPipelineSourceConnectionIds } from "@/pages/pipelines/settings/utils";
 
 import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
+import { useGetConnectionQueries } from "@/api/queries/connections";
 import {
   createGetPipelineInput,
   useDeletePipelineMutation,
@@ -36,7 +37,7 @@ const PipelineSettingsPageDanger: FC = () => {
     input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
+  const sourceConnections = useGetConnectionQueries(getPipelineSourceConnectionIds(pipeline));
 
   const { mutate: deletePipeline } = useDeletePipelineMutation();
 
@@ -53,7 +54,9 @@ const PipelineSettingsPageDanger: FC = () => {
 
   if (!pipeline) return null;
 
-  const cdcConnections = getPipelineCdcSourceConnections(pipeline, connectionsData.connections);
+  const cdcConnections = sourceConnections.filter(
+    (connection) => connection.replication === ReplicationMode.CDC,
+  );
   const cdcConnectionNames = cdcConnections.map((connection) => `"${connection.name}"`).join(", ");
   const hasCdcSource = cdcConnections.length > 0;
 
