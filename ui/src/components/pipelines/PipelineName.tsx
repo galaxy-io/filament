@@ -11,6 +11,7 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { PIPELINE_UNTITLED_NAME } from "@/components/pipelines/constants";
 import { formatPipelineName } from "@/components/pipelines/utils";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
@@ -67,7 +68,7 @@ const PipelineName: FC<PipelineNameProps> = ({
     return (
       <Flex alignItems={AlignItems.CENTER} gap={8}>
         <Text size={size} variant={TextVariant.TERTIARY} lineClamp={1}>
-          Untitled pipeline
+          {PIPELINE_UNTITLED_NAME}
         </Text>
         {renderDeletedChip()}
       </Flex>

@@ -30,6 +30,18 @@
       "types": "./dist/pages/NotFoundPage.d.ts",
       "import": "./dist/pages/NotFoundPage.js"
     },
+    "./pages/PipelinesPage": {
+      "types": "./dist/pages/pipelines/PipelinesPage.d.ts",
+      "import": "./dist/pages/pipelines/PipelinesPage.js"
+    },
+    "./pages/SourcesPage": {
+      "types": "./dist/pages/connections/SourcesPage.d.ts",
+      "import": "./dist/pages/connections/SourcesPage.js"
+    },
+    "./pages/SinksPage": {
+      "types": "./dist/pages/connections/SinksPage.d.ts",
+      "import": "./dist/pages/connections/SinksPage.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "scripts": {

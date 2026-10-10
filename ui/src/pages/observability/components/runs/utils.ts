@@ -2,10 +2,8 @@ import { create } from "@bufbuild/protobuf";
 
 import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
 import type { ChartSelection } from "@galaxy-io/dls/charts/types";
-import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import {
   Metric,
   MetricDimension,
@@ -20,7 +18,6 @@ import {
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/components/runs/constants";
 
-import { OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT } from "@/pages/observability/components/runs/constants";
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
@@ -30,8 +27,6 @@ import {
   OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
-
-import type { ListSearchParams } from "@/module/schemas";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
@@ -142,34 +137,5 @@ export const createRunsWindowInput = (
   return {
     sinceMs: runsBucket > sinceMs ? runsBucket : sinceMs,
     untilMs: runsBucket + OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
-  };
-};
-
-export type ObservabilityRunsTableSorting = TableSort | null;
-
-export type ObservabilityRunsTableSortingChange = (sorting: ObservabilityRunsTableSorting) => void;
-
-type ObservabilityRunsSortSearch = Pick<ListSearchParams, "sortBy" | "sortOrder">;
-
-export const createObservabilityRunsSorting = ({
-  sortBy,
-  sortOrder,
-}: ObservabilityRunsSortSearch): ObservabilityRunsTableSorting =>
-  sortBy === SortBy.CREATED_AT
-    ? {
-        columnId: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
-        isDescending: sortOrder !== SortOrder.ASC,
-      }
-    : null;
-
-export const createObservabilityRunsSortSearch = (
-  sorting: ObservabilityRunsTableSorting,
-): ObservabilityRunsSortSearch => {
-  if (sorting?.columnId !== OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT) {
-    return { sortBy: undefined, sortOrder: undefined };
-  }
-  return {
-    sortBy: SortBy.CREATED_AT,
-    sortOrder: sorting.isDescending ? SortOrder.DESC : SortOrder.ASC,
   };
 };

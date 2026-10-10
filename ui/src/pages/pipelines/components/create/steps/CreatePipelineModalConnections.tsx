@@ -2,7 +2,6 @@ import { type FC, type RefObject, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
-import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
@@ -26,7 +25,10 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+import {
+  CONNECTOR_KIND_TO_NOUN_MAP,
+  CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
+} from "@/components/connections/constants";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
@@ -79,7 +81,7 @@ const CreatePipelineModalConnectionsState: FC<{
 
   const actions = (
     <Button
-      label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
+      label={`Create ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]}`}
       icon={PlusIcon}
       onClick={handleCreateConnection}
     />
@@ -233,7 +235,7 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
     if (!kindConnections.length) {
       return (
         <CreatePipelineModalConnectionsState
-          message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase())} found`}
+          message={`No ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]} found`}
           connectorKind={kind}
         />
       );
@@ -289,7 +291,7 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
         <TextInput
           value={state.search}
           onChange={handleSearchChange}
-          placeholder={`Search ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase())}...`}
+          placeholder={`Search ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]}...`}
           icon={MagnifyingGlassIcon}
           fillWidth
         />

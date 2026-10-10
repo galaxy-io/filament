@@ -27,6 +27,7 @@ import {
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import { PIPELINES_DOCS_PATH } from "@/pages/pipelines/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 const CreatePipelineModalSidebar: FC = () => {
@@ -121,7 +122,7 @@ const CreatePipelineModalSidebar: FC = () => {
             <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
               {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
             </Text>
-            <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
+            <DocsLink label="Pipeline setup guide" path={PIPELINES_DOCS_PATH} />
           </Flex>
         </Flex>
       </Box>

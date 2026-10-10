@@ -4,7 +4,7 @@ import type { ChartSeriesStyles } from "@galaxy-io/dls/charts/types";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
+import { SortBy, SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
 import {
   PIPELINE_RUN_EXECUTED_STATUSES,
@@ -79,3 +79,10 @@ export const OBSERVABILITY_RUNS_TABLE_HEIGHT = 450;
 export const OBSERVABILITY_RUNS_CHART_HEIGHT = 250;
 export const OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH = 160;
 export const OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH = 4;
+
+export const OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP: Record<SortBy, string | undefined> = {
+  [SortBy.UNSPECIFIED]: undefined,
+  [SortBy.NAME]: undefined,
+  [SortBy.CREATED_AT]: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
+  [SortBy.UPDATED_AT]: undefined,
+};

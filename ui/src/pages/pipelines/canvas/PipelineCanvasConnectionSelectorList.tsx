@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
-import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
@@ -12,7 +11,10 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+import {
+  CONNECTOR_KIND_TO_NOUN_MAP,
+  CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
+} from "@/components/connections/constants";
 
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
@@ -43,7 +45,7 @@ const PipelineCanvasConnectionSelectorEmpty: FC<{
         header={message}
         actions={
           <Button
-            label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
+            label={`Create ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]}`}
             icon={PlusIcon}
             onClick={handleCreateConnection}
           />
@@ -74,7 +76,7 @@ const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorL
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty
-        message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase())} found`}
+        message={`No ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[connectorKind]} found`}
         connectorKind={connectorKind}
       />
     );

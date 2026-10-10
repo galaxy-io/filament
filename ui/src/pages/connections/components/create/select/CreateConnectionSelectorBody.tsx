@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import pluralize from "pluralize";
-
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -23,7 +21,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 import { getConnectorFamily } from "@/components/connections/utils";
 import DocsLink from "@/components/DocsLink";
 
@@ -107,7 +105,7 @@ const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
     isConnectorOnShelf(connector, shelf),
   );
 
-  const kindLabel = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase());
+  const kindLabel = CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind];
 
   return (
     <Flex

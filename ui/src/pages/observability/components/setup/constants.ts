@@ -7,6 +7,8 @@ import { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
+import { PIPELINE_CREATE_TITLE } from "@/components/pipelines/constants";
+
 import {
   ObservabilitySetupStep,
   ObservabilitySetupStepStatus,
@@ -38,7 +40,7 @@ export const OBSERVABILITY_SETUP_STEP_TO_ACTION_LABEL_MAP: Record<ObservabilityS
   {
     [ObservabilitySetupStep.SOURCE]: "New source",
     [ObservabilitySetupStep.SINK]: "New sink",
-    [ObservabilitySetupStep.PIPELINE]: "New pipeline",
+    [ObservabilitySetupStep.PIPELINE]: PIPELINE_CREATE_TITLE,
   };
 
 export const OBSERVABILITY_SETUP_STATUS_TO_ICON_MAP: Record<

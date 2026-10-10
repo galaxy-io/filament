@@ -7,7 +7,7 @@ import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
-import type { TableColumn, TableColumnLayout } from "@galaxy-io/dls/table/types";
+import type { TableColumn, TableColumnLayout, TableSort } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
@@ -24,24 +24,20 @@ import PipelineName from "@/components/pipelines/PipelineName";
 import { formatPipelineName } from "@/components/pipelines/utils";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
+import PipelinesTableColumnFlow from "@/pages/pipelines/components/table/columns/PipelinesTableColumnFlow";
 import PipelinesTableColumnRecentRuns from "@/pages/pipelines/components/table/columns/PipelinesTableColumnRecentRuns";
 import {
+  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
   PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
+  PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-  PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
   PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
-import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelinesTableRowActions from "@/pages/pipelines/components/table/PipelinesTableRowActions";
-import {
-  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
-  type PipelinesTableSorting,
-  type PipelinesTableSortingChange,
-} from "@/pages/pipelines/components/table/utils";
 
 import { useFilamentNavigate } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
@@ -58,7 +54,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     header: "Flow",
     width: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
     canSort: false,
-    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row} />,
+    cell: ({ row }) => <PipelinesTableColumnFlow pipeline={row} />,
   },
   {
     id: PIPELINES_TABLE_COLUMN_ID_PIPELINE,
@@ -117,9 +113,9 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     ),
   },
   {
-    id: "lastVolume",
+    id: "lastRecords",
     header: "Records",
-    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
     align: "right",
     canSort: false,
     cell: ({ row }) => (
@@ -132,8 +128,8 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
-  sorting: PipelinesTableSorting;
-  onSortingChange: PipelinesTableSortingChange;
+  sorting: TableSort | null;
+  onSortingChange: (sorting: TableSort | null) => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;

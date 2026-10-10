@@ -23,7 +23,7 @@ import {
   ValidateConfigRequestSchema,
 } from "@/gen/ingestion/v1/connectors_pb";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
 import { getConnectorFamily } from "@/components/connections/utils";
 import Field from "@/components/fields/Field";
 import {
@@ -293,7 +293,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Connector not found" onClose={onClose}>
         <ErrorLayout
           header="Connector not found"
-          description={`No ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()} connector named "${connectorName}" is available.`}
+          description={`No ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]} connector named "${connectorName}" is available.`}
           actions={
             <Button
               label={onBack ? "Choose a connector" : "Close"}

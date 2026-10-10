@@ -1,7 +1,5 @@
 import type { FC } from "react";
 
-import pluralize from "pluralize";
-
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Alert from "@galaxy-io/dls/feedback/Alert";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -14,7 +12,7 @@ import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorMaturity, ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants";
+import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 import { getConnectorFamilyName } from "@/components/connections/utils";
 
 import { CONNECTOR_MATURITY_TO_STATUS_MAP } from "@/pages/connections/constants";
@@ -29,7 +27,7 @@ interface ConnectionFormMaturityAlertProps {
 }
 
 const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: ConnectorKind) => {
-  const kindSegment = pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind]).toLowerCase();
+  const kindSegment = CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[connectorKind];
   return `/pages/connectors/${kindSegment}/${getConnectorFamilyName(connectorName).toLowerCase()}`;
 };
 

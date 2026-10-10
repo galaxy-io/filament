@@ -16,6 +16,7 @@ import {
   connectionsSearchSchema,
   type FilamentLayoutSearch,
   filamentLayoutSearchSchema,
+  listSearchParamsSchema,
   observabilitySearchSchema,
   pipelineCanvasSearchSchema,
   pipelineHistorySearchSchema,
@@ -91,6 +92,13 @@ export const useSettingsSearch = () =>
     strict: false,
     structuralSharing: true,
     select: (search) => settingsSearchSchema.parse(search),
+  });
+
+export const useListSearch = () =>
+  useSearch({
+    strict: false,
+    structuralSharing: true,
+    select: (search) => listSearchParamsSchema.parse(search),
   });
 
 export const useObservabilitySearch = () =>

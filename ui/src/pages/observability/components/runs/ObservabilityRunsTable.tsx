@@ -3,7 +3,7 @@ import { type FC, useMemo } from "react";
 import EmptyState from "@galaxy-io/dls/feedback/EmptyState";
 import Box from "@galaxy-io/dls/layout/Box";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
-import type { TableColumn } from "@galaxy-io/dls/table/types";
+import type { TableColumn, TableSort } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import {
@@ -23,6 +23,7 @@ import {
   OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP,
   OBSERVABILITY_RUNS_SCHEDULED_INPUT,
+  OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP,
   OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
@@ -35,12 +36,7 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
-import {
-  createObservabilityRunsSorting,
-  createObservabilityRunsSortSearch,
-  createRunsWindowInput,
-  type ObservabilityRunsTableSortingChange,
-} from "@/pages/observability/components/runs/utils";
+import { createRunsWindowInput } from "@/pages/observability/components/runs/utils";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
 
 import {
@@ -56,6 +52,7 @@ import { createListSortingInput } from "@/api/utils";
 
 import { formatTimestamp } from "@/utils/format";
 import { formatRunDuration } from "@/utils/runs";
+import { createTableSorting, createTableSortSearch } from "@/utils/sort";
 
 const ObservabilityRunsTable: FC = () => {
   const navigate = useFilamentNavigate();
@@ -222,14 +219,20 @@ const ObservabilityRunsTable: FC = () => {
   const runs = view === ObservabilityRunsView.UPCOMING ? scheduledRuns : windowedRuns;
 
   const sorting = useMemo(
-    () => createObservabilityRunsSorting({ sortBy, sortOrder }),
+    () => createTableSorting({ sortBy, sortOrder }, OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP),
     [sortBy, sortOrder],
   );
 
-  const handleSortingChange: ObservabilityRunsTableSortingChange = (next) => {
-    void updateSearch((prev) => ({ ...prev, ...createObservabilityRunsSortSearch(next) }), {
-      replace: true,
-    });
+  const handleSortingChange = (next: TableSort | null) => {
+    void updateSearch(
+      (prev) => ({
+        ...prev,
+        ...createTableSortSearch(next, OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP),
+      }),
+      {
+        replace: true,
+      },
+    );
   };
 
   const handleRowClick = (row: RunInfo) => {

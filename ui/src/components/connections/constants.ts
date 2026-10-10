@@ -12,6 +12,24 @@ export const CONNECTOR_KIND_TO_LABEL_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.SINK]: "Sink",
 };
 
+export const CONNECTOR_KIND_TO_PLURAL_LABEL_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: EMPTY_VALUE,
+  [ConnectorKind.SOURCE]: "Sources",
+  [ConnectorKind.SINK]: "Sinks",
+};
+
+export const CONNECTOR_KIND_TO_NOUN_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: EMPTY_VALUE,
+  [ConnectorKind.SOURCE]: "source",
+  [ConnectorKind.SINK]: "sink",
+};
+
+export const CONNECTOR_KIND_TO_PLURAL_NOUN_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: EMPTY_VALUE,
+  [ConnectorKind.SOURCE]: "sources",
+  [ConnectorKind.SINK]: "sinks",
+};
+
 export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<
   ConnectorKind,
   { variant: ChipVariant } | { color: PaletteColor }
