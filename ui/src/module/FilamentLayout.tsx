@@ -19,7 +19,8 @@ export interface FilamentLayoutProps {
 
 const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
-  const { connectionId, flow } = useFilamentLayoutSearch();
+  const { connectionId, flow, connector, connectorKind, connectorSearch } =
+    useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
     void updateSearch(
@@ -57,11 +58,19 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         isOpen={!!connectionId}
         onClose={handleCloseDrawer}
       />
-      {flow === Flow.CREATE_CONNECTION && <CreateConnectionModal onClose={handleCloseFlow} />}
-      {flow === Flow.EDIT_CONNECTION && !!connectionId && (
-        <EditConnectionModal onClose={handleCloseFlow} />
-      )}
-      {flow === Flow.CREATE_PIPELINE && <CreatePipelineModal onClose={handleCloseFlow} />}
+      <CreateConnectionModal
+        isOpen={flow === Flow.CREATE_CONNECTION}
+        connector={connector}
+        connectorKind={connectorKind}
+        connectorSearch={connectorSearch}
+        onClose={handleCloseFlow}
+      />
+      <EditConnectionModal
+        isOpen={flow === Flow.EDIT_CONNECTION && !!connectionId}
+        connectionId={connectionId}
+        onClose={handleCloseFlow}
+      />
+      <CreatePipelineModal isOpen={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow} />
     </>
   );
 };

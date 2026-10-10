@@ -10,7 +10,8 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 

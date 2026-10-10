@@ -13,7 +13,8 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
 
 import {

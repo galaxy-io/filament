@@ -6,6 +6,7 @@ import Button from "@galaxy-io/dls/buttons/Button";
 import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -61,6 +62,7 @@ const isConnectionDisabled = (connection: Connection, isSourceDisabled: boolean)
 interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
+  isLoading: boolean;
   connectorKind: ConnectorKind;
   isSourceDisabled: boolean;
   onConnectionClick: (connection: Connection) => void;
@@ -69,10 +71,24 @@ interface PipelineCanvasConnectionSelectorListProps {
 const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorListProps> = ({
   connections,
   hasConnections,
+  isLoading,
   connectorKind,
   isSourceDisabled,
   onConnectionClick,
 }) => {
+  if (isLoading) {
+    return (
+      <Flex
+        fillWidth
+        minHeight={240}
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.CENTER}
+      >
+        <PendingLayout size={PendingLayoutSize.SMALL} />
+      </Flex>
+    );
+  }
+
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty

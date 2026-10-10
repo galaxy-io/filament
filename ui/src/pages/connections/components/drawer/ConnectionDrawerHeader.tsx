@@ -5,7 +5,8 @@ import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 
 interface ConnectionDrawerHeaderProps {
   connection: Connection;

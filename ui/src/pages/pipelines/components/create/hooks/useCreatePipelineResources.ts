@@ -38,7 +38,7 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
+export const useCreatePipelineResources = (state: CreatePipelineModalState, isOpen: boolean) => {
   const source = state.sourceConnection;
   const connectionId = source?.id ?? "";
   const replication = source?.replication ?? ReplicationMode.UNSPECIFIED;
@@ -52,7 +52,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     isLoading: isLoadingResources,
   } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId }),
-    options: { ...PROBE_QUERY_OPTIONS, enabled: connectionId !== "" },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: isOpen && connectionId !== "" },
   });
 
   const resources = useMemo(
@@ -74,7 +74,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: hasReadLevers && connectionId !== "" && resourceNames.length > 0,
+      enabled: isOpen && hasReadLevers && connectionId !== "" && resourceNames.length > 0,
     },
   });
 
@@ -144,7 +144,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     options: {
       ...PROBE_QUERY_OPTIONS,
       placeholderData: keepPreviousData,
-      enabled: connectionId !== "" && state.sinkConnections.length > 0,
+      enabled: isOpen && connectionId !== "" && state.sinkConnections.length > 0,
     },
   });
 

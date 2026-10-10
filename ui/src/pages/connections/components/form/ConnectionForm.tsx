@@ -53,6 +53,7 @@ import { getErrorMessage } from "@/utils/errors";
 import { getNameError, isNameValid } from "@/utils/validation";
 
 interface ConnectionFormProps {
+  isOpen: boolean;
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   connectionId?: Connection["id"];
@@ -64,6 +65,7 @@ interface ConnectionFormProps {
 }
 
 const ConnectionForm: FC<ConnectionFormProps> = ({
+  isOpen,
   connectorName,
   connectorKind,
   connectionId,
@@ -262,7 +264,12 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
 
   if (isError) {
     return (
-      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Connector not found" onClose={onClose}>
+      <ConnectionFormWrapper
+        isOpen={isOpen}
+        size={ModalSize.MEDIUM}
+        header="Connector not found"
+        onClose={onClose}
+      >
         <ErrorLayout
           header="Connector not found"
           description={`No ${CONNECTOR_KIND_TO_NOUN_MAP[connectorKind]} connector named "${connectorName}" is available.`}
@@ -281,6 +288,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   if (!connector) {
     return (
       <ConnectionFormWrapper
+        isOpen={isOpen}
         size={ModalSize.MEDIUM}
         header={connectionId ? "Edit connection" : "New connection"}
         onClose={onClose}
@@ -292,6 +300,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
 
   return (
     <ConnectionFormWrapper
+      isOpen={isOpen}
       size={ModalSize.MEDIUM}
       header={
         <ConnectionFormHeader

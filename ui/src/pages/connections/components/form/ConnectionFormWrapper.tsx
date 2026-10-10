@@ -3,6 +3,7 @@ import type { FC, PropsWithChildren, ReactNode } from "react";
 import Modal, { type ModalSize } from "@galaxy-io/dls/modal/Modal";
 
 interface ConnectionFormWrapperProps {
+  isOpen: boolean;
   size: ModalSize;
   header: ReactNode;
   footer?: ReactNode;
@@ -10,6 +11,7 @@ interface ConnectionFormWrapperProps {
 }
 
 const ConnectionFormWrapper: FC<PropsWithChildren<ConnectionFormWrapperProps>> = ({
+  isOpen,
   size,
   header,
   footer,
@@ -17,7 +19,7 @@ const ConnectionFormWrapper: FC<PropsWithChildren<ConnectionFormWrapperProps>> =
   children,
 }) => (
   <Modal
-    isOpen
+    isOpen={isOpen}
     size={size}
     header={header}
     footer={footer}

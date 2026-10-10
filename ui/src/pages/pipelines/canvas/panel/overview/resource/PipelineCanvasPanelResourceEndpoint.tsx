@@ -6,7 +6,8 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";

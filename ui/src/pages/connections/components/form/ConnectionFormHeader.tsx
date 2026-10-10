@@ -7,7 +7,8 @@ import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 
 interface ConnectionFormHeaderProps {
   connectorName: ConnectorSpec["name"];

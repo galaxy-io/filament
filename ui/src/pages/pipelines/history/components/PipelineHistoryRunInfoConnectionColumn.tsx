@@ -9,7 +9,8 @@ import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";

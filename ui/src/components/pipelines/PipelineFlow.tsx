@@ -9,11 +9,9 @@ import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import {
-  ConnectorOverflowTile,
-  ConnectorTileShimmer,
-  ConnectorTileSize,
-} from "@/components/connections/ConnectorTile";
+import ConnectorOverflowTile from "@/components/connections/ConnectorOverflowTile";
+import ConnectorTileShimmer from "@/components/connections/ConnectorTileShimmer";
+import { ConnectorTileSize } from "@/components/connections/types";
 import PipelineFlowTile from "@/components/pipelines/PipelineFlowTile";
 
 const PIPELINE_FLOW_MAX_VISIBLE_SINKS = 3;

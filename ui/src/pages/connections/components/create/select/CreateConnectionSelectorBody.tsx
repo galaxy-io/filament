@@ -40,14 +40,14 @@ import {
   CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH,
 } from "@/pages/connections/constants";
 
-import { useFilamentLayoutSearch } from "@/module/hooks";
-
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface CreateConnectionSelectorBodyProps {
+  connectorKind: ConnectorKind;
+  connectorSearch: string;
   onSearch: (search: string) => void;
   shelf: CreateConnectionSelectorShelf;
   onShelfChange: (shelf: CreateConnectionSelectorShelf) => void;
@@ -55,14 +55,13 @@ interface CreateConnectionSelectorBodyProps {
 }
 
 const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
+  connectorKind: kind,
+  connectorSearch,
   onSearch,
   shelf,
   onShelfChange,
   onConnectorSelect,
 }) => {
-  const { connectorKind, connectorSearch = "" } = useFilamentLayoutSearch();
-  const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
-
   const { data, isLoading } = useListConnectorsQuery();
 
   const families = useMemo(() => {

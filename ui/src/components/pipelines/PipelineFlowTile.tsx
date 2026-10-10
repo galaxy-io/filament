@@ -3,10 +3,9 @@ import type { FC, MouseEvent } from "react";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile, {
-  ConnectorTileShimmer,
-  type ConnectorTileSize,
-} from "@/components/connections/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import ConnectorTileShimmer from "@/components/connections/ConnectorTileShimmer";
+import type { ConnectorTileSize } from "@/components/connections/types";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";

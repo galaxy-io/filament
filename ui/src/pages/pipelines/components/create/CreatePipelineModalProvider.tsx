@@ -159,7 +159,14 @@ export const useCreatePipelineModalActions = () => {
   );
 };
 
-const CreatePipelineModalProvider: FC<PropsWithChildren> = ({ children }) => {
+interface CreatePipelineModalProviderProps {
+  isOpen: boolean;
+}
+
+const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProviderProps>> = ({
+  isOpen,
+  children,
+}) => {
   const [state, dispatch] = useReducer(createPipelineModalReducer, DEFAULT_STATE);
 
   const {
@@ -172,7 +179,7 @@ const CreatePipelineModalProvider: FC<PropsWithChildren> = ({ children }) => {
     isLoading,
     isValidating,
     discoverError,
-  } = useCreatePipelineResources(state);
+  } = useCreatePipelineResources(state, isOpen);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
     const supportedExecutionModes = getSupportedExecutionModes(state.sourceConnection);

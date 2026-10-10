@@ -24,7 +24,7 @@ import ConnectionFormProvider, {
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
 
-import { useFilamentLayoutSearch } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
 
 import {
   createGetConnectionInput,
@@ -32,17 +32,24 @@ import {
   useUpdateConnectionMutation,
 } from "@/api/queries/connections";
 
+import { useOverlaySession } from "@/hooks/useOverlaySession";
+
 import { getErrorMessage } from "@/utils/errors";
 
 interface EditConnectionModalProps {
+  isOpen: boolean;
+  connectionId: FilamentLayoutSearch["connectionId"];
   onClose: () => void;
 }
 
-interface EditConnectionModalContentProps extends EditConnectionModalProps {
+interface EditConnectionModalContentProps {
+  isOpen: boolean;
   connection: Connection;
+  onClose: () => void;
 }
 
 const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
+  isOpen,
   connection,
   onClose,
 }) => {
@@ -96,6 +103,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
 
   return (
     <ConnectionForm
+      isOpen={isOpen}
       connectorName={connection.connector}
       connectorKind={connection.kind}
       connectionId={connection.id}
@@ -106,18 +114,27 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
   );
 };
 
-const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
-  const { connectionId } = useFilamentLayoutSearch();
+const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionId, onClose }) => {
+  const session = useOverlaySession(isOpen);
 
   const { data, isError } = useGetConnectionQuery({
     input: createGetConnectionInput(connectionId ?? ""),
-    options: { enabled: !!connectionId, retry: false },
+    options: { enabled: !!session && !!connectionId, retry: false },
   });
   const connection = data?.connection;
 
+  if (!session) {
+    return null;
+  }
+
   if (isError) {
     return (
-      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
+      <ConnectionFormWrapper
+        isOpen={isOpen}
+        size={ModalSize.MEDIUM}
+        header="Edit connection"
+        onClose={onClose}
+      >
         <ErrorLayout
           header="Connection not found"
           description="This connection no longer exists."
@@ -129,7 +146,12 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
 
   if (!connection) {
     return (
-      <ConnectionFormWrapper size={ModalSize.MEDIUM} header="Edit connection" onClose={onClose}>
+      <ConnectionFormWrapper
+        isOpen={isOpen}
+        size={ModalSize.MEDIUM}
+        header="Edit connection"
+        onClose={onClose}
+      >
         <PendingLayout />
       </ConnectionFormWrapper>
     );
@@ -137,9 +159,10 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
 
   return (
     <ConnectionFormProvider
+      key={session}
       initialState={{ name: connection.name, config: connection.config ?? {} }}
     >
-      <EditConnectionModalContent connection={connection} onClose={onClose} />
+      <EditConnectionModalContent isOpen={isOpen} connection={connection} onClose={onClose} />
     </ConnectionFormProvider>
   );
 };
