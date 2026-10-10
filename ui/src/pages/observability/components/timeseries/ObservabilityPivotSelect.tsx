@@ -6,12 +6,14 @@ import SelectInput, {
 } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 
-import type { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
+import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import {
   METRIC_DIMENSION_PIVOT_OPTIONS,
   OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH,
 } from "@/pages/observability/components/timeseries/constants";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 interface ObservabilityPivotSelectProps {
   value: MetricDimension | undefined;
@@ -20,7 +22,7 @@ interface ObservabilityPivotSelectProps {
 
 const ObservabilityPivotSelect: FC<ObservabilityPivotSelectProps> = ({ value, onChange }) => {
   const handleChange = (id: string | null) => {
-    onChange(id === null ? undefined : (Number(id) as MetricDimension));
+    onChange(id === null ? undefined : mapOptionIdToEnum(MetricDimension, id));
   };
 
   return (

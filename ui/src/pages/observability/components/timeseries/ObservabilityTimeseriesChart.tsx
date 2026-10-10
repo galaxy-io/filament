@@ -11,7 +11,7 @@ import {
 } from "@galaxy-io/dls/charts/types";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
 
 import {
@@ -33,6 +33,8 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 interface ObservabilityTimeseriesChartProps {
   seriesLabel: string;
@@ -77,7 +79,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
     const timeseries = (data?.series ?? []).filter(
       (keySeries) =>
         pivotDimension !== MetricDimension.STATUS ||
-        PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(keySeries.key) as RunStatus] !== null,
+        PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, keySeries.key)] !== null,
     );
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
@@ -88,7 +90,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
 
     const keyToLabel = (key: Timeseries["key"]) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_LABEL_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_LABEL_MAP[mapOptionIdToEnum(RunStatus, key)];
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return pipelineNamesByPipelineId.get(key) ?? key;
@@ -98,7 +100,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_HUE_MAP[Number(key) as RunStatus] ?? undefined;
+        return PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, key)] ?? undefined;
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[

@@ -9,7 +9,7 @@ import SelectInput, {
 import Box from "@galaxy-io/dls/layout/Box";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import { ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
@@ -24,6 +24,8 @@ import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types"
 import { getEdgeModeOptions, getEdgeResourceStatuses } from "@/pages/pipelines/canvas/utils";
 import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 const ControlsGroup = styled.div`
   position: relative;
@@ -125,7 +127,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
               options={readModeSelectOptions}
               value={String(readMode)}
               onChange={(id) => {
-                if (id !== null) handleReadModeChange(Number(id) as ReadMode);
+                if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
               }}
               variant={SelectInputVariant.TERTIARY}
               size={SelectInputSize.SMALL}
@@ -168,7 +170,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
             options={writeModeSelectOptions}
             value={String(writeMode)}
             onChange={(id) => {
-              if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
+              if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
             }}
             variant={SelectInputVariant.TERTIARY}
             size={SelectInputSize.SMALL}

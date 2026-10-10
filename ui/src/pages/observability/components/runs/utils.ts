@@ -32,6 +32,8 @@ import {
 
 import type { ListSearchParams } from "@/api/utils";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 export const createRunCountTimeseriesInput = (
   timeframe: ObservabilityTimeframe,
   statuses: RunStatus[],
@@ -101,7 +103,7 @@ export const mapTimeseriesToChartGroups = (
         metric: "runs",
         components: series
           .flatMap((statusSeries) => {
-            const status = Number(statusSeries.key) as RunStatus;
+            const status = mapOptionIdToEnum(RunStatus, statusSeries.key);
             const color = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
             return color
               ? [

@@ -33,7 +33,7 @@ import PipelineNodeConfigFields, {
   usePipelineNodeConfig,
 } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 
-import { normalizeIdentifier } from "@/utils/naming";
+import { formatIdentifier } from "@/utils/naming";
 
 interface PipelineCanvasPanelNodeDetailProps {
   node: PipelineCanvasSourceNode | PipelineCanvasSinkNode;
@@ -65,7 +65,7 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
   const upstreamConnection =
     upstreamConnections.size === 1 ? upstreamConnections.values().next().value : undefined;
   const defaultSchema = upstreamConnection
-    ? normalizeIdentifier(upstreamConnection.name) || undefined
+    ? formatIdentifier(upstreamConnection.name) || undefined
     : undefined;
 
   const configValue = node.data.config ?? {};

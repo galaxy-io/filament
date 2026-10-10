@@ -38,7 +38,7 @@ export interface OpenStepAction {
   payload: TransformStep["id"];
 }
 
-export interface CancelAction {
+interface CancelAction {
   type: PipelineTransformFieldsActionType.CANCEL;
 }
 
@@ -52,7 +52,7 @@ export interface SetResourceAction {
   payload: Resource["name"];
 }
 
-export interface SaveAction {
+interface SaveAction {
   type: PipelineTransformFieldsActionType.SAVE;
 }
 

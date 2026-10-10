@@ -13,7 +13,7 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import { ConnectorKind, ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
@@ -41,6 +41,8 @@ import {
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -194,7 +196,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     options={readModeSelectOptions}
                     value={String(readMode)}
                     onChange={(id) => {
-                      if (id !== null) handleReadModeChange(Number(id) as ReadMode);
+                      if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
                     }}
                     placeholder="Select a read mode..."
                     isDisabled={isReadOnly || isLoading}
@@ -208,7 +210,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   options={writeModeSelectOptions}
                   value={String(writeMode)}
                   onChange={(id) => {
-                    if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
+                    if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
                   }}
                   placeholder="Select a write mode..."
                   isDisabled={isReadOnly || isLoading}

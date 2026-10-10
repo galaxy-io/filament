@@ -33,7 +33,7 @@ import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils"
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
-import { formatTimestamp } from "@/utils/format";
+import { formatTimestamp, formatVersion } from "@/utils/format";
 
 const createRunTableColumns = (
   versionById: ReadonlyMap<string, bigint>,
@@ -72,11 +72,7 @@ const createRunTableColumns = (
     width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cell: ({ row }) => {
       const version = versionById.get(row.pipelineVersionId);
-      return (
-        <Text size={TextSize.BODY_SM}>
-          {version ? `Version ${version.toString()}` : EMPTY_VALUE}
-        </Text>
-      );
+      return <Text size={TextSize.BODY_SM}>{formatVersion(version)}</Text>;
     },
   },
   {

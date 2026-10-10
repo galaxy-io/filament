@@ -4,8 +4,9 @@ import { useParams } from "@tanstack/react-router";
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { ListRunsRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useListRunsQuery } from "@/api/queries/runs";
+
+import { ACTIVE_RUN_STATUSES } from "@/constants";
 
 export const usePipelineCanvasIsRunning = (): boolean => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });

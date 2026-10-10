@@ -42,7 +42,9 @@ import {
 } from "@/pages/connectors/constants";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
-import { LIST_SEARCH_DEBOUNCE_MS, MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
+import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
+
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface CreateConnectionSelectorBodyProps {
   onSearch: (search: string) => void;

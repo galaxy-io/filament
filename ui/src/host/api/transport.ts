@@ -6,7 +6,7 @@ import { IS_DEBUG } from "@/constants";
 const API_URL: string = import.meta.env.VITE_API_URL ?? "";
 const IS_PRODUCTION = import.meta.env.PROD;
 
-export function createLoggingInterceptor(): Interceptor {
+export const createLoggingInterceptor = (): Interceptor => {
   return (next) => async (req) => {
     if (IS_DEBUG) {
       console.debug("[Connect-RPC] Request:", {
@@ -39,7 +39,7 @@ export function createLoggingInterceptor(): Interceptor {
       throw error;
     }
   };
-}
+};
 
 export const createTransport = ({
   baseUrl = API_URL,

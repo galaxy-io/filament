@@ -9,7 +9,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text from "@galaxy-io/dls/text/Text";
 
-import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
 
 import {
   PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
@@ -30,11 +30,15 @@ import {
 } from "@/pages/pipelines/components/notifier/utils";
 import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
   ...option,
   leading: (
     <PipelineRunStatusSwatch
-      status={PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]}
+      status={
+        PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[mapOptionIdToEnum(NotifierEvent, option.id)]
+      }
     />
   ),
 }));
@@ -78,11 +82,11 @@ const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
 
   const handleTypeChange = (id: string | null) => {
     if (id === null) return;
-    onChange({ notificationType: Number(id) as NotificationType, url: "", headers: "" });
+    onChange({ notificationType: mapOptionIdToEnum(NotificationType, id), url: "", headers: "" });
   };
 
   const handleEventsChange = (ids: string[]) => {
-    onChange({ events: ids.map((id) => Number(id) as NotifierEvent) });
+    onChange({ events: ids.map((id) => mapOptionIdToEnum(NotifierEvent, id)) });
   };
 
   const handleUrlChange = (url: string) => {

@@ -60,7 +60,7 @@ export interface CreatePipelineModalSinkRow {
   writeModeOptions: WriteMode[];
 }
 
-export interface CreatePipelineModalDerivedState {
+interface CreatePipelineModalDerivedState {
   supportedExecutionModes: ExecutionMode[];
   hasReadLevers: boolean;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;

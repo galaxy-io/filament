@@ -8,7 +8,6 @@ import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ValidateTransformRequestSchema } from "@/gen/ingestion/v1/transformations_pb";
 
-import { TRANSFORM_VALIDATION_DEBOUNCE_MS } from "@/pages/pipelines/components/transform/constants";
 import {
   getTransformStepIssues,
   getTransformStepPath,
@@ -36,6 +35,8 @@ import {
 } from "@/pages/pipelines/components/transform/validation";
 
 import { useValidateTransformQuery } from "@/api/queries/transforms";
+
+import { VALIDATION_DEBOUNCE_MS } from "@/constants";
 
 const NO_COLUMNS: ResourceColumn[] = [];
 const NO_ERRORS = new Map<string, string[]>();
@@ -74,7 +75,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
   const isValidatable = isTransformDraftValidatable(draft);
   const clientError = getTransformDraftError(draft, functionsByName);
 
-  const debounced = useDebouncedValue(draft, TRANSFORM_VALIDATION_DEBOUNCE_MS);
+  const debounced = useDebouncedValue(draft, VALIDATION_DEBOUNCE_MS);
   const isSettled = debounced === draft;
   const placed = useMemo(
     () => placeTransformDraft(stepsByResource, debounced),

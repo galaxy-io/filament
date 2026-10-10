@@ -40,6 +40,8 @@ import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { useConfirm } from "@/hooks/useConfirm";
 
+import { formatVersion } from "@/utils/format";
+
 interface ConnectionDrawerProps {
   connectionId?: string;
   isOpen: boolean;
@@ -138,10 +140,9 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           <ConnectionDrawerKeyValueRow
             label="Version"
             value={
-              <Text
-                size={TextSize.BODY_SM}
-                variant={TextVariant.SECONDARY}
-              >{`Version ${connection.version.toString()}`}</Text>
+              <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                {formatVersion(connection.version)}
+              </Text>
             }
           />
         </ConnectionDrawerList>

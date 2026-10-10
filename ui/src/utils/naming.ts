@@ -1,6 +1,6 @@
 const MAX_IDENTIFIER_LENGTH = 63;
 
-export function normalizeIdentifier(name: string): string {
+export const formatIdentifier = (name: string): string => {
   let out = "";
   let pending = false;
 
@@ -19,4 +19,4 @@ export function normalizeIdentifier(name: string): string {
   return out.length > MAX_IDENTIFIER_LENGTH
     ? out.slice(0, MAX_IDENTIFIER_LENGTH).replace(/_+$/, "")
     : out;
-}
+};

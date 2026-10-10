@@ -7,14 +7,14 @@ import {
   type ConnectionFormState,
 } from "@/pages/connectors/components/form/types";
 
-export type ConnectionFormContextShape = {
+type ConnectionFormContextShape = {
   state: ConnectionFormState;
   dispatch: React.Dispatch<ConnectionFormAction>;
 };
 
-export function createInitialState(
+export const createInitialState = (
   initialState: Pick<ConnectionFormState, "name" | "config">,
-): ConnectionFormState {
+): ConnectionFormState => {
   return {
     name: initialState.name,
     config: initialState.config,
@@ -22,18 +22,18 @@ export function createInitialState(
     validationErrors: [],
     shouldShowErrors: false,
   };
-}
+};
 
-export const ConnectionFormContext = createContext<ConnectionFormContextShape | null>(null);
+const ConnectionFormContext = createContext<ConnectionFormContextShape | null>(null);
 ConnectionFormContext.displayName = "ConnectionFormContext";
 
-export function useConnectionFormContext() {
+export const useConnectionFormContext = () => {
   const context = useContext(ConnectionFormContext);
   if (!context) {
     throw new Error("useConnectionFormContext must be used within ConnectionFormProvider");
   }
   return context;
-}
+};
 
 interface ConnectionFormProviderProps {
   initialState: Pick<ConnectionFormState, "name" | "config">;

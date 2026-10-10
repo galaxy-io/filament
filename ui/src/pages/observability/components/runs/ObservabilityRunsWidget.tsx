@@ -18,7 +18,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Text from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import {
   OBSERVABILITY_RUN_STATUS_OPTIONS,
@@ -34,9 +34,11 @@ import ObservabilityRunsTable from "@/pages/observability/components/runs/Observ
 import { ObservabilityRunsView } from "@/pages/observability/types";
 import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 const withStatusSwatch = (option: SelectOption): SelectOption => ({
   ...option,
-  leading: <PipelineRunStatusSwatch status={Number(option.id) as RunStatus} />,
+  leading: <PipelineRunStatusSwatch status={mapOptionIdToEnum(RunStatus, option.id)} />,
 });
 
 const STATUS_OPTIONS = OBSERVABILITY_RUN_STATUS_OPTIONS.map(withStatusSwatch);
@@ -55,7 +57,7 @@ const ObservabilityRunsWidget: FC = () => {
   const selectedStatusIds = useMemo(
     () =>
       OBSERVABILITY_RUN_STATUS_OPTIONS.map((option) => option.id).filter((id) =>
-        statuses.includes(Number(id) as RunStatus),
+        statuses.includes(mapOptionIdToEnum(RunStatus, id)),
       ),
     [statuses],
   );
@@ -77,7 +79,7 @@ const ObservabilityRunsWidget: FC = () => {
       to: ".",
       search: (prev) => ({
         ...prev,
-        statuses: ids.map((id) => Number(id) as RunStatus),
+        statuses: ids.map((id) => mapOptionIdToEnum(RunStatus, id)),
         runsBucket: undefined,
         runsStatus: undefined,
       }),

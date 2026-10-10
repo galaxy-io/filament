@@ -30,7 +30,7 @@ export const useListConnectorsQuery = ({
   >;
 } = {}) => {
   return useQuery(IngestionService.method.listConnectors, input, {
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
     ...options,
   });
 };
@@ -45,7 +45,10 @@ export const useGetConnectorQuery = ({
     GetConnectorResponse
   >;
 }) => {
-  return useQuery(IngestionService.method.getConnector, input, { staleTime: Infinity, ...options });
+  return useQuery(IngestionService.method.getConnector, input, {
+    staleTime: Number.POSITIVE_INFINITY,
+    ...options,
+  });
 };
 
 export const createDiscoverResourcesQueryKey = (

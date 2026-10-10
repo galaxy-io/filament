@@ -9,17 +9,18 @@ import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 import {
+  PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/pages/pipelines/history/constants";
+
+import { createEnumSelectOptions, getEnumValues } from "@/utils/select";
 
 export const OBSERVABILITY_RUNS_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: { label: "Runs" },
 };
 
-export const OBSERVABILITY_RUN_STATUSES = Object.values(RunStatus).filter(
-  (status): status is RunStatus => typeof status === "number" && status !== RunStatus.UNSPECIFIED,
-);
+export const OBSERVABILITY_RUN_STATUSES = getEnumValues(RunStatus);
 
 export const OBSERVABILITY_RUNS_SCHEDULED_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: {
@@ -38,12 +39,10 @@ export const OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP: Record<ObservabilityRunsVi
   [ObservabilityRunsView.UPCOMING]: "No upcoming runs",
 };
 
-export const OBSERVABILITY_RUN_STATUS_OPTIONS: SelectOption[] = OBSERVABILITY_RUN_STATUSES.filter(
-  (status) => status !== RunStatus.SCHEDULED,
-).map((status) => ({
-  id: String(status),
-  label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-}));
+export const OBSERVABILITY_RUN_STATUS_OPTIONS = createEnumSelectOptions(
+  PIPELINE_RUN_EXECUTED_STATUSES,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+);
 
 export const OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION: SelectOption = {
   id: String(RunStatus.SCHEDULED),

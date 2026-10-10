@@ -11,7 +11,7 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
 
-import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface MainLayoutListPage {
   actions: ReactNode[];

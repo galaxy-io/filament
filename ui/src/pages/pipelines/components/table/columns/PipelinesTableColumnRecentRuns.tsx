@@ -19,11 +19,11 @@ import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
+import { PIPELINES_TABLE_RECENT_RUNS_COUNT } from "@/pages/pipelines/components/table/constants";
 import {
-  PIPELINES_TABLE_RECENT_RUNS_COUNT,
-  PIPELINES_TABLE_RECENT_RUNS_STATUSES,
-} from "@/pages/pipelines/components/table/constants";
-import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/pages/pipelines/history/constants";
+  PIPELINE_RUN_EXECUTED_STATUSES,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/pages/pipelines/history/constants";
 import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
@@ -96,7 +96,7 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
   const { data, isLoading } = useListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: pipeline.id,
-      status: PIPELINES_TABLE_RECENT_RUNS_STATUSES,
+      status: PIPELINE_RUN_EXECUTED_STATUSES,
       pagination: create(PaginationRequestSchema, {
         pageSize: PIPELINES_TABLE_RECENT_RUNS_COUNT,
       }),

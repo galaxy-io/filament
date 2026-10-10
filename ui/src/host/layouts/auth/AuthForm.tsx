@@ -24,7 +24,7 @@ const Form = styled.form`
   gap: 24px;
 `;
 
-export interface AuthFormProps {
+interface AuthFormProps {
   title: string;
   subtitle: string;
   icon?: PhosphorIcon;

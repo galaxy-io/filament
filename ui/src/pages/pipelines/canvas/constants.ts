@@ -95,8 +95,6 @@ export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;
 
-export const PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS = 250;
-
 export const PIPELINE_CANVAS_VIEW_TO_LABEL_MAP: Record<PipelineCanvasView, string> = {
   [PipelineCanvasView.CANVAS]: "Canvas",
   [PipelineCanvasView.ROUTES]: "Routes",

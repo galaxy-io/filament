@@ -20,8 +20,9 @@ import { PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS } from "@/pages/pipelines/canva
 import PipelineCanvasPanelActivityLine from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivityLine";
 import { getRunEventKey } from "@/pages/pipelines/canvas/panel/activity/utils";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
+
+import { ACTIVE_RUN_STATUSES } from "@/constants";
 
 const ESTIMATED_LINE_HEIGHT = 18;
 const LINE_GAP = 2;

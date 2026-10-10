@@ -12,7 +12,7 @@ import {
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useSuspenseListPipelinesQuery } from "@/api/queries/pipelines";
 
-export interface ObservabilitySetup {
+interface ObservabilitySetup {
   completedSteps: Set<ObservabilitySetupStep>;
   activeStep: ObservabilitySetupStep | null;
   completedCount: number;

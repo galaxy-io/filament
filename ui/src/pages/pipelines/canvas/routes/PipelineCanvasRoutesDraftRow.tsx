@@ -56,6 +56,8 @@ import {
 } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 const RowWrapper = styled.div`
   height: ${PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT}px;
   padding: ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y}px ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px;
@@ -289,7 +291,8 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       options={readModeSelectOptions}
                       value={String(readMode)}
                       onChange={(id) => {
-                        if (id !== null) draftState.setConfig({ readMode: Number(id) as ReadMode });
+                        if (id !== null)
+                          draftState.setConfig({ readMode: mapOptionIdToEnum(ReadMode, id) });
                       }}
                       variant={SelectInputVariant.TERTIARY}
                       size={SelectInputSize.SMALL}
@@ -332,7 +335,8 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                     options={writeModeSelectOptions}
                     value={String(writeMode)}
                     onChange={(id) => {
-                      if (id !== null) draftState.setConfig({ writeMode: Number(id) as WriteMode });
+                      if (id !== null)
+                        draftState.setConfig({ writeMode: mapOptionIdToEnum(WriteMode, id) });
                     }}
                     variant={SelectInputVariant.TERTIARY}
                     size={SelectInputSize.SMALL}

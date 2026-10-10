@@ -74,12 +74,10 @@ import {
   getPipelineValidationErrors,
   getRunPauseSignal,
   getRunStopSignal,
-  isContinuousRunActive,
 } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useGetPipelineQuery, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
@@ -89,7 +87,11 @@ import {
   useSuspenseListRunsQuery,
 } from "@/api/queries/runs";
 
+import { ACTIVE_RUN_STATUSES } from "@/constants";
+
 import { getErrorMessage } from "@/utils/errors";
+import { formatVersion } from "@/utils/format";
+import { isContinuousRunActive } from "@/utils/runs";
 
 const PipelineLayoutNavbar: FC = () => {
   const { toast } = useToast();
@@ -220,7 +222,7 @@ const PipelineLayoutNavbar: FC = () => {
     () =>
       versions.map((version) => ({
         id: version.version.toString(),
-        label: `Version ${version.version.toString()}`,
+        label: formatVersion(version.version),
       })),
     [versions],
   );
@@ -369,7 +371,7 @@ const PipelineLayoutNavbar: FC = () => {
               size={ButtonSize.SMALL}
               onClick={() => handlePreviewVersionChange(null)}
             />
-            <Chip label={`Version ${previewVersion}`} variant={ChipVariant.ERROR} />
+            <Chip label={formatVersion(previewVersion)} variant={ChipVariant.ERROR} />
           </>
         )}
         {!isPreview && hasUnsavedChanges && (

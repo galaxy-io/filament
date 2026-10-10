@@ -12,11 +12,13 @@ import {
   PipelineResourceStatusField,
 } from "@/pages/pipelines/components/resource/types";
 
+import { createEnumSelectOptions } from "@/utils/select";
+
 export const getReadModeSelectOptions = (modes: ReadMode[]): SelectOption[] =>
-  modes.map((mode) => ({ id: String(mode), label: READ_MODE_TO_LABEL_MAP[mode] }));
+  createEnumSelectOptions(modes, READ_MODE_TO_LABEL_MAP);
 
 export const getWriteModeSelectOptions = (modes: WriteMode[]): SelectOption[] =>
-  modes.map((mode) => ({ id: String(mode), label: WRITE_MODE_TO_LABEL_MAP[mode] }));
+  createEnumSelectOptions(modes, WRITE_MODE_TO_LABEL_MAP);
 
 export const getCursorSelectOptions = (columns: ResourceColumn[]): SelectOption[] =>
   columns.map((column) => ({ id: column.name, label: column.name }));

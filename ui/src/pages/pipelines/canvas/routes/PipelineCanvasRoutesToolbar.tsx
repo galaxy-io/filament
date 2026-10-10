@@ -28,7 +28,7 @@ import {
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
-import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface PipelineCanvasRoutesToolbarProps {
   onSearch: (search: string) => void;

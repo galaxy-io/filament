@@ -12,8 +12,8 @@ import { getConnectorFamily } from "@/pages/connectors/components/create/utils";
 
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 
-export const EMPTY_GRAPHIC_WIDTH = 560;
-export const EMPTY_GRAPHIC_HEIGHT = 200;
+const EMPTY_GRAPHIC_WIDTH = 560;
+const EMPTY_GRAPHIC_HEIGHT = 200;
 
 const EmptyGraphic = styled.div`
   width: ${EMPTY_GRAPHIC_WIDTH}px;

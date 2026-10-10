@@ -1,5 +1,3 @@
-import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
-
 export const PROBE_QUERY_OPTIONS = {
   retry: false,
   networkMode: "always",
@@ -7,8 +5,4 @@ export const PROBE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
 } as const;
 
-export const ACTIVE_RUN_STATUSES = new Set<RunStatus>([
-  RunStatus.REQUESTED,
-  RunStatus.RUNNING,
-  RunStatus.PAUSED,
-]);
+export const ACTIVE_RUNS_REFETCH_INTERVAL = 3 * 1000;

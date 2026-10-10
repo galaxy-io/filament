@@ -41,7 +41,6 @@ export type InfiniteQueryInput<I extends DescMessage> = Omit<
 export const DEFAULT_LIST_SORT_BY = SortBy.CREATED_AT;
 export const DEFAULT_LIST_SORT_ORDER = SortOrder.DESC;
 export const MAX_LIST_SEARCH_LENGTH = 256;
-export const LIST_SEARCH_DEBOUNCE_MS = 300;
 
 export const listSearchParamsSchema = z.object({
   q: z.string().optional().catch(undefined),

@@ -23,12 +23,12 @@ export interface PipelineCanvasNodeTableInfo {
   isInvalid: boolean;
 }
 
-export type PipelineCanvasConnectionNodeData = {
+type PipelineCanvasConnectionNodeData = {
   connectionId: PipelineNode["connectionId"];
   config?: NonNullable<PipelineNode["config"]>;
 };
 
-export type PipelineCanvasPlaceholderNodeData = {
+type PipelineCanvasPlaceholderNodeData = {
   kind: ConnectorKind;
 };
 

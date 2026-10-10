@@ -2,7 +2,7 @@ import { create, equals, fromJson, type JsonValue, toJson } from "@bufbuild/prot
 
 import { type WorkerConfiguration, WorkerConfigurationSchema } from "@/gen/ingestion/v1/common_pb";
 
-export interface ParsedWorkerConfiguration {
+interface ParsedWorkerConfiguration {
   configuration?: WorkerConfiguration;
   error?: string;
 }

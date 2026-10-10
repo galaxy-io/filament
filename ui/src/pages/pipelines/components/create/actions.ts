@@ -133,11 +133,11 @@ export interface GoToStepAction {
   payload: CreatePipelineModalStep;
 }
 
-export interface GoBackAction {
+interface GoBackAction {
   type: CreatePipelineModalActionType.GO_BACK;
 }
 
-export interface GoNextAction {
+interface GoNextAction {
   type: CreatePipelineModalActionType.GO_NEXT;
 }
 

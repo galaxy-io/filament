@@ -14,7 +14,7 @@ import PipelineNodeConfigFields, {
   usePipelineNodeConfig,
 } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 
-import { normalizeIdentifier } from "@/utils/naming";
+import { formatIdentifier } from "@/utils/naming";
 
 interface CreatePipelineModalDeliveryNodeConfigProps {
   header: string;
@@ -32,7 +32,7 @@ const CreatePipelineModalDeliveryNodeConfig: FC<CreatePipelineModalDeliveryNodeC
   const config = nodeConfigs[connection.id] ?? {};
   const defaultSchema =
     kind === ConnectorKind.SINK
-      ? normalizeIdentifier(sourceConnection?.name ?? "") || undefined
+      ? formatIdentifier(sourceConnection?.name ?? "") || undefined
       : undefined;
   const nodeConfig = usePipelineNodeConfig(connection, kind, config, defaultSchema);
 

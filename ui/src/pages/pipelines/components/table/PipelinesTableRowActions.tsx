@@ -13,7 +13,7 @@ import { MenuItem, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { ACTIVE_RUN_STATUSES } from "@/constants";
 
 interface PipelinesTableRowActionsProps {
   pipeline: Pipeline;

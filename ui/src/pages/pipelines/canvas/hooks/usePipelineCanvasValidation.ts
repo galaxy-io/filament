@@ -14,7 +14,6 @@ import {
 import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS } from "@/pages/pipelines/canvas/constants";
 import {
   getCanvasEdgeKey,
   mapCanvasStateToVersionRequest,
@@ -26,6 +25,8 @@ import { getEdgeBlockingRequirements, getEdgeValidationErrors } from "@/pages/pi
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+
+import { VALIDATION_DEBOUNCE_MS } from "@/constants";
 
 export enum PipelineCanvasValidationIssueKind {
   TRANSFORM = "transform",
@@ -41,7 +42,7 @@ export interface PipelineCanvasValidationIssue {
   message: string;
 }
 
-export interface PipelineCanvasValidation {
+interface PipelineCanvasValidation {
   validation: ValidatePipelineResponse | undefined;
   invalidEdgeIds: Set<CanvasEdge["id"]>;
   edgeValidationByEdgeId: Map<CanvasEdge["id"], EdgeValidation>;
@@ -119,7 +120,7 @@ export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
       ),
     [state, id, currentVersion, executionMode],
   );
-  const debouncedJson = useDebouncedValue(requestJson, PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS);
+  const debouncedJson = useDebouncedValue(requestJson, VALIDATION_DEBOUNCE_MS);
   const input = useMemo(
     () => fromJsonString(ValidatePipelineRequestSchema, debouncedJson),
     [debouncedJson],

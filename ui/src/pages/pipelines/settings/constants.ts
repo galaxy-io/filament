@@ -2,8 +2,6 @@ import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
 
-export const PIPELINE_SCHEDULE_FIELDS_COLUMNS = "repeat(2, minmax(0, 1fr))";
-
 export const PIPELINE_SCHEDULE_DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState = {

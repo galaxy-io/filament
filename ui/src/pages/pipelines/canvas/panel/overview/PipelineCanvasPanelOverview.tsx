@@ -8,7 +8,6 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -32,6 +31,8 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+
+import { formatVersion } from "@/utils/format";
 
 const PipelineCanvasPanelOverview: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
@@ -88,7 +89,7 @@ const PipelineCanvasPanelOverview: FC = () => {
                   size={TextSize.BODY_SM}
                   variant={previewed ? TextVariant.ERROR : TextVariant.SECONDARY}
                 >
-                  {version ? `Version ${version}` : EMPTY_VALUE}
+                  {formatVersion(version)}
                 </Text>
               }
             />

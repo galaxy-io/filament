@@ -26,6 +26,8 @@ import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatus
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 const OBSERVABILITY_METRICS_FEATURED_STATUSES = [
   RunStatus.COMPLETED,
   RunStatus.FAILED,
@@ -77,7 +79,7 @@ const ObservabilityMetricsWidget: FC = () => {
     () =>
       new Map(
         (statusCountsData?.rows ?? []).map((row) => [
-          Number(row.key) as RunStatus,
+          mapOptionIdToEnum(RunStatus, row.key),
           row.values[0] ?? 0,
         ]),
       ),

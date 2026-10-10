@@ -15,7 +15,7 @@ import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
-export interface PipelineResourceCreateSink {
+interface PipelineResourceCreateSink {
   id: CanvasNode["id"];
   label: string;
 }

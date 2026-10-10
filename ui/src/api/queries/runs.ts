@@ -2,7 +2,6 @@ import { create } from "@bufbuild/protobuf";
 import { createClient, type Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
-  createInfiniteQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -28,9 +27,7 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { isContinuousRunActive } from "@/pages/pipelines/utils";
-
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import {
   batchIterable,
@@ -41,7 +38,8 @@ import {
   type UseSuspenseQueryOptions,
 } from "@/api/utils";
 
-const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
+import { isRunActive } from "@/utils/runs";
+
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
 const MAX_TAIL_EVENTS = 2000;
 const TAIL_FLUSH_INTERVAL = 150;
@@ -69,20 +67,18 @@ const getScheduledRefetchInterval = (runs: RunInfo[], floor: number) => {
 
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
   if (!runs) return false;
-  if (runs.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
-    return LIST_RUNS_REFETCH_INTERVAL;
-  return getScheduledRefetchInterval(runs, LIST_RUNS_REFETCH_INTERVAL);
+  if (runs.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
+  return getScheduledRefetchInterval(runs, ACTIVE_RUNS_REFETCH_INTERVAL);
 };
 
 export const getActiveRunsRefetchInterval = (
   runs: RunInfo[] | undefined,
   nextFireAt: bigint | undefined,
 ) => {
-  if (runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
-    return LIST_RUNS_REFETCH_INTERVAL;
+  if (runs?.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
   if (!nextFireAt) return IDLE_RUNS_REFETCH_INTERVAL;
   const wait = Number(nextFireAt) - Date.now();
-  return Math.min(Math.max(wait, LIST_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
+  return Math.min(Math.max(wait, ACTIVE_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
 };
 
 export const useListRunsQuery = ({
@@ -116,20 +112,6 @@ export const useSuspenseListRunsQuery = ({
     },
     ...options,
   });
-};
-
-export const createListRunsInfiniteQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
-  transport: Transport;
-}) => {
-  return createInfiniteQueryOptions(
-    IngestionService.method.listRuns,
-    { ...input, pagination: INITIAL_PAGE_PARAM },
-    { transport, pageParamKey: "pagination", getNextPageParam },
-  );
 };
 
 export const useListRunsInfiniteQuery = ({
@@ -177,8 +159,7 @@ export const useSuspenseListRunsInfiniteQuery = ({
 
 const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   if (!run) return false;
-  if (ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run))
-    return GET_RUN_REFETCH_INTERVAL;
+  if (isRunActive(run)) return GET_RUN_REFETCH_INTERVAL;
   return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
 };
 

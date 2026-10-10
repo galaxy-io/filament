@@ -1,8 +1,6 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
-  createInfiniteQueryOptions,
-  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -54,18 +52,6 @@ export const createListConnectionsQueryKey = (
   });
 };
 
-export const createListConnectionsQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: ListConnectionsRequest;
-  transport: Transport;
-}) => {
-  return createQueryOptions(IngestionService.method.listConnections, input, {
-    transport,
-  });
-};
-
 export const useListConnectionsQuery = ({
   input,
   options = {},
@@ -85,20 +71,6 @@ export const useSuspenseListConnectionsQuery = ({
   input?: ListConnectionsRequest;
 } = {}) => {
   return useSuspenseQuery(IngestionService.method.listConnections, input);
-};
-
-export const createListConnectionsInfiniteQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: InfiniteQueryInput<typeof IngestionService.method.listConnections.input>;
-  transport: Transport;
-}) => {
-  return createInfiniteQueryOptions(
-    IngestionService.method.listConnections,
-    { ...input, pagination: INITIAL_PAGE_PARAM },
-    { transport, pageParamKey: "pagination", getNextPageParam },
-  );
 };
 
 export const useListConnectionsInfiniteQuery = ({

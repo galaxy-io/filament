@@ -1,33 +1,30 @@
 import type { FC } from "react";
 
-import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text from "@galaxy-io/dls/text/Text";
 
-import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import {
-  CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH,
-  WRITE_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
+import { CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
+import { getWriteModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 const CreatePipelineModalDeliverySink: FC<{
   sink: CreatePipelineModalSinkRow;
   onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
 }> = ({ sink, onChange }) => {
-  const options: SelectOption[] = sink.writeModeOptions.map((mode) => ({
-    id: String(mode),
-    label: WRITE_MODE_TO_LABEL_MAP[mode],
-  }));
+  const options = getWriteModeSelectOptions(sink.writeModeOptions);
 
   const handleWriteModeChange = (id: string | null) => {
     if (id === null) return;
-    onChange(sink.connection.id, Number(id) as WriteMode);
+    onChange(sink.connection.id, mapOptionIdToEnum(WriteMode, id));
   };
 
   return (

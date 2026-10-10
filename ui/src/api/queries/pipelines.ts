@@ -1,8 +1,6 @@
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
-  createInfiniteQueryOptions,
-  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -22,7 +20,7 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 import {
   createListSearchInput,
@@ -32,13 +30,11 @@ import {
   type ListSearchParams,
 } from "@/api/utils";
 
-const LIST_PIPELINES_REFETCH_INTERVAL = 3 * 1000;
+import { isRunActive } from "@/utils/runs";
 
 const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
-  return pipelines?.some(
-    (pipeline) => pipeline.lastRun && ACTIVE_RUN_STATUSES.has(pipeline.lastRun.status),
-  )
-    ? LIST_PIPELINES_REFETCH_INTERVAL
+  return pipelines?.some((pipeline) => pipeline.lastRun && isRunActive(pipeline.lastRun))
+    ? ACTIVE_RUNS_REFETCH_INTERVAL
     : false;
 };
 
@@ -57,18 +53,6 @@ export const createListPipelinesQueryKey = (
     input,
     transport,
     cardinality: undefined,
-  });
-};
-
-export const createListPipelinesQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: ListPipelinesRequest;
-  transport: Transport;
-}) => {
-  return createQueryOptions(IngestionService.method.listPipelines, input, {
-    transport,
   });
 };
 
@@ -98,20 +82,6 @@ export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelines
   });
 };
 
-export const createListPipelinesInfiniteQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: InfiniteQueryInput<typeof IngestionService.method.listPipelines.input>;
-  transport: Transport;
-}) => {
-  return createInfiniteQueryOptions(
-    IngestionService.method.listPipelines,
-    { ...input, pagination: INITIAL_PAGE_PARAM },
-    { transport, pageParamKey: "pagination", getNextPageParam },
-  );
-};
-
 export const useSuspenseListPipelinesInfiniteQuery = ({
   input,
 }: {
@@ -138,18 +108,6 @@ export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?
     input,
     transport,
     cardinality: "finite",
-  });
-};
-
-export const createGetPipelineQueryOptions = ({
-  input,
-  transport,
-}: {
-  input: GetPipelineRequest;
-  transport: Transport;
-}) => {
-  return createQueryOptions(IngestionService.method.getPipeline, input, {
-    transport,
   });
 };
 

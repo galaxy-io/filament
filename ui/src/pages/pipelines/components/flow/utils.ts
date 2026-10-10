@@ -10,7 +10,7 @@ import {
 } from "@/pages/pipelines/canvas/types";
 import type { PipelineFlowConnection } from "@/pages/pipelines/components/flow/PipelineFlow";
 
-export interface PipelineFlowEndpoints {
+interface PipelineFlowEndpoints {
   source?: PipelineFlowConnection;
   sinks: PipelineFlowConnection[];
 }
