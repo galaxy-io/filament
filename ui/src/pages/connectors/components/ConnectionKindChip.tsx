@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Chip, { type ChipSize } from "@galaxy-io/dls/chips/Chip";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -12,7 +14,7 @@ interface ConnectionKindChipProps {
   size?: ChipSize;
 }
 
-const ConnectionKindChip = ({ kind, size }: ConnectionKindChipProps) => {
+const ConnectionKindChip: FC<ConnectionKindChipProps> = ({ kind, size }) => {
   return (
     <Chip
       label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}

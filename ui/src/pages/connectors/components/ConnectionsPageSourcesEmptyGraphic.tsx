@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
@@ -57,7 +59,7 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
   }
 `;
 
-const ConnectionsPageSourcesEmptyGraphic = () => {
+const ConnectionsPageSourcesEmptyGraphic: FC = () => {
   const sourceSpecs = useEmptyGraphicConnectors(ConnectorKind.SOURCE);
 
   return (

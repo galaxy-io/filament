@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
@@ -30,12 +32,12 @@ interface PipelineCanvasRoutesSourceIslandProps {
   onAddSink: (() => void) | undefined;
 }
 
-const PipelineCanvasRoutesSourceIsland = ({
+const PipelineCanvasRoutesSourceIsland: FC<PipelineCanvasRoutesSourceIslandProps> = ({
   route,
   isSelected,
   onSelect,
   onAddSink,
-}: PipelineCanvasRoutesSourceIslandProps) => (
+}) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
     isSelected={isSelected}

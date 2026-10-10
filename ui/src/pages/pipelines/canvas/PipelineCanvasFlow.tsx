@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { type FC, useCallback, useMemo } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -107,7 +107,7 @@ const ViewSwitcherOverlay = styled.div`
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 `;
 
-const PipelineCanvasFlow = () => {
+const PipelineCanvasFlow: FC = () => {
   const { theme } = useGalaxyTheme();
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -16,9 +18,9 @@ interface CreatePipelineModalResourcesCursorCellProps {
   row: CreatePipelineModalResourceRow;
 }
 
-const CreatePipelineModalResourcesCursorCell = ({
+const CreatePipelineModalResourcesCursorCell: FC<CreatePipelineModalResourcesCursorCellProps> = ({
   row,
-}: CreatePipelineModalResourcesCursorCellProps) => {
+}) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

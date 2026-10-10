@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
@@ -7,7 +9,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
 
-const CreatePipelineModalDeliverySchedule = () => {
+const CreatePipelineModalDeliverySchedule: FC = () => {
   const { schedule } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

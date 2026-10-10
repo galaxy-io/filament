@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ArrowLeftIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { createFileRoute, type ErrorComponentProps, useNavigate } from "@tanstack/react-router";
@@ -11,7 +13,7 @@ import PipelinePage from "@/pages/pipelines/PipelinePage";
 
 import { DefaultErrorComponent } from "@/router";
 
-const PipelineNotFoundComponent = () => {
+const PipelineNotFoundComponent: FC = () => {
   const navigate = useNavigate();
 
   const handleGoToPipelines = () => {
@@ -30,7 +32,7 @@ const PipelineNotFoundComponent = () => {
   );
 };
 
-const PipelineErrorComponent = ({ error }: ErrorComponentProps) =>
+const PipelineErrorComponent: FC<ErrorComponentProps> = ({ error }) =>
   error instanceof ConnectError && error.code === Code.NotFound ? (
     <PipelineNotFoundComponent />
   ) : (

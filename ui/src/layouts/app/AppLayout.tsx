@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type FC, useCallback } from "react";
 
 import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -12,7 +12,7 @@ import SettingsPage from "@/pages/settings/SettingsPage";
 
 import { useRetainedWhileClosed } from "@/hooks/useRetainedWhileClosed";
 
-const AppLayout = () => {
+const AppLayout: FC = () => {
   const navigate = useNavigate();
   const { connectionId, flow } = useSearch({ from: "/_app" });
   const isDrawerOpen = !!connectionId;

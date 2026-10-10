@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { FlowArrowIcon } from "@phosphor-icons/react";
 
@@ -12,7 +12,7 @@ interface ConnectionDrawerPipelinesProps {
   connectionId: string;
 }
 
-const ConnectionDrawerPipelines = ({ connectionId }: ConnectionDrawerPipelinesProps) => {
+const ConnectionDrawerPipelines: FC<ConnectionDrawerPipelinesProps> = ({ connectionId }) => {
   const { pipelines, connectionIdsByPipelineId } = usePipelineConnectionMap();
 
   const connectedPipelines = useMemo(

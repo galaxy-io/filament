@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -28,7 +30,7 @@ import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const CreatePipelineModalFooter = () => {
+const CreatePipelineModalFooter: FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 

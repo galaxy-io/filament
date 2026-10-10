@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import Flex, { AlignItems, FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
 import { Radius } from "@galaxy-io/dls/theme/enums";
@@ -6,7 +6,7 @@ import { Radius } from "@galaxy-io/dls/theme/enums";
 import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutNavbar from "@/layouts/main/MainLayoutNavbar";
 
-const MainLayout = ({ children }: PropsWithChildren) => {
+const MainLayout: FC<PropsWithChildren> = ({ children }) => {
   return (
     <Flex alignItems={AlignItems.START} height="100%" fillWidth direction={FlexDirection.COLUMN}>
       <MainLayoutNavbar />

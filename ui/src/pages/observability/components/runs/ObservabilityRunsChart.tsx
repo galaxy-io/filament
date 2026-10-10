@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -22,7 +22,7 @@ import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
-const ObservabilityRunsChart = () => {
+const ObservabilityRunsChart: FC = () => {
   const navigate = useNavigate();
   const {
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,

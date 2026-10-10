@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { FC, MouseEvent } from "react";
 import { Fragment, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
@@ -48,7 +48,7 @@ const PipelinesTableRecentRunsWrapper = styled.div`
   }
 `;
 
-const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
+const PipelinesTableRecentRunTooltip: FC<{ run: RunInfo }> = ({ run }) => {
   const rows = [
     { label: "Duration", value: formatDuration(run.startedAt, run.endedAt) },
     { label: "Records", value: formatCount(run.records) },
@@ -89,7 +89,7 @@ const PipelinesTableRecentRunTooltip = ({ run }: { run: RunInfo }) => {
   );
 };
 
-const PipelinesTableColumnRecentRuns = ({ pipeline }: PipelinesTableColumnRecentRunsProps) => {
+const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = ({ pipeline }) => {
   const navigate = useNavigate();
   const { data, isLoading } = useListRunsQuery({
     input: create(ListRunsRequestSchema, {

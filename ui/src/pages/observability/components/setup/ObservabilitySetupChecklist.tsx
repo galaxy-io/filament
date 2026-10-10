@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { useNavigate } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
@@ -30,7 +32,7 @@ import {
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
-const ObservabilitySetupChecklist = () => {
+const ObservabilitySetupChecklist: FC = () => {
   const navigate = useNavigate();
   const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
 

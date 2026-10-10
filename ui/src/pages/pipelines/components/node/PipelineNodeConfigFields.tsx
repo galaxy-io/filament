@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create, type JsonValue } from "@bufbuild/protobuf";
 
 import type { InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -25,8 +27,6 @@ export interface PipelineNodeConfigState {
   displayValue: PipelineNodeConfig;
 }
 
-// Resolves a node's pipeline-scope fields against its connection. Visibility
-// spans both scopes: a pipeline field may depend on a connection field.
 export const usePipelineNodeConfig = (
   connection: Connection | undefined,
   kind: ConnectorKind,
@@ -60,7 +60,7 @@ interface PipelineNodeConfigFieldsProps extends PipelineNodeConfigState {
   isDisabled?: boolean;
 }
 
-const PipelineNodeConfigFields = ({
+const PipelineNodeConfigFields: FC<PipelineNodeConfigFieldsProps> = ({
   scopedFields,
   fields,
   displayValue,
@@ -68,7 +68,7 @@ const PipelineNodeConfigFields = ({
   onChange,
   variant,
   isDisabled,
-}: PipelineNodeConfigFieldsProps) => (
+}) => (
   <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
     {fields.map((field) => (
       <Field

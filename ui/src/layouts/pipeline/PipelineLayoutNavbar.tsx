@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import {
@@ -91,7 +91,7 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineLayoutNavbar = () => {
+const PipelineLayoutNavbar: FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });

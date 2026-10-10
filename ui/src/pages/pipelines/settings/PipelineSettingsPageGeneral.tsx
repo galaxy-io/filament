@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
@@ -34,7 +34,7 @@ const DEFAULT_STATE: PipelineSettingsPageGeneralState = {
   description: "",
 };
 
-const PipelineSettingsPageGeneral = () => {
+const PipelineSettingsPageGeneral: FC = () => {
   const { toast } = useToast();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 

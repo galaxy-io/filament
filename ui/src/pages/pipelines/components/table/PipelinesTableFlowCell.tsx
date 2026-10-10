@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineFlow from "@/pages/pipelines/components/flow/PipelineFlow";
@@ -7,7 +9,7 @@ interface PipelinesTableFlowCellProps {
   pipeline: Pipeline;
 }
 
-const PipelinesTableFlowCell = ({ pipeline }: PipelinesTableFlowCellProps) => {
+const PipelinesTableFlowCell: FC<PipelinesTableFlowCellProps> = ({ pipeline }) => {
   const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
 
   return <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} isLoading={isLoading} />;

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { Position } from "@xyflow/react";
 
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
@@ -18,7 +20,7 @@ import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCan
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 import PipelineTransformFieldsMarker from "@/pages/pipelines/components/transform/PipelineTransformFieldsMarker";
 
-const TableListShimmer = () => (
+const TableListShimmer: FC = () => (
   <>
     {Array.from({ length: PIPELINE_CANVAS_NODE_TABLE_LIST_SHIMMER_COUNT }).map((_, index) => (
       // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder rows with no identity
@@ -29,7 +31,7 @@ const TableListShimmer = () => (
   </>
 );
 
-const TableListRow = ({ table }: { table: PipelineCanvasNodeTableInfo }) => (
+const TableListRow: FC<{ table: PipelineCanvasNodeTableInfo }> = ({ table }) => (
   <Flex
     alignItems={AlignItems.CENTER}
     justifyContent={JustifyContent.SPACE_BETWEEN}
@@ -63,11 +65,11 @@ interface PipelineCanvasNodeSourceIslandTableListProps {
   isLoading?: boolean;
 }
 
-const PipelineCanvasNodeSourceIslandTableList = ({
+const PipelineCanvasNodeSourceIslandTableList: FC<PipelineCanvasNodeSourceIslandTableListProps> = ({
   tables,
   error,
   isLoading = false,
-}: PipelineCanvasNodeSourceIslandTableListProps) => {
+}) => {
   if (isLoading) {
     return <TableListShimmer />;
   }

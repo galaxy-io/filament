@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
@@ -44,7 +46,7 @@ interface PipelineLayoutSidebarProps {
   onItemClick: (item: PipelineSidebarItem) => void;
 }
 
-const PipelineLayoutSidebar = ({ activeItem, onItemClick }: PipelineLayoutSidebarProps) => {
+const PipelineLayoutSidebar: FC<PipelineLayoutSidebarProps> = ({ activeItem, onItemClick }) => {
   return (
     <Flex
       direction={FlexDirection.COLUMN}

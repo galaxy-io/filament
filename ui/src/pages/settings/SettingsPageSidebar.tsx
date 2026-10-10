@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import {
   BookOpenIcon,
   GithubLogoIcon,
@@ -31,12 +33,12 @@ interface SettingsPageSidebarProps {
   onPanelChange: (panel: SettingsPanel) => void;
 }
 
-const SettingsPageSidebar = ({
+const SettingsPageSidebar: FC<SettingsPageSidebarProps> = ({
   session,
   activePanel,
   canManageTeam,
   onPanelChange,
-}: SettingsPageSidebarProps) => {
+}) => {
   const signOut = useSignOut();
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },

@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
@@ -21,7 +21,7 @@ interface PipelineCanvasPanelSectionProps {
   onToggle?: () => void;
 }
 
-const PipelineCanvasPanelSection = ({
+const PipelineCanvasPanelSection: FC<PropsWithChildren<PipelineCanvasPanelSectionProps>> = ({
   icon,
   header,
   isEmpty,
@@ -33,7 +33,7 @@ const PipelineCanvasPanelSection = ({
   isOpen,
   onToggle,
   children,
-}: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
+}) => {
   return (
     <Widget
       isCollapsible

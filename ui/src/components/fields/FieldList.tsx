@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TagInput from "@galaxy-io/dls/inputs/TagInput";
@@ -15,7 +17,7 @@ import {
   type SelectAllOption,
 } from "@/utils/select";
 
-const FieldList = ({
+const FieldList: FC<FieldComponentProps> = ({
   field,
   value,
   onChange,
@@ -23,7 +25,7 @@ const FieldList = ({
   error,
   isDisabled = false,
   label,
-}: FieldComponentProps) => {
+}) => {
   const selected = Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];

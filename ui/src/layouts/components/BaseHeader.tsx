@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { XIcon } from "@phosphor-icons/react";
 
@@ -41,14 +43,14 @@ const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, Space> = {
   [BaseHeaderSize.LARGE]: 16,
 };
 
-const BaseHeader = ({
+const BaseHeader: FC<BaseHeaderProps> = ({
   title,
   icon,
   description,
   actions,
   size = BaseHeaderSize.MEDIUM,
   onClose,
-}: BaseHeaderProps) => {
+}) => {
   const alignItems = onClose && description ? AlignItems.START : AlignItems.CENTER;
   return (
     <Flex alignItems={alignItems} gap={8} fillWidth>

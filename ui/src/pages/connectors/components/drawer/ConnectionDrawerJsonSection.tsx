@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 import CodeBlock, { CodeBlockLanguage } from "@galaxy-io/dls/text/CodeBlock";
 import type Widget from "@galaxy-io/dls/widget/Widget";
@@ -15,13 +15,13 @@ interface ConnectionDrawerJsonSectionProps {
   emptyMessage: string;
 }
 
-const ConnectionDrawerJsonSection = ({
+const ConnectionDrawerJsonSection: FC<ConnectionDrawerJsonSectionProps> = ({
   header,
   icon,
   data,
   emptyHeader,
   emptyMessage,
-}: ConnectionDrawerJsonSectionProps) => {
+}) => {
   return (
     <ConnectionDrawerSection
       header={header}

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { FunctionIcon } from "@phosphor-icons/react";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
@@ -15,10 +17,10 @@ import {
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 
-const PipelineCanvasPanelResourceTransformSectionError = ({
+const PipelineCanvasPanelResourceTransformSectionError: FC<ErrorComponentProps> = ({
   error,
   reset,
-}: ErrorComponentProps) => {
+}) => {
   const { reset: resetQueries } = useQueryErrorResetBoundary();
 
   const handleRetry = () => {

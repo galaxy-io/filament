@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -6,7 +8,7 @@ import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 
-const PipelineLayoutNavbarBackButton = () => {
+const PipelineLayoutNavbarBackButton: FC = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {

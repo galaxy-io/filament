@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { type FC, useCallback, useMemo } from "react";
 
 import { PlusIcon, TrashIcon, UserGearIcon } from "@phosphor-icons/react";
 
@@ -98,7 +98,7 @@ interface SettingsTeamPanelProps {
   onInvite: () => void;
 }
 
-const SettingsTeamPanel = ({ session, onInvite }: SettingsTeamPanelProps) => {
+const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) => {
   const { toast } = useToast();
 
   const membersQuery = useListMembersQuery({

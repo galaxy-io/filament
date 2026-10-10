@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
@@ -42,7 +42,7 @@ const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
   status: [RunStatus.SCHEDULED],
 });
 
-const ObservabilityMetricsWidget = () => {
+const ObservabilityMetricsWidget: FC = () => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
     from: "/_app/_main/observability",
   });

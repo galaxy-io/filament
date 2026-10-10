@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
 import { FlowArrowIcon } from "@phosphor-icons/react";
@@ -81,7 +81,7 @@ interface PipelinesPageEmptyGraphicProps {
   actions?: ReactNode;
 }
 
-const PipelinesPageEmptyGraphic = ({ actions }: PipelinesPageEmptyGraphicProps) => {
+const PipelinesPageEmptyGraphic: FC<PipelinesPageEmptyGraphicProps> = ({ actions }) => {
   const sourceSpecs = useEmptyGraphicConnectors(ConnectorKind.SOURCE);
   const sinkSpecs = useEmptyGraphicConnectors(ConnectorKind.SINK);
 

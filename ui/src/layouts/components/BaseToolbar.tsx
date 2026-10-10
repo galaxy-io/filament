@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 interface BaseToolbarProps {
@@ -6,7 +8,7 @@ interface BaseToolbarProps {
   noPadding?: boolean;
 }
 
-const BaseToolbar = ({ leadingActions, trailingActions, noPadding }: BaseToolbarProps) => {
+const BaseToolbar: FC<BaseToolbarProps> = ({ leadingActions, trailingActions, noPadding }) => {
   const hasTrailingActions = trailingActions && trailingActions.length > 0;
 
   return (

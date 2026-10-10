@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
 import Flex, { AlignItems, FlexDirection, FlexWrap } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
@@ -18,7 +20,7 @@ import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/obs
 
 const OBSERVABILITY_TIMESERIES_WIDGET_BASIS = "400px";
 
-const ObservabilityPage = () => {
+const ObservabilityPage: FC = () => {
   const { isComplete } = useObservabilitySetup();
 
   if (!isComplete) {

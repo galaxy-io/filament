@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { type FC, useSyncExternalStore } from "react";
 
 import { BaseEdge, type EdgeProps, getBezierPath, useInternalNode } from "@xyflow/react";
 
@@ -8,7 +8,7 @@ import {
   subscribePipelineCanvasNodeMeasurements,
 } from "@/pages/pipelines/canvas/nodes/utils";
 
-const PipelineCanvasEdge = ({
+const PipelineCanvasEdge: FC<EdgeProps> = ({
   id,
   source,
   sourceHandleId,
@@ -20,7 +20,7 @@ const PipelineCanvasEdge = ({
   targetPosition,
   style,
   markerEnd,
-}: EdgeProps) => {
+}) => {
   const sourceNode = useInternalNode(source);
   const measurements = useSyncExternalStore(subscribePipelineCanvasNodeMeasurements, () =>
     getPipelineCanvasNodeMeasurements(source),

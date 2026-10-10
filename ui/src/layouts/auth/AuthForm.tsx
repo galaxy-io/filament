@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
@@ -35,7 +35,7 @@ export interface AuthFormProps {
   footer?: ReactNode;
 }
 
-const AuthForm = ({
+const AuthForm: FC<PropsWithChildren<AuthFormProps>> = ({
   title,
   subtitle,
   icon,
@@ -45,7 +45,7 @@ const AuthForm = ({
   onSubmit,
   footer,
   children,
-}: PropsWithChildren<AuthFormProps>) => {
+}) => {
   const handleSubmit = () => {
     if (isPending) {
       return;
@@ -111,7 +111,7 @@ interface AuthFormFooterProps {
   label: string;
 }
 
-export const AuthFormFooter = ({ prompt, to, label }: AuthFormFooterProps) => (
+export const AuthFormFooter: FC<AuthFormFooterProps> = ({ prompt, to, label }) => (
   <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth>
     <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
       {prompt}

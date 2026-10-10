@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { ArrowsClockwiseIcon, CopyIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
@@ -48,7 +48,7 @@ interface SettingsServiceAccountsPanelProps {
   session: AppSession;
 }
 
-const SettingsServiceAccountsPanel = ({ session }: SettingsServiceAccountsPanelProps) => {
+const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ session }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [rotatedCredentials, setRotatedCredentials] = useState<ServiceAccountCredentials>();
   const { toast } = useToast();

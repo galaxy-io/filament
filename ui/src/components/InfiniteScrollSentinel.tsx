@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type FC, useEffect } from "react";
 
 import { useInView } from "react-intersection-observer";
 
@@ -10,11 +10,11 @@ interface InfiniteScrollSentinelProps {
   fetchNextPage: () => void;
 }
 
-const InfiniteScrollSentinel = ({
+const InfiniteScrollSentinel: FC<InfiniteScrollSentinelProps> = ({
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
-}: InfiniteScrollSentinelProps) => {
+}) => {
   const { ref, inView } = useInView();
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
@@ -32,7 +32,7 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineSettingsPageSchedule = () => {
+const PipelineSettingsPageSchedule: FC = () => {
   const { toast } = useToast();
   const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
 

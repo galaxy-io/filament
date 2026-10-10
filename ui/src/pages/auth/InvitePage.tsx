@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { LinkBreakIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -27,7 +27,7 @@ const DEFAULT_STATE: InvitePageState = {
   error: undefined,
 };
 
-const InvitePage = () => {
+const InvitePage: FC = () => {
   const { token } = useParams({ from: "/invite/$token" });
   const navigate = useNavigate();
   const [state, setState] = useState<InvitePageState>(DEFAULT_STATE);

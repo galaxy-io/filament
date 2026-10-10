@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -32,7 +34,7 @@ const PipelineCanvasEditWidgetContainer = styled.div`
   border-radius: ${t.radius.pill};
 `;
 
-const PipelineCanvasEditWidget = () => {
+const PipelineCanvasEditWidget: FC = () => {
   const state = usePipelineCanvasState();
   const { setActiveMode } = usePipelineCanvasActions();
 

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Square, { type SquareSize } from "@galaxy-io/dls/shapes/Square";
 
 import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
@@ -9,7 +11,7 @@ interface PipelineRunStatusSwatchProps {
   size?: SquareSize;
 }
 
-const PipelineRunStatusSwatch = ({ status, size }: PipelineRunStatusSwatchProps) => {
+const PipelineRunStatusSwatch: FC<PipelineRunStatusSwatchProps> = ({ status, size }) => {
   const hue = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
   return <Square size={size} {...(hue === null ? {} : { color: hue })} />;
 };

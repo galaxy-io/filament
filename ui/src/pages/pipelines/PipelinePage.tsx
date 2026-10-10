@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
@@ -17,7 +17,7 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-const PipelinePage = () => {
+const PipelinePage: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
   const navigate = useNavigate();
 

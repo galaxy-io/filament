@@ -1,4 +1,4 @@
-import { Children, type PropsWithChildren } from "react";
+import { Children, type FC, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -20,11 +20,11 @@ interface ConnectionDrawerListProps {
   hasBorder?: boolean;
 }
 
-const ConnectionDrawerList = ({
+const ConnectionDrawerList: FC<PropsWithChildren<ConnectionDrawerListProps>> = ({
   variant = BoxVariant.PRIMARY,
   hasBorder = true,
   children,
-}: PropsWithChildren<ConnectionDrawerListProps>) => {
+}) => {
   return (
     <Box
       variant={variant}

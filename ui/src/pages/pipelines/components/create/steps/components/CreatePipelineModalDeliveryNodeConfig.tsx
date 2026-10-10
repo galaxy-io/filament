@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Widget, { WidgetSize } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -20,11 +22,11 @@ interface CreatePipelineModalDeliveryNodeConfigProps {
   kind: ConnectorKind;
 }
 
-const CreatePipelineModalDeliveryNodeConfig = ({
+const CreatePipelineModalDeliveryNodeConfig: FC<CreatePipelineModalDeliveryNodeConfigProps> = ({
   header,
   connection,
   kind,
-}: CreatePipelineModalDeliveryNodeConfigProps) => {
+}) => {
   const { nodeConfigs, sourceConnection } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
   const config = nodeConfigs[connection.id] ?? {};

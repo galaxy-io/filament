@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -18,10 +20,10 @@ interface PipelineHistoryRunInfoConnectionColumnProps {
   resourceName?: RunResourceState["resourceName"];
 }
 
-const PipelineHistoryRunInfoConnectionColumn = ({
+const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectionColumnProps> = ({
   connectionId,
   resourceName,
-}: PipelineHistoryRunInfoConnectionColumnProps) => {
+}) => {
   const navigate = useNavigate();
 
   const { data: connectionData } = useGetConnectionQuery({

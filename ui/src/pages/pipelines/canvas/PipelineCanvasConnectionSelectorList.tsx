@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
@@ -17,13 +19,10 @@ import { LayoutSize } from "@/layouts/types";
 import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
-const PipelineCanvasConnectionSelectorEmpty = ({
-  message,
-  connectorKind,
-}: {
+const PipelineCanvasConnectionSelectorEmpty: FC<{
   message: string;
   connectorKind: ConnectorKind;
-}) => {
+}> = ({ message, connectorKind }) => {
   const navigate = useNavigate();
 
   const handleCreateConnection = () => {
@@ -73,13 +72,13 @@ interface PipelineCanvasConnectionSelectorListProps {
   onConnectionClick: (connection: Connection) => void;
 }
 
-const PipelineCanvasConnectionSelectorList = ({
+const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorListProps> = ({
   connections,
   hasConnections,
   connectorKind,
   isSourceDisabled,
   onConnectionClick,
-}: PipelineCanvasConnectionSelectorListProps) => {
+}) => {
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -13,7 +15,7 @@ import { createQueryAggregateQueryKey, createQueryTimeseriesQueryKey } from "@/a
 import { createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
-const ObservabilityToolbar = () => {
+const ObservabilityToolbar: FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({

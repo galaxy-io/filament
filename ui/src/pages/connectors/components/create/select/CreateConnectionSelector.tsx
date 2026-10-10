@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { type FC, useCallback, useState } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -15,10 +15,10 @@ import {
 import ConnectionFormWrapper from "@/pages/connectors/components/form/ConnectionFormWrapper";
 import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/pages/connectors/constants";
 
-const CreateConnectionSelector = ({
+const CreateConnectionSelector: FC<CreateConnectionSelectorProps> = ({
   onClose,
   onConnectorSelect,
-}: CreateConnectionSelectorProps) => {
+}) => {
   const navigate = useNavigate();
   const { connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;

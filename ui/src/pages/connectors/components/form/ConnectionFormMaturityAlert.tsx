@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import pluralize from "pluralize";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -32,12 +34,12 @@ const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: Con
   return `/pages/connectors/${kindSegment}/${getConnectorFamilyName(connectorName).toLowerCase()}`;
 };
 
-const ConnectionFormMaturityAlert = ({
+const ConnectionFormMaturityAlert: FC<ConnectionFormMaturityAlertProps> = ({
   connectorName,
   connectorKind,
   connectorMaturity,
   connectorApiVersion,
-}: ConnectionFormMaturityAlertProps) => {
+}) => {
   const status = CONNECTOR_MATURITY_TO_STATUS_MAP[connectorMaturity];
   if (!status) return null;
 

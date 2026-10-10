@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import pluralize from "pluralize";
 import { match } from "ts-pattern";
 
@@ -27,7 +29,7 @@ import {
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
-const CreatePipelineModalSidebar = () => {
+const CreatePipelineModalSidebar: FC = () => {
   const {
     step,
     stepIndex,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
@@ -68,15 +68,11 @@ const RowControlWrapper = styled.div`
   pointer-events: none;
 `;
 
-const CreatePipelineModalConnectionsState = ({
-  message,
-  error,
-  connectorKind,
-}: {
+const CreatePipelineModalConnectionsState: FC<{
   message: string;
   error?: Error | null;
   connectorKind: ConnectorKind;
-}) => {
+}> = ({ message, error, connectorKind }) => {
   const navigate = useNavigate();
 
   const handleCreateConnection = () => {
@@ -117,13 +113,10 @@ const CreatePipelineModalConnectionsState = ({
   );
 };
 
-const CreatePipelineModalConnectionRow = ({
-  connection,
-  kind,
-}: {
+const CreatePipelineModalConnectionRow: FC<{
   connection: Connection;
   kind: ConnectorKind;
-}) => {
+}> = ({ connection, kind }) => {
   const { sourceConnection, sinkConnections, executionMode } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 
@@ -180,7 +173,9 @@ const DEFAULT_PANE_STATE: CreatePipelineModalConnectionsPaneState = {
   search: "",
 };
 
-const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnectionsPaneProps) => {
+const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneProps> = ({
+  kind,
+}) => {
   const [state, setState] = useState<CreatePipelineModalConnectionsPaneState>(DEFAULT_PANE_STATE);
 
   const handleSearchChange = (search: string) => {
@@ -309,7 +304,7 @@ const CreatePipelineModalConnectionsPane = ({ kind }: CreatePipelineModalConnect
   );
 };
 
-const CreatePipelineModalConnections = () => {
+const CreatePipelineModalConnections: FC = () => {
   const { supportedExecutionModes } = useCreatePipelineModalState();
 
   return (

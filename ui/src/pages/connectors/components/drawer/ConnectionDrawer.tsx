@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import {
   DotsThreeIcon,
@@ -44,7 +46,7 @@ interface ConnectionDrawerProps {
   onClose: () => void;
 }
 
-const ConnectionDrawer = ({ connectionId, isOpen, onClose }: ConnectionDrawerProps) => {
+const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onClose }) => {
   const navigate = useNavigate();
 
   const { data, isError } = useGetConnectionQuery({

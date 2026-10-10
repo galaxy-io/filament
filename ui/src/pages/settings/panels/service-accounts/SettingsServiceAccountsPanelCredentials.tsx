@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import Field from "@galaxy-io/dls/inputs/Field";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -10,9 +12,9 @@ interface SettingsServiceAccountsPanelCredentialsProps {
   credentials: ServiceAccountCredentials;
 }
 
-const SettingsServiceAccountsPanelCredentials = ({
+const SettingsServiceAccountsPanelCredentials: FC<SettingsServiceAccountsPanelCredentialsProps> = ({
   credentials,
-}: SettingsServiceAccountsPanelCredentialsProps) => (
+}) => (
   <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
     <CopyInput label="Client ID" value={credentials.clientId} fillWidth family={FontFamily.MONO} />
     <CopyInput

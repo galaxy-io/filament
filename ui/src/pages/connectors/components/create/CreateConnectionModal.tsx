@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type FC, useCallback } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -8,7 +8,7 @@ import CreateConnectionConfigure from "@/pages/connectors/components/create/conf
 import CreateConnectionSelector from "@/pages/connectors/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connectors/components/create/types";
 
-const CreateConnectionModal = ({ onClose }: CreateConnectionModalProps) => {
+const CreateConnectionModal: FC<CreateConnectionModalProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const { connector, connectorKind } = useSearch({
     from: "/_app",

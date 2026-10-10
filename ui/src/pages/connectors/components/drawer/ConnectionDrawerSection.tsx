@@ -1,4 +1,4 @@
-import type { ComponentProps, PropsWithChildren } from "react";
+import type { ComponentProps, FC, PropsWithChildren } from "react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -17,7 +17,7 @@ interface ConnectionDrawerSectionProps {
   isFlush?: boolean;
 }
 
-const ConnectionDrawerSection = ({
+const ConnectionDrawerSection: FC<PropsWithChildren<ConnectionDrawerSectionProps>> = ({
   header,
   icon,
   count,
@@ -26,7 +26,7 @@ const ConnectionDrawerSection = ({
   isOpenInitial = false,
   isFlush = false,
   children,
-}: PropsWithChildren<ConnectionDrawerSectionProps>) => {
+}) => {
   return (
     <Widget
       isCollapsible

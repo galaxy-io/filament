@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
@@ -17,14 +17,14 @@ interface EmptyLayoutProps {
   actions?: ReactNode;
 }
 
-const EmptyLayout = ({
+const EmptyLayout: FC<EmptyLayoutProps> = ({
   size = LayoutSize.MEDIUM,
   icon,
   graphic,
   header,
   description,
   actions,
-}: EmptyLayoutProps) => {
+}) => {
   const mark = graphic === undefined ? { icon } : { graphic };
 
   return (

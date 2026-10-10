@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
@@ -19,12 +19,12 @@ interface MainLayoutListPage {
   isScrollable?: boolean;
 }
 
-const MainLayoutListPage = ({
+const MainLayoutListPage: FC<PropsWithChildren<MainLayoutListPage>> = ({
   actions,
   noPadding = false,
   isScrollable = true,
   children,
-}: PropsWithChildren<MainLayoutListPage>) => {
+}) => {
   const navigate = useNavigate();
   const { q = "" } = useSearch({ strict: false });
 

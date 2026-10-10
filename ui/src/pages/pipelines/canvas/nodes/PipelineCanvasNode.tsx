@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useCallback } from "react";
+import { type FC, type PropsWithChildren, useCallback } from "react";
 
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearIcon, TrashIcon } from "@phosphor-icons/react";
@@ -51,7 +51,7 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   onDelete?: () => void;
 }
 
-const PipelineCanvasNode = ({
+const PipelineCanvasNode: FC<PipelineCanvasNodeProps> = ({
   connector,
   label,
   kind,
@@ -61,7 +61,7 @@ const PipelineCanvasNode = ({
   onSettings,
   onDelete,
   children,
-}: PipelineCanvasNodeProps) => {
+}) => {
   const handleRefresh = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();

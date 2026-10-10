@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { CalendarIcon } from "@phosphor-icons/react";
 
@@ -13,7 +15,7 @@ interface PipelineScheduleChipProps {
   pipelineId: Pipeline["id"];
 }
 
-const PipelineScheduleChip = ({ pipelineId }: PipelineScheduleChipProps) => {
+const PipelineScheduleChip: FC<PipelineScheduleChipProps> = ({ pipelineId }) => {
   const { data, isLoading } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
     options: { enabled: Boolean(pipelineId) },

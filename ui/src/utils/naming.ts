@@ -1,12 +1,3 @@
-/**
- * Mirrors the server's identifier normalization (internal/naming.Normalize):
- * lowercase ASCII alphanumerics, runs of other characters collapse to one
- * underscore, edges are trimmed, leading digits are prefixed, and output is
- * capped at PostgreSQL's 63-byte identifier limit.
- *
- * This is presentation-only; the server computes the authoritative value when
- * the pipeline version is saved.
- */
 const MAX_IDENTIFIER_LENGTH = 63;
 
 export function normalizeIdentifier(name: string): string {

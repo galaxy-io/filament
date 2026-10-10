@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -10,11 +10,11 @@ interface SettingsPanelLayoutProps {
   actions?: ReactNode[];
 }
 
-const SettingsPanelLayout = ({
+const SettingsPanelLayout: FC<PropsWithChildren<SettingsPanelLayoutProps>> = ({
   title,
   actions,
   children,
-}: PropsWithChildren<SettingsPanelLayoutProps>) => (
+}) => (
   <Flex
     direction={FlexDirection.COLUMN}
     alignItems={AlignItems.STRETCH}

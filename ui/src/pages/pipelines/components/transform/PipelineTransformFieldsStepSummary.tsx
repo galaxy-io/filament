@@ -1,4 +1,4 @@
-import { Fragment, type ReactElement } from "react";
+import { type FC, Fragment, type ReactElement } from "react";
 
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
@@ -69,7 +69,9 @@ interface PipelineTransformFieldsStepSummaryProps {
   step: TransformStep;
 }
 
-const PipelineTransformFieldsStepSummary = ({ step }: PipelineTransformFieldsStepSummaryProps) => {
+const PipelineTransformFieldsStepSummary: FC<PipelineTransformFieldsStepSummaryProps> = ({
+  step,
+}) => {
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   return (
     <Sentence>

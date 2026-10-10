@@ -38,7 +38,6 @@ export const getPipelineCanvasEdgeAnchor = ({
   const { badgeAnchorX, badgeAnchorY } = measurements ?? {};
   if (!resource || !measurements || badgeAnchorX == null || badgeAnchorY == null) return anchor;
 
-  // Hidden rows are display:none, so their measured sourceY is garbage — test that first.
   const isRowVisible =
     !measurements.hiddenHandleIds.includes(resource) &&
     sourceY >= nodeTop + measurements.listTop &&

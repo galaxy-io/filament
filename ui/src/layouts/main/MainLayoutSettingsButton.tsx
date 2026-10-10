@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { type FC, useCallback, useState } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -90,7 +90,7 @@ interface MainLayoutSettingsButtonMenuProps {
   onLogout: () => void;
 }
 
-const MainLayoutSettingsButtonMenu = ({
+const MainLayoutSettingsButtonMenu: FC<MainLayoutSettingsButtonMenuProps> = ({
   name,
   avatarUrl,
   seed,
@@ -101,7 +101,7 @@ const MainLayoutSettingsButtonMenu = ({
   onOpenInvite,
   onOpenGithub,
   onLogout,
-}: MainLayoutSettingsButtonMenuProps) => {
+}) => {
   const shouldShowInvite = canManageTeam || isTeamActionsPending;
 
   return (
@@ -164,7 +164,7 @@ const MainLayoutSettingsButtonMenu = ({
   );
 };
 
-const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
+const AuthenticatedSettingsButton: FC<{ session: AppSession }> = ({ session }) => {
   const navigate = useNavigate();
   const signOut = useSignOut();
   const [isOpen, setIsOpen] = useState(false);
@@ -253,7 +253,7 @@ const AuthenticatedSettingsButton = ({ session }: { session: AppSession }) => {
   );
 };
 
-const MainLayoutSettingsButton = () => {
+const MainLayoutSettingsButton: FC = () => {
   const { session } = useRouteContext({ from: "/_app" });
 
   if (!session.isAuthenticated) {

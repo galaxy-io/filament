@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type FC, useEffect, useRef, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
@@ -16,14 +16,14 @@ const DEFAULT_STATE: FieldObjectState = {
   displayValue: "",
 };
 
-const FieldObject = ({
+const FieldObject: FC<FieldComponentProps> = ({
   field,
   value,
   onChange,
   error,
   isDisabled = false,
   label,
-}: FieldComponentProps) => {
+}) => {
   const serializedValue = value ? JSON.stringify(value, null, 2) : "";
   const [state, setState] = useState<FieldObjectState>(() => ({
     ...DEFAULT_STATE,

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import GalaxyLogomarkAnimation from "@galaxy-io/dls/brand/GalaxyLogomarkAnimation";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
@@ -18,7 +20,7 @@ interface PendingLayoutProps {
   message?: string;
 }
 
-const PendingLayout = ({ size = LayoutSize.MEDIUM, message }: PendingLayoutProps) => {
+const PendingLayout: FC<PendingLayoutProps> = ({ size = LayoutSize.MEDIUM, message }) => {
   return (
     <Flex
       fillWidth

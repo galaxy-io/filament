@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 
@@ -16,7 +16,7 @@ import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
-const ObservabilityRunsScheduledChart = () => {
+const ObservabilityRunsScheduledChart: FC = () => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
     from: "/_app/_main/observability",
   });

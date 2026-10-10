@@ -1,4 +1,4 @@
-import { type ComponentProps, type PropsWithChildren, useState } from "react";
+import { type ComponentProps, type FC, type PropsWithChildren, useState } from "react";
 
 import CronInput from "@galaxy-io/dls/inputs/CronInput";
 import Field from "@galaxy-io/dls/inputs/Field";
@@ -24,14 +24,14 @@ interface PipelineScheduleFieldsProps {
   onChange: (partial: Partial<PipelineSettingsPageScheduleState>) => void;
 }
 
-const PipelineScheduleFields = ({
+const PipelineScheduleFields: FC<PropsWithChildren<PipelineScheduleFieldsProps>> = ({
   header,
   size,
   isOpenInitial = false,
   state,
   onChange,
   children,
-}: PropsWithChildren<PipelineScheduleFieldsProps>) => {
+}) => {
   const [isOpen, setIsOpen] = useState(isOpenInitial);
 
   const summary = formatPipelineScheduleSummary(state);

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
@@ -47,11 +49,11 @@ interface PipelineCanvasConnectionSelectorItemProps {
   onClick: () => void;
 }
 
-const PipelineCanvasConnectionSelectorItem = ({
+const PipelineCanvasConnectionSelectorItem: FC<PipelineCanvasConnectionSelectorItemProps> = ({
   connection,
   isDisabled = false,
   onClick,
-}: PipelineCanvasConnectionSelectorItemProps) => {
+}) => {
   return (
     <ItemWrapper $isDisabled={isDisabled} onClick={isDisabled ? undefined : onClick}>
       <ConnectorTile

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 
@@ -43,14 +43,14 @@ interface ObservabilityTimeseriesChartProps {
   valueFormatter?: ChartValueFormatter;
 }
 
-const ObservabilityTimeseriesChart = ({
+const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   seriesLabel,
   metric,
   color,
   pivot,
   curve,
   valueFormatter,
-}: ObservabilityTimeseriesChartProps) => {
+}) => {
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
     from: "/_app/_main/observability",
   });

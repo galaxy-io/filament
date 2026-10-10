@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import { type Icon as PhosphorIcon, WarningCircleIcon } from "@phosphor-icons/react";
 
@@ -21,14 +21,14 @@ interface ErrorLayoutProps {
   actions?: ReactNode;
 }
 
-const ErrorLayout = ({
+const ErrorLayout: FC<ErrorLayoutProps> = ({
   size = LayoutSize.MEDIUM,
   icon = WarningCircleIcon,
   header,
   description,
   error,
   actions,
-}: ErrorLayoutProps) => {
+}) => {
   return (
     <Flex
       fillWidth

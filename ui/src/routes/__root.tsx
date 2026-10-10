@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { BugIcon } from "@phosphor-icons/react";
 import { createRootRoute, Outlet, useRouter } from "@tanstack/react-router";
@@ -24,7 +26,7 @@ const RootComponentWrapper = styled.div`
   }
 `;
 
-const RootErrorComponent = ({ error }: { error: Error }) => {
+const RootErrorComponent: FC<{ error: Error }> = ({ error }) => {
   const router = useRouter();
 
   return (
@@ -38,7 +40,7 @@ const RootErrorComponent = ({ error }: { error: Error }) => {
   );
 };
 
-const RootComponent = () => {
+const RootComponent: FC = () => {
   return (
     <RootComponentWrapper>
       <Outlet />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type FC, useMemo, useState } from "react";
 
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 
@@ -36,7 +36,7 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   isCreating: false,
 };
 
-const CreatePipelineModalResources = () => {
+const CreatePipelineModalResources: FC = () => {
   const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();

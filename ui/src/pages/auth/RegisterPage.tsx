@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
 
@@ -34,7 +34,7 @@ const DEFAULT_STATE: RegisterPageState = {
   error: undefined,
 };
 
-const RegisterPage = () => {
+const RegisterPage: FC = () => {
   const navigate = useNavigate();
   const [state, setState] = useState<RegisterPageState>(DEFAULT_STATE);
   const { mutate: register, isPending } = useRegisterMutation();

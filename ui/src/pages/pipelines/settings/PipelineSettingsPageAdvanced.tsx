@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
@@ -25,7 +25,7 @@ import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/qu
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineSettingsPageAdvanced = () => {
+const PipelineSettingsPageAdvanced: FC = () => {
   const { toast } = useToast();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
   const { data } = useSuspenseGetPipelineQuery({

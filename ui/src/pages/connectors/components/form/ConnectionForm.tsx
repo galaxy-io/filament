@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { type FC, useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
@@ -67,7 +67,7 @@ interface ConnectionFormProps {
   onConnectorChange?: (connectorName: string) => void;
 }
 
-const ConnectionForm = ({
+const ConnectionForm: FC<ConnectionFormProps> = ({
   connectorName,
   connectorKind,
   connectionId,
@@ -76,7 +76,7 @@ const ConnectionForm = ({
   onClose,
   onBack,
   onConnectorChange,
-}: ConnectionFormProps) => {
+}) => {
   const { state, dispatch } = useConnectionFormContext();
   const { toast } = useToast();
 

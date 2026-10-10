@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
@@ -39,11 +39,11 @@ interface PipelineCanvasRoutesToolbarProps {
   onAddRoute: () => void;
 }
 
-const PipelineCanvasRoutesToolbar = ({
+const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
   onSearch,
   canAddRoute,
   onAddRoute,
-}: PipelineCanvasRoutesToolbarProps) => {
+}) => {
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
   const sinks = usePipelineCanvasRoutesSinks();
 

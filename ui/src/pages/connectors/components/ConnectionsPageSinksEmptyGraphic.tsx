@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
@@ -57,7 +59,7 @@ const LiveCard = styled.div`
   border-radius: ${t.radius.lg};
 `;
 
-const ConnectionsPageSinksEmptyGraphic = () => {
+const ConnectionsPageSinksEmptyGraphic: FC = () => {
   const sinkSpecs = useEmptyGraphicConnectors(ConnectorKind.SINK);
 
   return (

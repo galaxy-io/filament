@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -109,7 +109,7 @@ const createRunTableColumns = (
   },
 ];
 
-const PipelineHistoryPage = () => {
+const PipelineHistoryPage: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
   const navigate = useNavigate();
   const { runId: runIds = [] } = useSearch({ from: "/_app/pipelines/$id/history" });

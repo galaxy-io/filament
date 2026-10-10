@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
@@ -12,7 +12,9 @@ interface ObservabilityRunsTableColumnFlowProps {
   runInfo: RunInfo;
 }
 
-const ObservabilityRunsTableColumnFlow = ({ runInfo }: ObservabilityRunsTableColumnFlowProps) => {
+const ObservabilityRunsTableColumnFlow: FC<ObservabilityRunsTableColumnFlowProps> = ({
+  runInfo,
+}) => {
   const { data } = useListConnectionsQuery({
     input: OBSERVABILITY_CONNECTIONS_INPUT,
   });

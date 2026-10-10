@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 
@@ -11,11 +13,9 @@ import {
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
-const CreatePipelineModalResourcesReadModeCell = ({
-  row,
-}: {
+const CreatePipelineModalResourcesReadModeCell: FC<{
   row: CreatePipelineModalResourceRow;
-}) => {
+}> = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
   const options = getReadModeSelectOptions(row.readModeOptions);

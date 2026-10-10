@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
   useCreatePipelineModalDispatch,
@@ -9,7 +11,7 @@ import type {
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
 
-const CreatePipelineModalDeliveryNotifications = () => {
+const CreatePipelineModalDeliveryNotifications: FC = () => {
   const { notifiers } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

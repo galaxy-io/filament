@@ -7,8 +7,6 @@ export interface ParsedWorkerConfiguration {
   error?: string;
 }
 
-// DEFAULT_WORKER_CONFIGURATION_TEXT is the editor's starting document for a
-// new pipeline: default sizing plus the empty scheduling fields.
 export const DEFAULT_WORKER_CONFIGURATION_TEXT = `{
   "resources": {
     "requests": { "cpu": "500m", "memory": "256Mi" },
@@ -18,8 +16,6 @@ export const DEFAULT_WORKER_CONFIGURATION_TEXT = `{
   "tolerations": []
 }`;
 
-// stripEmptyValues drops keys whose value is "", so a blanked-out cpu or
-// memory entry reads as unset rather than as an invalid quantity.
 const stripEmptyValues = (values: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ""));
 
@@ -30,9 +26,6 @@ const isEmpty = (configuration: WorkerConfiguration | undefined) =>
     Object.keys(configuration.nodeSelector).length === 0 &&
     configuration.tolerations.length === 0);
 
-// formatWorkerConfiguration renders a stored configuration as the editor's JSON
-// text. Every key is written, even when empty, so the document always shows
-// the full shape rather than only what was previously set.
 export const formatWorkerConfiguration = (
   configuration: WorkerConfiguration | undefined,
 ): string => {
@@ -55,9 +48,6 @@ export const formatWorkerConfiguration = (
   );
 };
 
-// parseWorkerConfiguration turns editor text back into a message, or undefined
-// when nothing is set so the pipeline inherits. The proto schema is the
-// validator: unknown fields and wrong shapes are rejected by fromJson.
 export const parseWorkerConfiguration = (text: string): ParsedWorkerConfiguration => {
   if (text.trim() === "") return {};
   let parsed: JsonValue;
@@ -81,7 +71,6 @@ export const parseWorkerConfiguration = (text: string): ParsedWorkerConfiguratio
   }
 };
 
-// workerConfigurationEquals compares two configurations, treating unset and empty alike.
 export const workerConfigurationEquals = (
   left: WorkerConfiguration | undefined,
   right: WorkerConfiguration | undefined,

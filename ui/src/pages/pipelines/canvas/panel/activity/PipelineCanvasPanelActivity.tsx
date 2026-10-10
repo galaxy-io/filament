@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { type FC, useRef, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
@@ -40,7 +40,7 @@ const ActivityListLine = styled.div`
   width: 100%;
 `;
 
-const PipelineCanvasPanelActivity = () => {
+const PipelineCanvasPanelActivity: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data: activeRunsData } = useListRunsQuery({

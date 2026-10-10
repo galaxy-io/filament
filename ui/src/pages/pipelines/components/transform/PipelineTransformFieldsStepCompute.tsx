@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { type FC, Fragment } from "react";
 
 import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
@@ -33,10 +33,10 @@ interface PipelineTransformFieldsStepComputeProps {
   onChange: (step: TransformEditableStep) => void;
 }
 
-const PipelineTransformFieldsStepCompute = ({
+const PipelineTransformFieldsStepCompute: FC<PipelineTransformFieldsStepComputeProps> = ({
   step,
   onChange,
-}: PipelineTransformFieldsStepComputeProps) => {
+}) => {
   const { errors, isDisabled } = usePipelineTransformFieldsEditor();
   const isMatchingRows = step.where !== null;
   const setOutput = (index: number, output: TransformComputeOutput) =>

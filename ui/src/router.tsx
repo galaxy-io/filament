@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowLeftIcon, BugIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { createRouter, useNavigate } from "@tanstack/react-router";
 
@@ -11,7 +13,7 @@ import { routeTree } from "@/routeTree.gen";
 const DEFAULT_PRELOAD = "intent";
 const DEFAULT_PRELOAD_STALE_TIME = 0;
 
-export const DefaultErrorComponent = ({ error }: { error: Error }) => {
+export const DefaultErrorComponent: FC<{ error: Error }> = ({ error }) => {
   return (
     <ErrorLayout
       icon={BugIcon}
@@ -22,7 +24,7 @@ export const DefaultErrorComponent = ({ error }: { error: Error }) => {
   );
 };
 
-const DefaultNotFoundComponent = () => {
+const DefaultNotFoundComponent: FC = () => {
   const navigate = useNavigate();
 
   const handleGoToPipelines = () => {
@@ -39,7 +41,7 @@ const DefaultNotFoundComponent = () => {
   );
 };
 
-const DefaultPendingComponent = () => {
+const DefaultPendingComponent: FC = () => {
   return <PendingLayout />;
 };
 

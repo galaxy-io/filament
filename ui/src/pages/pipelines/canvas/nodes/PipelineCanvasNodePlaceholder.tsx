@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type FC, memo } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -50,35 +50,37 @@ const SelectorIsland = styled.div`
   }
 `;
 
-const PipelineCanvasNodePlaceholder = memo(
-  ({ data, positionAbsoluteX, positionAbsoluteY }: PipelineCanvasNodePlaceholderProps) => {
-    const { addNode } = usePipelineCanvasActions();
+const PipelineCanvasNodePlaceholder: FC<PipelineCanvasNodePlaceholderProps> = ({
+  data,
+  positionAbsoluteX,
+  positionAbsoluteY,
+}) => {
+  const { addNode } = usePipelineCanvasActions();
 
-    const handleSelect = (connection: Connection) => {
-      addNode(createNodeFromConnection(connection, { x: positionAbsoluteX, y: positionAbsoluteY }));
-    };
+  const handleSelect = (connection: Connection) => {
+    addNode(createNodeFromConnection(connection, { x: positionAbsoluteX, y: positionAbsoluteY }));
+  };
 
-    return (
-      <PlaceholderCard>
-        <Flex direction={FlexDirection.COLUMN} gap={2}>
-          <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
-            {CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP[data.kind]}
-          </Text>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            {CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP[data.kind]}
-          </Text>
-        </Flex>
-        <SelectorIsland className="nodrag nowheel">
-          <PipelineCanvasConnectionSelector
-            kindFilter={data.kind}
-            width={PIPELINE_CANVAS_NODE_WIDTH - PIPELINE_CANVAS_NODE_PADDING * 2}
-            onSelect={handleSelect}
-            fillHeight
-          />
-        </SelectorIsland>
-      </PlaceholderCard>
-    );
-  },
-);
+  return (
+    <PlaceholderCard>
+      <Flex direction={FlexDirection.COLUMN} gap={2}>
+        <Text size={TextSize.BODY_MD} weight={TextWeight.MEDIUM}>
+          {CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP[data.kind]}
+        </Text>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
+          {CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP[data.kind]}
+        </Text>
+      </Flex>
+      <SelectorIsland className="nodrag nowheel">
+        <PipelineCanvasConnectionSelector
+          kindFilter={data.kind}
+          width={PIPELINE_CANVAS_NODE_WIDTH - PIPELINE_CANVAS_NODE_PADDING * 2}
+          onSelect={handleSelect}
+          fillHeight
+        />
+      </SelectorIsland>
+    </PlaceholderCard>
+  );
+};
 
-export default PipelineCanvasNodePlaceholder;
+export default memo(PipelineCanvasNodePlaceholder);

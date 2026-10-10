@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
@@ -48,9 +50,9 @@ interface PipelineSettingsPageNotificationsProps {
   pipeline: Pipeline;
 }
 
-const PipelineSettingsPageNotifications = ({
+const PipelineSettingsPageNotifications: FC<PipelineSettingsPageNotificationsProps> = ({
   pipeline,
-}: PipelineSettingsPageNotificationsProps) => {
+}) => {
   const { toast: showToast } = useToast();
   const pipelineId = pipeline.id;
 

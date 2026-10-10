@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { type FC, useCallback, useEffect } from "react";
 
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
 import { match } from "ts-pattern";
@@ -31,12 +31,12 @@ interface SettingsPageContentProps {
   onInviteTeam: () => void;
 }
 
-const SettingsPageContent = ({
+const SettingsPageContent: FC<SettingsPageContentProps> = ({
   session,
   panel,
   isOpen,
   onInviteTeam,
-}: SettingsPageContentProps) => {
+}) => {
   const navigate = useNavigate();
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
@@ -109,7 +109,7 @@ const SettingsPageContent = ({
   );
 };
 
-const SettingsPage = () => {
+const SettingsPage: FC = () => {
   const navigate = useNavigate();
   const { session } = useRouteContext({ from: "/_app" });
   const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });

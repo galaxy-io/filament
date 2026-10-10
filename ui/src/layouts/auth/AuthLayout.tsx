@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -28,7 +28,7 @@ const ContentWrapper = styled.div`
   overflow-y: auto;
 `;
 
-const AuthLayout = ({ children }: PropsWithChildren) => (
+const AuthLayout: FC<PropsWithChildren> = ({ children }) => (
   <Flex grow={1} basis={0} minHeight={0}>
     <Flex
       direction={FlexDirection.COLUMN}

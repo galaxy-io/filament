@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { type FC, Suspense } from "react";
 
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
@@ -46,7 +46,9 @@ interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
 }
 
-const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResourceDetailProps) => {
+const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailProps> = ({
+  edge,
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();

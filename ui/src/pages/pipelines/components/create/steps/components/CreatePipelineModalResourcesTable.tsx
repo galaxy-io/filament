@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
@@ -64,7 +64,9 @@ interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
 }
 
-const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
+const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTableProps> = ({
+  rows,
+}) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -8,7 +10,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
-const CreatePipelineModalDetails = () => {
+const CreatePipelineModalDetails: FC = () => {
   const { effectiveName, nameError, description } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

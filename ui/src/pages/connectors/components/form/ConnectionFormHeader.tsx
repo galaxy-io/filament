@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
@@ -14,11 +16,11 @@ interface ConnectionFormHeaderProps {
   title: string;
 }
 
-const ConnectionFormHeader = ({
+const ConnectionFormHeader: FC<ConnectionFormHeaderProps> = ({
   connectorName,
   connectorKind,
   title,
-}: ConnectionFormHeaderProps) => {
+}) => {
   return (
     <Flex alignItems={AlignItems.CENTER} gap={12} fillWidth>
       <FlexItem shrink={0}>

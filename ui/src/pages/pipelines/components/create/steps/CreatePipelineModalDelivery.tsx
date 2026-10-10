@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
@@ -9,7 +11,7 @@ import CreatePipelineModalDeliveryDestinations from "@/pages/pipelines/component
 import CreatePipelineModalDeliveryNotifications from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNotifications";
 import CreatePipelineModalDeliverySchedule from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySchedule";
 
-const CreatePipelineModalDelivery = () => {
+const CreatePipelineModalDelivery: FC = () => {
   const { sinks, executionMode } = useCreatePipelineModalState();
 
   return (

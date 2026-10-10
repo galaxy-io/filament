@@ -1,4 +1,4 @@
-import { type ReactElement, useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -38,15 +38,12 @@ interface ConnectionsPageProps {
   kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
 }
 
-const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<
-  ConnectorKind.SOURCE | ConnectorKind.SINK,
-  () => ReactElement
-> = {
+const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<ConnectorKind.SOURCE | ConnectorKind.SINK, FC> = {
   [ConnectorKind.SOURCE]: ConnectionsPageSourcesEmptyGraphic,
   [ConnectorKind.SINK]: ConnectionsPageSinksEmptyGraphic,
 };
 
-const ConnectionsPage = ({ kind }: ConnectionsPageProps) => {
+const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   const navigate = useNavigate();
   const { q = "" } = useSearch({ strict: false });
 

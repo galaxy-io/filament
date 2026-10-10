@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 import { ArrowLeftIcon, TrashIcon } from "@phosphor-icons/react";
 
@@ -19,7 +19,7 @@ interface PipelineCanvasPanelHeaderProps {
   onDelete?: () => void;
 }
 
-const PipelineCanvasPanelHeader = ({
+const PipelineCanvasPanelHeader: FC<PipelineCanvasPanelHeaderProps> = ({
   title,
   description,
   icon,
@@ -27,7 +27,7 @@ const PipelineCanvasPanelHeader = ({
   onBack,
   onClose,
   onDelete,
-}: PipelineCanvasPanelHeaderProps) => (
+}) => (
   <>
     <Flex alignItems={AlignItems.CENTER} gap={8} padding={[8, 12]} shrink={0} fillWidth>
       {onBack && (

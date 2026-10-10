@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
@@ -12,7 +14,9 @@ interface PipelineHistoryRunContinuousSummaryProps {
   run: RunInfo;
 }
 
-const PipelineHistoryRunContinuousSummary = ({ run }: PipelineHistoryRunContinuousSummaryProps) => {
+const PipelineHistoryRunContinuousSummary: FC<PipelineHistoryRunContinuousSummaryProps> = ({
+  run,
+}) => {
   const lastCommittedAt = run.executionStatus?.lastCommittedAt;
   return (
     <ConnectionDrawerList hasBorder={false}>

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type FC, useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -25,7 +25,10 @@ interface CreateConnectionConfigureProps {
   onBack: () => void;
 }
 
-const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionConfigureProps) => {
+const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
+  onClose,
+  onBack,
+}) => {
   const navigate = useNavigate();
   const { connector, connectorKind } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
@@ -106,7 +109,7 @@ const CreateConnectionConfigureContent = ({ onClose, onBack }: CreateConnectionC
   );
 };
 
-const CreateConnectionConfigure = ({ onClose, onBack }: CreateConnectionConfigureProps) => (
+const CreateConnectionConfigure: FC<CreateConnectionConfigureProps> = ({ onClose, onBack }) => (
   <ConnectionFormProvider initialState={{ name: "", config: {} }}>
     <CreateConnectionConfigureContent onClose={onClose} onBack={onBack} />
   </ConnectionFormProvider>

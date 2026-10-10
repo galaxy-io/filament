@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -12,7 +14,7 @@ const PIPELINE_CANVAS_PANEL_TAB_ITEMS: TabItem<PipelineCanvasPanelTab>[] = [
   { id: PipelineCanvasPanelTab.ACTIVITY, label: "Activity" },
 ];
 
-const PipelineCanvasPanelTabHeader = () => {
+const PipelineCanvasPanelTabHeader: FC = () => {
   const { activeTab, setActiveTab, setShowPanel } = usePipelineCanvasSelection();
 
   return (

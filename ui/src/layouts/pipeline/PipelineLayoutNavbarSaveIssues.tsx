@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { FunctionIcon, WarningIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
@@ -46,10 +48,10 @@ interface PipelineLayoutNavbarSaveIssuesProps {
   onSelectResource: (edgeId: string) => void;
 }
 
-const PipelineLayoutNavbarSaveIssues = ({
+const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = ({
   issues,
   onSelectResource,
-}: PipelineLayoutNavbarSaveIssuesProps) => {
+}) => {
   const hidden = issues.length - MAX_VISIBLE_SAVE_ISSUES;
   return (
     <Flex

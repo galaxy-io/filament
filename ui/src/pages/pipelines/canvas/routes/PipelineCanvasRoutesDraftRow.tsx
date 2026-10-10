@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
@@ -113,7 +113,7 @@ interface PipelineCanvasRoutesDraftRowProps {
   draftState: PipelineCanvasRoutesDraftState;
 }
 
-const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftRowProps) => {
+const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ draftState }) => {
   const { draft, resource, resourceNames, sinks, sourceNodeId } = draftState;
   const { edges } = usePipelineCanvasState();
   const connectionByNodeId = usePipelineCanvasConnections();

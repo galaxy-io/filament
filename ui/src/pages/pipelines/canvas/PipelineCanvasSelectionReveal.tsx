@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type FC, useEffect } from "react";
 
 import { getViewportForBounds, useReactFlow, useStoreApi } from "@xyflow/react";
 
@@ -18,7 +18,7 @@ import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 const PIPELINE_CANVAS_REVEAL_DURATION = 300;
 const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 
-const PipelineCanvasSelectionReveal = () => {
+const PipelineCanvasSelectionReveal: FC = () => {
   const { getViewport, setViewport, getInternalNode, getEdge, getNodes, getNodesBounds } =
     useReactFlow();
   const store = useStoreApi();

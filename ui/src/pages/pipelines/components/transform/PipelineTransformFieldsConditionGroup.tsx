@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -33,12 +35,12 @@ interface PipelineTransformFieldsConditionGroupProps {
   onChange: (where: TransformExpr) => void;
 }
 
-const PipelineTransformFieldsConditionGroup = ({
+const PipelineTransformFieldsConditionGroup: FC<PipelineTransformFieldsConditionGroupProps> = ({
   where,
   path,
   depth,
   onChange,
-}: PipelineTransformFieldsConditionGroupProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const group = getTransformConditionGroup(where, functionsByName, path);

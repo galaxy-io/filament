@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
@@ -51,12 +51,12 @@ interface CreateConnectionSelectorBodyProps {
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
 
-const CreateConnectionSelectorBody = ({
+const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
   onSearch,
   shelf,
   onShelfChange,
   onConnectorSelect,
-}: CreateConnectionSelectorBodyProps) => {
+}) => {
   const { connectorKind, connectorSearch = "" } = useSearch({ from: "/_app" });
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 

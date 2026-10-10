@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 
@@ -35,13 +35,13 @@ export interface PipelineLayoutNavbarRunButtonState {
   workerConfiguration: string;
 }
 
-const PipelineLayoutNavbarRunButton = ({
+const PipelineLayoutNavbarRunButton: FC<PipelineLayoutNavbarRunButtonProps> = ({
   workerConfiguration,
   runErrors,
   isRunnable,
   isRunning,
   onRun,
-}: PipelineLayoutNavbarRunButtonProps) => {
+}) => {
   const [state, setState] = useState<PipelineLayoutNavbarRunButtonState>(() => ({
     workerConfiguration: formatWorkerConfiguration(workerConfiguration),
   }));

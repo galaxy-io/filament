@@ -1,6 +1,7 @@
 import {
   createContext,
   type Dispatch,
+  type FC,
   type PropsWithChildren,
   useContext,
   useMemo,
@@ -84,7 +85,7 @@ export const useCreatePipelineModalDispatch = () => {
   return dispatch;
 };
 
-const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
+const CreatePipelineModalProvider: FC<PropsWithChildren> = ({ children }) => {
   const [state, dispatch] = useReducer(createPipelineModalReducer, DEFAULT_STATE);
 
   const {

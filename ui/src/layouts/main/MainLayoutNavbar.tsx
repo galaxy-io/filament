@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
 
@@ -29,13 +29,10 @@ const MAIN_NAVBAR_ITEMS: TabLinkItem<TRoutes>[] = [
   { id: "/sinks", label: "Sinks", href: "/sinks" },
 ];
 
-const MainLayoutNavbarRail = ({
-  children,
-  isEnd = false,
-}: {
+const MainLayoutNavbarRail: FC<{
   children: ReactNode;
   isEnd?: boolean;
-}) => (
+}> = ({ children, isEnd = false }) => (
   <Flex
     grow={1}
     basis={0}
@@ -49,7 +46,7 @@ const MainLayoutNavbarRail = ({
   </Flex>
 );
 
-const MainLayoutNavbar = () => {
+const MainLayoutNavbar: FC = () => {
   const { session } = useRouteContext({ from: "/_app" });
   const matchRoute = useMatchRoute();
 

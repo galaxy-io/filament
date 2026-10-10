@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FC, useEffect, useState } from "react";
 
 import { match } from "ts-pattern";
 
@@ -51,7 +51,7 @@ interface SettingsTeamPanelInviteProps {
   onClose: () => void;
 }
 
-const SettingsTeamPanelInvite = ({
+const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
   open,
   session,
   view,
@@ -59,7 +59,7 @@ const SettingsTeamPanelInvite = ({
   onViewChange,
   onInviteCreated,
   onClose,
-}: SettingsTeamPanelInviteProps) => {
+}) => {
   const [state, setState] = useState<SettingsTeamPanelInviteState>(DEFAULT_STATE);
 
   const membersQuery = useListMembersQuery({

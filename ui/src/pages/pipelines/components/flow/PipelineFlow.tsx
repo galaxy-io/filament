@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -48,13 +50,13 @@ interface PipelineFlowProps {
   isLoading?: boolean;
 }
 
-const PipelineFlow = ({
+const PipelineFlow: FC<PipelineFlowProps> = ({
   source,
   sinks = [],
   size = PipelineFlowSize.MEDIUM,
   hasEdges = true,
   isLoading = false,
-}: PipelineFlowProps) => {
+}) => {
   const navigate = useNavigate();
 
   const visibleSinks = sinks.slice(0, PIPELINE_FLOW_MAX_VISIBLE_SINKS);

@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -62,10 +62,10 @@ interface PipelineCanvasRoutesRowControlsProps extends PropsWithChildren {
   route: PipelineCanvasRoute;
 }
 
-const PipelineCanvasRoutesRowControls = ({
+const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> = ({
   route,
   children,
-}: PipelineCanvasRoutesRowControlsProps) => {
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const resources = usePipelineCanvasEdgeResources(route.edge, { enabled: route.hasReadLevers });
   const {

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { SidebarSimpleIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
@@ -20,7 +22,7 @@ import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { isConnectionNode } from "@/pages/pipelines/canvas/types";
 
-const PipelineCanvasPanel = () => {
+const PipelineCanvasPanel: FC = () => {
   const state = usePipelineCanvasState();
   const { selectedNodeId, selectedResourceId, showPanel, activeTab, setShowPanel } =
     usePipelineCanvasSelection();

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
 
@@ -21,11 +23,11 @@ interface PipelineNameProps {
   size?: TextSize;
 }
 
-const PipelineName = ({
+const PipelineName: FC<PipelineNameProps> = ({
   size = TextSize.BODY_MD,
   pipelineId,
   pipeline: initialPipeline,
-}: PipelineNameProps) => {
+}) => {
   const { data, isLoading } = useGetPipelineQuery({
     input: create(GetPipelineRequestSchema, {
       id: pipelineId,

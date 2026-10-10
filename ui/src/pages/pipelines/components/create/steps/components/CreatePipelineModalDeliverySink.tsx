@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -14,13 +16,10 @@ import {
 } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
 
-const CreatePipelineModalDeliverySink = ({
-  sink,
-  onChange,
-}: {
+const CreatePipelineModalDeliverySink: FC<{
   sink: CreatePipelineModalSinkRow;
   onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
-}) => {
+}> = ({ sink, onChange }) => {
   const options: SelectOption[] = sink.writeModeOptions.map((mode) => ({
     id: String(mode),
     label: WRITE_MODE_TO_LABEL_MAP[mode],

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
@@ -135,14 +137,14 @@ interface PipelinesTableProps {
   fetchNextPage?: () => void;
 }
 
-const PipelinesTable = ({
+const PipelinesTable: FC<PipelinesTableProps> = ({
   pipelines,
   sorting,
   onSortingChange,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
-}: PipelinesTableProps) => {
+}) => {
   const navigate = useNavigate();
   const { toast } = useToast();
 

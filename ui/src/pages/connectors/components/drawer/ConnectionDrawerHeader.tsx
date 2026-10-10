@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 
@@ -9,7 +11,7 @@ interface ConnectionDrawerHeaderProps {
   connection: Connection;
 }
 
-const ConnectionDrawerHeader = ({ connection }: ConnectionDrawerHeaderProps) => (
+const ConnectionDrawerHeader: FC<ConnectionDrawerHeaderProps> = ({ connection }) => (
   <Flex alignItems={AlignItems.CENTER} gap={12} minWidth={0}>
     <ConnectorTile
       connector={connection.connector}

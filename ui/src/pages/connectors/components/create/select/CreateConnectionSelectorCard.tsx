@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type FC, useCallback } from "react";
 
 import { GithubLogoIcon, SlackLogoIcon } from "@phosphor-icons/react";
 
@@ -26,10 +26,10 @@ interface CreateConnectionSelectorCardProps {
   onConnectorSelect: (connector: ConnectorSpec) => void;
 }
 
-const CreateConnectionSelectorCard = ({
+const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
   connector,
   onConnectorSelect,
-}: CreateConnectionSelectorCardProps) => {
+}) => {
   const handleClick = useCallback(() => {
     onConnectorSelect(connector);
   }, [connector, onConnectorSelect]);
@@ -75,7 +75,7 @@ const CreateConnectionSelectorCard = ({
   );
 };
 
-export const CreateConnectionSelectorEmptyCard = () => {
+export const CreateConnectionSelectorEmptyCard: FC = () => {
   return (
     <Widget variant={WidgetVariant.BASE}>
       <Flex

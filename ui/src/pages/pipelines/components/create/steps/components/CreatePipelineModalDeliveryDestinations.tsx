@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { type FC, Fragment } from "react";
 
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -11,7 +11,7 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 
-const CreatePipelineModalDeliveryDestinations = () => {
+const CreatePipelineModalDeliveryDestinations: FC = () => {
   const { sinks } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
@@ -48,7 +48,7 @@ const STATUS_OPTIONS = getSelectAllOptions(
 
 const SCHEDULED_STATUS_OPTIONS = [withStatusSwatch(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION)];
 
-const ObservabilityRunsWidget = () => {
+const ObservabilityRunsWidget: FC = () => {
   const navigate = useNavigate();
   const {
     runs: view = ObservabilityRunsView.PAST,

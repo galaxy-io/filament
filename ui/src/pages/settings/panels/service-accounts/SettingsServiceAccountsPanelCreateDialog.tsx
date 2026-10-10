@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
@@ -42,10 +42,9 @@ interface SettingsServiceAccountsPanelCreateDialogProps {
   onClose: () => void;
 }
 
-const SettingsServiceAccountsPanelCreateDialog = ({
-  open,
-  onClose,
-}: SettingsServiceAccountsPanelCreateDialogProps) => {
+const SettingsServiceAccountsPanelCreateDialog: FC<
+  SettingsServiceAccountsPanelCreateDialogProps
+> = ({ open, onClose }) => {
   const [state, setState] = useState<SettingsServiceAccountsPanelCreateDialogState>(DEFAULT_STATE);
   const { mutate: createAccount, isPending: isCreating } = useCreateServiceAccountMutation();
 

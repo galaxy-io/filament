@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { useParams } from "@tanstack/react-router";
 
@@ -30,7 +32,7 @@ import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-const PipelineCanvasPanelOverview = () => {
+const PipelineCanvasPanelOverview: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
   const state = usePipelineCanvasState();
   const { selectNode } = usePipelineCanvasSelection();

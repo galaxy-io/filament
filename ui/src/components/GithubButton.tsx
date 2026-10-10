@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { GithubLogoIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -5,7 +7,7 @@ import { IconWeight } from "@galaxy-io/dls/icons/Icon";
 
 import { GITHUB_REPO_URL } from "@/constants";
 
-const GithubButton = () => {
+const GithubButton: FC = () => {
   const handleGithub = () => {
     window.open(GITHUB_REPO_URL, "_blank");
   };

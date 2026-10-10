@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
@@ -36,7 +36,7 @@ interface PipelineHistoryRunInfoProps {
   runId: RunInfo["id"];
 }
 
-const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
+const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
   const { data, isLoading, isError } = useGetRunQuery({
     input: create(GetRunRequestSchema, { runId }),
   });

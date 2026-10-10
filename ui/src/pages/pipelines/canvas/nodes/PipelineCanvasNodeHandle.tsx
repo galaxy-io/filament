@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 import { styled } from "@linaria/react";
 import { Handle, type Position } from "@xyflow/react";
@@ -18,11 +18,11 @@ import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/ca
 
 type HandleFlags = { $isConnected?: boolean; $isInvalid?: boolean };
 
-const HandleBase = ({
+const HandleBase: FC<HandleFlags & ComponentProps<typeof Handle>> = ({
   $isConnected: _isConnected,
   $isInvalid: _isInvalid,
   ...props
-}: HandleFlags & ComponentProps<typeof Handle>) => <Handle {...props} />;
+}) => <Handle {...props} />;
 
 const StyledHandle = styled(HandleBase)<HandleFlags>`
   &.react-flow__handle {
@@ -63,13 +63,13 @@ interface PipelineCanvasNodeHandleProps {
   isInvalid?: boolean;
 }
 
-const PipelineCanvasNodeHandle = ({
+const PipelineCanvasNodeHandle: FC<PipelineCanvasNodeHandleProps> = ({
   id,
   kind,
   position,
   isConnected,
   isInvalid,
-}: PipelineCanvasNodeHandleProps) => {
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
 
   return (

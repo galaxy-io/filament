@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -40,7 +40,7 @@ const FieldContent = styled.div`
   position: relative;
 `;
 
-const AuthLayoutAsideField = ({ children }: PropsWithChildren) => {
+const AuthLayoutAsideField: FC<PropsWithChildren> = ({ children }) => {
   const { wrapperRef, canvasRef } = useAuthLayoutAsideField();
   const { activeTheme } = useGalaxyTheme();
   const inverseTheme = activeTheme === GalaxyTheme.LIGHT ? GalaxyTheme.DARK : GalaxyTheme.LIGHT;

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 
 import { useMediaQuery } from "@galaxy-io/dls/hooks/useMediaQuery";
@@ -15,7 +17,7 @@ import {
   AUTH_LAYOUT_ASIDE_LINKS,
 } from "@/layouts/auth/constants";
 
-const AuthLayoutAside = () => {
+const AuthLayoutAside: FC = () => {
   const isNarrow = useMediaQuery(`(max-width: ${AUTH_LAYOUT_ASIDE_BREAKPOINT}px)`);
 
   if (isNarrow) {

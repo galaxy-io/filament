@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, {
   SelectInputSize,
   SelectInputVariant,
@@ -16,7 +18,7 @@ interface ObservabilityPivotSelectProps {
   onChange: (pivot: MetricDimension | undefined) => void;
 }
 
-const ObservabilityPivotSelect = ({ value, onChange }: ObservabilityPivotSelectProps) => {
+const ObservabilityPivotSelect: FC<ObservabilityPivotSelectProps> = ({ value, onChange }) => {
   const handleChange = (id: string | null) => {
     onChange(id === null ? undefined : (Number(id) as MetricDimension));
   };

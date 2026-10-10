@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { css } from "@linaria/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -22,7 +22,7 @@ const PREVIEW_ISLAND_CSS = css`
   border-color: ${t.color.border.error};
 `;
 
-const PipelineLayout = ({ children }: PropsWithChildren) => {
+const PipelineLayout: FC<PropsWithChildren> = ({ children }) => {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 

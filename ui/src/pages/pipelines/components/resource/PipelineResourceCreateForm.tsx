@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -33,13 +33,13 @@ interface PipelineResourceCreateFormProps {
   variant?: WidgetVariant;
 }
 
-const PipelineResourceCreateForm = ({
+const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   sinks,
   getError,
   onSave,
   onCancel,
   variant = WidgetVariant.TERTIARY,
-}: PipelineResourceCreateFormProps) => {
+}) => {
   const [state, setState] = useState<PipelineResourceCreateState>({
     resource: "",
     sinkId: sinks[0]?.id ?? "",

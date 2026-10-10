@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
@@ -28,7 +28,7 @@ const DEFAULT_STATE: LoginPageState = {
   error: undefined,
 };
 
-const LoginPage = () => {
+const LoginPage: FC = () => {
   const { returnTo } = useSearch({ from: "/login" });
   const { authConfig } = useRouteContext({ from: "/login" });
   const navigate = useNavigate();

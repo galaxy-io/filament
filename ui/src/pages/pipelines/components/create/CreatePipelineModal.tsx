@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { match } from "ts-pattern";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -24,7 +26,7 @@ interface CreatePipelineModalProps {
   onClose: () => void;
 }
 
-const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
+const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ onClose }) => {
   const { step } = useCreatePipelineModalState();
 
   const renderBody = () => {
@@ -79,7 +81,7 @@ const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
   );
 };
 
-const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
+const CreatePipelineModal: FC<CreatePipelineModalProps> = ({ onClose }) => {
   return (
     <CreatePipelineModalProvider>
       <CreatePipelineModalContent onClose={onClose} />

@@ -1,4 +1,4 @@
-import { createContext, type PropsWithChildren, useContext, useReducer } from "react";
+import { createContext, type FC, type PropsWithChildren, useContext, useReducer } from "react";
 
 import type { ConnectionFormAction } from "@/pages/connectors/components/form/actions";
 import connectionFormReducer from "@/pages/connectors/components/form/reducer";
@@ -39,10 +39,10 @@ interface ConnectionFormProviderProps {
   initialState: Pick<ConnectionFormState, "name" | "config">;
 }
 
-const ConnectionFormProvider = ({
+const ConnectionFormProvider: FC<PropsWithChildren<ConnectionFormProviderProps>> = ({
   children,
   initialState,
-}: PropsWithChildren<ConnectionFormProviderProps>) => {
+}) => {
   const [state, dispatch] = useReducer(connectionFormReducer, initialState, createInitialState);
 
   return (

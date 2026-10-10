@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
@@ -14,11 +16,11 @@ interface PipelineCanvasRoutesSinkIslandProps {
   onSelect: () => void;
 }
 
-const PipelineCanvasRoutesSinkIsland = ({
+const PipelineCanvasRoutesSinkIsland: FC<PipelineCanvasRoutesSinkIslandProps> = ({
   route,
   isSelected,
   onSelect,
-}: PipelineCanvasRoutesSinkIslandProps) => (
+}) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH}
     isSelected={isSelected}

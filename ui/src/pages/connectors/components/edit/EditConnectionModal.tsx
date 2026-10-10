@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { type FC, useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
@@ -39,7 +39,10 @@ interface EditConnectionModalContentProps extends EditConnectionModalProps {
   connection: Connection;
 }
 
-const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModalContentProps) => {
+const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
+  connection,
+  onClose,
+}) => {
   const { state, dispatch } = useConnectionFormContext();
   const { toast } = useToast();
 
@@ -105,7 +108,7 @@ const EditConnectionModalContent = ({ connection, onClose }: EditConnectionModal
   );
 };
 
-const EditConnectionModal = ({ onClose }: EditConnectionModalProps) => {
+const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
   const { connectionId } = useSearch({ from: "/_app" });
 
   const { data, isError } = useGetConnectionQuery({

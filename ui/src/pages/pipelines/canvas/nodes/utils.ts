@@ -35,8 +35,6 @@ export const setPipelineCanvasNodeMeasurements = (
   nodeId: CanvasNode["id"],
   next: PipelineCanvasNodeIslandMeasurements,
 ) => {
-  // Bailing on equal values keeps the stored object identity stable, which is what
-  // lets useSyncExternalStore consumers cache a snapshot across redundant publishes.
   const prev = pipelineCanvasNodeMeasurementsMap.get(nodeId);
   if (prev && isSameMeasurements(prev, next)) return;
 

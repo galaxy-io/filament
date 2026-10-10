@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
@@ -98,13 +98,13 @@ interface ConnectorTileState {
 
 const DEFAULT_STATE: ConnectorTileState = {};
 
-const ConnectorTile = ({
+const ConnectorTile: FC<ConnectorTileProps> = ({
   connector,
   kind,
   size = ConnectorTileSize.MEDIUM,
   onClick,
   isDeleted = false,
-}: ConnectorTileProps) => {
+}) => {
   const { activeTheme } = useGalaxyTheme();
   const { data, isLoading } = useGetConnectorQuery({
     input: create(GetConnectorRequestSchema, { connector, kind }),
@@ -144,13 +144,10 @@ const ConnectorTile = ({
   );
 };
 
-export const ConnectorOverflowTile = ({
-  count,
-  size = ConnectorTileSize.MEDIUM,
-}: {
+export const ConnectorOverflowTile: FC<{
   count: number;
   size?: ConnectorTileSize;
-}) => {
+}> = ({ count, size = ConnectorTileSize.MEDIUM }) => {
   return (
     <TileWrapper $size={size} $isClickable={false} $isDeleted={false}>
       <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} family={FontFamily.MONO}>
@@ -160,11 +157,9 @@ export const ConnectorOverflowTile = ({
   );
 };
 
-export const ConnectorTileShimmer = ({
-  size = ConnectorTileSize.MEDIUM,
-}: {
+export const ConnectorTileShimmer: FC<{
   size?: ConnectorTileSize;
-}) => {
+}> = ({ size = ConnectorTileSize.MEDIUM }) => {
   return (
     <Box width={CONNECTOR_TILE_SIZE_TO_SIZE_MAP[size]}>
       <Skeleton

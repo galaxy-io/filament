@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
@@ -10,7 +10,7 @@ interface MetricGroupProps {
   children: ReactNode;
 }
 
-const MetricGroup = ({ primary, children }: MetricGroupProps) => (
+const MetricGroup: FC<MetricGroupProps> = ({ primary, children }) => (
   <Box maxWidth="100%">
     <Widget isFlush>
       <Flex alignItems={AlignItems.CENTER} gap={16} padding={[12, 0, 12, 12]}>

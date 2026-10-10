@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { WarningIcon } from "@phosphor-icons/react";
 
 import Box from "@galaxy-io/dls/layout/Box";
@@ -11,7 +13,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
-const CreatePipelineModalResourcesTabs = () => {
+const CreatePipelineModalResourcesTabs: FC = () => {
   const { sinks, activeSinkId, selectedCountBySink, issuesBySink } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

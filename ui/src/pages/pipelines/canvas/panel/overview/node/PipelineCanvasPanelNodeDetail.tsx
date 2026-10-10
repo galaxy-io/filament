@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -36,7 +38,7 @@ interface PipelineCanvasPanelNodeDetailProps {
   node: PipelineCanvasSourceNode | PipelineCanvasSinkNode;
 }
 
-const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailProps) => {
+const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({ node }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const state = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();

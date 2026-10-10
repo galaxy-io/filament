@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { notFound, useParams } from "@tanstack/react-router";
 
@@ -19,7 +21,7 @@ import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSet
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-const PipelineSettingsPage = () => {
+const PipelineSettingsPage: FC = () => {
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 
   const { data } = useSuspenseGetPipelineQuery({

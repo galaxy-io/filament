@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
@@ -12,13 +14,13 @@ interface PipelineCanvasPanelResourceCursorFieldProps {
   onChange: (field: ResourceColumn["name"]) => void;
 }
 
-const PipelineCanvasPanelResourceCursorField = ({
+const PipelineCanvasPanelResourceCursorField: FC<PipelineCanvasPanelResourceCursorFieldProps> = ({
   value,
   options,
   isDisabled,
   error,
   onChange,
-}: PipelineCanvasPanelResourceCursorFieldProps) => {
+}) => {
   if (!options.length) {
     return null;
   }

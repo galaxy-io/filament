@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
@@ -59,12 +59,12 @@ interface PipelineCanvasPanelResourceSectionProps {
   isOpenInitial?: boolean;
 }
 
-const PipelineCanvasPanelResourceSection = ({
+const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionProps> = ({
   edges,
   nodeId,
   nodeType = PipelineCanvasNodeType.PLACEHOLDER,
   isOpenInitial = true,
-}: PipelineCanvasPanelResourceSectionProps) => {
+}) => {
   const state = usePipelineCanvasState();
   const isReadOnly = usePipelineCanvasReadOnly();
   const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;

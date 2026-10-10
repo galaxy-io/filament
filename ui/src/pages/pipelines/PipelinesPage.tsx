@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -24,7 +24,7 @@ import {
   useSuspenseListPipelinesInfiniteQuery,
 } from "@/api/queries/pipelines";
 
-const PipelinesPage = () => {
+const PipelinesPage: FC = () => {
   const navigate = useNavigate();
   const search = useSearch({ from: "/_app/_main/pipelines" });
 

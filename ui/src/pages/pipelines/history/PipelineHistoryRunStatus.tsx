@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { InfoIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -22,11 +24,11 @@ interface PipelineHistoryRunStatusProps {
   executionStatus?: RunInfo["executionStatus"];
 }
 
-const PipelineHistoryRunStatus = ({
+const PipelineHistoryRunStatus: FC<PipelineHistoryRunStatusProps> = ({
   status,
   error,
   executionStatus,
-}: PipelineHistoryRunStatusProps) => {
+}) => {
   const observedState = executionStatus?.observedState;
   const display =
     observedState !== undefined

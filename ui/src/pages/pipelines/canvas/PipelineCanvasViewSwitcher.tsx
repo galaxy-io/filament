@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import ToggleInput, {
   ToggleInputSize,
   ToggleInputVariant,
@@ -11,7 +13,7 @@ import {
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
-const PipelineCanvasViewSwitcher = () => {
+const PipelineCanvasViewSwitcher: FC = () => {
   const { view, setView } = usePipelineCanvasSelection();
 
   const items: ToggleOption<PipelineCanvasView>[] = Object.values(PipelineCanvasView).map(

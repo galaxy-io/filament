@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -31,10 +33,10 @@ interface PipelineCanvasPanelResourceEndpointProps {
   kind: ConnectorKind;
 }
 
-const PipelineCanvasPanelResourceEndpoint = ({
+const PipelineCanvasPanelResourceEndpoint: FC<PipelineCanvasPanelResourceEndpointProps> = ({
   nodeId,
   kind,
-}: PipelineCanvasPanelResourceEndpointProps) => {
+}) => {
   const { selectNode } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();
   const connection = connectionByNodeId.get(nodeId);

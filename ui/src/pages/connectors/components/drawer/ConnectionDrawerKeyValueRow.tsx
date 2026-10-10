@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
 
@@ -6,7 +8,7 @@ interface ConnectionDrawerKeyValueRowProps {
   value: React.ReactNode;
 }
 
-const ConnectionDrawerKeyValueRow = ({ label, value }: ConnectionDrawerKeyValueRowProps) => {
+const ConnectionDrawerKeyValueRow: FC<ConnectionDrawerKeyValueRowProps> = ({ label, value }) => {
   return (
     <Flex
       alignItems={AlignItems.CENTER}

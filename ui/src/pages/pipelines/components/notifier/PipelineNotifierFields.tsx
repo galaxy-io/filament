@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import Field from "@galaxy-io/dls/inputs/Field";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
@@ -48,11 +50,11 @@ interface PipelineNotifierFieldsProps {
   isDisabled?: boolean;
 }
 
-const PipelineNotifierFields = ({
+const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
   state,
   onChange,
   isDisabled = false,
-}: PipelineNotifierFieldsProps) => {
+}) => {
   const isSlack = state.notificationType === NotificationType.SLACK;
   const urlError =
     state.url !== "" && !isPipelineNotifierUrlValid(state.url)

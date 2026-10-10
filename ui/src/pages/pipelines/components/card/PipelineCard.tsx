@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { Link } from "@tanstack/react-router";
 
@@ -52,7 +54,7 @@ interface PipelineCardProps {
   pipeline: Pipeline;
 }
 
-const PipelineCard = ({ pipeline }: PipelineCardProps) => {
+const PipelineCard: FC<PipelineCardProps> = ({ pipeline }) => {
   const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
 
   return (

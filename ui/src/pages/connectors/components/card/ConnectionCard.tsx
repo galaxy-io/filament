@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
@@ -18,7 +20,7 @@ interface ConnectionCardProps {
   onClick: () => void;
 }
 
-const ConnectionCard = ({ connection, pipelineCount = 0, onClick }: ConnectionCardProps) => {
+const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount = 0, onClick }) => {
   const pipelineLabel = pluralize("pipeline", pipelineCount, true);
 
   return (

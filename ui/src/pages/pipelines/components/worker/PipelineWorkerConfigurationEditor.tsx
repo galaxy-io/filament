@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import Field from "@galaxy-io/dls/inputs/Field";
 
@@ -11,13 +13,13 @@ interface PipelineWorkerConfigurationEditorProps {
   help?: string;
 }
 
-const PipelineWorkerConfigurationEditor = ({
+const PipelineWorkerConfigurationEditor: FC<PipelineWorkerConfigurationEditorProps> = ({
   value,
   onChange,
   error,
   label = "Pod template",
   help = "Applied to the Kubernetes Job for every run of this pipeline",
-}: PipelineWorkerConfigurationEditorProps) => (
+}) => (
   <Field label={label} labelTooltip={help} error={error} fillWidth>
     <CodeEditor
       value={value}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -39,12 +39,12 @@ const DEFAULT_STATE: PipelineCanvasConnectionSelectorState = {
   search: "",
 };
 
-const PipelineCanvasConnectionSelector = ({
+const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps> = ({
   kindFilter = ConnectorKind.UNSPECIFIED,
   onSelect,
   width = PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH,
   fillHeight = false,
-}: PipelineCanvasConnectionSelectorProps) => {
+}) => {
   const [state, setState] = useState<PipelineCanvasConnectionSelectorState>(DEFAULT_STATE);
   const canvasState = usePipelineCanvasState();
   const { addNode } = usePipelineCanvasActions();

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import {
   closestCenter,
   DndContext,
@@ -40,10 +42,10 @@ interface PipelineTransformFieldsResourceStepsProps {
   hasDivider: boolean;
 }
 
-const PipelineTransformFieldsResourceSteps = ({
+const PipelineTransformFieldsResourceSteps: FC<PipelineTransformFieldsResourceStepsProps> = ({
   resource,
   hasDivider,
-}: PipelineTransformFieldsResourceStepsProps) => {
+}) => {
   const { stepsByResource, draft } = usePipelineTransformFieldsState();
   const { moveStep } = usePipelineTransformFieldsActions();
   const { resources, isReadOnly } = usePipelineTransformFieldsEnvironment();

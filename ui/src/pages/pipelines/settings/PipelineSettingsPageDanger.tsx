@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -23,7 +25,7 @@ import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/qu
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-const PipelineSettingsPageDanger = () => {
+const PipelineSettingsPageDanger: FC = () => {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/pipelines/$id" });
 

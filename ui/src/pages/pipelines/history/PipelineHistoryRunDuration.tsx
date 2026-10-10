@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FC, useEffect, useState } from "react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
@@ -14,11 +14,11 @@ interface PipelineHistoryRunDurationProps {
   endedAt: bigint;
 }
 
-const PipelineHistoryRunDuration = ({
+const PipelineHistoryRunDuration: FC<PipelineHistoryRunDurationProps> = ({
   status,
   startedAt,
   endedAt,
-}: PipelineHistoryRunDurationProps) => {
+}) => {
   const isLive = status === RunStatus.RUNNING && Boolean(startedAt) && !endedAt;
   const [now, setNow] = useState(() => Date.now());
 

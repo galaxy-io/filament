@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { ArrowCounterClockwiseIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react";
 import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
@@ -31,7 +33,7 @@ const ControlsWrapper = styled.div`
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 `;
 
-const PipelineCanvasControls = () => {
+const PipelineCanvasControls: FC = () => {
   const { zoomIn, zoomOut, setViewport } = useReactFlow();
   const width = useStore((store) => store.width);
   const height = useStore((store) => store.height);

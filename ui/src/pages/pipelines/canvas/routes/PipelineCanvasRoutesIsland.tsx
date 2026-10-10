@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -44,12 +44,12 @@ interface PipelineCanvasRoutesIslandProps extends PropsWithChildren {
   onSelect: () => void;
 }
 
-const PipelineCanvasRoutesIsland = ({
+const PipelineCanvasRoutesIsland: FC<PipelineCanvasRoutesIslandProps> = ({
   width,
   isSelected,
   onSelect,
   children,
-}: PipelineCanvasRoutesIslandProps) => {
+}) => {
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     onSelect();

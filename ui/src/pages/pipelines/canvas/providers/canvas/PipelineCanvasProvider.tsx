@@ -1,6 +1,7 @@
 import {
   createContext,
   type Dispatch,
+  type FC,
   type PropsWithChildren,
   useContext,
   useMemo,
@@ -123,12 +124,12 @@ interface PipelineCanvasProviderProps {
   isReadOnly?: boolean;
 }
 
-const PipelineCanvasProvider = ({
+const PipelineCanvasProvider: FC<PropsWithChildren<PipelineCanvasProviderProps>> = ({
   graph,
   graphKey,
   isReadOnly = false,
   children,
-}: PropsWithChildren<PipelineCanvasProviderProps>) => {
+}) => {
   const [state, dispatch] = useReducer(
     pipelineCanvasReducer,
     graph,

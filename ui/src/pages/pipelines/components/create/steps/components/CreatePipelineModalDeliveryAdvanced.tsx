@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
@@ -11,7 +13,7 @@ import {
 import CreatePipelineModalDeliveryNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNodeConfig";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 
-const CreatePipelineModalDeliveryAdvanced = () => {
+const CreatePipelineModalDeliveryAdvanced: FC = () => {
   const { sourceConnection, sinks, workerConfiguration, workerConfigurationError } =
     useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();

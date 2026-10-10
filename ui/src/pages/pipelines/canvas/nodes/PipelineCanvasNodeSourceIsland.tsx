@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -41,12 +41,12 @@ const DEFAULT_STATE: PipelineCanvasNodeSourceIslandState = {
   search: "",
 };
 
-const PipelineCanvasNodeSourceIsland = ({
+const PipelineCanvasNodeSourceIsland: FC<PipelineCanvasNodeSourceIslandProps> = ({
   tables,
   error,
   isLoading = false,
   isSelected,
-}: PipelineCanvasNodeSourceIslandProps) => {
+}) => {
   const [state, setState] = useState<PipelineCanvasNodeSourceIslandState>(DEFAULT_STATE);
 
   const filteredTables = tables.filter((table) => isSearchMatch(state.search, table.name));

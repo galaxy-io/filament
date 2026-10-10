@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { InfoIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -35,11 +37,9 @@ interface CreatePipelineModalConnectionsExecutionModeOptionProps {
   onSelect: () => void;
 }
 
-const CreatePipelineModalConnectionsExecutionModeOption = ({
-  mode,
-  isSelected,
-  onSelect,
-}: CreatePipelineModalConnectionsExecutionModeOptionProps) => (
+const CreatePipelineModalConnectionsExecutionModeOption: FC<
+  CreatePipelineModalConnectionsExecutionModeOptionProps
+> = ({ mode, isSelected, onSelect }) => (
   <FlexItem grow={1} basis={0} minWidth={0}>
     <Widget
       isInteractive
@@ -62,7 +62,7 @@ const CreatePipelineModalConnectionsExecutionModeOption = ({
   </FlexItem>
 );
 
-const CreatePipelineModalConnectionsExecutionMode = () => {
+const CreatePipelineModalConnectionsExecutionMode: FC = () => {
   const { executionMode } = useCreatePipelineModalState();
   const dispatch = useCreatePipelineModalDispatch();
 

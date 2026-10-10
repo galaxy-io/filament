@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { type FC, memo, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { useNodeConnections } from "@xyflow/react";
@@ -39,7 +39,7 @@ const useSourceResources = (connectionId: Connection["id"]) => {
   return { names, error, isLoading: isFetching, refresh: () => void refetch() };
 };
 
-const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNodeSourceProps) => {
+const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data, selected }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "source" });
   const { removeNode } = usePipelineCanvasActions();
@@ -109,8 +109,6 @@ const PipelineCanvasNodeSource = memo(({ id, data, selected }: PipelineCanvasNod
       )}
     </PipelineCanvasNode>
   );
-});
+};
 
-PipelineCanvasNodeSource.displayName = "PipelineCanvasNodeSource";
-
-export default PipelineCanvasNodeSource;
+export default memo(PipelineCanvasNodeSource);
