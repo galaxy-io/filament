@@ -199,6 +199,34 @@
       ],
       "properties": {
         "direct": { "type": "boolean" },
+        "locate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["request", "capture"],
+          "properties": {
+            "request": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["method", "path"],
+              "properties": {
+                "method": { "type": "string", "enum": ["GET"] },
+                "path": { "type": "string", "minLength": 1 },
+                "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+                "query": { "type": "object", "additionalProperties": { "type": "string" } }
+              }
+            },
+            "capture": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["regex"],
+                "properties": { "regex": { "type": "string", "minLength": 1 } }
+              }
+            }
+          }
+        },
         "parent_key": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "start": {
           "type": "object",

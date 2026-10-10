@@ -3,6 +3,7 @@ package manifest
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -15,12 +16,26 @@ import (
 type ExportSpec struct {
 	// Direct downloads a ready artifact without creating an upstream job.
 	// It is limited to top-level full snapshots, which replay on interruption.
-	Direct    bool         `yaml:"direct,omitempty"`
-	ParentKey []string     `yaml:"parent_key,omitempty"`
-	Start     ExportStart  `yaml:"start"`
-	Wait      ExportWait   `yaml:"wait"`
-	Result    ExportResult `yaml:"result"`
-	Next      *ExportNext  `yaml:"next,omitempty"`
+	Direct    bool          `yaml:"direct,omitempty"`
+	Locate    *ExportLocate `yaml:"locate,omitempty"`
+	ParentKey []string      `yaml:"parent_key,omitempty"`
+	Start     ExportStart   `yaml:"start"`
+	Wait      ExportWait    `yaml:"wait"`
+	Result    ExportResult  `yaml:"result"`
+	Next      *ExportNext   `yaml:"next,omitempty"`
+}
+
+// ExportLocate reads a plain-text locator before a direct download, for
+// providers that publish the current file name in a plain-text index. Each
+// capture takes the first group of its pattern's first match.
+type ExportLocate struct {
+	Request ExportRequest                `yaml:"request"`
+	Capture map[string]ExportTextCapture `yaml:"capture"`
+}
+
+// ExportTextCapture selects a value from a plain-text response.
+type ExportTextCapture struct {
+	Regex string `yaml:"regex"`
 }
 
 // ExportNext starts another job when a completed artifact is only one page.
@@ -145,8 +160,16 @@ func validateExport(agg *errs.ManifestErrors, at string, r Resource) {
 		if r.Parent != nil || r.Incremental != nil || e.Next != nil || e.Wait.Type != "download" {
 			_ = agg.Addf(at+".direct", "requires a top-level full export with download waiting")
 		}
-		validateTemplateScopes(agg, at+".result.url", e.Result.URL, []string{"config", "env"})
+		scopes := []string{"config", "env"}
+		if e.Locate != nil {
+			validateExportLocate(agg, at+".locate", *e.Locate)
+			scopes = append(scopes, "job")
+		}
+		validateTemplateScopes(agg, at+".result.url", e.Result.URL, scopes)
 	} else {
+		if e.Locate != nil {
+			_ = agg.Addf(at+".locate", "requires direct: true")
+		}
 		validateExportRequest(agg, at+".start", e.Start.ExportRequest, false)
 		if len(e.Start.Capture) == 0 {
 			_ = agg.Addf(at+".start.capture", "must capture the job identity or download URL")
@@ -298,11 +321,38 @@ func validateExportCSV(agg *errs.ManifestErrors, at, format string, c ExportCSV)
 	}
 }
 
+// validateExportLocate allows only config and env templates: a direct export
+// has no parent, watermark, or job state when its locator is read.
+func validateExportLocate(agg *errs.ManifestErrors, at string, l ExportLocate) {
+	validateExportRequestScopes(agg, at+".request", l.Request, []string{"config", "env"})
+	if l.Request.Method != "GET" {
+		_ = agg.Addf(at+".request.method", "must be GET")
+	}
+	if len(l.Capture) == 0 {
+		_ = agg.Addf(at+".capture", "must capture at least one value")
+	}
+	for key, capture := range l.Capture {
+		if key == "" {
+			_ = agg.Addf(at+".capture", "capture names must be nonempty")
+		}
+		re, err := regexp.Compile(capture.Regex)
+		if err != nil || capture.Regex == "" {
+			_ = agg.Addf(at+".capture."+key+".regex", "must be a valid regular expression")
+		} else if re.NumSubexp() == 0 {
+			_ = agg.Addf(at+".capture."+key+".regex", "must contain a capture group")
+		}
+	}
+}
+
 func validateExportRequest(agg *errs.ManifestErrors, at string, r ExportRequest, job bool) {
 	scopes := []string{"config", "env", "parent", "state"}
 	if job {
 		scopes = append(scopes, "job")
 	}
+	validateExportRequestScopes(agg, at, r, scopes)
+}
+
+func validateExportRequestScopes(agg *errs.ManifestErrors, at string, r ExportRequest, scopes []string) {
 	if !strings.HasPrefix(r.Path, "/") || strings.HasPrefix(r.Path, "//") {
 		_ = agg.Addf(at+".path", "must be an API-relative path starting with /")
 	}
