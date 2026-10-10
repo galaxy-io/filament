@@ -10,3 +10,10 @@ declare module "@tanstack/react-router" {
     filament?: boolean;
   }
 }
+
+export enum FilamentNavItem {
+  OBSERVABILITY = "OBSERVABILITY",
+  PIPELINES = "PIPELINES",
+  SOURCES = "SOURCES",
+  SINKS = "SINKS",
+}

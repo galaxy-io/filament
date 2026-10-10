@@ -1,14 +1,9 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-import MainLayout from "@/layouts/main/MainLayout";
-
+import FilamentLayout from "@/module/FilamentLayout";
 import { filamentLayoutRouteOptions } from "@/module/routes";
 
 export const Route = createFileRoute("/_app/_filament")({
   ...filamentLayoutRouteOptions,
-  component: () => (
-    <MainLayout>
-      <Outlet />
-    </MainLayout>
-  ),
+  component: FilamentLayout,
 });

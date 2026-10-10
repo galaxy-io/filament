@@ -63,7 +63,31 @@
   },
   "overrides": [
     {
-      "includes": ["src/**"],
+      "includes": ["src/**", "!src/host/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/host/**"],
+                    "message": "Host-only module. Library code must not import src/host."
+                  },
+                  {
+                    "group": ["@galaxy-io/filament", "@galaxy-io/filament/**"],
+                    "message": "Import library code by @/ path. The package name is for hosts."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/host/**"],
       "linter": {
         "rules": {
           "style": {
