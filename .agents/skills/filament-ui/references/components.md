@@ -1684,7 +1684,7 @@ import Topbar from "@galaxy-io/dls/navigation/Topbar";
 
 ### Tabs
 
-`@galaxy-io/dls/navigation/Tabs` · Peer views: `items` (panel tabs `{ id, label, icon, count, panel }` or link tabs `{ id, label, href }` with `as`), `value` / `defaultValue` / `onChange`, `variant` (`UNDERLINE` / `PILL`), `size`, `orientation`, `fillWidth`, `inset`, `actions`. Tabs that do not fit collapse into a "More" menu. Pass `ariaLabel` unless a visible heading names the tabs.
+`@galaxy-io/dls/navigation/Tabs` · Peer views: `items` (panel tabs `{ id, label, leading, icon, count, panel }` or link tabs `{ id, label, href }` with `as`, where `leading` is a non-interactive node before the label such as an `Avatar` or a connector logo, 2.10.1+), `value` / `defaultValue` / `onChange`, `variant` (`UNDERLINE` / `PILL`), `size`, `orientation`, `fillWidth`, `inset`, `actions`. Tabs that do not fit collapse into a "More" menu. Pass `ariaLabel` unless a visible heading names the tabs.
 
 - Not for a view mode of the same data (that is `ToggleInput`); never two `UNDERLINE` rows.
 - A row flush with a panel's edges takes `inset` (the page's padding) so the tabs and `actions` move in while the hairline still runs edge to edge. Never wrap the row in a padded `Box`, which cuts the hairline short.
