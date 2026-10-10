@@ -1,10 +1,9 @@
-import { match } from "ts-pattern";
-
-import { ConnectorMaturity, type ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import { getConnectorVersionPrefix } from "@/components/connections/utils";
 
-import { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
+import type { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
+import { CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP } from "@/pages/connections/constants";
 
 export const getConnectorVersions = (family: ConnectorSpec, catalog: ConnectorSpec[]) =>
   family.aliasTarget
@@ -19,13 +18,7 @@ export const getConnectorVersions = (family: ConnectorSpec, catalog: ConnectorSp
 export const isConnectorOnShelf = (
   connector: ConnectorSpec,
   shelf: CreateConnectionSelectorShelf,
-): boolean =>
-  match(shelf)
-    .with(CreateConnectionSelectorShelf.ALL, () => true)
-    .with(
-      CreateConnectionSelectorShelf.STABLE,
-      () => connector.maturity === ConnectorMaturity.STABLE,
-    )
-    .with(CreateConnectionSelectorShelf.BETA, () => connector.maturity === ConnectorMaturity.BETA)
-    .with(CreateConnectionSelectorShelf.ALPHA, () => connector.maturity === ConnectorMaturity.ALPHA)
-    .exhaustive();
+): boolean => {
+  const maturity = CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP[shelf];
+  return maturity === undefined || connector.maturity === maturity;
+};

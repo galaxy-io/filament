@@ -15,6 +15,8 @@ import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
+import { formatConnectorName } from "@/components/connections/utils";
+
 import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 export enum ConnectorTileSize {
@@ -127,7 +129,7 @@ const ConnectorTile: FC<ConnectorTileProps> = ({
       {showLogo ? (
         <ConnectorLogo
           src={logoURL}
-          alt={`${catalogSpec?.displayName || connector} logo`}
+          alt={`${catalogSpec ? formatConnectorName(catalogSpec) : connector} logo`}
           $height={CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP[size]}
           onError={handleLogoError}
         />

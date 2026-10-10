@@ -16,13 +16,14 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Tabs, { type TabItem, TabsSize, TabsVariant } from "@galaxy-io/dls/navigation/Tabs";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
-import { getConnectorFamily } from "@/components/connections/utils";
+import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
 import DocsLink from "@/components/DocsLink";
 
 import CreateConnectionSelectorCard, {
@@ -73,17 +74,14 @@ const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
       byKey.set(`${family.kind}:${family.name}`, family);
     }
     return [...byKey.values()].sort((a, b) =>
-      (a.displayName || a.name).localeCompare(b.displayName || b.name),
+      formatConnectorName(a).localeCompare(formatConnectorName(b)),
     );
   }, [data?.connectors, kind]);
 
   const searchedFamilies = useMemo(() => {
-    const query = connectorSearch.trim().slice(0, MAX_LIST_SEARCH_LENGTH).toLowerCase();
-    if (!query) return families;
+    const term = connectorSearch.slice(0, MAX_LIST_SEARCH_LENGTH);
     return families.filter((connector) =>
-      [connector.name, connector.displayName, connector.description].some((value) =>
-        value.toLowerCase().includes(query),
-      ),
+      isSearchMatch(term, connector.name, connector.displayName, connector.description),
     );
   }, [families, connectorSearch]);
 

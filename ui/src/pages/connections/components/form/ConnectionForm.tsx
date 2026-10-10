@@ -24,7 +24,7 @@ import {
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
-import { getConnectorFamily } from "@/components/connections/utils";
+import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
 import Field from "@/components/fields/Field";
 import {
   getConnectionScopedFields,
@@ -325,7 +325,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
-          title={`${connectionId ? "Edit" : "New"} ${connector.displayName || connector.name} connection`}
+          title={`${connectionId ? "Edit" : "New"} ${formatConnectorName(connector)} connection`}
         />
       }
       footer={

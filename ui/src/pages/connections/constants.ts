@@ -58,3 +58,13 @@ export const CONNECTOR_MATURITY_TO_STATUS_MAP: Record<ConnectorMaturity, string 
   [ConnectorMaturity.BETA]: "beta",
   [ConnectorMaturity.STABLE]: undefined,
 };
+
+export const CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP: Record<
+  CreateConnectionSelectorShelf,
+  ConnectorMaturity | undefined
+> = {
+  [CreateConnectionSelectorShelf.ALL]: undefined,
+  [CreateConnectionSelectorShelf.STABLE]: ConnectorMaturity.STABLE,
+  [CreateConnectionSelectorShelf.BETA]: ConnectorMaturity.BETA,
+  [CreateConnectionSelectorShelf.ALPHA]: ConnectorMaturity.ALPHA,
+};

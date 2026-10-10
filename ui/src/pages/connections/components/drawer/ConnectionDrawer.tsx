@@ -25,7 +25,11 @@ import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import { CONNECTOR_KIND_TO_PATH_MAP } from "@/components/connections/constants";
-import { getConnectorVariantName } from "@/components/connections/utils";
+import {
+  formatConnectorName,
+  getConnectorFamilyName,
+  getConnectorVariantName,
+} from "@/components/connections/utils";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 
@@ -117,11 +121,15 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
             label="Connector"
             value={
               <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
-                {connector?.displayName && (
-                  <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY} lineClamp={1}>
-                    {connector.displayName}
-                  </Text>
-                )}
+                <Chip
+                  label={
+                    connector
+                      ? formatConnectorName(connector)
+                      : getConnectorFamilyName(connection.connector)
+                  }
+                  variant={ChipVariant.SECONDARY}
+                  size={ChipSize.SMALL}
+                />
                 {connectorVariant && (
                   <Chip
                     label={connectorVariant}

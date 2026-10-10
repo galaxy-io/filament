@@ -5,7 +5,8 @@ import Alert from "@galaxy-io/dls/feedback/Alert";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
-import Text, { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import Span, { SpanVariant } from "@galaxy-io/dls/text/Span";
+import { TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
@@ -63,9 +64,12 @@ const ConnectionFormMaturityAlert: FC<ConnectionFormMaturityAlertProps> = ({
               </>
             )}
             is
-            <Text variant={TextVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-              {status}
-            </Text>
+            <Span>
+              <Span variant={SpanVariant.PRIMARY} weight={TextWeight.MEDIUM}>
+                {status}
+              </Span>
+              .
+            </Span>
           </Flex>
           <Link
             href={`${DOCUMENTATION_URL}${createDocsPath(connectorName, connectorKind)}`}

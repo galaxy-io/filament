@@ -1,11 +1,15 @@
 import type { ComponentProps, FC } from "react";
 
-import CodeBlock, { CodeBlockLanguage } from "@galaxy-io/dls/text/CodeBlock";
+import { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import CopyButton from "@galaxy-io/dls/buttons/CopyButton";
+import JsonViewer, { JsonViewerSize } from "@galaxy-io/dls/json/JsonViewer";
 import type Widget from "@galaxy-io/dls/widget/Widget";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectionDrawerSection from "@/pages/connections/components/drawer/ConnectionDrawerSection";
+
+const JSON_INDENT = 2;
 
 interface ConnectionDrawerJsonSectionProps {
   header: string;
@@ -22,19 +26,25 @@ const ConnectionDrawerJsonSection: FC<ConnectionDrawerJsonSectionProps> = ({
   emptyHeader,
   emptyMessage,
 }) => {
+  const document = data ?? {};
+
   return (
     <ConnectionDrawerSection
       header={header}
       icon={icon}
-      count={Object.keys(data ?? {}).length}
+      count={Object.keys(document).length}
       emptyHeader={emptyHeader}
       emptyMessage={emptyMessage}
+      actions={
+        <CopyButton
+          value={JSON.stringify(document, null, JSON_INDENT)}
+          ariaLabel={`Copy ${header.toLowerCase()}`}
+          variant={ButtonVariant.TERTIARY}
+          size={ButtonSize.SMALL}
+        />
+      }
     >
-      <CodeBlock
-        content={JSON.stringify(data, null, 2)}
-        language={CodeBlockLanguage.JSON}
-        canCopy
-      />
+      <JsonViewer ariaLabel={header} data={document} size={JsonViewerSize.SMALL} />
     </ConnectionDrawerSection>
   );
 };

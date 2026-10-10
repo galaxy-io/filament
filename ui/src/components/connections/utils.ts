@@ -24,3 +24,8 @@ export const mapConnectorsToShuffled = (connectors: ConnectorSpec[]) => {
   }
   return shuffled;
 };
+
+export const formatConnectorName = ({
+  displayName,
+  name,
+}: Pick<ConnectorSpec, "displayName" | "name">) => displayName || name;

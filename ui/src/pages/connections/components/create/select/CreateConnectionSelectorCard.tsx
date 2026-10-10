@@ -14,6 +14,7 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
+import { formatConnectorName } from "@/components/connections/utils";
 
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
@@ -58,7 +59,7 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
             />
             <FlexItem minWidth={0} overflow="hidden">
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} lineClamp={1}>
-                {connector.displayName || connector.name}
+                {formatConnectorName(connector)}
               </Text>
             </FlexItem>
           </Flex>
