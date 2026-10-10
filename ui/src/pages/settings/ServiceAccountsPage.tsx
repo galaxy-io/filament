@@ -1,13 +1,21 @@
 import { type FC, useState } from "react";
 
-import { ArrowsClockwiseIcon, CopyIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import {
+  ArrowsClockwiseIcon,
+  CopyIcon,
+  LockSimpleIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 
-import Button from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 import { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Modal from "@galaxy-io/dls/modal/Modal";
@@ -20,19 +28,19 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ServiceAccount } from "@/gen/auth/v1/service_accounts_pb";
 
-import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
+import SettingsServiceAccountsCreateDialog from "@/pages/settings/components/service-accounts/SettingsServiceAccountsCreateDialog";
+import SettingsServiceAccountsCredentials from "@/pages/settings/components/service-accounts/SettingsServiceAccountsCredentials";
 import {
   SETTINGS_ROLE_TO_CHIP_PROPS_MAP,
+  SETTINGS_SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP,
   SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_MIN_WIDTH_NAME,
   SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID,
   SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
 } from "@/pages/settings/constants";
-import SettingsServiceAccountsPanelCreateDialog from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanelCreateDialog";
-import SettingsServiceAccountsPanelCredentials from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanelCredentials";
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
-import { serviceAccountRoleLabel } from "@/pages/settings/utils";
 
 import {
+  useCanManageTeam,
   useListServiceAccountsQuery,
   useRemoveServiceAccountMutation,
   useRotateServiceAccountSecretMutation,
@@ -40,25 +48,18 @@ import {
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-import type { AppSession } from "@/auth/types";
 import { getErrorMessage } from "@/utils/errors";
 
-interface SettingsServiceAccountsPanelProps {
-  session: AppSession;
-}
-
-const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ session }) => {
+const ServiceAccountsPage: FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [rotatedCredentials, setRotatedCredentials] = useState<ServiceAccountCredentials>();
   const { toast } = useToast();
   const { copy } = useClipboard();
 
-  const accountsQuery = useListServiceAccountsQuery({
-    options: { enabled: session.isAuthenticated },
-  });
+  const accountsQuery = useListServiceAccountsQuery();
   const { mutate: rotateSecret, isPending: isRotating } = useRotateServiceAccountSecretMutation();
   const { mutate: removeAccount, isPending: isRemoving } = useRemoveServiceAccountMutation();
-  const canManage = accountsQuery.data?.canManage === true;
+  const canManage = useCanManageTeam();
 
   const accountConfirm = useConfirm<ServiceAccount>({
     entityLabel: "Service account",
@@ -139,12 +140,12 @@ const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ s
     {
       id: "role",
       header: "Permissions",
-      accessor: (account) => serviceAccountRoleLabel(account.role),
+      accessor: (account) => SETTINGS_SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP[account.role],
       width: SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE,
       canSort: true,
       cell: ({ row }) => (
         <Chip
-          label={serviceAccountRoleLabel(row.role)}
+          label={SETTINGS_SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP[row.role]}
           size={ChipSize.SMALL}
           {...SETTINGS_ROLE_TO_CHIP_PROPS_MAP[row.role]}
         />
@@ -157,21 +158,31 @@ const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ s
     : undefined;
   const isActionPending = isRotating || isRemoving;
 
+  if (canManage === false) {
+    return (
+      <PageLayout header="Service accounts">
+        <ErrorLayout
+          icon={LockSimpleIcon}
+          header="Admins only"
+          description="Ask an admin of this organization to manage service accounts."
+        />
+      </PageLayout>
+    );
+  }
+
   return (
     <>
-      <SettingsPanelLayout
-        title="Service accounts"
+      <PageLayout
+        header="Service accounts"
         actions={
-          canManage
-            ? [
-                <Button
-                  key="create-service-account"
-                  label="New service account"
-                  icon={PlusIcon}
-                  onClick={() => setIsCreateOpen(true)}
-                />,
-              ]
-            : undefined
+          canManage && (
+            <Button
+              label="New service account"
+              icon={PlusIcon}
+              variant={ButtonVariant.PRIMARY}
+              onClick={() => setIsCreateOpen(true)}
+            />
+          )
         }
       >
         <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
@@ -215,9 +226,9 @@ const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ s
             }
           />
         </Flex>
-      </SettingsPanelLayout>
+      </PageLayout>
       {isCreateOpen && (
-        <SettingsServiceAccountsPanelCreateDialog open onClose={() => setIsCreateOpen(false)} />
+        <SettingsServiceAccountsCreateDialog isOpen onClose={() => setIsCreateOpen(false)} />
       )}
       <ConfirmDialog
         isOpen={rotateConfirm.isOpen}
@@ -248,7 +259,7 @@ const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ s
             Copy the new credentials now. The client secret is only shown once.
           </Text>
           {rotatedCredentials && (
-            <SettingsServiceAccountsPanelCredentials credentials={rotatedCredentials} />
+            <SettingsServiceAccountsCredentials credentials={rotatedCredentials} />
           )}
         </Flex>
       </Modal>
@@ -268,4 +279,4 @@ const SettingsServiceAccountsPanel: FC<SettingsServiceAccountsPanelProps> = ({ s
   );
 };
 
-export default SettingsServiceAccountsPanel;
+export default ServiceAccountsPage;

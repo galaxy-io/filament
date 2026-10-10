@@ -9,43 +9,45 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 
+import { Role } from "@/gen/auth/v1/members_pb";
 import type { CreateServiceAccountRequest } from "@/gen/auth/v1/service_accounts_pb";
 
+import SettingsServiceAccountsCredentials from "@/pages/settings/components/service-accounts/SettingsServiceAccountsCredentials";
 import {
-  SERVICE_ACCOUNT_DEFAULT_ROLE,
-  SERVICE_ACCOUNT_ROLE_OPTIONS,
+  SETTINGS_SERVICE_ACCOUNT_DEFAULT_ROLE,
+  SETTINGS_SERVICE_ACCOUNT_ROLE_OPTIONS,
 } from "@/pages/settings/constants";
-import SettingsServiceAccountsPanelCredentials from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanelCredentials";
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
-import { optionIdToRole, roleToOptionId } from "@/pages/settings/utils";
 
 import { useCreateServiceAccountMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
+import { mapOptionIdToEnum } from "@/utils/select";
 
-interface SettingsServiceAccountsPanelCreateDialogState {
+interface SettingsServiceAccountsCreateDialogState {
   name: CreateServiceAccountRequest["name"];
   role: CreateServiceAccountRequest["role"];
   credentials: ServiceAccountCredentials | undefined;
   error: string | undefined;
 }
 
-const DEFAULT_STATE: SettingsServiceAccountsPanelCreateDialogState = {
+const DEFAULT_STATE: SettingsServiceAccountsCreateDialogState = {
   name: "",
-  role: SERVICE_ACCOUNT_DEFAULT_ROLE,
+  role: SETTINGS_SERVICE_ACCOUNT_DEFAULT_ROLE,
   credentials: undefined,
   error: undefined,
 };
 
-interface SettingsServiceAccountsPanelCreateDialogProps {
-  open: boolean;
+interface SettingsServiceAccountsCreateDialogProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-const SettingsServiceAccountsPanelCreateDialog: FC<
-  SettingsServiceAccountsPanelCreateDialogProps
-> = ({ open, onClose }) => {
-  const [state, setState] = useState<SettingsServiceAccountsPanelCreateDialogState>(DEFAULT_STATE);
+const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialogProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const [state, setState] = useState<SettingsServiceAccountsCreateDialogState>(DEFAULT_STATE);
   const { mutate: createAccount, isPending: isCreating } = useCreateServiceAccountMutation();
 
   const handleCreate = () => {
@@ -84,7 +86,7 @@ const SettingsServiceAccountsPanelCreateDialog: FC<
     return (
       <Modal
         header="Service account created"
-        isOpen={open}
+        isOpen={isOpen}
         onOpenChange={handleOpenChange}
         footer={<Button label="Done" onClick={onClose} />}
       >
@@ -92,7 +94,7 @@ const SettingsServiceAccountsPanelCreateDialog: FC<
           <Text isProse variant={TextVariant.SECONDARY}>
             Copy these credentials now. The client secret is only shown once.
           </Text>
-          <SettingsServiceAccountsPanelCredentials credentials={state.credentials} />
+          <SettingsServiceAccountsCredentials credentials={state.credentials} />
         </Flex>
       </Modal>
     );
@@ -101,7 +103,7 @@ const SettingsServiceAccountsPanelCreateDialog: FC<
   return (
     <Modal
       header="Create service account"
-      isOpen={open}
+      isOpen={isOpen}
       isDismissable={!isCreating}
       onOpenChange={handleOpenChange}
       footer={
@@ -130,9 +132,11 @@ const SettingsServiceAccountsPanelCreateDialog: FC<
         />
         <SelectInput
           label="Role"
-          options={SERVICE_ACCOUNT_ROLE_OPTIONS}
-          value={roleToOptionId(state.role)}
-          onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
+          options={SETTINGS_SERVICE_ACCOUNT_ROLE_OPTIONS}
+          value={String(state.role)}
+          onChange={(id) =>
+            setState((prev) => ({ ...prev, role: mapOptionIdToEnum(Role, id ?? "") }))
+          }
           fillWidth
           isRequired
         />
@@ -146,4 +150,4 @@ const SettingsServiceAccountsPanelCreateDialog: FC<
   );
 };
 
-export default SettingsServiceAccountsPanelCreateDialog;
+export default SettingsServiceAccountsCreateDialog;

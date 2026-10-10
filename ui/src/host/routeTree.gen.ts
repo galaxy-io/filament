@@ -20,6 +20,8 @@ import { Route as AppFilamentSinksRouteImport } from './routes/_app/_filament/si
 import { Route as AppFilamentObservabilityRouteImport } from './routes/_app/_filament/observability'
 import { Route as AppFilamentSplatRouteImport } from './routes/_app/_filament/$'
 import { Route as AppFilamentPipelinesIndexRouteImport } from './routes/_app/_filament/pipelines/index'
+import { Route as AppFilamentSettingsTeamRouteImport } from './routes/_app/_filament/settings/team'
+import { Route as AppFilamentSettingsServiceAccountsRouteImport } from './routes/_app/_filament/settings/service-accounts'
 import { Route as AppFilamentPipelinesIdRouteImport } from './routes/_app/_filament/pipelines/$id'
 import { Route as AppFilamentPipelinesIdIndexRouteImport } from './routes/_app/_filament/pipelines/$id/index'
 import { Route as AppFilamentPipelinesIdSettingsRouteImport } from './routes/_app/_filament/pipelines/$id/settings'
@@ -81,6 +83,17 @@ const AppFilamentPipelinesIndexRoute =
     path: '/pipelines/',
     getParentRoute: () => AppFilamentRouteRoute,
   } as any)
+const AppFilamentSettingsTeamRoute = AppFilamentSettingsTeamRouteImport.update({
+  id: '/settings/team',
+  path: '/settings/team',
+  getParentRoute: () => AppFilamentRouteRoute,
+} as any)
+const AppFilamentSettingsServiceAccountsRoute =
+  AppFilamentSettingsServiceAccountsRouteImport.update({
+    id: '/settings/service-accounts',
+    path: '/settings/service-accounts',
+    getParentRoute: () => AppFilamentRouteRoute,
+  } as any)
 const AppFilamentPipelinesIdRoute = AppFilamentPipelinesIdRouteImport.update({
   id: '/pipelines/$id',
   path: '/pipelines/$id',
@@ -121,6 +134,8 @@ export interface FileRoutesByFullPath {
   '/sinks': typeof AppFilamentSinksRoute
   '/sources': typeof AppFilamentSourcesRoute
   '/pipelines/$id': typeof AppFilamentPipelinesIdRouteWithChildren
+  '/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
+  '/settings/team': typeof AppFilamentSettingsTeamRoute
   '/pipelines/': typeof AppFilamentPipelinesIndexRoute
   '/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -136,6 +151,8 @@ export interface FileRoutesByTo {
   '/observability': typeof AppFilamentObservabilityRoute
   '/sinks': typeof AppFilamentSinksRoute
   '/sources': typeof AppFilamentSourcesRoute
+  '/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
+  '/settings/team': typeof AppFilamentSettingsTeamRoute
   '/pipelines': typeof AppFilamentPipelinesIndexRoute
   '/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -155,6 +172,8 @@ export interface FileRoutesById {
   '/_app/_filament/sources': typeof AppFilamentSourcesRoute
   '/_app/_filament/': typeof AppFilamentIndexRoute
   '/_app/_filament/pipelines/$id': typeof AppFilamentPipelinesIdRouteWithChildren
+  '/_app/_filament/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
+  '/_app/_filament/settings/team': typeof AppFilamentSettingsTeamRoute
   '/_app/_filament/pipelines/': typeof AppFilamentPipelinesIndexRoute
   '/_app/_filament/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/_app/_filament/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -173,6 +192,8 @@ export interface FileRouteTypes {
     | '/sinks'
     | '/sources'
     | '/pipelines/$id'
+    | '/settings/service-accounts'
+    | '/settings/team'
     | '/pipelines/'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -188,6 +209,8 @@ export interface FileRouteTypes {
     | '/observability'
     | '/sinks'
     | '/sources'
+    | '/settings/service-accounts'
+    | '/settings/team'
     | '/pipelines'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -206,6 +229,8 @@ export interface FileRouteTypes {
     | '/_app/_filament/sources'
     | '/_app/_filament/'
     | '/_app/_filament/pipelines/$id'
+    | '/_app/_filament/settings/service-accounts'
+    | '/_app/_filament/settings/team'
     | '/_app/_filament/pipelines/'
     | '/_app/_filament/pipelines/$id/canvas'
     | '/_app/_filament/pipelines/$id/history'
@@ -299,6 +324,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFilamentPipelinesIndexRouteImport
       parentRoute: typeof AppFilamentRouteRoute
     }
+    '/_app/_filament/settings/team': {
+      id: '/_app/_filament/settings/team'
+      path: '/settings/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof AppFilamentSettingsTeamRouteImport
+      parentRoute: typeof AppFilamentRouteRoute
+    }
+    '/_app/_filament/settings/service-accounts': {
+      id: '/_app/_filament/settings/service-accounts'
+      path: '/settings/service-accounts'
+      fullPath: '/settings/service-accounts'
+      preLoaderRoute: typeof AppFilamentSettingsServiceAccountsRouteImport
+      parentRoute: typeof AppFilamentRouteRoute
+    }
     '/_app/_filament/pipelines/$id': {
       id: '/_app/_filament/pipelines/$id'
       path: '/pipelines/$id'
@@ -364,6 +403,8 @@ interface AppFilamentRouteRouteChildren {
   AppFilamentSourcesRoute: typeof AppFilamentSourcesRoute
   AppFilamentIndexRoute: typeof AppFilamentIndexRoute
   AppFilamentPipelinesIdRoute: typeof AppFilamentPipelinesIdRouteWithChildren
+  AppFilamentSettingsServiceAccountsRoute: typeof AppFilamentSettingsServiceAccountsRoute
+  AppFilamentSettingsTeamRoute: typeof AppFilamentSettingsTeamRoute
   AppFilamentPipelinesIndexRoute: typeof AppFilamentPipelinesIndexRoute
 }
 
@@ -374,6 +415,9 @@ const AppFilamentRouteRouteChildren: AppFilamentRouteRouteChildren = {
   AppFilamentSourcesRoute: AppFilamentSourcesRoute,
   AppFilamentIndexRoute: AppFilamentIndexRoute,
   AppFilamentPipelinesIdRoute: AppFilamentPipelinesIdRouteWithChildren,
+  AppFilamentSettingsServiceAccountsRoute:
+    AppFilamentSettingsServiceAccountsRoute,
+  AppFilamentSettingsTeamRoute: AppFilamentSettingsTeamRoute,
   AppFilamentPipelinesIndexRoute: AppFilamentPipelinesIndexRoute,
 }
 

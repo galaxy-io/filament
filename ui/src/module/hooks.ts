@@ -30,6 +30,7 @@ import {
   pipelineSearchSchema,
   pipelinesSearchSchema,
   settingsSearchSchema,
+  teamSearchSchema,
 } from "@/module/schemas";
 import type { Flow } from "@/module/types";
 
@@ -98,6 +99,13 @@ export const useSettingsSearch = () =>
     strict: false,
     structuralSharing: true,
     select: (search) => settingsSearchSchema.parse(search),
+  });
+
+export const useTeamSearch = () =>
+  useSearch({
+    strict: false,
+    structuralSharing: true,
+    select: (search) => teamSearchSchema.parse(search),
   });
 
 export const useListSearch = () =>

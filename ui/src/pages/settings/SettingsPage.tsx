@@ -10,10 +10,9 @@ import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
 
 import SettingsPreferencesPanel from "@/pages/settings/panels/preferences/SettingsPreferencesPanel";
-import SettingsServiceAccountsPanel from "@/pages/settings/panels/service-accounts/SettingsServiceAccountsPanel";
-import SettingsTeamPanel from "@/pages/settings/panels/team/SettingsTeamPanel";
-import SettingsTeamPanelInvite from "@/pages/settings/panels/team/SettingsTeamPanelInvite";
+import ServiceAccountsPage from "@/pages/settings/ServiceAccountsPage";
 import SettingsPageSidebar from "@/pages/settings/SettingsPageSidebar";
+import TeamPage from "@/pages/settings/TeamPage";
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
 import {
@@ -32,15 +31,9 @@ interface SettingsPageContentProps {
   session: AppSession;
   panel: SettingsPanel;
   isOpen: boolean;
-  onInviteTeam: () => void;
 }
 
-const SettingsPageContent: FC<SettingsPageContentProps> = ({
-  session,
-  panel,
-  isOpen,
-  onInviteTeam,
-}) => {
+const SettingsPageContent: FC<SettingsPageContentProps> = ({ session, panel, isOpen }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch & SettingsSearch>();
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
@@ -71,12 +64,8 @@ const SettingsPageContent: FC<SettingsPageContentProps> = ({
 
   const renderPanel = () =>
     match(activePanel)
-      .with(SettingsPanel.TEAM, () => (
-        <SettingsTeamPanel session={session} onInvite={onInviteTeam} />
-      ))
-      .with(SettingsPanel.SERVICE_ACCOUNTS, () => (
-        <SettingsServiceAccountsPanel session={session} />
-      ))
+      .with(SettingsPanel.TEAM, () => <TeamPage />)
+      .with(SettingsPanel.SERVICE_ACCOUNTS, () => <ServiceAccountsPage />)
       .with(SettingsPanel.PREFERENCES, () => <SettingsPreferencesPanel />)
       .exhaustive();
 
@@ -114,56 +103,14 @@ const SettingsPage: FC = () => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch & SettingsSearch>();
   const { session } = useRouteContext({ from: "/_app" });
   const { flow } = useFilamentLayoutSearch();
-  const { settings, teamView, inviteToken } = useSettingsSearch();
+  const { settings } = useSettingsSearch();
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;
   const settingsPanel = settings ?? SettingsPanel.TEAM;
-  const isTeamViewOpen =
-    isSettingsOpen &&
-    (settings ?? SettingsPanel.TEAM) === SettingsPanel.TEAM &&
-    !!teamView &&
-    teamView !== TeamSettingsView.MEMBERS;
-
   const handleCloseSettings = useCallback(() => {
     void updateSearch((prev) => {
       const { flow: _, settings: __, teamView: ___, inviteToken: ____, ...rest } = prev;
       return rest;
-    });
-  }, [updateSearch]);
-
-  const handleTeamViewChange = useCallback(
-    (view: TeamSettingsView, options?: { replace?: boolean }) => {
-      void updateSearch(
-        (prev) => {
-          const { inviteToken: _, ...rest } = prev;
-          return { ...rest, settings: SettingsPanel.TEAM, teamView: view };
-        },
-        { replace: options?.replace },
-      );
-    },
-    [updateSearch],
-  );
-
-  const handleInviteTeam = useCallback(() => {
-    handleTeamViewChange(TeamSettingsView.INVITE);
-  }, [handleTeamViewChange]);
-
-  const handleInviteCreated = useCallback(
-    (token: string) => {
-      void updateSearch((prev) => ({
-        ...prev,
-        settings: SettingsPanel.TEAM,
-        teamView: TeamSettingsView.LINK,
-        inviteToken: token,
-      }));
-    },
-    [updateSearch],
-  );
-
-  const handleInviteClose = useCallback(() => {
-    void updateSearch((prev) => {
-      const { inviteToken: _, ...rest } = prev;
-      return { ...rest, settings: SettingsPanel.TEAM, teamView: TeamSettingsView.MEMBERS };
     });
   }, [updateSearch]);
 
@@ -180,24 +127,8 @@ const SettingsPage: FC = () => {
           if (!isOpen) handleCloseSettings();
         }}
       >
-        <SettingsPageContent
-          session={session}
-          panel={settingsPanel}
-          isOpen={isSettingsOpen}
-          onInviteTeam={handleInviteTeam}
-        />
+        <SettingsPageContent session={session} panel={settingsPanel} isOpen={isSettingsOpen} />
       </Modal>
-      {isTeamViewOpen && teamView && (
-        <SettingsTeamPanelInvite
-          open
-          session={session}
-          view={teamView}
-          inviteToken={inviteToken}
-          onViewChange={handleTeamViewChange}
-          onInviteCreated={handleInviteCreated}
-          onClose={handleInviteClose}
-        />
-      )}
     </>
   );
 };

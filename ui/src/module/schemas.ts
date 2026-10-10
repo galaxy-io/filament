@@ -13,7 +13,7 @@ import {
 } from "@/pages/observability/types";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
-import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
+import { SettingsPanel, SettingsTeamView, TeamSettingsView } from "@/pages/settings/types";
 
 import { Flow } from "@/module/types";
 
@@ -42,6 +42,13 @@ export const settingsSearchSchema = z.object({
 });
 
 export type SettingsSearch = z.infer<typeof settingsSearchSchema>;
+
+export const teamSearchSchema = z.object({
+  view: z.enum(SettingsTeamView).optional().catch(undefined),
+  inviteToken: z.string().optional().catch(undefined),
+});
+
+export type TeamSearch = z.infer<typeof teamSearchSchema>;
 
 export const observabilitySearchSchema = listSearchParamsSchema
   .pick({ sortBy: true, sortOrder: true })

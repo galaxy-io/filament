@@ -6,6 +6,7 @@ import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 import { MenuItem, MenuItemVariant, MenuRadioGroup, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -16,18 +17,26 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { type Member, Role } from "@/gen/auth/v1/members_pb";
+import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
-import SettingsPanelLayout from "@/pages/settings/components/SettingsPanelLayout";
+import SettingsTeamInviteModal from "@/pages/settings/components/team/SettingsTeamInviteModal";
 import {
-  SETTINGS_ROLE_MENU_OPTIONS,
+  SETTINGS_ROLE_OPTIONS,
   SETTINGS_ROLE_TO_CHIP_PROPS_MAP,
+  SETTINGS_ROLE_TO_LABEL_MAP,
   SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_EMAIL,
   SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_NAME,
   SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
 } from "@/pages/settings/constants";
-import { optionIdToRole, roleLabel, roleToOptionId } from "@/pages/settings/utils";
+import { SettingsTeamView } from "@/pages/settings/types";
+import { formatMemberName } from "@/pages/settings/utils";
+
+import { useFilamentSearchUpdate, useTeamSearch } from "@/module/hooks";
+import type { TeamSearch } from "@/module/schemas";
 
 import {
+  useCanManageTeam,
+  useGetSessionQuery,
   useListMembersQuery,
   useRemoveMemberMutation,
   useSetMemberRoleMutation,
@@ -35,26 +44,26 @@ import {
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-import type { AppSession } from "@/auth/types";
 import { getErrorMessage } from "@/utils/errors";
+import { mapOptionIdToEnum } from "@/utils/select";
 
-const memberDisplayName = (member: Member): string => member.name || member.email || "Member";
-
-const memberColumns = (myID: string | undefined): TableColumn<Member>[] => [
+const createSettingsTeamColumns = (
+  userId: GetSessionResponse["userId"] | undefined,
+): TableColumn<Member>[] => [
   {
     id: "name",
     header: "Name",
-    accessor: (row) => memberDisplayName(row),
+    accessor: (row) => formatMemberName(row),
     isRowHeader: true,
     canSort: true,
     minWidth: SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_NAME,
     cell: ({ row }) => (
       <Flex gap={8} alignItems={AlignItems.CENTER} minWidth={0}>
-        <Avatar size={AvatarSize.SMALL} seed={row.userId} name={memberDisplayName(row)} isSquare />
+        <Avatar size={AvatarSize.SMALL} seed={row.userId} name={formatMemberName(row)} isSquare />
         <Text lineClamp={1} shouldTooltipOnOverflow>
-          {memberDisplayName(row)}
+          {formatMemberName(row)}
         </Text>
-        {myID !== undefined && row.userId === myID && (
+        {userId !== undefined && row.userId === userId && (
           <Chip label="You" size={ChipSize.SMALL} variant={ChipVariant.SECONDARY} />
         )}
       </Flex>
@@ -80,12 +89,12 @@ const memberColumns = (myID: string | undefined): TableColumn<Member>[] => [
   {
     id: "role",
     header: "Role",
-    accessor: (row) => roleLabel(row.role),
+    accessor: (row) => SETTINGS_ROLE_TO_LABEL_MAP[row.role],
     width: SETTINGS_TEAM_TABLE_COLUMN_WIDTH_ROLE,
     canSort: true,
     cell: ({ row }) => (
       <Chip
-        label={roleLabel(row.role)}
+        label={SETTINGS_ROLE_TO_LABEL_MAP[row.role]}
         size={ChipSize.SMALL}
         {...SETTINGS_ROLE_TO_CHIP_PROPS_MAP[row.role]}
       />
@@ -93,21 +102,17 @@ const memberColumns = (myID: string | undefined): TableColumn<Member>[] => [
   },
 ];
 
-interface SettingsTeamPanelProps {
-  session: AppSession;
-  onInvite: () => void;
-}
-
-const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) => {
+const TeamPage: FC = () => {
   const { toast } = useToast();
+  const updateSearch = useFilamentSearchUpdate<TeamSearch>();
+  const { view, inviteToken } = useTeamSearch();
 
-  const membersQuery = useListMembersQuery({
-    options: { enabled: session.isAuthenticated },
-  });
+  const { data: session } = useGetSessionQuery();
+  const membersQuery = useListMembersQuery();
+  const canManageTeam = useCanManageTeam();
   const { mutate: setMemberRole, isPending: isSettingRole } = useSetMemberRoleMutation();
   const { mutate: removeMember, isPending: isRemovingMember } = useRemoveMemberMutation();
 
-  const canManageTeam = membersQuery.data?.canManage === true;
   const isMutatingMembers = isSettingRole || isRemovingMember;
   const displayError = membersQuery.error
     ? getErrorMessage(membersQuery.error, "Could not load members")
@@ -115,11 +120,11 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
 
   const memberConfirm = useConfirm<Member>({
     entityLabel: "Team member",
-    entityName: memberDisplayName,
+    entityName: formatMemberName,
     messages: {
       successHeader: "Team member removed",
       successSubheader: (member) =>
-        `${memberDisplayName(member)} no longer has access to this organization.`,
+        `${formatMemberName(member)} no longer has access to this organization.`,
       errorHeader: "Remove failed",
       errorFallback: "Could not remove team member",
     },
@@ -127,14 +132,22 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
       removeMember({ userId: member.userId }, { onSuccess, onError }),
   });
 
+  const isInviteOpen =
+    canManageTeam === true &&
+    (view === SettingsTeamView.INVITE || (view === SettingsTeamView.LINK && !!inviteToken));
+
+  const handleViewChange = (nextView: SettingsTeamView | undefined, token?: string) => {
+    void updateSearch((prev) => ({ ...prev, view: nextView, inviteToken: token }));
+  };
+
   const sortedMembers = useMemo(() => {
     const members = membersQuery.data?.members ?? [];
     return [...members].sort((a, b) => {
-      if (a.userId === session.userId) return -1;
-      if (b.userId === session.userId) return 1;
-      return memberDisplayName(a).localeCompare(memberDisplayName(b));
+      if (a.userId === session?.userId) return -1;
+      if (b.userId === session?.userId) return 1;
+      return formatMemberName(a).localeCompare(formatMemberName(b));
     });
-  }, [membersQuery.data?.members, session.userId]);
+  }, [membersQuery.data?.members, session?.userId]);
 
   const handleRoleChange = useCallback(
     (member: Member, nextRole: Role) => {
@@ -145,7 +158,7 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
           onSuccess: () => {
             toast({
               header: "Role updated",
-              description: `${memberDisplayName(member)}'s role is now ${roleLabel(nextRole)}.`,
+              description: `${formatMemberName(member)}'s role is now ${SETTINGS_ROLE_TO_LABEL_MAP[nextRole]}.`,
               variant: ToastVariant.SUCCESS,
             });
           },
@@ -162,31 +175,21 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
     [setMemberRole, toast],
   );
 
-  const handleRemove = useCallback(
-    (member: Member) => {
-      memberConfirm.handleOpen(member);
-    },
-    [memberConfirm],
-  );
-
-  const columns = useMemo(() => memberColumns(session.userId), [session.userId]);
+  const columns = useMemo(() => createSettingsTeamColumns(session?.userId), [session?.userId]);
 
   return (
     <>
-      <SettingsPanelLayout
-        title="Team"
+      <PageLayout
+        header="Team"
         actions={
-          canManageTeam
-            ? [
-                <Button
-                  key="invite-team"
-                  label="Invite team"
-                  icon={PlusIcon}
-                  variant={ButtonVariant.PRIMARY}
-                  onClick={onInvite}
-                />,
-              ]
-            : undefined
+          canManageTeam && (
+            <Button
+              label="Invite member"
+              icon={PlusIcon}
+              variant={ButtonVariant.PRIMARY}
+              onClick={() => handleViewChange(SettingsTeamView.INVITE)}
+            />
+          )
         }
       >
         <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
@@ -197,14 +200,14 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
             isLoading={membersQuery.isLoading}
             error={displayError}
             rowActions={(row) =>
-              canManageTeam && row.userId !== session.userId ? (
+              canManageTeam && row.userId !== session?.userId ? (
                 <>
                   <MenuItem label="Change role" icon={UserGearIcon} isDisabled={isMutatingMembers}>
                     <MenuRadioGroup
                       label="Role"
-                      options={SETTINGS_ROLE_MENU_OPTIONS}
-                      value={roleToOptionId(row.role)}
-                      onChange={(id) => handleRoleChange(row, optionIdToRole(id))}
+                      options={SETTINGS_ROLE_OPTIONS}
+                      value={String(row.role)}
+                      onChange={(id) => handleRoleChange(row, mapOptionIdToEnum(Role, id))}
                     />
                   </MenuItem>
                   <MenuSeparator />
@@ -212,7 +215,7 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
                     label="Remove member"
                     icon={TrashIcon}
                     variant={MenuItemVariant.ERROR}
-                    onSelect={() => handleRemove(row)}
+                    onSelect={() => memberConfirm.handleOpen(row)}
                     isDisabled={isMutatingMembers}
                   />
                 </>
@@ -221,7 +224,7 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
             ariaLabel="Team members"
           />
         </Flex>
-      </SettingsPanelLayout>
+      </PageLayout>
       <ConfirmDialog
         isOpen={memberConfirm.isOpen}
         onOpenChange={(isOpen) => {
@@ -230,12 +233,20 @@ const SettingsTeamPanel: FC<SettingsTeamPanelProps> = ({ session, onInvite }) =>
         onConfirm={memberConfirm.handleConfirm}
         header="Remove team member?"
         description="This member will immediately lose access to the organization and its resources."
-        confirmValue={memberConfirm.target && memberDisplayName(memberConfirm.target)}
+        confirmValue={memberConfirm.target && formatMemberName(memberConfirm.target)}
         label="Remove member"
         isDestructive
       />
+      {isInviteOpen && view && (
+        <SettingsTeamInviteModal
+          view={view}
+          inviteToken={inviteToken}
+          onViewChange={handleViewChange}
+          onClose={() => handleViewChange(undefined)}
+        />
+      )}
     </>
   );
 };
 
-export default SettingsTeamPanel;
+export default TeamPage;

@@ -6,13 +6,13 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { ServiceAccountCredentials } from "@/pages/settings/types";
-import { buildCliLoginCommand } from "@/pages/settings/utils";
+import { formatCliLoginCommand } from "@/pages/settings/utils";
 
-interface SettingsServiceAccountsPanelCredentialsProps {
+interface SettingsServiceAccountsCredentialsProps {
   credentials: ServiceAccountCredentials;
 }
 
-const SettingsServiceAccountsPanelCredentials: FC<SettingsServiceAccountsPanelCredentialsProps> = ({
+const SettingsServiceAccountsCredentials: FC<SettingsServiceAccountsCredentialsProps> = ({
   credentials,
 }) => (
   <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
@@ -29,7 +29,7 @@ const SettingsServiceAccountsPanelCredentials: FC<SettingsServiceAccountsPanelCr
       fillWidth
     >
       <CopyInput
-        value={buildCliLoginCommand(credentials.clientId)}
+        value={formatCliLoginCommand(credentials.clientId)}
         fillWidth
         family={FontFamily.MONO}
       />
@@ -37,4 +37,4 @@ const SettingsServiceAccountsPanelCredentials: FC<SettingsServiceAccountsPanelCr
   </Flex>
 );
 
-export default SettingsServiceAccountsPanelCredentials;
+export default SettingsServiceAccountsCredentials;

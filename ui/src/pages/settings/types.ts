@@ -1,3 +1,5 @@
+import type { RotateServiceAccountSecretResponse } from "@/gen/auth/v1/service_accounts_pb";
+
 export enum SettingsPanel {
   TEAM = "TEAM",
   SERVICE_ACCOUNTS = "SERVICE_ACCOUNTS",
@@ -10,7 +12,12 @@ export enum TeamSettingsView {
   LINK = "LINK",
 }
 
-export interface ServiceAccountCredentials {
-  clientId: string;
-  clientSecret: string;
+export enum SettingsTeamView {
+  INVITE = "INVITE",
+  LINK = "LINK",
 }
+
+export type ServiceAccountCredentials = Pick<
+  RotateServiceAccountSecretResponse,
+  "clientId" | "clientSecret"
+>;

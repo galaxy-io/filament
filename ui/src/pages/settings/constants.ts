@@ -1,5 +1,4 @@
 import { ChipVariant } from "@galaxy-io/dls/chips/Chip";
-import type { MenuRadioOption } from "@galaxy-io/dls/menu/Menu";
 import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { Role } from "@/gen/auth/v1/members_pb";
@@ -16,32 +15,35 @@ export const SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_MIN_WIDTH_NAME = 200;
 export const SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_CLIENT_ID = 220;
 export const SETTINGS_SERVICE_ACCOUNTS_TABLE_COLUMN_WIDTH_ROLE = 140;
 
-const ROLE_EMPTY_LABEL = "-";
+export const SETTINGS_MEMBER_FALLBACK_NAME = "Member";
 
-const ROLES: Role[] = [Role.ADMIN, Role.CREATOR, Role.VIEWER];
+const SETTINGS_ROLE_EMPTY_LABEL = "-";
 
-const SERVICE_ACCOUNT_ROLES: Role[] = [Role.ADMIN, Role.CREATOR, Role.VIEWER];
+const SETTINGS_ROLES: Role[] = [Role.ADMIN, Role.CREATOR, Role.VIEWER];
 
-export const ROLE_TO_LABEL_MAP: Record<Role, string> = {
-  [Role.UNSPECIFIED]: ROLE_EMPTY_LABEL,
+export const SETTINGS_ROLE_TO_LABEL_MAP: Record<Role, string> = {
+  [Role.UNSPECIFIED]: SETTINGS_ROLE_EMPTY_LABEL,
   [Role.ADMIN]: "Admin",
   [Role.CREATOR]: "Creator",
   [Role.VIEWER]: "Viewer",
 };
 
-export const SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP: Record<Role, string> = {
-  [Role.UNSPECIFIED]: ROLE_EMPTY_LABEL,
+export const SETTINGS_SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP: Record<Role, string> = {
+  [Role.UNSPECIFIED]: SETTINGS_ROLE_EMPTY_LABEL,
   [Role.ADMIN]: "All",
   [Role.CREATOR]: "Write",
   [Role.VIEWER]: "Read-only",
 };
 
-export const ROLE_OPTIONS = createEnumSelectOptions(ROLES, ROLE_TO_LABEL_MAP);
+export const SETTINGS_ROLE_OPTIONS = createEnumSelectOptions(
+  SETTINGS_ROLES,
+  SETTINGS_ROLE_TO_LABEL_MAP,
+);
 
-export const SETTINGS_ROLE_MENU_OPTIONS: MenuRadioOption[] = ROLES.map((role) => ({
-  id: String(role),
-  label: ROLE_TO_LABEL_MAP[role],
-}));
+export const SETTINGS_SERVICE_ACCOUNT_ROLE_OPTIONS = createEnumSelectOptions(
+  SETTINGS_ROLES,
+  SETTINGS_SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP,
+);
 
 export const SETTINGS_ROLE_TO_CHIP_PROPS_MAP: Record<
   Role,
@@ -53,11 +55,6 @@ export const SETTINGS_ROLE_TO_CHIP_PROPS_MAP: Record<
   [Role.VIEWER]: { variant: ChipVariant.TERTIARY },
 };
 
-export const SERVICE_ACCOUNT_ROLE_OPTIONS = createEnumSelectOptions(
-  SERVICE_ACCOUNT_ROLES,
-  SERVICE_ACCOUNT_ROLE_TO_LABEL_MAP,
-);
+export const SETTINGS_INVITE_DEFAULT_ROLE = Role.CREATOR;
 
-export const INVITE_DEFAULT_ROLE = Role.CREATOR;
-
-export const SERVICE_ACCOUNT_DEFAULT_ROLE = Role.CREATOR;
+export const SETTINGS_SERVICE_ACCOUNT_DEFAULT_ROLE = Role.CREATOR;

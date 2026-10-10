@@ -1,4 +1,4 @@
-import { type FC, useEffect, useState } from "react";
+import { type FC, useState } from "react";
 
 import { match } from "ts-pattern";
 
@@ -13,19 +13,18 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import type { InviteMemberRequest } from "@/gen/auth/v1/members_pb";
+import { type InviteMemberRequest, Role } from "@/gen/auth/v1/members_pb";
 
-import { INVITE_DEFAULT_ROLE, ROLE_OPTIONS } from "@/pages/settings/constants";
-import { TeamSettingsView } from "@/pages/settings/types";
-import { optionIdToRole, roleToOptionId } from "@/pages/settings/utils";
+import { SETTINGS_INVITE_DEFAULT_ROLE, SETTINGS_ROLE_OPTIONS } from "@/pages/settings/constants";
+import { SettingsTeamView } from "@/pages/settings/types";
 
-import { useInviteMemberMutation, useListMembersQuery } from "@/api/queries/auth";
+import { useCanManageTeam, useInviteMemberMutation } from "@/api/queries/auth";
 
-import type { AppSession } from "@/auth/types";
 import { buildInviteUrl, encodeInviteToken } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";
+import { mapOptionIdToEnum } from "@/utils/select";
 
-interface SettingsTeamPanelInviteState {
+interface SettingsTeamInviteModalState {
   email: InviteMemberRequest["email"];
   givenName: InviteMemberRequest["givenName"];
   familyName: InviteMemberRequest["familyName"];
@@ -33,48 +32,33 @@ interface SettingsTeamPanelInviteState {
   error: string | undefined;
 }
 
-const DEFAULT_STATE: SettingsTeamPanelInviteState = {
+const DEFAULT_STATE: SettingsTeamInviteModalState = {
   email: "",
   givenName: "",
   familyName: "",
-  role: INVITE_DEFAULT_ROLE,
+  role: SETTINGS_INVITE_DEFAULT_ROLE,
   error: undefined,
 };
 
-interface SettingsTeamPanelInviteProps {
-  open: boolean;
-  session: AppSession;
-  view: TeamSettingsView;
+interface SettingsTeamInviteModalProps {
+  view: SettingsTeamView;
   inviteToken?: string;
-  onViewChange: (view: TeamSettingsView, options?: { replace?: boolean }) => void;
-  onInviteCreated: (token: string) => void;
+  onViewChange: (view: SettingsTeamView, inviteToken?: string) => void;
   onClose: () => void;
 }
 
-const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
-  open,
-  session,
+const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
   view,
   inviteToken,
   onViewChange,
-  onInviteCreated,
   onClose,
 }) => {
-  const [state, setState] = useState<SettingsTeamPanelInviteState>(DEFAULT_STATE);
+  const [state, setState] = useState<SettingsTeamInviteModalState>(DEFAULT_STATE);
 
-  const membersQuery = useListMembersQuery({
-    options: { enabled: session.isAuthenticated },
-  });
+  const canManage = useCanManageTeam();
   const { mutate: inviteMember, isPending: isInviting } = useInviteMemberMutation();
 
-  const canManage = membersQuery.data?.canManage;
   const inviteLink = inviteToken ? buildInviteUrl(inviteToken) : undefined;
-
-  useEffect(() => {
-    if ((view === TeamSettingsView.LINK && !inviteToken) || canManage === false) {
-      onViewChange(TeamSettingsView.MEMBERS, { replace: true });
-    }
-  }, [canManage, inviteToken, onViewChange, view]);
 
   const handleSubmit = () => {
     if (canManage !== true) {
@@ -99,7 +83,7 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
       },
       {
         onSuccess: ({ userId, code }) => {
-          onInviteCreated(encodeInviteToken({ userId, code }));
+          onViewChange(SettingsTeamView.LINK, encodeInviteToken({ userId, code }));
         },
         onError: (err) => {
           setState((prev) => ({
@@ -113,7 +97,7 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
 
   const handleAddAnother = () => {
     setState(DEFAULT_STATE);
-    onViewChange(TeamSettingsView.INVITE);
+    onViewChange(SettingsTeamView.INVITE);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -121,10 +105,10 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
   };
 
   return match(view)
-    .with(TeamSettingsView.LINK, () => (
+    .with(SettingsTeamView.LINK, () => (
       <Modal
         header="Invite created"
-        isOpen={open}
+        isOpen
         onOpenChange={handleOpenChange}
         footer={
           <>
@@ -148,7 +132,7 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
     .otherwise(() => (
       <Modal
         header="Invite team"
-        isOpen={open}
+        isOpen
         isDismissable={!isInviting}
         onOpenChange={handleOpenChange}
         footer={
@@ -197,9 +181,11 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
           />
           <SelectInput
             label="Role"
-            options={ROLE_OPTIONS}
-            value={roleToOptionId(state.role)}
-            onChange={(id) => setState((prev) => ({ ...prev, role: optionIdToRole(id) }))}
+            options={SETTINGS_ROLE_OPTIONS}
+            value={String(state.role)}
+            onChange={(id) =>
+              setState((prev) => ({ ...prev, role: mapOptionIdToEnum(Role, id ?? "") }))
+            }
             fillWidth
             isRequired
           />
@@ -213,4 +199,4 @@ const SettingsTeamPanelInvite: FC<SettingsTeamPanelInviteProps> = ({
     ));
 };
 
-export default SettingsTeamPanelInvite;
+export default SettingsTeamInviteModal;

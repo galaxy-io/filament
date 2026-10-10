@@ -16,6 +16,7 @@ import type {
   ListServiceAccountsResponse,
 } from "@/gen/auth/v1/service_accounts_pb";
 import { AuthService } from "@/gen/auth/v1/service_pb";
+import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
@@ -51,6 +52,19 @@ export const createGetSessionQueryOptions = ({ transport }: { transport: Transpo
     ...PROBE_QUERY_OPTIONS,
   };
 };
+
+export const useGetSessionQuery = ({
+  options = {},
+}: {
+  options?: UseQueryOptions<typeof AuthService.method.getSession.output, GetSessionResponse>;
+} = {}) => {
+  return useQuery(AuthService.method.getSession, {}, { ...PROBE_QUERY_OPTIONS, ...options });
+};
+
+const selectCanManageTeam = (response: ListMembersResponse) => response.canManage;
+
+export const useCanManageTeam = () =>
+  useQuery(AuthService.method.listMembers, {}, { select: selectCanManageTeam }).data;
 
 export const useListMembersQuery = ({
   options = {},
