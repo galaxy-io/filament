@@ -9,17 +9,16 @@ import {
   OBSERVABILITY_RUNS_SCHEDULED_SERIES,
 } from "@/pages/observability/components/runs/constants";
 import { createScheduledRunsChartGroups } from "@/pages/observability/components/runs/utils";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
-import { useBucketLabelFormatter } from "@/pages/observability/utils";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
 
 import { useObservabilitySearch } from "@/module/hooks";
 
 import { useListRunsQuery } from "@/api/queries/runs";
 
 const ObservabilityRunsScheduledChart: FC = () => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
+  const { timeframe } = useObservabilitySearch();
 
-  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+  const bucketLabelFormatter = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel;
 
   const { data, isLoading } = useListRunsQuery({ input: OBSERVABILITY_RUNS_SCHEDULED_INPUT });
 

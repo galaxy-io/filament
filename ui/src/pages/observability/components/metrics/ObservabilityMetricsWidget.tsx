@@ -10,7 +10,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
-import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
 import MetricGroup from "@/components/metrics/MetricGroup";
@@ -18,8 +18,10 @@ import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/components/runs/constants";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import ObservabilityMetricsValue from "@/pages/observability/components/metrics/ObservabilityMetricsValue";
-import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import {
+  OBSERVABILITY_RUN_STATUSES,
+  OBSERVABILITY_RUNS_SCHEDULED_INPUT,
+} from "@/pages/observability/components/runs/constants";
 import { createTimeframeSince } from "@/pages/observability/utils";
 
 import { useObservabilitySearch } from "@/module/hooks";
@@ -40,12 +42,8 @@ const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
     !OBSERVABILITY_METRICS_FEATURED_STATUSES.includes(status) && status !== RunStatus.SCHEDULED,
 );
 
-const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
-  status: [RunStatus.SCHEDULED],
-});
-
 const ObservabilityMetricsWidget: FC = () => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
+  const { timeframe } = useObservabilitySearch();
 
   const { totalsInput, statusCountsInput } = useMemo(() => {
     const sinceMs = createTimeframeSince(timeframe);
@@ -69,7 +67,7 @@ const ObservabilityMetricsWidget: FC = () => {
     input: statusCountsInput,
   });
   const { data: scheduledData, isLoading: isScheduledLoading } = useListRunsQuery({
-    input: OBSERVABILITY_METRICS_SCHEDULED_INPUT,
+    input: OBSERVABILITY_RUNS_SCHEDULED_INPUT,
   });
 
   const [totalRuns = 0, totalRecords = 0, totalBytes = 0] = totalsData?.rows[0]?.values ?? [];

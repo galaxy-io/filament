@@ -22,13 +22,11 @@ import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
-import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
-  createObservabilityTimeseriesInput,
-  formatBucketKey,
-  useBucketLabelFormatter,
-} from "@/pages/observability/utils";
+  OBSERVABILITY_PIPELINES_INPUT,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/constants";
+import { createObservabilityTimeseriesInput, formatBucketKey } from "@/pages/observability/utils";
 
 import { useObservabilitySearch } from "@/module/hooks";
 
@@ -54,11 +52,11 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   curve,
   valueFormatter,
 }) => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
+  const { timeframe } = useObservabilitySearch();
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
-  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+  const bucketLabelFormatter = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel;
 
   const input = useMemo(
     () =>
@@ -78,7 +76,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
     const timeseries = (data?.series ?? []).filter(
       (keySeries) =>
         pivotDimension !== MetricDimension.STATUS ||
-        PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, keySeries.key)] !== null,
+        PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, keySeries.key)] !== undefined,
     );
     const pipelineNamesByPipelineId = new Map(
       (pipelinesData?.pipelines ?? []).map((pipeline) => [
@@ -99,7 +97,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, key)] ?? undefined;
+        return PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, key)];
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[

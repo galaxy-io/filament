@@ -12,8 +12,7 @@ interface PipelineRunStatusSwatchProps {
 }
 
 const PipelineRunStatusSwatch: FC<PipelineRunStatusSwatchProps> = ({ status, size }) => {
-  const hue = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
-  return <Square size={size} {...(hue === null ? {} : { color: hue })} />;
+  return <Square size={size} color={PIPELINE_RUN_STATUS_TO_HUE_MAP[status]} />;
 };
 
 export default PipelineRunStatusSwatch;

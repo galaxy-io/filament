@@ -26,7 +26,7 @@ export const OBSERVABILITY_RUN_STATUSES = getEnumValues(RunStatus);
 export const OBSERVABILITY_RUNS_SCHEDULED_SERIES: ChartSeriesStyles<ObservabilityRunMetric> = {
   runs: {
     label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
-    color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED] ?? undefined,
+    color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED],
   },
 };
 

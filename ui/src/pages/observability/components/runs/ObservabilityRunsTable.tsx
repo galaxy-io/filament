@@ -20,7 +20,6 @@ import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
 import ObservabilityRunsTableColumnFlow from "@/pages/observability/components/runs/columns/ObservabilityRunsTableColumnFlow";
 import {
-  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP,
   OBSERVABILITY_RUNS_SCHEDULED_INPUT,
   OBSERVABILITY_RUNS_SORT_BY_TO_COLUMN_ID_MAP,
@@ -37,7 +36,7 @@ import {
   OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import { createRunsWindowInput } from "@/pages/observability/components/runs/utils";
-import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
+import { ObservabilityRunsView } from "@/pages/observability/types";
 
 import {
   useFilamentNavigate,
@@ -58,9 +57,9 @@ const ObservabilityRunsTable: FC = () => {
   const navigate = useFilamentNavigate();
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const {
-    runs: view = ObservabilityRunsView.PAST,
-    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
-    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+    runs: view,
+    timeframe,
+    statuses,
     runsBucket,
     runsStatus,
     sortBy,

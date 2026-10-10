@@ -11,6 +11,12 @@ import {
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
+import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
+import {
+  OBSERVABILITY_DEFAULT_RUNS_VIEW,
+  OBSERVABILITY_DEFAULT_TIMEFRAME,
+} from "@/pages/observability/constants";
+
 import type { FilamentPath } from "@/module/paths";
 import {
   connectionsSearchSchema,
@@ -105,7 +111,15 @@ export const useObservabilitySearch = () =>
   useSearch({
     strict: false,
     structuralSharing: true,
-    select: (search) => observabilitySearchSchema.parse(search),
+    select: (search) => {
+      const parsed = observabilitySearchSchema.parse(search);
+      return {
+        ...parsed,
+        timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
+        runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
+        statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+      };
+    },
   });
 
 export const usePipelinesSearch = () =>

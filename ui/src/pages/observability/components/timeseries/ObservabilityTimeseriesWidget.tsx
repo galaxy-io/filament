@@ -15,32 +15,40 @@ import ObservabilityTimeseriesChart from "@/pages/observability/components/times
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
 import type { ObservabilitySearch } from "@/module/schemas";
 
-interface ObservabilityTimeseriesWidgetProps<View extends string> {
-  views: Record<View, ObservabilityChartView>;
-  defaultView: View;
+type ObservabilityTimeseriesViewKey = "throughput" | "usage";
+
+type ObservabilityTimeseriesView<TKey extends ObservabilityTimeseriesViewKey> = NonNullable<
+  ObservabilitySearch[TKey]
+>;
+
+interface ObservabilityTimeseriesWidgetProps<TKey extends ObservabilityTimeseriesViewKey> {
+  views: ObservabilityTimeseriesView<TKey>[];
+  viewToConfigMap: Record<ObservabilityTimeseriesView<TKey>, ObservabilityChartView>;
+  defaultView: ObservabilityTimeseriesView<TKey>;
   defaultPivot?: MetricDimension;
-  viewSearchKey: "throughput" | "usage";
+  viewSearchKey: TKey;
   pivotSearchKey: "throughputPivot" | "usagePivot";
 }
 
-const ObservabilityTimeseriesWidget = <View extends string>({
+const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewKey>({
   views,
+  viewToConfigMap,
   defaultView,
   defaultPivot,
   viewSearchKey,
   pivotSearchKey,
-}: ObservabilityTimeseriesWidgetProps<View>) => {
+}: ObservabilityTimeseriesWidgetProps<TKey>) => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const search = useObservabilitySearch();
 
-  const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
+  const view: ObservabilityTimeseriesView<TKey> = search[viewSearchKey] ?? defaultView;
   const searchPivot = search[pivotSearchKey];
   const pivot =
     searchPivot === MetricDimension.UNSPECIFIED ? undefined : (searchPivot ?? defaultPivot);
 
-  const { label, seriesLabel, metric, color, valueFormatter } = views[view];
+  const { label, seriesLabel, metric, color, valueFormatter } = viewToConfigMap[view];
 
-  const handleViewChange = (nextView: View) => {
+  const handleViewChange = (nextView: ObservabilityTimeseriesView<TKey>) => {
     void updateSearch((prev) => ({ ...prev, [viewSearchKey]: nextView }));
   };
 
@@ -51,11 +59,9 @@ const ObservabilityTimeseriesWidget = <View extends string>({
     }));
   };
 
-  const switcherItems: ToggleOption<View>[] = (
-    Object.entries(views) as [View, ObservabilityChartView][]
-  ).map(([id, viewConfig]) => ({
+  const switcherItems: ToggleOption<ObservabilityTimeseriesView<TKey>>[] = views.map((id) => ({
     id,
-    label: viewConfig.label,
+    label: viewToConfigMap[id].label,
   }));
 
   return (

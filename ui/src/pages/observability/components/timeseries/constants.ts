@@ -38,6 +38,16 @@ export interface ObservabilityChartView {
   valueFormatter: ChartValueFormatter;
 }
 
+export const OBSERVABILITY_THROUGHPUT_VIEWS = [
+  ObservabilityThroughputView.RECORDS,
+  ObservabilityThroughputView.VOLUME,
+];
+
+export const OBSERVABILITY_USAGE_VIEWS = [
+  ObservabilityUsageView.CPU,
+  ObservabilityUsageView.MEMORY,
+];
+
 export const OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP: Record<
   ObservabilityThroughputView,
   ObservabilityChartView

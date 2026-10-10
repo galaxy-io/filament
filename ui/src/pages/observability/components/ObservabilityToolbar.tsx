@@ -8,7 +8,7 @@ import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Topbar from "@galaxy-io/dls/navigation/Topbar";
 
 import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import type { ObservabilityTimeframe } from "@/pages/observability/types";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
 import type { ObservabilitySearch } from "@/module/schemas";
@@ -22,7 +22,7 @@ const ObservabilityToolbar: FC = () => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const queryClient = useQueryClient();
   const transport = useTransport();
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
+  const { timeframe } = useObservabilitySearch();
 
   const handleTimeframeChange = (timeframe: ObservabilityTimeframe) => {
     void updateSearch((prev) => ({

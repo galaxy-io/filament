@@ -12,7 +12,9 @@ import ObservabilityRunsWidget from "@/pages/observability/components/runs/Obser
 import ObservabilitySetupChecklist from "@/pages/observability/components/setup/ObservabilitySetupChecklist";
 import {
   OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP,
+  OBSERVABILITY_THROUGHPUT_VIEWS,
   OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP,
+  OBSERVABILITY_USAGE_VIEWS,
 } from "@/pages/observability/components/timeseries/constants";
 import ObservabilityTimeseriesWidget from "@/pages/observability/components/timeseries/ObservabilityTimeseriesWidget";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
@@ -44,7 +46,8 @@ const ObservabilityPage: FC = () => {
           <Flex gap={12} alignItems={AlignItems.STRETCH} wrap={FlexWrap.WRAP} fillWidth>
             <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
               <ObservabilityTimeseriesWidget
-                views={OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP}
+                views={OBSERVABILITY_THROUGHPUT_VIEWS}
+                viewToConfigMap={OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP}
                 defaultView={ObservabilityThroughputView.RECORDS}
                 viewSearchKey="throughput"
                 pivotSearchKey="throughputPivot"
@@ -52,7 +55,8 @@ const ObservabilityPage: FC = () => {
             </FlexItem>
             <FlexItem grow={1} basis={OBSERVABILITY_TIMESERIES_WIDGET_BASIS} minWidth={0}>
               <ObservabilityTimeseriesWidget
-                views={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
+                views={OBSERVABILITY_USAGE_VIEWS}
+                viewToConfigMap={OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP}
                 defaultView={ObservabilityUsageView.CPU}
                 defaultPivot={MetricDimension.PIPELINE_ID}
                 viewSearchKey="usage"

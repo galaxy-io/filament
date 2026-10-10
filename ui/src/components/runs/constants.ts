@@ -18,13 +18,13 @@ export const PIPELINE_RUN_STATUS_TO_LABEL_MAP: Record<RunStatus, string> = {
   [RunStatus.SCHEDULED]: "Scheduled",
 };
 
-export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, RoleColor | null> = {
-  [RunStatus.UNSPECIFIED]: null,
+export const PIPELINE_RUN_STATUS_TO_HUE_MAP: Record<RunStatus, RoleColor | undefined> = {
+  [RunStatus.UNSPECIFIED]: undefined,
   [RunStatus.REQUESTED]: "orange",
   [RunStatus.RUNNING]: "blue",
   [RunStatus.COMPLETED]: "success",
   [RunStatus.FAILED]: "error",
-  [RunStatus.CANCELED]: null,
+  [RunStatus.CANCELED]: undefined,
   [RunStatus.PAUSED]: "teal",
   [RunStatus.PARTIAL]: "pink",
   [RunStatus.SCHEDULED]: "yellow",
@@ -47,14 +47,14 @@ export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP: Record<
 
 export const PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP: Record<
   ExecutionObservedState,
-  RoleColor | null
+  RoleColor | undefined
 > = {
-  [ExecutionObservedState.UNSPECIFIED]: null,
+  [ExecutionObservedState.UNSPECIFIED]: undefined,
   [ExecutionObservedState.STARTING]: "orange",
   [ExecutionObservedState.RUNNING]: "blue",
   [ExecutionObservedState.DRAINING]: "orange",
   [ExecutionObservedState.PAUSED]: "teal",
-  [ExecutionObservedState.STOPPED]: null,
+  [ExecutionObservedState.STOPPED]: undefined,
   [ExecutionObservedState.RETRYING]: "yellow",
   [ExecutionObservedState.BLOCKED]: "error",
   [ExecutionObservedState.FAILED]: "error",

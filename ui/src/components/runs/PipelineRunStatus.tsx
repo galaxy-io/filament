@@ -40,7 +40,7 @@ const PipelineRunStatus: FC<PipelineRunStatusProps> = ({ status, error, executio
 
   return (
     <Flex alignItems={AlignItems.CENTER} gap={8}>
-      <Square {...(display.hue === null ? {} : { color: display.hue })} />
+      <Square color={display.hue} />
       <Text size={TextSize.BODY_SM} lineClamp={1}>
         {display.label}
       </Text>
