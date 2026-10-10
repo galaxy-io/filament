@@ -15,12 +15,12 @@ The dev server proxies `/ingestion.v1.IngestionService` and `/metrics.v1.Metrics
 
 ## Build & embed
 
-The server binary embeds this app. `just binaries` builds `dist/` and compiles
+The server binary embeds this app. `just binaries` builds `build/` and compiles
 `cmd/server` with `-tags embedui`. To build those pieces from the repository
 root:
 
 ```bash
-just ui-dist                                      # tsc + vite build → ui/dist/
+just ui-build                                     # tsc + vite build → ui/build/
 GOWORK=off go build -C cmd/server -tags embedui . # binary serving API + UI
 ```
 

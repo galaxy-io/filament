@@ -75,7 +75,7 @@ jobs:
 
       - if: contains(matrix.buildtags, 'embedui')
         name: Build UI
-        run: just ui-dist
+        run: just ui-build
 
       - name: Build
         env:

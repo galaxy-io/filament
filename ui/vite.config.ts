@@ -49,6 +49,7 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: "build",
     target: "esnext",
     rollupOptions: {
       onwarn(warning, warn) {

@@ -104,7 +104,7 @@ jobs:
         run: just ui-format check
 
       - name: Build
-        run: just ui-dist
+        run: just ui-build
 
       - name: Route tree
         run: git diff --exit-code ui/src/routeTree.gen.ts
