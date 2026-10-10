@@ -10,3 +10,9 @@ export const APP_LAYOUT_THEME_OPTIONS: MenuRadioOption<GalaxyTheme>[] = [
 ];
 
 export const APP_LAYOUT_ACCOUNT_FALLBACK_NAME = "Account";
+
+export const APP_LAYOUT_COMMAND_PALETTE_PLACEHOLDER =
+  "Search pipelines, connections, pages and actions...";
+export const APP_LAYOUT_COMMAND_PALETTE_STORAGE_KEY = "filament:command-palette";
+export const APP_LAYOUT_COMMAND_PALETTE_GROUP_SETTINGS = "Settings";
+export const APP_LAYOUT_COMMAND_PALETTE_GROUP_PREFERENCES = "Preferences";

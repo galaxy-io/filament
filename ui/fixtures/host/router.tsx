@@ -13,6 +13,8 @@ import {
   redirect,
 } from "@tanstack/react-router";
 
+import CommandPalette from "@galaxy-io/dls/navigation/CommandPalette";
+import { useFilamentCommandItems } from "@galaxy-io/filament/commands";
 import FilamentLayout from "@galaxy-io/filament/FilamentLayout";
 import { FilamentPath } from "@galaxy-io/filament/paths";
 import {
@@ -32,14 +34,22 @@ const MOUNT_PATH = "ingest";
 
 const filamentTransport = createConnectTransport({ baseUrl: "" });
 
-const HomePage: FC = () => (
-  <>
-    <Link to={`/${MOUNT_PATH}`}>Open the module</Link>
-    <Link from={`/${MOUNT_PATH}`} to={FilamentPath.PIPELINE_CANVAS} params={{ id: "p" }}>
-      Open a pipeline canvas
-    </Link>
-  </>
-);
+const HomePage: FC = () => {
+  const commandItems = useFilamentCommandItems({
+    base: `/${MOUNT_PATH}`,
+    transport: filamentTransport,
+  });
+
+  return (
+    <>
+      <Link to={`/${MOUNT_PATH}`}>Open the module</Link>
+      <Link from={`/${MOUNT_PATH}`} to={FilamentPath.PIPELINE_CANVAS} params={{ id: "p" }}>
+        Open a pipeline canvas
+      </Link>
+      <CommandPalette items={commandItems} shouldBindHotKey />
+    </>
+  );
+};
 
 const MountLayout: FC = () => (
   <TransportProvider transport={filamentTransport}>

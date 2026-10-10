@@ -2,6 +2,13 @@ import type { FC } from "react";
 
 import { Outlet } from "@tanstack/react-router";
 
-const AppLayout: FC = () => <Outlet />;
+import AppLayoutCommandPalette from "@/host/layouts/app/AppLayoutCommandPalette";
+
+const AppLayout: FC = () => (
+  <>
+    <Outlet />
+    <AppLayoutCommandPalette />
+  </>
+);
 
 export default AppLayout;

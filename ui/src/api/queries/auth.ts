@@ -63,8 +63,8 @@ export const useGetSessionQuery = ({
 
 const selectCanManageTeam = (response: ListMembersResponse) => response.canManage;
 
-export const useCanManageTeam = () =>
-  useQuery(AuthService.method.listMembers, {}, { select: selectCanManageTeam }).data;
+export const useCanManageTeam = ({ enabled = true }: { enabled?: boolean } = {}) =>
+  useQuery(AuthService.method.listMembers, {}, { select: selectCanManageTeam, enabled }).data;
 
 export const useListMembersQuery = ({
   options = {},

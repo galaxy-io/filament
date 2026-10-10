@@ -26,6 +26,10 @@
       "types": "./dist/module/FilamentLayout.d.ts",
       "import": "./dist/module/FilamentLayout.js"
     },
+    "./commands": {
+      "types": "./dist/module/commands.d.ts",
+      "import": "./dist/module/commands.js"
+    },
     "./pages/NotFoundPage": {
       "types": "./dist/pages/NotFoundPage.d.ts",
       "import": "./dist/pages/NotFoundPage.js"
