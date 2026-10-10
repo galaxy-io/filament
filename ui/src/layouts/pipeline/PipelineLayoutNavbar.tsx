@@ -12,11 +12,8 @@ import {
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
-import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
-import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Popover from "@galaxy-io/dls/overlays/Popover";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { Placement } from "@galaxy-io/dls/theme/enums";
@@ -25,7 +22,6 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
-import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   ExecutionDesiredState,
   ExecutionObservedState,
@@ -34,20 +30,13 @@ import {
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineFlow from "@/components/pipelines/PipelineFlow";
-import PipelineName from "@/components/pipelines/PipelineName";
-import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
 import { formatPipelineName } from "@/components/pipelines/utils";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
-import {
-  PIPELINE_NAVBAR_HEIGHT,
-  PIPELINE_NAVBAR_VERSION_SELECT_WIDTH,
-} from "@/layouts/pipeline/constants";
 import PipelineLayoutNavbarRunButton from "@/layouts/pipeline/PipelineLayoutNavbarRunButton";
 import PipelineLayoutNavbarSaveIssues from "@/layouts/pipeline/PipelineLayoutNavbarSaveIssues";
 
-import { hasPipelineGraphChanges, isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
+import { isPipelineRunnable } from "@/pages/pipelines/canvas/graph/diff";
 import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
 import {
   mapCanvasStateToVersionRequest,
@@ -64,7 +53,8 @@ import {
   usePipelineCanvasActions,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/canvas/utils";
+import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
+import { usePipelineHasUnsavedChanges } from "@/pages/pipelines/hooks/usePipelineHasUnsavedChanges";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 import {
@@ -73,64 +63,43 @@ import {
   getRunStopSignal,
 } from "@/pages/pipelines/utils";
 
-import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
-import { FilamentPath } from "@/module/paths";
-import type { FilamentLayoutSearch, PipelineCanvasSearch, PipelineSearch } from "@/module/schemas";
+import { usePipelineParams } from "@/module/hooks";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSignalRunMutation, useSuspenseListActivePipelineRunsQuery } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
-import { formatVersion } from "@/utils/format";
 import { isContinuousRunActive } from "@/utils/runs";
 
 const PipelineLayoutNavbar: FC = () => {
   const { toast } = useToast();
-  const navigate = useFilamentNavigate();
+  const navigateCanvas = usePipelineCanvasNavigate();
   const { id } = usePipelineParams();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: createGetPipelineInput(id),
   });
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
-  const previewed = usePipelinePreviewVersion();
+  const isPreview = usePipelinePreviewVersion() !== undefined;
+  const hasUnsavedChanges = usePipelineHasUnsavedChanges();
 
   const pipeline = pipelineData.pipeline;
   const isContinuous = pipeline?.executionMode === ExecutionMode.CONTINUOUS;
   const currentVersion = pipelineData.pipeline?.currentVersion;
-  const versions = pipelineData.pipeline?.versions ?? [];
-  const previewVersion = previewed?.version ?? null;
 
   const state = usePipelineCanvasState();
   const { loadGraph } = usePipelineCanvasActions();
   const connectionByNodeId = usePipelineCanvasConnections();
   const showActivity = () =>
-    void navigate({
-      to: FilamentPath.PIPELINE_CANVAS,
-      params: { id },
-      search: (prev: FilamentLayoutSearch & PipelineCanvasSearch) => ({
-        ...prev,
-        node: undefined,
-        resource: undefined,
-        showPanel: true,
-        tab: PipelineCanvasPanelTab.ACTIVITY,
-      }),
+    navigateCanvas({
+      node: undefined,
+      resource: undefined,
+      showPanel: true,
+      tab: PipelineCanvasPanelTab.ACTIVITY,
     });
   const showResource = (edgeId: string) =>
-    void navigate({
-      to: FilamentPath.PIPELINE_CANVAS,
-      params: { id },
-      search: (prev: FilamentLayoutSearch & PipelineCanvasSearch) => ({
-        ...prev,
-        node: undefined,
-        resource: edgeId,
-        showPanel: true,
-        tab: undefined,
-      }),
-    });
+    navigateCanvas({ node: undefined, resource: edgeId, showPanel: true, tab: undefined });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { startRun, isRunning } = usePipelineRun();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
@@ -185,50 +154,7 @@ const PipelineLayoutNavbar: FC = () => {
     [validation, validationError],
   );
 
-  const hasChanges = useMemo(
-    () => hasPipelineGraphChanges({ nodes: state.nodes, edges: state.edges }, currentVersion),
-    [state.nodes, state.edges, currentVersion],
-  );
-
-  const { source, sinks } = useMemo(
-    () => mapCanvasNodesToFlowEndpoints(state.nodes, connectionsData.connections),
-    [state.nodes, connectionsData.connections],
-  );
-  const hasEdges = state.edges.length > 0;
-
-  const latestVersion = versions[0]?.version;
-  const versionOptions = useMemo<SelectOption[]>(
-    () =>
-      versions.map((version) => ({
-        id: version.version.toString(),
-        label: formatVersion(version.version),
-      })),
-    [versions],
-  );
-
-  if (!pipeline) return null;
-
-  const isPreview = previewVersion !== null;
-  const hasUnsavedChanges = !isPreview && hasChanges;
-
-  const selectedVersionId = (previewVersion ?? latestVersion)?.toString() ?? null;
-
-  const handlePreviewVersionChange = (nextVersion: PipelineVersion["version"] | null) => {
-    void navigate({
-      to: FilamentPath.PIPELINE_CANVAS,
-      params: { id },
-      search: (prev: FilamentLayoutSearch & PipelineSearch) => ({
-        ...prev,
-        version: nextVersion ?? undefined,
-      }),
-    });
-  };
-
-  const handleVersionChange = (versionId: string | null) => {
-    const version = versions.find((item) => item.version.toString() === versionId)?.version;
-    if (version === undefined) return;
-    handlePreviewVersionChange(version === latestVersion ? null : version);
-  };
+  if (!pipeline || isPreview) return null;
 
   const handleUndo = () => {
     loadGraph(mapPipelineVersionToCanvasState(currentVersion));
@@ -280,144 +206,92 @@ const PipelineLayoutNavbar: FC = () => {
   };
 
   return (
-    <Flex
-      alignItems={AlignItems.CENTER}
-      justifyContent={JustifyContent.SPACE_BETWEEN}
-      gap={12}
-      fillWidth
-      height={PIPELINE_NAVBAR_HEIGHT}
-      shrink={0}
-      padding={[0, 12]}
-    >
-      <Flex alignItems={AlignItems.CENTER} gap={12} grow={1} minWidth={0}>
-        <FlexItem shrink={0}>
-          <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} />
-        </FlexItem>
-        <FlexItem shrink={0}>
-          <PipelineName pipelineId={id} />
-        </FlexItem>
-        {versionOptions.length > 0 && (
-          <FlexItem shrink={0} width={PIPELINE_NAVBAR_VERSION_SELECT_WIDTH}>
-            <SelectInput
-              options={versionOptions}
-              value={selectedVersionId}
-              onChange={handleVersionChange}
-              size={SelectInputSize.SMALL}
-              isDisabled={hasUnsavedChanges}
-              fillWidth
-            />
-          </FlexItem>
-        )}
-        {pipeline.description && (
-          <FlexItem grow={1} minWidth={0}>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
-              {pipeline.description}
-            </Text>
-          </FlexItem>
-        )}
-      </Flex>
-
-      <Flex alignItems={AlignItems.CENTER} gap={12} shrink={0}>
-        {isPreview && (
-          <>
-            <Button
-              label="Back to latest"
-              icon={ArrowUUpLeftIcon}
-              variant={ButtonVariant.TERTIARY}
-              size={ButtonSize.SMALL}
-              onClick={() => handlePreviewVersionChange(null)}
-            />
-            <Chip label={formatVersion(previewVersion)} variant={ChipVariant.ERROR} />
-          </>
-        )}
-        {!isPreview && hasUnsavedChanges && (
-          <Text size={TextSize.BODY_SM} variant={TextVariant.WARNING}>
-            Unsaved changes
-          </Text>
-        )}
-        {!isPreview &&
-          (hasUnsavedChanges ? (
-            <>
+    <Flex alignItems={AlignItems.CENTER} gap={8}>
+      {hasUnsavedChanges && (
+        <Text size={TextSize.BODY_SM} variant={TextVariant.WARNING}>
+          Unsaved changes
+        </Text>
+      )}
+      {hasUnsavedChanges ? (
+        <>
+          <Button
+            label="Undo"
+            icon={ArrowUUpLeftIcon}
+            variant={ButtonVariant.SECONDARY}
+            size={ButtonSize.SMALL}
+            onClick={handleUndo}
+          />
+          {saveIssues.length > 0 && (
+            <Popover
+              placement={Placement.BOTTOM_END}
+              ariaLabel="Save issues"
+              body={
+                <PipelineLayoutNavbarSaveIssues
+                  issues={saveIssues}
+                  onSelectResource={showResource}
+                />
+              }
+            >
               <Button
-                label="Undo"
-                icon={ArrowUUpLeftIcon}
-                variant={ButtonVariant.SECONDARY}
+                label={saveIssues.length.toString()}
+                ariaLabel={pluralize("save issue", saveIssues.length, true)}
+                leading={<Icon component={WarningIcon} variant={IconVariant.ERROR} />}
+                variant={ButtonVariant.TERTIARY}
                 size={ButtonSize.SMALL}
-                onClick={handleUndo}
               />
-              {saveIssues.length > 0 && (
-                <Popover
-                  placement={Placement.BOTTOM_END}
-                  ariaLabel="Save issues"
-                  body={
-                    <PipelineLayoutNavbarSaveIssues
-                      issues={saveIssues}
-                      onSelectResource={showResource}
-                    />
-                  }
-                >
-                  <Button
-                    label={saveIssues.length.toString()}
-                    ariaLabel={pluralize("save issue", saveIssues.length, true)}
-                    leading={<Icon component={WarningIcon} variant={IconVariant.ERROR} />}
-                    variant={ButtonVariant.TERTIARY}
-                    size={ButtonSize.SMALL}
-                  />
-                </Popover>
-              )}
-              <Button
-                label="Save"
-                icon={FloppyDiskIcon}
-                variant={ButtonVariant.PRIMARY}
-                size={ButtonSize.SMALL}
-                isLoading={isSaving || isValidatingCanvas}
-                isDisabled={saveIssues.length > 0}
-                onClick={handleSave}
-              />
-            </>
+            </Popover>
+          )}
+          <Button
+            label="Save"
+            icon={FloppyDiskIcon}
+            variant={ButtonVariant.PRIMARY}
+            size={ButtonSize.SMALL}
+            isLoading={isSaving || isValidatingCanvas}
+            isDisabled={saveIssues.length > 0}
+            onClick={handleSave}
+          />
+        </>
+      ) : (
+        <>
+          {!activeRun ? (
+            <PipelineLayoutNavbarRunButton
+              workerConfiguration={pipeline?.workerConfiguration}
+              runErrors={runErrors}
+              isRunnable={isPipelineRunnable(currentVersion)}
+              isRunning={isRunning || isValidating}
+              onRun={handleRun}
+            />
           ) : (
             <>
-              {!activeRun && !isContinuous && <PipelineScheduleIndicator pipelineId={id} />}
-              {!activeRun ? (
-                <PipelineLayoutNavbarRunButton
-                  workerConfiguration={pipeline?.workerConfiguration}
-                  runErrors={runErrors}
-                  isRunnable={isPipelineRunnable(currentVersion)}
-                  isRunning={isRunning || isValidating}
-                  onRun={handleRun}
-                />
-              ) : (
-                <>
-                  <PipelineRunStatus
-                    status={activeRun.status}
-                    executionStatus={activeRun.executionStatus}
-                    error={activeRun.error}
-                  />
-                  <Button
-                    label={isResuming ? "Resume" : "Pause"}
-                    icon={isResuming ? PlayIcon : PauseIcon}
-                    iconWeight={IconWeight.FILL}
-                    variant={ButtonVariant.SECONDARY}
-                    size={ButtonSize.SMALL}
-                    isLoading={isSignaling}
-                    isDisabled={isStopping || isBlocked}
-                    onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
-                  />
-                  <Button
-                    label="Stop"
-                    icon={StopIcon}
-                    iconWeight={IconWeight.FILL}
-                    variant={ButtonVariant.ERROR}
-                    size={ButtonSize.SMALL}
-                    isLoading={isSignaling}
-                    isDisabled={isStopping}
-                    onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
-                  />
-                </>
-              )}
+              <PipelineRunStatus
+                status={activeRun.status}
+                executionStatus={activeRun.executionStatus}
+                error={activeRun.error}
+              />
+              <Button
+                label={isResuming ? "Resume" : "Pause"}
+                icon={isResuming ? PlayIcon : PauseIcon}
+                iconWeight={IconWeight.FILL}
+                variant={ButtonVariant.SECONDARY}
+                size={ButtonSize.SMALL}
+                isLoading={isSignaling}
+                isDisabled={isStopping || isBlocked}
+                onClick={() => handleSignal(activeRun.id, getRunPauseSignal(activeRun))}
+              />
+              <Button
+                label="Stop"
+                icon={StopIcon}
+                iconWeight={IconWeight.FILL}
+                variant={ButtonVariant.ERROR}
+                size={ButtonSize.SMALL}
+                isLoading={isSignaling}
+                isDisabled={isStopping}
+                onClick={() => handleSignal(activeRun.id, getRunStopSignal(activeRun))}
+              />
             </>
-          ))}
-      </Flex>
+          )}
+        </>
+      )}
     </Flex>
   );
 };

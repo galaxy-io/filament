@@ -5,11 +5,16 @@ import { notFound, Outlet } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 
-import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
+import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
 
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import PipelinePageHeading from "@/pages/pipelines/components/header/PipelinePageHeading";
+import PipelinePagePreviewBanner from "@/pages/pipelines/components/header/PipelinePagePreviewBanner";
+import PipelinePageScheduleBanner from "@/pages/pipelines/components/header/PipelinePageScheduleBanner";
+import PipelinePageTabs from "@/pages/pipelines/components/header/PipelinePageTabs";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
 import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
@@ -67,9 +72,14 @@ const PipelinePage: FC = () => {
       graph={graph}
       isReadOnly={Boolean(previewed)}
     >
-      <PipelineLayout>
+      <PageLayout
+        header={<PipelinePageHeading />}
+        actions={<PipelineLayoutNavbar />}
+        tabs={<PipelinePageTabs />}
+        banner={previewed ? <PipelinePagePreviewBanner /> : <PipelinePageScheduleBanner />}
+      >
         <Outlet />
-      </PipelineLayout>
+      </PageLayout>
     </PipelineCanvasProvider>
   );
 };
