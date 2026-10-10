@@ -3,6 +3,7 @@ import type { FC } from "react";
 import {
   CalendarCheckIcon,
   CalendarXIcon,
+  CopyIcon,
   GearIcon,
   PencilSimpleIcon,
   PlayIcon,
@@ -21,6 +22,7 @@ interface PipelinesTableRowActionsProps {
   onScheduleToggle: (pipeline: Pipeline) => void;
   onEdit: (pipeline: Pipeline) => void;
   onSettings: (pipeline: Pipeline) => void;
+  onCopyId: (pipeline: Pipeline) => void;
 }
 
 const PipelinesTableRowActions: FC<PipelinesTableRowActionsProps> = ({
@@ -29,6 +31,7 @@ const PipelinesTableRowActions: FC<PipelinesTableRowActionsProps> = ({
   onScheduleToggle,
   onEdit,
   onSettings,
+  onCopyId,
 }) => {
   const isActive = pipeline.lastRun ? ACTIVE_RUN_STATUSES.has(pipeline.lastRun.status) : false;
   const scheduleConfig =
@@ -52,6 +55,8 @@ const PipelinesTableRowActions: FC<PipelinesTableRowActionsProps> = ({
       <MenuSeparator />
       <MenuItem label="Edit pipeline" icon={PencilSimpleIcon} onSelect={() => onEdit(pipeline)} />
       <MenuItem label="Settings" icon={GearIcon} onSelect={() => onSettings(pipeline)} />
+      <MenuSeparator />
+      <MenuItem label="Copy pipeline ID" icon={CopyIcon} onSelect={() => onCopyId(pipeline)} />
     </>
   );
 };

@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
+import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -151,6 +152,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
 }) => {
   const navigate = useFilamentNavigate();
   const { toast } = useToast();
+  const { copy } = useClipboard();
 
   const { startRun } = usePipelineRun();
   const { mutateAsync: updateSchedule } = useUpdatePipelineScheduleMutation();
@@ -205,6 +207,19 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
     void navigate({ to: FilamentPath.PIPELINE_SETTINGS, params: { id: pipeline.id } });
   };
 
+  const handleCopyId = async (pipeline: Pipeline) => {
+    const hasCopied = await copy(pipeline.id);
+    toast(
+      hasCopied
+        ? { header: "Pipeline ID copied", variant: ToastVariant.SUCCESS }
+        : {
+            header: "Copy failed",
+            description: "Your browser blocked clipboard access.",
+            variant: ToastVariant.ERROR,
+          },
+    );
+  };
+
   return (
     <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
       <InfiniteTable<Pipeline>
@@ -228,6 +243,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
             onScheduleToggle={handleScheduleToggle}
             onEdit={handleEdit}
             onSettings={handleSettings}
+            onCopyId={handleCopyId}
           />
         )}
         canCustomizeColumns

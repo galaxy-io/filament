@@ -3,9 +3,11 @@ import { type FC, useState } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -102,6 +104,7 @@ const PipelineSettingsPageGeneral: FC = () => {
   return (
     <Widget isCollapsible header="General" defaultIsOpen>
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+        <CopyInput value={pipeline.id} label="ID" family={FontFamily.MONO} fillWidth />
         <TextInput
           value={state.name}
           onChange={handleNameChange}
