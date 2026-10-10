@@ -61,7 +61,7 @@ const ObservabilityRunsChart: FC = () => {
     <Flex
       alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={[24, 12]}
+      padding={[12, 16]}
       height={OBSERVABILITY_RUNS_CHART_HEIGHT}
       fillWidth
     >

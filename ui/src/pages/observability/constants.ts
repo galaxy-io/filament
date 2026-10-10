@@ -10,6 +10,8 @@ import {
   type ObservabilityTimeframeQuery,
 } from "@/pages/observability/types";
 
+export const OBSERVABILITY_WIDGET_BASIS = "400px";
+
 export const OBSERVABILITY_DEFAULT_TIMEFRAME = ObservabilityTimeframe.TWENTY_FOUR_HOURS;
 export const OBSERVABILITY_DEFAULT_RUNS_VIEW = ObservabilityRunsView.PAST;
 

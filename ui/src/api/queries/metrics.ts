@@ -1,5 +1,13 @@
+import { useCallback } from "react";
+
 import type { Transport } from "@connectrpc/connect";
-import { createConnectQueryKey, type UseQueryOptions, useQuery } from "@connectrpc/connect-query";
+import {
+  createConnectQueryKey,
+  type UseQueryOptions,
+  useQuery,
+  useTransport,
+} from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   MetricsService,
@@ -8,6 +16,10 @@ import {
   type QueryTimeseriesRequest,
   type QueryTimeseriesResponse,
 } from "@/gen/metrics/v1/metrics_pb";
+
+import { createListConnectionsQueryKey } from "@/api/queries/connections";
+import { createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import { createListRunsQueryKey } from "@/api/queries/runs";
 
 const METRICS_REFETCH_INTERVAL = 30 * 1000;
 
@@ -65,4 +77,21 @@ export const useQueryAggregateQuery = ({
     refetchInterval: METRICS_REFETCH_INTERVAL,
     ...options,
   });
+};
+
+export const useRefreshObservabilityQueries = () => {
+  const queryClient = useQueryClient();
+  const transport = useTransport();
+
+  return useCallback(() => {
+    for (const queryKey of [
+      createQueryTimeseriesQueryKey(undefined, transport),
+      createQueryAggregateQueryKey(undefined, transport),
+      createListRunsQueryKey(undefined, transport),
+      createListConnectionsQueryKey(undefined, transport),
+      createListPipelinesQueryKey(undefined, transport),
+    ]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  }, [queryClient, transport]);
 };

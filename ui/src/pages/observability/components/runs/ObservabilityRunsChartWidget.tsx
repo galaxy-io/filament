@@ -1,5 +1,6 @@
 import { type FC, useMemo } from "react";
 
+import { FlowArrowIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import MultiSelectInput, {
@@ -49,7 +50,7 @@ const SCHEDULED_STATUS_OPTIONS = [
   mapOptionToSwatchOption(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION),
 ];
 
-const ObservabilityRunsWidget: FC = () => {
+const ObservabilityRunsChartWidget: FC = () => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const { runs: view, statuses } = useObservabilitySearch();
 
@@ -92,6 +93,7 @@ const ObservabilityRunsWidget: FC = () => {
       isFlush
       gap={0}
       header="Runs"
+      icon={FlowArrowIcon}
       actions={
         <>
           <ToggleInput
@@ -131,4 +133,4 @@ const ObservabilityRunsWidget: FC = () => {
   );
 };
 
-export default ObservabilityRunsWidget;
+export default ObservabilityRunsChartWidget;

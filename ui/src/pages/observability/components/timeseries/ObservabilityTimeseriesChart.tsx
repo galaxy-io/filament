@@ -1,5 +1,6 @@
 import { type FC, useMemo } from "react";
 
+import AreaChart from "@galaxy-io/dls/charts/AreaChart";
 import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
 import {
   type ChartCurve,
@@ -41,6 +42,7 @@ interface ObservabilityTimeseriesChartProps {
   color: ChartPalette;
   pivot: MetricDimension | undefined;
   curve: ChartCurve;
+  isStacked: boolean;
   valueFormatter?: ChartValueFormatter;
 }
 
@@ -50,6 +52,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   color,
   pivot,
   curve,
+  isStacked,
   valueFormatter,
 }) => {
   const { timeframe } = useObservabilitySearch();
@@ -132,21 +135,36 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
     <Flex
       alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={[16, 12]}
+      padding={[12, 16]}
       height={OBSERVABILITY_TIMESERIES_CHART_HEIGHT}
       fillWidth
     >
-      <LineChart<string>
-        series={series}
-        lines={lines}
-        curve={curve}
-        valueFormatter={valueFormatter}
-        labelFormatter={bucketLabelFormatter}
-        isLoading={isLoading}
-        swatch={ChartSwatch.SQUARE}
-        hasLegend
-        isFilterable
-      />
+      {isStacked ? (
+        <AreaChart<string>
+          series={series}
+          areas={lines}
+          curve={curve}
+          valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
+          isLoading={isLoading}
+          swatch={ChartSwatch.SQUARE}
+          hasLegend
+          isFilterable
+          isStacked
+        />
+      ) : (
+        <LineChart<string>
+          series={series}
+          lines={lines}
+          curve={curve}
+          valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
+          isLoading={isLoading}
+          swatch={ChartSwatch.SQUARE}
+          hasLegend
+          isFilterable
+        />
+      )}
     </Flex>
   );
 };

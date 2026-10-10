@@ -1,3 +1,5 @@
+import type { Icon } from "@phosphor-icons/react";
+
 import { ChartCurve } from "@galaxy-io/dls/charts/types";
 import ToggleInput, {
   ToggleInputSize,
@@ -22,6 +24,9 @@ type ObservabilityTimeseriesView<TKey extends ObservabilityTimeseriesViewKey> = 
 >;
 
 interface ObservabilityTimeseriesWidgetProps<TKey extends ObservabilityTimeseriesViewKey> {
+  header: string;
+  icon: Icon;
+  isStacked?: boolean;
   views: ObservabilityTimeseriesView<TKey>[];
   viewToConfigMap: Record<ObservabilityTimeseriesView<TKey>, ObservabilityChartView>;
   defaultView: ObservabilityTimeseriesView<TKey>;
@@ -37,6 +42,9 @@ const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewK
   defaultPivot,
   viewSearchKey,
   pivotSearchKey,
+  header,
+  icon,
+  isStacked = false,
 }: ObservabilityTimeseriesWidgetProps<TKey>) => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const search = useObservabilitySearch();
@@ -46,7 +54,7 @@ const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewK
   const pivot =
     searchPivot === MetricDimension.UNSPECIFIED ? undefined : (searchPivot ?? defaultPivot);
 
-  const { label, seriesLabel, metric, color, valueFormatter } = viewToConfigMap[view];
+  const { seriesLabel, metric, color, valueFormatter } = viewToConfigMap[view];
 
   const handleViewChange = (nextView: ObservabilityTimeseriesView<TKey>) => {
     void updateSearch((prev) => ({ ...prev, [viewSearchKey]: nextView }));
@@ -68,7 +76,8 @@ const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewK
     <Widget
       isFlush
       gap={0}
-      header={label}
+      header={header}
+      icon={icon}
       actions={
         <>
           <ToggleInput
@@ -88,6 +97,7 @@ const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewK
         color={color}
         pivot={pivot}
         curve={ChartCurve.LINEAR}
+        isStacked={isStacked}
         valueFormatter={valueFormatter}
       />
     </Widget>

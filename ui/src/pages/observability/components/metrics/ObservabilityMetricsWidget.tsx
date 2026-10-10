@@ -3,7 +3,8 @@ import { type FC, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
 
-import BigNumber, { BigNumberVariant } from "@galaxy-io/dls/charts/BigNumber";
+import BigNumber from "@galaxy-io/dls/charts/BigNumber";
+import BigNumberGroup, { BigNumberGroupVariant } from "@galaxy-io/dls/charts/BigNumberGroup";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -13,11 +14,9 @@ import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
-import MetricGroup from "@/components/metrics/MetricGroup";
 import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/components/runs/constants";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
-import ObservabilityMetricsValue from "@/pages/observability/components/metrics/ObservabilityMetricsValue";
 import {
   OBSERVABILITY_RUN_STATUSES,
   OBSERVABILITY_RUNS_SCHEDULED_INPUT,
@@ -89,7 +88,12 @@ const ObservabilityMetricsWidget: FC = () => {
   );
 
   return (
-    <MetricGroup
+    <BigNumberGroup
+      ariaLabel="Run metrics"
+      variant={BigNumberGroupVariant.PRIMARY}
+      hasBorder
+      hasFadeEdges
+      fillWidth
       primary={
         <BigNumber
           label="Total runs"
@@ -100,93 +104,66 @@ const ObservabilityMetricsWidget: FC = () => {
     >
       <BigNumber
         label="Total records"
-        value={
-          <ObservabilityMetricsValue
-            value={formatNumber(totalRecords, { precision: 0 })}
-            mark={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
-          />
-        }
-        variant={BigNumberVariant.TERTIARY}
+        value={formatNumber(totalRecords, { precision: 0 })}
+        suffix={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
         isLoading={isTotalsLoading}
-        hasBorder
       />
       <BigNumber
         label="Total volume"
-        value={
-          <ObservabilityMetricsValue
-            value={formatBytes(totalBytes)}
-            mark={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
-          />
-        }
-        variant={BigNumberVariant.TERTIARY}
+        value={formatBytes(totalBytes)}
+        suffix={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
         isLoading={isTotalsLoading}
-        hasBorder
       />
       {OBSERVABILITY_METRICS_FEATURED_STATUSES.map((status) => (
         <BigNumber
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-          value={
-            <ObservabilityMetricsValue
-              value={formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
-              mark={<PipelineRunStatusSwatch status={status} />}
-            />
-          }
+          value={formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
+          suffix={<PipelineRunStatusSwatch status={status} />}
           isLoading={isStatusCountsLoading}
-          hasBorder
         />
       ))}
       <BigNumber
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
-        value={
-          <ObservabilityMetricsValue
-            value={formatNumber(scheduledData?.runs.length ?? 0)}
-            mark={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
-          />
-        }
+        value={formatNumber(scheduledData?.runs.length ?? 0, { precision: 0 })}
+        suffix={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
         isLoading={isScheduledLoading}
-        hasBorder
       />
       <BigNumber
         label="Other"
-        value={
-          <ObservabilityMetricsValue
-            value={formatNumber(otherStatusesCount, { precision: 0 })}
-            mark={
-              <Tooltip
-                body={
-                  <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
-                    {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
-                      <Flex
-                        key={status}
-                        alignItems={AlignItems.CENTER}
-                        justifyContent={JustifyContent.SPACE_BETWEEN}
-                        gap={48}
-                        fillWidth
-                      >
-                        <Flex alignItems={AlignItems.CENTER} gap={8}>
-                          <PipelineRunStatusSwatch status={status} />
-                          <Text size={TextSize.BODY_SM}>
-                            {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-                          </Text>
-                        </Flex>
-                        <Text size={TextSize.BODY_SM}>
-                          {formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
-                        </Text>
-                      </Flex>
-                    ))}
+        value={formatNumber(otherStatusesCount, { precision: 0 })}
+        suffix={
+          <Tooltip
+            body={
+              <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+                {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
+                  <Flex
+                    key={status}
+                    alignItems={AlignItems.CENTER}
+                    justifyContent={JustifyContent.SPACE_BETWEEN}
+                    gap={48}
+                    fillWidth
+                  >
+                    <Flex alignItems={AlignItems.CENTER} gap={8}>
+                      <PipelineRunStatusSwatch status={status} />
+                      <Text size={TextSize.BODY_SM}>
+                        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
+                      </Text>
+                    </Flex>
+                    <Text size={TextSize.BODY_SM}>
+                      {formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
+                    </Text>
                   </Flex>
-                }
-              >
-                <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-              </Tooltip>
+                ))}
+              </Flex>
             }
-          />
+          >
+            <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
+          </Tooltip>
         }
         isLoading={isStatusCountsLoading}
-        hasBorder
       />
-    </MetricGroup>
+    </BigNumberGroup>
   );
 };
 
