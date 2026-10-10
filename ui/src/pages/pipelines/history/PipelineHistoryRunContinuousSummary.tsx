@@ -1,40 +1,45 @@
+import type { FC } from "react";
+
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
-import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
 
 interface PipelineHistoryRunContinuousSummaryProps {
   run: RunInfo;
 }
 
-const PipelineHistoryRunContinuousSummary = ({ run }: PipelineHistoryRunContinuousSummaryProps) => {
+const PipelineHistoryRunContinuousSummary: FC<PipelineHistoryRunContinuousSummaryProps> = ({
+  run,
+}) => {
   const lastCommittedAt = run.executionStatus?.lastCommittedAt;
   return (
-    <ConnectionDrawerList hasBorder={false}>
-      <ConnectionDrawerKeyValueRow
+    <KeyValueList hasBorder={false}>
+      <KeyValueListRow
         label="Status"
         value={
-          <PipelineHistoryRunStatus
+          <PipelineRunStatus
             status={run.status}
             executionStatus={run.executionStatus}
             error={run.error}
           />
         }
       />
-      <ConnectionDrawerKeyValueRow
+      <KeyValueListRow
         label="Committed"
         value={
           <Text size={TextSize.BODY_SM}>
-            {formatCount(run.records)} records · {formatBytes(run.bytes)}
+            {formatNumber(run.records)} records · {formatBytes(run.bytes)}
           </Text>
         }
       />
-      <ConnectionDrawerKeyValueRow
+      <KeyValueListRow
         label="Last commit"
         value={
           <Text size={TextSize.BODY_SM}>
@@ -42,7 +47,7 @@ const PipelineHistoryRunContinuousSummary = ({ run }: PipelineHistoryRunContinuo
           </Text>
         }
       />
-    </ConnectionDrawerList>
+    </KeyValueList>
   );
 };
 

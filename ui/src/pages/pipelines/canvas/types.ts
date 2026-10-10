@@ -23,12 +23,12 @@ export interface PipelineCanvasNodeTableInfo {
   isInvalid: boolean;
 }
 
-export type PipelineCanvasConnectionNodeData = {
+type PipelineCanvasConnectionNodeData = {
   connectionId: PipelineNode["connectionId"];
   config?: NonNullable<PipelineNode["config"]>;
 };
 
-export type PipelineCanvasPlaceholderNodeData = {
+type PipelineCanvasPlaceholderNodeData = {
   kind: ConnectorKind;
 };
 
@@ -57,8 +57,3 @@ export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode"
 };
 
 export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
-
-export const isConnectionNode = (
-  node: CanvasNode,
-): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
-  node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;

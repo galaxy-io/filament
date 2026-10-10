@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { type FC, Suspense } from "react";
 
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
@@ -13,14 +13,15 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import { ConnectorKind, ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
+import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
-import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
@@ -42,11 +43,15 @@ import { PipelineResourceStatusField } from "@/pages/pipelines/components/resour
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
 }
 
-const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResourceDetailProps) => {
+const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailProps> = ({
+  edge,
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
@@ -142,8 +147,8 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
       <FlexItem grow={1} minHeight={0}>
         <ScrollArea>
           <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-              <ConnectionDrawerKeyValueRow
+            <KeyValueList variant={BoxVariant.SECONDARY}>
+              <KeyValueListRow
                 label="Source"
                 value={
                   <PipelineCanvasPanelResourceEndpoint
@@ -152,7 +157,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   />
                 }
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Resource"
                 value={
                   <Text
@@ -163,7 +168,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   </Text>
                 }
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Sink"
                 value={
                   <PipelineCanvasPanelResourceEndpoint
@@ -172,7 +177,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   />
                 }
               />
-            </ConnectionDrawerList>
+            </KeyValueList>
             <PipelineCanvasPanelSection
               header="Configuration"
               isEmpty={false}
@@ -192,7 +197,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                     options={readModeSelectOptions}
                     value={String(readMode)}
                     onChange={(id) => {
-                      if (id !== null) handleReadModeChange(Number(id) as ReadMode);
+                      if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
                     }}
                     placeholder="Select a read mode..."
                     isDisabled={isReadOnly || isLoading}
@@ -206,7 +211,7 @@ const PipelineCanvasPanelResourceDetail = ({ edge }: PipelineCanvasPanelResource
                   options={writeModeSelectOptions}
                   value={String(writeMode)}
                   onChange={(id) => {
-                    if (id !== null) handleWriteModeChange(Number(id) as WriteMode);
+                    if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
                   }}
                   placeholder="Select a write mode..."
                   isDisabled={isReadOnly || isLoading}

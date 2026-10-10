@@ -2,35 +2,36 @@ import { create } from "@bufbuild/protobuf";
 
 import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
 import type { ChartSelection } from "@galaxy-io/dls/charts/types";
-import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import { type ListRunsRequest, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import {
   Metric,
   MetricDimension,
   MetricFilterSchema,
-  MetricGranularity,
   type QueryTimeseriesRequest,
   type Timeseries,
 } from "@/gen/metrics/v1/metrics_pb";
 
-import { OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT } from "@/pages/observability/components/runs/constants";
+import {
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/components/runs/constants";
+
 import type { ObservabilityRunMetric } from "@/pages/observability/components/runs/types";
+import {
+  OBSERVABILITY_GRANULARITY_TO_BUCKET_OFFSET_MAP,
+  OBSERVABILITY_GRANULARITY_TO_BUCKET_START_MAP,
+  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
   createObservabilityTimeseriesInput,
   createTimeframeSince,
   formatBucketKey,
-  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
-  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
-import {
-  PIPELINE_RUN_STATUS_TO_HUE_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
 
-import type { ListSearchParams } from "@/api/utils";
+import { mapOptionIdToEnum } from "@/utils/select";
 
 export const createRunCountTimeseriesInput = (
   timeframe: ObservabilityTimeframe,
@@ -47,27 +48,17 @@ export const createRunCountTimeseriesInput = (
     ],
   });
 
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
-
 export const createScheduledRunsChartGroups = (
   runs: RunInfo[],
   timeframe: ObservabilityTimeframe,
 ): BarChartGroupDatum<ObservabilityRunMetric>[] => {
   const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const start = new Date();
-  if (granularity === MetricGranularity.HOUR) {
-    start.setMinutes(0, 0, 0);
-  } else {
-    start.setHours(0, 0, 0, 0);
-  }
+  const start = OBSERVABILITY_GRANULARITY_TO_BUCKET_START_MAP[granularity](new Date());
   const bucketCount = Math.round(
-    durationMs / (granularity === MetricGranularity.HOUR ? HOUR_MS : DAY_MS),
+    durationMs / Number(OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity]),
   );
   const bucketBounds = Array.from({ length: bucketCount + 1 }, (_, index) =>
-    granularity === MetricGranularity.HOUR
-      ? start.getTime() + index * HOUR_MS
-      : new Date(start.getFullYear(), start.getMonth(), start.getDate() + index).getTime(),
+    OBSERVABILITY_GRANULARITY_TO_BUCKET_OFFSET_MAP[granularity](start, index),
   );
   return bucketBounds.slice(0, -1).map((bucketStartMs, bucketIndex) => ({
     label: formatBucketKey(BigInt(bucketStartMs)),
@@ -83,7 +74,7 @@ export const createScheduledRunsChartGroups = (
                 Number(run.scheduledAt) >= bucketStartMs &&
                 Number(run.scheduledAt) < bucketBounds[bucketIndex + 1],
             ).length,
-            color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED] ?? undefined,
+            color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED],
           },
         ],
       },
@@ -101,7 +92,7 @@ export const mapTimeseriesToChartGroups = (
         metric: "runs",
         components: series
           .flatMap((statusSeries) => {
-            const status = Number(statusSeries.key) as RunStatus;
+            const status = mapOptionIdToEnum(RunStatus, statusSeries.key);
             const color = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
             return color
               ? [
@@ -120,10 +111,10 @@ export const mapTimeseriesToChartGroups = (
   }));
 
 export const mapChartSelectionToRunsFilter = (selection: ChartSelection | undefined) => {
-  const status = Number(selection?.seriesKey);
+  const status = mapOptionIdToEnum(RunStatus, selection?.seriesKey ?? "");
   return {
     runsBucket: selection?.categoryKey === undefined ? undefined : BigInt(selection.categoryKey),
-    runsStatus: Number.isNaN(status) ? undefined : (status as RunStatus),
+    runsStatus: status === RunStatus.UNSPECIFIED ? undefined : status,
   };
 };
 
@@ -139,34 +130,5 @@ export const createRunsWindowInput = (
   return {
     sinceMs: runsBucket > sinceMs ? runsBucket : sinceMs,
     untilMs: runsBucket + OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
-  };
-};
-
-export type ObservabilityRunsTableSorting = TableSort | null;
-
-export type ObservabilityRunsTableSortingChange = (sorting: ObservabilityRunsTableSorting) => void;
-
-type ObservabilityRunsSortSearch = Pick<ListSearchParams, "sortBy" | "sortOrder">;
-
-export const createObservabilityRunsSorting = ({
-  sortBy,
-  sortOrder,
-}: ObservabilityRunsSortSearch): ObservabilityRunsTableSorting =>
-  sortBy === SortBy.CREATED_AT
-    ? {
-        columnId: OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT,
-        isDescending: sortOrder !== SortOrder.ASC,
-      }
-    : null;
-
-export const createObservabilityRunsSortSearch = (
-  sorting: ObservabilityRunsTableSorting,
-): ObservabilityRunsSortSearch => {
-  if (sorting?.columnId !== OBSERVABILITY_RUNS_TABLE_COLUMN_ID_STARTED_AT) {
-    return { sortBy: undefined, sortOrder: undefined };
-  }
-  return {
-    sortBy: SortBy.CREATED_AT,
-    sortOrder: sorting.isDescending ? SortOrder.DESC : SortOrder.ASC,
   };
 };

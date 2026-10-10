@@ -51,7 +51,7 @@ const serializeTransformLiteral = ({ literalKind, value }: TransformLiteralExpr)
         .with(TransformLiteralKind.BOOLEAN, () => value === "true")
         .exhaustive();
 
-export const serializeTransformExpr = (expr: TransformExpr): JsonValue =>
+const serializeTransformExpr = (expr: TransformExpr): JsonValue =>
   match<TransformExpr, JsonValue>(expr)
     .with({ kind: TransformExprKind.EMPTY }, () => null)
     .with({ kind: TransformExprKind.COLUMN }, ({ name }) => ({ col: name }))

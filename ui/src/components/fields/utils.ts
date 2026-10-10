@@ -28,7 +28,7 @@ const ACRONYMS_TO_CAPITALIZE: string[] = [
   "tib",
 ];
 
-export function formatFieldName(fieldName: string): string {
+export const formatFieldName = (fieldName: string): string => {
   return fieldName
     .replace(/_/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -40,23 +40,26 @@ export function formatFieldName(fieldName: string): string {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
-}
+};
 
-export function isFieldVisible(field: ConfigField, siblings: Record<string, JsonValue>): boolean {
+export const isFieldVisible = (
+  field: ConfigField,
+  siblings: Record<string, JsonValue>,
+): boolean => {
   if (!field.visibleWhen) return true;
 
   const value = siblings[field.visibleWhen.field];
   return typeof value === "string" && field.visibleWhen.values.includes(value);
-}
+};
 
-export function isJsonObject(value: JsonValue): value is Record<string, JsonValue> {
+export const isJsonObject = (value: JsonValue): value is Record<string, JsonValue> => {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+};
 
-export function getFieldDefaults(
+export const getFieldDefaults = (
   fields: ConfigField[],
   values: Record<string, JsonValue> = {},
-): Record<string, JsonValue> {
+): Record<string, JsonValue> => {
   const defaults: Record<string, JsonValue> = {};
   for (const field of fields) {
     if (field.default && isFieldVisible(field, { ...defaults, ...values })) {
@@ -64,14 +67,14 @@ export function getFieldDefaults(
     }
   }
   return defaults;
-}
+};
 
-export function updateConfigField(
+export const updateConfigField = (
   fields: ConfigField[],
   values: Record<string, JsonValue>,
   fieldName: string,
   value: JsonValue,
-): Record<string, JsonValue> {
+): Record<string, JsonValue> => {
   const next = { ...values, [fieldName]: value };
   const before = { ...getFieldDefaults(fields, values), ...values };
   const after = { ...getFieldDefaults(fields, next), ...next };
@@ -93,15 +96,15 @@ export function updateConfigField(
     }
   }
   return next;
-}
+};
 
-export function getConnectionScopedFields(fields: ConfigField[]): ConfigField[] {
+export const getConnectionScopedFields = (fields: ConfigField[]): ConfigField[] => {
   return fields.filter((field) => field.scope === FieldScope.CONNECTION);
-}
+};
 
 const isRenderableField = (field: ConfigField): boolean =>
   field.type !== FieldType.LIST || field.enum.length > 0;
 
-export function getPipelineScopedFields(fields: ConfigField[]): ConfigField[] {
+export const getPipelineScopedFields = (fields: ConfigField[]): ConfigField[] => {
   return fields.filter((field) => field.scope === FieldScope.PIPELINE && isRenderableField(field));
-}
+};

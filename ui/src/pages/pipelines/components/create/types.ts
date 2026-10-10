@@ -8,10 +8,10 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
 import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export enum CreatePipelineModalStep {
   CONNECTIONS = "CONNECTIONS",
@@ -35,7 +35,7 @@ export interface CreatePipelineModalState {
   name: Pipeline["name"];
   isNameTouched: boolean;
   description: Pipeline["description"];
-  schedule: PipelineSettingsPageScheduleState;
+  schedule: PipelineScheduleState;
   notifiers: PipelineNotifier[];
   workerConfiguration: string;
   isSubmitting: boolean;
@@ -60,7 +60,7 @@ export interface CreatePipelineModalSinkRow {
   writeModeOptions: WriteMode[];
 }
 
-export interface CreatePipelineModalDerivedState {
+interface CreatePipelineModalDerivedState {
   supportedExecutionModes: ExecutionMode[];
   hasReadLevers: boolean;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;

@@ -3,12 +3,10 @@ import type {
   Requirement,
   ValidatePipelineResponse,
 } from "@/gen/ingestion/v1/capabilities_pb";
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   ExecutionDesiredState,
-  ExecutionObservedState,
   type RunInfo,
   RunSignal,
   RunStatus,
@@ -16,15 +14,10 @@ import {
 
 import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
 
-import { stripDeletedName } from "@/utils/format";
+import { isContinuousRun } from "@/utils/runs";
 
 export const getSupportedExecutionModes = (source: Connection | null): ExecutionMode[] =>
   source ? PIPELINE_EXECUTION_MODES.filter((mode) => source.executionModes.includes(mode)) : [];
-
-export const isContinuousRun = (run: RunInfo) => run.executionMode === ExecutionMode.CONTINUOUS;
-
-export const isContinuousRunActive = (run: RunInfo) =>
-  isContinuousRun(run) && run.executionStatus?.observedState !== ExecutionObservedState.STOPPED;
 
 export const getRunPauseSignal = (run: RunInfo) => {
   const isPaused = isContinuousRun(run)
@@ -54,14 +47,3 @@ export const getPipelineValidationErrors = (
     ...(validation?.edges ?? []).flatMap(getEdgeValidationErrors),
   ]),
 ];
-
-export const formatPipelineName = (pipeline: Pipeline, includeDeleted = false): string => {
-  const name = includeDeleted ? pipeline.name : stripDeletedName(pipeline.name);
-  if (name) {
-    return name.replace(/->/g, "→");
-  }
-  return pipeline.id;
-};
-
-export const isPipelineNameMatch = (typed: string, name: string): boolean =>
-  typed.trim().replace(/->/g, "→") === name.trim();

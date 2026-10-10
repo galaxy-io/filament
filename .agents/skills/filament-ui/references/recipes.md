@@ -500,9 +500,9 @@ import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import AreaChart from "@galaxy-io/dls/charts/AreaChart";
 import BarChart from "@galaxy-io/dls/charts/BarChart";
+import BigNumber from "@galaxy-io/dls/charts/BigNumber";
 import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
 import Sparkline, { SparklineVariant } from "@galaxy-io/dls/charts/Sparkline";
-import StatChart from "@galaxy-io/dls/charts/StatChart";
 import { ChartPalette } from "@galaxy-io/dls/charts/types";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -537,16 +537,16 @@ export function Dashboard({ isLoading }: { isLoading: boolean }) {
       </Flex>
 
       <Grid columns={4} gap={12}>
-        <StatChart label="Rows synced" value="1.07M" description="+4% vs last week" trailing={<Sparkline data={ROWS} />} hasBorder isLoading={isLoading} />
-        <StatChart label="Runs" value={formatNumber(312)} description="44 per day" hasBorder isLoading={isLoading} />
-        <StatChart
+        <BigNumber label="Rows synced" value="1.07M" description="+4% vs last week" trailing={<Sparkline data={ROWS} />} hasBorder isLoading={isLoading} />
+        <BigNumber label="Runs" value={formatNumber(312)} description="44 per day" hasBorder isLoading={isLoading} />
+        <BigNumber
           label="Failed runs"
           value={8}
           trailing={<Chip label="3 new" variant={ChipVariant.ERROR} size={ChipSize.SMALL} />}
           hasBorder
           isLoading={isLoading}
         />
-        <StatChart
+        <BigNumber
           label="Median duration"
           value="6m 12s"
           trailing={<Sparkline data={[7, 6.5, 6.8, 6.1, 6.2]} variant={SparklineVariant.SUCCESS} />}
@@ -768,7 +768,7 @@ import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 declare function navigate(path: string): void;
 declare function openNewSourceDialog(): void;
 
-export function AppFrame({ title, children }: { title: string; children: ReactNode }) {
+export function StandaloneFrame({ title, children }: { title: string; children: ReactNode }) {
   const palette = useDisclosure();
   const { activeTheme, setTheme } = useGalaxyTheme();
 

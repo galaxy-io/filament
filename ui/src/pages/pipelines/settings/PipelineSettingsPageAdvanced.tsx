@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -9,10 +8,7 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import {
-  GetPipelineRequestSchema,
-  UpdatePipelineRequestSchema,
-} from "@/gen/ingestion/v1/pipelines_pb";
+import { UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
@@ -21,15 +17,21 @@ import {
   workerConfigurationEquals,
 } from "@/pages/pipelines/components/worker/utils";
 
-import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
+
+import {
+  createGetPipelineInput,
+  useSuspenseGetPipelineQuery,
+  useUpdatePipelineMutation,
+} from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineSettingsPageAdvanced = () => {
+const PipelineSettingsPageAdvanced: FC = () => {
   const { toast } = useToast();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();

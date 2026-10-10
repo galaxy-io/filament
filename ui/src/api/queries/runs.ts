@@ -2,7 +2,6 @@ import { create } from "@bufbuild/protobuf";
 import { createClient, type Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
-  createInfiniteQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useInfiniteQuery,
@@ -12,12 +11,18 @@ import {
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
-import { experimental_streamedQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import {
+  experimental_streamedQuery,
+  type InfiniteData,
+  useQueries,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   type GetRunRequest,
   type GetRunResponse,
   type ListRunsRequest,
+  ListRunsRequestSchema,
   type ListRunsResponse,
   type RunEvent,
   type RunInfo,
@@ -28,20 +33,28 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { isContinuousRunActive } from "@/pages/pipelines/utils";
-
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
-import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import {
+  ACTIVE_PIPELINE_RUNS_PAGE_SIZE,
+  ACTIVE_RUNS_REFETCH_INTERVAL,
+} from "@/api/queries/constants";
+import {
+  createGetPipelineInput,
+  createGetPipelineQueryKey,
+  createListPipelinesQueryKey,
+  useGetPipelineQuery,
+} from "@/api/queries/pipelines";
 import {
   batchIterable,
   getNextPageParam,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
   type UseInfiniteQueryOptions,
-  type UseSuspenseQueryOptions,
 } from "@/api/utils";
 
-const LIST_RUNS_REFETCH_INTERVAL = 3 * 1000;
+import { ACTIVE_RUN_STATUSES } from "@/constants";
+
+import { isRunActive } from "@/utils/runs";
+
 const GET_RUN_REFETCH_INTERVAL = 2 * 1000;
 const MAX_TAIL_EVENTS = 2000;
 const TAIL_FLUSH_INTERVAL = 150;
@@ -69,20 +82,18 @@ const getScheduledRefetchInterval = (runs: RunInfo[], floor: number) => {
 
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
   if (!runs) return false;
-  if (runs.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
-    return LIST_RUNS_REFETCH_INTERVAL;
-  return getScheduledRefetchInterval(runs, LIST_RUNS_REFETCH_INTERVAL);
+  if (runs.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
+  return getScheduledRefetchInterval(runs, ACTIVE_RUNS_REFETCH_INTERVAL);
 };
 
-export const getActiveRunsRefetchInterval = (
+const getActiveRunsRefetchInterval = (
   runs: RunInfo[] | undefined,
   nextFireAt: bigint | undefined,
 ) => {
-  if (runs?.some((run) => ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run)))
-    return LIST_RUNS_REFETCH_INTERVAL;
+  if (runs?.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
   if (!nextFireAt) return IDLE_RUNS_REFETCH_INTERVAL;
   const wait = Number(nextFireAt) - Date.now();
-  return Math.min(Math.max(wait, LIST_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
+  return Math.min(Math.max(wait, ACTIVE_RUNS_REFETCH_INTERVAL), IDLE_RUNS_REFETCH_INTERVAL);
 };
 
 export const useListRunsQuery = ({
@@ -92,10 +103,7 @@ export const useListRunsQuery = ({
   input?: ListRunsRequest;
   options?: UseQueryOptions<typeof IngestionService.method.listRuns.output, ListRunsResponse>;
 } = {}) => {
-  return useQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >(IngestionService.method.listRuns, input, {
+  return useQuery(IngestionService.method.listRuns, input, {
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
@@ -103,39 +111,50 @@ export const useListRunsQuery = ({
   });
 };
 
-export const useSuspenseListRunsQuery = ({
-  input,
-  options = {},
-}: {
-  input?: ListRunsRequest;
-  options?: UseSuspenseQueryOptions<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >;
-} = {}) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >(IngestionService.method.listRuns, input, {
-    refetchInterval: (query) => {
-      return getListRunsRefetchInterval(query.state.data?.runs);
-    },
-    ...options,
+const createListActivePipelineRunsInput = (pipelineId: RunInfo["pipelineId"]) =>
+  create(ListRunsRequestSchema, {
+    pipelineId,
+    status: [...ACTIVE_RUN_STATUSES],
+    pagination: { pageSize: ACTIVE_PIPELINE_RUNS_PAGE_SIZE },
+  });
+
+const usePipelineScheduledFireAt = (pipelineId: RunInfo["pipelineId"]) => {
+  const { data } = useGetPipelineQuery({ input: createGetPipelineInput(pipelineId) });
+  const schedule = data?.pipeline?.schedule;
+  return schedule?.config?.isEnabled ? schedule.nextFireAt : undefined;
+};
+
+export const useListActivePipelineRunsQuery = (pipelineId: RunInfo["pipelineId"]) => {
+  const nextFireAt = usePipelineScheduledFireAt(pipelineId);
+  return useQuery(IngestionService.method.listRuns, createListActivePipelineRunsInput(pipelineId), {
+    refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
   });
 };
 
-export const createListRunsInfiniteQueryOptions = ({
-  input,
-  transport,
-}: {
-  input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
-  transport: Transport;
-}) => {
-  return createInfiniteQueryOptions(
+export const useSuspenseListActivePipelineRunsQuery = (pipelineId: RunInfo["pipelineId"]) => {
+  const nextFireAt = usePipelineScheduledFireAt(pipelineId);
+  return useSuspenseQuery(
     IngestionService.method.listRuns,
-    { ...input, pagination: INITIAL_PAGE_PARAM },
-    { transport, pageParamKey: "pagination", getNextPageParam },
+    createListActivePipelineRunsInput(pipelineId),
+    {
+      refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
+    },
   );
+};
+
+const selectUniqueRunPages = (data: InfiniteData<ListRunsResponse>) => {
+  const seen = new Set<RunInfo["id"]>();
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      runs: page.runs.filter((run) => {
+        if (seen.has(run.id)) return false;
+        seen.add(run.id);
+        return true;
+      }),
+    })),
+  };
 };
 
 export const useListRunsInfiniteQuery = ({
@@ -149,16 +168,13 @@ export const useListRunsInfiniteQuery = ({
     "pagination"
   >;
 } = {}) => {
-  return useInfiniteQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output,
-    "pagination"
-  >(
+  return useInfiniteQuery(
     IngestionService.method.listRuns,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     {
       pageParamKey: "pagination",
       getNextPageParam,
+      select: selectUniqueRunPages,
       refetchInterval: (query) => {
         return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
       },
@@ -172,16 +188,13 @@ export const useSuspenseListRunsInfiniteQuery = ({
 }: {
   input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
 } = {}) => {
-  return useSuspenseInfiniteQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output,
-    "pagination"
-  >(
+  return useSuspenseInfiniteQuery(
     IngestionService.method.listRuns,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     {
       pageParamKey: "pagination",
       getNextPageParam,
+      select: selectUniqueRunPages,
       refetchInterval: (query) => {
         return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
       },
@@ -191,9 +204,17 @@ export const useSuspenseListRunsInfiniteQuery = ({
 
 const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   if (!run) return false;
-  if (ACTIVE_RUN_STATUSES.has(run.status) || isContinuousRunActive(run))
-    return GET_RUN_REFETCH_INTERVAL;
+  if (isRunActive(run)) return GET_RUN_REFETCH_INTERVAL;
   return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
+};
+
+const createGetRunQueryKey = (input?: GetRunRequest, transport?: Transport) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.getRun,
+    input,
+    transport,
+    cardinality: "finite",
+  });
 };
 
 export const useGetRunQuery = ({
@@ -203,10 +224,7 @@ export const useGetRunQuery = ({
   input: GetRunRequest;
   options?: UseQueryOptions<typeof IngestionService.method.getRun.output, GetRunResponse>;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getRun.input,
-    typeof IngestionService.method.getRun.output
-  >(IngestionService.method.getRun, input, {
+  return useQuery(IngestionService.method.getRun, input, {
     refetchInterval: (query) => {
       return getGetRunRefetchInterval(query.state.data?.snapshot?.run);
     },
@@ -214,9 +232,12 @@ export const useGetRunQuery = ({
   });
 };
 
-export const createTailRunQueryKey = (input?: TailRunRequest) => {
-  return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
-};
+const createTailRunQueryKey = (input: TailRunRequest, transport: Transport) =>
+  [
+    ...createConnectQueryKey({ schema: IngestionService, transport, cardinality: undefined }),
+    IngestionService.method.tailRun.name,
+    input.runId,
+  ] as const;
 
 export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
   const transport = useTransport();
@@ -224,7 +245,7 @@ export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
     queries: runIds.map((runId) => {
       const input = create(TailRunRequestSchema, { runId, shouldReplay: true });
       return {
-        queryKey: createTailRunQueryKey(input),
+        queryKey: createTailRunQueryKey(input, transport),
         queryFn: experimental_streamedQuery({
           streamFn: ({ signal }: { signal: AbortSignal }) =>
             batchIterable(
@@ -257,20 +278,18 @@ export const useRunPipelineMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.runPipeline.input,
-    typeof IngestionService.method.runPipeline.output
-  >(IngestionService.method.runPipeline, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.runPipeline, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -284,22 +303,21 @@ export const useSignalRunMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.signalRun.input,
-    typeof IngestionService.method.signalRun.output
-  >(IngestionService.method.signalRun, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.signalRun, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createConnectQueryKey({
-          schema: IngestionService.method.getRun,
-          cardinality: undefined,
-        }),
+        queryKey: createGetRunQueryKey(undefined, transport),
       });
-      void queryClient.invalidateQueries({ queryKey: createGetPipelineQueryKey() });
-      void queryClient.invalidateQueries({ queryKey: createListPipelinesQueryKey() });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

@@ -16,10 +16,11 @@ The repository ships its conventions as skills under `.agents/skills/` (`.claude
 All work in `ui/` follows the `filament-ui` skill. Read its `SKILL.md` before writing or reviewing a component, and keep its app references (`architecture.md`, `routing.md`, `data.md`, `screens.md`, `forms.md`, `dashboards.md`, `workflow.md`) current when a convention changes. Do not restate UI conventions here. The short version, so a change in another part of the repo does not break them.
 
 - The UI is React 18, Vite, TanStack Router, ConnectRPC through `@connectrpc/connect-query`, Linaria, and the Galaxy design system `@galaxy-io/dls`. Components come from the DLS by subpath, styling comes from DLS tokens, and nothing is imported through a barrel.
+- One source tree builds the standalone app (`pnpm build` → `ui/build/`, embedded by the Go server) and the mountable `@galaxy-io/filament` module (`pnpm build:lib` → `ui/dist/`) that a Galaxy host mounts. Standalone-only code lives in `ui/src/host/`, the module's surface lives in `ui/src/module/`, and the package exports are the `exports` map in `ui/package.json`. Library code never imports `src/host` or names an absolute route. `ui/fixtures/host/` is the reference host. See "Module and host" in `ui/README.md`.
 - Protos drive the UI's types. After a proto change run `cd ui && pnpm codegen` and commit `ui/src/gen/`. A new service needs a proxy entry in `ui/vite.config.ts`.
-- Gates, run from `ui/` with pnpm (never npm): `pnpm typecheck`, `pnpm lint:check`, `pnpm format:check`, `pnpm build`, and `git diff --exit-code src/routeTree.gen.ts`. `just format check` and `just lint check` cover the UI with the rest of the repo.
+- Gates, run from `ui/` with pnpm (never npm): `pnpm check` (typecheck, typecheck:lib, lint, format, both builds, the package checks and the fixture host), then `git diff --exit-code src/host/routeTree.gen.ts`. `just ui-check` runs all of it from the root and is what CI runs. `just format check` and `just lint check` cover the UI with the rest of the repo.
 - The four design-system references inside the skill (`components.md`, `tokens.md`, `patterns.md`, `recipes.md`) describe `@galaxy-io/dls`. Update them with a DLS version bump and keep app conventions out of them.
-- Do not restart a dev server you did not start. `just dev` runs the control plane, the API on 8080 and the UI on 5173. Start your own server on a free port to verify.
+- Do not restart a dev server you did not start. `just dev` runs the control plane, the API on 8080 and the UI on 5173. Start your own Vite on a free port with its own `cacheDir` to verify, with `API_PROXY_TARGET` pointing the UI proxy at a second API when needed.
 
 ## Services
 

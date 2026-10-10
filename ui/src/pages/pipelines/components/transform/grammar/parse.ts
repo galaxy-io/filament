@@ -20,7 +20,7 @@ const literal = (literalKind: TransformLiteralKind, value: string): TransformExp
   value,
 });
 
-export const parseTransformExpr = (
+const parseTransformExpr = (
   json: JsonValue,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
 ): TransformExpr | null => {
@@ -44,7 +44,7 @@ export const parseTransformExpr = (
   return { kind: TransformExprKind.CALL, fn: key, args };
 };
 
-export const parseTransformStep = (
+const parseTransformStep = (
   json: JsonValue,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
 ): TransformStep => {

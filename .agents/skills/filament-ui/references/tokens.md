@@ -1,8 +1,6 @@
-<!-- Generated from docs/theming.md by `pnpm skill:sync`. Edit that file, not this one. -->
-
 # Theming and tokens
 
-Every color, space, radius, duration, z-index and control size is a token in `src/theme/tokens/`. Components read tokens only as CSS custom properties, so a theme switch is one attribute change on `<html>` and nothing re-renders.
+Every color, space, radius, duration, z-index and control size is a token. Components read tokens only as CSS custom properties, so a theme switch is one attribute change on `<html>` and nothing re-renders.
 
 ## Themes
 
@@ -50,7 +48,7 @@ export const Row = styled.button`
 `;
 ```
 
-Never write a hex literal outside `src/theme/tokens/` (Biome's `no-hex-literal` rule), and never a raw px value where a token exists.
+Never write a hex literal (the Biome preset's `no-hex-literal` rule), and never a raw px value where a token exists.
 
 ## Color: property first
 
@@ -66,7 +64,7 @@ Never write a hex literal outside `src/theme/tokens/` (Biome's `no-hex-literal` 
 | `tertiary` | The most elevated step: inline code, `Kbd` caps. |
 | `hovered` | A neutral row or control under the pointer. |
 | `pressed` | A neutral row or control while pressed. |
-| `selected` | The chosen item: a menu row, a tree row, the active nav item, a selected table row, the selected segment of a `ToggleInput`. `text.primary` at 12% over `base`. |
+| `selected` | The chosen item: a menu row, a tree row, the active nav item, a selected table row, the selected segment of a `ToggleInput`. `text.primary` over `base`, 12% in Dark and 10% in Light. |
 | `disabled` | Disabled controls. |
 | `success` `warning` `error` | The soft tint of a status (an `Alert`, a status `Chip`). |
 | `<family>` | The soft tint of a category (`background.purple`). |
@@ -82,7 +80,7 @@ Surfaces are strictly ordered `base < primary < secondary < tertiary` in both th
 | `tertiary` | Hints, placeholders, metadata, timestamps, section labels. |
 | `disabled` | Disabled controls. |
 | `success` `warning` `error` | Status text and icons. |
-| `<family>` | Categorical text and icons; chart marks. |
+| `<family>` | Categorical text and icons. |
 
 Icons use the same roles as text (`IconVariant` mirrors `TextVariant`).
 
@@ -99,6 +97,17 @@ Icons use the same roles as text (`IconVariant` mirrors `TextVariant`).
 | `success` `warning` `error` | Status borders (≥ 3:1 on every surface). |
 | `<family>` | Category borders. |
 
+### `mark`: filled marks
+
+A mark carries a color, not words: a chart series and its legend swatch, a `Square` or `Circle` key, the `Beacon` dot, the `Sparkline`, `ProgressBar` and `ProgressCircle` fills. Read `mark`, never `text`, for anything that fills a shape. `text` is tuned for copy, which in Light deepens every hue.
+
+| Role | Use |
+|---|---|
+| `success` `warning` `error` | A status as a mark: a completed run's square, a failing series, a `BeaconVariant.ERROR` dot. |
+| `<family>` | A category as a mark: a chart series, a run status keyed by color. |
+
+In Dark `mark` is the `text` value. In Light it is the vivid `solid` fill, deepened only as far as 2.2:1 on every surface so a thin chart line still reads.
+
 ### `solid`: strong fills with their text
 
 Each solid role is `{ background, text, hovered, pressed }`: the fill, the text and icons drawn on it, and the two interaction states.
@@ -107,8 +116,8 @@ Each solid role is `{ background, text, hovered, pressed }`: the fill, the text 
 |---|---|
 | `solid.primary` | The monochrome fill (`text.primary` with `background.base` on it): the `PRIMARY` button, checked checkbox, radio and switch, the current Stepper marker, the selected date, the brand mark. |
 | `solid.neutral` | The muted fill (`background.secondary` with `text.primary` on it): the `BASE` button. Hover and press are visible steps in both themes. |
-| `solid.success` `solid.warning` `solid.error` | Strong status fills: the `ERROR` button, the `Beacon` dot. A status dot is a `solid.<role>.background`, never a `text` role: `text` is tuned for copy on the canvas and makes a dark, muddy fill in Light. A `Circle` or `Square` swatch is the exception: it keys chart marks, so it draws the same `text.<role>` the marks do. |
-| `solid.<family>` | Strong category fills, and a categorical `Beacon` dot. |
+| `solid.success` `solid.warning` `solid.error` | Strong status fills with text on them: the `ERROR` button. A dot or swatch with no text on it is a `mark`. |
+| `solid.<family>` | Strong category fills with text on them. |
 
 ### `opacity`: overlays
 
@@ -128,18 +137,18 @@ Each solid role is `{ background, text, hovered, pressed }`: the fill, the text 
 
 ## Statuses
 
-`success`, `warning` and `error` exist on every property (`background.success`, `text.success`, `border.success`, `solid.success`) with values of their own: a clear green, a warm amber that never reads brown, a clear red. They are not copies of a palette family, and warning never looks like error.
+`success`, `warning` and `error` exist on every property (`background.success`, `text.success`, `border.success`, `mark.success`, `solid.success`) with values of their own: a clear green, a warm amber that never reads brown, a clear red. They are not copies of a palette family, and warning never looks like error.
 
 - Use them only for status: a run failed, a sync is degraded, a save succeeded.
 - There is no `info`. Neutral news uses the neutral roles (`AlertVariant.PRIMARY`, `ToastVariant.PRIMARY`).
-- Components take a status through `variant` (`ChipVariant.ERROR`, `BeaconVariant.SUCCESS`, `TextVariant.WARNING`). Every status component draws the same `text.<status>`, tint and border; a solid indicator (the `Beacon` dot) draws `solid.<status>.background`.
+- Components take a status through `variant` (`ChipVariant.ERROR`, `BeaconVariant.SUCCESS`, `TextVariant.WARNING`). Every status component draws the same `text.<status>`, tint and border. A filled mark (the `Beacon` dot, a `Square`, a chart series) draws `mark.<status>`.
 
 ## Categorical palette
 
 17 families: `red orange amber yellow lime green emerald teal cyan sky blue indigo violet purple fuchsia pink rose`. No gray: neutrals are the neutral roles.
 
-- Each family exists on every property (`background.purple`, `text.purple`, `border.purple`, `solid.purple`) and follows the theme.
-- Components take a category through the `color` prop (`RoleColor`: a palette family, or a status name used as data): `Chip`, `Beacon`, `Circle`, `Square`, `Sparkline`, `ProgressBar`, `ProgressCircle`, `Timeline` items, and a chart series. `Avatar` takes a `PaletteColor` only. `color` and `variant` are mutually exclusive by type: `variant` is meaning, `color` is category. A run-status map that holds `"success"` beside `"blue"` feeds `color` directly; a status that is a meaning on its own takes `variant`.
+- Each family exists on every property (`background.purple`, `text.purple`, `border.purple`, `mark.purple`, `solid.purple`) and follows the theme.
+- Components take a category through the `color` prop (`RoleColor`: a palette family, or a status name used as data): `Chip`, `Beacon`, `Circle`, `Square`, `Sparkline`, `ProgressBar`, `ProgressCircle`, `Timeline` items, `Alert`, `Icon`, and a chart series. `Avatar` takes a `PaletteColor` only. `color` and `variant` are mutually exclusive by type: `variant` is meaning, `color` is category. A run-status map that holds `"success"` beside `"blue"` feeds `color` directly; a status that is a meaning on its own takes `variant`.
 - Use a family for something that *is* a category (a team, a source type, a series), never to decorate.
 
 ```tsx
@@ -155,11 +164,11 @@ export const Tags = () => (
 
 ### The mode-stable palette
 
-`t.palette.<family>[100 | 300 | 500 | 700 | 900]` and `PALETTE` (`@galaxy-io/dls/theme/tokens/palette`) are the raw Tailwind v4 steps (50, 200, 500, 800, 950): the same hex in both themes. They exist for app-side chart and canvas code that needs a fixed hex in both themes; DLS charts draw their series with the theme `text.<family>` roles, and a lint rule (`dls/palette-scope`) keeps the palette out of components. Components and app UI read the theme roles.
+`t.palette.<family>[100 | 300 | 500 | 700 | 900]` and `PALETTE` (`@galaxy-io/dls/theme/tokens/palette`) are the raw Tailwind v4 steps (50, 200, 500, 800, 950): the same hex in both themes. They exist for app-side chart and canvas code that needs a fixed hex in both themes; DLS charts draw their series with the theme `mark.<family>` roles, and a lint rule (`dls/palette-scope`) keeps the palette out of components. Components and app UI read the theme roles.
 
 ### Chart colors
 
-DLS charts color series through `ChartPalette` slots, which map to the theme's `text.<family>` roles:
+DLS charts color series through `ChartPalette` slots, which map to the theme's `mark.<family>` roles:
 
 - Automatic order: `PURPLE PINK BLUE TEAL LIME ORANGE YELLOW GREEN` (status slots never join it, so a ninth series never reads as an error).
 - `SUCCESS WARNING ERROR` slots for series that mean a status; `PRIMARY SECONDARY TERTIARY` are `indigo`, `sky`, `violet` (charts have no gray).
@@ -236,7 +245,7 @@ export const TrialBanner = () => (
 
 ## Contrast guarantees
 
-`src/theme/tokens/tokens.test.ts` checks, in both themes:
+The DLS token tests check, in both themes:
 
 - Surfaces are monotonic (`base < primary < secondary < tertiary`); text steps are ordered `primary > secondary > tertiary > disabled`.
 - Borders step `primary < hovered < focused`, all neutral.
@@ -244,9 +253,7 @@ export const TrialBanner = () => (
 - `text.<status>` and `text.<family>` reach 4.5:1 on every surface and on their own tint.
 - Status borders reach 3:1 on every surface.
 - `solid.<x>.text` reaches 4.5:1 on its fill at rest, hover and press.
-- `background.selected` is `text.primary` at 12% over `background.base`; warning and error never look alike; orange, amber and yellow text never look alike.
-
-A token change that breaks one of these fails `pnpm verify`.
+- `background.selected` is `text.primary` over `background.base`, 12% in Dark and 10% in Light; warning and error never look alike; orange, amber and yellow text never look alike.
 
 ## Dark and light parity
 

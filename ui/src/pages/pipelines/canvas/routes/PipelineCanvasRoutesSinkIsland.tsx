@@ -1,9 +1,13 @@
+import type { FC } from "react";
+
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import { PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH } from "@/pages/pipelines/canvas/routes/constants";
 import PipelineCanvasRoutesIsland from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesIsland";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
@@ -14,11 +18,11 @@ interface PipelineCanvasRoutesSinkIslandProps {
   onSelect: () => void;
 }
 
-const PipelineCanvasRoutesSinkIsland = ({
+const PipelineCanvasRoutesSinkIsland: FC<PipelineCanvasRoutesSinkIslandProps> = ({
   route,
   isSelected,
   onSelect,
-}: PipelineCanvasRoutesSinkIslandProps) => (
+}) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH}
     isSelected={isSelected}

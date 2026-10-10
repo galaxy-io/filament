@@ -1,10 +1,10 @@
-import type { ClipboardEvent } from "react";
+import type { ClipboardEvent, FC } from "react";
 
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
 
-const FieldSecret = ({
+const FieldSecret: FC<FieldComponentProps> = ({
   field,
   value,
   onChange,
@@ -13,7 +13,7 @@ const FieldSecret = ({
   isDisabled = false,
   label,
   hasStoredSecret = false,
-}: FieldComponentProps) => {
+}) => {
   const placeholder = hasStoredSecret ? "Leave blank to keep current value" : `Enter ${label}...`;
 
   const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {

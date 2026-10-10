@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
@@ -24,7 +26,7 @@ interface IconTileProps {
   variant?: IconVariant;
 }
 
-const IconTile = ({ icon, size = 32, variant = IconVariant.SECONDARY }: IconTileProps) => (
+const IconTile: FC<IconTileProps> = ({ icon, size = 32, variant = IconVariant.SECONDARY }) => (
   <TileWrapper $size={size}>
     <Icon component={icon} size={size / 2} variant={variant} />
   </TileWrapper>

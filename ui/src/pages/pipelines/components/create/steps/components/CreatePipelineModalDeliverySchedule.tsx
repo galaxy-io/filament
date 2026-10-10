@@ -1,28 +1,21 @@
-import { WidgetSize } from "@galaxy-io/dls/widget/Widget";
+import type { FC } from "react";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
 
-const CreatePipelineModalDeliverySchedule = () => {
+const CreatePipelineModalDeliverySchedule: FC = () => {
   const { schedule } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setSchedule } = useCreatePipelineModalActions();
 
   return (
     <PipelineScheduleFields
       header="Schedule"
-      size={WidgetSize.LARGE}
       state={schedule}
-      isOpenInitial
-      onChange={(partial) =>
-        dispatch({
-          type: CreatePipelineModalActionType.SET_SCHEDULE,
-          payload: partial,
-        })
-      }
+      isOpenInitial={schedule.isEnabled}
+      onChange={(partial) => setSchedule(partial)}
     />
   );
 };

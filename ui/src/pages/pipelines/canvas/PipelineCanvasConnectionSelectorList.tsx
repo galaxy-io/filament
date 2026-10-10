@@ -1,89 +1,53 @@
-import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
-import pluralize from "pluralize";
+import type { FC } from "react";
 
-import Button from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { Flow } from "@/layouts/app/types";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
+import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import PipelineCanvasConnectionSelectorEmpty from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorEmpty";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-const PipelineCanvasConnectionSelectorEmpty = ({
-  message,
-  connectorKind,
-}: {
-  message: string;
-  connectorKind: ConnectorKind;
-}) => {
-  const navigate = useNavigate();
-
-  const handleCreateConnection = () => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connectionId: undefined,
-        flow: Flow.CREATE_CONNECTION,
-        connectorKind,
-      }),
-    });
-  };
-
-  return (
-    <Flex
-      fillWidth
-      height="100%"
-      minHeight={240}
-      alignItems={AlignItems.CENTER}
-      justifyContent={JustifyContent.CENTER}
-      padding={24}
-    >
-      <EmptyLayout
-        size={LayoutSize.SMALL}
-        header={message}
-        actions={
-          <Button
-            label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
-            icon={PlusIcon}
-            onClick={handleCreateConnection}
-          />
-        }
-      />
-    </Flex>
-  );
-};
-
-const isConnectionDisabled = (connection: Connection, isSourceDisabled: boolean) =>
-  isSourceDisabled && connection.kind === ConnectorKind.SOURCE;
+import { isPipelineCanvasConnectionDisabled } from "@/pages/pipelines/canvas/utils";
 
 interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
+  isLoading: boolean;
   connectorKind: ConnectorKind;
   isSourceDisabled: boolean;
   onConnectionClick: (connection: Connection) => void;
 }
 
-const PipelineCanvasConnectionSelectorList = ({
+const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorListProps> = ({
   connections,
   hasConnections,
+  isLoading,
   connectorKind,
   isSourceDisabled,
   onConnectionClick,
-}: PipelineCanvasConnectionSelectorListProps) => {
+}) => {
+  if (isLoading) {
+    return (
+      <Flex
+        fillWidth
+        minHeight={240}
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.CENTER}
+      >
+        <PendingLayout size={PendingLayoutSize.SMALL} />
+      </Flex>
+    );
+  }
+
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty
-        message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase())} found`}
+        message={`No ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[connectorKind]} found`}
         connectorKind={connectorKind}
       />
     );
@@ -99,8 +63,12 @@ const PipelineCanvasConnectionSelectorList = ({
   }
 
   const orderedConnections = [
-    ...connections.filter((connection) => !isConnectionDisabled(connection, isSourceDisabled)),
-    ...connections.filter((connection) => isConnectionDisabled(connection, isSourceDisabled)),
+    ...connections.filter(
+      (connection) => !isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
+    ...connections.filter((connection) =>
+      isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
   ];
 
   return (
@@ -111,7 +79,7 @@ const PipelineCanvasConnectionSelectorList = ({
             <PipelineCanvasConnectionSelectorItem
               key={connection.id}
               connection={connection}
-              isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
+              isDisabled={isPipelineCanvasConnectionDisabled(connection, isSourceDisabled)}
               onClick={() => onConnectionClick(connection)}
             />
           ))}

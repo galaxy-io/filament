@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -8,6 +8,7 @@ import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 
 import {
   PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
@@ -19,8 +20,6 @@ import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCan
 import PipelineCanvasNodeSourceIslandHiddenHandles from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandHiddenHandles";
 import PipelineCanvasNodeSourceIslandTableList from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandTableList";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
-
-import { isSearchMatch } from "@/utils/search";
 
 const IslandWrapper = styled(PipelineCanvasNodeIsland)`
   padding: 0;
@@ -41,12 +40,12 @@ const DEFAULT_STATE: PipelineCanvasNodeSourceIslandState = {
   search: "",
 };
 
-const PipelineCanvasNodeSourceIsland = ({
+const PipelineCanvasNodeSourceIsland: FC<PipelineCanvasNodeSourceIslandProps> = ({
   tables,
   error,
   isLoading = false,
   isSelected,
-}: PipelineCanvasNodeSourceIslandProps) => {
+}) => {
   const [state, setState] = useState<PipelineCanvasNodeSourceIslandState>(DEFAULT_STATE);
 
   const filteredTables = tables.filter((table) => isSearchMatch(state.search, table.name));

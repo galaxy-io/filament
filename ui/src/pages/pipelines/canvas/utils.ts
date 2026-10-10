@@ -4,11 +4,13 @@ import type { FitViewOptions } from "@xyflow/react";
 import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { isJsonObject } from "@/components/fields/utils";
+import type { PipelineFlowEndpoints } from "@/components/pipelines/utils";
 
 import {
   PIPELINE_CANVAS_EDGE_Z_INDEX,
@@ -27,18 +29,17 @@ import type {
   CanvasNode,
   PipelineCanvasEdgeTransform,
 } from "@/pages/pipelines/canvas/types";
+import {
+  PipelineCanvasNodeType,
+  type PipelineCanvasSinkNode,
+  type PipelineCanvasSourceNode,
+} from "@/pages/pipelines/canvas/types";
 import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
 import {
   getPipelineResourceStatus,
   getRecommendedCursor,
+  intersectModes,
 } from "@/pages/pipelines/components/resource/utils";
-
-const intersectModes = (sets: ReadMode[][]): ReadMode[] => {
-  if (!sets.length) return [];
-  return sets
-    .slice(1)
-    .reduce((common, modes) => common.filter((mode) => modes.includes(mode)), sets[0] ?? []);
-};
 
 export interface PipelineCanvasEdgeModeOptions {
   readModeOptions: ReadMode[];
@@ -215,3 +216,22 @@ export const mapEdgesToStyledEdges = (
     };
   });
 };
+
+export const mapCanvasNodesToFlowEndpoints = (nodes: CanvasNode[]): PipelineFlowEndpoints => ({
+  sourceId: nodes.find(
+    (node): node is PipelineCanvasSourceNode => node.type === PipelineCanvasNodeType.SOURCE,
+  )?.data.connectionId,
+  sinkIds: nodes
+    .filter((node): node is PipelineCanvasSinkNode => node.type === PipelineCanvasNodeType.SINK)
+    .map((node) => node.data.connectionId),
+});
+
+export const isConnectionNode = (
+  node: CanvasNode,
+): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
+  node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;
+
+export const isPipelineCanvasConnectionDisabled = (
+  connection: Connection,
+  isSourceDisabled: boolean,
+) => isSourceDisabled && connection.kind === ConnectorKind.SOURCE;

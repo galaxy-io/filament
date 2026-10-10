@@ -1,11 +1,9 @@
-<!-- Generated from docs/components.md by `pnpm skill:sync`. Edit that file, not this one. -->
-
 # Components
 
 Every module `@galaxy-io/dls` exports, grouped by job. For each: what it is for, when to use it and when to reach for a sibling, the props that matter, and a minimal example. Props, defaults and every variant are in Storybook (each prop's JSDoc is its documentation).
 
 - Import each module from its subpath; the default export is the component, named exports are its enums and types.
-- Shared conventions (sizes, variants, `color`, booleans, state triples, slots) are in [AGENTS.md](https://github.com/galaxy-io/dls/blob/main/AGENTS.md#component-conventions); tokens in [theming.md](./tokens.md); how to combine components in [patterns.md](./patterns.md).
+- Tokens are in [tokens.md](./tokens.md) and how to combine components is in [patterns.md](./patterns.md). Every story is on [storybook.getgalaxy.io](https://storybook.getgalaxy.io).
 - Every example compiles against the current package. Icons come from `@phosphor-icons/react`.
 
 **Contents:** [Layout](#layout) · [Typography](#typography) · [Actions](#actions) · [Forms](#forms) · [Data display](#data-display) · [Feedback](#feedback) · [Overlays](#overlays) · [Navigation](#navigation) · [Tables](#tables) · [Charts](#charts) · [Editor](#editor) · [Brand](#brand) · [Transforms](#transforms) · [Theme and setup](#theme-and-setup) · [Hooks and utils](#hooks-and-utils) · [Accessibility primitives](#accessibility-primitives) · [Low-level modules](#low-level-modules)
@@ -23,6 +21,8 @@ Every module `@galaxy-io/dls` exports, grouped by job. For each: what it is for,
 | A hairline between regions | `Divider` | a bordered `Box` |
 | A scrolling region with quiet scrollbars | `ScrollArea` | `overflow: auto` with native scrollbars |
 | User-resizable split panes | `ResizablePanels` | hand-wired `ResizeHandle`s |
+| The frame of a Galaxy module (sidebar column, hairline, page) | `AppFrame` | a hand-built `Flex` + `Divider` frame, a sidebar width of your own |
+| One page of a Galaxy module: title row, banner, tabs, toolbar, body | `PageLayout` | `Topbar` (app chrome, not the page title), a hand-built 64px header |
 
 ### Box
 
@@ -86,13 +86,13 @@ import Text from "@galaxy-io/dls/text/Text";
 `@galaxy-io/dls/layout/Grid` · CSS grid: `columns` / `rows` (a number of equal tracks or a template string), `areas`, `gap`, four alignment enums, `padding`, sizing.
 
 ```tsx
+import BigNumber from "@galaxy-io/dls/charts/BigNumber";
 import Grid from "@galaxy-io/dls/layout/Grid";
-import StatChart from "@galaxy-io/dls/charts/StatChart";
 
 <Grid columns={3} gap={12}>
-  <StatChart label="Rows synced" value="48,210" hasBorder />
-  <StatChart label="Sources" value={12} hasBorder />
-  <StatChart label="Failed runs" value={0} hasBorder />
+  <BigNumber label="Rows synced" value="48,210" hasBorder />
+  <BigNumber label="Sources" value={12} hasBorder />
+  <BigNumber label="Failed runs" value={0} hasBorder />
 </Grid>;
 ```
 
@@ -171,7 +171,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### ResizablePanels
 
-`@galaxy-io/dls/layout/ResizablePanels` · Lays out `ResizablePanel` children along `orientation` with a `ResizeHandle` between each pair. Exactly one panel is fluid (no `value` / `defaultValue`); every sized panel has an `ariaLabel`, `min` and `max`. `storageKey` persists sizes.
+`@galaxy-io/dls/layout/ResizablePanels` · Lays out `ResizablePanel` children along `orientation` with a `ResizeHandle` between each pair. Exactly one panel is fluid (no `value` / `defaultValue`); every sized panel has an `ariaLabel`, `min` and `max`. `storageKey` persists sizes. `hasDividers` draws a hairline on the edge where two panels meet. The panels have no frame otherwise.
 
 - Use for an editor beside a preview, a list beside its detail that the user resizes.
 - Don't use for a panel that opens on demand (that is a `Drawer isModal={false}`).
@@ -216,6 +216,74 @@ export function SidebarHandle() {
     />
   );
 }
+```
+
+### AppFrame
+
+`@galaxy-io/dls/layout/AppFrame` · The frame of a Galaxy module: `sidebar` (a `SidebarNav` with no `header`) in a fixed 240px column (`APP_FRAME_SIDEBAR_WIDTH`), a vertical hairline, then `children` (the page, usually a `PageLayout`) in a column that never overflows the frame. A flat frame that fills its parent's height on `background.primary` and clips, so the page owns the one scrolling region. No width prop.
+
+- One of two frame systems, never mixed. **AppFrame + PageLayout + a header-less SidebarNav** is a module inside the Galaxy host. **Topbar + a SidebarNav `header`** is a standalone app, whose two 48px rows meet on one hairline. A SidebarNav `header` inside AppFrame lands below a line it never meets.
+- Pass the SidebarNav `hasDividers={false}` when its footer should run on with no hairline.
+
+```tsx
+import { FlowArrowIcon } from "@phosphor-icons/react";
+import AppFrame from "@galaxy-io/dls/layout/AppFrame";
+import Box from "@galaxy-io/dls/layout/Box";
+import SidebarNav, { NavItem } from "@galaxy-io/dls/navigation/SidebarNav";
+import Text from "@galaxy-io/dls/text/Text";
+
+<Box height="100vh">
+  <AppFrame
+    sidebar={
+      <SidebarNav hasDividers={false}>
+        <NavItem label="Pipelines" icon={FlowArrowIcon} href="/pipelines" isActive />
+      </SidebarNav>
+    }
+  >
+    <Text>The page</Text>
+  </AppFrame>
+</Box>;
+```
+
+### PageLayout
+
+`@galaxy-io/dls/layout/PageLayout` · One page inside `AppFrame`. `header` (a string renders the `h1`, `HEADING_MD` medium on one line, and a node renders as is) and `actions` sit in a 64px header band, then a `Divider`, then `banner` (an `Alert isBanner`), `tabs` (a `Tabs` row), `toolbar` (a padded row of filters, a search or view switches, with its own hairline) and finally `children` in a `<main>` on `background.base`, named by the header.
+
+- The `<main>` is `overflow: hidden` and the reset hides native scrollbars. Wrap scrolling content in a `ScrollArea`.
+- A page-wide notice goes in `banner`, not in the body, so it stays put while the body scrolls.
+- `actions` holds one `PRIMARY` button at most, the rest `SECONDARY` or `TERTIARY`.
+
+```tsx
+import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
+import Alert from "@galaxy-io/dls/feedback/Alert";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
+import Tabs from "@galaxy-io/dls/navigation/Tabs";
+import Text from "@galaxy-io/dls/text/Text";
+
+<PageLayout
+  header="Orders sync"
+  actions={<Button label="Run now" size={ButtonSize.SMALL} />}
+  banner={
+    <Alert isBanner color="yellow" header="Scheduled">
+      The next run starts at 18:00 UTC.
+    </Alert>
+  }
+  tabs={
+    <Tabs
+      ariaLabel="Pipeline views"
+      inset={16}
+      items={[
+        { id: "runs", label: "Runs" },
+        { id: "settings", label: "Settings" },
+      ]}
+    />
+  }
+>
+  <ScrollArea>
+    <Text>Runs</Text>
+  </ScrollArea>
+</PageLayout>;
 ```
 
 ### Portal
@@ -426,13 +494,18 @@ import BulletedList from "@galaxy-io/dls/lists/BulletedList";
 
 ### Icon
 
-`@galaxy-io/dls/icons/Icon` · The one way to draw a Phosphor icon: `component` (the icon component), `size` (px; parents pick it from their rung), `variant` (`IconVariant`, the text roles), `weight` (`IconWeight`), `ariaLabel` (decorative without it), `tooltip`, `isSpinning`. Components with an `icon` prop render through it; never render `<PlusIcon />` directly.
+`@galaxy-io/dls/icons/Icon` · The one way to draw a Phosphor icon: `component` (the icon component), `size` (px; parents pick it from their rung), `variant` (`IconVariant`, the text roles) or `color` (a `RoleColor` category drawn in `text.<color>`, exclusive with `variant` by type), `weight` (`IconWeight`), `ariaLabel` (decorative without it), `tooltip`, `isSpinning`. Components with an `icon` prop render through it; never render `<PlusIcon />` directly.
+
+- `color` is for a glyph that names a category the page already shows (a run status map, a source type). A status that is meaning takes `variant`.
 
 ```tsx
-import { WarningIcon } from "@phosphor-icons/react";
+import { CalendarDotsIcon, WarningIcon } from "@phosphor-icons/react";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
-<Icon component={WarningIcon} size={14} variant={IconVariant.WARNING} ariaLabel="Degraded" />;
+<>
+  <Icon component={WarningIcon} size={14} variant={IconVariant.WARNING} ariaLabel="Degraded" />
+  <Icon component={CalendarDotsIcon} size={14} color="yellow" ariaLabel="Scheduled" />
+</>;
 ```
 
 ## Actions
@@ -703,7 +776,9 @@ export function RegionSelect() {
 
 ### MultiSelectInput
 
-`@galaxy-io/dls/inputs/MultiSelectInput` · Pick several values from a list, shown as chips: SelectInput's options and search, plus `maxSelected`, `onCreate` (with `isSearchable`) to add a missing option. `value` is an array of ids in selection order.
+`@galaxy-io/dls/inputs/MultiSelectInput` · Pick several values from a list, shown as chips: SelectInput's options and search, plus `maxSelected`, `onCreate` (with `isSearchable`) to add a missing option, and `selectAllLabel` (a first row, "All sources", that selects every enabled option matching the search term or clears them when all are selected). `value` is an array of ids in selection order.
+
+- The select-all row is not an option and never appears in `value`. It is checked when all are selected, `aria-checked="mixed"` with a dash when some are, and it respects `maxSelected`.
 
 ```tsx
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
@@ -1058,7 +1133,7 @@ import Text from "@galaxy-io/dls/text/Text";
 
 ### DescriptionList
 
-`@galaxy-io/dls/lists/DescriptionList` · Labelled values in a `<dl>`: `items` (`label`, `value` string / number / node, `family` for mono values, `isCopyable` + `copyValue`), `orientation` (`HORIZONTAL` aligns labels in a column), `columns` (1–4), `size`, `isValueTrailing` (values at the right edge, the detail-pane layout). Empty values render an em dash.
+`@galaxy-io/dls/lists/DescriptionList` · Labelled values in a `<dl>`: `items` (`label`, `value` string / number / node, `family` for mono values, `isCopyable` + `copyValue`), `orientation` (`HORIZONTAL` aligns labels in a column), `columns` (1–4), `size`, `isValueTrailing` (values at the right edge, the detail-pane layout), `hasDividers` (a hairline between rows, none at the ends), `hasBorder` (a hairline frame with `lg` corners around the rows for the detail card, implying `hasDividers`). Empty values render an em dash.
 
 ```tsx
 import Beacon, { BeaconVariant } from "@galaxy-io/dls/beacons/Beacon";
@@ -1139,6 +1214,7 @@ import JsonViewer from "@galaxy-io/dls/json/JsonViewer";
 | The live state of one item | `Beacon` | a `Toast` |
 | A short status value on a row (Failed, Beta) | `Chip` | an `Alert` |
 | There is nothing here yet | `EmptyState` | blank space, or an `Alert` |
+| A whole region (a page body, a panel) is empty, failed or loading | `EmptyLayout`, `ErrorLayout`, `PendingLayout` | an `EmptyState` or `Spinner` stuck to the top of the region |
 
 | Loading | Use |
 |---|---|
@@ -1151,10 +1227,11 @@ import JsonViewer from "@galaxy-io/dls/json/JsonViewer";
 
 ### Alert
 
-`@galaxy-io/dls/feedback/Alert` · A message about the thing on screen: `variant` (`PRIMARY SUCCESS WARNING ERROR`), `header`, the body (`children`), `actions` (usually one `ButtonSize.SMALL` button), `onDismiss`, `icon`, `isBanner` (a full-width strip). `ERROR` is `role="alert"`.
+`@galaxy-io/dls/feedback/Alert` · A message about the thing on screen: `variant` (`PRIMARY SUCCESS WARNING ERROR`) or `color` (a `RoleColor` category, exclusive with `variant` by type), `header`, the body (`children`), `actions` (usually one `ButtonSize.SMALL` button), `onDismiss`, `icon`, `isBanner` (a full-width strip). `ERROR` is `role="alert"`.
 
 - Give an `ERROR` a way out (a retry, a link to fix it). One Alert per problem.
 - The way out is one `PRIMARY` button at `ButtonSize.SMALL`; a second or informational action ("View logs", "Details") is `TERTIARY`. Never `SECONDARY`: its framed surface reads as a hole in the tinted alert.
+- `color` ties a notice to a category the page already shows (a schedule banner in the schedule's yellow): the family's surface, hairline and icon (`InfoIcon` unless `icon` is set), `role="status"`, announced as a "Note". It is not an "info" tone. Neutral news stays `PRIMARY`.
 
 ```tsx
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
@@ -1266,6 +1343,38 @@ import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 </Flex>;
 ```
 
+### EmptyLayout, ErrorLayout and PendingLayout
+
+`@galaxy-io/dls/layout/EmptyLayout`, `@galaxy-io/dls/layout/ErrorLayout`, `@galaxy-io/dls/layout/PendingLayout` · Presets that fill a region (a `PageLayout` body, a panel) and centre their content both ways. Each takes `size` (`EmptyLayoutSize`, `ErrorLayoutSize`, `PendingLayoutSize`: `SMALL` card or side panel, `MEDIUM` panel or section by default, `LARGE` page body).
+
+- `EmptyLayout` is an `EmptyState` with the same props (`header`, `description`, `icon` or `graphic` but not both, `actions`, `role="status"` when the region empties because of a search). Its sizes map one-to-one to `EmptyStateSize`.
+- `ErrorLayout` is an `ERROR` EmptyState: `header`, `description`, `detail` (the raw message, mono and selectable), `actions` (a "Try again" button), `icon` (default `WarningCircleIcon`), in a `role="alert"` stack.
+- `PendingLayout` is a `Spinner` with an optional `message` beside it, announced as a status ("Loading" without one). For rows or cards of a known shape, use `Skeleton`.
+- Inside a table body, a chart or a card, use `EmptyState` itself, since those size the region already.
+
+```tsx
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+import Button from "@galaxy-io/dls/buttons/Button";
+import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
+import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
+
+declare const isLoading: boolean;
+
+<PageLayout header="Pipelines">
+  {isLoading ? (
+    <PendingLayout size={PendingLayoutSize.LARGE} message="Loading pipelines…" />
+  ) : (
+    <ErrorLayout
+      size={ErrorLayoutSize.LARGE}
+      header="Couldn't load pipelines"
+      detail="503 Service Unavailable"
+      actions={<Button label="Try again" icon={ArrowClockwiseIcon} />}
+    />
+  )}
+</PageLayout>;
+```
+
 ## Overlays
 
 | You need | Use | Not |
@@ -1280,7 +1389,7 @@ import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 | Detail beside a list, or a side task that keeps the page visible | `Drawer` | a `Modal` |
 | App-wide "type to do anything" | `CommandPalette` | a `Menu` with search |
 
-Every overlay takes `isOpen` / `defaultIsOpen` / `onOpenChange`, renders through `Portal`, joins the overlay stack (Escape closes the topmost only) and restores focus on close. Keep Modal, Drawer and ConfirmDialog mounted and drive them with `isOpen`, so they can animate out.
+Every overlay takes `isOpen` / `defaultIsOpen` / `onOpenChange`, renders through `Portal`, joins the overlay stack (Escape closes the topmost only) and restores focus on close. Keep Modal, Drawer and ConfirmDialog mounted and drive them with `isOpen`, so they can animate out. While Modal and Drawer close, the panel keeps the `children` and slots it had when `isOpen` turned false, so pass the open record as a prop with no hook to retain it.
 
 ### Tooltip
 
@@ -1391,6 +1500,8 @@ import Text from "@galaxy-io/dls/text/Text";
 
 `@galaxy-io/dls/modal/Modal` · The blocking dialog: `header` (a string names it), `subheader` (a second line that describes it), `icon` (leading), the scrolling body, `footer` (actions, least destructive first), `size` (`SMALL` 400 / `MEDIUM` 560 / `LARGE` 720 / `X_LARGE` near full), `isDismissable`. No trigger: the app opens it with `isOpen` / `onOpenChange`.
 
+- The regions are plain by default. `hasDividers` draws a hairline between the title row and the body and between the body and the footer, for a body that scrolls. `isFlush` drops the body padding so the app owns it (sections of `Box padding={16}` with `Divider`s, or a table edge to edge). `banner` is a strip between the title row and the body that stays put while the body scrolls, for an `Alert isBanner`.
+
 ```tsx
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { useDisclosure } from "@galaxy-io/dls/hooks/useDisclosure";
@@ -1454,7 +1565,7 @@ export function DeleteSource() {
 
 ### Drawer
 
-`@galaxy-io/dls/drawer/Drawer` · A panel from an edge that keeps the page visible: `header`, `subheader` (a second line that describes it), `icon` (leading), `actions` (title-row controls before the close button: one or two icon-only `TERTIARY` `SMALL` buttons and a ⋯ `Menu`, for the thing the drawer shows), body, `footer` (only what finishes the task: Cancel, then the `PRIMARY` action), `side` (`Side`, default `RIGHT`), `size`, `isResizable`, `isModal` (default `true`; `false` docks it beside the content with no backdrop), `isDismissable`.
+`@galaxy-io/dls/drawer/Drawer` · A panel from an edge that keeps the page visible: `header`, `subheader` (a second line that describes it), `icon` (leading), `actions` (title-row controls before the close button: one or two icon-only `TERTIARY` `SMALL` buttons and a ⋯ `Menu`, for the thing the drawer shows), body, `footer` (only what finishes the task: Cancel, then the `PRIMARY` action), `side` (`Side`, default `RIGHT`), `size`, `isResizable`, `isModal` (default `true`; `false` docks it beside the content with no backdrop), `isDismissable`. `hasDividers`, `isFlush` and `banner` behave as on `Modal`.
 
 ```tsx
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
@@ -1473,7 +1584,7 @@ import DescriptionList from "@galaxy-io/dls/lists/DescriptionList";
 
 ### CommandPalette
 
-`@galaxy-io/dls/navigation/CommandPalette` · The ⌘K dialog: `items` (`id`, `label`, `description`, `icon`, `group`, `keywords`, `hotKeys`, `onSelect`), built-in filtering or `onSearch` + `isLoading` for server search, `storageKey` (recents), `shouldBindHotKey` (binds `hotKeys`, default `["mod", "k"]`).
+`@galaxy-io/dls/navigation/CommandPalette` · The ⌘K dialog: `items` (`id`, `label`, `description`, `icon` or `leading`, `group`, `keywords`, `hotKeys` shown as caps, `isDisabled`, `onSelect`), built-in filtering or `onSearch` + `isLoading` for server search, `placeholder`, `emptyMessage`, `storageKey` (the last 5 chosen commands, listed first under "Recent" while the search is empty), `shouldBindHotKey` (binds `hotKeys`, default `["mod", "k"]`, so the shortcut toggles the palette from anywhere). Open state is `isOpen` / `defaultIsOpen` / `onOpenChange`.
 
 ```tsx
 import { GearIcon, HouseIcon, PlusIcon } from "@phosphor-icons/react";
@@ -1527,7 +1638,7 @@ export function Callout({ isOpen, onClose, children }: { isOpen: boolean; onClos
 
 ### SidebarNav
 
-`@galaxy-io/dls/navigation/SidebarNav` · The primary navigation column: a 48px `header` (brand or workspace switcher), `NavItem`s and `NavGroup`s, a pinned `footer`, `isCollapsed` (a 48px icon rail). `NavItem`: `label`, `icon`, `href` (+ `as` for your router) or `onClick`, `isActive` (from the route), `count`, `trailing`, `tooltip`. `NavGroup`: `label`, `isCollapsible`. It fills its parent; the app owns the width and the collapsed state.
+`@galaxy-io/dls/navigation/SidebarNav` · The primary navigation column: a 48px `header` (brand or workspace switcher), `NavItem`s and `NavGroup`s, a pinned `footer`, `hasDividers` (the hairlines under the header and over the footer, together, default `true`, where `false` drops both), `isCollapsed` (a 48px icon rail). `NavItem`: `label`, `icon`, `href` (+ `as` for your router) or `onClick`, `isActive` (from the route), `count`, `trailing`, `tooltip`. `NavGroup`: `label`, `isCollapsible`. It fills its parent; the app owns the width and the collapsed state. Inside `AppFrame` it takes no `header`.
 
 ```tsx
 import { DatabaseIcon, FlowArrowIcon, GearIcon, HouseIcon } from "@phosphor-icons/react";
@@ -1573,9 +1684,10 @@ import Topbar from "@galaxy-io/dls/navigation/Topbar";
 
 ### Tabs
 
-`@galaxy-io/dls/navigation/Tabs` · Peer views: `items` (panel tabs `{ id, label, icon, count, panel }` or link tabs `{ id, label, href }` with `as`), `value` / `defaultValue` / `onChange`, `variant` (`UNDERLINE` / `PILL`), `size`, `orientation`, `fillWidth`, `actions`. Tabs that do not fit collapse into a "More" menu. Pass `ariaLabel` unless a visible heading names the tabs.
+`@galaxy-io/dls/navigation/Tabs` · Peer views: `items` (panel tabs `{ id, label, leading, icon, count, panel }` or link tabs `{ id, label, href }` with `as`, where `leading` is a non-interactive node before the label such as an `Avatar` or a connector logo, 2.10.1+), `value` / `defaultValue` / `onChange`, `variant` (`UNDERLINE` / `PILL`), `size`, `orientation`, `fillWidth`, `inset`, `actions`. Tabs that do not fit collapse into a "More" menu. Pass `ariaLabel` unless a visible heading names the tabs.
 
 - Not for a view mode of the same data (that is `ToggleInput`); never two `UNDERLINE` rows.
+- A row flush with a panel's edges takes `inset` (the page's padding) so the tabs and `actions` move in while the hairline still runs edge to edge. Never wrap the row in a padded `Box`, which cuts the hairline short.
 - A horizontal row centers on the height it gets: put it straight into a header row that stretches its children (the default `align-items`) and it fills the row, its labels line up with the row's other centered content and the `UNDERLINE` indicator sits on the row's bottom edge; in an `align-items: center` row it keeps its own height.
 
 ```tsx
@@ -1648,7 +1760,10 @@ All three share `TableColumn` from `@galaxy-io/dls/table/types` (`id`, `header`,
 
 ### InfiniteTable
 
-`@galaxy-io/dls/table/InfiniteTable` · `columns`, `data`, `getRowId` (always pass it when rows can move), `isSelectable` + `value` / `onChange` (selected ids), `sort` / `onSortChange` (client sorting, server sorting with `onEndReached`), `renderExpandedRow`, `onRowClick` + `activeRowId` (open a row in a side panel), `canResizeColumns`.
+`@galaxy-io/dls/table/InfiniteTable` · `columns`, `data`, `getRowId` (always pass it when rows can move), `isSelectable` + `value` / `onChange` (selected ids), `sort` / `onSortChange` (client sorting, server sorting with `onEndReached`), `renderExpandedRow`, `onRowClick` + `activeRowId` (open a row in a side panel), `canResizeColumns`, `hasHeader` (default `true`), `inset`.
+
+- `hasHeader={false}` is for a compact list whose columns explain themselves. The header row stays in the DOM, visually hidden, so screen readers keep the column names. Sorting, resizing and customizing live in the header, so passing them with it is a type error. The select-all checkbox goes with it.
+- `inset` adds space between the ends of each row and its first and last cell, while rows, hairlines and fills still run the full width. Use it instead of a padded wrapper, which cuts the hairlines short.
 
 ```tsx
 import { MenuItem, MenuItemVariant } from "@galaxy-io/dls/menu/Menu";
@@ -1683,7 +1798,7 @@ export const SourcesTable = ({ sources }: { sources: Source[] }) => (
 
 ### VirtualizedInfiniteTable
 
-`@galaxy-io/dls/table/VirtualizedInfiniteTable` · `InfiniteTable` for very long lists: `totalRowCount` and `getRowData(index)` (`undefined` renders a skeleton row) instead of `data`; only the rows in view are in the DOM. No selection, no expansion, no client sorting.
+`@galaxy-io/dls/table/VirtualizedInfiniteTable` · `InfiniteTable` for very long lists: `totalRowCount` and `getRowData(index)` (`undefined` renders a skeleton row) instead of `data`; only the rows in view are in the DOM. No selection, no expansion, no client sorting. Takes `hasHeader` and `inset` like `InfiniteTable`.
 
 ```tsx
 import Box from "@galaxy-io/dls/layout/Box";
@@ -1765,7 +1880,7 @@ For tables the three components do not cover. Prefer the components; these chang
 - `@galaxy-io/dls/table/types`: `TableColumn`, `TableSort`, `TableColumnLayout`, `TableCellContext`.
 - `@galaxy-io/dls/table/TableCore`: the shared frame, header cell, rows, skeleton row and metrics.
 - `@galaxy-io/dls/table/SpreadsheetCellEditor`: the bare cell editors of `InfiniteSpreadsheet`.
-- Hooks: `@galaxy-io/dls/table/useTableColumnLayout` (order, hidden, widths), `@galaxy-io/dls/table/useTableRowSelection`, `@galaxy-io/dls/table/useTableKeyboardNavigation`, `@galaxy-io/dls/table/useSpreadsheetCellNavigation`, `@galaxy-io/dls/table/useTableVirtualizer`, `@galaxy-io/dls/table/useInfiniteScrollSentinel`.
+- Hooks: `@galaxy-io/dls/table/useTableColumnLayout` (order, hidden, widths), `@galaxy-io/dls/table/useTableRowSelection`, `@galaxy-io/dls/table/useTableKeyboardNavigation`, `@galaxy-io/dls/table/useSpreadsheetCellNavigation`, `@galaxy-io/dls/table/useTableVirtualizer`, `@galaxy-io/dls/table/useInfiniteScrollSentinel` (deprecated: use `@galaxy-io/dls/hooks/useEndReached`).
 
 ## Charts
 
@@ -1777,7 +1892,8 @@ For tables the three components do not cover. Prefer the components; these chang
 | Parts of one whole, two to six of them | `PieChart` | `PieChart` for values that are not parts of a whole |
 | A value for every pair of two categories (hour × weekday) | `Heatmap` | encoding categories as ramp steps |
 | A word-sized trend beside a number | `Sparkline` | a `Sparkline` alone to report values |
-| A KPI: a label and a headline number | `StatChart` | a `Widget` with a big `Text` |
+| A KPI: a label and a headline number | `BigNumber` | a `Widget` with a big `Text` |
+| A lead KPI and its breakdown in one frame, the breakdown scrolling sideways | `BigNumberGroup` | a `Grid` of bordered `BigNumber`s that wraps |
 | Linked hover across charts that share a category axis | `ChartGroupProvider` | syncing a `PieChart` |
 
 Charts fill their parent (size them with a `Box`, a `Grid` track or a flex item) or take a 2:1 fallback. A series `color` is a `ChartPalette` slot or a `RoleColor` string (`"error"`, `"blue"`) for a series whose color is data. Every chart has a tooltip, keyboard navigation (Tab, then the arrow keys), `onSelect` / `selection`, `isLoading` and an empty state. `isFilterable` (Line, Area, Bar, Pie, Heatmap) makes clicks filter: a legend entry, a mark or a category pins (click again to unpin, ⌘ / Ctrl / Shift-click to add), hovering a legend entry still previews, and filter chips after the legend name the pin, one per part ("06:00" and "Failed" for a segment): a chip's × drops that part, and several pins collapse into one "3 filters" chip (Escape on the plot clears everything). Uncontrolled by default (`defaultSelection`), or controlled with `selection` + `onSelectionChange(selection)` to filter something else on the page. Series colors come from `ChartPalette` slots (`@galaxy-io/dls/charts/types`), assigned in order when unset. Legend and tooltip swatches mirror the marks (a dot for lines, a square for filled marks); `swatch` (`ChartSwatch`) overrides it, so a line chart beside a bar chart of the same series can share square keys. Requires the `d3-scale` and `d3-shape` peers.
@@ -1807,7 +1923,7 @@ import { formatNumber } from "@galaxy-io/dls/utils/format";
 
 ### AreaChart
 
-`@galaxy-io/dls/charts/AreaChart` · LineChart's engine with flat translucent fills: `series`, `areas` (`metric`, `points`), `isStacked` (parts of a total).
+`@galaxy-io/dls/charts/AreaChart` · LineChart's engine with flat translucent fills: `series`, `areas` (`metric`, `points`, where `y: null` is a gap and counts as 0 in a stack), `categories`, `curve`, `isStacked` (parts of a total). Hover, keyboard, tooltip, selection and `ChartGroupProvider` sync behave as on `LineChart`.
 
 ```tsx
 import AreaChart from "@galaxy-io/dls/charts/AreaChart";
@@ -1901,15 +2017,45 @@ import Sparkline, { SparklineVariant } from "@galaxy-io/dls/charts/Sparkline";
 <Sparkline data={[3, 5, 4, 8, 7, 9, 12]} variant={SparklineVariant.SUCCESS} ariaLabel="Signups, last 7 days, rising" />;
 ```
 
-### StatChart
+### BigNumber
 
-`@galaxy-io/dls/charts/StatChart` · The KPI tile: `label`, `value`, `description` (the comparison), `trailing` (a `Sparkline` or a status `Chip`), `variant` (surface), `hasBorder` (tiles on a page; off inside a bordered card), `isLoading`. Don't color the headline with a status.
+`@galaxy-io/dls/charts/BigNumber` · The KPI tile: `label`, `value` (a string or number renders `body_lg` medium with tabular numerals), `description` (the comparison), `suffix` (pinned 8px after the number: a status `Square`, a small `Icon`, a unit), `trailing` (at the far end of the value row: a `Sparkline` or a status `Chip`), `variant` (`BigNumberVariant` surface), `hasBorder` (tiles on a page, off inside a bordered card), `isLoading` (a `Skeleton` in place of the value, hiding `description`, `suffix` and `trailing`). Draws no chart and needs no d3. Don't color the headline with a status. Key it with a `suffix` mark.
 
 ```tsx
+import BigNumber from "@galaxy-io/dls/charts/BigNumber";
 import Sparkline from "@galaxy-io/dls/charts/Sparkline";
-import StatChart from "@galaxy-io/dls/charts/StatChart";
+import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
 
-<StatChart label="Rows synced" value="1.2M" description="+4% vs last week" trailing={<Sparkline data={[4, 6, 5, 8, 9]} />} hasBorder />;
+<BigNumber
+  label="Rows synced"
+  value="1.2M"
+  description="+4% vs last week"
+  suffix={<Square variant={SquareVariant.SUCCESS} size={SquareSize.SMALL} />}
+  trailing={<Sparkline data={[4, 6, 5, 8, 9]} />}
+  hasBorder
+/>;
+```
+
+### BigNumberGroup
+
+`@galaxy-io/dls/charts/BigNumberGroup` · A lead KPI and its breakdown in one frame: `primary` holds one or more `BigNumber`s on the left, on the frame's own surface with no fill and no border. `children` are the breakdown tiles in a strip on the right that scrolls sideways, bordered by default and filled with each tile's own `variant`. An explicit `hasBorder` on a tile wins. `variant` (`BigNumberGroupVariant`, unset draws no fill), `hasBorder`, `fillWidth` (the frame spans the parent and the primary tiles take the spare width, where by default it hugs its tiles), `hasFadeEdges` (the strip fades toward hidden tiles), `ariaLabel` (names the strip). Inside a bordered `Widget`, leave `hasBorder` off.
+
+```tsx
+import BigNumber, { BigNumberVariant } from "@galaxy-io/dls/charts/BigNumber";
+import BigNumberGroup, { BigNumberGroupVariant } from "@galaxy-io/dls/charts/BigNumberGroup";
+import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
+
+<BigNumberGroup
+  variant={BigNumberGroupVariant.PRIMARY}
+  hasBorder
+  hasFadeEdges
+  ariaLabel="Runs in the last 24 hours"
+  primary={<BigNumber label="Total runs" value="1,284" />}
+>
+  <BigNumber label="Total records" value="4.82M" variant={BigNumberVariant.TERTIARY} />
+  <BigNumber label="Completed" value="1,193" suffix={<Square variant={SquareVariant.SUCCESS} size={SquareSize.SMALL} />} />
+  <BigNumber label="Failed" value="41" suffix={<Square variant={SquareVariant.ERROR} size={SquareSize.SMALL} />} />
+</BigNumberGroup>;
 ```
 
 ### ChartGroupProvider
@@ -1965,16 +2111,17 @@ import Box from "@galaxy-io/dls/layout/Box";
 
 ## Brand
 
-All marks paint `text.primary` (monochrome), follow the theme in CSS, and take `isInverse` for a mark on a `text.primary` fill. `size` is the height in px. The artwork is one SVG per mark in `src/brand/assets/`, compiled by `pnpm assets` into a private component the public mark renders.
+All marks paint `text.primary` (monochrome), follow the theme in CSS, and take `isInverse` for a mark on a `text.primary` fill. `size` is the height in px. The logomark pairs only with `GalaxyWordmark`. The product wordmarks (`GalaxyFilamentWordmark`, `GalaxyAlchemyWordmark`) always stand alone, never beside or near a logomark.
 
 | Module | What | When |
 |---|---|---|
 | `@galaxy-io/dls/brand/GalaxyLogomark` | The two-circle, one-ribbon mark | Sidebar headers, favicons in UI, compact brand spots. Decorative unless `ariaLabel`. |
 | `@galaxy-io/dls/brand/GalaxyWordmark` | "galaxy" in the brand lettering | Beside the logomark when there is room. |
-| `@galaxy-io/dls/brand/GalaxyFilamentWordmark` | "filament" in the same lettering | Filament's product wordmark. |
+| `@galaxy-io/dls/brand/GalaxyFilamentWordmark` | "filament" in the same lettering | Filament's product wordmark. Always alone. |
+| `@galaxy-io/dls/brand/GalaxyAlchemyWordmark` | "alchemy" | Alchemy's product wordmark. Always alone. |
+| `@galaxy-io/dls/brand/PoweredBy` | "Powered by" and a product wordmark, one link that opens the product in a new tab | The foot of a Galaxy module's sidebar: `wordmark` (`PoweredByWordmark.FILAMENT` / `ALCHEMY`, an enum so no logomark can be passed), `href`, `ariaLabel` (" (opens in a new tab)" is appended). |
 | `@galaxy-io/dls/brand/GalaxyLogomarkAnimation` | The mark drawing itself in a loop | Splash and long-loading moments; `isPaused`; needs `lottie-react`. |
-| `@galaxy-io/dls/brand/GalaxyLogomark3D` | The mark as a lit 3D object | Hero moments only; `isAutoRotate`, `isInteractive`; needs `three` (loaded after mount from `src/brand/assets/galaxy-logomark.obj`). |
-| `@galaxy-io/dls/three/galaxyLogomark3DScene` | The three.js scene behind it | Mounting the 3D mark into your own canvas. |
+| `@galaxy-io/dls/brand/GalaxyLogomark3D` | The mark as a lit 3D object | Hero moments only; `isAutoRotate`, `isInteractive`; needs `three` (it and the model load after mount). |
 | `@galaxy-io/dls/brand/brandMark` | Shared CSS and ARIA helpers for the marks | Building another mark. |
 
 ```tsx
@@ -2031,7 +2178,7 @@ declare const isSyncing: boolean;
 | `@galaxy-io/dls/styles.css` | Component CSS and the package reset. Import once. |
 | `@galaxy-io/dls/tokens.css` | The `--gx-*` variables. Import once. |
 | `@galaxy-io/dls/fonts.css` | The `@font-face` rules. Import once. |
-| `@galaxy-io/dls/theme/GalaxyProvider` | The root provider: theme, overlay stack, toasts. See [getting-started.md](https://github.com/galaxy-io/dls/blob/main/docs/getting-started.md#galaxyprovider). |
+| `@galaxy-io/dls/theme/GalaxyProvider` | The root provider: theme, overlay stack, toasts. |
 | `@galaxy-io/dls/theme/ThemeSwitcher` | The System / Dark / Light control (`size`, `variant`, `isIconOnly`, `label`). |
 | `@galaxy-io/dls/theme/useGalaxyTheme` | `selectedTheme`, `activeTheme`, `systemTheme`, `setTheme`, `reducedMotion`, `theme` (hex). |
 | `@galaxy-io/dls/theme/enums` | `GalaxyTheme`, `ReducedMotion`, `FontFamily`, `Placement`, `Orientation`, `Side`, `Radius`, the `Space` type, the canonical member lists. |
@@ -2043,7 +2190,7 @@ declare const isSyncing: boolean;
 | `@galaxy-io/dls/theme/tokens/generate` | `tokenName`, `themeToCss`, `scalesToCss`: how `tokens.css` is built. |
 | `@galaxy-io/dls/theme/useInverseScope` | Internal: the attributes of an inverse scope (the Tooltip bubble). Apps use a scoped `GalaxyProvider`. |
 | `@galaxy-io/dls/styles/mixins` | `INTERACTIVE_RESET`, `HAIRLINE_BORDER`, `HAIRLINE_WIDTH` (1px), `FOCUS_RING`, `FIELD_FOCUS`, `TRUNCATE`, `VISUALLY_HIDDEN`, `REDUCED_MOTION`. |
-| `@galaxy-io/dls/vite` | `galaxyDls({ prefix })`: the Linaria (wyw-in-js) setup for apps. |
+| `@galaxy-io/dls/vite` | `galaxyDls({ prefix, theme, storageKey })`: the Linaria (wyw-in-js) setup for apps. `theme` and `storageKey` are the provider's, so the page boots in the right theme. |
 | `@galaxy-io/dls/biome` | The Biome preset: `"extends": ["@galaxy-io/dls/biome"]`. |
 
 ```tsx
@@ -2060,7 +2207,7 @@ export function ChartBackground() {
 
 ## Hooks and utils
 
-All SSR-safe (nothing touches `window`, `document` or `localStorage` outside effects). Apps use these instead of re-implementing them. Every hook in `src/hooks/`, with its typed signature, SSR notes and a live demo, is on the Storybook page Home → Hooks.
+All SSR-safe (nothing touches `window`, `document` or `localStorage` outside effects). Apps use these instead of re-implementing them. Every hook, with its typed signature, SSR notes and a live demo, is on the Storybook page Home → Hooks.
 
 | Module | What |
 |---|---|
@@ -2079,8 +2226,10 @@ All SSR-safe (nothing touches `window`, `document` or `localStorage` outside eff
 | `@galaxy-io/dls/hooks/useElementWidth` | An element's border-box width, live (`ResizeObserver`), for charts and self-sizing layouts. |
 | `@galaxy-io/dls/hooks/useElementClientSize` | An element's client width and height (no borders or scrollbars), live, for things that must line up with the scrollport. |
 | `@galaxy-io/dls/hooks/useResize` | Drag-resizing from a handle on an edge or corner (`ResizeAnchor`), for custom resizable surfaces. |
+| `@galaxy-io/dls/hooks/useEndReached` | Infinite scroll for an app list that is not a table: `useEndReached({ onEndReached, isEnabled, itemCount, scrollRef?, marginPx? })` returns the ref of a zero-size sentinel you render after the last item. It calls `onEndReached` at most once per `itemCount`, pauses while `isEnabled` is false, and roots on `scrollRef` when it overflows, else the viewport (`marginPx` default 500). The tables page through it. |
 | `@galaxy-io/dls/hooks/useField` | The `Field` wiring (ids, `aria-describedby`, required, error) for a custom control inside a Field (see [useField](#usefield)). |
-| `@galaxy-io/dls/utils/format` | `formatNumber` (`1,234`, `{ compact: true }` → `1.2k`), `formatBytes`, `formatDuration`, `formatRelativeTime`, `formatPercent`; `en-US` by default so server and client agree. |
+| `@galaxy-io/dls/utils/format` | `formatNumber` (`1,234`, `{ compact: true }` → `1.2k`), `formatBytes`, `formatDuration`, `formatRelativeTime`, `formatDate(date, { style: "date" \| "dateTime" })` (`Oct 3, 2026` or `Oct 10, 3:04:05 PM`, with a `timeZone` option), `formatPercent`, and `EMPTY_VALUE` (the `—` a missing value prints, in `TextVariant.TERTIARY`). `en-US` by default so server and client agree. `formatNumber`, `formatBytes`, `formatDuration`, `formatRelativeTime` and `formatDate` take `number \| bigint`, so a count or unix-millisecond timestamp needs no `Number()`. |
+| `@galaxy-io/dls/utils/search` | `isSearchMatch(term, ...fields)`: the term trimmed and lower-cased, matched as a substring of any field. An empty term matches and `null` / `undefined` fields are skipped. Also `normalizeSearchTerm`. The rule CommandPalette, Menu, SelectInput, MultiSelectInput and JsonViewer filter by, for an app list that filters as the user types. |
 | `@galaxy-io/dls/utils/colors` | Hex / RGB / HSL conversion, `mix`, `contrastRatio`, `meetsAA`, for data-driven colors. |
 | `@galaxy-io/dls/utils/css` | `getCssSizeValue`, `spaceToCss`, `gapToCss`: what the layout components use to turn props into CSS. |
 

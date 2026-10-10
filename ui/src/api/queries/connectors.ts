@@ -29,10 +29,10 @@ export const useListConnectorsQuery = ({
     ListConnectorsResponse
   >;
 } = {}) => {
-  return useQuery<
-    typeof IngestionService.method.listConnectors.input,
-    typeof IngestionService.method.listConnectors.output
-  >(IngestionService.method.listConnectors, input, { staleTime: Infinity, ...options });
+  return useQuery(IngestionService.method.listConnectors, input, {
+    staleTime: Number.POSITIVE_INFINITY,
+    ...options,
+  });
 };
 
 export const useGetConnectorQuery = ({
@@ -45,10 +45,10 @@ export const useGetConnectorQuery = ({
     GetConnectorResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getConnector.input,
-    typeof IngestionService.method.getConnector.output
-  >(IngestionService.method.getConnector, input, { staleTime: Infinity, ...options });
+  return useQuery(IngestionService.method.getConnector, input, {
+    staleTime: Number.POSITIVE_INFINITY,
+    ...options,
+  });
 };
 
 export const createDiscoverResourcesQueryKey = (
@@ -73,10 +73,7 @@ export const useDiscoverResourcesQuery = ({
     DiscoverResourcesResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.discoverResources.input,
-    typeof IngestionService.method.discoverResources.output
-  >(IngestionService.method.discoverResources, input, options);
+  return useQuery(IngestionService.method.discoverResources, input, options);
 };
 
 export const createGetResourceColumnsQueryKey = (
@@ -101,10 +98,7 @@ export const useGetResourceColumnsQuery = ({
     GetResourceColumnsResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getResourceColumns.input,
-    typeof IngestionService.method.getResourceColumns.output
-  >(IngestionService.method.getResourceColumns, input, options);
+  return useQuery(IngestionService.method.getResourceColumns, input, options);
 };
 
 export const useValidateConfigMutation = (
@@ -113,8 +107,5 @@ export const useValidateConfigMutation = (
     typeof IngestionService.method.validateConfig.output
   > = {},
 ) => {
-  return useMutation<
-    typeof IngestionService.method.validateConfig.input,
-    typeof IngestionService.method.validateConfig.output
-  >(IngestionService.method.validateConfig, options);
+  return useMutation(IngestionService.method.validateConfig, options);
 };

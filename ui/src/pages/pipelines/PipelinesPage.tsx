@@ -1,32 +1,36 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
+import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import DocsLink from "@/components/DocsLink";
-
-import { Flow } from "@/layouts/app/types";
-import MainLayoutListPage from "@/layouts/main/MainLayoutListPage";
+import ListSearch from "@/components/ListSearch";
+import { PIPELINE_CREATE_TITLE } from "@/components/pipelines/constants";
 
 import PipelinesPageEmptyGraphic from "@/pages/pipelines/components/PipelinesPageEmptyGraphic";
+import { PIPELINES_TABLE_SORT_BY_TO_COLUMN_ID_MAP } from "@/pages/pipelines/components/table/constants";
 import PipelinesTable from "@/pages/pipelines/components/table/PipelinesTable";
-import {
-  createPipelinesTableSorting,
-  createPipelinesTableSortSearch,
-  type PipelinesTableSortingChange,
-} from "@/pages/pipelines/components/table/utils";
+import { PIPELINES_DOCS_PATH } from "@/pages/pipelines/constants";
+
+import { useFilamentFlowOpen, useFilamentSearchUpdate, usePipelinesSearch } from "@/module/hooks";
+import type { PipelinesSearch } from "@/module/schemas";
+import { Flow } from "@/module/types";
 
 import {
   createListPipelinesInput,
   useSuspenseListPipelinesInfiniteQuery,
 } from "@/api/queries/pipelines";
 
-const PipelinesPage = () => {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_app/_main/pipelines" });
+import { createTableSorting, createTableSortSearch } from "@/utils/sort";
+
+const PipelinesPage: FC = () => {
+  const updateSearch = useFilamentSearchUpdate<PipelinesSearch>();
+  const openFlow = useFilamentFlowOpen();
+  const search = usePipelinesSearch();
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useSuspenseListPipelinesInfiniteQuery({
@@ -35,21 +39,25 @@ const PipelinesPage = () => {
 
   const pipelines = useMemo(() => data.pages.flatMap((page) => page.pipelines), [data.pages]);
 
-  const sorting = useMemo(() => createPipelinesTableSorting(search), [search]);
+  const sorting = useMemo(
+    () => createTableSorting(search, PIPELINES_TABLE_SORT_BY_TO_COLUMN_ID_MAP),
+    [search],
+  );
 
-  const handleSortingChange: PipelinesTableSortingChange = (next) => {
-    void navigate({
-      to: ".",
-      replace: true,
-      search: (prev) => ({ ...prev, ...createPipelinesTableSortSearch(next) }),
-    });
+  const handleSortingChange = (next: TableSort | null) => {
+    void updateSearch(
+      (prev) => ({
+        ...prev,
+        ...createTableSortSearch(next, PIPELINES_TABLE_SORT_BY_TO_COLUMN_ID_MAP),
+      }),
+      {
+        replace: true,
+      },
+    );
   };
 
   const handleNewPipeline = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
-    });
+    openFlow(Flow.CREATE_PIPELINE);
   };
 
   const renderContent = () => {
@@ -59,13 +67,13 @@ const PipelinesPage = () => {
           actions={
             <Flex alignItems={AlignItems.CENTER} gap={16}>
               <Button
-                label="New pipeline"
+                label={PIPELINE_CREATE_TITLE}
                 icon={PlusIcon}
                 variant={ButtonVariant.PRIMARY}
                 size={ButtonSize.LARGE}
                 onClick={handleNewPipeline}
               />
-              <DocsLink label="Learn about pipelines" path="/pages/guides/usage/web#pipelines" />
+              <DocsLink label="Learn about pipelines" path={PIPELINES_DOCS_PATH} />
             </Flex>
           }
         />
@@ -85,21 +93,20 @@ const PipelinesPage = () => {
   };
 
   return (
-    <MainLayoutListPage
-      isScrollable={false}
-      actions={[
+    <PageLayout
+      header="Pipelines"
+      actions={
         <Button
-          key="new-pipeline"
-          label="New pipeline"
+          label={PIPELINE_CREATE_TITLE}
           icon={PlusIcon}
           variant={ButtonVariant.PRIMARY}
           onClick={handleNewPipeline}
-        />,
-      ]}
-      noPadding
+        />
+      }
+      toolbar={<ListSearch placeholder="Search pipelines" />}
     >
       {renderContent()}
-    </MainLayoutListPage>
+    </PageLayout>
   );
 };
 

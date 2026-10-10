@@ -1,3 +1,0 @@
-export const MAIN_LAYOUT_GUTTER = 12;
-
-export const MAIN_LAYOUT_SETTINGS_MENU_WIDTH = 260;

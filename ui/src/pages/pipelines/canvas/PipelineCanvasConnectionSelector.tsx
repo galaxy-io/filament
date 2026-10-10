@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
+
+import { create } from "@bufbuild/protobuf";
+import { keepPreviousData } from "@tanstack/react-query";
 
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -6,7 +9,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import { type Connection, ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
 import {
   PIPELINE_CANVAS_CONNECTION_SELECTOR_MAX_HEIGHT,
@@ -20,9 +23,9 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
+import { createListConnectionsInput, useListConnectionsQuery } from "@/api/queries/connections";
 
-import { isSearchMatch } from "@/utils/search";
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface PipelineCanvasConnectionSelectorProps {
   kindFilter?: ConnectorKind;
@@ -32,36 +35,35 @@ interface PipelineCanvasConnectionSelectorProps {
 }
 
 interface PipelineCanvasConnectionSelectorState {
-  search: string;
+  q: string;
 }
 
 const DEFAULT_STATE: PipelineCanvasConnectionSelectorState = {
-  search: "",
+  q: "",
 };
 
-const PipelineCanvasConnectionSelector = ({
+const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps> = ({
   kindFilter = ConnectorKind.UNSPECIFIED,
   onSelect,
   width = PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH,
   fillHeight = false,
-}: PipelineCanvasConnectionSelectorProps) => {
+}) => {
   const [state, setState] = useState<PipelineCanvasConnectionSelectorState>(DEFAULT_STATE);
   const canvasState = usePipelineCanvasState();
   const { addNode } = usePipelineCanvasActions();
 
-  const handleSearchChange = (search: string) => {
-    setState((prev) => ({ ...prev, search }));
+  const handleSearch = (q: string) => {
+    setState((prev) => ({ ...prev, q }));
   };
 
-  const { data } = useSuspenseListConnectionsQuery();
-
-  const kindConnections =
-    kindFilter === ConnectorKind.UNSPECIFIED
-      ? data.connections
-      : data.connections.filter((connection) => connection.kind === kindFilter);
-  const filteredConnections = kindConnections.filter((connection) =>
-    isSearchMatch(state.search, connection.name),
-  );
+  const { data } = useListConnectionsQuery({
+    input: create(
+      ListConnectionsRequestSchema,
+      createListConnectionsInput(kindFilter, { q: state.q }),
+    ),
+    options: { placeholderData: keepPreviousData },
+  });
+  const connections = data?.connections ?? [];
 
   const handleConnectionClick = (connection: Connection) => {
     if (onSelect) {
@@ -83,16 +85,18 @@ const PipelineCanvasConnectionSelector = ({
     >
       <Box padding={8}>
         <SearchInput
-          value={state.search}
-          onChange={handleSearchChange}
+          ariaLabel="Search connections"
           placeholder="Search connections..."
+          debounceMs={LIST_SEARCH_DEBOUNCE_MS}
+          onSearch={handleSearch}
           fillWidth
         />
       </Box>
       <Divider />
       <PipelineCanvasConnectionSelectorList
-        connections={filteredConnections}
-        hasConnections={kindConnections.length > 0}
+        connections={connections}
+        hasConnections={!!state.q || connections.length > 0}
+        isLoading={!data}
         connectorKind={kindFilter}
         isSourceDisabled={!canAddSourceNode(canvasState.nodes)}
         onConnectionClick={handleConnectionClick}

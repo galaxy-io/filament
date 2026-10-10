@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ArrowRightIcon } from "@phosphor-icons/react";
 import { match } from "ts-pattern";
 
@@ -31,11 +33,11 @@ interface ObservabilitySetupChecklistStepProps {
   onClick: (step: ObservabilitySetupStep) => void;
 }
 
-const ObservabilitySetupChecklistStep = ({
+const ObservabilitySetupChecklistStep: FC<ObservabilitySetupChecklistStepProps> = ({
   step,
   status,
   onClick,
-}: ObservabilitySetupChecklistStepProps) => {
+}) => {
   const handleClick = () => onClick(step);
 
   return (

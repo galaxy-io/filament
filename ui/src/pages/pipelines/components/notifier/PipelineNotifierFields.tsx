@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import Field from "@galaxy-io/dls/inputs/Field";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
@@ -5,12 +7,15 @@ import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text from "@galaxy-io/dls/text/Text";
 
-import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import {
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENT_OPTIONS,
   PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP,
   PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT,
@@ -18,6 +23,7 @@ import {
   PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY,
   PIPELINE_NOTIFIER_TYPE_OPTIONS,
 } from "@/pages/pipelines/components/notifier/constants";
+import PipelineNotifierTypeTile from "@/pages/pipelines/components/notifier/PipelineNotifierTypeTile";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import {
   formatPipelineNotifierEventsSelection,
@@ -26,21 +32,26 @@ import {
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
-import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatusSwatch";
 
-import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
+import { mapOptionIdToEnum } from "@/utils/select";
 
-const EVENT_OPTIONS: SelectOption[] = getSelectAllOptions(
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
-  PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
-    ...option,
-    leading: (
-      <PipelineRunStatusSwatch
-        status={PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[Number(option.id) as NotifierEvent]}
-      />
-    ),
-  })),
-);
+const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
+  ...option,
+  leading: (
+    <PipelineRunStatusSwatch
+      status={
+        PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[mapOptionIdToEnum(NotifierEvent, option.id)]
+      }
+    />
+  ),
+}));
+
+const TYPE_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_TYPE_OPTIONS.map((option) => ({
+  ...option,
+  leading: (
+    <PipelineNotifierTypeTile notificationType={mapOptionIdToEnum(NotificationType, option.id)} />
+  ),
+}));
 
 interface PipelineNotifierFieldsProps {
   state: PipelineNotifierState;
@@ -48,11 +59,11 @@ interface PipelineNotifierFieldsProps {
   isDisabled?: boolean;
 }
 
-const PipelineNotifierFields = ({
+const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
   state,
   onChange,
   isDisabled = false,
-}: PipelineNotifierFieldsProps) => {
+}) => {
   const isSlack = state.notificationType === NotificationType.SLACK;
   const urlError =
     state.url !== "" && !isPipelineNotifierUrlValid(state.url)
@@ -81,16 +92,11 @@ const PipelineNotifierFields = ({
 
   const handleTypeChange = (id: string | null) => {
     if (id === null) return;
-    onChange({ notificationType: Number(id) as NotificationType, url: "", headers: "" });
+    onChange({ notificationType: mapOptionIdToEnum(NotificationType, id), url: "", headers: "" });
   };
 
   const handleEventsChange = (ids: string[]) => {
-    const next = getSelectAllChange(
-      PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
-      ids,
-      selectedEventIds,
-    );
-    onChange({ events: next.map((id) => Number(id) as NotifierEvent) });
+    onChange({ events: ids.map((id) => mapOptionIdToEnum(NotifierEvent, id)) });
   };
 
   const handleUrlChange = (url: string) => {
@@ -111,26 +117,37 @@ const PipelineNotifierFields = ({
         isDisabled={isDisabled}
         fillWidth
       />
-      <SelectInput
-        label="Type"
-        options={PIPELINE_NOTIFIER_TYPE_OPTIONS}
-        value={String(state.notificationType)}
-        onChange={handleTypeChange}
-        placeholder="Select type"
-        isDisabled={isDisabled}
-        fillWidth
-      />
-      <MultiSelectInput
-        label="Events"
-        options={EVENT_OPTIONS}
-        value={getSelectAllValue(PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION, selectedEventIds)}
-        onChange={handleEventsChange}
-        renderValue={(options) => <Text>{formatPipelineNotifierEventsSelection(options)}</Text>}
-        pinnedIds={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.id]}
-        placeholder="Select events"
-        isDisabled={isDisabled}
-        fillWidth
-      />
+      <Flex alignItems={AlignItems.START} gap={12} fillWidth>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <SelectInput
+            label="Type"
+            options={TYPE_OPTIONS}
+            value={String(state.notificationType)}
+            onChange={handleTypeChange}
+            placeholder="Select type"
+            isDisabled={isDisabled}
+            fillWidth
+          />
+        </FlexItem>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <MultiSelectInput
+            label="Events"
+            options={EVENT_OPTIONS}
+            selectAllLabel={PIPELINE_NOTIFIER_ALL_EVENTS_LABEL}
+            value={selectedEventIds}
+            onChange={handleEventsChange}
+            renderValue={(options) => (
+              <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+                {options.length === 1 && options[0].leading}
+                <Text lineClamp={1}>{formatPipelineNotifierEventsSelection(options)}</Text>
+              </Flex>
+            )}
+            placeholder="Select events"
+            isDisabled={isDisabled}
+            fillWidth
+          />
+        </FlexItem>
+      </Flex>
       {isSlack ? (
         <PasswordInput
           label="Webhook URL"

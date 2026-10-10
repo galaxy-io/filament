@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { PlusIcon } from "@phosphor-icons/react";
 
@@ -8,7 +10,9 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import { PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH } from "@/pages/pipelines/canvas/routes/constants";
 import PipelineCanvasRoutesIsland from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesIsland";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
@@ -30,12 +34,12 @@ interface PipelineCanvasRoutesSourceIslandProps {
   onAddSink: (() => void) | undefined;
 }
 
-const PipelineCanvasRoutesSourceIsland = ({
+const PipelineCanvasRoutesSourceIsland: FC<PipelineCanvasRoutesSourceIslandProps> = ({
   route,
   isSelected,
   onSelect,
   onAddSink,
-}: PipelineCanvasRoutesSourceIslandProps) => (
+}) => (
   <PipelineCanvasRoutesIsland
     width={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
     isSelected={isSelected}

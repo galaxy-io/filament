@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput, {
   MultiSelectInputSize,
   MultiSelectInputVariant,
@@ -17,21 +18,20 @@ import Text from "@galaxy-io/dls/text/Text";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import { PIPELINE_CANVAS_VIEW_SWITCHER_INSET } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
 import {
   PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH,
-  PIPELINE_CANVAS_ROUTES_SINKS_PINNED_OPTION_ID,
 } from "@/pages/pipelines/canvas/routes/constants";
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
-import { LIST_SEARCH_DEBOUNCE_MS } from "@/api/utils";
-
-import { getSelectAllChange, getSelectAllOptions, getSelectAllValue } from "@/utils/select";
+import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface PipelineCanvasRoutesToolbarProps {
   onSearch: (search: string) => void;
@@ -39,11 +39,11 @@ interface PipelineCanvasRoutesToolbarProps {
   onAddRoute: () => void;
 }
 
-const PipelineCanvasRoutesToolbar = ({
+const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
   onSearch,
   canAddRoute,
   onAddRoute,
-}: PipelineCanvasRoutesToolbarProps) => {
+}) => {
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
   const sinks = usePipelineCanvasRoutesSinks();
 
@@ -63,16 +63,10 @@ const PipelineCanvasRoutesToolbar = ({
       })),
     [sinks],
   );
-  const selectAll = {
-    id: PIPELINE_CANVAS_ROUTES_SINKS_PINNED_OPTION_ID,
-    label: "All sinks",
-    optionIds: sinkOptions.map((option) => option.id),
-  };
-  const selectedSinkIds = sinkIds.length ? sinkIds : selectAll.optionIds;
+  const selectedSinkIds = sinkIds.length ? sinkIds : sinkOptions.map((option) => option.id);
 
   const handleSinksChange = (ids: CanvasNode["id"][]) => {
-    const next = getSelectAllChange(selectAll, ids, selectedSinkIds);
-    setSinkIds(next.length === sinkOptions.length ? [] : next);
+    setSinkIds(ids.length === sinkOptions.length ? [] : ids);
   };
 
   return (
@@ -87,6 +81,7 @@ const PipelineCanvasRoutesToolbar = ({
       <Box width={PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH}>
         <SearchInput
           ariaLabel="Search resources"
+          variant={InputVariant.SECONDARY}
           debounceMs={LIST_SEARCH_DEBOUNCE_MS}
           onSearch={onSearch}
           placeholder="Search resources..."
@@ -97,22 +92,14 @@ const PipelineCanvasRoutesToolbar = ({
         <MultiSelectInput
           ariaLabel="Sinks"
           fillWidth
-          options={getSelectAllOptions(selectAll, sinkOptions)}
-          pinnedIds={[selectAll.id]}
-          value={getSelectAllValue(selectAll, selectedSinkIds)}
+          options={sinkOptions}
+          selectAllLabel="All sinks"
+          value={selectedSinkIds}
           onChange={handleSinksChange}
           placeholder="Sinks..."
-          variant={MultiSelectInputVariant.TERTIARY}
+          variant={MultiSelectInputVariant.SECONDARY}
           size={MultiSelectInputSize.MEDIUM}
-          renderValue={(options) => (
-            <Text>
-              {pluralize(
-                "sink",
-                options.filter((option) => option.id !== selectAll.id).length,
-                true,
-              )}
-            </Text>
-          )}
+          renderValue={(options) => <Text>{pluralize("sink", options.length, true)}</Text>}
         />
       </Box>
       <FlexItem grow={1} />

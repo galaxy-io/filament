@@ -1,6 +1,4 @@
-import { useMemo } from "react";
-
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { type FC, useMemo } from "react";
 
 import BarChart from "@galaxy-io/dls/charts/BarChart";
 import type { ChartSelection, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
@@ -9,7 +7,6 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
   OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH,
-  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
   OBSERVABILITY_RUNS_SERIES,
 } from "@/pages/observability/components/runs/constants";
 import {
@@ -17,21 +14,18 @@ import {
   mapChartSelectionToRunsFilter,
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
-import { useBucketLabelFormatter } from "@/pages/observability/utils";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
-const ObservabilityRunsChart = () => {
-  const navigate = useNavigate();
-  const {
-    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
-    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-    runsBucket,
-    runsStatus,
-  } = useSearch({ from: "/_app/_main/observability" });
+const ObservabilityRunsChart: FC = () => {
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
+  const { timeframe, statuses, runsBucket, runsStatus } = useObservabilitySearch();
 
-  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+  const bucketLabelFormatter = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel;
 
   const input = useMemo(
     () => createRunCountTimeseriesInput(timeframe, statuses),
@@ -60,17 +54,14 @@ const ObservabilityRunsChart = () => {
 
   const handleSelectionChange = (next: ChartSelection[]) => {
     const filter = mapChartSelectionToRunsFilter(next[next.length - 1]);
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, ...filter }),
-    });
+    void updateSearch((prev) => ({ ...prev, ...filter }));
   };
 
   return (
     <Flex
       alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={[24, 12]}
+      padding={[12, 16]}
       height={OBSERVABILITY_RUNS_CHART_HEIGHT}
       fillWidth
     >

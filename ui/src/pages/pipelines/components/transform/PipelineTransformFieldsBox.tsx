@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -31,7 +31,7 @@ const Rows = styled.div`
   }
 `;
 
-const PipelineTransformFieldsBox = ({ children }: PropsWithChildren) => (
+const PipelineTransformFieldsBox: FC<PropsWithChildren> = ({ children }) => (
   <Container>
     <Widget variant={WidgetVariant.TERTIARY} size={WidgetSize.SMALL}>
       <Rows>{children}</Rows>

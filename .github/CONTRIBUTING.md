@@ -77,7 +77,7 @@ just test
 Useful targeted commands include:
 
 ```sh
-just ui-dist          # Type-check and build the UI bundle
+just ui-build          # Type-check and build the UI bundle
 just build            # Generate and compile the full workspace
 just proto-lint       # Lint protobuf definitions
 just manifest-lint    # Check HTTP manifest YAML syntax and formatting

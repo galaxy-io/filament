@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -19,20 +21,20 @@ import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canva
 
 const PipelineCanvasEditWidgetContainer = styled.div`
   position: absolute;
-  left: 16px;
+  left: ${t.space[16]};
   top: 50%;
   transform: translateY(-50%);
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 
   display: flex;
-  padding: 8px;
+  padding: ${t.space[8]};
 
   background-color: ${t.color.background.base};
   border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   border-radius: ${t.radius.pill};
 `;
 
-const PipelineCanvasEditWidget = () => {
+const PipelineCanvasEditWidget: FC = () => {
   const state = usePipelineCanvasState();
   const { setActiveMode } = usePipelineCanvasActions();
 

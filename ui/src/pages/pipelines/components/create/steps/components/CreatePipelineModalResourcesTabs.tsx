@@ -1,39 +1,46 @@
+import type { FC } from "react";
+
 import { WarningIcon } from "@phosphor-icons/react";
 
-import Box from "@galaxy-io/dls/layout/Box";
 import Tabs, { type TabItem, TabsSize } from "@galaxy-io/dls/navigation/Tabs";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
-const CreatePipelineModalResourcesTabs = () => {
+const CreatePipelineModalResourcesTabs: FC = () => {
   const { sinks, activeSinkId, selectedCountBySink, issuesBySink } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setActiveSink } = useCreatePipelineModalActions();
 
   const items: TabItem<Connection["id"]>[] = sinks.map((sink) => ({
     id: sink.connection.id,
     label: sink.connection.name,
+    leading: (
+      <ConnectorTile
+        connector={sink.connection.connector}
+        kind={sink.connection.kind}
+        size={ConnectorTileSize.SMALL}
+      />
+    ),
     icon: issuesBySink[sink.connection.id]?.length ? WarningIcon : undefined,
     count: selectedCountBySink[sink.connection.id] ?? 0,
   }));
 
   return (
-    <Box padding={[0, 8]} fillWidth>
-      <Tabs
-        ariaLabel="Sinks"
-        size={TabsSize.MEDIUM}
-        items={items}
-        value={activeSinkId}
-        onChange={(sinkId) =>
-          dispatch({ type: CreatePipelineModalActionType.SET_ACTIVE_SINK, payload: sinkId })
-        }
-      />
-    </Box>
+    <Tabs
+      ariaLabel="Sinks"
+      size={TabsSize.MEDIUM}
+      items={items}
+      value={activeSinkId}
+      onChange={(sinkId) => setActiveSink(sinkId)}
+      inset={8}
+    />
   );
 };
 

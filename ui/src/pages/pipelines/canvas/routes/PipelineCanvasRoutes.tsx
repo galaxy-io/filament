@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -10,7 +10,7 @@ import { usePipelineCanvasRoutesDraft } from "@/pages/pipelines/canvas/routes/ho
 import PipelineCanvasRoutesList from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesList";
 import PipelineCanvasRoutesToolbar from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesToolbar";
 
-const PipelineCanvasRoutes = () => {
+const PipelineCanvasRoutes: FC = () => {
   const { sinkIds, showPanel } = usePipelineCanvasSelection();
   const [search, setSearch] = useState("");
   const { routes, hasRoutes } = usePipelineCanvasRoutes({ search, sinkIds });

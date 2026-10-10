@@ -1,6 +1,7 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
@@ -9,29 +10,34 @@ import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
+import { ReplicationMode } from "@/gen/ingestion/v1/common_pb";
+import { DeletePipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+
+import { formatPipelineName, isPipelineNameMatch } from "@/components/pipelines/utils";
+
+import { getPipelineSourceConnectionIds } from "@/pages/pipelines/settings/utils";
+
+import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
+import { useGetConnectionQueries } from "@/api/queries/connections";
 import {
-  DeletePipelineRequestSchema,
-  GetPipelineRequestSchema,
-  type Pipeline,
-} from "@/gen/ingestion/v1/pipelines_pb";
-
-import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
-import { formatPipelineName, isPipelineNameMatch } from "@/pages/pipelines/utils";
-
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
-import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+  createGetPipelineInput,
+  useDeletePipelineMutation,
+  useSuspenseGetPipelineQuery,
+} from "@/api/queries/pipelines";
 
 import { useConfirm } from "@/hooks/useConfirm";
 
-const PipelineSettingsPageDanger = () => {
-  const navigate = useNavigate();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+const PipelineSettingsPageDanger: FC = () => {
+  const navigate = useFilamentNavigate();
+  const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
+  const sourceConnections = useGetConnectionQueries(getPipelineSourceConnectionIds(pipeline));
 
   const { mutate: deletePipeline } = useDeletePipelineMutation();
 
@@ -43,12 +49,14 @@ const PipelineSettingsPageDanger = () => {
         onSuccess,
         onError,
       }),
-    onConfirmed: () => navigate({ to: "/pipelines" }),
+    onConfirmed: () => navigate({ to: FilamentPath.PIPELINES }),
   });
 
   if (!pipeline) return null;
 
-  const cdcConnections = getPipelineCdcSourceConnections(pipeline, connectionsData.connections);
+  const cdcConnections = sourceConnections.filter(
+    (connection) => connection.replication === ReplicationMode.CDC,
+  );
   const cdcConnectionNames = cdcConnections.map((connection) => `"${connection.name}"`).join(", ");
   const hasCdcSource = cdcConnections.length > 0;
 

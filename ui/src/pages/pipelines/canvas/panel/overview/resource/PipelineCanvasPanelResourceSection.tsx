@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
@@ -14,7 +14,9 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
@@ -30,13 +32,11 @@ import {
 import {
   type CanvasEdge,
   type CanvasNode,
-  isConnectionNode,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
-import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
-import PipelineResourceCreateForm, {
-  type PipelineResourceCreateState,
-} from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import { getCanvasEdgeResourceLabel, isConnectionNode } from "@/pages/pipelines/canvas/utils";
+import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsMarker from "@/pages/pipelines/components/transform/PipelineTransformFieldsMarker";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
@@ -59,12 +59,12 @@ interface PipelineCanvasPanelResourceSectionProps {
   isOpenInitial?: boolean;
 }
 
-const PipelineCanvasPanelResourceSection = ({
+const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionProps> = ({
   edges,
   nodeId,
   nodeType = PipelineCanvasNodeType.PLACEHOLDER,
   isOpenInitial = true,
-}: PipelineCanvasPanelResourceSectionProps) => {
+}) => {
   const state = usePipelineCanvasState();
   const isReadOnly = usePipelineCanvasReadOnly();
   const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;

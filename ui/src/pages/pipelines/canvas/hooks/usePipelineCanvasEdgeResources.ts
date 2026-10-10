@@ -71,11 +71,7 @@ export const usePipelineCanvasEdgeResources = (
     [edgeResource, discovered?.resources],
   );
 
-  const {
-    data: columns,
-    isPending: isPendingColumns,
-    isError: isErrorColumns,
-  } = useGetResourceColumnsQuery({
+  const { data: columns, isLoading: isLoadingResourceColumns } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, {
       connectionId: sourceConnectionId,
       resources: coveredResources,
@@ -136,7 +132,7 @@ export const usePipelineCanvasEdgeResources = (
   const isLoadingColumns =
     enabled &&
     ((edgeResource === "" && isLoadingResources) ||
-      (coveredResources.length > 0 && isPendingColumns && !isErrorColumns));
+      (coveredResources.length > 0 && isLoadingResourceColumns));
 
   return {
     isContinuous,

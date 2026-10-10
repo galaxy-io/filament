@@ -30,12 +30,12 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
-const buildNodes = (
+const createNodes = (
   sourceConnection: Connection | null,
   sinks: CreatePipelineModalSinkRow[],
   nodeConfigs: Record<Connection["id"], PipelineNodeConfig>,
@@ -59,7 +59,7 @@ const buildNodes = (
   ];
 };
 
-const buildCursors = (
+const createCursors = (
   rows: CreatePipelineModalResourceRow[],
   readMode: ReadMode,
 ): ResourceCursorConfig[] => {
@@ -75,7 +75,7 @@ const buildCursors = (
     );
 };
 
-const buildSinkEdges = ({
+const createSinkEdges = ({
   sourceId,
   rows,
   sink,
@@ -107,7 +107,7 @@ const buildSinkEdges = ({
         toNode: sink.connection.id,
         readMode,
         writeMode: sink.writeMode,
-        cursors: hasReadLevers ? buildCursors(selected, readMode) : [],
+        cursors: hasReadLevers ? createCursors(selected, readMode) : [],
       }),
     ];
   }
@@ -120,12 +120,12 @@ const buildSinkEdges = ({
       toNode: sink.connection.id,
       readMode,
       writeMode: sink.writeMode,
-      cursors: hasReadLevers ? buildCursors([row], readMode) : [],
+      cursors: hasReadLevers ? createCursors([row], readMode) : [],
     });
   });
 };
 
-const buildEdges = ({
+const createEdges = ({
   sourceConnection,
   rowsBySink,
   sinks,
@@ -140,7 +140,7 @@ const buildEdges = ({
 }): PipelineEdge[] => {
   if (!sourceConnection) return [];
   return sinks.flatMap((sink) =>
-    buildSinkEdges({
+    createSinkEdges({
       sourceId: sourceConnection.id,
       rows: rowsBySink[sink.connection.id] ?? [],
       sink,
@@ -170,8 +170,8 @@ export const mapCreatePipelineStateToVersionRequest = ({
   create(CreatePipelineVersionRequestSchema, {
     pipelineId,
     graph: {
-      nodes: buildNodes(sourceConnection, sinks, nodeConfigs),
-      edges: buildEdges({
+      nodes: createNodes(sourceConnection, sinks, nodeConfigs),
+      edges: createEdges({
         sourceConnection,
         rowsBySink,
         sinks,

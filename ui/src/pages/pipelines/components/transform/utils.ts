@@ -80,13 +80,13 @@ export const getTransformStepColumn = (step: TransformEditableStep): string =>
     )
     .exhaustive();
 
-export const convertTransformStep = (
+const convertTransformStep = (
   step: TransformEditableStep,
   kind: TransformEditableStep["kind"],
 ): TransformEditableStep =>
   step.kind === kind ? step : createTransformStep(kind, getTransformStepColumn(step), step.id);
 
-export const toTransformComputeStep = (step: TransformEditableStep): TransformComputeStep =>
+const toTransformComputeStep = (step: TransformEditableStep): TransformComputeStep =>
   step.kind === TransformStepKind.COMPUTE
     ? step
     : createTransformComputeStep(getTransformStepColumn(step), step.id);
@@ -99,7 +99,7 @@ export const createTransformLiteral = (
   value: null,
 });
 
-export const createTransformCallArgs = (
+const createTransformCallArgs = (
   fn: TransformFunction,
   inputType: string | undefined,
   columns: ResourceColumn[],

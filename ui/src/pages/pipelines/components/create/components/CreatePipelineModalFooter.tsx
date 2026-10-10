@@ -1,5 +1,6 @@
+import type { FC } from "react";
+
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -10,9 +11,8 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -22,18 +22,21 @@ import {
 } from "@/pages/pipelines/components/create/serialize";
 import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
 
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 import { useCreatePipelineNotifierMutation } from "@/api/queries/notifiers";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const CreatePipelineModalFooter = () => {
-  const navigate = useNavigate();
+const CreatePipelineModalFooter: FC = () => {
+  const navigate = useFilamentNavigate();
   const { toast } = useToast();
 
   const state = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { goBack, goNext, setSubmitting } = useCreatePipelineModalActions();
 
   const { mutate: createPipeline } = useCreatePipelineMutation();
   const { mutate: createPipelineVersion } = useCreatePipelineVersionMutation();
@@ -42,7 +45,7 @@ const CreatePipelineModalFooter = () => {
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
   const handleNavigateToCanvas = (pipelineId: Pipeline["id"]) => {
-    void navigate({ to: "/pipelines/$id/canvas", params: { id: pipelineId } });
+    void navigate({ to: FilamentPath.PIPELINE_CANVAS, params: { id: pipelineId } });
   };
 
   const handleFinish = async (pipelineId: Pipeline["id"], notifiers: PipelineNotifier[]) => {
@@ -62,13 +65,13 @@ const CreatePipelineModalFooter = () => {
   };
 
   const handleCreate = () => {
-    dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: true });
+    setSubmitting(true);
 
     createPipeline(mapCreatePipelineStateToRequest(state, state.effectiveName), {
       onSuccess: (response) => {
         const pipelineId = response.pipeline?.id;
         if (!pipelineId) {
-          dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: false });
+          setSubmitting(false);
           return;
         }
 
@@ -102,7 +105,7 @@ const CreatePipelineModalFooter = () => {
         });
       },
       onError: (error) => {
-        dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload: false });
+        setSubmitting(false);
         toast({
           variant: ToastVariant.ERROR,
           header: "Failed to create pipeline",
@@ -129,7 +132,7 @@ const CreatePipelineModalFooter = () => {
       <Button
         label="Next"
         icon={ArrowRightIcon}
-        onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_NEXT })}
+        onClick={() => goNext()}
         isDisabled={isNextDisabled}
         isIconTrailing
       />
@@ -142,7 +145,7 @@ const CreatePipelineModalFooter = () => {
         label="Back"
         icon={ArrowLeftIcon}
         variant={ButtonVariant.SECONDARY}
-        onClick={() => dispatch({ type: CreatePipelineModalActionType.GO_BACK })}
+        onClick={() => goBack()}
         isDisabled={isSubmitting || !isBackVisible}
       />
       <Flex alignItems={AlignItems.CENTER} gap={12} grow={0} shrink={0}>

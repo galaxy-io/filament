@@ -12,12 +12,12 @@ import {
   getCanvasEdgeKey,
   getProtoEdgeKey,
 } from "@/pages/pipelines/canvas/graph/serialize";
-import {
-  type CanvasEdge,
-  type CanvasNode,
-  isConnectionNode,
-  type PipelineCanvasEdgeData,
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
   (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&

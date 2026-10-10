@@ -1,4 +1,4 @@
-import { type UseMutationOptions, useMutation } from "@connectrpc/connect-query";
+import { type UseMutationOptions, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
@@ -13,20 +13,18 @@ export const useCreatePipelineScheduleMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.createPipelineSchedule.input,
-    typeof IngestionService.method.createPipelineSchedule.output
-  >(IngestionService.method.createPipelineSchedule, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.createPipelineSchedule, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -40,20 +38,18 @@ export const useUpdatePipelineScheduleMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.updatePipelineSchedule.input,
-    typeof IngestionService.method.updatePipelineSchedule.output
-  >(IngestionService.method.updatePipelineSchedule, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.updatePipelineSchedule, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

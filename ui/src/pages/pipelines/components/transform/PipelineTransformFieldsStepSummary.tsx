@@ -1,4 +1,4 @@
-import { Fragment, type ReactElement } from "react";
+import { type FC, Fragment, type ReactElement } from "react";
 
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
@@ -35,7 +35,7 @@ const ChipSlot = styled.span<{ $isRemoved: boolean }>`
   display: inline-flex;
   align-items: center;
   height: ${TRANSFORM_ACTION}px;
-  padding: 0 2px;
+  padding: 0 ${t.space[2]};
   vertical-align: top;
 
   & span {
@@ -69,7 +69,9 @@ interface PipelineTransformFieldsStepSummaryProps {
   step: TransformStep;
 }
 
-const PipelineTransformFieldsStepSummary = ({ step }: PipelineTransformFieldsStepSummaryProps) => {
+const PipelineTransformFieldsStepSummary: FC<PipelineTransformFieldsStepSummaryProps> = ({
+  step,
+}) => {
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   return (
     <Sentence>

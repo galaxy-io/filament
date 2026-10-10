@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -11,18 +11,12 @@ import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
-
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
-export interface PipelineResourceCreateSink {
+interface PipelineResourceCreateSink {
   id: CanvasNode["id"];
   label: string;
-}
-
-export interface PipelineResourceCreateState {
-  resource: Resource["name"];
-  sinkId: CanvasNode["id"];
 }
 
 interface PipelineResourceCreateFormProps {
@@ -33,13 +27,13 @@ interface PipelineResourceCreateFormProps {
   variant?: WidgetVariant;
 }
 
-const PipelineResourceCreateForm = ({
+const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   sinks,
   getError,
   onSave,
   onCancel,
   variant = WidgetVariant.TERTIARY,
-}: PipelineResourceCreateFormProps) => {
+}) => {
   const [state, setState] = useState<PipelineResourceCreateState>({
     resource: "",
     sinkId: sinks[0]?.id ?? "",

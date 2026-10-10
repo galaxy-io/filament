@@ -6,20 +6,36 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useSuspenseQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type { ListMembersResponse } from "@/gen/auth/v1/members_pb";
-import type { ListServiceAccountsResponse } from "@/gen/auth/v1/service_accounts_pb";
+import type { ListMembersRequest, ListMembersResponse } from "@/gen/auth/v1/members_pb";
+import type { ListServiceAccountsRequest } from "@/gen/auth/v1/service_accounts_pb";
 import { AuthService } from "@/gen/auth/v1/service_pb";
+import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-export const createListMembersQueryKey = () =>
-  createConnectQueryKey({ schema: AuthService.method.listMembers, cardinality: "finite" });
+const createListMembersQueryKey = (input?: ListMembersRequest, transport?: Transport) =>
+  createConnectQueryKey({
+    schema: AuthService.method.listMembers,
+    input,
+    transport,
+    cardinality: "finite",
+  });
 
-export const createListServiceAccountsQueryKey = () =>
-  createConnectQueryKey({ schema: AuthService.method.listServiceAccounts, cardinality: "finite" });
+const createListServiceAccountsQueryKey = (
+  input?: ListServiceAccountsRequest,
+  transport?: Transport,
+) =>
+  createConnectQueryKey({
+    schema: AuthService.method.listServiceAccounts,
+    input,
+    transport,
+    cardinality: "finite",
+  });
 
 export const createGetAuthConfigQueryOptions = ({ transport }: { transport: Transport }) => {
   return {
@@ -35,30 +51,32 @@ export const createGetSessionQueryOptions = ({ transport }: { transport: Transpo
   };
 };
 
+export const useGetSessionQuery = ({
+  options = {},
+}: {
+  options?: UseQueryOptions<typeof AuthService.method.getSession.output, GetSessionResponse>;
+} = {}) => {
+  return useQuery(AuthService.method.getSession, {}, { ...PROBE_QUERY_OPTIONS, ...options });
+};
+
+const selectCanManageTeam = (response: ListMembersResponse) => response.canManage;
+
+export const useCanManageTeam = ({ enabled = true }: { enabled?: boolean } = {}) =>
+  useQuery(AuthService.method.listMembers, {}, { select: selectCanManageTeam, enabled }).data;
+
 export const useListMembersQuery = ({
   options = {},
 }: {
   options?: UseQueryOptions<typeof AuthService.method.listMembers.output, ListMembersResponse>;
 } = {}) => {
-  return useQuery<
-    typeof AuthService.method.listMembers.input,
-    typeof AuthService.method.listMembers.output
-  >(AuthService.method.listMembers, {}, options);
+  return useQuery(AuthService.method.listMembers, {}, options);
 };
 
-export const useListServiceAccountsQuery = ({
-  options = {},
-}: {
-  options?: UseQueryOptions<
-    typeof AuthService.method.listServiceAccounts.output,
-    ListServiceAccountsResponse
-  >;
-} = {}) => {
-  return useQuery<
-    typeof AuthService.method.listServiceAccounts.input,
-    typeof AuthService.method.listServiceAccounts.output
-  >(AuthService.method.listServiceAccounts, {}, options);
-};
+export const useSuspenseListMembersQuery = () =>
+  useSuspenseQuery(AuthService.method.listMembers, {});
+
+export const useSuspenseListServiceAccountsQuery = () =>
+  useSuspenseQuery(AuthService.method.listServiceAccounts, {});
 
 export const useLoginMutation = (
   options: UseMutationOptions<
@@ -66,10 +84,7 @@ export const useLoginMutation = (
     typeof AuthService.method.login.output
   > = {},
 ) => {
-  return useMutation<typeof AuthService.method.login.input, typeof AuthService.method.login.output>(
-    AuthService.method.login,
-    options,
-  );
+  return useMutation(AuthService.method.login, options);
 };
 
 export const useLogoutMutation = (
@@ -78,10 +93,7 @@ export const useLogoutMutation = (
     typeof AuthService.method.logout.output
   > = {},
 ) => {
-  return useMutation<
-    typeof AuthService.method.logout.input,
-    typeof AuthService.method.logout.output
-  >(AuthService.method.logout, options);
+  return useMutation(AuthService.method.logout, options);
 };
 
 export const useRegisterMutation = (
@@ -90,10 +102,7 @@ export const useRegisterMutation = (
     typeof AuthService.method.register.output
   > = {},
 ) => {
-  return useMutation<
-    typeof AuthService.method.register.input,
-    typeof AuthService.method.register.output
-  >(AuthService.method.register, options);
+  return useMutation(AuthService.method.register, options);
 };
 
 export const useAcceptInviteMutation = (
@@ -102,10 +111,7 @@ export const useAcceptInviteMutation = (
     typeof AuthService.method.acceptInvite.output
   > = {},
 ) => {
-  return useMutation<
-    typeof AuthService.method.acceptInvite.input,
-    typeof AuthService.method.acceptInvite.output
-  >(AuthService.method.acceptInvite, options);
+  return useMutation(AuthService.method.acceptInvite, options);
 };
 
 export const useInviteMemberMutation = (
@@ -115,13 +121,13 @@ export const useInviteMemberMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof AuthService.method.inviteMember.input,
-    typeof AuthService.method.inviteMember.output
-  >(AuthService.method.inviteMember, {
+  const transport = useTransport();
+  return useMutation(AuthService.method.inviteMember, {
     ...options,
     onSettled: (...args) => {
-      void queryClient.invalidateQueries({ queryKey: createListMembersQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListMembersQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -134,13 +140,13 @@ export const useSetMemberRoleMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof AuthService.method.setMemberRole.input,
-    typeof AuthService.method.setMemberRole.output
-  >(AuthService.method.setMemberRole, {
+  const transport = useTransport();
+  return useMutation(AuthService.method.setMemberRole, {
     ...options,
     onSettled: (...args) => {
-      void queryClient.invalidateQueries({ queryKey: createListMembersQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListMembersQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -153,13 +159,13 @@ export const useRemoveMemberMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof AuthService.method.removeMember.input,
-    typeof AuthService.method.removeMember.output
-  >(AuthService.method.removeMember, {
+  const transport = useTransport();
+  return useMutation(AuthService.method.removeMember, {
     ...options,
     onSettled: (...args) => {
-      void queryClient.invalidateQueries({ queryKey: createListMembersQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListMembersQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -172,13 +178,13 @@ export const useCreateServiceAccountMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof AuthService.method.createServiceAccount.input,
-    typeof AuthService.method.createServiceAccount.output
-  >(AuthService.method.createServiceAccount, {
+  const transport = useTransport();
+  return useMutation(AuthService.method.createServiceAccount, {
     ...options,
     onSettled: (...args) => {
-      void queryClient.invalidateQueries({ queryKey: createListServiceAccountsQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListServiceAccountsQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -190,10 +196,7 @@ export const useRotateServiceAccountSecretMutation = (
     typeof AuthService.method.rotateServiceAccountSecret.output
   > = {},
 ) => {
-  return useMutation<
-    typeof AuthService.method.rotateServiceAccountSecret.input,
-    typeof AuthService.method.rotateServiceAccountSecret.output
-  >(AuthService.method.rotateServiceAccountSecret, options);
+  return useMutation(AuthService.method.rotateServiceAccountSecret, options);
 };
 
 export const useRemoveServiceAccountMutation = (
@@ -203,13 +206,13 @@ export const useRemoveServiceAccountMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof AuthService.method.removeServiceAccount.input,
-    typeof AuthService.method.removeServiceAccount.output
-  >(AuthService.method.removeServiceAccount, {
+  const transport = useTransport();
+  return useMutation(AuthService.method.removeServiceAccount, {
     ...options,
     onSettled: (...args) => {
-      void queryClient.invalidateQueries({ queryKey: createListServiceAccountsQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListServiceAccountsQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });

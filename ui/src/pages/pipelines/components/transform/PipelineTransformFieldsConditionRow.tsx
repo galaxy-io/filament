@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -72,13 +72,13 @@ interface PipelineTransformFieldsConditionRowProps {
   onChange: (expr: TransformExpr) => void;
 }
 
-const PipelineTransformFieldsConditionRow = ({
+const PipelineTransformFieldsConditionRow: FC<PipelineTransformFieldsConditionRowProps> = ({
   expr,
   path,
   gutter,
   action,
   onChange,
-}: PipelineTransformFieldsConditionRowProps) => {
+}) => {
   const editor = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const { root, calls } = getTransformChain(expr);

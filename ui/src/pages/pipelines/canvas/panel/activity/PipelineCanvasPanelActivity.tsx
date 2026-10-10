@@ -1,11 +1,10 @@
-import { useRef, useState } from "react";
+import { type FC, useRef, useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
 import { PulseIcon } from "@phosphor-icons/react";
-import { useParams } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
@@ -13,16 +12,15 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import Flasher from "@galaxy-io/dls/transform/Flasher";
 
-import { ListRunsRequestSchema, type RunInfo } from "@/gen/ingestion/v1/runs_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
+import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import { PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelActivityLine from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivityLine";
 import { getRunEventKey } from "@/pages/pipelines/canvas/panel/activity/utils";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
-import { useListRunsQuery, useTailRunsStream } from "@/api/queries/runs";
+import { usePipelineParams } from "@/module/hooks";
+
+import { useListActivePipelineRunsQuery, useTailRunsStream } from "@/api/queries/runs";
 
 const ESTIMATED_LINE_HEIGHT = 18;
 const LINE_GAP = 2;
@@ -40,16 +38,10 @@ const ActivityListLine = styled.div`
   width: 100%;
 `;
 
-const PipelineCanvasPanelActivity = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+const PipelineCanvasPanelActivity: FC = () => {
+  const { id } = usePipelineParams();
 
-  const { data: activeRunsData } = useListRunsQuery({
-    input: create(ListRunsRequestSchema, {
-      pipelineId: id,
-      status: [...ACTIVE_RUN_STATUSES],
-      pagination: { pageSize: PIPELINE_CANVAS_PANEL_ACTIVITY_MAX_RUNS },
-    }),
-  });
+  const { data: activeRunsData } = useListActivePipelineRunsQuery(id);
 
   const [runIds, setRunIds] = useState<RunInfo["id"][]>([]);
   const mergedRunIds = [

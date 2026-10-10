@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { match } from "ts-pattern";
 
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
@@ -43,11 +45,11 @@ interface PipelineTransformFieldsSubjectProps {
   onChange: (step: TransformEditableStep) => void;
 }
 
-const PipelineTransformFieldsSubject = ({
+const PipelineTransformFieldsSubject: FC<PipelineTransformFieldsSubjectProps> = ({
   step,
   outputIndex,
   onChange,
-}: PipelineTransformFieldsSubjectProps) => {
+}) => {
   const editor = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const output = step.kind === TransformStepKind.COMPUTE ? step.outputs[outputIndex] : undefined;

@@ -1,6 +1,7 @@
 import {
   createContext,
   type Dispatch,
+  type FC,
   type PropsWithChildren,
   useContext,
   useMemo,
@@ -11,8 +12,29 @@ import { match } from "ts-pattern";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import { getNameError, isNameValid } from "@/pages/connectors/components/form/validation";
-import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
+import {
+  type AddNotifierAction,
+  type AddResourceAction,
+  type CreatePipelineModalAction,
+  CreatePipelineModalActionType,
+  type GoToStepAction,
+  type RemoveNotifierAction,
+  type SelectSourceAction,
+  type SetActiveSinkAction,
+  type SetDescriptionAction,
+  type SetExecutionModeAction,
+  type SetNameAction,
+  type SetNodeConfigAction,
+  type SetResourceCursorAction,
+  type SetResourceReadModeAction,
+  type SetResourceSelectionAction,
+  type SetScheduleAction,
+  type SetSinkWriteModeAction,
+  type SetSubmittingAction,
+  type SetWorkerConfigurationAction,
+  type ToggleSinkAction,
+  type UpdateNotifierAction,
+} from "@/pages/pipelines/components/create/actions";
 import {
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
@@ -22,42 +44,15 @@ import createPipelineModalReducer from "@/pages/pipelines/components/create/redu
 import { getDefaultPipelineName } from "@/pages/pipelines/components/create/rows";
 import {
   type CreatePipelineModalContextValue,
-  type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import { createInitialCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
 import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
-import {
-  DEFAULT_WORKER_CONFIGURATION_TEXT,
-  parseWorkerConfiguration,
-} from "@/pages/pipelines/components/worker/utils";
-import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
+import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
-const DEFAULT_STATE: CreatePipelineModalState = {
-  executionMode: ExecutionMode.BOUNDED,
-  manualResources: [],
-  step: CreatePipelineModalStep.CONNECTIONS,
-  activeSinkId: "",
-  sourceConnection: null,
-  sinkConnections: [],
-  resourceSelection: {},
-  resourceReadModes: {},
-  resourceCursors: {},
-  sinkWriteModes: {},
-  nodeConfigs: {},
-  name: "",
-  isNameTouched: false,
-  description: "",
-  schedule: {
-    ...PIPELINE_SCHEDULE_DEFAULT_STATE,
-    isEnabled: true,
-    cron: "0 * * * *",
-  },
-  notifiers: [],
-  workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,
-  isSubmitting: false,
-};
+import { getNameError, isNameValid } from "@/utils/validation";
 
 const CreatePipelineModalStateContext = createContext<CreatePipelineModalContextValue | null>(null);
 CreatePipelineModalStateContext.displayName = "CreatePipelineModalStateContext";
@@ -74,7 +69,7 @@ export const useCreatePipelineModalState = () => {
   return state;
 };
 
-export const useCreatePipelineModalDispatch = () => {
+const useCreatePipelineModalDispatch = () => {
   const dispatch = useContext(CreatePipelineModalDispatchContext);
   if (!dispatch) {
     throw new Error(
@@ -84,8 +79,69 @@ export const useCreatePipelineModalDispatch = () => {
   return dispatch;
 };
 
-const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
-  const [state, dispatch] = useReducer(createPipelineModalReducer, DEFAULT_STATE);
+export const useCreatePipelineModalActions = () => {
+  const dispatch = useCreatePipelineModalDispatch();
+
+  return useMemo(
+    () => ({
+      selectSource: (payload: SelectSourceAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload }),
+      toggleSink: (payload: ToggleSinkAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload }),
+      setActiveSink: (payload: SetActiveSinkAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_ACTIVE_SINK, payload }),
+      setExecutionMode: (payload: SetExecutionModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_EXECUTION_MODE, payload }),
+      addResource: (payload: AddResourceAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.ADD_RESOURCE, payload }),
+      setResourceSelection: (payload: SetResourceSelectionAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION, payload }),
+      setResourceReadMode: (payload: SetResourceReadModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE, payload }),
+      setResourceCursor: (payload: SetResourceCursorAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR, payload }),
+      setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE, payload }),
+      setNodeConfig: (payload: SetNodeConfigAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_NODE_CONFIG, payload }),
+      setName: (payload: SetNameAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload }),
+      setDescription: (payload: SetDescriptionAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_DESCRIPTION, payload }),
+      setSchedule: (payload: SetScheduleAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SCHEDULE, payload }),
+      addNotifier: (payload: AddNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.ADD_NOTIFIER, payload }),
+      updateNotifier: (payload: UpdateNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.UPDATE_NOTIFIER, payload }),
+      removeNotifier: (payload: RemoveNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.REMOVE_NOTIFIER, payload }),
+      setWorkerConfiguration: (payload: SetWorkerConfigurationAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION, payload }),
+      goToStep: (payload: GoToStepAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.GO_TO_STEP, payload }),
+      goBack: () => dispatch({ type: CreatePipelineModalActionType.GO_BACK }),
+      goNext: () => dispatch({ type: CreatePipelineModalActionType.GO_NEXT }),
+      setSubmitting: (payload: SetSubmittingAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload }),
+    }),
+    [dispatch],
+  );
+};
+
+interface CreatePipelineModalProviderProps {
+  isOpen: boolean;
+}
+
+const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProviderProps>> = ({
+  isOpen,
+  children,
+}) => {
+  const [state, dispatch] = useReducer(
+    createPipelineModalReducer,
+    undefined,
+    createInitialCreatePipelineModalState,
+  );
 
   const {
     rowsBySink,
@@ -97,7 +153,7 @@ const CreatePipelineModalProvider = ({ children }: PropsWithChildren) => {
     isLoading,
     isValidating,
     discoverError,
-  } = useCreatePipelineResources(state);
+  } = useCreatePipelineResources(state, isOpen);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
     const supportedExecutionModes = getSupportedExecutionModes(state.sourceConnection);

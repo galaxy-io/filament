@@ -1,4 +1,4 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { Icon } from "@phosphor-icons/react";
 
 import { ChartCurve } from "@galaxy-io/dls/charts/types";
 import ToggleInput, {
@@ -14,57 +14,70 @@ import type { ObservabilityChartView } from "@/pages/observability/components/ti
 import ObservabilityPivotSelect from "@/pages/observability/components/timeseries/ObservabilityPivotSelect";
 import ObservabilityTimeseriesChart from "@/pages/observability/components/timeseries/ObservabilityTimeseriesChart";
 
-interface ObservabilityTimeseriesWidgetProps<View extends string> {
-  views: Record<View, ObservabilityChartView>;
-  defaultView: View;
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
+
+type ObservabilityTimeseriesViewKey = "throughput" | "usage";
+
+type ObservabilityTimeseriesView<TKey extends ObservabilityTimeseriesViewKey> = NonNullable<
+  ObservabilitySearch[TKey]
+>;
+
+interface ObservabilityTimeseriesWidgetProps<TKey extends ObservabilityTimeseriesViewKey> {
+  header: string;
+  icon: Icon;
+  isStacked?: boolean;
+  views: ObservabilityTimeseriesView<TKey>[];
+  viewToConfigMap: Record<ObservabilityTimeseriesView<TKey>, ObservabilityChartView>;
+  defaultView: ObservabilityTimeseriesView<TKey>;
   defaultPivot?: MetricDimension;
-  viewSearchKey: "throughput" | "usage";
+  viewSearchKey: TKey;
   pivotSearchKey: "throughputPivot" | "usagePivot";
 }
 
-const ObservabilityTimeseriesWidget = <View extends string>({
+const ObservabilityTimeseriesWidget = <TKey extends ObservabilityTimeseriesViewKey>({
   views,
+  viewToConfigMap,
   defaultView,
   defaultPivot,
   viewSearchKey,
   pivotSearchKey,
-}: ObservabilityTimeseriesWidgetProps<View>) => {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_app/_main/observability" });
+  header,
+  icon,
+  isStacked = false,
+}: ObservabilityTimeseriesWidgetProps<TKey>) => {
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
+  const search = useObservabilitySearch();
 
-  const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
+  const view: ObservabilityTimeseriesView<TKey> = search[viewSearchKey] ?? defaultView;
   const searchPivot = search[pivotSearchKey];
   const pivot =
     searchPivot === MetricDimension.UNSPECIFIED ? undefined : (searchPivot ?? defaultPivot);
 
-  const { label, seriesLabel, metric, color, valueFormatter } = views[view];
+  const { seriesLabel, metric, color, valueFormatter } = viewToConfigMap[view];
 
-  const handleViewChange = (nextView: View) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, [viewSearchKey]: nextView }),
-    });
+  const handleViewChange = (nextView: ObservabilityTimeseriesView<TKey>) => {
+    void updateSearch((prev) => ({ ...prev, [viewSearchKey]: nextView }));
   };
 
   const handlePivotChange = (nextPivot: MetricDimension | undefined) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, [pivotSearchKey]: nextPivot ?? MetricDimension.UNSPECIFIED }),
-    });
+    void updateSearch((prev) => ({
+      ...prev,
+      [pivotSearchKey]: nextPivot ?? MetricDimension.UNSPECIFIED,
+    }));
   };
 
-  const switcherItems: ToggleOption<View>[] = (
-    Object.entries(views) as [View, ObservabilityChartView][]
-  ).map(([id, viewConfig]) => ({
+  const switcherItems: ToggleOption<ObservabilityTimeseriesView<TKey>>[] = views.map((id) => ({
     id,
-    label: viewConfig.label,
+    label: viewToConfigMap[id].label,
   }));
 
   return (
     <Widget
       isFlush
       gap={0}
-      header={label}
+      header={header}
+      icon={icon}
       actions={
         <>
           <ToggleInput
@@ -84,6 +97,7 @@ const ObservabilityTimeseriesWidget = <View extends string>({
         color={color}
         pivot={pivot}
         curve={ChartCurve.LINEAR}
+        isStacked={isStacked}
         valueFormatter={valueFormatter}
       />
     </Widget>

@@ -1,30 +1,36 @@
+import type { FC } from "react";
+
 import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
 import Box from "@galaxy-io/dls/layout/Box";
 
-import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
-const CreatePipelineModalResourcesReadModeCell = ({
-  row,
-}: {
+import { mapOptionIdToEnum } from "@/utils/select";
+
+interface CreatePipelineModalResourcesReadModeCellProps {
   row: CreatePipelineModalResourceRow;
-}) => {
+}
+
+const CreatePipelineModalResourcesReadModeCell: FC<
+  CreatePipelineModalResourcesReadModeCellProps
+> = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setResourceReadMode } = useCreatePipelineModalActions();
   const options = getReadModeSelectOptions(row.readModeOptions);
 
   const handleReadModeChange = (id: string | null) => {
     if (id === null) return;
-    dispatch({
-      type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-      payload: { sinkId: activeSinkId, resource: row.name, readMode: Number(id) as ReadMode },
+    setResourceReadMode({
+      sinkId: activeSinkId,
+      resource: row.name,
+      readMode: mapOptionIdToEnum(ReadMode, id),
     });
   };
 

@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC } from "react";
 
 import { ArrowLeftIcon, TrashIcon } from "@phosphor-icons/react";
 
@@ -7,7 +7,7 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
 interface PipelineCanvasPanelHeaderProps {
   title: string;
@@ -19,7 +19,7 @@ interface PipelineCanvasPanelHeaderProps {
   onDelete?: () => void;
 }
 
-const PipelineCanvasPanelHeader = ({
+const PipelineCanvasPanelHeader: FC<PipelineCanvasPanelHeaderProps> = ({
   title,
   description,
   icon,
@@ -27,7 +27,7 @@ const PipelineCanvasPanelHeader = ({
   onBack,
   onClose,
   onDelete,
-}: PipelineCanvasPanelHeaderProps) => (
+}) => (
   <>
     <Flex alignItems={AlignItems.CENTER} gap={8} padding={[8, 12]} shrink={0} fillWidth>
       {onBack && (

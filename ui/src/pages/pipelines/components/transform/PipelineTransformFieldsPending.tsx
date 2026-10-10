@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { type FC, Fragment } from "react";
 
 import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -17,7 +17,7 @@ import PipelineTransformFieldsRow, {
 const PENDING_ROW_WIDTHS = ["60%", "45%"];
 const PENDING_HANDLE_SIZE = 16;
 
-const PipelineTransformFieldsPending = () => (
+const PipelineTransformFieldsPending: FC = () => (
   <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
     {PENDING_ROW_WIDTHS.map((width, index) => (
       <Fragment key={width}>

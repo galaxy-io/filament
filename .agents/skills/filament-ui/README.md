@@ -12,13 +12,13 @@ The skill has two layers.
 | File | What |
 |---|---|
 | `SKILL.md` | The workflow, the stack, the brand rules, the rules that catch most mistakes, quick decisions, the hand-over checklist. |
-| `references/architecture.md` | Folders, naming, the file contract, imports, proto types, the state doctrine, styling habits. |
-| `references/routing.md` | TanStack Router conventions, search params as view state, URL-driven overlays, auth in the tree. |
+| `references/architecture.md` | The standalone and module builds, the package surface, folders, naming, the file contract, imports, proto types, the state doctrine, styling habits, and the recipe for building a Galaxy module. |
+| `references/routing.md` | `FilamentPath`, route options, the URL read and write hooks, search params as view state, URL-driven overlays, auth in the standalone. |
 | `references/data.md` | The connect-query layer, building requests, which hook where, mutations, cache gotchas. |
 | `references/screens.md` | The shells and how each kind of screen is composed, state layouts, status marks, formatting and copy. |
 | `references/forms.md` | Local-state forms, validation timing, schema-driven fields, the provider contract, wizards. |
 | `references/dashboards.md` | URL view state, per-panel loading, DLS charts, KPI tiles, filters. |
-| `references/workflow.md` | Proto to verified screen, the gates, browser verification, false alarms, the final checklist. |
+| `references/workflow.md` | Proto to verified screen, `pnpm check` and the greps, browser verification, false alarms, the final checklist. |
 | `references/components.md` | Every DLS module, generated from the DLS docs. |
 | `references/tokens.md` | Themes and tokens, generated from the DLS docs. |
 | `references/patterns.md` | DLS-wide UX guidance, generated from the DLS docs. |

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { InfoIcon } from "@phosphor-icons/react";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -14,9 +16,8 @@ import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import IconTile from "@/components/IconTile";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -35,11 +36,9 @@ interface CreatePipelineModalConnectionsExecutionModeOptionProps {
   onSelect: () => void;
 }
 
-const CreatePipelineModalConnectionsExecutionModeOption = ({
-  mode,
-  isSelected,
-  onSelect,
-}: CreatePipelineModalConnectionsExecutionModeOptionProps) => (
+const CreatePipelineModalConnectionsExecutionModeOption: FC<
+  CreatePipelineModalConnectionsExecutionModeOptionProps
+> = ({ mode, isSelected, onSelect }) => (
   <FlexItem grow={1} basis={0} minWidth={0}>
     <Widget
       isInteractive
@@ -62,9 +61,9 @@ const CreatePipelineModalConnectionsExecutionModeOption = ({
   </FlexItem>
 );
 
-const CreatePipelineModalConnectionsExecutionMode = () => {
+const CreatePipelineModalConnectionsExecutionMode: FC = () => {
   const { executionMode } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setExecutionMode } = useCreatePipelineModalActions();
 
   return (
     <Box fillWidth>
@@ -110,12 +109,7 @@ const CreatePipelineModalConnectionsExecutionMode = () => {
                 key={mode}
                 mode={mode}
                 isSelected={executionMode === mode}
-                onSelect={() =>
-                  dispatch({
-                    type: CreatePipelineModalActionType.SET_EXECUTION_MODE,
-                    payload: mode,
-                  })
-                }
+                onSelect={() => setExecutionMode(mode)}
               />
             ))}
           </Flex>

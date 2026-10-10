@@ -5,10 +5,16 @@ import { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { TextVariant } from "@galaxy-io/dls/text/Text";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
+import { PIPELINE_CREATE_TITLE } from "@/components/pipelines/constants";
+
 import {
   ObservabilitySetupStep,
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
+
+import { Flow } from "@/module/types";
 
 export const OBSERVABILITY_SETUP_STEP_ORDER: ObservabilitySetupStep[] = [
   ObservabilitySetupStep.SOURCE,
@@ -34,7 +40,7 @@ export const OBSERVABILITY_SETUP_STEP_TO_ACTION_LABEL_MAP: Record<ObservabilityS
   {
     [ObservabilitySetupStep.SOURCE]: "New source",
     [ObservabilitySetupStep.SINK]: "New sink",
-    [ObservabilitySetupStep.PIPELINE]: "New pipeline",
+    [ObservabilitySetupStep.PIPELINE]: PIPELINE_CREATE_TITLE,
   };
 
 export const OBSERVABILITY_SETUP_STATUS_TO_ICON_MAP: Record<
@@ -93,3 +99,18 @@ export const OBSERVABILITY_SETUP_STATUS_TO_DESCRIPTION_VARIANT_MAP: Record<
 
 export const OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH = 600;
 export const OBSERVABILITY_SETUP_GRID_OPACITY = 0.5;
+
+export const OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP: Record<
+  ObservabilitySetupStep,
+  { flow: Flow; connectorKind?: ConnectorKind }
+> = {
+  [ObservabilitySetupStep.SOURCE]: {
+    flow: Flow.CREATE_CONNECTION,
+    connectorKind: ConnectorKind.SOURCE,
+  },
+  [ObservabilitySetupStep.SINK]: {
+    flow: Flow.CREATE_CONNECTION,
+    connectorKind: ConnectorKind.SINK,
+  },
+  [ObservabilitySetupStep.PIPELINE]: { flow: Flow.CREATE_PIPELINE },
+};

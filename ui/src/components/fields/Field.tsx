@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
@@ -47,7 +47,7 @@ interface FieldProps {
   storedSecretRefs?: Record<string, string>;
 }
 
-const Field = ({
+const Field: FC<FieldProps> = ({
   field,
   value,
   onChange,
@@ -56,7 +56,7 @@ const Field = ({
   path = field.name,
   getError,
   storedSecretRefs,
-}: FieldProps) => {
+}) => {
   const label = useMemo(() => formatFieldName(field.name), [field.name]);
 
   if (field.type === FieldType.OBJECT && field.fields.length > 0) {

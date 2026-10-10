@@ -1,8 +1,10 @@
+import type { FC } from "react";
+
 import NumberInput from "@galaxy-io/dls/inputs/NumberInput";
 
 import type { FieldComponentProps } from "@/components/fields/types";
 
-const FieldInt = ({
+const FieldInt: FC<FieldComponentProps> = ({
   field,
   value,
   onChange,
@@ -10,7 +12,7 @@ const FieldInt = ({
   error,
   isDisabled = false,
   label,
-}: FieldComponentProps) => (
+}) => (
   <NumberInput
     label={label}
     labelTooltip={field.help || undefined}

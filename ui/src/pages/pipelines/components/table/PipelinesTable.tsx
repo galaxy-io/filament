@@ -1,52 +1,52 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
-import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
-import type { TableColumn, TableColumnLayout } from "@galaxy-io/dls/table/types";
+import type { TableColumn, TableColumnLayout, TableSort } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
+import { EMPTY_VALUE, formatNumber, formatRelativeTime } from "@galaxy-io/dls/utils/format";
 
 import {
   type Pipeline,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
-import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
-import PipelineName from "@/components/PipelineName";
+import PipelineName from "@/components/pipelines/PipelineName";
+import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
+import { formatPipelineName } from "@/components/pipelines/utils";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
-
+import PipelinesTableColumnFlow from "@/pages/pipelines/components/table/columns/PipelinesTableColumnFlow";
+import PipelinesTableColumnRecentRuns from "@/pages/pipelines/components/table/columns/PipelinesTableColumnRecentRuns";
 import {
+  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
   PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
+  PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-  PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
   PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
-import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
 import PipelinesTableRowActions from "@/pages/pipelines/components/table/PipelinesTableRowActions";
-import {
-  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
-  type PipelinesTableSorting,
-  type PipelinesTableSortingChange,
-} from "@/pages/pipelines/components/table/utils";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
-import { formatPipelineName } from "@/pages/pipelines/utils";
+import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 
-import { useRunPipelineMutation } from "@/api/queries/runs";
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
-import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
 import { getErrorMessage } from "@/utils/errors";
-import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
+import { formatRunDuration } from "@/utils/runs";
 
 const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
   {
@@ -54,7 +54,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     header: "Flow",
     width: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
     canSort: false,
-    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row} />,
+    cell: ({ row }) => <PipelinesTableColumnFlow pipeline={row} />,
   },
   {
     id: PIPELINES_TABLE_COLUMN_ID_PIPELINE,
@@ -63,7 +63,12 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     accessor: (pipeline) => pipeline.name,
     canSort: true,
     canHide: false,
-    cell: ({ row }) => <PipelineName pipelineId={row.id} pipeline={row} />,
+    cell: ({ row }) => (
+      <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+        <PipelineName pipelineId={row.id} pipeline={row} />
+        <PipelineScheduleIndicator pipelineId={row.id} pipeline={row} />
+      </Flex>
+    ),
   },
   {
     id: "recentRuns",
@@ -79,7 +84,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} lineClamp={1}>
-        {row.lastRun ? formatTimeAgo(row.lastRun.requestedAt) : "—"}
+        {row.lastRun ? formatRelativeTime(row.lastRun.requestedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -90,7 +95,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) =>
       row.lastRun ? (
-        <PipelineHistoryRunStatus
+        <PipelineRunStatus
           status={row.lastRun.status}
           error={row.lastRun.error}
           executionStatus={row.lastRun.executionStatus}
@@ -108,19 +113,19 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatDuration(row.lastRun.startedAt, row.lastRun.endedAt) : "—"}
+        {row.lastRun ? formatRunDuration(row.lastRun.startedAt, row.lastRun.endedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
   {
-    id: "lastVolume",
+    id: "lastRecords",
     header: "Records",
-    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
     align: "right",
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatCount(row.lastRun.records) : "—"}
+        {row.lastRun ? formatNumber(row.lastRun.records) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -128,25 +133,25 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
-  sorting: PipelinesTableSorting;
-  onSortingChange: PipelinesTableSortingChange;
+  sorting: TableSort | null;
+  onSortingChange: (sorting: TableSort | null) => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
 }
 
-const PipelinesTable = ({
+const PipelinesTable: FC<PipelinesTableProps> = ({
   pipelines,
   sorting,
   onSortingChange,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
-}: PipelinesTableProps) => {
-  const navigate = useNavigate();
+}) => {
+  const navigate = useFilamentNavigate();
   const { toast } = useToast();
 
-  const { mutate: runPipeline } = useRunPipelineMutation();
+  const { startRun } = usePipelineRun();
   const { mutate: updateSchedule } = useUpdatePipelineScheduleMutation();
 
   const [columnLayout, setColumnLayout] = useLocalStorage<TableColumnLayout>(
@@ -155,35 +160,14 @@ const PipelinesTable = ({
   );
 
   const handleRowClick = (row: Pipeline) => {
-    navigate({
-      to: "/pipelines/$id",
+    void navigate({
+      to: FilamentPath.PIPELINE,
       params: { id: row.id },
     });
   };
 
   const handleRun = (pipeline: Pipeline) => {
-    runPipeline(
-      create(RunPipelineRequestSchema, {
-        pipelineId: pipeline.id,
-        options: { executionMode: pipeline.executionMode },
-      }),
-      {
-        onSuccess: () => {
-          toast({
-            header: "Run started",
-            description: `${formatPipelineName(pipeline)} is now running.`,
-            variant: ToastVariant.SUCCESS,
-          });
-        },
-        onError: (error) => {
-          toast({
-            header: "Run failed",
-            description: getErrorMessage(error, "Failed to run pipeline"),
-            variant: ToastVariant.ERROR,
-          });
-        },
-      },
-    );
+    startRun(pipeline);
   };
 
   const handleScheduleToggle = (pipeline: Pipeline) => {
@@ -217,11 +201,11 @@ const PipelinesTable = ({
   };
 
   const handleEdit = (pipeline: Pipeline) => {
-    void navigate({ to: "/pipelines/$id/canvas", params: { id: pipeline.id } });
+    void navigate({ to: FilamentPath.PIPELINE_CANVAS, params: { id: pipeline.id } });
   };
 
   const handleSettings = (pipeline: Pipeline) => {
-    void navigate({ to: "/pipelines/$id/settings", params: { id: pipeline.id } });
+    void navigate({ to: FilamentPath.PIPELINE_SETTINGS, params: { id: pipeline.id } });
   };
 
   return (

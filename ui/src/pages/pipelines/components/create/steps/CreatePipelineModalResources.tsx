@@ -1,30 +1,28 @@
-import { useMemo, useState } from "react";
+import { type FC, useMemo, useState } from "react";
 
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Divider from "@galaxy-io/dls/layout/Divider";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import ErrorLayout from "@/layouts/ErrorLayout";
-
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
 import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
-import PipelineResourceCreateForm, {
-  type PipelineResourceCreateState,
-} from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
-import { isSearchMatch } from "@/utils/search";
+import { IS_DEBUG } from "@/constants";
 
 interface CreatePipelineModalResourcesState {
   search: string;
@@ -36,10 +34,10 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   isCreating: false,
 };
 
-const CreatePipelineModalResources = () => {
+const CreatePipelineModalResources: FC = () => {
   const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { addResource } = useCreatePipelineModalActions();
 
   const [localState, setLocalState] =
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
@@ -65,10 +63,7 @@ const CreatePipelineModalResources = () => {
     rows.some((row) => row.name === resource) ? "This resource is already listed." : null;
 
   const handleCreate = ({ resource }: PipelineResourceCreateState) => {
-    dispatch({
-      type: CreatePipelineModalActionType.ADD_RESOURCE,
-      payload: { sinkId: activeSinkId, name: resource },
-    });
+    addResource({ sinkId: activeSinkId, name: resource });
     setLocalState(DEFAULT_RESOURCES_STATE);
   };
 
@@ -78,7 +73,7 @@ const CreatePipelineModalResources = () => {
         <ErrorLayout
           header="Could not list resources"
           description="This source could not be inspected. Go back and check the connection, or continue to replicate everything it exposes."
-          error={discoverError}
+          detail={IS_DEBUG ? discoverError.message : undefined}
         />
       </Flex>
     );

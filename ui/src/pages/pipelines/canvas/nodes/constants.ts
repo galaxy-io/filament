@@ -3,6 +3,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 export const PIPELINE_CANVAS_NODE_WIDTH = 330;
 export const PIPELINE_CANVAS_NODE_PADDING = 8;
 export const PIPELINE_CANVAS_NODE_GAP = 8;
+export const PIPELINE_CANVAS_NODE_PLACEHOLDER_PADDING_Y = 20;
 
 export const PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT = 300;
 

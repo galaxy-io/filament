@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -11,20 +10,21 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
   CreatePipelineScheduleRequestSchema,
-  GetPipelineRequestSchema,
   type PipelineScheduleConfig,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/components/schedule/constants";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
-import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 import {
   formatPipelineScheduleSummary,
   hasPipelineScheduleChanges,
-} from "@/pages/pipelines/settings/utils";
+} from "@/pages/pipelines/components/schedule/utils";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
+
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
   useCreatePipelineScheduleMutation,
   useUpdatePipelineScheduleMutation,
@@ -32,28 +32,28 @@ import {
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineSettingsPageSchedule = () => {
+const PipelineSettingsPageSchedule: FC = () => {
   const { toast } = useToast();
-  const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
+  const { id: pipelineId } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
+    input: createGetPipelineInput(pipelineId),
   });
   const schedule = data.pipeline?.schedule;
 
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
 
-  const createInitialState = (): PipelineSettingsPageScheduleState => ({
+  const createInitialState = (): PipelineScheduleState => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     cron: schedule?.config?.cron || PIPELINE_SCHEDULE_DEFAULT_STATE.cron,
     isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   });
 
-  const [state, setState] = useState<PipelineSettingsPageScheduleState>(createInitialState);
+  const [state, setState] = useState<PipelineScheduleState>(createInitialState);
 
-  const handleScheduleChange = (partial: Partial<PipelineSettingsPageScheduleState>) => {
+  const handleScheduleChange = (partial: Partial<PipelineScheduleState>) => {
     setState((prev) => ({ ...prev, ...partial }));
   };
 
@@ -126,7 +126,12 @@ const PipelineSettingsPageSchedule = () => {
   if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS) return null;
 
   return (
-    <PipelineScheduleFields header="Schedule" state={state} onChange={handleScheduleChange}>
+    <PipelineScheduleFields
+      header="Schedule"
+      isOpenInitial={schedule?.config?.isEnabled ?? false}
+      state={state}
+      onChange={handleScheduleChange}
+    >
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
         <Button
           label="Cancel"

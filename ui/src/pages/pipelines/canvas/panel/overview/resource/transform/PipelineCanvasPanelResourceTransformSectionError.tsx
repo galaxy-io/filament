@@ -1,12 +1,12 @@
+import type { FC } from "react";
+
 import { FunctionIcon } from "@phosphor-icons/react";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Box from "@galaxy-io/dls/layout/Box";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import { LayoutSize } from "@/layouts/types";
+import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
 
 import {
   PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_HEADER,
@@ -15,10 +15,12 @@ import {
 } from "@/pages/pipelines/canvas/panel/overview/resource/transform/constants";
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 
-const PipelineCanvasPanelResourceTransformSectionError = ({
+import { IS_DEBUG } from "@/constants";
+
+const PipelineCanvasPanelResourceTransformSectionError: FC<ErrorComponentProps> = ({
   error,
   reset,
-}: ErrorComponentProps) => {
+}) => {
   const { reset: resetQueries } = useQueryErrorResetBoundary();
 
   const handleRetry = () => {
@@ -36,10 +38,10 @@ const PipelineCanvasPanelResourceTransformSectionError = ({
     >
       <Box padding={24}>
         <ErrorLayout
-          size={LayoutSize.SMALL}
+          size={ErrorLayoutSize.SMALL}
           header="Unable to load transformations"
           description="The function catalog could not be loaded."
-          error={error}
+          detail={IS_DEBUG ? error.message : undefined}
           actions={
             <Button label="Try again" variant={ButtonVariant.SECONDARY} onClick={handleRetry} />
           }

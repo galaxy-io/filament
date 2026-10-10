@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { create } from "@bufbuild/protobuf";
 
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
@@ -11,7 +13,6 @@ import {
   type Notifier,
   UpdatePipelineNotifierRequestSchema,
 } from "@/gen/ingestion/v1/notifiers_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineNotifierTable from "@/pages/pipelines/components/notifier/PipelineNotifierTable";
 import type {
@@ -23,10 +24,12 @@ import {
   mapPipelineNotifierStateToInput,
 } from "@/pages/pipelines/components/notifier/utils";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import {
   useCreatePipelineNotifierMutation,
   useDeletePipelineNotifierMutation,
-  useListPipelineNotifiersQuery,
+  useSuspenseListPipelineNotifiersQuery,
   useUpdatePipelineNotifierMutation,
 } from "@/api/queries/notifiers";
 
@@ -44,20 +47,14 @@ const mapNotifierToRow = (notifier: Notifier): PipelineNotifier => ({
   id: notifier.id,
 });
 
-interface PipelineSettingsPageNotificationsProps {
-  pipeline: Pipeline;
-}
-
-const PipelineSettingsPageNotifications = ({
-  pipeline,
-}: PipelineSettingsPageNotificationsProps) => {
+const PipelineSettingsPageNotifications: FC = () => {
   const { toast: showToast } = useToast();
-  const pipelineId = pipeline.id;
+  const { id: pipelineId } = usePipelineParams();
 
-  const { data, isLoading } = useListPipelineNotifiersQuery({
+  const { data } = useSuspenseListPipelineNotifiersQuery({
     input: create(ListPipelineNotifiersRequestSchema, { pipelineId }),
   });
-  const rows = (data?.notifiers ?? []).map(mapNotifierToRow);
+  const rows = data.notifiers.map(mapNotifierToRow);
 
   const { mutate: createNotifier, isPending: isCreating } = useCreatePipelineNotifierMutation();
   const { mutate: updateNotifier, isPending: isUpdating } = useUpdatePipelineNotifierMutation();
@@ -157,7 +154,7 @@ const PipelineSettingsPageNotifications = ({
     <>
       <PipelineNotifierTable
         rows={rows}
-        isLoading={isLoading}
+        isOpenInitial={rows.length > 0}
         isSaving={isCreating || isUpdating || isDeleting}
         onCreate={handleCreate}
         onUpdate={handleUpdate}

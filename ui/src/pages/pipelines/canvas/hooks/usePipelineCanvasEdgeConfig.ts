@@ -47,7 +47,7 @@ export const usePipelineCanvasEdgeConfig = (
   const cursors = edge.data?.cursors ?? [];
   const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
 
-  const buildDefaultCursors = () =>
+  const createDefaultCursors = () =>
     coveredResources
       .filter((resourceName) => (defaultCursorByResource[resourceName] ?? "") !== "")
       .map((resourceName) =>
@@ -60,7 +60,10 @@ export const usePipelineCanvasEdgeConfig = (
 
   const routeHasIncremental =
     readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, edge, edge.id);
-  const compatibleWriteModes = getCompatibleWriteModes(writeModeOptions, routeHasIncremental);
+  const compatibleWriteModes = getCompatibleWriteModes(
+    writeModeOptions,
+    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+  );
 
   const handleReadModeChange = (mode: ReadMode) => {
     const nextWriteMode =
@@ -72,7 +75,7 @@ export const usePipelineCanvasEdgeConfig = (
     setEdgeConfig(edge.id, {
       readMode: mode,
       writeMode: nextWriteMode,
-      cursors: mode === ReadMode.INCREMENTAL ? buildDefaultCursors() : [],
+      cursors: mode === ReadMode.INCREMENTAL ? createDefaultCursors() : [],
       transform: edge.data?.transform,
     });
     if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);

@@ -82,7 +82,7 @@ dev mode="": migrate
     wait
 
 # install the cli with the web UI embedded
-cli: ui-dist
+cli: ui-build
     GOWORK=off CGO_ENABLED=0 go install -C cmd -tags embedui -trimpath -ldflags="-s -w" ./filament
 
 # generate all checked-in generated code
@@ -117,14 +117,18 @@ proto-check:
     git diff --exit-code -- api
 
 # build the UI bundle the server embeds
-ui-dist:
+ui-build:
     cd ui && pnpm install && pnpm build
 
-# regenerate code, build the UI, and compile every Go module
-build: gen ui-dist (_each "GOWORK=off go build ./...")
+# run every UI gate: types, lint, format, both builds, the package checks, and the committed route tree
+ui-check:
+    cd ui && pnpm install --frozen-lockfile && pnpm check && git diff --exit-code src/host/routeTree.gen.ts
 
-# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist; the worker -libc build is cgo, so it compiles in a linux container)
-binaries: ui-dist
+# regenerate code, build the UI, and compile every Go module
+build: gen ui-build (_each "GOWORK=off go build ./...")
+
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/build; the worker -libc build is cgo, so it compiles in a linux container)
+binaries: ui-build
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .

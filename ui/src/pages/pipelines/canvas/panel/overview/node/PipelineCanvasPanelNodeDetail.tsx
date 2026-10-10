@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -5,11 +7,14 @@ import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
-import ConnectionKindChip from "@/pages/connectors/components/ConnectionKindChip";
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
+import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+
 import { PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -26,17 +31,16 @@ import type {
   PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
-import PipelineNodeConfigFields, {
-  usePipelineNodeConfig,
-} from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import { usePipelineNodeConfig } from "@/pages/pipelines/components/node/hooks/usePipelineNodeConfig";
+import PipelineNodeConfigFields from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
 
-import { normalizeIdentifier } from "@/utils/naming";
+import { formatIdentifier } from "@/utils/naming";
 
 interface PipelineCanvasPanelNodeDetailProps {
   node: PipelineCanvasSourceNode | PipelineCanvasSinkNode;
 }
 
-const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailProps) => {
+const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({ node }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const state = usePipelineCanvasState();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
@@ -62,7 +66,7 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
   const upstreamConnection =
     upstreamConnections.size === 1 ? upstreamConnections.values().next().value : undefined;
   const defaultSchema = upstreamConnection
-    ? normalizeIdentifier(upstreamConnection.name) || undefined
+    ? formatIdentifier(upstreamConnection.name) || undefined
     : undefined;
 
   const configValue = node.data.config ?? {};
@@ -94,16 +98,16 @@ const PipelineCanvasPanelNodeDetail = ({ node }: PipelineCanvasPanelNodeDetailPr
       <FlexItem grow={1} minHeight={0}>
         <ScrollArea>
           <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-            <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-              <ConnectionDrawerKeyValueRow
+            <KeyValueList variant={BoxVariant.SECONDARY}>
+              <KeyValueListRow
                 label="Connector"
-                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? "—"}</Text>}
+                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? EMPTY_VALUE}</Text>}
               />
-              <ConnectionDrawerKeyValueRow
+              <KeyValueListRow
                 label="Kind"
                 value={<ConnectionKindChip kind={kind} size={ChipSize.SMALL} />}
               />
-            </ConnectionDrawerList>
+            </KeyValueList>
 
             <PipelineCanvasPanelSection
               header="Configuration"

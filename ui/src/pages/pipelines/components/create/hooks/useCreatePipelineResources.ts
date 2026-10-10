@@ -25,8 +25,8 @@ import {
 
 import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
 import {
-  buildResourceRowsBySink,
-  buildSinkRows,
+  createResourceRowsBySink,
+  createSinkRows,
   getIssuesBySink,
   getSelectedCountBySink,
   isResourceSelected,
@@ -38,7 +38,7 @@ import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useDiscoverResourcesQuery, useGetResourceColumnsQuery } from "@/api/queries/connectors";
 import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
-export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
+export const useCreatePipelineResources = (state: CreatePipelineModalState, isOpen: boolean) => {
   const source = state.sourceConnection;
   const connectionId = source?.id ?? "";
   const replication = source?.replication ?? ReplicationMode.UNSPECIFIED;
@@ -52,7 +52,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     isLoading: isLoadingResources,
   } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId }),
-    options: { ...PROBE_QUERY_OPTIONS, enabled: connectionId !== "" },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: isOpen && connectionId !== "" },
   });
 
   const resources = useMemo(
@@ -66,21 +66,17 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   );
   const resourceNames = useMemo(() => resources.map((resource) => resource.name), [resources]);
 
-  const {
-    data: columns,
-    isPending: isPendingColumns,
-    isError: isErrorColumns,
-  } = useGetResourceColumnsQuery({
+  const { data: columns, isLoading: isLoadingResourceColumns } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: hasReadLevers && connectionId !== "" && resourceNames.length > 0,
+      enabled: isOpen && hasReadLevers && connectionId !== "" && resourceNames.length > 0,
     },
   });
 
   const { sinkConnections, sinkWriteModes, nodeConfigs, resourceSelection, executionMode } = state;
   const validationInput = useMemo(() => {
-    const buildSinkEdges = (sink: Connection) => {
+    const createSinkEdges = (sink: Connection) => {
       const writeMode =
         sinkWriteModes[sink.id] ??
         (hasReadLevers ? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE : WriteMode.APPEND);
@@ -119,7 +115,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
               ),
             ]
           : [],
-        edges: source ? sinkConnections.flatMap(buildSinkEdges) : [],
+        edges: source ? sinkConnections.flatMap(createSinkEdges) : [],
       }),
     });
   }, [
@@ -144,7 +140,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     options: {
       ...PROBE_QUERY_OPTIONS,
       placeholderData: keepPreviousData,
-      enabled: connectionId !== "" && state.sinkConnections.length > 0,
+      enabled: isOpen && connectionId !== "" && state.sinkConnections.length > 0,
     },
   });
 
@@ -172,13 +168,13 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   const isLoading =
     isLoadingResources ||
     isLoadingValidation ||
-    (hasReadLevers && resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
+    (hasReadLevers && resourceNames.length > 0 && isLoadingResourceColumns);
 
   const rowsBySink = useMemo(
     () =>
       isLoading
         ? {}
-        : buildResourceRowsBySink({
+        : createResourceRowsBySink({
             state,
             resources,
             columns,
@@ -189,7 +185,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   );
 
   const sinks = useMemo(
-    () => buildSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
+    () => createSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
     [state, rowsBySink, hasReadLevers, supportedWriteModesBySink],
   );
 

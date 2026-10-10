@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -9,10 +11,10 @@ interface PipelineTransformFieldsRemoveButtonProps {
   onClick: () => void;
 }
 
-const PipelineTransformFieldsRemoveButton = ({
+const PipelineTransformFieldsRemoveButton: FC<PipelineTransformFieldsRemoveButtonProps> = ({
   label,
   onClick,
-}: PipelineTransformFieldsRemoveButtonProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   return (
     <Button

@@ -31,7 +31,7 @@ export type TransformExpr =
   | { kind: TransformExprKind.LITERAL; literalKind: TransformLiteralKind; value: string | null }
   | { kind: TransformExprKind.CALL; fn: TransformFunction["name"]; args: TransformExpr[] };
 
-export type TransformCallExpr = Extract<TransformExpr, { kind: TransformExprKind.CALL }>;
+type TransformCallExpr = Extract<TransformExpr, { kind: TransformExprKind.CALL }>;
 export type TransformLiteralExpr = Extract<TransformExpr, { kind: TransformExprKind.LITERAL }>;
 export type TransformLeafExpr = Exclude<TransformExpr, TransformCallExpr>;
 

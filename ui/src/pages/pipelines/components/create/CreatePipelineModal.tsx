@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { match } from "ts-pattern";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -20,11 +22,14 @@ import CreatePipelineModalDetails from "@/pages/pipelines/components/create/step
 import CreatePipelineModalResources from "@/pages/pipelines/components/create/steps/CreatePipelineModalResources";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 
+import { useOverlaySession } from "@/hooks/useOverlaySession";
+
 interface CreatePipelineModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
+const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
   const { step } = useCreatePipelineModalState();
 
   const renderBody = () => {
@@ -52,7 +57,7 @@ const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
 
   return (
     <Modal
-      isOpen
+      isOpen={isOpen}
       size={ModalSize.X_LARGE}
       header="Create a new pipeline"
       footer={<CreatePipelineModalFooter />}
@@ -79,10 +84,16 @@ const CreatePipelineModalContent = ({ onClose }: CreatePipelineModalProps) => {
   );
 };
 
-const CreatePipelineModal = ({ onClose }: CreatePipelineModalProps) => {
+const CreatePipelineModal: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
+  const session = useOverlaySession(isOpen);
+
+  if (!session) {
+    return null;
+  }
+
   return (
-    <CreatePipelineModalProvider>
-      <CreatePipelineModalContent onClose={onClose} />
+    <CreatePipelineModalProvider key={session} isOpen={isOpen}>
+      <CreatePipelineModalContent isOpen={isOpen} onClose={onClose} />
     </CreatePipelineModalProvider>
   );
 };

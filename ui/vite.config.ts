@@ -2,46 +2,44 @@ import path from "node:path";
 
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import wyw from "@wyw-in-js/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+import { GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { galaxyDls } from "@galaxy-io/dls/vite";
+
+export const CLASS_PREFIX = "filament";
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
+const API_SERVICE_PATHS = [
+  "/ingestion.v1.IngestionService",
+  "/metrics.v1.MetricsService",
+  "/auth.v1.AuthService",
+];
+
+export const API_PROXY = Object.fromEntries(
+  API_SERVICE_PATHS.map((servicePath) => [
+    servicePath,
+    { target: API_PROXY_TARGET, changeOrigin: true },
+  ]),
+);
+const VERIFY_MODE = "verify";
+const VERIFY_CACHE_DIR = "node_modules/.vite-verify";
+
+export default defineConfig(({ mode }) => ({
+  cacheDir: mode === VERIFY_MODE ? VERIFY_CACHE_DIR : undefined,
   plugins: [
     tanstackRouter({
       target: "react",
       autoCodeSplitting: true,
+      routesDirectory: "./src/host/routes",
+      generatedRouteTree: "./src/host/routeTree.gen.ts",
     }),
     viteReact(),
-    wyw({
-      include: ["**/*.{ts,tsx}"],
-      exclude: ["**/node_modules/**", "**/dist/**", "**/*.d.ts", "**/src/gen/**"],
-      babelOptions: {
-        presets: [
-          ["@babel/preset-typescript", { isTSX: true, allExtensions: true }],
-          ["@babel/preset-react", { runtime: "automatic" }],
-        ],
-      },
-      classNameSlug: (hash) => hash,
-      evaluate: true,
-    }),
+    galaxyDls({ prefix: CLASS_PREFIX, theme: GalaxyTheme.SYSTEM }),
   ],
   server: {
     port: 5173,
     strictPort: true,
-    proxy: {
-      "/ingestion.v1.IngestionService": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-      "/metrics.v1.MetricsService": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-      "/auth.v1.AuthService": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-    },
+    proxy: API_PROXY,
   },
   resolve: {
     alias: {
@@ -49,8 +47,9 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: "build",
     target: "esnext",
-    rollupOptions: {
+    rolldownOptions: {
       onwarn(warning, warn) {
         if (
           warning.code === "PURE_COMMENT_POSITION" ||
@@ -62,4 +61,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

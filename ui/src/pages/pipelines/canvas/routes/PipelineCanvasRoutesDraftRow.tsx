@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
@@ -24,15 +24,19 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
+
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
-import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
+import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
   PIPELINE_CANVAS_ROUTES_CURSOR_SELECT_WIDTH,
   PIPELINE_CANVAS_ROUTES_DRAFT_EDGE_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_DRAFT_KEY,
+  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_BOTTOM,
+  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_TOP,
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X,
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y,
   PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT,
@@ -56,9 +60,12 @@ import {
 } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
+import { mapOptionIdToEnum } from "@/utils/select";
+
 const RowWrapper = styled.div`
   height: ${PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT}px;
-  padding: ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y}px ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px;
+  padding: ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_TOP}px ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px
+    ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_BOTTOM}px;
 
   display: flex;
   align-items: stretch;
@@ -113,7 +120,7 @@ interface PipelineCanvasRoutesDraftRowProps {
   draftState: PipelineCanvasRoutesDraftState;
 }
 
-const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftRowProps) => {
+const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ draftState }) => {
   const { draft, resource, resourceNames, sinks, sourceNodeId } = draftState;
   const { edges } = usePipelineCanvasState();
   const connectionByNodeId = usePipelineCanvasConnections();
@@ -180,7 +187,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
   const readMode = draft.readMode ?? defaultReadMode;
   const routeHasIncremental =
     readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, draftEdge);
-  const compatibleWriteModes = getCompatibleWriteModes(writeModeOptions, routeHasIncremental);
+  const compatibleWriteModes = getCompatibleWriteModes(
+    writeModeOptions,
+    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+  );
   const siblingWriteMode = siblingEdges.find(
     (edge) => edge.data?.writeMode !== undefined && edge.data.writeMode !== WriteMode.UNSPECIFIED,
   )?.data?.writeMode;
@@ -227,7 +237,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
           <Flex
             alignItems={AlignItems.CENTER}
             gap={PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_GAP}
-            padding={[0, PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X]}
+            padding={[
+              PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y,
+              PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X,
+            ]}
             fillWidth
             height="100%"
           >
@@ -289,9 +302,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
                       options={readModeSelectOptions}
                       value={String(readMode)}
                       onChange={(id) => {
-                        if (id !== null) draftState.setConfig({ readMode: Number(id) as ReadMode });
+                        if (id !== null)
+                          draftState.setConfig({ readMode: mapOptionIdToEnum(ReadMode, id) });
                       }}
-                      variant={SelectInputVariant.TERTIARY}
+                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Read mode..."
                       isDisabled={isLoading}
@@ -308,7 +322,7 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
                       onChange={(id) => {
                         if (id !== null) draftState.setConfig({ cursor: id });
                       }}
-                      variant={SelectInputVariant.TERTIARY}
+                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Cursor..."
                       isDisabled={isLoading}
@@ -332,9 +346,10 @@ const PipelineCanvasRoutesDraftRow = ({ draftState }: PipelineCanvasRoutesDraftR
                     options={writeModeSelectOptions}
                     value={String(writeMode)}
                     onChange={(id) => {
-                      if (id !== null) draftState.setConfig({ writeMode: Number(id) as WriteMode });
+                      if (id !== null)
+                        draftState.setConfig({ writeMode: mapOptionIdToEnum(WriteMode, id) });
                     }}
-                    variant={SelectInputVariant.TERTIARY}
+                    variant={SelectInputVariant.SECONDARY}
                     size={SelectInputSize.SMALL}
                     placeholder="Write mode..."
                     isDisabled={isLoading}

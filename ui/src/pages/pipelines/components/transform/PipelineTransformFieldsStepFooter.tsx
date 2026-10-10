@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -19,7 +21,7 @@ interface PipelineTransformFieldsStepFooterProps {
   onDelete?: () => void;
 }
 
-const PipelineTransformFieldsStepFooter = ({
+const PipelineTransformFieldsStepFooter: FC<PipelineTransformFieldsStepFooterProps> = ({
   issues,
   warnings,
   typeSummary,
@@ -28,7 +30,7 @@ const PipelineTransformFieldsStepFooter = ({
   onSave,
   onCancel,
   onDelete,
-}: PipelineTransformFieldsStepFooterProps) => (
+}) => (
   <Flex
     alignItems={AlignItems.CENTER}
     justifyContent={JustifyContent.SPACE_BETWEEN}
