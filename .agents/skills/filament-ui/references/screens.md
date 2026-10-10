@@ -75,7 +75,7 @@ return (
 ```
 
 - **The page composes flat sections.** Each section fetches the entity itself and returns `null` when it does not apply.
-- **A section is a collapsible `Widget`** (`isCollapsible header="General" defaultIsOpen`), `gap={12}` between widgets.
+- **A section is a collapsible `Widget`**, `gap={12}` between widgets, all the same size. Only General starts open. A section that holds optional config starts open only when that config is in use (Schedule when the saved schedule is on, Notifications when a notifier exists), so it reads from data the page already suspended on. The create wizard's delivery step uses the same column of sections.
 - **Every section has local state applied by one Save.** Toggles included. No immediate-action RPCs on a settings page. Cancel is `SECONDARY` and disabled unless dirty, Save is `PRIMARY` with `isDisabled={!canSave}` and `isLoading`. See [forms.md](./forms.md).
 - **Fields are always visible.** No "Add X" step for cheap config.
 - **The danger zone** is a plain `Widget` with a space-between row, a title over a `BODY_SM` `SECONDARY` description, and an `ERROR` button with `TrashIcon`. It confirms through `useConfirm` and `ConfirmDialog` with `confirmValue` set to the entity's name and `isMatch={isPipelineNameMatch}` so a typed `->` matches the shown `→`.
@@ -83,6 +83,7 @@ return (
 ## Drawer
 
 - Opened by `?connectionId=` and rendered by `FilamentLayout`. It takes `connectionId`, `isOpen` and `onClose` as props and reads no search params. See [routing.md](./routing.md).
+- Pass `hasDividers` so a hairline separates the title row from the scrolling body. DLS 2.10 defaults it to off.
 - `renderContent()` checks `isError` (an `ErrorLayout` with a Close button), then a missing entity (`PendingLayout`), then the content.
 - Actions on the thing the drawer shows go in `actions` as a ⋯ `Menu`, Delete last and red. A read-only drawer has no footer.
 - Body blocks, shared with the canvas panel. `KeyValueList` with `KeyValueListRow`s (label on the left, a node on the right, hairline separators), a collapsible section `Widget` with a count `Chip` in `actions` (the chip hides a zero count) and `EmptyLayout size={EmptyLayoutSize.SMALL}` when empty, and a JSON section around `CodeBlock`.

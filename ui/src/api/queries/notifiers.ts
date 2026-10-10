@@ -3,17 +3,13 @@ import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
   type UseMutationOptions,
-  type UseQueryOptions,
   useMutation,
-  useQuery,
+  useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type {
-  ListPipelineNotifiersRequest,
-  ListPipelineNotifiersResponse,
-} from "@/gen/ingestion/v1/notifiers_pb";
+import type { ListPipelineNotifiersRequest } from "@/gen/ingestion/v1/notifiers_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
 export const createListPipelineNotifiersQueryKey = (
@@ -27,18 +23,11 @@ export const createListPipelineNotifiersQueryKey = (
     cardinality: "finite",
   });
 
-export const useListPipelineNotifiersQuery = ({
+export const useSuspenseListPipelineNotifiersQuery = ({
   input,
-  options = {},
 }: {
   input: ListPipelineNotifiersRequest;
-  options?: UseQueryOptions<
-    typeof IngestionService.method.listPipelineNotifiers.output,
-    ListPipelineNotifiersResponse
-  >;
-}) => {
-  return useQuery(IngestionService.method.listPipelineNotifiers, input, options);
-};
+}) => useSuspenseQuery(IngestionService.method.listPipelineNotifiers, input);
 
 const usePipelineNotifierMutation = <I extends DescMessage, O extends DescMessage>(
   method: DescMethodUnary<I, O>,

@@ -29,6 +29,7 @@ import type {
 interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
   header?: string;
   rows: TRow[];
+  isOpenInitial?: boolean;
   isLoading?: boolean;
   isSaving?: boolean;
   onCreate: (state: PipelineNotifierState, onSuccess: () => void) => void;
@@ -43,15 +44,10 @@ interface PipelineNotifierTableState {
   expandedRowIds: PipelineNotifier["id"][];
 }
 
-const DEFAULT_STATE: PipelineNotifierTableState = {
-  isOpen: true,
-  isCreating: false,
-  expandedRowIds: [],
-};
-
 const PipelineNotifierTable = <TRow extends PipelineNotifier>({
   header = "Notifiers",
   rows,
+  isOpenInitial = true,
   isLoading = false,
   isSaving = false,
   onCreate,
@@ -59,7 +55,11 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
   onDelete,
   onToggleEnabled,
 }: PipelineNotifierTableProps<TRow>) => {
-  const [state, setState] = useState<PipelineNotifierTableState>(DEFAULT_STATE);
+  const [state, setState] = useState<PipelineNotifierTableState>(() => ({
+    isOpen: isOpenInitial,
+    isCreating: false,
+    expandedRowIds: [],
+  }));
 
   const handleOpenChange = (isOpen: boolean) => {
     setState((prev) => ({ ...prev, isOpen }));

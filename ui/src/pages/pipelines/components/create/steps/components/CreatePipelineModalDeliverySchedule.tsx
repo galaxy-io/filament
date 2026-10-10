@@ -1,7 +1,5 @@
 import type { FC } from "react";
 
-import { WidgetSize } from "@galaxy-io/dls/widget/Widget";
-
 import {
   useCreatePipelineModalActions,
   useCreatePipelineModalState,
@@ -15,9 +13,8 @@ const CreatePipelineModalDeliverySchedule: FC = () => {
   return (
     <PipelineScheduleFields
       header="Schedule"
-      size={WidgetSize.LARGE}
       state={schedule}
-      isOpenInitial
+      isOpenInitial={schedule.isEnabled}
       onChange={(partial) => setSchedule(partial)}
     />
   );

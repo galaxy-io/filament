@@ -29,7 +29,7 @@ import { usePipelineParams } from "@/module/hooks";
 import {
   useCreatePipelineNotifierMutation,
   useDeletePipelineNotifierMutation,
-  useListPipelineNotifiersQuery,
+  useSuspenseListPipelineNotifiersQuery,
   useUpdatePipelineNotifierMutation,
 } from "@/api/queries/notifiers";
 
@@ -51,10 +51,10 @@ const PipelineSettingsPageNotifications: FC = () => {
   const { toast: showToast } = useToast();
   const { id: pipelineId } = usePipelineParams();
 
-  const { data, isLoading } = useListPipelineNotifiersQuery({
+  const { data } = useSuspenseListPipelineNotifiersQuery({
     input: create(ListPipelineNotifiersRequestSchema, { pipelineId }),
   });
-  const rows = (data?.notifiers ?? []).map(mapNotifierToRow);
+  const rows = data.notifiers.map(mapNotifierToRow);
 
   const { mutate: createNotifier, isPending: isCreating } = useCreatePipelineNotifierMutation();
   const { mutate: updateNotifier, isPending: isUpdating } = useUpdatePipelineNotifierMutation();
@@ -154,7 +154,7 @@ const PipelineSettingsPageNotifications: FC = () => {
     <>
       <PipelineNotifierTable
         rows={rows}
-        isLoading={isLoading}
+        isOpenInitial={rows.length > 0}
         isSaving={isCreating || isUpdating || isDeleting}
         onCreate={handleCreate}
         onUpdate={handleUpdate}

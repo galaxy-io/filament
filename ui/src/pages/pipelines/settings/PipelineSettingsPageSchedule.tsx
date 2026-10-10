@@ -126,7 +126,12 @@ const PipelineSettingsPageSchedule: FC = () => {
   if (data.pipeline?.executionMode === ExecutionMode.CONTINUOUS) return null;
 
   return (
-    <PipelineScheduleFields header="Schedule" state={state} onChange={handleScheduleChange}>
+    <PipelineScheduleFields
+      header="Schedule"
+      isOpenInitial={schedule?.config?.isEnabled ?? false}
+      state={state}
+      onChange={handleScheduleChange}
+    >
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
         <Button
           label="Cancel"

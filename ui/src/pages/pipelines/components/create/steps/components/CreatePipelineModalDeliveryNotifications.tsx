@@ -39,6 +39,7 @@ const CreatePipelineModalDeliveryNotifications: FC = () => {
   return (
     <PipelineNotifierTable
       rows={notifiers}
+      isOpenInitial={notifiers.length > 0}
       onCreate={handleCreate}
       onUpdate={handleUpdate}
       onDelete={handleDelete}

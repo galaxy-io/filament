@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
-import Fieldset from "@galaxy-io/dls/inputs/Fieldset";
-import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -18,10 +17,10 @@ const CreatePipelineModalDeliveryAdvanced: FC = () => {
   const { setWorkerConfiguration } = useCreatePipelineModalActions();
 
   return (
-    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <>
       {sourceConnection && (
         <CreatePipelineModalDeliveryNodeConfig
-          header="Source configuration"
+          header={`${sourceConnection.name} configuration`}
           connection={sourceConnection}
           kind={ConnectorKind.SOURCE}
         />
@@ -29,22 +28,19 @@ const CreatePipelineModalDeliveryAdvanced: FC = () => {
       {sinks.map((sink) => (
         <CreatePipelineModalDeliveryNodeConfig
           key={sink.connection.id}
-          header="Sink configuration"
+          header={`${sink.connection.name} configuration`}
           connection={sink.connection}
           kind={ConnectorKind.SINK}
         />
       ))}
-      <Fieldset
-        label="Worker configuration"
-        description="Pod template merged into every run's worker."
-      >
+      <Widget isCollapsible header="Worker configuration">
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           error={workerConfigurationError}
           onChange={setWorkerConfiguration}
         />
-      </Fieldset>
-    </Flex>
+      </Widget>
+    </>
   );
 };
 

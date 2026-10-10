@@ -17,10 +17,15 @@ import { getWriteModeSelectOptions } from "@/pages/pipelines/components/resource
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
-const CreatePipelineModalDeliverySink: FC<{
+interface CreatePipelineModalDeliverySinkProps {
   sink: CreatePipelineModalSinkRow;
   onChange: (sinkId: Connection["id"], writeMode: WriteMode) => void;
-}> = ({ sink, onChange }) => {
+}
+
+const CreatePipelineModalDeliverySink: FC<CreatePipelineModalDeliverySinkProps> = ({
+  sink,
+  onChange,
+}) => {
   const options = getWriteModeSelectOptions(sink.writeModeOptions);
 
   const handleWriteModeChange = (id: string | null) => {

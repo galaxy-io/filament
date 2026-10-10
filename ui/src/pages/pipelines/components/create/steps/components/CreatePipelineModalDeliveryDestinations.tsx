@@ -15,7 +15,7 @@ const CreatePipelineModalDeliveryDestinations: FC = () => {
   const { setSinkWriteMode } = useCreatePipelineModalActions();
 
   return (
-    <Widget isFlush>
+    <Widget header="Destinations" isFlush>
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
         {sinks.map((sink, index) => (
           <Fragment key={sink.connection.id}>

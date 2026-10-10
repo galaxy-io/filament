@@ -177,6 +177,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
     <Drawer
       size={DrawerSize.MEDIUM}
       isOpen={isOpen}
+      hasDividers
       onOpenChange={(open) => {
         if (!open) onClose();
       }}

@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import Widget, { WidgetSize } from "@galaxy-io/dls/widget/Widget";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
@@ -38,7 +38,7 @@ const CreatePipelineModalDeliveryNodeConfig: FC<CreatePipelineModalDeliveryNodeC
   if (nodeConfig.fields.length === 0) return null;
 
   return (
-    <Widget isCollapsible header={header} size={WidgetSize.LARGE}>
+    <Widget isCollapsible header={header}>
       <PipelineNodeConfigFields
         {...nodeConfig}
         config={config}
