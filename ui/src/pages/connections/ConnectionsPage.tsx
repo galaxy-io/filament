@@ -30,7 +30,7 @@ import {
   CONNECTOR_KIND_TO_DOCS_PATH_MAP,
   CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP,
 } from "@/pages/connections/constants";
-import { usePipelineConnectionMap } from "@/pages/connections/hooks/usePipelineConnectionMap";
+import { useConnectionPipelines } from "@/pages/connections/hooks/useConnectionPipelines";
 
 import { useConnectionsSearch, useFilamentFlowOpen, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -74,7 +74,7 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
     itemCount: kindConnections.length,
   });
 
-  const { connectionIdsByPipelineId } = usePipelineConnectionMap();
+  const { connectionIdsByPipelineId } = useConnectionPipelines();
   const pipelineCountsByConnectionId = useMemo(() => {
     const counts = new Map<Connection["id"], number>();
     for (const connectionIds of connectionIdsByPipelineId.values()) {

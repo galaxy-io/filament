@@ -1,31 +1,22 @@
 import { create } from "@bufbuild/protobuf";
 
 import { ListConnectionsRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import { GetPipelineVersionRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { mapVersionNodesToFlowEndpoints } from "@/components/pipelines/utils";
 
 import { useListConnectionsQuery } from "@/api/queries/connections";
-import { useGetPipelineVersionQuery } from "@/api/queries/pipeline_versions";
 
-export const usePipelineFlowEndpoints = (pipelineId: Pipeline["id"]) => {
-  const { data: versionData, isLoading: isVersionLoading } = useGetPipelineVersionQuery({
-    input: create(GetPipelineVersionRequestSchema, { pipelineId }),
-    options: { retry: false },
-  });
-  const { data: connectionsData, isLoading: isConnectionsLoading } = useListConnectionsQuery({
+export const usePipelineFlowEndpoints = (pipeline: Pipeline) => {
+  const { data: connectionsData, isLoading } = useListConnectionsQuery({
     input: create(ListConnectionsRequestSchema, {}),
   });
+  const graph = pipeline.currentVersion?.graph;
 
   const { source, sinks } = mapVersionNodesToFlowEndpoints(
-    versionData?.version?.graph?.nodes ?? [],
+    graph?.nodes ?? [],
     connectionsData?.connections ?? [],
   );
 
-  return {
-    source,
-    sinks,
-    hasEdges: (versionData?.version?.graph?.edges ?? []).length > 0,
-    isLoading: isVersionLoading || isConnectionsLoading,
-  };
+  return { source, sinks, hasEdges: (graph?.edges ?? []).length > 0, isLoading };
 };

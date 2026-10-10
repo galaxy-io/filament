@@ -1,4 +1,4 @@
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -50,3 +50,9 @@ export const formatPipelineName = (pipeline: Pipeline, includeDeleted = false): 
 
 export const isPipelineNameMatch = (typed: string, name: string): boolean =>
   typed.trim().replace(/->/g, "→") === name.trim();
+
+export const getPipelineNextFireAt = (pipeline: Pipeline | undefined) => {
+  const nextFireAt = pipeline?.schedule?.nextFireAt;
+  if (pipeline?.executionMode === ExecutionMode.CONTINUOUS) return undefined;
+  return pipeline?.schedule?.config?.isEnabled && nextFireAt ? nextFireAt : undefined;
+};

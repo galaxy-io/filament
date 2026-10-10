@@ -7,14 +7,14 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import PipelineCard from "@/components/pipelines/PipelineCard";
 
 import ConnectionDrawerSection from "@/pages/connections/components/drawer/ConnectionDrawerSection";
-import { usePipelineConnectionMap } from "@/pages/connections/hooks/usePipelineConnectionMap";
+import { useConnectionPipelines } from "@/pages/connections/hooks/useConnectionPipelines";
 
 interface ConnectionDrawerPipelinesProps {
   connectionId: string;
 }
 
 const ConnectionDrawerPipelines: FC<ConnectionDrawerPipelinesProps> = ({ connectionId }) => {
-  const { pipelines, connectionIdsByPipelineId } = usePipelineConnectionMap();
+  const { pipelines, connectionIdsByPipelineId } = useConnectionPipelines();
 
   const connectedPipelines = useMemo(
     () =>

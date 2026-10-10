@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
-import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn, TableColumnLayout, TableSort } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -18,9 +18,9 @@ import {
   type Pipeline,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
-import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineName from "@/components/pipelines/PipelineName";
+import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
 import { formatPipelineName } from "@/components/pipelines/utils";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
@@ -38,11 +38,11 @@ import {
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
 import PipelinesTableRowActions from "@/pages/pipelines/components/table/PipelinesTableRowActions";
+import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 
 import { useFilamentNavigate } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
 
-import { useRunPipelineMutation } from "@/api/queries/runs";
 import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
 import { getErrorMessage } from "@/utils/errors";
@@ -63,7 +63,12 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     accessor: (pipeline) => pipeline.name,
     canSort: true,
     canHide: false,
-    cell: ({ row }) => <PipelineName pipelineId={row.id} pipeline={row} />,
+    cell: ({ row }) => (
+      <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+        <PipelineName pipelineId={row.id} pipeline={row} />
+        <PipelineScheduleIndicator pipelineId={row.id} pipeline={row} />
+      </Flex>
+    ),
   },
   {
     id: "recentRuns",
@@ -146,7 +151,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   const navigate = useFilamentNavigate();
   const { toast } = useToast();
 
-  const { mutate: runPipeline } = useRunPipelineMutation();
+  const { startRun } = usePipelineRun();
   const { mutate: updateSchedule } = useUpdatePipelineScheduleMutation();
 
   const [columnLayout, setColumnLayout] = useLocalStorage<TableColumnLayout>(
@@ -162,28 +167,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   };
 
   const handleRun = (pipeline: Pipeline) => {
-    runPipeline(
-      create(RunPipelineRequestSchema, {
-        pipelineId: pipeline.id,
-        options: { executionMode: pipeline.executionMode },
-      }),
-      {
-        onSuccess: () => {
-          toast({
-            header: "Run started",
-            description: `${formatPipelineName(pipeline)} is now running.`,
-            variant: ToastVariant.SUCCESS,
-          });
-        },
-        onError: (error) => {
-          toast({
-            header: "Run failed",
-            description: getErrorMessage(error, "Failed to run pipeline"),
-            variant: ToastVariant.ERROR,
-          });
-        },
-      },
-    );
+    startRun(pipeline);
   };
 
   const handleScheduleToggle = (pipeline: Pipeline) => {

@@ -10,7 +10,7 @@ interface PipelinesTableColumnFlowProps {
 }
 
 const PipelinesTableColumnFlow: FC<PipelinesTableColumnFlowProps> = ({ pipeline }) => {
-  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
+  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline);
 
   return <PipelineFlow source={source} sinks={sinks} hasEdges={hasEdges} isLoading={isLoading} />;
 };

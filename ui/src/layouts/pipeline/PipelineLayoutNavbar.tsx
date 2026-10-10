@@ -32,14 +32,13 @@ import {
   ExecutionObservedState,
   ListRunsRequestSchema,
   type RunInfo,
-  RunPipelineRequestSchema,
   RunSignal,
   SignalRunRequestSchema,
 } from "@/gen/ingestion/v1/runs_pb";
 
 import PipelineFlow from "@/components/pipelines/PipelineFlow";
 import PipelineName from "@/components/pipelines/PipelineName";
-import PipelineScheduleChip from "@/components/pipelines/PipelineScheduleChip";
+import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
 import { formatPipelineName } from "@/components/pipelines/utils";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
 
@@ -69,6 +68,7 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { mapCanvasNodesToFlowEndpoints } from "@/pages/pipelines/canvas/utils";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
+import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 import {
   getPipelineValidationErrors,
   getRunPauseSignal,
@@ -85,7 +85,6 @@ import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_version
 import { useGetPipelineQuery, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
   getActiveRunsRefetchInterval,
-  useRunPipelineMutation,
   useSignalRunMutation,
   useSuspenseListRunsQuery,
 } from "@/api/queries/runs";
@@ -141,7 +140,7 @@ const PipelineLayoutNavbar: FC = () => {
       }),
     });
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
-  const { mutate: runPipeline, isPending: isRunning } = useRunPipelineMutation();
+  const { startRun, isRunning } = usePipelineRun();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
 
   const { data: schedulePipelineData } = useGetPipelineQuery({
@@ -281,30 +280,7 @@ const PipelineLayoutNavbar: FC = () => {
   };
 
   const handleRun = (workerConfiguration?: WorkerConfiguration) => {
-    runPipeline(
-      create(RunPipelineRequestSchema, {
-        pipelineId: id,
-        workerConfiguration,
-        options: { executionMode: pipeline.executionMode },
-      }),
-      {
-        onSuccess: () => {
-          showActivity();
-          toast({
-            header: "Run started",
-            description: `${formatPipelineName(pipeline)} is now running.`,
-            variant: ToastVariant.SUCCESS,
-          });
-        },
-        onError: (error) => {
-          toast({
-            header: "Run failed",
-            description: getErrorMessage(error, "Failed to run pipeline"),
-            variant: ToastVariant.ERROR,
-          });
-        },
-      },
-    );
+    startRun(pipeline, { workerConfiguration, onSuccess: showActivity });
   };
 
   const handleSignal = (runId: RunInfo["id"], signal: RunSignal) => {
@@ -424,7 +400,7 @@ const PipelineLayoutNavbar: FC = () => {
             </>
           ) : (
             <>
-              {!activeRun && !isContinuous && <PipelineScheduleChip pipelineId={id} />}
+              {!activeRun && !isContinuous && <PipelineScheduleIndicator pipelineId={id} />}
               {!activeRun ? (
                 <PipelineLayoutNavbarRunButton
                   workerConfiguration={pipeline?.workerConfiguration}

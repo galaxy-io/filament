@@ -15,9 +15,10 @@ import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
-import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
+import { getPipelineNextFireAt } from "@/components/pipelines/utils";
 import {
   PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
@@ -30,7 +31,6 @@ import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils"
 import { useFilamentNavigate } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
 
-import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
 
 import { formatTimestamp } from "@/utils/format";
@@ -105,14 +105,10 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
       }),
     }),
   });
-  const { data: pipelineData } = useGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipeline.id, includeSchedule: true }),
-    options: { enabled: Boolean(pipeline.id) },
-  });
 
   const runs = useMemo(() => [...(data?.runs ?? [])].reverse(), [data]);
-  const schedule = pipelineData?.pipeline?.schedule;
-  const hasScheduledRun = Boolean(schedule?.config?.isEnabled && schedule.nextFireAt);
+  const nextFireAt = getPipelineNextFireAt(pipeline);
+  const hasScheduledRun = nextFireAt !== undefined;
   const visibleRuns = hasScheduledRun ? runs.slice(-(PIPELINES_TABLE_RECENT_RUNS_COUNT - 1)) : runs;
   const scheduledIndex = hasScheduledRun ? visibleRuns.length : -1;
 
@@ -155,9 +151,9 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
             </Tooltip>
           );
         }
-        if (index === scheduledIndex && schedule) {
+        if (index === scheduledIndex && nextFireAt) {
           return (
-            <Tooltip key="scheduled" body={`Scheduled for ${formatTimestamp(schedule.nextFireAt)}`}>
+            <Tooltip key="scheduled" body={`Scheduled for ${formatTimestamp(nextFireAt)}`}>
               <Flex>
                 <PipelineRunStatusSwatch status={RunStatus.SCHEDULED} size={SquareSize.MEDIUM} />
               </Flex>

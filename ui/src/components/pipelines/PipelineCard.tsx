@@ -12,7 +12,7 @@ import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
 import { usePipelineFlowEndpoints } from "@/components/pipelines/hooks/usePipelineFlowEndpoints";
 import PipelineFlow, { PipelineFlowSize } from "@/components/pipelines/PipelineFlow";
 import PipelineName from "@/components/pipelines/PipelineName";
-import PipelineScheduleChip from "@/components/pipelines/PipelineScheduleChip";
+import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
 import RouterLink from "@/components/RouterLink";
 
 import { createFilamentHref, FilamentPath } from "@/module/paths";
@@ -55,14 +55,14 @@ interface PipelineCardProps {
 }
 
 const PipelineCard: FC<PipelineCardProps> = ({ pipeline }) => {
-  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
+  const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline);
 
   return (
     <CardLinkWrapper href={createFilamentHref(FilamentPath.PIPELINE, { id: pipeline.id })}>
       <CardWrapper>
         <Flex alignItems={AlignItems.CENTER} gap={8}>
           <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
-          <PipelineScheduleChip pipelineId={pipeline.id} />
+          <PipelineScheduleIndicator pipelineId={pipeline.id} pipeline={pipeline} />
         </Flex>
         <Flex alignItems={AlignItems.CENTER} gap={12}>
           <PipelineFlow
