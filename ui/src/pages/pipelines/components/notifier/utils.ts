@@ -67,12 +67,19 @@ const isPipelineNotifierSlackValid = (state: PipelineNotifierState): boolean =>
 const isPipelineNotifierWebhookValid = (state: PipelineNotifierState): boolean =>
   isPipelineNotifierUrlValid(state.url) && parsePipelineNotifierHeaders(state.headers) !== null;
 
+const PIPELINE_NOTIFIER_TYPE_TO_VALIDATOR_MAP: Record<
+  NotificationType,
+  (state: PipelineNotifierState) => boolean
+> = {
+  [NotificationType.UNSPECIFIED]: isPipelineNotifierWebhookValid,
+  [NotificationType.WEBHOOK]: isPipelineNotifierWebhookValid,
+  [NotificationType.SLACK]: isPipelineNotifierSlackValid,
+};
+
 export const isPipelineNotifierValid = (state: PipelineNotifierState): boolean =>
   isNameValid(state.name) &&
   state.events.length > 0 &&
-  (state.notificationType === NotificationType.SLACK
-    ? isPipelineNotifierSlackValid(state)
-    : isPipelineNotifierWebhookValid(state));
+  PIPELINE_NOTIFIER_TYPE_TO_VALIDATOR_MAP[state.notificationType](state);
 
 const mapPipelineNotifierStateToConfig = (
   state: PipelineNotifierState,

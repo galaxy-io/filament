@@ -3,6 +3,7 @@ import { useState } from "react";
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -16,8 +17,10 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 import {
   PIPELINE_NOTIFIER_DEFAULT_STATE,
   PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
+  PIPELINE_NOTIFIER_TABLE_EMPTY_HEIGHT,
 } from "@/pages/pipelines/components/notifier/constants";
 import PipelineNotifierForm from "@/pages/pipelines/components/notifier/PipelineNotifierForm";
+import PipelineNotifierTypeTile from "@/pages/pipelines/components/notifier/PipelineNotifierTypeTile";
 import type {
   PipelineNotifier,
   PipelineNotifierState,
@@ -35,11 +38,13 @@ interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
 }
 
 interface PipelineNotifierTableState {
+  isOpen: boolean;
   isCreating: boolean;
   expandedRowIds: PipelineNotifier["id"][];
 }
 
 const DEFAULT_STATE: PipelineNotifierTableState = {
+  isOpen: true,
   isCreating: false,
   expandedRowIds: [],
 };
@@ -56,9 +61,14 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
 }: PipelineNotifierTableProps<TRow>) => {
   const [state, setState] = useState<PipelineNotifierTableState>(DEFAULT_STATE);
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setState((prev) => ({ ...prev, isOpen }));
+  };
+
   const handleCreatingChange = (isCreating: boolean) => {
     setState((prev) => ({
       ...prev,
+      isOpen: prev.isOpen || isCreating,
       isCreating,
       expandedRowIds: isCreating ? [] : prev.expandedRowIds,
     }));
@@ -73,9 +83,12 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
       id: "name",
       header: "Name",
       cell: ({ row }) => (
-        <Text size={TextSize.BODY_SM} lineClamp={1}>
-          {row.name}
-        </Text>
+        <Flex alignItems={AlignItems.CENTER} gap={8}>
+          <PipelineNotifierTypeTile notificationType={row.notificationType} />
+          <Text size={TextSize.BODY_SM} lineClamp={1}>
+            {row.name}
+          </Text>
+        </Flex>
       ),
     },
     {
@@ -93,19 +106,35 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
     },
   ];
 
+  const hasRows = isLoading || rows.length > 0;
+
   return (
     <Widget
+      isCollapsible
       header={header}
       isFlush
+      isOpen={state.isOpen}
+      onOpenChange={handleOpenChange}
       actions={
-        <Button
-          label="Add notifier"
-          icon={PlusIcon}
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.SMALL}
-          onClick={() => handleCreatingChange(true)}
-          isDisabled={state.isCreating || isSaving}
-        />
+        <Flex alignItems={AlignItems.CENTER} gap={8}>
+          <Button
+            label="Add notifier"
+            icon={PlusIcon}
+            variant={ButtonVariant.SECONDARY}
+            size={ButtonSize.SMALL}
+            onClick={() => handleCreatingChange(true)}
+            isDisabled={state.isCreating || isSaving}
+          />
+          {!isLoading && (
+            <Chip
+              hasBorder
+              isPill
+              count={rows.length}
+              size={ChipSize.SMALL}
+              variant={ChipVariant.SECONDARY}
+            />
+          )}
+        </Flex>
       }
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
@@ -117,35 +146,41 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
               onSave={(next) => onCreate(next, () => handleCreatingChange(false))}
               onCancel={() => handleCreatingChange(false)}
             />
-            <Divider />
+            {hasRows && <Divider />}
           </>
         )}
-        <Box variant={BoxVariant.PRIMARY} fillWidth>
-          <InfiniteTable<TRow>
-            columns={columns}
-            data={rows}
-            getRowId={(row) => row.id}
-            isLoading={isLoading}
-            emptyState={
-              <EmptyLayout
-                size={EmptyLayoutSize.SMALL}
-                header="No notifiers"
-                description="Add a notifier to get notified when runs complete or fail."
-              />
-            }
-            expandedIds={state.expandedRowIds}
-            onExpandedIdsChange={handleExpandedChange}
-            renderExpandedRow={(row) => (
-              <PipelineNotifierForm
-                initialState={row}
-                isSaving={isSaving}
-                onSave={(next) => onUpdate(row, next, () => handleExpandedChange([]))}
-                onCancel={() => handleExpandedChange([])}
-                onDelete={() => onDelete(row)}
-              />
-            )}
-          />
-        </Box>
+        {!hasRows && !state.isCreating && (
+          <Box height={PIPELINE_NOTIFIER_TABLE_EMPTY_HEIGHT} fillWidth>
+            <EmptyLayout
+              size={EmptyLayoutSize.SMALL}
+              header="No notifiers"
+              description="Add a notifier to get notified when runs complete or fail."
+            />
+          </Box>
+        )}
+        {hasRows && (
+          <Box variant={BoxVariant.PRIMARY} fillWidth>
+            <InfiniteTable<TRow>
+              ariaLabel={header}
+              hasHeader={false}
+              columns={columns}
+              data={rows}
+              getRowId={(row) => row.id}
+              isLoading={isLoading}
+              expandedIds={state.expandedRowIds}
+              onExpandedIdsChange={handleExpandedChange}
+              renderExpandedRow={(row) => (
+                <PipelineNotifierForm
+                  initialState={row}
+                  isSaving={isSaving}
+                  onSave={(next) => onUpdate(row, next, () => handleExpandedChange([]))}
+                  onCancel={() => handleExpandedChange([])}
+                  onDelete={() => onDelete(row)}
+                />
+              )}
+            />
+          </Box>
+        )}
       </Flex>
     </Widget>
   );

@@ -14,6 +14,7 @@ export const PIPELINE_NOTIFIER_SLACK_URL_PREFIXES = [
 ];
 
 export const PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED = 64;
+export const PIPELINE_NOTIFIER_TABLE_EMPTY_HEIGHT = 160;
 
 export const PIPELINE_NOTIFIER_HEADERS_PLACEHOLDER_TEXT = `{
   "Authorization": "Bearer <token>"
@@ -22,10 +23,22 @@ export const PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT = `{
   "Leave blank to keep current value": ""
 }`;
 
-const PIPELINE_NOTIFIER_TYPE_TO_LABEL_MAP: Record<NotificationType, string> = {
+export const PIPELINE_NOTIFIER_TYPE_TO_LABEL_MAP: Record<NotificationType, string> = {
   [NotificationType.UNSPECIFIED]: "Unknown",
   [NotificationType.WEBHOOK]: "Webhook",
   [NotificationType.SLACK]: "Slack",
+};
+
+export const PIPELINE_NOTIFIER_TYPE_TO_LOGO_URLS_MAP: Record<
+  NotificationType,
+  { dark: string; light: string } | undefined
+> = {
+  [NotificationType.UNSPECIFIED]: undefined,
+  [NotificationType.WEBHOOK]: undefined,
+  [NotificationType.SLACK]: {
+    dark: "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg",
+    light: "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg",
+  },
 };
 
 export const PIPELINE_NOTIFIER_TYPE_OPTIONS = createEnumSelectOptions(
