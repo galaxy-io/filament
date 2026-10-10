@@ -185,7 +185,10 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const readMode = draft.readMode ?? defaultReadMode;
   const routeHasIncremental =
     readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, draftEdge);
-  const compatibleWriteModes = getCompatibleWriteModes(writeModeOptions, routeHasIncremental);
+  const compatibleWriteModes = getCompatibleWriteModes(
+    writeModeOptions,
+    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+  );
   const siblingWriteMode = siblingEdges.find(
     (edge) => edge.data?.writeMode !== undefined && edge.data.writeMode !== WriteMode.UNSPECIFIED,
   )?.data?.writeMode;

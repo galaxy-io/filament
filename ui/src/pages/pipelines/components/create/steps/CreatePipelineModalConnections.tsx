@@ -30,9 +30,8 @@ import {
   CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
 } from "@/components/connections/constants";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
@@ -115,7 +114,7 @@ const CreatePipelineModalConnectionRow: FC<{
   kind: ConnectorKind;
 }> = ({ connection, kind }) => {
   const { sourceConnection, sinkConnections, executionMode } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { selectSource, toggleSink } = useCreatePipelineModalActions();
 
   const isSource = kind === ConnectorKind.SOURCE;
   const isDisabled = isSource
@@ -123,11 +122,11 @@ const CreatePipelineModalConnectionRow: FC<{
     : !connection.executionModes.includes(executionMode);
 
   const handleClick = () => {
-    dispatch(
-      isSource
-        ? { type: CreatePipelineModalActionType.SELECT_SOURCE, payload: connection }
-        : { type: CreatePipelineModalActionType.TOGGLE_SINK, payload: connection },
-    );
+    if (isSource) {
+      selectSource(connection);
+      return;
+    }
+    toggleSink(connection);
   };
 
   return (

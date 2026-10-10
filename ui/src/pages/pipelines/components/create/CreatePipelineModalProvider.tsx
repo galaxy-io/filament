@@ -12,7 +12,29 @@ import { match } from "ts-pattern";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
+import {
+  type AddNotifierAction,
+  type AddResourceAction,
+  type CreatePipelineModalAction,
+  CreatePipelineModalActionType,
+  type GoToStepAction,
+  type RemoveNotifierAction,
+  type SelectSourceAction,
+  type SetActiveSinkAction,
+  type SetDescriptionAction,
+  type SetExecutionModeAction,
+  type SetNameAction,
+  type SetNodeConfigAction,
+  type SetResourceCursorAction,
+  type SetResourceReadModeAction,
+  type SetResourceSelectionAction,
+  type SetScheduleAction,
+  type SetSinkWriteModeAction,
+  type SetSubmittingAction,
+  type SetWorkerConfigurationAction,
+  type ToggleSinkAction,
+  type UpdateNotifierAction,
+} from "@/pages/pipelines/components/create/actions";
 import {
   CREATE_PIPELINE_MODAL_DEFAULT_CRON,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
@@ -77,7 +99,7 @@ export const useCreatePipelineModalState = () => {
   return state;
 };
 
-export const useCreatePipelineModalDispatch = () => {
+const useCreatePipelineModalDispatch = () => {
   const dispatch = useContext(CreatePipelineModalDispatchContext);
   if (!dispatch) {
     throw new Error(
@@ -85,6 +107,56 @@ export const useCreatePipelineModalDispatch = () => {
     );
   }
   return dispatch;
+};
+
+export const useCreatePipelineModalActions = () => {
+  const dispatch = useCreatePipelineModalDispatch();
+
+  return useMemo(
+    () => ({
+      selectSource: (payload: SelectSourceAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SELECT_SOURCE, payload }),
+      toggleSink: (payload: ToggleSinkAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.TOGGLE_SINK, payload }),
+      setActiveSink: (payload: SetActiveSinkAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_ACTIVE_SINK, payload }),
+      setExecutionMode: (payload: SetExecutionModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_EXECUTION_MODE, payload }),
+      addResource: (payload: AddResourceAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.ADD_RESOURCE, payload }),
+      setResourceSelection: (payload: SetResourceSelectionAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION, payload }),
+      setResourceReadMode: (payload: SetResourceReadModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE, payload }),
+      setResourceCursor: (payload: SetResourceCursorAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR, payload }),
+      setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE, payload }),
+      setNodeConfig: (payload: SetNodeConfigAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_NODE_CONFIG, payload }),
+      setName: (payload: SetNameAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload }),
+      setDescription: (payload: SetDescriptionAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_DESCRIPTION, payload }),
+      setSchedule: (payload: SetScheduleAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SCHEDULE, payload }),
+      addNotifier: (payload: AddNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.ADD_NOTIFIER, payload }),
+      updateNotifier: (payload: UpdateNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.UPDATE_NOTIFIER, payload }),
+      removeNotifier: (payload: RemoveNotifierAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.REMOVE_NOTIFIER, payload }),
+      setWorkerConfiguration: (payload: SetWorkerConfigurationAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION, payload }),
+      goToStep: (payload: GoToStepAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.GO_TO_STEP, payload }),
+      goBack: () => dispatch({ type: CreatePipelineModalActionType.GO_BACK }),
+      goNext: () => dispatch({ type: CreatePipelineModalActionType.GO_NEXT }),
+      setSubmitting: (payload: SetSubmittingAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_SUBMITTING, payload }),
+    }),
+    [dispatch],
+  );
 };
 
 const CreatePipelineModalProvider: FC<PropsWithChildren> = ({ children }) => {

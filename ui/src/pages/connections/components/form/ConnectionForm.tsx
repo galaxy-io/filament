@@ -33,10 +33,12 @@ import {
 } from "@/components/fields/utils";
 
 import { getConnectorVersions } from "@/pages/connections/components/create/utils";
-import { ConnectionFormActionType } from "@/pages/connections/components/form/actions";
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
 import ConnectionFormMaturityAlert from "@/pages/connections/components/form/ConnectionFormMaturityAlert";
-import { useConnectionFormContext } from "@/pages/connections/components/form/ConnectionFormProvider";
+import {
+  useConnectionFormActions,
+  useConnectionFormState,
+} from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
 import { createRequiredFieldsValidationErrorMap } from "@/pages/connections/components/form/validation";
@@ -71,7 +73,9 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   onBack,
   onConnectorChange,
 }) => {
-  const { state, dispatch } = useConnectionFormContext();
+  const state = useConnectionFormState();
+  const { setConfigField, setName, setPhase, setShouldShowErrors, setValidationErrors } =
+    useConnectionFormActions();
   const { toast } = useToast();
 
   const { data, isError } = useGetConnectorQuery({
@@ -120,26 +124,14 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   );
 
   const handleTestConnection = useCallback(() => {
-    dispatch({
-      type: ConnectionFormActionType.SET_SHOULD_SHOW_ERRORS,
-      payload: true,
-    });
+    setShouldShowErrors(true);
     if (!isNameValid(state.name)) {
-      dispatch({
-        type: ConnectionFormActionType.SET_PHASE,
-        payload: ConnectionFormPhase.ERROR,
-      });
+      setPhase(ConnectionFormPhase.ERROR);
       return;
     }
 
-    dispatch({
-      type: ConnectionFormActionType.SET_PHASE,
-      payload: ConnectionFormPhase.VALIDATING,
-    });
-    dispatch({
-      type: ConnectionFormActionType.SET_VALIDATION_ERRORS,
-      payload: [],
-    });
+    setPhase(ConnectionFormPhase.VALIDATING);
+    setValidationErrors([]);
 
     validateConfig(
       create(ValidateConfigRequestSchema, {
@@ -151,19 +143,10 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       {
         onSuccess: (response) => {
           if (response.valid) {
-            dispatch({
-              type: ConnectionFormActionType.SET_PHASE,
-              payload: ConnectionFormPhase.VALIDATED,
-            });
+            setPhase(ConnectionFormPhase.VALIDATED);
           } else {
-            dispatch({
-              type: ConnectionFormActionType.SET_VALIDATION_ERRORS,
-              payload: response.errors,
-            });
-            dispatch({
-              type: ConnectionFormActionType.SET_PHASE,
-              payload: ConnectionFormPhase.ERROR,
-            });
+            setValidationErrors(response.errors);
+            setPhase(ConnectionFormPhase.ERROR);
             toast({
               variant: ToastVariant.ERROR,
               header: "Validation failed",
@@ -172,10 +155,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
           }
         },
         onError: (error) => {
-          dispatch({
-            type: ConnectionFormActionType.SET_PHASE,
-            payload: ConnectionFormPhase.ERROR,
-          });
+          setPhase(ConnectionFormPhase.ERROR);
           toast({
             variant: ToastVariant.ERROR,
             header: "Validation failed",
@@ -191,26 +171,18 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     connectorKind,
     connectionId,
     validateConfig,
-    dispatch,
+    setPhase,
+    setShouldShowErrors,
+    setValidationErrors,
     toast,
   ]);
 
-  const handleNameChange = useCallback(
-    (name: Connection["name"]) =>
-      dispatch({
-        type: ConnectionFormActionType.SET_NAME,
-        payload: name,
-      }),
-    [dispatch],
-  );
+  const handleNameChange = useCallback((name: Connection["name"]) => setName(name), [setName]);
 
   const handleFieldChange = useCallback(
     (fieldName: ConfigField["name"], value: JsonValue) =>
-      dispatch({
-        type: ConnectionFormActionType.SET_CONFIG_FIELD,
-        payload: { field: fieldName, value },
-      }),
-    [dispatch],
+      setConfigField({ field: fieldName, value }),
+    [setConfigField],
   );
 
   const fieldDefaults = useMemo(

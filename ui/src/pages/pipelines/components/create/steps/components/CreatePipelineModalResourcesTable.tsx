@@ -11,9 +11,8 @@ import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -67,7 +66,7 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
   rows,
 }) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setResourceSelection } = useCreatePipelineModalActions();
 
   const selectedNames = useMemo(
     () => rows.filter((row) => row.isSelected).map((row) => row.name),
@@ -75,13 +74,10 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
   );
 
   const handleSelectionChange = (names: string[]) =>
-    dispatch({
-      type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
-      payload: {
-        sinkId: activeSinkId,
-        visibleNames: rows.map((row) => row.name),
-        selection: Object.fromEntries(names.map((name) => [name, true])),
-      },
+    setResourceSelection({
+      sinkId: activeSinkId,
+      visibleNames: rows.map((row) => row.name),
+      selection: Object.fromEntries(names.map((name) => [name, true])),
     });
 
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;

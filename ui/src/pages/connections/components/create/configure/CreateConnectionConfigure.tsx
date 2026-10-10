@@ -8,10 +8,10 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 
-import { ConnectionFormActionType } from "@/pages/connections/components/form/actions";
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
 import ConnectionFormProvider, {
-  useConnectionFormContext,
+  useConnectionFormActions,
+  useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
 
@@ -34,7 +34,8 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const { connector, connectorKind } = useFilamentLayoutSearch();
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
-  const { state, dispatch } = useConnectionFormContext();
+  const state = useConnectionFormState();
+  const { setPhase } = useConnectionFormActions();
   const { toast } = useToast();
 
   const { mutate: createConnection } = useCreateConnectionMutation();
@@ -43,10 +44,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
     const name = state.name.trim();
     if (!name) return;
 
-    dispatch({
-      type: ConnectionFormActionType.SET_PHASE,
-      payload: ConnectionFormPhase.SUBMITTING,
-    });
+    setPhase(ConnectionFormPhase.SUBMITTING);
 
     createConnection(
       create(CreateConnectionRequestSchema, {
@@ -72,10 +70,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
           }
         },
         onError: (error) => {
-          dispatch({
-            type: ConnectionFormActionType.SET_PHASE,
-            payload: ConnectionFormPhase.ERROR,
-          });
+          setPhase(ConnectionFormPhase.ERROR);
           toast({
             variant: ToastVariant.ERROR,
             header: "Creation failed",
@@ -84,7 +79,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
         },
       },
     );
-  }, [state.name, state.config, connector, kind, createConnection, toast, updateSearch, dispatch]);
+  }, [state.name, state.config, connector, kind, createConnection, toast, updateSearch, setPhase]);
 
   const handleConnectionChange = useCallback(
     (version: string) => {

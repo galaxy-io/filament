@@ -1,12 +1,13 @@
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import {
   READ_MODE_TO_LABEL_MAP,
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
+import { READ_MODE_TO_WRITE_MODES_MAP } from "@/pages/pipelines/components/resource/constants";
 import {
   type PipelineResourceStatus,
   PipelineResourceStatusField,
@@ -23,10 +24,17 @@ export const getWriteModeSelectOptions = (modes: WriteMode[]): SelectOption[] =>
 export const getCursorSelectOptions = (columns: ResourceColumn[]): SelectOption[] =>
   columns.map((column) => ({ id: column.name, label: column.name }));
 
-export const getCompatibleWriteModes = (
-  writeModes: WriteMode[],
-  hasIncrementalRead: boolean,
-): WriteMode[] => writeModes.filter((mode) => !hasIncrementalRead || mode !== WriteMode.REPLACE);
+export const intersectModes = <TMode>(sets: TMode[][]): TMode[] =>
+  sets.length
+    ? sets
+        .slice(1)
+        .reduce((common, modes) => common.filter((mode) => modes.includes(mode)), sets[0])
+    : [];
+
+export const getCompatibleWriteModes = (writeModes: WriteMode[], readModes: ReadMode[]) =>
+  writeModes.filter((mode) =>
+    readModes.every((readMode) => READ_MODE_TO_WRITE_MODES_MAP[readMode].includes(mode)),
+  );
 
 export const getCursorOptions = (columns: ResourceColumn[]): ResourceColumn[] =>
   columns

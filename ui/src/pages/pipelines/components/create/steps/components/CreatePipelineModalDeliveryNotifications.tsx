@@ -1,8 +1,7 @@
 import type { FC } from "react";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import PipelineNotifierTable from "@/pages/pipelines/components/notifier/PipelineNotifierTable";
@@ -13,13 +12,10 @@ import type {
 
 const CreatePipelineModalDeliveryNotifications: FC = () => {
   const { notifiers } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { addNotifier, removeNotifier, updateNotifier } = useCreatePipelineModalActions();
 
   const handleCreate = (state: PipelineNotifierState, onSuccess: () => void) => {
-    dispatch({
-      type: CreatePipelineModalActionType.ADD_NOTIFIER,
-      payload: { ...state, id: crypto.randomUUID() },
-    });
+    addNotifier({ ...state, id: crypto.randomUUID() });
     onSuccess();
   };
 
@@ -28,22 +24,16 @@ const CreatePipelineModalDeliveryNotifications: FC = () => {
     state: PipelineNotifierState,
     onSuccess: () => void,
   ) => {
-    dispatch({
-      type: CreatePipelineModalActionType.UPDATE_NOTIFIER,
-      payload: { id: notifier.id, partial: state },
-    });
+    updateNotifier({ id: notifier.id, partial: state });
     onSuccess();
   };
 
   const handleToggleEnabled = (notifier: PipelineNotifier, isEnabled: boolean) => {
-    dispatch({
-      type: CreatePipelineModalActionType.UPDATE_NOTIFIER,
-      payload: { id: notifier.id, partial: { isEnabled } },
-    });
+    updateNotifier({ id: notifier.id, partial: { isEnabled } });
   };
 
   const handleDelete = (notifier: PipelineNotifier) => {
-    dispatch({ type: CreatePipelineModalActionType.REMOVE_NOTIFIER, payload: notifier.id });
+    removeNotifier(notifier.id);
   };
 
   return (

@@ -25,8 +25,8 @@ import {
 
 import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
 import {
-  buildResourceRowsBySink,
-  buildSinkRows,
+  createResourceRowsBySink,
+  createSinkRows,
   getIssuesBySink,
   getSelectedCountBySink,
   isResourceSelected,
@@ -80,7 +80,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
 
   const { sinkConnections, sinkWriteModes, nodeConfigs, resourceSelection, executionMode } = state;
   const validationInput = useMemo(() => {
-    const buildSinkEdges = (sink: Connection) => {
+    const createSinkEdges = (sink: Connection) => {
       const writeMode =
         sinkWriteModes[sink.id] ??
         (hasReadLevers ? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE : WriteMode.APPEND);
@@ -119,7 +119,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
               ),
             ]
           : [],
-        edges: source ? sinkConnections.flatMap(buildSinkEdges) : [],
+        edges: source ? sinkConnections.flatMap(createSinkEdges) : [],
       }),
     });
   }, [
@@ -178,7 +178,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
     () =>
       isLoading
         ? {}
-        : buildResourceRowsBySink({
+        : createResourceRowsBySink({
             state,
             resources,
             columns,
@@ -189,7 +189,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState) => {
   );
 
   const sinks = useMemo(
-    () => buildSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
+    () => createSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
     [state, rowsBySink, hasReadLevers, supportedWriteModesBySink],
   );
 

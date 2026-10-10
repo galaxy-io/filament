@@ -4,16 +4,15 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliverySink from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySink";
 
 const CreatePipelineModalDeliveryDestinations: FC = () => {
   const { sinks } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setSinkWriteMode } = useCreatePipelineModalActions();
 
   return (
     <Widget isFlush>
@@ -23,12 +22,7 @@ const CreatePipelineModalDeliveryDestinations: FC = () => {
             {index > 0 && <Divider />}
             <CreatePipelineModalDeliverySink
               sink={sink}
-              onChange={(sinkId, writeMode) =>
-                dispatch({
-                  type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE,
-                  payload: { sinkId, writeMode },
-                })
-              }
+              onChange={(sinkId, writeMode) => setSinkWriteMode({ sinkId, writeMode })}
             />
           </Fragment>
         ))}

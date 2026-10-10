@@ -37,14 +37,8 @@ import type { PipelineResourceStatus } from "@/pages/pipelines/components/resour
 import {
   getPipelineResourceStatus,
   getRecommendedCursor,
+  intersectModes,
 } from "@/pages/pipelines/components/resource/utils";
-
-const intersectModes = (sets: ReadMode[][]): ReadMode[] => {
-  if (!sets.length) return [];
-  return sets
-    .slice(1)
-    .reduce((common, modes) => common.filter((mode) => modes.includes(mode)), sets[0] ?? []);
-};
 
 export interface PipelineCanvasEdgeModeOptions {
   readModeOptions: ReadMode[];

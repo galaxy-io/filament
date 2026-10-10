@@ -15,9 +15,8 @@ import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import DocsLink from "@/components/DocsLink";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -42,7 +41,7 @@ const CreatePipelineModalSidebar: FC = () => {
     selectedCountBySink,
     isSubmitting,
   } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { goToStep } = useCreatePipelineModalActions();
 
   const hasResourceIssues = Object.values(issuesBySink).some((issues) => issues.length > 0);
   const selectedCount = Object.values(selectedCountBySink).reduce((sum, count) => sum + count, 0);
@@ -72,10 +71,7 @@ const CreatePipelineModalSidebar: FC = () => {
   }));
 
   const handleStepChange = (index: number) => {
-    dispatch({
-      type: CreatePipelineModalActionType.GO_TO_STEP,
-      payload: CREATE_PIPELINE_MODAL_STEP_ORDER[index],
-    });
+    goToStep(CREATE_PIPELINE_MODAL_STEP_ORDER[index]);
   };
 
   return (

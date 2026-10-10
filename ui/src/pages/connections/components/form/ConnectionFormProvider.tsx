@@ -1,16 +1,27 @@
-import { createContext, type FC, type PropsWithChildren, useContext, useReducer } from "react";
+import {
+  createContext,
+  type Dispatch,
+  type FC,
+  type PropsWithChildren,
+  useContext,
+  useMemo,
+  useReducer,
+} from "react";
 
-import type { ConnectionFormAction } from "@/pages/connections/components/form/actions";
+import {
+  type ConnectionFormAction,
+  ConnectionFormActionType,
+  type SetConfigFieldAction,
+  type SetNameAction,
+  type SetPhaseAction,
+  type SetShouldShowErrorsAction,
+  type SetValidationErrorsAction,
+} from "@/pages/connections/components/form/actions";
 import connectionFormReducer from "@/pages/connections/components/form/reducer";
 import {
   ConnectionFormPhase,
   type ConnectionFormState,
 } from "@/pages/connections/components/form/types";
-
-type ConnectionFormContextShape = {
-  state: ConnectionFormState;
-  dispatch: React.Dispatch<ConnectionFormAction>;
-};
 
 export const createInitialState = (
   initialState: Pick<ConnectionFormState, "name" | "config">,
@@ -24,15 +35,46 @@ export const createInitialState = (
   };
 };
 
-const ConnectionFormContext = createContext<ConnectionFormContextShape | null>(null);
-ConnectionFormContext.displayName = "ConnectionFormContext";
+const ConnectionFormStateContext = createContext<ConnectionFormState | null>(null);
+ConnectionFormStateContext.displayName = "ConnectionFormStateContext";
 
-export const useConnectionFormContext = () => {
-  const context = useContext(ConnectionFormContext);
-  if (!context) {
-    throw new Error("useConnectionFormContext must be used within ConnectionFormProvider");
+const ConnectionFormDispatchContext = createContext<Dispatch<ConnectionFormAction> | null>(null);
+ConnectionFormDispatchContext.displayName = "ConnectionFormDispatchContext";
+
+export const useConnectionFormState = () => {
+  const state = useContext(ConnectionFormStateContext);
+  if (!state) {
+    throw new Error("useConnectionFormState must be used within ConnectionFormProvider");
   }
-  return context;
+  return state;
+};
+
+const useConnectionFormDispatch = () => {
+  const dispatch = useContext(ConnectionFormDispatchContext);
+  if (!dispatch) {
+    throw new Error("useConnectionFormDispatch must be used within ConnectionFormProvider");
+  }
+  return dispatch;
+};
+
+export const useConnectionFormActions = () => {
+  const dispatch = useConnectionFormDispatch();
+
+  return useMemo(
+    () => ({
+      setName: (payload: SetNameAction["payload"]) =>
+        dispatch({ type: ConnectionFormActionType.SET_NAME, payload }),
+      setConfigField: (payload: SetConfigFieldAction["payload"]) =>
+        dispatch({ type: ConnectionFormActionType.SET_CONFIG_FIELD, payload }),
+      setPhase: (payload: SetPhaseAction["payload"]) =>
+        dispatch({ type: ConnectionFormActionType.SET_PHASE, payload }),
+      setValidationErrors: (payload: SetValidationErrorsAction["payload"]) =>
+        dispatch({ type: ConnectionFormActionType.SET_VALIDATION_ERRORS, payload }),
+      setShouldShowErrors: (payload: SetShouldShowErrorsAction["payload"]) =>
+        dispatch({ type: ConnectionFormActionType.SET_SHOULD_SHOW_ERRORS, payload }),
+    }),
+    [dispatch],
+  );
 };
 
 interface ConnectionFormProviderProps {
@@ -46,9 +88,11 @@ const ConnectionFormProvider: FC<PropsWithChildren<ConnectionFormProviderProps>>
   const [state, dispatch] = useReducer(connectionFormReducer, initialState, createInitialState);
 
   return (
-    <ConnectionFormContext.Provider value={{ state, dispatch }}>
-      {children}
-    </ConnectionFormContext.Provider>
+    <ConnectionFormDispatchContext.Provider value={dispatch}>
+      <ConnectionFormStateContext.Provider value={state}>
+        {children}
+      </ConnectionFormStateContext.Provider>
+    </ConnectionFormDispatchContext.Provider>
   );
 };
 

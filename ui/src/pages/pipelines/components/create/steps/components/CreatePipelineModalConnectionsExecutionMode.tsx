@@ -16,9 +16,8 @@ import type { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import IconTile from "@/components/IconTile";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -64,7 +63,7 @@ const CreatePipelineModalConnectionsExecutionModeOption: FC<
 
 const CreatePipelineModalConnectionsExecutionMode: FC = () => {
   const { executionMode } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setExecutionMode } = useCreatePipelineModalActions();
 
   return (
     <Box fillWidth>
@@ -110,12 +109,7 @@ const CreatePipelineModalConnectionsExecutionMode: FC = () => {
                 key={mode}
                 mode={mode}
                 isSelected={executionMode === mode}
-                onSelect={() =>
-                  dispatch({
-                    type: CreatePipelineModalActionType.SET_EXECUTION_MODE,
-                    payload: mode,
-                  })
-                }
+                onSelect={() => setExecutionMode(mode)}
               />
             ))}
           </Flex>

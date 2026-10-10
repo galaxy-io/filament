@@ -16,10 +16,10 @@ import {
   UpdateConnectionRequestSchema,
 } from "@/gen/ingestion/v1/connections_pb";
 
-import { ConnectionFormActionType } from "@/pages/connections/components/form/actions";
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
 import ConnectionFormProvider, {
-  useConnectionFormContext,
+  useConnectionFormActions,
+  useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
@@ -46,7 +46,8 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
   connection,
   onClose,
 }) => {
-  const { state, dispatch } = useConnectionFormContext();
+  const state = useConnectionFormState();
+  const { setPhase } = useConnectionFormActions();
   const { toast } = useToast();
 
   const { mutate: updateConnection } = useUpdateConnectionMutation();
@@ -55,10 +56,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
     const name = state.name.trim();
     if (!name) return;
 
-    dispatch({
-      type: ConnectionFormActionType.SET_PHASE,
-      payload: ConnectionFormPhase.SUBMITTING,
-    });
+    setPhase(ConnectionFormPhase.SUBMITTING);
 
     updateConnection(
       create(UpdateConnectionRequestSchema, {
@@ -82,10 +80,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
           onClose();
         },
         onError: (error) => {
-          dispatch({
-            type: ConnectionFormActionType.SET_PHASE,
-            payload: ConnectionFormPhase.ERROR,
-          });
+          setPhase(ConnectionFormPhase.ERROR);
           const isConflict = ConnectError.from(error).code === Code.Aborted;
           toast({
             variant: ToastVariant.ERROR,
@@ -97,7 +92,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
         },
       },
     );
-  }, [state.name, state.config, connection, updateConnection, toast, onClose, dispatch]);
+  }, [state.name, state.config, connection, updateConnection, toast, onClose, setPhase]);
 
   return (
     <ConnectionForm

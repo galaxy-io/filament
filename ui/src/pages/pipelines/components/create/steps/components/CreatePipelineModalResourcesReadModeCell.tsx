@@ -5,9 +5,8 @@ import Box from "@galaxy-io/dls/layout/Box";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
@@ -19,18 +18,15 @@ const CreatePipelineModalResourcesReadModeCell: FC<{
   row: CreatePipelineModalResourceRow;
 }> = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setResourceReadMode } = useCreatePipelineModalActions();
   const options = getReadModeSelectOptions(row.readModeOptions);
 
   const handleReadModeChange = (id: string | null) => {
     if (id === null) return;
-    dispatch({
-      type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-      payload: {
-        sinkId: activeSinkId,
-        resource: row.name,
-        readMode: mapOptionIdToEnum(ReadMode, id),
-      },
+    setResourceReadMode({
+      sinkId: activeSinkId,
+      resource: row.name,
+      readMode: mapOptionIdToEnum(ReadMode, id),
     });
   };
 

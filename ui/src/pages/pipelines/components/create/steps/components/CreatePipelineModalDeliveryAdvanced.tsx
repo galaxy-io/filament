@@ -5,9 +5,8 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliveryNodeConfig from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNodeConfig";
@@ -16,7 +15,7 @@ import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/work
 const CreatePipelineModalDeliveryAdvanced: FC = () => {
   const { sourceConnection, sinks, workerConfiguration, workerConfigurationError } =
     useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setWorkerConfiguration } = useCreatePipelineModalActions();
 
   return (
     <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
@@ -42,12 +41,7 @@ const CreatePipelineModalDeliveryAdvanced: FC = () => {
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           error={workerConfigurationError}
-          onChange={(payload) =>
-            dispatch({
-              type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION,
-              payload,
-            })
-          }
+          onChange={setWorkerConfiguration}
         />
       </Fieldset>
     </Flex>
