@@ -27,8 +27,8 @@ import {
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
 import { PIPELINES_DOCS_PATH } from "@/pages/pipelines/constants";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 
 const CreatePipelineModalSidebar: FC = () => {
   const {

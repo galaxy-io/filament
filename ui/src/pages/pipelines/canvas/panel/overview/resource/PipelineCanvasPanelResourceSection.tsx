@@ -31,10 +31,9 @@ import {
 import {
   type CanvasEdge,
   type CanvasNode,
-  isConnectionNode,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
-import { getCanvasEdgeResourceLabel } from "@/pages/pipelines/canvas/utils";
+import { getCanvasEdgeResourceLabel, isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import PipelineResourceCreateForm, {
   type PipelineResourceCreateState,
 } from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";

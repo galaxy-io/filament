@@ -11,12 +11,18 @@ import {
   useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
-import { experimental_streamedQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import {
+  experimental_streamedQuery,
+  type InfiniteData,
+  useQueries,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   type GetRunRequest,
   type GetRunResponse,
   type ListRunsRequest,
+  ListRunsRequestSchema,
   type ListRunsResponse,
   type RunEvent,
   type RunInfo,
@@ -27,8 +33,16 @@ import {
 } from "@/gen/ingestion/v1/runs_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
-import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
-import { createGetPipelineQueryKey, createListPipelinesQueryKey } from "@/api/queries/pipelines";
+import {
+  ACTIVE_PIPELINE_RUNS_PAGE_SIZE,
+  ACTIVE_RUNS_REFETCH_INTERVAL,
+} from "@/api/queries/constants";
+import {
+  createGetPipelineInput,
+  createGetPipelineQueryKey,
+  createListPipelinesQueryKey,
+  useGetPipelineQuery,
+} from "@/api/queries/pipelines";
 import {
   batchIterable,
   getNextPageParam,
@@ -37,6 +51,8 @@ import {
   type UseInfiniteQueryOptions,
   type UseSuspenseQueryOptions,
 } from "@/api/utils";
+
+import { ACTIVE_RUN_STATUSES } from "@/constants";
 
 import { isRunActive } from "@/utils/runs";
 
@@ -71,7 +87,7 @@ const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
   return getScheduledRefetchInterval(runs, ACTIVE_RUNS_REFETCH_INTERVAL);
 };
 
-export const getActiveRunsRefetchInterval = (
+const getActiveRunsRefetchInterval = (
   runs: RunInfo[] | undefined,
   nextFireAt: bigint | undefined,
 ) => {
@@ -114,6 +130,52 @@ export const useSuspenseListRunsQuery = ({
   });
 };
 
+const createListActivePipelineRunsInput = (pipelineId: RunInfo["pipelineId"]) =>
+  create(ListRunsRequestSchema, {
+    pipelineId,
+    status: [...ACTIVE_RUN_STATUSES],
+    pagination: { pageSize: ACTIVE_PIPELINE_RUNS_PAGE_SIZE },
+  });
+
+const usePipelineScheduledFireAt = (pipelineId: RunInfo["pipelineId"]) => {
+  const { data } = useGetPipelineQuery({ input: createGetPipelineInput(pipelineId) });
+  const schedule = data?.pipeline?.schedule;
+  return schedule?.config?.isEnabled ? schedule.nextFireAt : undefined;
+};
+
+export const useListActivePipelineRunsQuery = (pipelineId: RunInfo["pipelineId"]) => {
+  const nextFireAt = usePipelineScheduledFireAt(pipelineId);
+  return useQuery(IngestionService.method.listRuns, createListActivePipelineRunsInput(pipelineId), {
+    refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
+  });
+};
+
+export const useSuspenseListActivePipelineRunsQuery = (pipelineId: RunInfo["pipelineId"]) => {
+  const nextFireAt = usePipelineScheduledFireAt(pipelineId);
+  return useSuspenseQuery(
+    IngestionService.method.listRuns,
+    createListActivePipelineRunsInput(pipelineId),
+    {
+      refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
+    },
+  );
+};
+
+const selectUniqueRunPages = (data: InfiniteData<ListRunsResponse>) => {
+  const seen = new Set<RunInfo["id"]>();
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      runs: page.runs.filter((run) => {
+        if (seen.has(run.id)) return false;
+        seen.add(run.id);
+        return true;
+      }),
+    })),
+  };
+};
+
 export const useListRunsInfiniteQuery = ({
   input,
   options = {},
@@ -131,6 +193,7 @@ export const useListRunsInfiniteQuery = ({
     {
       pageParamKey: "pagination",
       getNextPageParam,
+      select: selectUniqueRunPages,
       refetchInterval: (query) => {
         return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
       },
@@ -150,6 +213,7 @@ export const useSuspenseListRunsInfiniteQuery = ({
     {
       pageParamKey: "pagination",
       getNextPageParam,
+      select: selectUniqueRunPages,
       refetchInterval: (query) => {
         return getListRunsRefetchInterval(query.state.data?.pages.flatMap((page) => page.runs));
       },

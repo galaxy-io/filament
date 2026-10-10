@@ -14,6 +14,7 @@ import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import type { CreatePipelineModalAction } from "@/pages/pipelines/components/create/actions";
 import {
+  CREATE_PIPELINE_MODAL_DEFAULT_CRON,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
 } from "@/pages/pipelines/components/create/constants";
@@ -26,12 +27,12 @@ import {
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
 import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
+import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/components/schedule/constants";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
 import {
   DEFAULT_WORKER_CONFIGURATION_TEXT,
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
-import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
 import { getNameError, isNameValid } from "@/utils/validation";
@@ -54,7 +55,7 @@ const DEFAULT_STATE: CreatePipelineModalState = {
   schedule: {
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     isEnabled: true,
-    cron: "0 * * * *",
+    cron: CREATE_PIPELINE_MODAL_DEFAULT_CRON,
   },
   notifiers: [],
   workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,

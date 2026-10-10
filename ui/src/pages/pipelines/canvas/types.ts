@@ -57,8 +57,3 @@ export type PipelineCanvasEdgeData = Pick<PipelineEdge, "readMode" | "writeMode"
 };
 
 export type CanvasEdge = Edge<PipelineCanvasEdgeData>;
-
-export const isConnectionNode = (
-  node: CanvasNode,
-): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
-  node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;

@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
@@ -11,12 +12,13 @@ import {
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type {
-  GetPipelineRequest,
-  GetPipelineResponse,
-  ListPipelinesRequest,
-  ListPipelinesResponse,
-  Pipeline,
+import {
+  type GetPipelineRequest,
+  GetPipelineRequestSchema,
+  type GetPipelineResponse,
+  type ListPipelinesRequest,
+  type ListPipelinesResponse,
+  type Pipeline,
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
@@ -102,6 +104,9 @@ export const useSuspenseListPipelinesInfiniteQuery = ({
     },
   );
 };
+
+export const createGetPipelineInput = (id: Pipeline["id"]) =>
+  create(GetPipelineRequestSchema, { id, includeVersions: true, includeSchedule: true });
 
 export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
   return createConnectQueryKey({

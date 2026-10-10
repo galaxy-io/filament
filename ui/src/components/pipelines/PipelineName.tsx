@@ -1,6 +1,5 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -9,12 +8,12 @@ import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { PIPELINE_UNTITLED_NAME } from "@/components/pipelines/constants";
 import { formatPipelineName } from "@/components/pipelines/utils";
 
-import { useGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { formatTimestamp } from "@/utils/format";
 
@@ -30,9 +29,7 @@ const PipelineName: FC<PipelineNameProps> = ({
   pipeline: initialPipeline,
 }) => {
   const { data, isLoading } = useGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, {
-      id: pipelineId,
-    }),
+    input: createGetPipelineInput(pipelineId),
     options: {
       enabled: !initialPipeline,
     },

@@ -8,10 +8,7 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import {
-  GetPipelineRequestSchema,
-  UpdatePipelineRequestSchema,
-} from "@/gen/ingestion/v1/pipelines_pb";
+import { UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
@@ -22,7 +19,11 @@ import {
 
 import { usePipelineParams } from "@/module/hooks";
 
-import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
+import {
+  createGetPipelineInput,
+  useSuspenseGetPipelineQuery,
+  useUpdatePipelineMutation,
+} from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -30,7 +31,7 @@ const PipelineSettingsPageAdvanced: FC = () => {
   const { toast } = useToast();
   const { id } = usePipelineParams();
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();

@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
-
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
@@ -12,7 +10,6 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { EMPTY_VALUE, formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
@@ -36,7 +33,7 @@ import {
 } from "@/module/hooks";
 import type { PipelineHistorySearch } from "@/module/schemas";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatTimestamp, formatVersion } from "@/utils/format";
@@ -122,7 +119,7 @@ const PipelineHistoryPage: FC = () => {
   const { runId: runIds = [] } = usePipelineHistorySearch();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const columns = useMemo(() => {
     const versions = pipelineData.pipeline?.versions ?? [];
@@ -136,16 +133,7 @@ const PipelineHistoryPage: FC = () => {
     },
   );
 
-  const runs = useMemo(() => {
-    const seen = new Set<string>();
-    return data.pages
-      .flatMap((page) => page.runs)
-      .filter((run) => {
-        if (seen.has(run.id)) return false;
-        seen.add(run.id);
-        return true;
-      });
-  }, [data.pages]);
+  const runs = useMemo(() => data.pages.flatMap((page) => page.runs), [data.pages]);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
     void updateSearch(

@@ -9,7 +9,7 @@ import type {
   PipelineNotifier,
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export enum CreatePipelineModalActionType {
   SELECT_SOURCE = "SELECT_SOURCE",
@@ -105,7 +105,7 @@ export interface SetDescriptionAction {
 
 export interface SetScheduleAction {
   type: CreatePipelineModalActionType.SET_SCHEDULE;
-  payload: Partial<PipelineSettingsPageScheduleState>;
+  payload: Partial<PipelineScheduleState>;
 }
 
 export interface AddNotifierAction {

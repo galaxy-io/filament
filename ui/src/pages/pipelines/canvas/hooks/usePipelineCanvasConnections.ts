@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { type CanvasNode, isConnectionNode } from "@/pages/pipelines/canvas/types";
+import type { CanvasNode } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 

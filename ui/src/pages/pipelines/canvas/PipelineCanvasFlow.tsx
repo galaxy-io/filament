@@ -46,9 +46,10 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 import {
   getPipelineCanvasFitViewOptions,
+  isConnectionNode,
   mapEdgesToStyledEdges,
   mapElementsToSelected,
 } from "@/pages/pipelines/canvas/utils";

@@ -1,10 +1,10 @@
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export const PIPELINE_SCHEDULE_DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineSettingsPageScheduleState = {
+export const PIPELINE_SCHEDULE_DEFAULT_STATE: PipelineScheduleState = {
   isEnabled: false,
   cron: "0 9 * * *",
   timezone: PIPELINE_SCHEDULE_DEFAULT_TIMEZONE,

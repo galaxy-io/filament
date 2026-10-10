@@ -14,8 +14,7 @@ import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/use
 import { usePipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { isConnectionNode } from "@/pages/pipelines/canvas/types";
-import { getEdgeModeOptions } from "@/pages/pipelines/canvas/utils";
+import { getEdgeModeOptions, isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";

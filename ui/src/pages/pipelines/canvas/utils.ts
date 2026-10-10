@@ -244,3 +244,8 @@ export const mapCanvasNodesToFlowEndpoints = (
       .map((node) => mapConnectionIdToFlowConnection(node.data.connectionId, connectionsById)),
   };
 };
+
+export const isConnectionNode = (
+  node: CanvasNode,
+): node is PipelineCanvasSourceNode | PipelineCanvasSinkNode =>
+  node.type === PipelineCanvasNodeType.SOURCE || node.type === PipelineCanvasNodeType.SINK;

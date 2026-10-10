@@ -1,14 +1,10 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
-
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import KeyValueList from "@/components/KeyValueList";
@@ -23,16 +19,16 @@ import PipelineCanvasPanelResourceSection from "@/pages/pipelines/canvas/panel/o
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
-  isConnectionNode,
   PipelineCanvasNodeType,
   type PipelineCanvasSinkNode,
   type PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
 import { usePipelineParams } from "@/module/hooks";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { formatVersion } from "@/utils/format";
 
@@ -42,7 +38,7 @@ const PipelineCanvasPanelOverview: FC = () => {
   const { selectNode } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
   const previewed = usePipelinePreviewVersion();
   const version = previewed?.version ?? pipelineData.pipeline?.currentVersion?.version;

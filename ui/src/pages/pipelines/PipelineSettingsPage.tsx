@@ -1,6 +1,5 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { notFound } from "@tanstack/react-router";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
@@ -8,8 +7,6 @@ import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
-
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
@@ -21,13 +18,13 @@ import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSet
 
 import { usePipelineParams } from "@/module/hooks";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelineSettingsPage: FC = () => {
   const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
 
   if (!data.pipeline) {
@@ -53,7 +50,7 @@ const PipelineSettingsPage: FC = () => {
             >
               <PipelineSettingsPageGeneral />
               <PipelineSettingsPageSchedule />
-              <PipelineSettingsPageNotifications pipeline={data.pipeline} />
+              <PipelineSettingsPageNotifications />
               <PipelineSettingsPageAdvanced />
               <PipelineSettingsPageDanger />
             </Flex>

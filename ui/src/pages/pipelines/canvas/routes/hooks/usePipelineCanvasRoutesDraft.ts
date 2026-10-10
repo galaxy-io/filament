@@ -28,10 +28,10 @@ import type {
 } from "@/pages/pipelines/canvas/routes/types";
 import {
   type CanvasNode,
-  isConnectionNode,
   type PipelineCanvasEdgeData,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 import { useDiscoverResourcesQuery } from "@/api/queries/connectors";

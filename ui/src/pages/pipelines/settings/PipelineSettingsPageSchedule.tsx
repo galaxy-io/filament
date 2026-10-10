@@ -10,22 +10,21 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
   CreatePipelineScheduleRequestSchema,
-  GetPipelineRequestSchema,
   type PipelineScheduleConfig,
   UpdatePipelineScheduleRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/components/schedule/constants";
 import PipelineScheduleFields from "@/pages/pipelines/components/schedule/PipelineScheduleFields";
-import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/settings/constants";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 import {
   formatPipelineScheduleSummary,
   hasPipelineScheduleChanges,
-} from "@/pages/pipelines/settings/utils";
+} from "@/pages/pipelines/components/schedule/utils";
 
 import { usePipelineParams } from "@/module/hooks";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
   useCreatePipelineScheduleMutation,
   useUpdatePipelineScheduleMutation,
@@ -38,23 +37,23 @@ const PipelineSettingsPageSchedule: FC = () => {
   const { id: pipelineId } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),
+    input: createGetPipelineInput(pipelineId),
   });
   const schedule = data.pipeline?.schedule;
 
   const { mutate: createSchedule, isPending: isCreating } = useCreatePipelineScheduleMutation();
   const { mutate: updateSchedule, isPending: isUpdating } = useUpdatePipelineScheduleMutation();
 
-  const createInitialState = (): PipelineSettingsPageScheduleState => ({
+  const createInitialState = (): PipelineScheduleState => ({
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
     cron: schedule?.config?.cron || PIPELINE_SCHEDULE_DEFAULT_STATE.cron,
     isEnabled: schedule?.config?.isEnabled ?? PIPELINE_SCHEDULE_DEFAULT_STATE.isEnabled,
     timezone: schedule?.config?.timezone || PIPELINE_SCHEDULE_DEFAULT_STATE.timezone,
   });
 
-  const [state, setState] = useState<PipelineSettingsPageScheduleState>(createInitialState);
+  const [state, setState] = useState<PipelineScheduleState>(createInitialState);
 
-  const handleScheduleChange = (partial: Partial<PipelineSettingsPageScheduleState>) => {
+  const handleScheduleChange = (partial: Partial<PipelineScheduleState>) => {
     setState((prev) => ({ ...prev, ...partial }));
   };
 

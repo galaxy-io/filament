@@ -28,7 +28,7 @@ import ConnectorTile, { ConnectorTileSize } from "@/components/connections/Conne
 
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
-import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
+import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
   PIPELINE_CANVAS_ROUTES_CURSOR_SELECT_WIDTH,

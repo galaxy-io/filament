@@ -20,8 +20,8 @@ import KeyValueListRow from "@/components/KeyValueListRow";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
+import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
-import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/panel/hooks/usePipelineCanvasPanelResourceOptions";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";

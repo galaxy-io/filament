@@ -11,7 +11,6 @@ import {
   type ValidatePipelineResponse,
 } from "@/gen/ingestion/v1/capabilities_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   getCanvasEdgeKey,
@@ -25,7 +24,7 @@ import { getEdgeBlockingRequirements, getEdgeValidationErrors } from "@/pages/pi
 import { usePipelineParams } from "@/module/hooks";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { VALIDATION_DEBOUNCE_MS } from "@/constants";
 
@@ -104,7 +103,7 @@ const getCanvasValidationIssues = (
 export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
   const { id } = usePipelineParams();
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const currentVersion = pipelineData.pipeline?.currentVersion;
   const executionMode = pipelineData.pipeline?.executionMode;

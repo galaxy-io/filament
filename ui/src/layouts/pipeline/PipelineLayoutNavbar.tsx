@@ -25,12 +25,10 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
-import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
-import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 import {
   ExecutionDesiredState,
   ExecutionObservedState,
-  ListRunsRequestSchema,
   type RunInfo,
   RunSignal,
   SignalRunRequestSchema,
@@ -82,14 +80,8 @@ import type { FilamentLayoutSearch, PipelineCanvasSearch, PipelineSearch } from 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
-import { useGetPipelineQuery, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
-import {
-  getActiveRunsRefetchInterval,
-  useSignalRunMutation,
-  useSuspenseListRunsQuery,
-} from "@/api/queries/runs";
-
-import { ACTIVE_RUN_STATUSES } from "@/constants";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { useSignalRunMutation, useSuspenseListActivePipelineRunsQuery } from "@/api/queries/runs";
 
 import { getErrorMessage } from "@/utils/errors";
 import { formatVersion } from "@/utils/format";
@@ -101,7 +93,7 @@ const PipelineLayoutNavbar: FC = () => {
   const { id } = usePipelineParams();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const { data: connectionsData } = useSuspenseListConnectionsQuery();
   const previewed = usePipelinePreviewVersion();
@@ -143,22 +135,7 @@ const PipelineLayoutNavbar: FC = () => {
   const { startRun, isRunning } = usePipelineRun();
   const { mutate: signalRun, isPending: isSignaling } = useSignalRunMutation();
 
-  const { data: schedulePipelineData } = useGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeSchedule: true }),
-  });
-  const schedule = schedulePipelineData?.pipeline?.schedule;
-  const nextFireAt = schedule?.config?.isEnabled ? schedule.nextFireAt : undefined;
-
-  const { data: activeRunsData } = useSuspenseListRunsQuery({
-    input: create(ListRunsRequestSchema, {
-      pipelineId: id,
-      status: [...ACTIVE_RUN_STATUSES],
-      pagination: create(PaginationRequestSchema, { pageSize: 1 }),
-    }),
-    options: {
-      refetchInterval: (query) => getActiveRunsRefetchInterval(query.state.data?.runs, nextFireAt),
-    },
-  });
+  const { data: activeRunsData } = useSuspenseListActivePipelineRunsQuery(id);
   const activeRun = activeRunsData.runs.find((run) => !isContinuous || isContinuousRunActive(run));
   const isResuming = activeRun && getRunPauseSignal(activeRun) === RunSignal.RESUME;
   const isBlocked = activeRun?.executionStatus?.observedState === ExecutionObservedState.BLOCKED;

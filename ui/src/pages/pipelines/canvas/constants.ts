@@ -3,7 +3,6 @@ import { FlowArrowIcon, PlusIcon, TreeStructureIcon } from "@phosphor-icons/reac
 import { type HandleType, Position } from "@xyflow/react";
 
 import type { Space } from "@galaxy-io/dls/theme/enums";
-import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -59,12 +58,6 @@ export const CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP: Record<ConnectorKind, Positi
   [ConnectorKind.UNSPECIFIED]: Position.Right,
   [ConnectorKind.SOURCE]: Position.Right,
   [ConnectorKind.SINK]: Position.Left,
-};
-
-export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<ConnectorKind, PaletteColor> = {
-  [ConnectorKind.UNSPECIFIED]: "lime",
-  [ConnectorKind.SOURCE]: "lime",
-  [ConnectorKind.SINK]: "pink",
 };
 
 export const CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP: Record<ConnectorKind, ConnectorKind> = {

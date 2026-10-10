@@ -20,7 +20,7 @@ import PipelineCanvasPanelResourceDetail from "@/pages/pipelines/canvas/panel/ov
 import PipelineCanvasPanelTabHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelTabHeader";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { isConnectionNode } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 const PipelineCanvasPanel: FC = () => {
   const state = usePipelineCanvasState();

@@ -13,7 +13,6 @@ import {
   type Notifier,
   UpdatePipelineNotifierRequestSchema,
 } from "@/gen/ingestion/v1/notifiers_pb";
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineNotifierTable from "@/pages/pipelines/components/notifier/PipelineNotifierTable";
 import type {
@@ -24,6 +23,8 @@ import {
   mapNotifierToPipelineNotifierState,
   mapPipelineNotifierStateToInput,
 } from "@/pages/pipelines/components/notifier/utils";
+
+import { usePipelineParams } from "@/module/hooks";
 
 import {
   useCreatePipelineNotifierMutation,
@@ -46,15 +47,9 @@ const mapNotifierToRow = (notifier: Notifier): PipelineNotifier => ({
   id: notifier.id,
 });
 
-interface PipelineSettingsPageNotificationsProps {
-  pipeline: Pipeline;
-}
-
-const PipelineSettingsPageNotifications: FC<PipelineSettingsPageNotificationsProps> = ({
-  pipeline,
-}) => {
+const PipelineSettingsPageNotifications: FC = () => {
   const { toast: showToast } = useToast();
-  const pipelineId = pipeline.id;
+  const { id: pipelineId } = usePipelineParams();
 
   const { data, isLoading } = useListPipelineNotifiersQuery({
     input: create(ListPipelineNotifiersRequestSchema, { pipelineId }),

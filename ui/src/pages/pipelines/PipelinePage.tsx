@@ -1,13 +1,10 @@
 import { type FC, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
 import { notFound, Outlet } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
-
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
 
@@ -18,14 +15,14 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelinePage: FC = () => {
   const { id } = usePipelineParams();
   const navigate = useFilamentNavigate();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
 
   const pipeline = pipelineData.pipeline;

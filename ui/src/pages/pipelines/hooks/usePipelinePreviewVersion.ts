@@ -1,17 +1,15 @@
-import { create } from "@bufbuild/protobuf";
-
-import { GetPipelineRequestSchema, type PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { usePipelineParams, usePipelineSearch } from "@/module/hooks";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 export const usePipelinePreviewVersion = (): PipelineVersion | undefined => {
   const { id } = usePipelineParams();
   const { version: searchVersion } = usePipelineSearch();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
 
   return data.pipeline?.versions.find((item) => item.version === searchVersion);
