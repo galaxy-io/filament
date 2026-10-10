@@ -39,6 +39,8 @@ jobs:
               - "justfile"
             ui:
               - "ui/**"
+              - "justfile"
+              - ".github/workflows/lint.yaml"
             chart:
               - "charts/**"
               - ".github/workflows/lint.yaml"
@@ -94,20 +96,8 @@ jobs:
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
-      - name: Install
-        run: cd ui && pnpm install
-
-      - name: Lint
-        run: just ui-lint check
-
-      - name: Format
-        run: just ui-format check
-
-      - name: Build
-        run: just ui-build
-
-      - name: Route tree
-        run: git diff --exit-code ui/src/host/routeTree.gen.ts
+      - name: Check
+        run: just ui-check
 
   chart:
     needs: changes
