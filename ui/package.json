@@ -17,7 +17,20 @@
     "./paths": {
       "types": "./dist/module/paths.d.ts",
       "import": "./dist/module/paths.js"
-    }
+    },
+    "./routes": {
+      "types": "./dist/module/routes.d.ts",
+      "import": "./dist/module/routes.js"
+    },
+    "./FilamentLayout": {
+      "types": "./dist/module/FilamentLayout.d.ts",
+      "import": "./dist/module/FilamentLayout.js"
+    },
+    "./pages/NotFoundPage": {
+      "types": "./dist/pages/NotFoundPage.d.ts",
+      "import": "./dist/pages/NotFoundPage.js"
+    },
+    "./styles.css": "./dist/styles.css"
   },
   "scripts": {
     "dev": "vite",
@@ -28,7 +41,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:lib": "tsc -p tsconfig.lib.json --noEmit",
     "check:package": "publint --strict && node scripts/check-package.mjs",
-    "check": "pnpm typecheck && pnpm typecheck:lib && pnpm lint:check && pnpm format:check && pnpm build && pnpm build:lib && pnpm check:package",
+    "check:host": "tsc -p fixtures/host/tsconfig.json && vite build --config fixtures/host/vite.config.ts",
+    "check": "pnpm typecheck && pnpm typecheck:lib && pnpm lint:check && pnpm format:check && pnpm build && pnpm build:lib && pnpm check:package && pnpm check:host",
     "clean": "rm -rf build dist",
     "format": "biome check --write",
     "format:check": "biome check",

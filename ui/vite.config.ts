@@ -9,6 +9,18 @@ import { galaxyDls } from "@galaxy-io/dls/vite";
 
 export const CLASS_PREFIX = "filament";
 const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
+const API_SERVICE_PATHS = [
+  "/ingestion.v1.IngestionService",
+  "/metrics.v1.MetricsService",
+  "/auth.v1.AuthService",
+];
+
+export const API_PROXY = Object.fromEntries(
+  API_SERVICE_PATHS.map((servicePath) => [
+    servicePath,
+    { target: API_PROXY_TARGET, changeOrigin: true },
+  ]),
+);
 const VERIFY_MODE = "verify";
 const VERIFY_CACHE_DIR = "node_modules/.vite-verify";
 
@@ -27,20 +39,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: {
-      "/ingestion.v1.IngestionService": {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      "/metrics.v1.MetricsService": {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      "/auth.v1.AuthService": {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-    },
+    proxy: API_PROXY,
   },
   resolve: {
     alias: {

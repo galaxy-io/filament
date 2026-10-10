@@ -7,11 +7,7 @@ import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 
 import { IS_DEBUG } from "@/constants";
 
-interface FilamentErrorComponentProps {
-  error: ErrorComponentProps["error"];
-}
-
-const FilamentErrorComponent: FC<FilamentErrorComponentProps> = ({ error }) => (
+const FilamentErrorComponent: FC<ErrorComponentProps> = ({ error }) => (
   <ErrorLayout
     icon={BugIcon}
     header="Looks like there was a glitch in the matrix"

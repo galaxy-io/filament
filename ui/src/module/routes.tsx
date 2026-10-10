@@ -25,11 +25,11 @@ const createFilamentRouteOptions = <TOptions extends object>(options: TOptions) 
   ...options,
 });
 
-const PipelineErrorComponent: FC<ErrorComponentProps> = ({ error }) =>
-  error instanceof ConnectError && error.code === Code.NotFound ? (
+const PipelineErrorComponent: FC<ErrorComponentProps> = (props) =>
+  props.error instanceof ConnectError && props.error.code === Code.NotFound ? (
     <PipelineNotFoundPage />
   ) : (
-    <FilamentErrorComponent error={error} />
+    <FilamentErrorComponent {...props} />
   );
 
 const connectionsRouteOptions = {
