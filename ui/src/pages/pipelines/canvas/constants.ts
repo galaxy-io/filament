@@ -14,6 +14,8 @@ export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
 
 export const PIPELINE_CANVAS_FIT_INSET_Y = 48;
 export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
+export const PIPELINE_CANVAS_REVEAL_DURATION = 300;
+export const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 

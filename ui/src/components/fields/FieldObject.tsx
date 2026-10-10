@@ -1,4 +1,4 @@
-import { type FC, useEffect, useRef, useState } from "react";
+import { type FC, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
@@ -9,12 +9,9 @@ import type { FieldComponentProps } from "@/components/fields/types";
 
 interface FieldObjectState {
   displayValue: string;
+  emittedValue: string;
   parseError?: string;
 }
-
-const DEFAULT_STATE: FieldObjectState = {
-  displayValue: "",
-};
 
 const FieldObject: FC<FieldComponentProps> = ({
   field,
@@ -26,36 +23,37 @@ const FieldObject: FC<FieldComponentProps> = ({
 }) => {
   const serializedValue = value ? JSON.stringify(value, null, 2) : "";
   const [state, setState] = useState<FieldObjectState>(() => ({
-    ...DEFAULT_STATE,
     displayValue: serializedValue,
+    emittedValue: serializedValue,
   }));
-  const lastEmitted = useRef(serializedValue);
-
-  useEffect(() => {
-    if (serializedValue !== lastEmitted.current) {
-      lastEmitted.current = serializedValue;
-      setState((prev) => ({ ...prev, displayValue: serializedValue }));
-    }
-  }, [serializedValue]);
+  const isExternalChange = serializedValue !== state.emittedValue;
+  const displayValue = isExternalChange ? serializedValue : state.displayValue;
+  const parseError = isExternalChange ? undefined : state.parseError;
 
   const handleChange = (next: string) => {
     if (next.trim() === "") {
-      setState((prev) => ({ ...prev, displayValue: next, parseError: undefined }));
-      lastEmitted.current = "";
+      setState({ displayValue: next, emittedValue: "" });
       onChange(null);
       return;
     }
     try {
       const parsed: JsonValue = JSON.parse(next);
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        setState((prev) => ({ ...prev, displayValue: next, parseError: "Enter a JSON object" }));
+        setState({
+          displayValue: next,
+          emittedValue: serializedValue,
+          parseError: "Enter a JSON object",
+        });
         return;
       }
-      setState((prev) => ({ ...prev, displayValue: next, parseError: undefined }));
-      lastEmitted.current = JSON.stringify(parsed, null, 2);
+      setState({ displayValue: next, emittedValue: JSON.stringify(parsed, null, 2) });
       onChange(parsed);
     } catch {
-      setState((prev) => ({ ...prev, displayValue: next, parseError: "Enter valid JSON" }));
+      setState({
+        displayValue: next,
+        emittedValue: serializedValue,
+        parseError: "Enter valid JSON",
+      });
     }
   };
 
@@ -64,11 +62,11 @@ const FieldObject: FC<FieldComponentProps> = ({
       label={label}
       labelTooltip={field.help || undefined}
       isRequired={field.required}
-      error={state.parseError ?? error}
+      error={parseError ?? error}
       fillWidth
     >
       <CodeEditor
-        value={state.displayValue}
+        value={displayValue}
         onChange={handleChange}
         placeholder="{}"
         language={CodeEditorLanguage.JSON}
