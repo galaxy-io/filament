@@ -16,7 +16,7 @@ import { PipelinePageTab } from "@/pages/pipelines/components/header/types";
 import { FilamentPath } from "@/module/paths";
 
 export const PIPELINE_PAGE_TABS_INSET = 16;
-export const PIPELINE_PAGE_VERSION_SELECT_WIDTH = 128;
+export const PIPELINE_PAGE_VERSION_SELECT_WIDTH = 104;
 export const PIPELINE_PAGE_RUN_DROPDOWN_WIDTH = 500;
 export const PIPELINE_PAGE_MAX_VISIBLE_SAVE_ISSUES = 3;
 

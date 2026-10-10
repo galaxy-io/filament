@@ -1,15 +1,25 @@
 import { type FC, useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
-import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import EditableText from "@galaxy-io/dls/text/EditableText";
+import { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import {
+  type UpdatePipelineRequest,
+  UpdatePipelineRequestSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
+
+import { PIPELINE_UNTITLED_NAME } from "@/components/pipelines/constants";
 import PipelineFlow from "@/components/pipelines/PipelineFlow";
-import { formatPipelineName } from "@/components/pipelines/utils";
 import RouterLink from "@/components/RouterLink";
 
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
@@ -22,9 +32,15 @@ import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePr
 import { usePipelineParams } from "@/module/hooks";
 import { createFilamentHref, FilamentPath } from "@/module/paths";
 
-import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import {
+  createGetPipelineInput,
+  useSuspenseGetPipelineQuery,
+  useUpdatePipelineMutation,
+} from "@/api/queries/pipelines";
 
+import { getErrorMessage } from "@/utils/errors";
 import { formatVersion } from "@/utils/format";
+import { getNameError, isNameValid } from "@/utils/validation";
 
 const PipelinePageHeading: FC = () => {
   const { id } = usePipelineParams();
@@ -32,6 +48,8 @@ const PipelinePageHeading: FC = () => {
   const navigateCanvas = usePipelineCanvasNavigate();
   const previewed = usePipelinePreviewVersion();
   const hasUnsavedChanges = usePipelineHasUnsavedChanges();
+  const { toast } = useToast();
+  const { mutate: updatePipeline } = useUpdatePipelineMutation();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: createGetPipelineInput(id),
@@ -59,6 +77,42 @@ const PipelinePageHeading: FC = () => {
     return null;
   }
 
+  const handleUpdate = (patch: Pick<UpdatePipelineRequest, "name" | "description">) => {
+    updatePipeline(
+      create(UpdatePipelineRequestSchema, {
+        pipelineId: pipeline.id,
+        executionMode: pipeline.executionMode,
+        ...patch,
+      }),
+      {
+        onError: (error) => {
+          toast({
+            header: "Save failed",
+            description: getErrorMessage(error, "Failed to save pipeline"),
+            variant: ToastVariant.ERROR,
+          });
+        },
+      },
+    );
+  };
+
+  const handleNameChange = (value: string) => {
+    const name = value.trim();
+    if (!isNameValid(name)) {
+      toast({
+        header: "Rename failed",
+        description: getNameError(name, true) ?? undefined,
+        variant: ToastVariant.ERROR,
+      });
+      return;
+    }
+    handleUpdate({ name, description: pipeline.description });
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    handleUpdate({ name: pipeline.name, description: value.trim() });
+  };
+
   const handleVersionChange = (versionId: string | null) => {
     const version = versions.find((item) => item.version.toString() === versionId)?.version;
     if (version === undefined) return;
@@ -78,9 +132,16 @@ const PipelinePageHeading: FC = () => {
       <FlexItem shrink={0}>
         <PipelineFlow sourceId={sourceId} sinkIds={sinkIds} hasEdges={state.edges.length > 0} />
       </FlexItem>
-      <Text as="h1" size={TextSize.HEADING_MD} weight={TextWeight.MEDIUM} lineClamp={1}>
-        {formatPipelineName(pipeline)}
-      </Text>
+      <Box as="h1" minWidth={0}>
+        <EditableText
+          ariaLabel="Pipeline name"
+          value={pipeline.name}
+          placeholder={PIPELINE_UNTITLED_NAME}
+          onChange={handleNameChange}
+          size={TextSize.HEADING_MD}
+          weight={TextWeight.MEDIUM}
+        />
+      </Box>
       {versionOptions.length > 0 && (
         <FlexItem shrink={0} width={PIPELINE_PAGE_VERSION_SELECT_WIDTH}>
           <SelectInput
@@ -94,13 +155,15 @@ const PipelinePageHeading: FC = () => {
           />
         </FlexItem>
       )}
-      {pipeline.description && (
-        <FlexItem grow={1} minWidth={0}>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
-            {pipeline.description}
-          </Text>
-        </FlexItem>
-      )}
+      <FlexItem grow={1} minWidth={0}>
+        <EditableText
+          ariaLabel="Pipeline description"
+          value={pipeline.description}
+          placeholder="Add a description..."
+          onChange={handleDescriptionChange}
+          size={TextSize.BODY_SM}
+        />
+      </FlexItem>
     </Flex>
   );
 };

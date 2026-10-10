@@ -36,7 +36,7 @@ const PipelineSettingsPage: FC = () => {
         minWidth={400}
         maxWidth={640}
       >
-        <PipelineSettingsPageGeneral />
+        <PipelineSettingsPageGeneral key={`${data.pipeline.name}:${data.pipeline.description}`} />
         <PipelineSettingsPageSchedule />
         <PipelineSettingsPageNotifications />
         <PipelineSettingsPageAdvanced />

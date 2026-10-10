@@ -56,6 +56,7 @@ return (
 `PipelinePage` reads `usePipelineParams`, suspends on `GetPipeline`, throws `notFound()` when the pipeline is missing, and renders `PageLayout` inside the canvas provider. Its header pieces live in `pages/pipelines/components/header/`.
 
 - The heading starts with an icon-only `TERTIARY` back button, `ArrowLeftIcon`, `ariaLabel` and `tooltip` "All pipelines", `href={createFilamentHref(FilamentPath.PIPELINES)}`, `as={RouterLink}`.
+- The pipeline name (the `h1`) and its description are DLS `EditableText`. A commit (Enter or blur) saves through `useUpdatePipelineMutation` with the other field unchanged. An empty name toasts the validation message and reverts. The General settings section is keyed on name and description so it re-seeds after an inline edit.
 - `tabs` are DLS `Tabs` whose items link to `FilamentPath` children.
 - `banner` is one `Alert` at a time. A previewed version shows the preview banner, otherwise a scheduled pipeline shows `Alert color="yellow"` with the next run.
 - The children render in the `Outlet` and fill `main`.
