@@ -42,9 +42,10 @@ const mapOptionToSwatchOption = (option: SelectOption): SelectOption => ({
   leading: <PipelineRunStatusSwatch status={mapOptionIdToEnum(RunStatus, option.id)} />,
 });
 
-const STATUS_OPTIONS = OBSERVABILITY_RUN_STATUS_OPTIONS.map(mapOptionToSwatchOption);
+const OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS =
+  OBSERVABILITY_RUN_STATUS_OPTIONS.map(mapOptionToSwatchOption);
 
-const SCHEDULED_STATUS_OPTIONS = [
+const OBSERVABILITY_RUNS_CHART_SCHEDULED_STATUS_OPTIONS = [
   mapOptionToSwatchOption(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION),
 ];
 
@@ -104,7 +105,11 @@ const ObservabilityRunsChartWidget: FC = () => {
           <Box width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
             <MultiSelectInput
               fillWidth
-              options={isUpcoming ? SCHEDULED_STATUS_OPTIONS : STATUS_OPTIONS}
+              options={
+                isUpcoming
+                  ? OBSERVABILITY_RUNS_CHART_SCHEDULED_STATUS_OPTIONS
+                  : OBSERVABILITY_RUNS_CHART_STATUS_OPTIONS
+              }
               selectAllLabel={isUpcoming ? undefined : OBSERVABILITY_RUNS_ALL_STATUSES_LABEL}
               value={
                 isUpcoming ? [OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION.id] : selectedStatusIds

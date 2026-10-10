@@ -2,19 +2,12 @@ import { create, equals, fromJson, type JsonValue, toJson } from "@bufbuild/prot
 
 import { type WorkerConfiguration, WorkerConfigurationSchema } from "@/gen/ingestion/v1/common_pb";
 
+import { PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT } from "@/pages/pipelines/components/worker/constants";
+
 interface ParsedWorkerConfiguration {
   configuration?: WorkerConfiguration;
   error?: string;
 }
-
-export const DEFAULT_WORKER_CONFIGURATION_TEXT = `{
-  "resources": {
-    "requests": { "cpu": "500m", "memory": "256Mi" },
-    "limits": { "cpu": "1000m", "memory": "512Mi" }
-  },
-  "nodeSelector": {},
-  "tolerations": []
-}`;
 
 const stripEmptyValues = (values: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(values).filter(([, value]) => value.trim() !== ""));
@@ -29,7 +22,7 @@ const isEmpty = (configuration: WorkerConfiguration | undefined) =>
 export const formatWorkerConfiguration = (
   configuration: WorkerConfiguration | undefined,
 ): string => {
-  if (isEmpty(configuration)) return DEFAULT_WORKER_CONFIGURATION_TEXT;
+  if (isEmpty(configuration)) return PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT;
   const json = toJson(WorkerConfigurationSchema, configuration as WorkerConfiguration) as Record<
     string,
     unknown

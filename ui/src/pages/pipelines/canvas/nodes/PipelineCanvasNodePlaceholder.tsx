@@ -15,6 +15,7 @@ import {
   CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP,
   PIPELINE_CANVAS_NODE_GAP,
   PIPELINE_CANVAS_NODE_PADDING,
+  PIPELINE_CANVAS_NODE_PLACEHOLDER_PADDING_Y,
   PIPELINE_CANVAS_NODE_PLACEHOLDER_SELECTOR_HEIGHT,
   PIPELINE_CANVAS_NODE_WIDTH,
 } from "@/pages/pipelines/canvas/nodes/constants";
@@ -23,14 +24,14 @@ import PipelineCanvasConnectionSelector from "@/pages/pipelines/canvas/PipelineC
 import { usePipelineCanvasActions } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
 const PlaceholderCard = styled.div`
-  padding: 20px 16px;
+  padding: ${PIPELINE_CANVAS_NODE_PLACEHOLDER_PADDING_Y}px ${t.space[16]};
 
   display: flex;
   flex-direction: column;
   gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
   background-color: ${t.color.background.base};
-  border: 1px dashed ${t.color.border.primary};
+  border: ${HAIRLINE_WIDTH} dashed ${t.color.border.primary};
   border-radius: ${t.radius.lg};
 `;
 

@@ -20,7 +20,7 @@ import Menu, { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/m
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import { type Connection, DeleteConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
@@ -90,7 +90,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
     entityLabel: "Connection",
     entityName: (c) => c.name,
     onConfirm: (c, { onSuccess, onError }) =>
-      deleteConnection({ id: c.id }, { onSuccess, onError }),
+      deleteConnection(create(DeleteConnectionRequestSchema, { id: c.id }), { onSuccess, onError }),
     onConfirmed: (c) => {
       onClose();
       void navigate({ to: CONNECTOR_KIND_TO_PATH_MAP[c.kind] });

@@ -29,7 +29,7 @@ const PipelineFlowTile: FC<PipelineFlowTileProps> = ({ connectionId, kind, size 
   const handleClick = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    updateSearch((prev) => ({ ...prev, connectionId }));
+    void updateSearch((prev) => ({ ...prev, connectionId }));
   };
 
   if (isLoading) {

@@ -80,7 +80,7 @@ ui/src
 │   └── BaseHeader · DocsLink · EmptyGraphic · IconTile · KeyValueList · ListSearch · RouterLink
 ├── layouts/main/            MainLayout (DLS AppFrame) and MainLayoutSidebar
 ├── api/queries/             one file per resource
-├── hooks/                   app-generic hooks (useConfirm, useOverlaySession)
+├── hooks/                   app-generic hooks (useConfirm, useOverlaySession, useOverlayRecord)
 ├── utils/                   app-generic helpers (errors, format, naming, runs, select, sort, validation)
 ├── constants.ts             IS_DEBUG, docs and community URLs, debounce timings, ACTIVE_RUN_STATUSES
 └── gen/                     generated protobuf clients and messages

@@ -143,7 +143,7 @@ const ObservabilityRunsPastTable: FC = () => {
   };
 
   const handleRowClick = (row: RunInfo) => {
-    navigate({
+    void navigate({
       to: FilamentPath.PIPELINE_HISTORY,
       params: { id: row.pipelineId },
       search: { runId: [row.id] },

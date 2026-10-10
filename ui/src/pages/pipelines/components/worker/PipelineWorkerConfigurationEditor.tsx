@@ -3,7 +3,7 @@ import type { FC } from "react";
 import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
 import Field from "@galaxy-io/dls/inputs/Field";
 
-import { DEFAULT_WORKER_CONFIGURATION_TEXT } from "@/pages/pipelines/components/worker/utils";
+import { PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT } from "@/pages/pipelines/components/worker/constants";
 
 interface PipelineWorkerConfigurationEditorProps {
   value: string;
@@ -25,7 +25,7 @@ const PipelineWorkerConfigurationEditor: FC<PipelineWorkerConfigurationEditorPro
       value={value}
       onChange={onChange}
       language={CodeEditorLanguage.JSON}
-      placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
+      placeholder={PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT}
       hasLineNumbers={false}
     />
   </Field>

@@ -10,6 +10,7 @@ import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Link, { LinkUnderline } from "@galaxy-io/dls/links/Link";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import IconTile from "@/components/IconTile";
 import RouterLink from "@/components/RouterLink";
@@ -21,7 +22,7 @@ const Form = styled.form`
 
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: ${t.space[24]};
 `;
 
 interface AuthFormProps {

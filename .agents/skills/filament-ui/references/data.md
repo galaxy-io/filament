@@ -16,7 +16,7 @@ The transport and the query client belong to the host (`src/host/api/`). Library
 
 | File | What it does |
 |---|---|
-| `host/api/transport.ts` | `createTransport` over `createConnectTransport`. `VITE_API_URL` or same origin, binary format in production, JSON in dev. `createLoggingInterceptor` is always installed and logs only when `IS_DEBUG`. Exports the singleton `transport`. |
+| `host/api/transport.ts` | `createTransport` over `createConnectTransport`. `VITE_API_URL` or same origin, binary format in production, JSON in dev. The default interceptors are a private logging interceptor in debug builds and none in production. Exports the singleton `transport`. |
 | `host/api/queryClient.ts` | `staleTime` 30s, `refetchOnWindowFocus`, 3 retries. `NON_RETRYABLE_CODES` skips the retry for `NotFound`, `PermissionDenied`, `Unauthenticated`, `InvalidArgument` and `Unimplemented`, so a missing service (no `AuthService` on a bare server) fails at once instead of spinning. |
 | `host/api/TransportQueryClientProvider.tsx` | `TransportProvider` + `QueryClientProvider`, mounted once in `host/main.tsx` inside `GalaxyProvider`. |
 | `api/utils.ts` | Pagination (`INITIAL_PAGE_PARAM`, `getNextPageParam`), `createListSearchInput` and `createListSortingInput`, the option types `UseInfiniteQueryOptions` and `UseSuspenseQueryOptions`, `InfiniteQueryInput`, and `batchIterable` for streams. |
@@ -151,14 +151,14 @@ const request = create(UpdatePipelineRequestSchema, {
 
 | Surface | Fetch with | Loading shows as |
 |---|---|---|
-| A route page and the sections it composes (`PipelinesPage`, `PipelinePage`, `PipelineSettingsPageGeneral`) | `useSuspenseXQuery`, `useSuspenseXInfiniteQuery` | The router's `FilamentPendingComponent`, a DLS `PendingLayout`. Nothing to write. |
-| A settings page gated on a permission (`TeamPage`, `ServiceAccountsPage`) | plain `useXQuery` | `isLoading` on the table |
+| A route page and the sections it composes (`PipelinesPage`, `PipelinePage`, `PipelineSettingsPageGeneral`, `TeamPage`, `ServiceAccountsPage`) | `useSuspenseXQuery`, `useSuspenseXInfiniteQuery` | The router's `FilamentPendingComponent`, a DLS `PendingLayout`. Nothing to write. |
 | An overlay mounted by `FilamentLayout` (drawer, modals) | plain `useXQuery` with `enabled` | `PendingLayout` for the body, `ErrorLayout` with a Close button on `isError` |
 | A dashboard panel | plain `useXQuery` per panel | `isLoading` on the chart, table or `BigNumber` |
 | A cell or inline value that fetches its own entity (`PipelineName`, `PipelineFlowTile`) | plain `useXQuery` | a `Skeleton` in a sized `Box`, or `ConnectorTileShimmer` |
 | An expanded table row (`PipelineHistoryRunInfo`) | plain `useXQuery` | `isError` text, then a `Skeleton`, then content |
 
-- Pages suspend once, then everything paints together. There are no route loaders. The host's `beforeLoad` only probes auth config and the session.
+- Pages suspend once, then everything paints together. There are no route loaders for page data. The standalone's `__root` and `_app` `beforeLoad` call `ensureQueryData` only to gate auth (the config and the session).
+- A page gated on a permission suspends on the query that answers it first, then renders a child that suspends on the gated data. `ServiceAccountsPage` reads `canManage` from `useSuspenseListMembersQuery` and only then mounts `SettingsServiceAccountsContent`, so a member never requests service accounts.
 - Overlays never suspend. They sit above the route's boundary, so a suspend there would blank the app.
 - **Gate on `isLoading`, never `isPending`.** A disabled query pends forever.
 - A definitive 404 passes `retry: false` (`ConnectionDrawer`, `EditConnectionModal`).

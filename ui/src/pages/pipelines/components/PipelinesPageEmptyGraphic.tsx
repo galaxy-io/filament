@@ -19,6 +19,8 @@ import EmptyGraphic, {
   EmptyGraphicGhostTileFallback,
 } from "@/components/EmptyGraphic";
 
+const PIPELINES_PAGE_EMPTY_GRAPHIC_ROW_HEIGHT = 44;
+
 interface PipelinesEmptyRow {
   sinkCount: number;
   nameWidth: number;
@@ -42,19 +44,19 @@ const VeilWrapper = styled.div`
 
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${t.space[8]};
 
   mask-image: linear-gradient(180deg, black 55%, transparent 110%);
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
 `;
 
 const GhostRow = styled.div`
-  height: 44px;
+  height: ${PIPELINES_PAGE_EMPTY_GRAPHIC_ROW_HEIGHT}px;
 
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 12px;
+  gap: ${t.space[12]};
+  padding: 0 ${t.space[12]};
 
   background-color: ${t.color.background.primary};
 
@@ -65,7 +67,7 @@ const GhostRow = styled.div`
 const GhostFlowWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${t.space[8]};
 
   opacity: 0.35;
 `;
@@ -73,7 +75,7 @@ const GhostFlowWrapper = styled.div`
 const GhostSinkCluster = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${t.space[4]};
 `;
 
 interface PipelinesPageEmptyGraphicProps {

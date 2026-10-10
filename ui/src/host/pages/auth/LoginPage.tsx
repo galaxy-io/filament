@@ -9,7 +9,7 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 
 import type { LoginRequest } from "@/gen/auth/v1/session_pb";
 
-import { resolveReturnTo } from "@/host/auth/utils";
+import { getReturnToPath } from "@/host/auth/utils";
 import AuthForm, { AuthFormFooter } from "@/host/layouts/auth/AuthForm";
 
 import { useLoginMutation } from "@/api/queries/auth";
@@ -45,7 +45,7 @@ const LoginPage: FC = () => {
       { loginName: state.loginName, password: state.password },
       {
         onSuccess: () => {
-          void navigate({ href: resolveReturnTo(returnTo), replace: true });
+          void navigate({ href: getReturnToPath(returnTo), replace: true });
         },
         onError: (err) => {
           setState((prev) => ({

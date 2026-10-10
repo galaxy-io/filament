@@ -49,7 +49,6 @@ import {
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
   type UseInfiniteQueryOptions,
-  type UseSuspenseQueryOptions,
 } from "@/api/utils";
 
 import { ACTIVE_RUN_STATUSES } from "@/constants";
@@ -105,24 +104,6 @@ export const useListRunsQuery = ({
   options?: UseQueryOptions<typeof IngestionService.method.listRuns.output, ListRunsResponse>;
 } = {}) => {
   return useQuery(IngestionService.method.listRuns, input, {
-    refetchInterval: (query) => {
-      return getListRunsRefetchInterval(query.state.data?.runs);
-    },
-    ...options,
-  });
-};
-
-export const useSuspenseListRunsQuery = ({
-  input,
-  options = {},
-}: {
-  input?: ListRunsRequest;
-  options?: UseSuspenseQueryOptions<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >;
-} = {}) => {
-  return useSuspenseQuery(IngestionService.method.listRuns, input, {
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
@@ -227,6 +208,15 @@ const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
 };
 
+export const createGetRunQueryKey = (input?: GetRunRequest, transport?: Transport) => {
+  return createConnectQueryKey({
+    schema: IngestionService.method.getRun,
+    input,
+    transport,
+    cardinality: "finite",
+  });
+};
+
 export const useGetRunQuery = ({
   input,
   options = {},
@@ -242,9 +232,12 @@ export const useGetRunQuery = ({
   });
 };
 
-export const createTailRunQueryKey = (input?: TailRunRequest) => {
-  return [IngestionService.method.tailRun.parent.typeName, input?.runId] as const;
-};
+const createTailRunQueryKey = (input: TailRunRequest, transport: Transport) =>
+  [
+    ...createConnectQueryKey({ schema: IngestionService, transport, cardinality: undefined }),
+    IngestionService.method.tailRun.name,
+    input.runId,
+  ] as const;
 
 export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
   const transport = useTransport();
@@ -252,7 +245,7 @@ export const useTailRunsStream = (runIds: RunInfo["id"][]) => {
     queries: runIds.map((runId) => {
       const input = create(TailRunRequestSchema, { runId, shouldReplay: true });
       return {
-        queryKey: createTailRunQueryKey(input),
+        queryKey: createTailRunQueryKey(input, transport),
         queryFn: experimental_streamedQuery({
           streamFn: ({ signal }: { signal: AbortSignal }) =>
             batchIterable(
@@ -315,10 +308,7 @@ export const useSignalRunMutation = (
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createConnectQueryKey({
-          schema: IngestionService.method.getRun,
-          cardinality: undefined,
-        }),
+        queryKey: createGetRunQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(undefined, transport),

@@ -1,5 +1,7 @@
 import { type FC, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
+
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
@@ -10,7 +12,10 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { Role } from "@/gen/auth/v1/members_pb";
-import type { CreateServiceAccountRequest } from "@/gen/auth/v1/service_accounts_pb";
+import {
+  type CreateServiceAccountRequest,
+  CreateServiceAccountRequestSchema,
+} from "@/gen/auth/v1/service_accounts_pb";
 
 import SettingsServiceAccountsCredentials from "@/pages/settings/components/service-accounts/SettingsServiceAccountsCredentials";
 import {
@@ -58,7 +63,11 @@ const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialo
     }
     setState((prev) => ({ ...prev, error: undefined }));
     createAccount(
-      { name, description: `Filament service account: ${name}`, role: state.role },
+      create(CreateServiceAccountRequestSchema, {
+        name,
+        description: `Filament service account: ${name}`,
+        role: state.role,
+      }),
       {
         onSuccess: ({ serviceAccount, clientSecret }) => {
           if (serviceAccount) {

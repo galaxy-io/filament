@@ -21,6 +21,9 @@ import "@xyflow/react/dist/style.css";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_MINIMAP_HEIGHT,
+  PIPELINE_CANVAS_MINIMAP_LEFT,
+  PIPELINE_CANVAS_MINIMAP_WIDTH,
   PIPELINE_CANVAS_OVERLAY_Z_INDEX,
   PIPELINE_CANVAS_PAN_ON_DRAG,
   PIPELINE_CANVAS_SNAP_GRID,
@@ -86,11 +89,11 @@ const FlowWrapper = styled.div`
 
   .react-flow__minimap {
     position: absolute;
-    bottom: 16px;
-    left: 54px;
+    bottom: ${t.space[16]};
+    left: ${PIPELINE_CANVAS_MINIMAP_LEFT}px;
     margin: 0;
-    width: 114px;
-    height: 72px;
+    width: ${PIPELINE_CANVAS_MINIMAP_WIDTH}px;
+    height: ${PIPELINE_CANVAS_MINIMAP_HEIGHT}px;
     background-color: ${t.color.background.base};
     border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
     border-radius: ${t.radius.lg};

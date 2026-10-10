@@ -6,15 +6,13 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useSuspenseQuery,
   useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { ListMembersRequest, ListMembersResponse } from "@/gen/auth/v1/members_pb";
-import type {
-  ListServiceAccountsRequest,
-  ListServiceAccountsResponse,
-} from "@/gen/auth/v1/service_accounts_pb";
+import type { ListServiceAccountsRequest } from "@/gen/auth/v1/service_accounts_pb";
 import { AuthService } from "@/gen/auth/v1/service_pb";
 import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
@@ -74,16 +72,11 @@ export const useListMembersQuery = ({
   return useQuery(AuthService.method.listMembers, {}, options);
 };
 
-export const useListServiceAccountsQuery = ({
-  options = {},
-}: {
-  options?: UseQueryOptions<
-    typeof AuthService.method.listServiceAccounts.output,
-    ListServiceAccountsResponse
-  >;
-} = {}) => {
-  return useQuery(AuthService.method.listServiceAccounts, {}, options);
-};
+export const useSuspenseListMembersQuery = () =>
+  useSuspenseQuery(AuthService.method.listMembers, {});
+
+export const useSuspenseListServiceAccountsQuery = () =>
+  useSuspenseQuery(AuthService.method.listServiceAccounts, {});
 
 export const useLoginMutation = (
   options: UseMutationOptions<

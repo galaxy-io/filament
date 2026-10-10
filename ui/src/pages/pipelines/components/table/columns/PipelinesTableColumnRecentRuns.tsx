@@ -11,6 +11,7 @@ import Grid, { GridAlignItems } from "@galaxy-io/dls/layout/Grid";
 import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
@@ -42,7 +43,7 @@ interface PipelinesTableColumnRecentRunsProps {
 
 const PipelinesTableRecentRunsWrapper = styled.div`
   display: flex;
-  gap: 4px;
+  gap: ${t.space[4]};
 
   & > * {
     transition: opacity 100ms ease;
@@ -114,7 +115,7 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
 
   const handleRunClick = (event: MouseEvent, runId: RunInfo["id"]) => {
     event.stopPropagation();
-    navigate({
+    void navigate({
       to: FilamentPath.PIPELINE_HISTORY,
       params: { id: pipeline.id },
       search: { runId: [runId] },

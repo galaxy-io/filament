@@ -23,7 +23,7 @@ const SLOTS = Array.from({ length: SLOT_COUNT }, (_, index) => index);
 const SlotsWrapper = styled.div`
   display: grid;
   grid-template-columns: repeat(${SLOT_COLUMN_COUNT}, ${SLOT_SIZE}px);
-  gap: 12px;
+  gap: ${t.space[12]};
 
   mask-image: linear-gradient(180deg, black 55%, transparent 110%);
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
@@ -38,7 +38,7 @@ const Slot = styled.div<{ $isLive: boolean; $isFilled: boolean }>`
   justify-content: center;
   flex-shrink: 0;
 
-  border: ${({ $isFilled }) => ($isFilled ? `${HAIRLINE_WIDTH} solid` : "1px dashed")}
+  border: ${({ $isFilled }) => ($isFilled ? `${HAIRLINE_WIDTH} solid` : `${HAIRLINE_WIDTH} dashed`)}
     ${({ $isLive }) => ($isLive ? t.color.border.secondary : t.color.border.primary)};
   border-radius: ${t.radius.md};
 

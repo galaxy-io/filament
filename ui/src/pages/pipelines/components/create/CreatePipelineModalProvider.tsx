@@ -36,7 +36,6 @@ import {
   type UpdateNotifierAction,
 } from "@/pages/pipelines/components/create/actions";
 import {
-  CREATE_PIPELINE_MODAL_DEFAULT_CRON,
   CREATE_PIPELINE_MODAL_STEP_ORDER,
   CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP,
 } from "@/pages/pipelines/components/create/constants";
@@ -45,44 +44,15 @@ import createPipelineModalReducer from "@/pages/pipelines/components/create/redu
 import { getDefaultPipelineName } from "@/pages/pipelines/components/create/rows";
 import {
   type CreatePipelineModalContextValue,
-  type CreatePipelineModalState,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import { createInitialCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
 import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
-import { PIPELINE_SCHEDULE_DEFAULT_STATE } from "@/pages/pipelines/components/schedule/constants";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
-import {
-  DEFAULT_WORKER_CONFIGURATION_TEXT,
-  parseWorkerConfiguration,
-} from "@/pages/pipelines/components/worker/utils";
+import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { getSupportedExecutionModes } from "@/pages/pipelines/utils";
 
 import { getNameError, isNameValid } from "@/utils/validation";
-
-const DEFAULT_STATE: CreatePipelineModalState = {
-  executionMode: ExecutionMode.BOUNDED,
-  manualResources: [],
-  step: CreatePipelineModalStep.CONNECTIONS,
-  activeSinkId: "",
-  sourceConnection: null,
-  sinkConnections: [],
-  resourceSelection: {},
-  resourceReadModes: {},
-  resourceCursors: {},
-  sinkWriteModes: {},
-  nodeConfigs: {},
-  name: "",
-  isNameTouched: false,
-  description: "",
-  schedule: {
-    ...PIPELINE_SCHEDULE_DEFAULT_STATE,
-    isEnabled: true,
-    cron: CREATE_PIPELINE_MODAL_DEFAULT_CRON,
-  },
-  notifiers: [],
-  workerConfiguration: DEFAULT_WORKER_CONFIGURATION_TEXT,
-  isSubmitting: false,
-};
 
 const CreatePipelineModalStateContext = createContext<CreatePipelineModalContextValue | null>(null);
 CreatePipelineModalStateContext.displayName = "CreatePipelineModalStateContext";
@@ -167,7 +137,11 @@ const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProvi
   isOpen,
   children,
 }) => {
-  const [state, dispatch] = useReducer(createPipelineModalReducer, DEFAULT_STATE);
+  const [state, dispatch] = useReducer(
+    createPipelineModalReducer,
+    undefined,
+    createInitialCreatePipelineModalState,
+  );
 
   const {
     rowsBySink,

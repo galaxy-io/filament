@@ -1,5 +1,6 @@
 import { type FC, useCallback, useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { PlusIcon, TrashIcon, UserGearIcon } from "@phosphor-icons/react";
 
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
@@ -16,7 +17,12 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { type Member, Role } from "@/gen/auth/v1/members_pb";
+import {
+  type Member,
+  RemoveMemberRequestSchema,
+  Role,
+  SetMemberRoleRequestSchema,
+} from "@/gen/auth/v1/members_pb";
 import type { GetSessionResponse } from "@/gen/auth/v1/session_pb";
 
 import SettingsTeamInviteModal from "@/pages/settings/components/team/SettingsTeamInviteModal";
@@ -35,14 +41,14 @@ import { useFilamentSearchUpdate, useTeamSearch } from "@/module/hooks";
 import type { TeamSearch } from "@/module/schemas";
 
 import {
-  useCanManageTeam,
   useGetSessionQuery,
-  useListMembersQuery,
   useRemoveMemberMutation,
   useSetMemberRoleMutation,
+  useSuspenseListMembersQuery,
 } from "@/api/queries/auth";
 
 import { useConfirm } from "@/hooks/useConfirm";
+import { useOverlaySession } from "@/hooks/useOverlaySession";
 
 import { getErrorMessage } from "@/utils/errors";
 import { mapOptionIdToEnum } from "@/utils/select";
@@ -108,16 +114,12 @@ const TeamPage: FC = () => {
   const { view, inviteToken } = useTeamSearch();
 
   const { data: session } = useGetSessionQuery();
-  const membersQuery = useListMembersQuery();
-  const canManageTeam = useCanManageTeam();
+  const { data: membersData } = useSuspenseListMembersQuery();
+  const canManageTeam = membersData.canManage;
   const { mutate: setMemberRole, isPending: isSettingRole } = useSetMemberRoleMutation();
   const { mutate: removeMember, isPending: isRemovingMember } = useRemoveMemberMutation();
 
   const isMutatingMembers = isSettingRole || isRemovingMember;
-  const displayError = membersQuery.error
-    ? getErrorMessage(membersQuery.error, "Could not load members")
-    : undefined;
-
   const memberConfirm = useConfirm<Member>({
     entityLabel: "Team member",
     entityName: formatMemberName,
@@ -129,48 +131,50 @@ const TeamPage: FC = () => {
       errorFallback: "Could not remove team member",
     },
     onConfirm: (member, { onSuccess, onError }) =>
-      removeMember({ userId: member.userId }, { onSuccess, onError }),
+      removeMember(create(RemoveMemberRequestSchema, { userId: member.userId }), {
+        onSuccess,
+        onError,
+      }),
   });
 
   const isInviteOpen =
-    canManageTeam === true &&
+    canManageTeam &&
     (view === SettingsTeamView.INVITE || (view === SettingsTeamView.LINK && !!inviteToken));
+
+  const inviteSession = useOverlaySession(isInviteOpen);
 
   const handleViewChange = (nextView: SettingsTeamView | undefined, token?: string) => {
     void updateSearch((prev) => ({ ...prev, view: nextView, inviteToken: token }));
   };
 
   const sortedMembers = useMemo(() => {
-    const members = membersQuery.data?.members ?? [];
+    const members = membersData.members;
     return [...members].sort((a, b) => {
       if (a.userId === session?.userId) return -1;
       if (b.userId === session?.userId) return 1;
       return formatMemberName(a).localeCompare(formatMemberName(b));
     });
-  }, [membersQuery.data?.members, session?.userId]);
+  }, [membersData.members, session?.userId]);
 
   const handleRoleChange = useCallback(
     (member: Member, nextRole: Role) => {
       if (nextRole === member.role || nextRole === Role.UNSPECIFIED) return;
-      setMemberRole(
-        { userId: member.userId, role: nextRole },
-        {
-          onSuccess: () => {
-            toast({
-              header: "Role updated",
-              description: `${formatMemberName(member)}'s role is now ${SETTINGS_ROLE_TO_LABEL_MAP[nextRole]}.`,
-              variant: ToastVariant.SUCCESS,
-            });
-          },
-          onError: (err) => {
-            toast({
-              header: "Role change failed",
-              description: getErrorMessage(err, "Could not change role"),
-              variant: ToastVariant.ERROR,
-            });
-          },
+      setMemberRole(create(SetMemberRoleRequestSchema, { userId: member.userId, role: nextRole }), {
+        onSuccess: () => {
+          toast({
+            header: "Role updated",
+            description: `${formatMemberName(member)}'s role is now ${SETTINGS_ROLE_TO_LABEL_MAP[nextRole]}.`,
+            variant: ToastVariant.SUCCESS,
+          });
         },
-      );
+        onError: (err) => {
+          toast({
+            header: "Role change failed",
+            description: getErrorMessage(err, "Could not change role"),
+            variant: ToastVariant.ERROR,
+          });
+        },
+      });
     },
     [setMemberRole, toast],
   );
@@ -197,8 +201,6 @@ const TeamPage: FC = () => {
             columns={columns}
             data={sortedMembers}
             getRowId={(row) => row.userId}
-            isLoading={membersQuery.isLoading}
-            error={displayError}
             rowActions={(row) =>
               canManageTeam && row.userId !== session?.userId ? (
                 <>
@@ -237,14 +239,14 @@ const TeamPage: FC = () => {
         label="Remove member"
         isDestructive
       />
-      {isInviteOpen && view && (
-        <SettingsTeamInviteModal
-          view={view}
-          inviteToken={inviteToken}
-          onViewChange={handleViewChange}
-          onClose={() => handleViewChange(undefined)}
-        />
-      )}
+      <SettingsTeamInviteModal
+        key={inviteSession}
+        isOpen={isInviteOpen}
+        view={view}
+        inviteToken={inviteToken}
+        onViewChange={handleViewChange}
+        onClose={() => handleViewChange(undefined)}
+      />
     </>
   );
 };

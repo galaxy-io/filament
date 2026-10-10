@@ -154,7 +154,7 @@ DLS charts come from `@galaxy-io/dls/charts/*` and use the DLS's own d3 dependen
 - **Size with the parent.** Charts take no `width`, `height` or `aspectRatio`. They fill a `Flex` with `fillWidth` and a fixed height, `OBSERVABILITY_TIMESERIES_CHART_HEIGHT` and `OBSERVABILITY_RUNS_CHART_HEIGHT` (both 240).
 - **Data shapes.** Line and area charts take `series: Record<key, { label, color }>` plus one datum per key `{ metric: key, showArea, points: [{ x, y }] }`. A bar chart takes `series: ChartSeriesStyles<Metric>` plus `groups: [{ label, bars: [{ metric, components: [{ key, label, value, color }] }] }]`, and several components on one bar stack. The bar metric is a string literal type in `runs/types.ts` (`type ObservabilityRunMetric = "runs"`).
 - **Colours.** A view config pins one `ChartPalette` slot (Records `PURPLE`, Volume `TEAL`, CPU `ORANGE`, Memory `PINK`). A pivot by pipeline cycles `OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[index % length]`. Anything keyed by run status reads `PIPELINE_RUN_STATUS_TO_HUE_MAP`, the same `RoleColor` map that colours `PipelineRunStatusSwatch`, so swatches match everywhere.
-- **Hue maps are typed `Record<RunStatus, RoleColor | undefined>`.** `undefined` means no colour (`UNSPECIFIED`, `CANCELED`). Status series and bar components without a hue are dropped, never drawn with a fallback.
+- **Hue maps are typed `Record<RunStatus, RoleColor | undefined>`.** `undefined` means no colour (`UNSPECIFIED` only, cancelled runs are `violet`). Status series and bar components without a hue are dropped, never drawn with a fallback.
 - **Run statuses use square swatches.** Pass `swatch={ChartSwatch.SQUARE}`.
 - **Formatters.** `valueFormatter` receives a `number` and comes from the view config (`formatNumber(value, { precision: 0 })`, `formatBytes`, `formatDuration`). The x key is the bucket start in millis as a string (`formatBucketKey`), and `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].formatBucketLabel` turns it into `HH:00` or `MM/DD`.
 - **Filtering.** `isFilterable` lets the legend toggle series. When a click on a bar should filter something else, control `selection` and `onSelectionChange` and write the result to the URL through `mapChartSelectionToRunsFilter(next[next.length - 1])`, which yields `runsBucket` and `runsStatus`.
@@ -203,7 +203,7 @@ export const OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP: Record<
 };
 ```
 
-- `ObservabilityPivotSelect` is a clearable `SelectInput` over `METRIC_DIMENSION_PIVOT_OPTIONS`. Clearing it writes `MetricDimension.UNSPECIFIED`.
+- `ObservabilityPivotSelect` is a clearable `SelectInput` over `OBSERVABILITY_TIMESERIES_PIVOT_OPTIONS`. Clearing it writes `MetricDimension.UNSPECIFIED`.
 - `ObservabilityTimeseriesChart` builds its request with `createObservabilityTimeseriesInput(timeframe, { metrics, groupBy })` in a `useMemo`, and labels a pipeline pivot from `useListPipelinesQuery({ input: OBSERVABILITY_PIPELINES_INPUT })`.
 
 ## KPI tiles

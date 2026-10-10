@@ -95,7 +95,7 @@ export const pipelinesRouteOptions = createFilamentRouteOptions({
 
 A new page means a new `*RouteOptions`, a host file in `host/routes/`, a route in `fixtures/host/router.tsx`, and an `./pages/<Page>` entry in `package.json` `exports` if hosts may mount it.
 
-There are **no loaders**. Pages fetch with suspense hooks and the route's pending component covers the first paint. If you ever add one, `queryClient.ensureQueryData` returns cached data regardless of staleness, so a loader does not refetch after a mutation unless you pass `revalidateIfStale: true`.
+There are **no loaders for page data**. The standalone's auth gates in `beforeLoad` are the only `ensureQueryData` calls. Pages fetch with suspense hooks and the route's pending component covers the first paint. If you ever add one, `queryClient.ensureQueryData` returns cached data regardless of staleness, so a loader does not refetch after a mutation unless you pass `revalidateIfStale: true`.
 
 ## Search params
 
@@ -211,6 +211,7 @@ Rules that keep this working.
 - **Add an overlay as a `Flow` member** (`module/types.ts`) plus its params in `filamentLayoutSearchSchema`, render it in `FilamentLayout`, open it with `useFilamentFlowOpen`.
 - **Overlays stay mounted and take their record as props.** Only `FilamentLayout` reads the params. DLS Drawer and Modal keep their last children through the exit animation, so content that never reads the URL never flashes.
 - **Each open is a new session.** `useOverlaySession(isOpen)` returns a key that changes on every open. Key the overlay's provider with it so state resets per open while the exit still animates.
+- **An overlay that picks between two `Modal`s from a URL record** holds the record through the exit with `useOverlayRecord(isOpen, value)`, because closing strips the record in the same navigation.
 - **Closing strips only the keys the overlay owns**, by rest-destructuring, with `replace: true`.
 - **One overlay at a time.** Opening a flow writes `connectionId: undefined`.
 - Overlays use plain queries with `isLoading` and `isError` branches, never suspense. See [data.md](./data.md).

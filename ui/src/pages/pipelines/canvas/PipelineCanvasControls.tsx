@@ -7,6 +7,7 @@ import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ButtonGroup from "@galaxy-io/dls/buttons/ButtonGroup";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import {
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
@@ -28,8 +29,8 @@ import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 
 const ControlsWrapper = styled.div`
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: ${t.space[16]};
+  left: ${t.space[16]};
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 `;
 

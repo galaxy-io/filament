@@ -160,7 +160,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   );
 
   const handleRowClick = (row: Pipeline) => {
-    navigate({
+    void navigate({
       to: FilamentPath.PIPELINE,
       params: { id: row.id },
     });

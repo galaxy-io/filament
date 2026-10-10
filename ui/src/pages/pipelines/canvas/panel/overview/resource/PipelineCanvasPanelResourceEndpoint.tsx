@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { styled } from "@linaria/react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -19,7 +20,7 @@ const EndpointButton = styled.button`
 
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${t.space[8]};
 
   background-color: transparent;
   border: none;

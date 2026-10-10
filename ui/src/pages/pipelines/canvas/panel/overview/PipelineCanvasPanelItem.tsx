@@ -5,11 +5,11 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 const PipelineCanvasPanelItem = styled.button`
   width: 100%;
-  padding: 12px;
+  padding: ${t.space[12]};
 
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${t.space[8]};
 
   background-color: transparent;
   border: none;

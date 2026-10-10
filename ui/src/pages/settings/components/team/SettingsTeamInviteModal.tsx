@@ -1,5 +1,6 @@
 import { type FC, useState } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { match } from "ts-pattern";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -13,13 +14,17 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import { type InviteMemberRequest, Role } from "@/gen/auth/v1/members_pb";
+import {
+  type InviteMemberRequest,
+  InviteMemberRequestSchema,
+  Role,
+} from "@/gen/auth/v1/members_pb";
 
 import { SETTINGS_INVITE_DEFAULT_ROLE, SETTINGS_ROLE_OPTIONS } from "@/pages/settings/constants";
 import { SettingsTeamView } from "@/pages/settings/types";
 import { createInviteUrl, encodeInviteToken } from "@/pages/settings/utils";
 
-import { useCanManageTeam, useInviteMemberMutation } from "@/api/queries/auth";
+import { useInviteMemberMutation } from "@/api/queries/auth";
 
 import { getErrorMessage } from "@/utils/errors";
 import { mapOptionIdToEnum } from "@/utils/select";
@@ -41,13 +46,15 @@ const DEFAULT_STATE: SettingsTeamInviteModalState = {
 };
 
 interface SettingsTeamInviteModalProps {
-  view: SettingsTeamView;
+  isOpen: boolean;
+  view: SettingsTeamView | undefined;
   inviteToken?: string;
   onViewChange: (view: SettingsTeamView, inviteToken?: string) => void;
   onClose: () => void;
 }
 
 const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
+  isOpen,
   view,
   inviteToken,
   onViewChange,
@@ -55,32 +62,23 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
 }) => {
   const [state, setState] = useState<SettingsTeamInviteModalState>(DEFAULT_STATE);
 
-  const canManage = useCanManageTeam();
   const { mutate: inviteMember, isPending: isInviting } = useInviteMemberMutation();
 
   const inviteLink = inviteToken ? createInviteUrl(inviteToken) : undefined;
 
   const handleSubmit = () => {
-    if (canManage !== true) {
-      setState((prev) => ({
-        ...prev,
-        error:
-          canManage === false ? "Only admins can invite teammates" : "Team permissions are loading",
-      }));
-      return;
-    }
     if (state.email === "" || state.givenName === "" || state.familyName === "") {
       setState((prev) => ({ ...prev, error: "All fields are required" }));
       return;
     }
     setState((prev) => ({ ...prev, error: undefined }));
     inviteMember(
-      {
+      create(InviteMemberRequestSchema, {
         email: state.email,
         givenName: state.givenName,
         familyName: state.familyName,
         role: state.role,
-      },
+      }),
       {
         onSuccess: ({ userId, code }) => {
           onViewChange(SettingsTeamView.LINK, encodeInviteToken({ userId, code }));
@@ -100,58 +98,46 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
     onViewChange(SettingsTeamView.INVITE);
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen && !isInviting) onClose();
+  const handleOpenChange = (nextIsOpen: boolean) => {
+    if (!nextIsOpen && !isInviting) onClose();
   };
 
-  return match(view)
-    .with(SettingsTeamView.LINK, () => (
-      <Modal
-        header="Invite created"
-        isOpen
-        onOpenChange={handleOpenChange}
-        footer={
-          <>
-            <Button
-              label="Add another teammate"
-              variant={ButtonVariant.SECONDARY}
-              onClick={handleAddAnother}
-            />
-            <Button label="Done" onClick={onClose} />
-          </>
-        }
-      >
+  const content = match(view)
+    .with(SettingsTeamView.LINK, () => ({
+      header: "Invite created",
+      footer: (
+        <>
+          <Button
+            label="Add another teammate"
+            variant={ButtonVariant.SECONDARY}
+            onClick={handleAddAnother}
+          />
+          <Button label="Done" onClick={onClose} />
+        </>
+      ),
+      body: (
         <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
           <Text isProse variant={TextVariant.SECONDARY}>
             Share this link with your new teammate
           </Text>
           {inviteLink && <CopyInput value={inviteLink} fillWidth family={FontFamily.MONO} />}
         </Flex>
-      </Modal>
-    ))
-    .otherwise(() => (
-      <Modal
-        header="Invite team"
-        isOpen
-        isDismissable={!isInviting}
-        onOpenChange={handleOpenChange}
-        footer={
-          <>
-            <Button
-              label="Cancel"
-              variant={ButtonVariant.SECONDARY}
-              onClick={onClose}
-              isDisabled={isInviting}
-            />
-            <Button
-              label="Create invite"
-              onClick={handleSubmit}
-              isLoading={isInviting}
-              isDisabled={canManage !== true}
-            />
-          </>
-        }
-      >
+      ),
+    }))
+    .otherwise(() => ({
+      header: "Invite team",
+      footer: (
+        <>
+          <Button
+            label="Cancel"
+            variant={ButtonVariant.SECONDARY}
+            onClick={onClose}
+            isDisabled={isInviting}
+          />
+          <Button label="Create invite" onClick={handleSubmit} isLoading={isInviting} />
+        </>
+      ),
+      body: (
         <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
           <Text isProse variant={TextVariant.SECONDARY}>
             Invite a new member to your organization
@@ -195,8 +181,20 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
             </Box>
           )}
         </Flex>
-      </Modal>
-    ));
+      ),
+    }));
+
+  return (
+    <Modal
+      header={content.header}
+      isOpen={isOpen}
+      isDismissable={!isInviting}
+      onOpenChange={handleOpenChange}
+      footer={content.footer}
+    >
+      {content.body}
+    </Modal>
+  );
 };
 
 export default SettingsTeamInviteModal;

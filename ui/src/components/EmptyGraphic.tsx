@@ -3,6 +3,9 @@ import { styled } from "@linaria/react";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
+const EMPTY_GRAPHIC_GHOST_TILE_SIZE = 24;
+const EMPTY_GRAPHIC_GHOST_BAR_HEIGHT = 12;
+
 const EMPTY_GRAPHIC_WIDTH = 560;
 const EMPTY_GRAPHIC_HEIGHT = 200;
 
@@ -21,8 +24,8 @@ export const EmptyGraphicGhostTile = styled.div`
 `;
 
 export const EmptyGraphicGhostTileFallback = styled.div`
-  width: 24px;
-  height: 24px;
+  width: ${EMPTY_GRAPHIC_GHOST_TILE_SIZE}px;
+  height: ${EMPTY_GRAPHIC_GHOST_TILE_SIZE}px;
 
   background-color: ${t.color.background.secondary};
 
@@ -32,7 +35,7 @@ export const EmptyGraphicGhostTileFallback = styled.div`
 
 export const EmptyGraphicGhostBar = styled.div<{ $width: number }>`
   width: ${({ $width }) => $width}px;
-  height: 12px;
+  height: ${EMPTY_GRAPHIC_GHOST_BAR_HEIGHT}px;
 
   background-color: ${t.color.background.secondary};
 

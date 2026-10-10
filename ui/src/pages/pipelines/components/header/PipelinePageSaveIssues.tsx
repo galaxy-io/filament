@@ -22,7 +22,7 @@ const PipelinePageSaveIssueRow = styled.button`
   ${FOCUS_RING}
   width: 100%;
 
-  padding: 8px;
+  padding: ${t.space[8]};
 
   display: flex;
   align-items: center;

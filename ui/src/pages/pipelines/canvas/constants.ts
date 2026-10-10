@@ -101,3 +101,7 @@ export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, Phosph
 };
 
 export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 16;
+
+export const PIPELINE_CANVAS_MINIMAP_LEFT = 54;
+export const PIPELINE_CANVAS_MINIMAP_WIDTH = 114;
+export const PIPELINE_CANVAS_MINIMAP_HEIGHT = 72;

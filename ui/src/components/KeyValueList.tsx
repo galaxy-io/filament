@@ -8,7 +8,7 @@ import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 const ListItem = styled.div`
-  padding: 12px;
+  padding: ${t.space[12]};
 
   &:not(:last-child) {
     border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};

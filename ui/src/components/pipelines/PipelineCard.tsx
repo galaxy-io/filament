@@ -28,12 +28,12 @@ const CardWrapper = styled.div`
   width: 100%;
   height: ${PIPELINE_CARD_HEIGHT}px;
 
-  padding: 0 12px;
+  padding: 0 ${t.space[12]};
 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: ${t.space[12]};
 
   border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
 

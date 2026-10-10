@@ -35,7 +35,7 @@ const ChipSlot = styled.span<{ $isRemoved: boolean }>`
   display: inline-flex;
   align-items: center;
   height: ${TRANSFORM_ACTION}px;
-  padding: 0 2px;
+  padding: 0 ${t.space[2]};
   vertical-align: top;
 
   & span {

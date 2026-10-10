@@ -71,7 +71,7 @@ rg -n 'class\*="gx-' --glob '!gen/**' .
 rg -n 'as never|as unknown as|@ts-ignore' --glob '!gen/**' --glob '!module/hooks.ts' .
 rg -n '(^|\s)(//|/\*|\{/\*)' -g '*.{ts,tsx,css}' --glob '!gen/**' --glob '!**/routeTree.gen.ts' . | rg -v 'biome-ignore|https?://|"[^"]*//[^"]*"|`[^`]*//[^`]*`'
 rg -n '^const [A-Z][a-z]\w* = \(' -g '*.tsx' --glob '!gen/**' .
-rg -n '^const [A-Z]\w* = memo\(|^(export )?(default )?function [A-Z]|React\.FC' -g '*.tsx' --glob '!gen/**' .
+rg -n '^const [A-Z]\w* = memo\(|^(export )?(default )?function [A-Z]|React\.FC' -g '*.{ts,tsx}' --glob '!gen/**' .
 rg -n '(^|\s)(//|/\*)' ../vite.config.ts ../vite.lib.config.ts ../tsconfig*.json ../scripts | rg -v 'biome-ignore|https?://'
 rg -n '(^|\s)(//|/\*)' ../fixtures | rg -v 'biome-ignore|@ts-expect-error|https?://'
 rg -n 'BigInt\.prototype|toJSON' --glob '!gen/**' .
@@ -83,9 +83,10 @@ for f in connections pipelines observability settings; do rg -n --pcre2 "from \"
 rg -n 'from "@/pages/' api components layouts hooks utils
 rg -n 'from "@/pages/[^"]*Page"' module/routes.tsx | rg -v 'PipelineNotFoundPage'
 rg -n 'use(Layout)?Effect\(' -g '*.tsx' --glob '!gen/**' .
+rg -n '^\s+[a-z-]+: [^$]*\b[0-9]+px' -g '*.tsx' --glob '!gen/**' .
 ```
 
-In order, they catch DLS internal selectors, escape-hatch casts, comments, components not typed `FC`, `function` components and `React.FC`, comments in config, scripts and the fixture, the old BigInt patch, global CSS outside the host, router hooks outside `module/`, absolute paths and route ids in library code, path strings outside `FilamentPath`, cross-feature imports, shared code importing a page, the route module importing pages, and effects in components.
+In order, they catch DLS internal selectors, escape-hatch casts, comments, components not typed `FC`, `function` components and `React.FC`, comments in config, scripts and the fixture, the old BigInt patch, global CSS outside the host, router hooks outside `module/`, absolute paths and route ids in library code, path strings outside `FilamentPath`, cross-feature imports, shared code importing a page, the route module importing pages, effects in components, and raw pixel values in templates.
 
 ## 6. Verify in the browser
 

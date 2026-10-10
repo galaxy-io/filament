@@ -9,7 +9,7 @@ import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/obs
 export const OBSERVABILITY_TIMESERIES_CHART_HEIGHT = 240;
 export const OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH = 150;
 
-export const METRIC_DIMENSION_PIVOT_OPTIONS: SelectOption[] = [
+export const OBSERVABILITY_TIMESERIES_PIVOT_OPTIONS: SelectOption[] = [
   {
     id: String(MetricDimension.PIPELINE_ID),
     label: "Pipeline",

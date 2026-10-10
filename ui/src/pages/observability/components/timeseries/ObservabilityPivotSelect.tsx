@@ -9,7 +9,7 @@ import Box from "@galaxy-io/dls/layout/Box";
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import {
-  METRIC_DIMENSION_PIVOT_OPTIONS,
+  OBSERVABILITY_TIMESERIES_PIVOT_OPTIONS,
   OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH,
 } from "@/pages/observability/components/timeseries/constants";
 
@@ -29,7 +29,7 @@ const ObservabilityPivotSelect: FC<ObservabilityPivotSelectProps> = ({ value, on
     <Box width={OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH}>
       <SelectInput
         fillWidth
-        options={METRIC_DIMENSION_PIVOT_OPTIONS}
+        options={OBSERVABILITY_TIMESERIES_PIVOT_OPTIONS}
         value={value === undefined ? null : String(value)}
         size={SelectInputSize.SMALL}
         variant={SelectInputVariant.PRIMARY}

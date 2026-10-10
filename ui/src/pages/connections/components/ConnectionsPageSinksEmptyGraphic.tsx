@@ -7,6 +7,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { Radius } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
@@ -40,7 +41,7 @@ const CardsWrapper = styled.div`
 
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: ${t.space[12]};
 
   mask-image: linear-gradient(180deg, black 55%, transparent 110%);
   -webkit-mask-image: linear-gradient(180deg, black 55%, transparent 110%);
@@ -54,7 +55,7 @@ const LiveCard = styled.div`
   align-items: center;
   justify-content: center;
 
-  border: 1px dashed ${t.color.border.secondary};
+  border: ${HAIRLINE_WIDTH} dashed ${t.color.border.secondary};
   border-radius: ${t.radius.lg};
 `;
 

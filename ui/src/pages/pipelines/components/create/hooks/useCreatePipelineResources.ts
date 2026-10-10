@@ -66,11 +66,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
   );
   const resourceNames = useMemo(() => resources.map((resource) => resource.name), [resources]);
 
-  const {
-    data: columns,
-    isPending: isPendingColumns,
-    isError: isErrorColumns,
-  } = useGetResourceColumnsQuery({
+  const { data: columns, isLoading: isLoadingResourceColumns } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: {
       ...PROBE_QUERY_OPTIONS,
@@ -172,7 +168,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
   const isLoading =
     isLoadingResources ||
     isLoadingValidation ||
-    (hasReadLevers && resourceNames.length > 0 && isPendingColumns && !isErrorColumns);
+    (hasReadLevers && resourceNames.length > 0 && isLoadingResourceColumns);
 
   const rowsBySink = useMemo(
     () =>

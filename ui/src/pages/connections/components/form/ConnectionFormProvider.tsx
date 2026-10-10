@@ -18,22 +18,8 @@ import {
   type SetValidationErrorsAction,
 } from "@/pages/connections/components/form/actions";
 import connectionFormReducer from "@/pages/connections/components/form/reducer";
-import {
-  ConnectionFormPhase,
-  type ConnectionFormState,
-} from "@/pages/connections/components/form/types";
-
-export const createInitialState = (
-  initialState: Pick<ConnectionFormState, "name" | "config">,
-): ConnectionFormState => {
-  return {
-    name: initialState.name,
-    config: initialState.config,
-    phase: ConnectionFormPhase.IDLE,
-    validationErrors: [],
-    shouldShowErrors: false,
-  };
-};
+import type { ConnectionFormState } from "@/pages/connections/components/form/types";
+import { createInitialConnectionFormState } from "@/pages/connections/components/form/utils";
 
 const ConnectionFormStateContext = createContext<ConnectionFormState | null>(null);
 ConnectionFormStateContext.displayName = "ConnectionFormStateContext";
@@ -85,7 +71,11 @@ const ConnectionFormProvider: FC<PropsWithChildren<ConnectionFormProviderProps>>
   children,
   initialState,
 }) => {
-  const [state, dispatch] = useReducer(connectionFormReducer, initialState, createInitialState);
+  const [state, dispatch] = useReducer(
+    connectionFormReducer,
+    initialState,
+    createInitialConnectionFormState,
+  );
 
   return (
     <ConnectionFormDispatchContext.Provider value={dispatch}>

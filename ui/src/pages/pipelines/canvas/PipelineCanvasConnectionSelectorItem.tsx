@@ -15,8 +15,8 @@ import { ConnectorTileSize } from "@/components/connections/types";
 const ItemWrapper = styled.button<{ $isDisabled?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: ${t.space[8]};
+  padding: ${t.space[8]};
   width: 100%;
 
   background-color: transparent;

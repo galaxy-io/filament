@@ -37,7 +37,7 @@ const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectio
     e.preventDefault();
     e.stopPropagation();
     if (connectionData?.connection) {
-      updateSearch((prev) => ({
+      void updateSearch((prev) => ({
         ...prev,
         connectionId: connectionData?.connection?.id,
       }));

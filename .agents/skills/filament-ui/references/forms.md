@@ -255,7 +255,7 @@ Rules.
 - **Two contexts**, state and dispatch, dispatch outermost. Both are `createContext<T | null>(null)` with a `displayName`, and the accessor hooks throw outside the provider.
 - **Dispatch stays private.** The folder exports `useXState` and `useXActions`, the latter a memoised object of semantic functions. Consumers call `removeNode(id)` and never build `{ type, payload }` or import the action enum. All three providers follow this. `useCreatePipelineModalState` and `useCreatePipelineModalActions` for the wizard, `useConnectionFormState` and `useConnectionFormActions` for the connection form.
 - **The reducer is the sole writer and the sole enforcer of invariants.** Selecting a new source clears the resource selection in `selectSource`, and an edit resets the phase in `resetPhaseOnEdit`, not in a component. Cases are private `function` helpers behind a `switch` with no `default`, so the union keeps it exhaustive.
-- **Initial state.** A lazy `useReducer` initialiser seeds it. The canvas has `createInitialPipelineCanvasState(graph)` in `utils.ts`. The connection form's `createInitialState(initialState)` lives in `ConnectionFormProvider.tsx`. The wizard starts from a module `DEFAULT_STATE` in `CreatePipelineModalProvider.tsx`.
+- **Initial state.** A lazy `useReducer` initialiser seeds it. The canvas has `createInitialPipelineCanvasState(graph)` in `utils.ts`. The connection form has `createInitialConnectionFormState(initialState)` in `form/utils.ts`, and the wizard has `createInitialCreatePipelineModalState()` in `create/utils.ts`.
 - **Re-seed on an identity change during render**, never in an effect. The canvas compares `previousGraphKey` to `graphKey` and dispatches `LOAD_GRAPH`. Everything else resets by remounting with `key`.
 - **Derived state is a `useMemo` in the provider**, merged into the context value. The wizard's `isNextDisabled` is a `match(state.step)` over `CreatePipelineModalStep`, and `hints` lists the concrete blockers (server messages first, prefixed `[Sink: name]` when there are several sinks, then `CREATE_PIPELINE_MODAL_STEP_TO_HINT_MAP[state.step]`).
 - **Server-backed derived data lives in a hook beside the provider.** `create/hooks/useCreatePipelineResources.ts` takes the reducer state and `isOpen`, runs discover, columns and validate with `PROBE_QUERY_OPTIONS`, and uses `placeholderData: keepPreviousData` where a flash would hurt. Pure row builders go in `rows.ts`.
@@ -307,7 +307,8 @@ const CreatePipelineModal: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) 
 - A closed overlay fetches nothing. `CreatePipelineModalProvider` passes `isOpen` to `useCreatePipelineResources`, which folds it into every `enabled`.
 - `ConnectionDrawer` needs no session key because it holds no form state. It fetches by `connectionId` with `enabled: !!connectionId, retry: false`.
 - Overlays close with `replace: true`.
-- Page-local dialogs (`SettingsTeamInviteModal`, `SettingsServiceAccountsCreateDialog`) are mounted conditionally with `isOpen` fixed to `true`, so unmounting resets them.
+- Page-local dialogs follow the same contract. `SettingsTeamInviteModal` and `SettingsServiceAccountsCreateDialog` stay mounted with `isOpen`, and their page keys them with `useOverlaySession(isOpen)` so each open starts fresh.
+- An overlay that swaps between two `Modal`s on a URL record (the create-connection selector and configure steps) holds that record through the exit with `useOverlayRecord(isOpen, value)` from `hooks/useOverlayRecord.ts`. It takes primitives only, keeps the last value while closed, and follows the URL while open. A single `Modal` needs nothing, because the DLS keeps its last children through the exit.
 
 ## Effects
 
