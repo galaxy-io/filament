@@ -179,7 +179,7 @@ Never write an absolute path (`to: "/pipelines"`) or a route id (`from: "/_app/â
 ## Pending, error and not found
 
 - A page that suspends shows `FilamentPendingComponent` (DLS `PendingLayout`) from its route options.
-- A render or query error shows `FilamentErrorComponent`, a red `ErrorLayout` with `BugIcon`, "Looks like there was a glitch in the matrix", and `detail` in debug builds.
+- A render or query error shows `FilamentErrorComponent`, a red `ErrorLayout` with `BugIcon`, "Something went wrong", a Try again button, and `detail` in debug builds.
 - A pipeline that does not exist shows `PipelineNotFoundPage`, through `notFoundComponent` and through `PipelineErrorComponent` on `Code.NotFound`.
 - An unknown path under the mount hits the `$` splat and shows `NotFoundPage`, a red `ErrorLayout` with RouterLink buttons.
 - The host's query client should skip retries for `NotFound`, `PermissionDenied`, `Unauthenticated`, `InvalidArgument` and `Unimplemented`. Otherwise a missing pipeline retries for about 7s before its not-found page. The standalone's `host/api/queryClient.ts` does this.

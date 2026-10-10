@@ -33,7 +33,8 @@ How a feature goes from a proto to a verified screen in Filament, and the comman
 - Each surface gets its own folder with feature-prefixed components and `constants.ts`, `types.ts`, `utils.ts` as needed ([architecture.md](./architecture.md)).
 - Forms follow [forms.md](./forms.md). Dashboards follow [dashboards.md](./dashboards.md).
 - Design every state. Loading (`PendingLayout` or a `Skeleton`), empty (`EmptyLayout` with the action that fills it), filtered-empty, error (`ErrorLayout` with a way out), permission (hidden, not disabled), deleted, unsaved.
-- Pick DLS components with the decision tables in [components.md](./components.md) and style with tokens only ([tokens.md](./tokens.md)). One `PRIMARY` button per view.
+- Pick DLS components with the decision tables in the `galaxy-ui` skill and style with tokens only. One `PRIMARY` button per view.
+- Bind the screen's keys and add its command palette items ([product.md](./product.md#keyboard)).
 
 ## 5. Gates
 
@@ -94,9 +95,13 @@ In order, they catch DLS internal selectors, escape-hatch casts, comments, compo
 - Start your own. `.agents/launch.json` names `filament-ui-verify` (Vite on 5175 with `--mode verify`, which uses its own `node_modules/.vite-verify` cache) and `filament-host-fixture` (the fixture on 5176, after `pnpm build:lib`). `API_PROXY_TARGET` points either proxy at another API.
 - Every Vite you start needs its own port and its own `cacheDir`. A second Vite in `ui/` without one overwrites `node_modules/.vite`, the cache a running `just dev` serves from.
 - A Go change needs its own server too, for example `SERVER_ADDR=:8090` plus a Vite whose proxy points at it. There is no HMR through a proxy, so reload after each edit.
-- Check both themes, the loading, empty, filtered-empty and error states, keyboard focus on new controls, and the console.
+- Check both themes, the loading, empty, filtered-empty and error states, the screen at 1024px wide, the shortcuts and keyboard focus on new controls, and the console.
 - Check the URL after every interaction. It should hold only what the user changed, with defaults absent.
 - Leave nothing unsaved. If you edited a pipeline on the canvas to verify, use Undo before you leave.
+
+### Proof
+
+`pnpm check` and the greps are the hard gate. With them, a UI change goes to review with screenshots of the changed screen in Dark, in Light and at 1024px wide. There is no unit test runner and none is expected.
 
 ## Things that look like bugs and are not
 
@@ -121,5 +126,7 @@ In order, they catch DLS internal selectors, escape-hatch casts, comments, compo
 - [ ] Data goes through `src/api/queries`, invalidation lives in the mutation hook, loading gates on `isLoading`.
 - [ ] Loading, empty, filtered-empty and error are all designed and all different.
 - [ ] One `PRIMARY` per view, destructive actions confirmed by name, toasts name the entity.
-- [ ] Both themes checked, keyboard checked, icon-only controls labelled.
+- [ ] The flow feels the way [product.md](./product.md) says. Copy is plain, failures are stacked, times are relative with an absolute tooltip in lists.
+- [ ] Both themes and 1024px checked, shortcuts bound, palette items added, keyboard checked, icon-only controls labelled.
 - [ ] `pnpm check` passes, every grep is empty, and `src/host/routeTree.gen.ts` is committed.
+- [ ] Screenshots in Dark, Light and at 1024px are attached.

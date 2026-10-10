@@ -210,7 +210,7 @@ import { getErrorMessage } from "@/utils/errors";
 
 Everything the DLS references say about tokens applies. The app adds a few habits.
 
-- **Reach for `Flex`, `Box`, `FlexItem` and `Grid` props first,** with numeric scale values (`gap={8}`). A `styled` component appears only for a frame, positioning, a hand-made button or xyflow chrome. Name it for its role (`XWrapper`, `XButton`), keep it unexported, three per file at most.
+- **Reach for `Flex`, `Box`, `FlexItem` and `Grid` props first,** with numeric scale values (`gap={8}`). A `styled` component appears only for a frame, positioning, a hand-made button or xyflow chrome. Name it for its role (`XWrapper`, `XButton`) and keep it unexported. There is no hard cap per file, but each one needs a reason and fewer is always better.
 - **Templates use tokens.** Spacing is `t.space[n]`, named sizes are `${CONSTANT}px`, borders are `HAIRLINE_WIDTH`, transitions are `t.duration.fast`.
 - **Hand-made buttons** use `INTERACTIVE_RESET` and `FOCUS_RING` from `@galaxy-io/dls/styles/mixins`. `$`-props are for continuous values. An enum axis is a `Record<Enum, css>`.
 - **Scroll** with `FlexItem grow={1} minHeight={0}` › `ScrollArea` › `Box padding`. Never `overflow="auto"`, because the DLS reset hides native scrollbars.

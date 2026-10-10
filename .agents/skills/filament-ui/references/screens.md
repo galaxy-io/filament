@@ -36,6 +36,7 @@ return (
 ```
 
 - **`ListSearch` owns the search box.** Its `placeholder` is also the accessible name, so pass it without the ellipsis and the box adds one. It reads `q`, debounces `LIST_SEARCH_DEBOUNCE_MS` and writes it back with `replace: true`. The server filters by `q`. The route has no `remountDeps`, so the box keeps focus while the list reloads.
+- **Keys.** `ListSearch` binds `/` through `SearchInput` `hotKeys` and `shouldBindHotKey`. The `PRIMARY` "New X" button binds `C` the same way on `Button`. Rows open with `↵` through `InfiniteTable` `onRowClick`, which brings arrow-key row focus. See [product.md](./product.md#keyboard).
 - **Two empty states.** Nothing at all and no search shows the feature's first-run graphic with a `LARGE` primary button and a `DocsLink`. Nothing matching a search shows `EmptyLayout icon={MagnifyingGlassIcon}` with "No pipelines match your search".
 - **Table or grid.** Entities with many scannable columns are an `InfiniteTable`. Entities that are mostly a tile and a name are a `Grid` of cards (`columns={`repeat(auto-fill, minmax(${MIN}px, 1fr))`}`) in a `ScrollArea`, paged by DLS `useEndReached`.
 - **Row click opens the entity.** It navigates to the detail page or writes the entity's id into the drawer param. Row actions are `MenuItem`s in a presentational `*TableRowActions` that takes `onX(row)` callbacks. The table owns the mutations.
@@ -121,6 +122,8 @@ The three DLS state layouts fill their region. Each has its own size enum (`Empt
 
 ## Status marks
 
+- **Category color comes from one registry map** of domain concept to `RoleColor` (transforms blue, schedules yellow). A new concept adds an entry there. A feature never picks a hue inline.
+
 - **Every run status is a square.** `PipelineRunStatusSwatch` (`components/runs/`) draws a DLS `Square` from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]`, a `RoleColor | undefined` where `undefined` leaves the neutral fill. The same map feeds chart series colours, and run-status charts pass `swatch={ChartSwatch.SQUARE}` so legends match.
 - **One map owns each status colour.** Run status lives in `components/runs/constants.ts`, beside `PIPELINE_RUN_STATUS_TO_LABEL_MAP`. Add a status there and nowhere else.
 - **`Beacon` is the live state of one thing**, never a run status. The connection form's "Connected" is one.
@@ -131,6 +134,8 @@ The three DLS state layouts fill their region. Each has its own size enum (`Empt
 
 DLS `utils/format` formats values and accepts `bigint` (`formatNumber`, `formatBytes`, `formatDuration`, `formatRelativeTime`, `formatDate`, `EMPTY_VALUE`). `utils/format.ts` keeps only Filament's rules, `formatTimestamp` (proto `0n` is `EMPTY_VALUE`) and `formatVersion`. Entity formatters live in the domain's `utils.ts` (`formatPipelineName`, `formatMemberName`). Counts with nouns go through `pluralize("sink", n, true)`.
 
+The voice is plain and technical, with no exceptions ([product.md](./product.md#voice)). No "Oops", "Please", "successfully" or exclamation marks.
+
 - Sentence case everywhere. Buttons are a verb or verb plus noun ("New pipeline", "Run now", "Delete connection"). Never "OK", "Submit", "Yes".
 - Placeholders end with three dots ("Enter connection name...").
 - Toasts. Success is one line, noun plus past tense ("Pipeline saved"). Error is "<Verb> failed" with `getErrorMessage(error, fallback)` as the description. Don't toast what the screen already shows.
@@ -139,3 +144,5 @@ DLS `utils/format` formats values and accepts `bigint` (`formatNumber`, `formatB
 - Inline validation is short and imperative with no period ("Name is required").
 - Missing values are `EMPTY_VALUE`. Arrows in summaries are `→`.
 - Ids, emails, numbers, commands and log lines are mono. Error text in tooltips is mono and selectable.
+- **Times.** In tables, cards and banners a time is `formatRelativeTime` with `formatTimestamp` (local date, time and zone) in a `tooltip`. In drawers, `KeyValueList` rows and run info it is `formatTimestamp` alone.
+- **Failures are stacked.** A plain one-line summary in `Text`, then the server's raw message in mono and selectable directly below, always visible. Never only "Run failed", never the raw message alone, never behind `IS_DEBUG`.

@@ -22,8 +22,8 @@ const FilamentErrorComponent: FC<ErrorComponentProps> = ({ error, reset }) => {
   return (
     <ErrorLayout
       icon={BugIcon}
-      header="Looks like there was a glitch in the matrix"
-      description="Please try again later"
+      header="Something went wrong"
+      description="This page failed to load"
       detail={IS_DEBUG && error instanceof Error ? error.message : undefined}
       actions={<Button label="Try again" icon={ArrowClockwiseIcon} onClick={handleRetry} />}
     />
