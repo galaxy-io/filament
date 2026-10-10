@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { styled } from "@linaria/react";
-import { FunctionIcon, WarningIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -11,14 +10,14 @@ import { FOCUS_RING, HAIRLINE_WIDTH, INTERACTIVE_RESET } from "@galaxy-io/dls/st
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
+import type { PipelineCanvasValidationIssue } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import {
-  type PipelineCanvasValidationIssue,
-  PipelineCanvasValidationIssueKind,
-} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+  PIPELINE_PAGE_MAX_VISIBLE_SAVE_ISSUES,
+  PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_ICON_MAP,
+  PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_LABEL_FIELD_MAP,
+} from "@/pages/pipelines/components/header/constants";
 
-const MAX_VISIBLE_SAVE_ISSUES = 3;
-
-const PipelineLayoutNavbarSaveIssueRow = styled.button`
+const PipelinePageSaveIssueRow = styled.button`
   ${INTERACTIVE_RESET}
   ${FOCUS_RING}
   width: 100%;
@@ -43,16 +42,13 @@ const PipelineLayoutNavbarSaveIssueRow = styled.button`
   }
 `;
 
-interface PipelineLayoutNavbarSaveIssuesProps {
+interface PipelinePageSaveIssuesProps {
   issues: PipelineCanvasValidationIssue[];
   onSelectResource: (edgeId: string) => void;
 }
 
-const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = ({
-  issues,
-  onSelectResource,
-}) => {
-  const hidden = issues.length - MAX_VISIBLE_SAVE_ISSUES;
+const PipelinePageSaveIssues: FC<PipelinePageSaveIssuesProps> = ({ issues, onSelectResource }) => {
+  const hidden = issues.length - PIPELINE_PAGE_MAX_VISIBLE_SAVE_ISSUES;
   return (
     <Flex
       direction={FlexDirection.COLUMN}
@@ -62,8 +58,8 @@ const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = 
       minWidth={240}
       maxWidth={320}
     >
-      {issues.slice(0, MAX_VISIBLE_SAVE_ISSUES).map(({ edgeId, ...issue }) => (
-        <PipelineLayoutNavbarSaveIssueRow
+      {issues.slice(0, PIPELINE_PAGE_MAX_VISIBLE_SAVE_ISSUES).map(({ edgeId, ...issue }) => (
+        <PipelinePageSaveIssueRow
           key={`${edgeId ?? ""}|${issue.resource ?? ""}|${issue.message}`}
           type="button"
           disabled={edgeId === undefined}
@@ -77,19 +73,13 @@ const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = 
           >
             <Flex gap={8} alignItems={AlignItems.CENTER} overflow="hidden">
               <Icon
-                component={
-                  issue.kind === PipelineCanvasValidationIssueKind.TRANSFORM
-                    ? FunctionIcon
-                    : WarningIcon
-                }
+                component={PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_ICON_MAP[issue.kind]}
                 size={16}
                 variant={IconVariant.SECONDARY}
               />
               <FlexItem shrink={1} minWidth={0} overflow="hidden">
                 <Text size={TextSize.BODY_MD} lineClamp={1}>
-                  {issue.kind === PipelineCanvasValidationIssueKind.TRANSFORM
-                    ? issue.resource
-                    : issue.message}
+                  {issue[PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_LABEL_FIELD_MAP[issue.kind]]}
                 </Text>
               </FlexItem>
             </Flex>
@@ -99,7 +89,7 @@ const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = 
               </Text>
             )}
           </Flex>
-        </PipelineLayoutNavbarSaveIssueRow>
+        </PipelinePageSaveIssueRow>
       ))}
       {hidden > 0 && (
         <Flex alignItems={AlignItems.START} padding={[4, 0]}>
@@ -112,4 +102,4 @@ const PipelineLayoutNavbarSaveIssues: FC<PipelineLayoutNavbarSaveIssuesProps> = 
   );
 };
 
-export default PipelineLayoutNavbarSaveIssues;
+export default PipelinePageSaveIssues;

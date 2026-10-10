@@ -7,10 +7,9 @@ import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 
-import PipelineLayoutNavbar from "@/layouts/pipeline/PipelineLayoutNavbar";
-
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import PipelinePageActions from "@/pages/pipelines/components/header/PipelinePageActions";
 import PipelinePageHeading from "@/pages/pipelines/components/header/PipelinePageHeading";
 import PipelinePagePreviewBanner from "@/pages/pipelines/components/header/PipelinePagePreviewBanner";
 import PipelinePageScheduleBanner from "@/pages/pipelines/components/header/PipelinePageScheduleBanner";
@@ -74,7 +73,7 @@ const PipelinePage: FC = () => {
     >
       <PageLayout
         header={<PipelinePageHeading />}
-        actions={<PipelineLayoutNavbar />}
+        actions={<PipelinePageActions />}
         tabs={<PipelinePageTabs />}
         banner={previewed ? <PipelinePagePreviewBanner /> : <PipelinePageScheduleBanner />}
       >

@@ -16,15 +16,14 @@ import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
-import { PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH } from "@/layouts/pipeline/constants";
-
+import { PIPELINE_PAGE_RUN_DROPDOWN_WIDTH } from "@/pages/pipelines/components/header/constants";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
   parseWorkerConfiguration,
 } from "@/pages/pipelines/components/worker/utils";
 
-interface PipelineLayoutNavbarRunButtonProps {
+interface PipelinePageRunButtonProps {
   workerConfiguration?: WorkerConfiguration;
   runErrors: string[];
   isRunnable: boolean;
@@ -32,18 +31,18 @@ interface PipelineLayoutNavbarRunButtonProps {
   onRun: (workerConfiguration?: WorkerConfiguration) => void;
 }
 
-export interface PipelineLayoutNavbarRunButtonState {
+interface PipelinePageRunButtonState {
   workerConfiguration: string;
 }
 
-const PipelineLayoutNavbarRunButton: FC<PipelineLayoutNavbarRunButtonProps> = ({
+const PipelinePageRunButton: FC<PipelinePageRunButtonProps> = ({
   workerConfiguration,
   runErrors,
   isRunnable,
   isRunning,
   onRun,
 }) => {
-  const [state, setState] = useState<PipelineLayoutNavbarRunButtonState>(() => ({
+  const [state, setState] = useState<PipelinePageRunButtonState>(() => ({
     workerConfiguration: formatWorkerConfiguration(workerConfiguration),
   }));
 
@@ -60,12 +59,11 @@ const PipelineLayoutNavbarRunButton: FC<PipelineLayoutNavbarRunButtonProps> = ({
         icon={PlayIcon}
         iconWeight={IconWeight.FILL}
         variant={ButtonVariant.PRIMARY}
-        size={ButtonSize.SMALL}
         isLoading={isRunning}
         isDisabled={!isRunnable || runErrors.length > 0}
         onClick={() => onRun()}
         dropdown={({ close }) => (
-          <Box variant={BoxVariant.PRIMARY} width={PIPELINE_NAVBAR_RUN_DROPDOWN_WIDTH}>
+          <Box variant={BoxVariant.PRIMARY} width={PIPELINE_PAGE_RUN_DROPDOWN_WIDTH}>
             <Flex alignItems={AlignItems.START} padding={12}>
               <BaseHeader title="Custom run configuration" size={BaseHeaderSize.SMALL} />
             </Flex>
@@ -123,4 +121,4 @@ const PipelineLayoutNavbarRunButton: FC<PipelineLayoutNavbarRunButtonProps> = ({
   );
 };
 
-export default PipelineLayoutNavbarRunButton;
+export default PipelinePageRunButton;
