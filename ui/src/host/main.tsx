@@ -1,5 +1,3 @@
-import "@/utils/serialization";
-
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

@@ -139,19 +139,18 @@ For contributors, the web app lives in `ui/` as a React 18 and TypeScript app
 built with Vite:
 
 - **Routing and data.** TanStack Router with file-based routes in
-  `src/routes/`, and TanStack Query for server state. API calls go through
+  `src/host/routes/`, and TanStack Query for server state. API calls go through
   ConnectRPC's web transport with `connect-query` bindings.
 - **Generated types.** `src/gen/` holds the protobuf-generated TypeScript.
   Never edit it by hand. `pnpm codegen` (or `just gen` at the repo root)
   regenerates it with `buf` after a proto change.
 - **Design system.** Components, tokens, and theming come from
   [`@galaxy-io/dls`](https://www.npmjs.com/package/@galaxy-io/dls). The app
-  mounts its stylesheet and `GalaxyThemeProvider` in `main.tsx`. Browse the
+  mounts its stylesheet and `GalaxyThemeProvider` in `src/host/main.tsx`. Browse the
   catalog at [storybook.getgalaxy.io](https://storybook.getgalaxy.io) before
   building anything new.
 - **Styling and the canvas.** Component-local styles use Linaria. The canvas
-  is built on `@xyflow/react`. Icons are Phosphor, with project SVGs compiled
-  by `pnpm assets`.
+  is built on `@xyflow/react`. Icons are Phosphor.
 - **Formatting.** Biome formats and lints the UI.
 
 The server serves the compiled bundle only when built with the `embedui` tag,

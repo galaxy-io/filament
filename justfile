@@ -120,6 +120,10 @@ proto-check:
 ui-build:
     cd ui && pnpm install && pnpm build
 
+# run every UI gate: types, lint, format, both builds, the package checks, and the committed route tree
+ui-check:
+    cd ui && pnpm install --frozen-lockfile && pnpm check && git diff --exit-code src/host/routeTree.gen.ts
+
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-build (_each "GOWORK=off go build ./...")
 

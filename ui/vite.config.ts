@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "build",
     target: "esnext",
-    rollupOptions: {
+    rolldownOptions: {
       onwarn(warning, warn) {
         if (
           warning.code === "PURE_COMMENT_POSITION" ||
