@@ -1,58 +1,19 @@
-import type { FC } from "react";
+import { createRouter } from "@tanstack/react-router";
 
-import { ArrowLeftIcon, BugIcon, ImageBrokenIcon } from "@phosphor-icons/react";
-import { createRouter, useNavigate } from "@tanstack/react-router";
-
-import Button from "@galaxy-io/dls/buttons/Button";
-import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
-import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
+import FilamentErrorComponent from "@/module/FilamentErrorComponent";
+import FilamentPendingComponent from "@/module/FilamentPendingComponent";
 
 import { routeTree } from "@/host/routeTree.gen";
 
-import { IS_DEBUG } from "@/constants";
-
 const DEFAULT_PRELOAD = "intent";
 const DEFAULT_PRELOAD_STALE_TIME = 0;
-
-export const DefaultErrorComponent: FC<{ error: Error }> = ({ error }) => {
-  return (
-    <ErrorLayout
-      icon={BugIcon}
-      header="Looks like there was a glitch in the matrix"
-      description="Please try again later"
-      detail={IS_DEBUG ? error.message : undefined}
-    />
-  );
-};
-
-const DefaultNotFoundComponent: FC = () => {
-  const navigate = useNavigate();
-
-  const handleGoToPipelines = () => {
-    void navigate({ to: "/pipelines" });
-  };
-
-  return (
-    <ErrorLayout
-      icon={ImageBrokenIcon}
-      header="Page not found"
-      description="The page you are looking for does not exist"
-      actions={<Button label="Go back to app" icon={ArrowLeftIcon} onClick={handleGoToPipelines} />}
-    />
-  );
-};
-
-const DefaultPendingComponent: FC = () => {
-  return <PendingLayout />;
-};
 
 export const router = createRouter({
   routeTree,
   defaultPreload: DEFAULT_PRELOAD,
   defaultPreloadStaleTime: DEFAULT_PRELOAD_STALE_TIME,
-  defaultErrorComponent: DefaultErrorComponent,
-  defaultNotFoundComponent: DefaultNotFoundComponent,
-  defaultPendingComponent: DefaultPendingComponent,
+  defaultErrorComponent: FilamentErrorComponent,
+  defaultPendingComponent: FilamentPendingComponent,
 });
 
 declare module "@tanstack/react-router" {

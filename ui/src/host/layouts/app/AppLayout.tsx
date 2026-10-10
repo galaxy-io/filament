@@ -1,6 +1,6 @@
 import { type FC, useCallback } from "react";
 
-import { Outlet, useNavigate, useSearch } from "@tanstack/react-router";
+import { Outlet } from "@tanstack/react-router";
 
 import CreateConnectionModal from "@/pages/connections/components/create/CreateConnectionModal";
 import ConnectionDrawer from "@/pages/connections/components/drawer/ConnectionDrawer";
@@ -8,37 +8,27 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import SettingsPage from "@/pages/settings/SettingsPage";
 
+import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 const AppLayout: FC = () => {
-  const navigate = useNavigate();
-  const { connectionId, flow } = useSearch({ from: "/_app" });
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const { connectionId, flow } = useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
-    void navigate({
-      to: ".",
-      search: (prev) => {
-        const {
-          connectionId: _,
-          connector: __,
-          connectorKind: ___,
-          flow: prevFlow,
-          ...rest
-        } = prev;
-        return prevFlow === Flow.EDIT_CONNECTION ? rest : { ...rest, flow: prevFlow };
-      },
+    void updateSearch((prev) => {
+      const { connectionId: _, connector: __, connectorKind: ___, flow: prevFlow, ...rest } = prev;
+      return prevFlow === Flow.EDIT_CONNECTION ? rest : { ...rest, flow: prevFlow };
     });
-  }, [navigate]);
+  }, [updateSearch]);
 
   const handleCloseFlow = useCallback(() => {
-    void navigate({
-      to: ".",
-      search: (prev) => {
-        const { flow: _, connector: __, connectorKind: ___, connectorSearch: ____, ...rest } = prev;
-        return rest;
-      },
+    void updateSearch((prev) => {
+      const { flow: _, connector: __, connectorKind: ___, connectorSearch: ____, ...rest } = prev;
+      return rest;
     });
-  }, [navigate]);
+  }, [updateSearch]);
 
   return (
     <>
