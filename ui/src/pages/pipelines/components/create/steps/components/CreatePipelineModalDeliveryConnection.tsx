@@ -2,6 +2,7 @@ import type { FC } from "react";
 
 import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import SelectInput from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextWeight } from "@galaxy-io/dls/text/Text";
@@ -18,7 +19,10 @@ import {
   useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import { CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT } from "@/pages/pipelines/components/create/constants";
+import {
+  CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH,
+  CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT,
+} from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalSinkRow } from "@/pages/pipelines/components/create/types";
 import PipelineNodeConfigFields, {
   usePipelineNodeConfig,
@@ -57,7 +61,6 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
   const title = (
     <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
       <ConnectorTile connector={connection.connector} kind={kind} size={ConnectorTileSize.SMALL} />
-      <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />
       <FlexItem minWidth={0}>
         <Text weight={TextWeight.MEDIUM} lineClamp={1}>
           {connection.name}
@@ -66,23 +69,30 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
     </Flex>
   );
 
+  const kindChip = <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />;
+
   if (!sink && nodeConfig.fields.length === 0) {
     return (
       <Widget isFlush>
         <Flex
           alignItems={AlignItems.CENTER}
+          gap={8}
           padding={[0, 12]}
           minHeight={CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT}
           fillWidth
         >
-          {title}
+          <FlexItem grow={1} minWidth={0}>
+            {title}
+          </FlexItem>
+          {kindChip}
+          <Box width={CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH} />
         </Flex>
       </Widget>
     );
   }
 
   return (
-    <Widget isCollapsible header={title} defaultIsOpen>
+    <Widget isCollapsible header={title} actions={kindChip} defaultIsOpen>
       {sink && (
         <SelectInput
           label="Write mode"
