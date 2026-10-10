@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
@@ -17,24 +16,17 @@ import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/components/connections/constants"
 
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
 
+import { useFilamentFlowOpen } from "@/module/hooks";
 import { Flow } from "@/module/types";
 
 const PipelineCanvasConnectionSelectorEmpty: FC<{
   message: string;
   connectorKind: ConnectorKind;
 }> = ({ message, connectorKind }) => {
-  const navigate = useNavigate();
+  const openFlow = useFilamentFlowOpen();
 
   const handleCreateConnection = () => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connectionId: undefined,
-        flow: Flow.CREATE_CONNECTION,
-        connectorKind,
-      }),
-    });
+    openFlow(Flow.CREATE_CONNECTION, connectorKind);
   };
 
   return (

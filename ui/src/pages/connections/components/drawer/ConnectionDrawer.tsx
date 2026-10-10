@@ -9,7 +9,6 @@ import {
   SlidersIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -21,11 +20,11 @@ import Menu, { MenuItem, MenuItemVariant, MenuSeparator } from "@galaxy-io/dls/m
 import ConfirmDialog from "@galaxy-io/dls/modal/ConfirmDialog";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import { CONNECTOR_KIND_TO_PATH_MAP } from "@/components/connections/constants";
 import { getConnectorVariantName } from "@/components/connections/utils";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
@@ -34,6 +33,8 @@ import ConnectionDrawerHeader from "@/pages/connections/components/drawer/Connec
 import ConnectionDrawerJsonSection from "@/pages/connections/components/drawer/ConnectionDrawerJsonSection";
 import ConnectionDrawerPipelines from "@/pages/connections/components/drawer/ConnectionDrawerPipelines";
 
+import { useFilamentNavigate, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 import { useDeleteConnectionMutation, useGetConnectionQuery } from "@/api/queries/connections";
@@ -50,7 +51,8 @@ interface ConnectionDrawerProps {
 }
 
 const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onClose }) => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const { data, isError } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),
@@ -83,17 +85,12 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
       deleteConnection({ id: c.id }, { onSuccess, onError }),
     onConfirmed: (c) => {
       onClose();
-      navigate({
-        to: c.kind === ConnectorKind.SINK ? "/sinks" : "/sources",
-      });
+      void navigate({ to: CONNECTOR_KIND_TO_PATH_MAP[c.kind] });
     },
   });
 
   const handleEdit = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, flow: Flow.EDIT_CONNECTION }),
-    });
+    void updateSearch((prev) => ({ ...prev, flow: Flow.EDIT_CONNECTION }));
   };
 
   const renderContent = () => {

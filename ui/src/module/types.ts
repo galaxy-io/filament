@@ -4,3 +4,9 @@ export enum Flow {
   CREATE_PIPELINE = "CREATE_PIPELINE",
   SETTINGS = "SETTINGS",
 }
+
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    filament?: boolean;
+  }
+}

@@ -3,7 +3,6 @@ import type { FC } from "react";
 import { useTransport } from "@connectrpc/connect-query";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Topbar from "@galaxy-io/dls/navigation/Topbar";
@@ -11,24 +10,27 @@ import Topbar from "@galaxy-io/dls/navigation/Topbar";
 import ObservabilityTimeframeSwitcher from "@/pages/observability/components/ObservabilityTimeframeSwitcher";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
+
 import { createListConnectionsQueryKey } from "@/api/queries/connections";
 import { createQueryAggregateQueryKey, createQueryTimeseriesQueryKey } from "@/api/queries/metrics";
 import { createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
 const ObservabilityToolbar: FC = () => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const queryClient = useQueryClient();
   const transport = useTransport();
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
 
   const handleTimeframeChange = (timeframe: ObservabilityTimeframe) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, timeframe, runsBucket: undefined, runsStatus: undefined }),
-    });
+    void updateSearch((prev) => ({
+      ...prev,
+      timeframe,
+      runsBucket: undefined,
+      runsStatus: undefined,
+    }));
   };
 
   const handleRefresh = () => {

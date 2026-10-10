@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -24,6 +23,9 @@ import {
 } from "@/pages/pipelines/components/create/serialize";
 import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
 
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 import { useCreatePipelineNotifierMutation } from "@/api/queries/notifiers";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
 import { useCreatePipelineMutation } from "@/api/queries/pipelines";
@@ -31,7 +33,7 @@ import { useCreatePipelineMutation } from "@/api/queries/pipelines";
 import { getErrorMessage } from "@/utils/errors";
 
 const CreatePipelineModalFooter: FC = () => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
   const { toast } = useToast();
 
   const state = useCreatePipelineModalState();
@@ -44,7 +46,7 @@ const CreatePipelineModalFooter: FC = () => {
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
   const handleNavigateToCanvas = (pipelineId: Pipeline["id"]) => {
-    void navigate({ to: "/pipelines/$id/canvas", params: { id: pipelineId } });
+    void navigate({ to: FilamentPath.PIPELINE_CANVAS, params: { id: pipelineId } });
   };
 
   const handleFinish = async (pipelineId: Pipeline["id"], notifiers: PipelineNotifier[]) => {

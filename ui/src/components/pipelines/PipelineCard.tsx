@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { styled } from "@linaria/react";
-import { Link } from "@tanstack/react-router";
 
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
@@ -14,8 +13,11 @@ import { usePipelineFlowEndpoints } from "@/components/pipelines/hooks/usePipeli
 import PipelineFlow, { PipelineFlowSize } from "@/components/pipelines/PipelineFlow";
 import PipelineName from "@/components/pipelines/PipelineName";
 import PipelineScheduleChip from "@/components/pipelines/PipelineScheduleChip";
+import RouterLink from "@/components/RouterLink";
 
-const CardLinkWrapper = styled(Link)`
+import { createFilamentHref, FilamentPath } from "@/module/paths";
+
+const CardLinkWrapper = styled(RouterLink)`
   display: block;
   width: 100%;
   text-decoration: none;
@@ -56,7 +58,7 @@ const PipelineCard: FC<PipelineCardProps> = ({ pipeline }) => {
   const { source, sinks, hasEdges, isLoading } = usePipelineFlowEndpoints(pipeline.id);
 
   return (
-    <CardLinkWrapper to="/pipelines/$id" params={{ id: pipeline.id }}>
+    <CardLinkWrapper href={createFilamentHref(FilamentPath.PIPELINE, { id: pipeline.id })}>
       <CardWrapper>
         <Flex alignItems={AlignItems.CENTER} gap={8}>
           <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />

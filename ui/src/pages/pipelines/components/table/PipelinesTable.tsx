@@ -2,7 +2,6 @@ import type { FC } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
@@ -43,6 +42,9 @@ import {
   type PipelinesTableSorting,
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
+
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
 
 import { useRunPipelineMutation } from "@/api/queries/runs";
 import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
@@ -145,7 +147,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   isFetchingNextPage,
   fetchNextPage,
 }) => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
   const { toast } = useToast();
 
   const { mutate: runPipeline } = useRunPipelineMutation();
@@ -158,7 +160,7 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
 
   const handleRowClick = (row: Pipeline) => {
     navigate({
-      to: "/pipelines/$id",
+      to: FilamentPath.PIPELINE,
       params: { id: row.id },
     });
   };
@@ -219,11 +221,11 @@ const PipelinesTable: FC<PipelinesTableProps> = ({
   };
 
   const handleEdit = (pipeline: Pipeline) => {
-    void navigate({ to: "/pipelines/$id/canvas", params: { id: pipeline.id } });
+    void navigate({ to: FilamentPath.PIPELINE_CANVAS, params: { id: pipeline.id } });
   };
 
   const handleSettings = (pipeline: Pipeline) => {
-    void navigate({ to: "/pipelines/$id/settings", params: { id: pipeline.id } });
+    void navigate({ to: FilamentPath.PIPELINE_SETTINGS, params: { id: pipeline.id } });
   };
 
   return (

@@ -1,6 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
@@ -42,6 +41,8 @@ import {
   CREATE_CONNECTION_SELECTOR_SIDEBAR_WIDTH,
 } from "@/pages/connections/constants";
 
+import { useFilamentLayoutSearch } from "@/module/hooks";
+
 import { useListConnectorsQuery } from "@/api/queries/connectors";
 import { MAX_LIST_SEARCH_LENGTH } from "@/api/utils";
 
@@ -60,7 +61,7 @@ const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
   onShelfChange,
   onConnectorSelect,
 }) => {
-  const { connectorKind, connectorSearch = "" } = useSearch({ from: "/_app" });
+  const { connectorKind, connectorSearch = "" } = useFilamentLayoutSearch();
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const { data, isLoading } = useListConnectorsQuery();

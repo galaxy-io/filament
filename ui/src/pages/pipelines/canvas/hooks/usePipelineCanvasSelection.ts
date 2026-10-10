@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import {
   type CanvasEdge,
@@ -9,30 +7,16 @@ import {
   PipelineCanvasView,
 } from "@/pages/pipelines/canvas/types";
 
-const PIPELINE_CANVAS_ROUTE = "/_app/pipelines/$id/canvas";
-
-interface PipelineCanvasSearch {
-  node?: CanvasNode["id"];
-  resource?: CanvasEdge["id"];
-  showPanel?: boolean;
-  tab?: PipelineCanvasPanelTab;
-  view?: PipelineCanvasView;
-  sinks?: CanvasNode["id"][];
-}
+import { useFilamentSearchUpdate, usePipelineCanvasSearch } from "@/module/hooks";
+import type { PipelineCanvasSearch } from "@/module/schemas";
 
 export const usePipelineCanvasSelection = () => {
-  const navigate = useNavigate();
-  const { node, resource, showPanel, tab, view, sinks } = useSearch({
-    from: PIPELINE_CANVAS_ROUTE,
-  });
+  const { node, resource, showPanel, tab, view, sinks } = usePipelineCanvasSearch();
+  const updateSearch = useFilamentSearchUpdate<PipelineCanvasSearch>();
 
   return useMemo(() => {
     const setSearch = (patch: PipelineCanvasSearch, replace = true) =>
-      void navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, ...patch }),
-        replace,
-      });
+      void updateSearch((prev) => ({ ...prev, ...patch }), { replace });
 
     return {
       selectedNodeId: node,
@@ -59,5 +43,5 @@ export const usePipelineCanvasSelection = () => {
       setSinkIds: (nextSinkIds: CanvasNode["id"][]) =>
         setSearch({ sinks: nextSinkIds.length ? nextSinkIds : undefined }),
     };
-  }, [navigate, node, resource, showPanel, tab, view, sinks]);
+  }, [updateSearch, node, resource, showPanel, tab, view, sinks]);
 };

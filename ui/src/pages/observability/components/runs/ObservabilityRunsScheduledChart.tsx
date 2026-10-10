@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useSearch } from "@tanstack/react-router";
-
 import BarChart from "@galaxy-io/dls/charts/BarChart";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
@@ -14,12 +12,12 @@ import { createScheduledRunsChartGroups } from "@/pages/observability/components
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
+import { useObservabilitySearch } from "@/module/hooks";
+
 import { useListRunsQuery } from "@/api/queries/runs";
 
 const ObservabilityRunsScheduledChart: FC = () => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 

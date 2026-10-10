@@ -9,7 +9,6 @@ import {
   StopIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -76,6 +75,10 @@ import {
   getRunStopSignal,
 } from "@/pages/pipelines/utils";
 
+import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+import type { FilamentLayoutSearch, PipelineCanvasSearch, PipelineSearch } from "@/module/schemas";
+
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useCreatePipelineVersionMutation } from "@/api/queries/pipeline_versions";
@@ -95,8 +98,8 @@ import { isContinuousRunActive } from "@/utils/runs";
 
 const PipelineLayoutNavbar: FC = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const navigate = useFilamentNavigate();
+  const { id } = usePipelineParams();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
@@ -115,9 +118,9 @@ const PipelineLayoutNavbar: FC = () => {
   const connectionByNodeId = usePipelineCanvasConnections();
   const showActivity = () =>
     void navigate({
-      to: "/pipelines/$id/canvas",
+      to: FilamentPath.PIPELINE_CANVAS,
       params: { id },
-      search: (prev) => ({
+      search: (prev: FilamentLayoutSearch & PipelineCanvasSearch) => ({
         ...prev,
         node: undefined,
         resource: undefined,
@@ -127,9 +130,9 @@ const PipelineLayoutNavbar: FC = () => {
     });
   const showResource = (edgeId: string) =>
     void navigate({
-      to: "/pipelines/$id/canvas",
+      to: FilamentPath.PIPELINE_CANVAS,
       params: { id },
-      search: (prev) => ({
+      search: (prev: FilamentLayoutSearch & PipelineCanvasSearch) => ({
         ...prev,
         node: undefined,
         resource: edgeId,
@@ -236,9 +239,9 @@ const PipelineLayoutNavbar: FC = () => {
 
   const handlePreviewVersionChange = (nextVersion: PipelineVersion["version"] | null) => {
     void navigate({
-      to: "/pipelines/$id/canvas",
+      to: FilamentPath.PIPELINE_CANVAS,
       params: { id },
-      search: (prev) => ({
+      search: (prev: FilamentLayoutSearch & PipelineSearch) => ({
         ...prev,
         version: nextVersion ?? undefined,
       }),

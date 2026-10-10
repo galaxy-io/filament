@@ -2,7 +2,6 @@ import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
-import { useSearch } from "@tanstack/react-router";
 
 import BigNumber, { BigNumberVariant } from "@galaxy-io/dls/charts/BigNumber";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -22,6 +21,8 @@ import ObservabilityMetricsValue from "@/pages/observability/components/metrics/
 import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { createTimeframeSince } from "@/pages/observability/utils";
+
+import { useObservabilitySearch } from "@/module/hooks";
 
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";
@@ -44,9 +45,7 @@ const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
 });
 
 const ObservabilityMetricsWidget: FC = () => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
 
   const { totalsInput, statusCountsInput } = useMemo(() => {
     const sinceMs = createTimeframeSince(timeframe);

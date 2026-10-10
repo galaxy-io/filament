@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import EmptyState from "@galaxy-io/dls/feedback/EmptyState";
 import Box from "@galaxy-io/dls/layout/Box";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -45,6 +43,14 @@ import {
 } from "@/pages/observability/components/runs/utils";
 import { ObservabilityRunsView, ObservabilityTimeframe } from "@/pages/observability/types";
 
+import {
+  useFilamentNavigate,
+  useFilamentSearchUpdate,
+  useObservabilitySearch,
+} from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+import type { ObservabilitySearch } from "@/module/schemas";
+
 import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
 import { createListSortingInput } from "@/api/utils";
 
@@ -52,7 +58,8 @@ import { formatTimestamp } from "@/utils/format";
 import { formatRunDuration } from "@/utils/runs";
 
 const ObservabilityRunsTable: FC = () => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const {
     runs: view = ObservabilityRunsView.PAST,
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
@@ -61,7 +68,7 @@ const ObservabilityRunsTable: FC = () => {
     runsStatus,
     sortBy,
     sortOrder,
-  } = useSearch({ from: "/_app/_main/observability" });
+  } = useObservabilitySearch();
 
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
@@ -220,16 +227,14 @@ const ObservabilityRunsTable: FC = () => {
   );
 
   const handleSortingChange: ObservabilityRunsTableSortingChange = (next) => {
-    void navigate({
-      to: ".",
+    void updateSearch((prev) => ({ ...prev, ...createObservabilityRunsSortSearch(next) }), {
       replace: true,
-      search: (prev) => ({ ...prev, ...createObservabilityRunsSortSearch(next) }),
     });
   };
 
   const handleRowClick = (row: RunInfo) => {
     navigate({
-      to: "/pipelines/$id/history",
+      to: FilamentPath.PIPELINE_HISTORY,
       params: {
         id: row.pipelineId,
       },

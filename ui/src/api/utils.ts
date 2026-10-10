@@ -3,10 +3,11 @@ import type {
   UseInfiniteQueryOptions as ConnectUseInfiniteQueryOptions,
   useSuspenseQuery,
 } from "@connectrpc/connect-query";
-import z from "zod";
 
 import type { PaginationRequestSchema, PaginationResponse } from "@/gen/ingestion/v1/pagination_pb";
 import { SortBy, SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
+
+import type { ListSearchParams } from "@/module/schemas";
 
 export const DEFAULT_PAGE_SIZE = 25;
 
@@ -41,14 +42,6 @@ export type InfiniteQueryInput<I extends DescMessage> = Omit<
 export const DEFAULT_LIST_SORT_BY = SortBy.CREATED_AT;
 export const DEFAULT_LIST_SORT_ORDER = SortOrder.DESC;
 export const MAX_LIST_SEARCH_LENGTH = 256;
-
-export const listSearchParamsSchema = z.object({
-  q: z.string().optional().catch(undefined),
-  sortBy: z.enum(SortBy).optional().catch(undefined),
-  sortOrder: z.enum(SortOrder).optional().catch(undefined),
-});
-
-export type ListSearchParams = z.infer<typeof listSearchParamsSchema>;
 
 export const createListSortingInput = ({
   sortBy,

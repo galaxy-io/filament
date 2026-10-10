@@ -1,7 +1,6 @@
 import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -21,13 +20,15 @@ import {
   workerConfigurationEquals,
 } from "@/pages/pipelines/components/worker/utils";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
 const PipelineSettingsPageAdvanced: FC = () => {
   const { toast } = useToast();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
   });

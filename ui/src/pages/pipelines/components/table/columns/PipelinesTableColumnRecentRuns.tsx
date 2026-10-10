@@ -3,7 +3,6 @@ import { Fragment, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { styled } from "@linaria/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Skeleton, { SkeletonSize } from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -27,6 +26,9 @@ import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import { PIPELINES_TABLE_RECENT_RUNS_COUNT } from "@/pages/pipelines/components/table/constants";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
+
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
@@ -93,7 +95,7 @@ const PipelinesTableRecentRunTooltip: FC<{ run: RunInfo }> = ({ run }) => {
 };
 
 const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = ({ pipeline }) => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
   const { data, isLoading } = useListRunsQuery({
     input: create(ListRunsRequestSchema, {
       pipelineId: pipeline.id,
@@ -117,7 +119,7 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
   const handleRunClick = (event: MouseEvent, runId: RunInfo["id"]) => {
     event.stopPropagation();
     navigate({
-      to: "/pipelines/$id/history",
+      to: FilamentPath.PIPELINE_HISTORY,
       params: { id: pipeline.id },
       search: { runId: [runId] },
     });

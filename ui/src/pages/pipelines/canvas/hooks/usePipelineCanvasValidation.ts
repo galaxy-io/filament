@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import { create, fromJsonString, toJsonString } from "@bufbuild/protobuf";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
 
 import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 
@@ -22,6 +21,8 @@ import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canva
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import { groupTransformIssuesByStep } from "@/pages/pipelines/components/transform/grammar/paths";
 import { getEdgeBlockingRequirements, getEdgeValidationErrors } from "@/pages/pipelines/utils";
+
+import { usePipelineParams } from "@/module/hooks";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -101,7 +102,7 @@ const getCanvasValidationIssues = (
 };
 
 export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
   });

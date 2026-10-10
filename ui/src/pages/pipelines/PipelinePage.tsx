@@ -2,7 +2,7 @@ import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
-import { notFound, Outlet, useNavigate, useParams } from "@tanstack/react-router";
+import { notFound, Outlet } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
@@ -15,11 +15,14 @@ import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
+import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelinePage: FC = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
-  const navigate = useNavigate();
+  const { id } = usePipelineParams();
+  const navigate = useFilamentNavigate();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
@@ -36,7 +39,7 @@ const PipelinePage: FC = () => {
   );
 
   const handleGoToPipelines = () => {
-    void navigate({ to: "/pipelines" });
+    void navigate({ to: FilamentPath.PIPELINES });
   };
 
   if (!pipeline) {

@@ -21,6 +21,8 @@ import type {
 } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
+import type { ListSearchParams } from "@/module/schemas";
+
 import { createValidatePipelineQueryKey } from "@/api/queries/capabilities";
 import {
   createDiscoverResourcesQueryKey,
@@ -31,7 +33,6 @@ import {
   getNextPageParam,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
-  type ListSearchParams,
   type UseInfiniteQueryOptions,
 } from "@/api/utils";
 

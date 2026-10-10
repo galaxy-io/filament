@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
 
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
@@ -14,6 +13,9 @@ import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
 import ConnectorTile, { ConnectorTileSize } from "@/components/connections/ConnectorTile";
 
+import { useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
+
 import { useGetConnectionQuery } from "@/api/queries/connections";
 
 interface PipelineHistoryRunInfoConnectionColumnProps {
@@ -25,7 +27,7 @@ const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectio
   connectionId,
   resourceName,
 }) => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const { data: connectionData } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId }),
@@ -36,13 +38,10 @@ const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectio
     e.preventDefault();
     e.stopPropagation();
     if (connectionData?.connection) {
-      navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          connectionId: connectionData?.connection?.id,
-        }),
-      });
+      updateSearch((prev) => ({
+        ...prev,
+        connectionId: connectionData?.connection?.id,
+      }));
     }
   };
 

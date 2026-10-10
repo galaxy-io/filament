@@ -1,7 +1,6 @@
 import { type FC, useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -16,6 +15,9 @@ import ConnectionFormProvider, {
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
 
+import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
+
 import { useCreateConnectionMutation } from "@/api/queries/connections";
 
 import { getErrorMessage } from "@/utils/errors";
@@ -29,8 +31,8 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   onClose,
   onBack,
 }) => {
-  const navigate = useNavigate();
-  const { connector, connectorKind } = useSearch({ from: "/_app" });
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const { connector, connectorKind } = useFilamentLayoutSearch();
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
   const { state, dispatch } = useConnectionFormContext();
   const { toast } = useToast();
@@ -62,14 +64,11 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
           });
 
           if (response.connection?.id) {
-            void navigate({
-              to: ".",
-              search: (prev) => ({
-                ...prev,
-                flow: undefined,
-                connectionId: response.connection?.id,
-              }),
-            });
+            void updateSearch((prev) => ({
+              ...prev,
+              flow: undefined,
+              connectionId: response.connection?.id,
+            }));
           }
         },
         onError: (error) => {
@@ -85,16 +84,13 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
         },
       },
     );
-  }, [state.name, state.config, connector, kind, createConnection, toast, navigate, dispatch]);
+  }, [state.name, state.config, connector, kind, createConnection, toast, updateSearch, dispatch]);
 
   const handleConnectionChange = useCallback(
     (version: string) => {
-      void navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, connector: version }),
-      });
+      void updateSearch((prev) => ({ ...prev, connector: version }));
     },
-    [navigate],
+    [updateSearch],
   );
 
   return (

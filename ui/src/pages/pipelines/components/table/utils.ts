@@ -2,7 +2,9 @@ import type { TableSort } from "@galaxy-io/dls/table/types";
 
 import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
-import { DEFAULT_LIST_SORT_BY, DEFAULT_LIST_SORT_ORDER, type ListSearchParams } from "@/api/utils";
+import type { ListSearchParams } from "@/module/schemas";
+
+import { DEFAULT_LIST_SORT_BY, DEFAULT_LIST_SORT_ORDER } from "@/api/utils";
 
 export type PipelinesTableSorting = TableSort | null;
 

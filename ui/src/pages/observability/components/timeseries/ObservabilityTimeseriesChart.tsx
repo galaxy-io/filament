@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useSearch } from "@tanstack/react-router";
-
 import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
 import {
   type ChartCurve,
@@ -32,6 +30,8 @@ import {
   useBucketLabelFormatter,
 } from "@/pages/observability/utils";
 
+import { useObservabilitySearch } from "@/module/hooks";
+
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 import { useListPipelinesQuery } from "@/api/queries/pipelines";
 
@@ -54,9 +54,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   curve,
   valueFormatter,
 }) => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useObservabilitySearch();
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 

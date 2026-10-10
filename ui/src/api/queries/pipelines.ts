@@ -20,6 +20,8 @@ import type {
 } from "@/gen/ingestion/v1/pipelines_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
+import type { ListSearchParams } from "@/module/schemas";
+
 import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 import {
@@ -27,7 +29,6 @@ import {
   getNextPageParam,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
-  type ListSearchParams,
 } from "@/api/utils";
 
 import { isRunActive } from "@/utils/runs";

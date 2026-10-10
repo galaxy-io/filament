@@ -1,7 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import BarChart from "@galaxy-io/dls/charts/BarChart";
 import type { ChartSelection, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -20,16 +18,19 @@ import {
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 import { useBucketLabelFormatter } from "@/pages/observability/utils";
 
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
+
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
 const ObservabilityRunsChart: FC = () => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const {
     timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
     runsBucket,
     runsStatus,
-  } = useSearch({ from: "/_app/_main/observability" });
+  } = useObservabilitySearch();
 
   const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
 
@@ -60,10 +61,7 @@ const ObservabilityRunsChart: FC = () => {
 
   const handleSelectionChange = (next: ChartSelection[]) => {
     const filter = mapChartSelectionToRunsFilter(next[next.length - 1]);
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, ...filter }),
-    });
+    void updateSearch((prev) => ({ ...prev, ...filter }));
   };
 
   return (

@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { FlowArrowIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Icon, { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
@@ -15,6 +14,9 @@ import ConnectorTile, {
   ConnectorTileShimmer,
   ConnectorTileSize,
 } from "@/components/connections/ConnectorTile";
+
+import { useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
 
 const PIPELINE_FLOW_MAX_VISIBLE_SINKS = 3;
 
@@ -57,7 +59,7 @@ const PipelineFlow: FC<PipelineFlowProps> = ({
   hasEdges = true,
   isLoading = false,
 }) => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const visibleSinks = sinks.slice(0, PIPELINE_FLOW_MAX_VISIBLE_SINKS);
   const overflowCount = sinks.length - visibleSinks.length;
@@ -69,10 +71,7 @@ const PipelineFlow: FC<PipelineFlowProps> = ({
   const handleConnectionClick = (connectionId: Connection["id"], e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId }),
-    });
+    updateSearch((prev) => ({ ...prev, connectionId }));
   };
 
   const renderSource = () => {

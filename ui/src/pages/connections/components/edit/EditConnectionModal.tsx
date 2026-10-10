@@ -2,7 +2,6 @@ import { type FC, useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
@@ -25,6 +24,8 @@ import ConnectionFormProvider, {
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { ConnectionFormPhase } from "@/pages/connections/components/form/types";
+
+import { useFilamentLayoutSearch } from "@/module/hooks";
 
 import { useGetConnectionQuery, useUpdateConnectionMutation } from "@/api/queries/connections";
 
@@ -108,7 +109,7 @@ const EditConnectionModalContent: FC<EditConnectionModalContentProps> = ({
 };
 
 const EditConnectionModal: FC<EditConnectionModalProps> = ({ onClose }) => {
-  const { connectionId } = useSearch({ from: "/_app" });
+  const { connectionId } = useFilamentLayoutSearch();
 
   const { data, isError } = useGetConnectionQuery({
     input: create(GetConnectionRequestSchema, { id: connectionId ?? "" }),

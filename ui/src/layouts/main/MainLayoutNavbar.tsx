@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
 
-import { Link, useMatchRoute, useRouteContext } from "@tanstack/react-router";
+import { useRouteContext } from "@tanstack/react-router";
 
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import Box from "@galaxy-io/dls/layout/Box";
@@ -18,15 +18,24 @@ import RouterLink from "@/components/RouterLink";
 import { MAIN_LAYOUT_GUTTER } from "@/layouts/main/constants";
 import MainLayoutSettingsButton from "@/layouts/main/MainLayoutSettingsButton";
 
-import type { TRoutes } from "@/hooks/useRouteMatch";
+import { useFilamentMatchRoute } from "@/module/hooks";
+import { createFilamentHref, FilamentPath } from "@/module/paths";
 
 const MAIN_NAVBAR_HEIGHT = 48;
 
-const MAIN_NAVBAR_ITEMS: TabLinkItem<TRoutes>[] = [
-  { id: "/observability", label: "Observability", href: "/observability" },
-  { id: "/pipelines", label: "Pipelines", href: "/pipelines" },
-  { id: "/sources", label: "Sources", href: "/sources" },
-  { id: "/sinks", label: "Sinks", href: "/sinks" },
+const MAIN_NAVBAR_ITEMS: TabLinkItem<FilamentPath>[] = [
+  {
+    id: FilamentPath.OBSERVABILITY,
+    label: "Observability",
+    href: createFilamentHref(FilamentPath.OBSERVABILITY),
+  },
+  {
+    id: FilamentPath.PIPELINES,
+    label: "Pipelines",
+    href: createFilamentHref(FilamentPath.PIPELINES),
+  },
+  { id: FilamentPath.SOURCES, label: "Sources", href: createFilamentHref(FilamentPath.SOURCES) },
+  { id: FilamentPath.SINKS, label: "Sinks", href: createFilamentHref(FilamentPath.SINKS) },
 ];
 
 const MainLayoutNavbarRail: FC<{
@@ -48,11 +57,9 @@ const MainLayoutNavbarRail: FC<{
 
 const MainLayoutNavbar: FC = () => {
   const { session } = useRouteContext({ from: "/_app" });
-  const matchRoute = useMatchRoute();
+  const matchRoute = useFilamentMatchRoute();
 
-  const activeItem = MAIN_NAVBAR_ITEMS.find(
-    (item) => matchRoute({ to: item.id, fuzzy: true }) !== false,
-  );
+  const activeItem = MAIN_NAVBAR_ITEMS.find((item) => matchRoute(item.id, { fuzzy: true }));
 
   return (
     <Box position="relative" height={MAIN_NAVBAR_HEIGHT} fillWidth>
@@ -61,11 +68,11 @@ const MainLayoutNavbar: FC = () => {
       </Box>
       <Flex height="100%">
         <MainLayoutNavbarRail>
-          <Link to="/">
+          <RouterLink href={createFilamentHref(FilamentPath.OBSERVABILITY)}>
             <Flex alignItems={AlignItems.CENTER}>
               <GalaxyFilamentWordmark size={18} />
             </Flex>
-          </Link>
+          </RouterLink>
           <DocsLink label="Docs" size={TextSize.BODY_SM} underline={LinkUnderline.NONE} />
         </MainLayoutNavbarRail>
         <Tabs

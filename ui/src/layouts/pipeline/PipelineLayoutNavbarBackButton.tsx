@@ -1,18 +1,20 @@
 import type { FC } from "react";
 
 import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 import { PIPELINE_NAVBAR_HEIGHT } from "@/layouts/pipeline/constants";
 
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 const PipelineLayoutNavbarBackButton: FC = () => {
-  const navigate = useNavigate();
+  const navigate = useFilamentNavigate();
 
   const handleBack = () => {
-    navigate({ to: "/pipelines" });
+    navigate({ to: FilamentPath.PIPELINES });
   };
 
   return (

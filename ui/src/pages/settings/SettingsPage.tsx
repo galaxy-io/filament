@@ -1,6 +1,6 @@
 import { type FC, useCallback, useEffect } from "react";
 
-import { useNavigate, useRouteContext, useSearch } from "@tanstack/react-router";
+import { useRouteContext } from "@tanstack/react-router";
 import { match } from "ts-pattern";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -16,6 +16,12 @@ import SettingsTeamPanelInvite from "@/pages/settings/panels/team/SettingsTeamPa
 import SettingsPageSidebar from "@/pages/settings/SettingsPageSidebar";
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
+import {
+  useFilamentLayoutSearch,
+  useFilamentSearchUpdate,
+  useSettingsSearch,
+} from "@/module/hooks";
+import type { FilamentLayoutSearch, SettingsSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
@@ -35,7 +41,7 @@ const SettingsPageContent: FC<SettingsPageContentProps> = ({
   isOpen,
   onInviteTeam,
 }) => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch & SettingsSearch>();
   const membersQuery = useListMembersQuery({
     options: { enabled: session.isAuthenticated },
   });
@@ -47,17 +53,14 @@ const SettingsPageContent: FC<SettingsPageContentProps> = ({
 
   const handlePanelChange = useCallback(
     (panel: SettingsPanel) => {
-      void navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          settings: panel,
-          teamView: panel === SettingsPanel.TEAM ? TeamSettingsView.MEMBERS : undefined,
-          inviteToken: undefined,
-        }),
-      });
+      void updateSearch((prev) => ({
+        ...prev,
+        settings: panel,
+        teamView: panel === SettingsPanel.TEAM ? TeamSettingsView.MEMBERS : undefined,
+        inviteToken: undefined,
+      }));
     },
-    [navigate],
+    [updateSearch],
   );
 
   useEffect(() => {
@@ -108,9 +111,10 @@ const SettingsPageContent: FC<SettingsPageContentProps> = ({
 };
 
 const SettingsPage: FC = () => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch & SettingsSearch>();
   const { session } = useRouteContext({ from: "/_app" });
-  const { flow, settings, teamView, inviteToken } = useSearch({ from: "/_app" });
+  const { flow } = useFilamentLayoutSearch();
+  const { settings, teamView, inviteToken } = useSettingsSearch();
 
   const isSettingsOpen = session.isAuthenticated && flow === Flow.SETTINGS;
   const settingsPanel = settings ?? SettingsPanel.TEAM;
@@ -121,27 +125,23 @@ const SettingsPage: FC = () => {
     teamView !== TeamSettingsView.MEMBERS;
 
   const handleCloseSettings = useCallback(() => {
-    void navigate({
-      to: ".",
-      search: (prev) => {
-        const { flow: _, settings: __, teamView: ___, inviteToken: ____, ...rest } = prev;
-        return rest;
-      },
+    void updateSearch((prev) => {
+      const { flow: _, settings: __, teamView: ___, inviteToken: ____, ...rest } = prev;
+      return rest;
     });
-  }, [navigate]);
+  }, [updateSearch]);
 
   const handleTeamViewChange = useCallback(
     (view: TeamSettingsView, options?: { replace?: boolean }) => {
-      void navigate({
-        to: ".",
-        replace: options?.replace,
-        search: (prev) => {
+      void updateSearch(
+        (prev) => {
           const { inviteToken: _, ...rest } = prev;
           return { ...rest, settings: SettingsPanel.TEAM, teamView: view };
         },
-      });
+        { replace: options?.replace },
+      );
     },
-    [navigate],
+    [updateSearch],
   );
 
   const handleInviteTeam = useCallback(() => {
@@ -150,28 +150,22 @@ const SettingsPage: FC = () => {
 
   const handleInviteCreated = useCallback(
     (token: string) => {
-      void navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          settings: SettingsPanel.TEAM,
-          teamView: TeamSettingsView.LINK,
-          inviteToken: token,
-        }),
-      });
+      void updateSearch((prev) => ({
+        ...prev,
+        settings: SettingsPanel.TEAM,
+        teamView: TeamSettingsView.LINK,
+        inviteToken: token,
+      }));
     },
-    [navigate],
+    [updateSearch],
   );
 
   const handleInviteClose = useCallback(() => {
-    void navigate({
-      to: ".",
-      search: (prev) => {
-        const { inviteToken: _, ...rest } = prev;
-        return { ...rest, settings: SettingsPanel.TEAM, teamView: TeamSettingsView.MEMBERS };
-      },
+    void updateSearch((prev) => {
+      const { inviteToken: _, ...rest } = prev;
+      return { ...rest, settings: SettingsPanel.TEAM, teamView: TeamSettingsView.MEMBERS };
     });
-  }, [navigate]);
+  }, [updateSearch]);
 
   return (
     <>

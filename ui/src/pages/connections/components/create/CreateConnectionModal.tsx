@@ -1,43 +1,36 @@
 import { type FC, useCallback } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import CreateConnectionConfigure from "@/pages/connections/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connections/components/create/select/CreateConnectionSelector";
 import type { CreateConnectionModalProps } from "@/pages/connections/components/create/types";
 
+import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
+
 const CreateConnectionModal: FC<CreateConnectionModalProps> = ({ onClose }) => {
-  const navigate = useNavigate();
-  const { connector, connectorKind } = useSearch({
-    from: "/_app",
-  });
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const { connector, connectorKind } = useFilamentLayoutSearch();
 
   const handleConnectorSelect = useCallback(
     (connector: ConnectorSpec) => {
-      void navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          connector: connector.aliasTarget || connector.name,
-          connectorKind: connector.kind,
-          connectorSearch: undefined,
-        }),
-      });
+      void updateSearch((prev) => ({
+        ...prev,
+        connector: connector.aliasTarget || connector.name,
+        connectorKind: connector.kind,
+        connectorSearch: undefined,
+      }));
     },
-    [navigate],
+    [updateSearch],
   );
 
   const handleBack = useCallback(() => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connector: undefined,
-      }),
-    });
-  }, [navigate]);
+    void updateSearch((prev) => ({
+      ...prev,
+      connector: undefined,
+    }));
+  }, [updateSearch]);
 
   if (connector && connectorKind) {
     return (

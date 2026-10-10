@@ -1,13 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import z from "zod";
 
 import PipelineHistoryPage from "@/pages/pipelines/PipelineHistoryPage";
 
-const searchParams = z.object({
-  runId: z.array(z.string()).optional().catch(undefined),
-});
+import { pipelineHistorySearchSchema } from "@/module/schemas";
 
 export const Route = createFileRoute("/_app/pipelines/$id/history")({
-  validateSearch: searchParams,
+  validateSearch: pipelineHistorySearchSchema,
   component: PipelineHistoryPage,
 });

@@ -1,7 +1,7 @@
 import type { FC } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { notFound, useParams } from "@tanstack/react-router";
+import { notFound } from "@tanstack/react-router";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -19,10 +19,12 @@ import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSett
 import PipelineSettingsPageNotifications from "@/pages/pipelines/settings/PipelineSettingsPageNotifications";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 const PipelineSettingsPage: FC = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),

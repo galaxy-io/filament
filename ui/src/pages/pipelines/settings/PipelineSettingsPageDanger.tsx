@@ -2,7 +2,6 @@ import type { FC } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { TrashIcon } from "@phosphor-icons/react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
@@ -21,14 +20,17 @@ import { formatPipelineName, isPipelineNameMatch } from "@/components/pipelines/
 
 import { getPipelineCdcSourceConnections } from "@/pages/pipelines/settings/utils";
 
+import { useFilamentNavigate, usePipelineParams } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
+
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 import { useDeletePipelineMutation, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { useConfirm } from "@/hooks/useConfirm";
 
 const PipelineSettingsPageDanger: FC = () => {
-  const navigate = useNavigate();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const navigate = useFilamentNavigate();
+  const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
@@ -46,7 +48,7 @@ const PipelineSettingsPageDanger: FC = () => {
         onSuccess,
         onError,
       }),
-    onConfirmed: () => navigate({ to: "/pipelines" }),
+    onConfirmed: () => navigate({ to: FilamentPath.PIPELINES }),
   });
 
   if (!pipeline) return null;

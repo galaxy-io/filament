@@ -3,12 +3,13 @@ import type { FC } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { ArrowLeftIcon, ImageBrokenIcon } from "@phosphor-icons/react";
 import { createFileRoute, type ErrorComponentProps, useNavigate } from "@tanstack/react-router";
-import z from "zod";
 
 import Button from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 
 import PipelinePage from "@/pages/pipelines/PipelinePage";
+
+import { pipelineSearchSchema } from "@/module/schemas";
 
 import { DefaultErrorComponent } from "@/host/router";
 
@@ -38,12 +39,8 @@ const PipelineErrorComponent: FC<ErrorComponentProps> = ({ error }) =>
     <DefaultErrorComponent error={error} />
   );
 
-const searchParams = z.object({
-  version: z.coerce.bigint().positive().optional().catch(undefined),
-});
-
 export const Route = createFileRoute("/_app/pipelines/$id")({
-  validateSearch: searchParams,
+  validateSearch: pipelineSearchSchema,
   errorComponent: PipelineErrorComponent,
   notFoundComponent: PipelineNotFoundComponent,
   component: PipelinePage,

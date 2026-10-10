@@ -1,7 +1,5 @@
 import type { FC, PropsWithChildren, ReactNode } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -10,6 +8,9 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import BaseToolbar from "@/layouts/components/BaseToolbar";
+
+import { useConnectionsSearch, useFilamentSearchUpdate } from "@/module/hooks";
+import type { ConnectionsSearch } from "@/module/schemas";
 
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
@@ -25,18 +26,14 @@ const MainLayoutListPage: FC<PropsWithChildren<MainLayoutListPage>> = ({
   isScrollable = true,
   children,
 }) => {
-  const navigate = useNavigate();
-  const { q = "" } = useSearch({ strict: false });
+  const updateSearch = useFilamentSearchUpdate<ConnectionsSearch>();
+  const { q = "" } = useConnectionsSearch();
 
   const handleSearch = (term: string) => {
     if (term === q) {
       return;
     }
-    void navigate({
-      to: ".",
-      replace: true,
-      search: (prev) => ({ ...prev, q: term || undefined }),
-    });
+    void updateSearch((prev) => ({ ...prev, q: term || undefined }), { replace: true });
   };
 
   return (

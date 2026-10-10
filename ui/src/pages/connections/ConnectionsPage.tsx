@@ -1,7 +1,6 @@
 import { type FC, type RefObject, useMemo } from "react";
 
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -28,6 +27,8 @@ import {
 } from "@/pages/connections/constants";
 import { usePipelineConnectionMap } from "@/pages/connections/hooks/usePipelineConnectionMap";
 
+import { useConnectionsSearch, useFilamentFlowOpen, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 import {
@@ -45,22 +46,15 @@ const CONNECTOR_KIND_TO_EMPTY_GRAPHIC_MAP: Record<ConnectorKind.SOURCE | Connect
 };
 
 const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
-  const navigate = useNavigate();
-  const { q = "" } = useSearch({ strict: false });
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const openFlow = useFilamentFlowOpen();
+  const { q = "" } = useConnectionsSearch();
 
   const kindLabel = CONNECTOR_KIND_TO_LABEL_MAP[kind].toLowerCase();
   const kindPlural = pluralize(kindLabel);
 
   const handleOpenCreateConnectorModal = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connectionId: undefined,
-        flow: Flow.CREATE_CONNECTION,
-        connectorKind: kind,
-      }),
-    });
+    openFlow(Flow.CREATE_CONNECTION, kind);
   };
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
@@ -87,10 +81,7 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   }, [connectionIdsByPipelineId]);
 
   const handleConnectionClick = (connectionId: Connection["id"]) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId }),
-    });
+    void updateSearch((prev) => ({ ...prev, connectionId }));
   };
 
   const renderContent = () => {

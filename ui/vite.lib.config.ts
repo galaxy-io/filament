@@ -7,7 +7,7 @@ import dts from "vite-plugin-dts";
 
 import { galaxyDls } from "@galaxy-io/dls/vite";
 
-import { CLASS_PREFIX } from "./vite.config";
+import { CLASS_PREFIX } from "./vite.config.ts";
 
 interface PackageExportTarget {
   types: string;

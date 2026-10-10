@@ -8,7 +8,7 @@ import {
   UsersThreeIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
-import { useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useRouteContext } from "@tanstack/react-router";
 
 import Avatar, { AvatarSize } from "@galaxy-io/dls/avatar/Avatar";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
@@ -26,6 +26,8 @@ import { MAIN_LAYOUT_SETTINGS_MENU_WIDTH } from "@/layouts/main/constants";
 
 import { SettingsPanel, TeamSettingsView } from "@/pages/settings/types";
 
+import { useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch, SettingsSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 import { useListMembersQuery } from "@/api/queries/auth";
@@ -166,7 +168,7 @@ const MainLayoutSettingsButtonMenu: FC<MainLayoutSettingsButtonMenuProps> = ({
 };
 
 const AuthenticatedSettingsButton: FC<{ session: AppSession }> = ({ session }) => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch & SettingsSearch>();
   const signOut = useSignOut();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -185,18 +187,15 @@ const AuthenticatedSettingsButton: FC<{ session: AppSession }> = ({ session }) =
   const handleOpenSettings = useCallback(
     (panel: SettingsPanel, teamView?: TeamSettingsView) => {
       setIsOpen(false);
-      void navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          flow: Flow.SETTINGS,
-          settings: panel,
-          teamView,
-          inviteToken: undefined,
-        }),
-      });
+      void updateSearch((prev) => ({
+        ...prev,
+        flow: Flow.SETTINGS,
+        settings: panel,
+        teamView,
+        inviteToken: undefined,
+      }));
     },
-    [navigate],
+    [updateSearch],
   );
 
   const handleOpenTeamSettings = useCallback(() => {

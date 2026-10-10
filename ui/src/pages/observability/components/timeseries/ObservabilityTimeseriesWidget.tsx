@@ -1,5 +1,3 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import { ChartCurve } from "@galaxy-io/dls/charts/types";
 import ToggleInput, {
   ToggleInputSize,
@@ -13,6 +11,9 @@ import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 import type { ObservabilityChartView } from "@/pages/observability/components/timeseries/constants";
 import ObservabilityPivotSelect from "@/pages/observability/components/timeseries/ObservabilityPivotSelect";
 import ObservabilityTimeseriesChart from "@/pages/observability/components/timeseries/ObservabilityTimeseriesChart";
+
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
 
 interface ObservabilityTimeseriesWidgetProps<View extends string> {
   views: Record<View, ObservabilityChartView>;
@@ -29,8 +30,8 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   viewSearchKey,
   pivotSearchKey,
 }: ObservabilityTimeseriesWidgetProps<View>) => {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_app/_main/observability" });
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
+  const search = useObservabilitySearch();
 
   const view = (search[viewSearchKey] as View | undefined) ?? defaultView;
   const searchPivot = search[pivotSearchKey];
@@ -40,17 +41,14 @@ const ObservabilityTimeseriesWidget = <View extends string>({
   const { label, seriesLabel, metric, color, valueFormatter } = views[view];
 
   const handleViewChange = (nextView: View) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, [viewSearchKey]: nextView }),
-    });
+    void updateSearch((prev) => ({ ...prev, [viewSearchKey]: nextView }));
   };
 
   const handlePivotChange = (nextPivot: MetricDimension | undefined) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, [pivotSearchKey]: nextPivot ?? MetricDimension.UNSPECIFIED }),
-    });
+    void updateSearch((prev) => ({
+      ...prev,
+      [pivotSearchKey]: nextPivot ?? MetricDimension.UNSPECIFIED,
+    }));
   };
 
   const switcherItems: ToggleOption<View>[] = (

@@ -1,7 +1,6 @@
 import { type FC, useMemo } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
@@ -18,6 +17,8 @@ import {
   type PipelinesTableSortingChange,
 } from "@/pages/pipelines/components/table/utils";
 
+import { useFilamentFlowOpen, useFilamentSearchUpdate, usePipelinesSearch } from "@/module/hooks";
+import type { PipelinesSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
 
 import {
@@ -26,8 +27,9 @@ import {
 } from "@/api/queries/pipelines";
 
 const PipelinesPage: FC = () => {
-  const navigate = useNavigate();
-  const search = useSearch({ from: "/_app/_main/pipelines" });
+  const updateSearch = useFilamentSearchUpdate<PipelinesSearch>();
+  const openFlow = useFilamentFlowOpen();
+  const search = usePipelinesSearch();
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useSuspenseListPipelinesInfiniteQuery({
@@ -39,18 +41,13 @@ const PipelinesPage: FC = () => {
   const sorting = useMemo(() => createPipelinesTableSorting(search), [search]);
 
   const handleSortingChange: PipelinesTableSortingChange = (next) => {
-    void navigate({
-      to: ".",
+    void updateSearch((prev) => ({ ...prev, ...createPipelinesTableSortSearch(next) }), {
       replace: true,
-      search: (prev) => ({ ...prev, ...createPipelinesTableSortSearch(next) }),
     });
   };
 
   const handleNewPipeline = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
-    });
+    openFlow(Flow.CREATE_PIPELINE);
   };
 
   const renderContent = () => {

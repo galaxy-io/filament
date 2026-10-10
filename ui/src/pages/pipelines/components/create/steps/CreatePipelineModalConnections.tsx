@@ -2,7 +2,6 @@ import { type FC, type RefObject, useState } from "react";
 
 import { styled } from "@linaria/react";
 import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import Button from "@galaxy-io/dls/buttons/Button";
@@ -37,6 +36,7 @@ import {
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalConnectionsExecutionMode from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionsExecutionMode";
 
+import { useFilamentFlowOpen } from "@/module/hooks";
 import { Flow } from "@/module/types";
 
 import { useListConnectionsInfiniteQuery } from "@/api/queries/connections";
@@ -71,18 +71,10 @@ const CreatePipelineModalConnectionsState: FC<{
   error?: Error | null;
   connectorKind: ConnectorKind;
 }> = ({ message, error, connectorKind }) => {
-  const navigate = useNavigate();
+  const openFlow = useFilamentFlowOpen();
 
   const handleCreateConnection = () => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connectionId: undefined,
-        flow: Flow.CREATE_CONNECTION,
-        connectorKind,
-      }),
-    });
+    openFlow(Flow.CREATE_CONNECTION, connectorKind);
   };
 
   const actions = (

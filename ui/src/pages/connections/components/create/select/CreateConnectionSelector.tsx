@@ -1,7 +1,5 @@
 import { type FC, useCallback, useState } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
-
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 
@@ -15,25 +13,26 @@ import {
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/pages/connections/constants";
 
+import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
+
 const CreateConnectionSelector: FC<CreateConnectionSelectorProps> = ({
   onClose,
   onConnectorSelect,
 }) => {
-  const navigate = useNavigate();
-  const { connectorKind } = useSearch({ from: "/_app" });
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
+  const { connectorKind } = useFilamentLayoutSearch();
   const kind = connectorKind ?? ConnectorKind.UNSPECIFIED;
 
   const [shelf, setShelf] = useState(CreateConnectionSelectorShelf.ALL);
 
   const handleSearch = useCallback(
     (search: string) => {
-      void navigate({
-        to: ".",
+      void updateSearch((prev) => ({ ...prev, connectorSearch: search || undefined }), {
         replace: true,
-        search: (prev) => ({ ...prev, connectorSearch: search || undefined }),
       });
     },
-    [navigate],
+    [updateSearch],
   );
 
   return (

@@ -1,8 +1,5 @@
 import type { FC } from "react";
 
-import { useNavigate } from "@tanstack/react-router";
-import { match } from "ts-pattern";
-
 import GridBackground, {
   GRID_BACKGROUND_OPACITY_VAR,
   GridBackgroundSize,
@@ -15,58 +12,29 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
 import {
   OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH,
   OBSERVABILITY_SETUP_GRID_OPACITY,
   OBSERVABILITY_SETUP_STEP_COUNT,
   OBSERVABILITY_SETUP_STEP_ORDER,
+  OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP,
 } from "@/pages/observability/components/setup/constants";
 import ObservabilitySetupChecklistStep from "@/pages/observability/components/setup/ObservabilitySetupChecklistStep";
 import {
-  ObservabilitySetupStep,
+  type ObservabilitySetupStep,
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
-import { Flow } from "@/module/types";
+import { useFilamentFlowOpen } from "@/module/hooks";
 
 const ObservabilitySetupChecklist: FC = () => {
-  const navigate = useNavigate();
+  const openFlow = useFilamentFlowOpen();
   const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
 
   const handleStepClick = (step: ObservabilitySetupStep) => {
-    match(step)
-      .with(ObservabilitySetupStep.SOURCE, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({
-            ...prev,
-            connectionId: undefined,
-            flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SOURCE,
-          }),
-        });
-      })
-      .with(ObservabilitySetupStep.SINK, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({
-            ...prev,
-            connectionId: undefined,
-            flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SINK,
-          }),
-        });
-      })
-      .with(ObservabilitySetupStep.PIPELINE, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
-        });
-      })
-      .exhaustive();
+    const { flow, connectorKind } = OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP[step];
+    openFlow(flow, connectorKind);
   };
 
   const getStepStatus = (step: ObservabilitySetupStep) => {

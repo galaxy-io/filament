@@ -1,6 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import pluralize from "pluralize";
 
 import MultiSelectInput, {
@@ -35,6 +34,9 @@ import ObservabilityRunsScheduledChart from "@/pages/observability/components/ru
 import ObservabilityRunsTable from "@/pages/observability/components/runs/ObservabilityRunsTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
+
 import { mapOptionIdToEnum } from "@/utils/select";
 
 const withStatusSwatch = (option: SelectOption): SelectOption => ({
@@ -47,13 +49,11 @@ const STATUS_OPTIONS = OBSERVABILITY_RUN_STATUS_OPTIONS.map(withStatusSwatch);
 const SCHEDULED_STATUS_OPTIONS = [withStatusSwatch(OBSERVABILITY_RUNS_SCHEDULED_STATUS_OPTION)];
 
 const ObservabilityRunsWidget: FC = () => {
-  const navigate = useNavigate();
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const {
     runs: view = ObservabilityRunsView.PAST,
     statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-  } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  } = useObservabilitySearch();
 
   const selectedStatusIds = useMemo(
     () =>
@@ -64,27 +64,21 @@ const ObservabilityRunsWidget: FC = () => {
   );
 
   const handleViewChange = (nextView: ObservabilityRunsView) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        runs: nextView,
-        runsBucket: undefined,
-        runsStatus: undefined,
-      }),
-    });
+    void updateSearch((prev) => ({
+      ...prev,
+      runs: nextView,
+      runsBucket: undefined,
+      runsStatus: undefined,
+    }));
   };
 
   const handleStatusChange = (ids: string[]) => {
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        statuses: ids.map((id) => mapOptionIdToEnum(RunStatus, id)),
-        runsBucket: undefined,
-        runsStatus: undefined,
-      }),
-    });
+    void updateSearch((prev) => ({
+      ...prev,
+      statuses: ids.map((id) => mapOptionIdToEnum(RunStatus, id)),
+      runsBucket: undefined,
+      runsStatus: undefined,
+    }));
   };
 
   const switcherItems: ToggleOption<ObservabilityRunsView>[] = Object.values(

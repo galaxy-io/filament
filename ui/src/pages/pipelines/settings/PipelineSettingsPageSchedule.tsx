@@ -1,7 +1,6 @@
 import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -24,6 +23,8 @@ import {
   hasPipelineScheduleChanges,
 } from "@/pages/pipelines/settings/utils";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import {
   useCreatePipelineScheduleMutation,
@@ -34,7 +35,7 @@ import { getErrorMessage } from "@/utils/errors";
 
 const PipelineSettingsPageSchedule: FC = () => {
   const { toast } = useToast();
-  const { id: pipelineId } = useParams({ from: "/_app/pipelines/$id" });
+  const { id: pipelineId } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id: pipelineId, includeSchedule: true }),

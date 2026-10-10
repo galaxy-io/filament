@@ -1,7 +1,6 @@
 import type { FC } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -31,12 +30,14 @@ import {
 } from "@/pages/pipelines/canvas/types";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
 import { formatVersion } from "@/utils/format";
 
 const PipelineCanvasPanelOverview: FC = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
   const state = usePipelineCanvasState();
   const { selectNode } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();

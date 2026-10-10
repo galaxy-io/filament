@@ -31,7 +31,7 @@ import {
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/utils";
 
-import type { ListSearchParams } from "@/api/utils";
+import type { ListSearchParams } from "@/module/schemas";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 

@@ -1,7 +1,6 @@
 import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
@@ -29,6 +28,13 @@ import {
 import PipelineHistoryRunDuration from "@/pages/pipelines/history/PipelineHistoryRunDuration";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
+
+import {
+  useFilamentSearchUpdate,
+  usePipelineHistorySearch,
+  usePipelineParams,
+} from "@/module/hooks";
+import type { PipelineHistorySearch } from "@/module/schemas";
 
 import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
@@ -111,9 +117,9 @@ const createRunTableColumns = (
 ];
 
 const PipelineHistoryPage: FC = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
-  const navigate = useNavigate();
-  const { runId: runIds = [] } = useSearch({ from: "/_app/pipelines/$id/history" });
+  const { id } = usePipelineParams();
+  const updateSearch = useFilamentSearchUpdate<PipelineHistorySearch>();
+  const { runId: runIds = [] } = usePipelineHistorySearch();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
@@ -142,14 +148,13 @@ const PipelineHistoryPage: FC = () => {
   }, [data.pages]);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
-    void navigate({
-      to: ".",
-      replace: true,
-      search: (prev) => ({
+    void updateSearch(
+      (prev) => ({
         ...prev,
         runId: expandedRowIds.length > 0 ? expandedRowIds : undefined,
       }),
-    });
+      { replace: true },
+    );
   };
 
   return (

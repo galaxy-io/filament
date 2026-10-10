@@ -1,7 +1,6 @@
 import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
@@ -19,6 +18,8 @@ import {
 
 import { formatPipelineName, stripDeletedName } from "@/components/pipelines/utils";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
@@ -35,7 +36,7 @@ const DEFAULT_STATE: PipelineSettingsPageGeneralState = {
 
 const PipelineSettingsPageGeneral: FC = () => {
   const { toast } = useToast();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
     input: create(GetPipelineRequestSchema, { id }),
