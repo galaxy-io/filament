@@ -14,9 +14,9 @@ import {
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 
-import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
+import { stripDeletedName } from "@/components/pipelines/utils";
 
-import { stripDeletedName } from "@/utils/format";
+import { PIPELINE_EXECUTION_MODES } from "@/pages/pipelines/constants";
 
 export const getSupportedExecutionModes = (source: Connection | null): ExecutionMode[] =>
   source ? PIPELINE_EXECUTION_MODES.filter((mode) => source.executionModes.includes(mode)) : [];

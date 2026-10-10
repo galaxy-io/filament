@@ -4,7 +4,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import { formatDuration } from "@/utils/format";
+import { formatRunDuration } from "@/utils/runs";
 
 const PIPELINE_HISTORY_RUN_DURATION_TICK_MS = 1_000;
 
@@ -30,7 +30,7 @@ const PipelineHistoryRunDuration: FC<PipelineHistoryRunDurationProps> = ({
 
   return (
     <Text size={TextSize.BODY_SM} lineClamp={1}>
-      {formatDuration(startedAt, isLive ? BigInt(now) : endedAt)}
+      {formatRunDuration(startedAt, isLive ? BigInt(now) : endedAt)}
     </Text>
   );
 };

@@ -13,7 +13,7 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
-import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
+import { EMPTY_VALUE, formatNumber, formatRelativeTime } from "@galaxy-io/dls/utils/format";
 
 import {
   type Pipeline,
@@ -48,7 +48,7 @@ import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
 import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
 import { getErrorMessage } from "@/utils/errors";
-import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
+import { formatRunDuration } from "@/utils/runs";
 
 const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
   {
@@ -81,7 +81,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} lineClamp={1}>
-        {row.lastRun ? formatTimeAgo(row.lastRun.requestedAt) : EMPTY_VALUE}
+        {row.lastRun ? formatRelativeTime(row.lastRun.requestedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -110,7 +110,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatDuration(row.lastRun.startedAt, row.lastRun.endedAt) : EMPTY_VALUE}
+        {row.lastRun ? formatRunDuration(row.lastRun.startedAt, row.lastRun.endedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -122,7 +122,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
     canSort: false,
     cell: ({ row }) => (
       <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-        {row.lastRun ? formatCount(row.lastRun.records) : EMPTY_VALUE}
+        {row.lastRun ? formatNumber(row.lastRun.records) : EMPTY_VALUE}
       </Text>
     ),
   },

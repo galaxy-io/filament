@@ -17,12 +17,13 @@ import {
   UpdatePipelineRequestSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { stripDeletedName } from "@/components/pipelines/utils";
+
 import { formatPipelineName } from "@/pages/pipelines/utils";
 
 import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
-import { stripDeletedName } from "@/utils/format";
 
 interface PipelineSettingsPageGeneralState {
   name: Pipeline["name"];

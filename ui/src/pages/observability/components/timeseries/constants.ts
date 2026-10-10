@@ -1,11 +1,10 @@
 import { ChartPalette, type ChartValueFormatter } from "@galaxy-io/dls/charts/types";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import { formatBytes, formatDuration, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/observability/types";
-
-import { formatBytes, formatCount, formatSeconds } from "@/utils/format";
 
 export const OBSERVABILITY_TIMESERIES_CHART_HEIGHT = 240;
 export const OBSERVABILITY_TIMESERIES_PIVOT_SELECT_WIDTH = 150;
@@ -48,14 +47,14 @@ export const OBSERVABILITY_THROUGHPUT_VIEW_TO_CONFIG_MAP: Record<
     seriesLabel: "Records",
     metric: Metric.RUN_RECORDS,
     color: ChartPalette.PURPLE,
-    valueFormatter: (value) => formatCount(BigInt(Math.round(value))),
+    valueFormatter: (value) => formatNumber(value, { precision: 0 }),
   },
   [ObservabilityThroughputView.VOLUME]: {
     label: "Volume",
     seriesLabel: "Bytes",
     metric: Metric.RUN_BYTES,
     color: ChartPalette.TEAL,
-    valueFormatter: (value) => formatBytes(BigInt(Math.round(value))),
+    valueFormatter: (value) => formatBytes(value),
   },
 };
 
@@ -68,13 +67,13 @@ export const OBSERVABILITY_USAGE_VIEW_TO_CONFIG_MAP: Record<
     seriesLabel: "CPU",
     metric: Metric.RUN_CPU_USAGE,
     color: ChartPalette.ORANGE,
-    valueFormatter: formatSeconds,
+    valueFormatter: (value) => formatDuration(value * 1_000),
   },
   [ObservabilityUsageView.MEMORY]: {
     label: "Memory",
     seriesLabel: "Memory",
     metric: Metric.RUN_MEMORY_USAGE,
     color: ChartPalette.PINK,
-    valueFormatter: (value) => formatBytes(BigInt(Math.round(value))),
+    valueFormatter: (value) => formatBytes(value),
   },
 };

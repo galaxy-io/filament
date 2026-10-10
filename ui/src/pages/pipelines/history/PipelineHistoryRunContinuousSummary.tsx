@@ -1,6 +1,7 @@
 import type { FC } from "react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
@@ -8,7 +9,7 @@ import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/Co
 import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 
-import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
 
 interface PipelineHistoryRunContinuousSummaryProps {
   run: RunInfo;
@@ -34,7 +35,7 @@ const PipelineHistoryRunContinuousSummary: FC<PipelineHistoryRunContinuousSummar
         label="Committed"
         value={
           <Text size={TextSize.BODY_SM}>
-            {formatCount(run.records)} records · {formatBytes(run.bytes)}
+            {formatNumber(run.records)} records · {formatBytes(run.bytes)}
           </Text>
         }
       />

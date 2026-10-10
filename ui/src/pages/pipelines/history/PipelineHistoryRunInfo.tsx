@@ -9,6 +9,7 @@ import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
@@ -30,7 +31,7 @@ import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/Pipel
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
 
 interface PipelineHistoryRunInfoProps {
   runId: RunInfo["id"];
@@ -69,7 +70,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
         width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatCount(row.records)}
+            {formatNumber(row.records)}
           </Text>
         ),
       },

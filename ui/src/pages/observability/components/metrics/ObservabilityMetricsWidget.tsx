@@ -9,6 +9,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
@@ -24,8 +25,6 @@ import PipelineRunStatusSwatch from "@/pages/pipelines/history/PipelineRunStatus
 
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";
-
-import { formatBytes, formatCount } from "@/utils/format";
 
 const OBSERVABILITY_METRICS_FEATURED_STATUSES = [
   RunStatus.COMPLETED,
@@ -95,7 +94,7 @@ const ObservabilityMetricsWidget: FC = () => {
       primary={
         <BigNumber
           label="Total runs"
-          value={formatCount(BigInt(Math.round(totalRuns)))}
+          value={formatNumber(totalRuns, { precision: 0 })}
           isLoading={isTotalsLoading}
         />
       }
@@ -104,7 +103,7 @@ const ObservabilityMetricsWidget: FC = () => {
         label="Total records"
         value={
           <ObservabilityMetricsValue
-            value={formatCount(BigInt(Math.round(totalRecords)))}
+            value={formatNumber(totalRecords, { precision: 0 })}
             mark={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
           />
         }
@@ -116,7 +115,7 @@ const ObservabilityMetricsWidget: FC = () => {
         label="Total volume"
         value={
           <ObservabilityMetricsValue
-            value={formatBytes(BigInt(Math.round(totalBytes)))}
+            value={formatBytes(totalBytes)}
             mark={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
           />
         }
@@ -130,7 +129,7 @@ const ObservabilityMetricsWidget: FC = () => {
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
           value={
             <ObservabilityMetricsValue
-              value={formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+              value={formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
               mark={<PipelineRunStatusSwatch status={status} />}
             />
           }
@@ -142,7 +141,7 @@ const ObservabilityMetricsWidget: FC = () => {
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
         value={
           <ObservabilityMetricsValue
-            value={formatCount(BigInt(scheduledData?.runs.length ?? 0))}
+            value={formatNumber(scheduledData?.runs.length ?? 0)}
             mark={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
           />
         }
@@ -153,7 +152,7 @@ const ObservabilityMetricsWidget: FC = () => {
         label="Other"
         value={
           <ObservabilityMetricsValue
-            value={formatCount(BigInt(Math.round(otherStatusesCount)))}
+            value={formatNumber(otherStatusesCount, { precision: 0 })}
             mark={
               <Tooltip
                 body={
@@ -173,7 +172,7 @@ const ObservabilityMetricsWidget: FC = () => {
                           </Text>
                         </Flex>
                         <Text size={TextSize.BODY_SM}>
-                          {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+                          {formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
                         </Text>
                       </Flex>
                     ))}

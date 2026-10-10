@@ -13,6 +13,7 @@ import Square, { SquareSize, SquareVariant } from "@galaxy-io/dls/shapes/Square"
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { PaginationRequestSchema } from "@/gen/ingestion/v1/pagination_pb";
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -29,7 +30,8 @@ import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils"
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatDuration, formatTimestamp } from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
+import { formatRunDuration } from "@/utils/runs";
 
 interface PipelinesTableColumnRecentRunsProps {
   pipeline: Pipeline;
@@ -50,8 +52,8 @@ const PipelinesTableRecentRunsWrapper = styled.div`
 
 const PipelinesTableRecentRunTooltip: FC<{ run: RunInfo }> = ({ run }) => {
   const rows = [
-    { label: "Duration", value: formatDuration(run.startedAt, run.endedAt) },
-    { label: "Records", value: formatCount(run.records) },
+    { label: "Duration", value: formatRunDuration(run.startedAt, run.endedAt) },
+    { label: "Records", value: formatNumber(run.records) },
     { label: "Volume", value: formatBytes(run.bytes) },
   ];
 

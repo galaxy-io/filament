@@ -4,12 +4,11 @@ import { create } from "@bufbuild/protobuf";
 import { CalendarIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import { formatRelativeTime } from "@galaxy-io/dls/utils/format";
 
 import { GetPipelineRequestSchema, type Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { useGetPipelineQuery } from "@/api/queries/pipelines";
-
-import { formatTimeUntil } from "@/utils/format";
 
 interface PipelineScheduleChipProps {
   pipelineId: Pipeline["id"];
@@ -33,7 +32,7 @@ const PipelineScheduleChip: FC<PipelineScheduleChipProps> = ({ pipelineId }) => 
   return (
     <Chip
       icon={CalendarIcon}
-      label={`Next run ${formatTimeUntil(schedule.nextFireAt)}`}
+      label={`Next run ${formatRelativeTime(schedule.nextFireAt)}`}
       color="yellow"
       size={ChipSize.SMALL}
       isPill

@@ -8,7 +8,12 @@ import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
-import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
+import {
+  EMPTY_VALUE,
+  formatBytes,
+  formatDuration,
+  formatNumber,
+} from "@galaxy-io/dls/utils/format";
 
 import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
@@ -43,13 +48,8 @@ import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryR
 import { useListRunsInfiniteQuery, useListRunsQuery } from "@/api/queries/runs";
 import { createListSortingInput } from "@/api/utils";
 
-import {
-  formatBytes,
-  formatCount,
-  formatDuration,
-  formatSeconds,
-  formatTimestamp,
-} from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
+import { formatRunDuration } from "@/utils/runs";
 
 const ObservabilityRunsTable: FC = () => {
   const navigate = useNavigate();
@@ -157,7 +157,7 @@ const ObservabilityRunsTable: FC = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_DURATION,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} lineClamp={1}>
-            {formatDuration(row.startedAt, row.endedAt)}
+            {formatRunDuration(row.startedAt, row.endedAt)}
           </Text>
         ),
       },
@@ -167,7 +167,7 @@ const ObservabilityRunsTable: FC = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatCount(row.records)}
+            {formatNumber(row.records)}
           </Text>
         ),
       },
@@ -187,7 +187,7 @@ const ObservabilityRunsTable: FC = () => {
         width: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU,
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {row.cpuSeconds ? formatSeconds(row.cpuSeconds) : EMPTY_VALUE}
+            {row.cpuSeconds ? formatDuration(row.cpuSeconds * 1_000) : EMPTY_VALUE}
           </Text>
         ),
       },
