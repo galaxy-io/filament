@@ -5,7 +5,7 @@ import { Role } from "@/gen/auth/v1/members_pb";
 
 import { createEnumSelectOptions } from "@/utils/select";
 
-export const SETTINGS_PAGE_SIDEBAR_WIDTH = 240;
+export const SETTINGS_INVITE_PATH_PREFIX = "/invite";
 
 export const SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_NAME = 200;
 export const SETTINGS_TEAM_TABLE_COLUMN_MIN_WIDTH_EMAIL = 220;

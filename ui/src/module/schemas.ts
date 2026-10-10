@@ -13,7 +13,7 @@ import {
 } from "@/pages/observability/types";
 import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
-import { SettingsPanel, SettingsTeamView, TeamSettingsView } from "@/pages/settings/types";
+import { SettingsTeamView } from "@/pages/settings/types";
 
 import { Flow } from "@/module/types";
 
@@ -34,14 +34,6 @@ export const filamentLayoutSearchSchema = z.object({
 });
 
 export type FilamentLayoutSearch = z.infer<typeof filamentLayoutSearchSchema>;
-
-export const settingsSearchSchema = z.object({
-  settings: z.enum(SettingsPanel).optional().catch(undefined),
-  teamView: z.enum(TeamSettingsView).optional().catch(undefined),
-  inviteToken: z.string().optional().catch(undefined),
-});
-
-export type SettingsSearch = z.infer<typeof settingsSearchSchema>;
 
 export const teamSearchSchema = z.object({
   view: z.enum(SettingsTeamView).optional().catch(undefined),

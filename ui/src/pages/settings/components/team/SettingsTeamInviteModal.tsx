@@ -17,10 +17,10 @@ import { type InviteMemberRequest, Role } from "@/gen/auth/v1/members_pb";
 
 import { SETTINGS_INVITE_DEFAULT_ROLE, SETTINGS_ROLE_OPTIONS } from "@/pages/settings/constants";
 import { SettingsTeamView } from "@/pages/settings/types";
+import { createInviteUrl, encodeInviteToken } from "@/pages/settings/utils";
 
 import { useCanManageTeam, useInviteMemberMutation } from "@/api/queries/auth";
 
-import { buildInviteUrl, encodeInviteToken } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";
 import { mapOptionIdToEnum } from "@/utils/select";
 
@@ -58,7 +58,7 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
   const canManage = useCanManageTeam();
   const { mutate: inviteMember, isPending: isInviting } = useInviteMemberMutation();
 
-  const inviteLink = inviteToken ? buildInviteUrl(inviteToken) : undefined;
+  const inviteLink = inviteToken ? createInviteUrl(inviteToken) : undefined;
 
   const handleSubmit = () => {
     if (canManage !== true) {

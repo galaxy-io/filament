@@ -9,6 +9,7 @@ const NON_RETRYABLE_CODES = new Set<Code>([
   Code.PermissionDenied,
   Code.Unauthenticated,
   Code.InvalidArgument,
+  Code.Unimplemented,
 ]);
 
 export const queryClient = new QueryClient({

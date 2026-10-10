@@ -8,11 +8,12 @@ import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
 
 import type { AcceptInviteRequest } from "@/gen/auth/v1/session_pb";
 
+import { decodeInviteToken } from "@/pages/settings/utils";
+
 import AuthForm from "@/host/layouts/auth/AuthForm";
 
 import { useAcceptInviteMutation } from "@/api/queries/auth";
 
-import { decodeInviteToken } from "@/auth/utils";
 import { getErrorMessage } from "@/utils/errors";
 
 interface InvitePageState {

@@ -1,19 +1,15 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { settingsSearchSchema } from "@/module/schemas";
-
 import { queryClient } from "@/host/api/queryClient";
 import { transport } from "@/host/api/transport";
+import { DEFAULT_SESSION } from "@/host/auth/constants";
+import { sessionFromResponse } from "@/host/auth/utils";
 import AppLayout from "@/host/layouts/app/AppLayout";
 
 import { createGetSessionQueryOptions } from "@/api/queries/auth";
 
-import { DEFAULT_SESSION } from "@/auth/constants";
-import { sessionFromResponse } from "@/auth/utils";
-
 export const Route = createFileRoute("/_app")({
-  validateSearch: settingsSearchSchema,
   beforeLoad: async ({ context, location }) => {
     if (!context.authConfig.issuer) {
       return { session: DEFAULT_SESSION };

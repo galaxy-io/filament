@@ -29,7 +29,6 @@ import {
   pipelineParamsSchema,
   pipelineSearchSchema,
   pipelinesSearchSchema,
-  settingsSearchSchema,
   teamSearchSchema,
 } from "@/module/schemas";
 import type { Flow } from "@/module/types";
@@ -92,13 +91,6 @@ export const useFilamentLayoutSearch = () =>
     strict: false,
     structuralSharing: true,
     select: (search) => filamentLayoutSearchSchema.parse(search),
-  });
-
-export const useSettingsSearch = () =>
-  useSearch({
-    strict: false,
-    structuralSharing: true,
-    select: (search) => settingsSearchSchema.parse(search),
   });
 
 export const useTeamSearch = () =>
