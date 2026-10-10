@@ -10,12 +10,18 @@ import {
   lazyRouteComponent,
   linkOptions,
   Outlet,
+  redirect,
 } from "@tanstack/react-router";
 
 import FilamentLayout from "@galaxy-io/filament/FilamentLayout";
+import { FilamentPath } from "@galaxy-io/filament/paths";
 import {
   filamentLayoutRouteOptions,
   filamentNotFoundRouteOptions,
+  pipelineCanvasRouteOptions,
+  pipelineHistoryRouteOptions,
+  pipelineRouteOptions,
+  pipelineSettingsRouteOptions,
   pipelinesRouteOptions,
   sinksRouteOptions,
   sourcesRouteOptions,
@@ -25,7 +31,14 @@ const MOUNT_PATH = "ingest";
 
 const filamentTransport = createConnectTransport({ baseUrl: "" });
 
-const HomePage: FC = () => <Link to={`/${MOUNT_PATH}`}>Open the module</Link>;
+const HomePage: FC = () => (
+  <>
+    <Link to={`/${MOUNT_PATH}`}>Open the module</Link>
+    <Link from={`/${MOUNT_PATH}`} to={FilamentPath.PIPELINE_CANVAS} params={{ id: "p" }}>
+      Open a pipeline canvas
+    </Link>
+  </>
+);
 
 const MountLayout: FC = () => (
   <TransportProvider transport={filamentTransport}>
@@ -62,6 +75,42 @@ const pipelinesRoute = createRoute({
   component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelinesPage")),
 });
 
+const pipelineRoute = createRoute({
+  getParentRoute: () => mountRoute,
+  path: "pipelines/$id",
+  ...pipelineRouteOptions,
+  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelinePage")),
+});
+
+const pipelineIndexRoute = createRoute({
+  getParentRoute: () => pipelineRoute,
+  path: "/",
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: `/${MOUNT_PATH}/pipelines/$id/canvas`, params });
+  },
+});
+
+const pipelineCanvasRoute = createRoute({
+  getParentRoute: () => pipelineRoute,
+  path: "canvas",
+  ...pipelineCanvasRouteOptions,
+  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineCanvasPage")),
+});
+
+const pipelineHistoryRoute = createRoute({
+  getParentRoute: () => pipelineRoute,
+  path: "history",
+  ...pipelineHistoryRouteOptions,
+  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineHistoryPage")),
+});
+
+const pipelineSettingsRoute = createRoute({
+  getParentRoute: () => pipelineRoute,
+  path: "settings",
+  ...pipelineSettingsRouteOptions,
+  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineSettingsPage")),
+});
+
 const sourcesRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "sources",
@@ -78,7 +127,18 @@ const sinksRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
-  mountRoute.addChildren([pipelinesRoute, sourcesRoute, sinksRoute, notFoundRoute]),
+  mountRoute.addChildren([
+    pipelinesRoute,
+    pipelineRoute.addChildren([
+      pipelineIndexRoute,
+      pipelineCanvasRoute,
+      pipelineHistoryRoute,
+      pipelineSettingsRoute,
+    ]),
+    sourcesRoute,
+    sinksRoute,
+    notFoundRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });

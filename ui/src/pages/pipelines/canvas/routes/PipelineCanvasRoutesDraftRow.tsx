@@ -34,8 +34,9 @@ import {
   PIPELINE_CANVAS_ROUTES_CURSOR_SELECT_WIDTH,
   PIPELINE_CANVAS_ROUTES_DRAFT_EDGE_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_DRAFT_KEY,
+  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_BOTTOM,
+  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_TOP,
   PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_X,
-  PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y,
   PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT,
   PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_GAP,
   PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_INSET,
@@ -61,7 +62,8 @@ import { mapOptionIdToEnum } from "@/utils/select";
 
 const RowWrapper = styled.div`
   height: ${PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT}px;
-  padding: ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_Y}px ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px;
+  padding: ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_TOP}px ${PIPELINE_CANVAS_ROUTES_LIST_PADDING_X}px
+    ${PIPELINE_CANVAS_ROUTES_DRAFT_PADDING_BOTTOM}px;
 
   display: flex;
   align-items: stretch;
@@ -295,7 +297,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                         if (id !== null)
                           draftState.setConfig({ readMode: mapOptionIdToEnum(ReadMode, id) });
                       }}
-                      variant={SelectInputVariant.TERTIARY}
+                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Read mode..."
                       isDisabled={isLoading}
@@ -312,7 +314,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       onChange={(id) => {
                         if (id !== null) draftState.setConfig({ cursor: id });
                       }}
-                      variant={SelectInputVariant.TERTIARY}
+                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Cursor..."
                       isDisabled={isLoading}
@@ -339,7 +341,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       if (id !== null)
                         draftState.setConfig({ writeMode: mapOptionIdToEnum(WriteMode, id) });
                     }}
-                    variant={SelectInputVariant.TERTIARY}
+                    variant={SelectInputVariant.SECONDARY}
                     size={SelectInputSize.SMALL}
                     placeholder="Write mode..."
                     isDisabled={isLoading}

@@ -129,7 +129,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
               onChange={(id) => {
                 if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
               }}
-              variant={SelectInputVariant.TERTIARY}
+              variant={SelectInputVariant.SECONDARY}
               size={SelectInputSize.SMALL}
               placeholder="Read mode..."
               isDisabled={isReadOnly}
@@ -146,7 +146,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
               onChange={(id) => {
                 if (id !== null) handleCursorChange(route.resource, id);
               }}
-              variant={SelectInputVariant.TERTIARY}
+              variant={SelectInputVariant.SECONDARY}
               size={SelectInputSize.SMALL}
               placeholder="Cursor..."
               isDisabled={isReadOnly || isLoadingColumns}
@@ -172,7 +172,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
             onChange={(id) => {
               if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
             }}
-            variant={SelectInputVariant.TERTIARY}
+            variant={SelectInputVariant.SECONDARY}
             size={SelectInputSize.SMALL}
             placeholder="Write mode..."
             isDisabled={isReadOnly}

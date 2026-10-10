@@ -89,8 +89,8 @@ const FlowWrapper = styled.div`
     bottom: 16px;
     left: 54px;
     margin: 0;
-    width: 160px;
-    height: 92px;
+    width: 114px;
+    height: 72px;
     background-color: ${t.color.background.base};
     border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
     border-radius: ${t.radius.lg};

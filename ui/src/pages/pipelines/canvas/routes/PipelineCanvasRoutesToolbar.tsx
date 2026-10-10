@@ -4,6 +4,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput, {
   MultiSelectInputSize,
   MultiSelectInputVariant,
@@ -79,6 +80,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
       <Box width={PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH}>
         <SearchInput
           ariaLabel="Search resources"
+          variant={InputVariant.SECONDARY}
           debounceMs={LIST_SEARCH_DEBOUNCE_MS}
           onSearch={onSearch}
           placeholder="Search resources..."
@@ -94,7 +96,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
           value={selectedSinkIds}
           onChange={handleSinksChange}
           placeholder="Sinks..."
-          variant={MultiSelectInputVariant.TERTIARY}
+          variant={MultiSelectInputVariant.SECONDARY}
           size={MultiSelectInputSize.MEDIUM}
           renderValue={(options) => <Text>{pluralize("sink", options.length, true)}</Text>}
         />

@@ -31,7 +31,7 @@ const PipelineCanvasViewSwitcher: FC = () => {
       value={view}
       onChange={setView}
       size={ToggleInputSize.MEDIUM}
-      variant={ToggleInputVariant.TERTIARY}
+      variant={ToggleInputVariant.PRIMARY}
     />
   );
 };

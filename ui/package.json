@@ -34,6 +34,22 @@
       "types": "./dist/pages/pipelines/PipelinesPage.d.ts",
       "import": "./dist/pages/pipelines/PipelinesPage.js"
     },
+    "./pages/PipelinePage": {
+      "types": "./dist/pages/pipelines/PipelinePage.d.ts",
+      "import": "./dist/pages/pipelines/PipelinePage.js"
+    },
+    "./pages/PipelineCanvasPage": {
+      "types": "./dist/pages/pipelines/PipelineCanvasPage.d.ts",
+      "import": "./dist/pages/pipelines/PipelineCanvasPage.js"
+    },
+    "./pages/PipelineHistoryPage": {
+      "types": "./dist/pages/pipelines/PipelineHistoryPage.d.ts",
+      "import": "./dist/pages/pipelines/PipelineHistoryPage.js"
+    },
+    "./pages/PipelineSettingsPage": {
+      "types": "./dist/pages/pipelines/PipelineSettingsPage.d.ts",
+      "import": "./dist/pages/pipelines/PipelineSettingsPage.js"
+    },
     "./pages/SourcesPage": {
       "types": "./dist/pages/connections/SourcesPage.d.ts",
       "import": "./dist/pages/connections/SourcesPage.js"

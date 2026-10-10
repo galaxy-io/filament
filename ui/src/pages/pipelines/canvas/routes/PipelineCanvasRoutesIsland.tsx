@@ -19,7 +19,7 @@ const Island = styled.div<{ $width: number; $isSelected: boolean }>`
   gap: 8px;
   min-width: 0;
 
-  background-color: ${t.color.background.primary};
+  background-color: ${t.color.background.secondary};
   border: ${HAIRLINE_WIDTH} solid
     ${({ $isSelected }) =>
       $isSelected ? t.color.solid.primary.background : t.color.border.primary};

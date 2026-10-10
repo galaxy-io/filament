@@ -98,4 +98,4 @@ export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, Phosph
   [PipelineCanvasView.ROUTES]: FlowArrowIcon,
 };
 
-export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 12;
+export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 16;
