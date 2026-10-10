@@ -7,6 +7,7 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -55,10 +56,7 @@ export const useGetPipelineVersionQuery = ({
     GetPipelineVersionResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getPipelineVersion.input,
-    typeof IngestionService.method.getPipelineVersion.output
-  >(IngestionService.method.getPipelineVersion, input, options);
+  return useQuery(IngestionService.method.getPipelineVersion, input, options);
 };
 
 export const useCreatePipelineVersionMutation = (
@@ -68,14 +66,14 @@ export const useCreatePipelineVersionMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.createPipelineVersion.input,
-    typeof IngestionService.method.createPipelineVersion.output
-  >(IngestionService.method.createPipelineVersion, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.createPipelineVersion, {
     ...options,
     onSettled: (...args) => {
       const [, , variables] = args;
-      void queryClient.invalidateQueries({ queryKey: createListPipelinesQueryKey() });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(undefined, transport),
+      });
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(
           create(GetPipelineRequestSchema, { id: variables.pipelineId }),
@@ -87,7 +85,7 @@ export const useCreatePipelineVersionMutation = (
         ),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

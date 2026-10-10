@@ -10,6 +10,7 @@ import {
   useQuery,
   useSuspenseInfiniteQuery,
   useSuspenseQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -75,10 +76,7 @@ export const useListConnectionsQuery = ({
     ListConnectionsResponse
   >;
 } = {}) => {
-  return useQuery<
-    typeof IngestionService.method.listConnections.input,
-    typeof IngestionService.method.listConnections.output
-  >(IngestionService.method.listConnections, input, options);
+  return useQuery(IngestionService.method.listConnections, input, options);
 };
 
 export const useSuspenseListConnectionsQuery = ({
@@ -86,10 +84,7 @@ export const useSuspenseListConnectionsQuery = ({
 }: {
   input?: ListConnectionsRequest;
 } = {}) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.listConnections.input,
-    typeof IngestionService.method.listConnections.output
-  >(IngestionService.method.listConnections, input);
+  return useSuspenseQuery(IngestionService.method.listConnections, input);
 };
 
 export const createListConnectionsInfiniteQueryOptions = ({
@@ -117,11 +112,7 @@ export const useListConnectionsInfiniteQuery = ({
     "pagination"
   >;
 } = {}) => {
-  return useInfiniteQuery<
-    typeof IngestionService.method.listConnections.input,
-    typeof IngestionService.method.listConnections.output,
-    "pagination"
-  >(
+  return useInfiniteQuery(
     IngestionService.method.listConnections,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     { pageParamKey: "pagination", getNextPageParam, ...options },
@@ -133,11 +124,7 @@ export const useSuspenseListConnectionsInfiniteQuery = ({
 }: {
   input?: InfiniteQueryInput<typeof IngestionService.method.listConnections.input>;
 } = {}) => {
-  return useSuspenseInfiniteQuery<
-    typeof IngestionService.method.listConnections.input,
-    typeof IngestionService.method.listConnections.output,
-    "pagination"
-  >(
+  return useSuspenseInfiniteQuery(
     IngestionService.method.listConnections,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     { pageParamKey: "pagination", getNextPageParam },
@@ -166,10 +153,7 @@ export const useGetConnectionQuery = ({
     GetConnectionResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getConnection.input,
-    typeof IngestionService.method.getConnection.output
-  >(IngestionService.method.getConnection, input, options);
+  return useQuery(IngestionService.method.getConnection, input, options);
 };
 
 export const useCreateConnectionMutation = (
@@ -179,14 +163,12 @@ export const useCreateConnectionMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.createConnection.input,
-    typeof IngestionService.method.createConnection.output
-  >(IngestionService.method.createConnection, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.createConnection, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListConnectionsQueryKey(),
+        queryKey: createListConnectionsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -200,26 +182,24 @@ export const useUpdateConnectionMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.updateConnection.input,
-    typeof IngestionService.method.updateConnection.output
-  >(IngestionService.method.updateConnection, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.updateConnection, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListConnectionsQueryKey(),
+        queryKey: createListConnectionsQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetConnectionQueryKey(),
+        queryKey: createGetConnectionQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createDiscoverResourcesQueryKey(),
+        queryKey: createDiscoverResourcesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetResourceColumnsQueryKey(),
+        queryKey: createGetResourceColumnsQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createValidatePipelineQueryKey(),
+        queryKey: createValidatePipelineQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -233,17 +213,15 @@ export const useDeleteConnectionMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.deleteConnection.input,
-    typeof IngestionService.method.deleteConnection.output
-  >(IngestionService.method.deleteConnection, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.deleteConnection, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListConnectionsQueryKey(),
+        queryKey: createListConnectionsQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetConnectionQueryKey(),
+        queryKey: createGetConnectionQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

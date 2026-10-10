@@ -33,10 +33,7 @@ export const useQueryTimeseriesQuery = ({
     QueryTimeseriesResponse
   >;
 } = {}) => {
-  return useQuery<
-    typeof MetricsService.method.queryTimeseries.input,
-    typeof MetricsService.method.queryTimeseries.output
-  >(MetricsService.method.queryTimeseries, input, {
+  return useQuery(MetricsService.method.queryTimeseries, input, {
     refetchInterval: METRICS_REFETCH_INTERVAL,
     ...options,
   });
@@ -64,10 +61,7 @@ export const useQueryAggregateQuery = ({
     QueryAggregateResponse
   >;
 } = {}) => {
-  return useQuery<
-    typeof MetricsService.method.queryAggregate.input,
-    typeof MetricsService.method.queryAggregate.output
-  >(MetricsService.method.queryAggregate, input, {
+  return useQuery(MetricsService.method.queryAggregate, input, {
     refetchInterval: METRICS_REFETCH_INTERVAL,
     ...options,
   });

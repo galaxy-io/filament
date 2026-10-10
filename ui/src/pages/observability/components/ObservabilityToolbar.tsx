@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import { useTransport } from "@connectrpc/connect-query";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -18,6 +19,7 @@ import { createListRunsQueryKey } from "@/api/queries/runs";
 const ObservabilityToolbar: FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const transport = useTransport();
   const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
     from: "/_app/_main/observability",
   });
@@ -31,17 +33,17 @@ const ObservabilityToolbar: FC = () => {
 
   const handleRefresh = () => {
     void queryClient.invalidateQueries({
-      queryKey: createQueryTimeseriesQueryKey(),
+      queryKey: createQueryTimeseriesQueryKey(undefined, transport),
     });
     void queryClient.invalidateQueries({
-      queryKey: createQueryAggregateQueryKey(),
+      queryKey: createQueryAggregateQueryKey(undefined, transport),
     });
-    void queryClient.invalidateQueries({ queryKey: createListRunsQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: createListRunsQueryKey(undefined, transport) });
     void queryClient.invalidateQueries({
-      queryKey: createListConnectionsQueryKey(),
+      queryKey: createListConnectionsQueryKey(undefined, transport),
     });
     void queryClient.invalidateQueries({
-      queryKey: createListPipelinesQueryKey(),
+      queryKey: createListPipelinesQueryKey(undefined, transport),
     });
   };
 

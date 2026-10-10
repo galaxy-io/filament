@@ -92,10 +92,7 @@ export const useListRunsQuery = ({
   input?: ListRunsRequest;
   options?: UseQueryOptions<typeof IngestionService.method.listRuns.output, ListRunsResponse>;
 } = {}) => {
-  return useQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >(IngestionService.method.listRuns, input, {
+  return useQuery(IngestionService.method.listRuns, input, {
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
@@ -113,10 +110,7 @@ export const useSuspenseListRunsQuery = ({
     typeof IngestionService.method.listRuns.output
   >;
 } = {}) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output
-  >(IngestionService.method.listRuns, input, {
+  return useSuspenseQuery(IngestionService.method.listRuns, input, {
     refetchInterval: (query) => {
       return getListRunsRefetchInterval(query.state.data?.runs);
     },
@@ -149,11 +143,7 @@ export const useListRunsInfiniteQuery = ({
     "pagination"
   >;
 } = {}) => {
-  return useInfiniteQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output,
-    "pagination"
-  >(
+  return useInfiniteQuery(
     IngestionService.method.listRuns,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     {
@@ -172,11 +162,7 @@ export const useSuspenseListRunsInfiniteQuery = ({
 }: {
   input?: InfiniteQueryInput<typeof IngestionService.method.listRuns.input>;
 } = {}) => {
-  return useSuspenseInfiniteQuery<
-    typeof IngestionService.method.listRuns.input,
-    typeof IngestionService.method.listRuns.output,
-    "pagination"
-  >(
+  return useSuspenseInfiniteQuery(
     IngestionService.method.listRuns,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     {
@@ -203,10 +189,7 @@ export const useGetRunQuery = ({
   input: GetRunRequest;
   options?: UseQueryOptions<typeof IngestionService.method.getRun.output, GetRunResponse>;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getRun.input,
-    typeof IngestionService.method.getRun.output
-  >(IngestionService.method.getRun, input, {
+  return useQuery(IngestionService.method.getRun, input, {
     refetchInterval: (query) => {
       return getGetRunRefetchInterval(query.state.data?.snapshot?.run);
     },
@@ -257,20 +240,18 @@ export const useRunPipelineMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.runPipeline.input,
-    typeof IngestionService.method.runPipeline.output
-  >(IngestionService.method.runPipeline, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.runPipeline, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -284,10 +265,8 @@ export const useSignalRunMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.signalRun.input,
-    typeof IngestionService.method.signalRun.output
-  >(IngestionService.method.signalRun, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.signalRun, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
@@ -296,10 +275,14 @@ export const useSignalRunMutation = (
           cardinality: undefined,
         }),
       });
-      void queryClient.invalidateQueries({ queryKey: createGetPipelineQueryKey() });
-      void queryClient.invalidateQueries({ queryKey: createListPipelinesQueryKey() });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListPipelinesQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

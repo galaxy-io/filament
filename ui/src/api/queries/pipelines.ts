@@ -9,6 +9,7 @@ import {
   useQuery,
   useSuspenseInfiniteQuery,
   useSuspenseQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -81,10 +82,7 @@ export const useListPipelinesQuery = ({
     ListPipelinesResponse
   >;
 } = {}) => {
-  return useQuery<
-    typeof IngestionService.method.listPipelines.input,
-    typeof IngestionService.method.listPipelines.output
-  >(IngestionService.method.listPipelines, input, {
+  return useQuery(IngestionService.method.listPipelines, input, {
     refetchInterval: (query) => {
       return getListPipelinesRefetchInterval(query.state.data?.pipelines);
     },
@@ -93,10 +91,7 @@ export const useListPipelinesQuery = ({
 };
 
 export const useSuspenseListPipelinesQuery = ({ input }: { input?: ListPipelinesRequest } = {}) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.listPipelines.input,
-    typeof IngestionService.method.listPipelines.output
-  >(IngestionService.method.listPipelines, input, {
+  return useSuspenseQuery(IngestionService.method.listPipelines, input, {
     refetchInterval: (query) => {
       return getListPipelinesRefetchInterval(query.state.data?.pipelines);
     },
@@ -122,11 +117,7 @@ export const useSuspenseListPipelinesInfiniteQuery = ({
 }: {
   input?: InfiniteQueryInput<typeof IngestionService.method.listPipelines.input>;
 } = {}) => {
-  return useSuspenseInfiniteQuery<
-    typeof IngestionService.method.listPipelines.input,
-    typeof IngestionService.method.listPipelines.output,
-    "pagination"
-  >(
+  return useSuspenseInfiniteQuery(
     IngestionService.method.listPipelines,
     { ...input, pagination: INITIAL_PAGE_PARAM },
     {
@@ -169,17 +160,11 @@ export const useGetPipelineQuery = ({
   input: GetPipelineRequest;
   options?: UseQueryOptions<typeof IngestionService.method.getPipeline.output, GetPipelineResponse>;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.getPipeline.input,
-    typeof IngestionService.method.getPipeline.output
-  >(IngestionService.method.getPipeline, input, options);
+  return useQuery(IngestionService.method.getPipeline, input, options);
 };
 
 export const useSuspenseGetPipelineQuery = ({ input }: { input: GetPipelineRequest }) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.getPipeline.input,
-    typeof IngestionService.method.getPipeline.output
-  >(IngestionService.method.getPipeline, input);
+  return useSuspenseQuery(IngestionService.method.getPipeline, input);
 };
 
 export const useCreatePipelineMutation = (
@@ -189,14 +174,12 @@ export const useCreatePipelineMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.createPipeline.input,
-    typeof IngestionService.method.createPipeline.output
-  >(IngestionService.method.createPipeline, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.createPipeline, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -210,17 +193,15 @@ export const useUpdatePipelineMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.updatePipeline.input,
-    typeof IngestionService.method.updatePipeline.output
-  >(IngestionService.method.updatePipeline, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.updatePipeline, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
@@ -234,20 +215,18 @@ export const useDeletePipelineMutation = (
   > = {},
 ) => {
   const queryClient = useQueryClient();
-  return useMutation<
-    typeof IngestionService.method.deletePipeline.input,
-    typeof IngestionService.method.deletePipeline.output
-  >(IngestionService.method.deletePipeline, {
+  const transport = useTransport();
+  return useMutation(IngestionService.method.deletePipeline, {
     ...options,
     onSettled: (...args) => {
       void queryClient.invalidateQueries({
-        queryKey: createListPipelinesQueryKey(),
+        queryKey: createListPipelinesQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createGetPipelineQueryKey(),
+        queryKey: createGetPipelineQueryKey(undefined, transport),
       });
       void queryClient.invalidateQueries({
-        queryKey: createListRunsQueryKey(),
+        queryKey: createListRunsQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

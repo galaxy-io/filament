@@ -12,10 +12,7 @@ export const useSuspenseListTransformFunctionsQuery = ({
 }: {
   input: ListTransformFunctionsRequest;
 }) => {
-  return useSuspenseQuery<
-    typeof IngestionService.method.listTransformFunctions.input,
-    typeof IngestionService.method.listTransformFunctions.output
-  >(IngestionService.method.listTransformFunctions, input, {
+  return useSuspenseQuery(IngestionService.method.listTransformFunctions, input, {
     staleTime: Number.POSITIVE_INFINITY,
   });
 };
@@ -30,8 +27,5 @@ export const useValidateTransformQuery = ({
     ValidateTransformResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.validateTransform.input,
-    typeof IngestionService.method.validateTransform.output
-  >(IngestionService.method.validateTransform, input, { retry: false, ...options });
+  return useQuery(IngestionService.method.validateTransform, input, { retry: false, ...options });
 };
