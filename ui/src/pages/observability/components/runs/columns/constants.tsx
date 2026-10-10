@@ -37,6 +37,7 @@ export const OBSERVABILITY_RUNS_TABLE_BASE_COLUMNS: TableColumn<RunInfo>[] = [
     id: "pipeline",
     header: "Pipeline",
     minWidth: OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_PIPELINE,
+    isRowHeader: true,
     canSort: false,
     cell: ({ row }) => <PipelineName pipelineId={row.pipelineId} />,
   },

@@ -161,7 +161,6 @@ const PipelinePageHeading: FC = () => {
           value={pipeline.description}
           placeholder="Add a description..."
           onChange={handleDescriptionChange}
-          size={TextSize.BODY_SM}
         />
       </FlexItem>
     </Flex>
