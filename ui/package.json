@@ -1,14 +1,23 @@
 {
   "name": "@galaxy-io/filament-ui",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.1",
+  "description": "Filament's web UI as a Galaxy module a host app mounts",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galaxy-io/filament.git",
+    "directory": "ui"
+  },
+  "bugs": "https://github.com/galaxy-io/filament/issues",
   "type": "module",
   "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=22"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "sideEffects": [
     "**/*.css"
@@ -83,7 +92,8 @@
     "format": "biome check --write",
     "format:check": "biome check",
     "lint": "biome lint --write",
-    "lint:check": "biome lint"
+    "lint:check": "biome lint",
+    "prepublishOnly": "pnpm build:lib && pnpm check:package && pnpm check:host"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

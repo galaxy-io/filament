@@ -49,7 +49,7 @@ pnpm check:host      # type-check and build the fixture host against the package
 
 `fixtures/host/` is the reference host and the executable copy of this contract. A host does the following.
 
-1. **Install** `@galaxy-io/filament-ui` and every peer dependency in `package.json`. The host `tsconfig` uses `"moduleResolution": "bundler"`, which every Vite host does. The host bundler replaces `process.env.NODE_ENV`, which Vite and webpack do.
+1. **Install** `@galaxy-io/filament-ui` from npm (`pnpm add @galaxy-io/filament-ui`) and every peer dependency in `package.json`. The host `tsconfig` uses `"moduleResolution": "bundler"`, which every Vite host does. The host bundler replaces `process.env.NODE_ENV`, which Vite and webpack do.
 2. **Import the CSS once** at the app entry, in this order. `@galaxy-io/dls/styles.css`, `tokens.css`, `fonts.css`, then `@galaxy-io/filament-ui/styles.css`. Filament overrides the DLS at equal specificity, so its file comes last.
 3. **Mount the providers** above the router. `GalaxyProvider` owns the theme (Filament has no theme API), then `QueryClientProvider` and `RouterProvider`.
 4. **Give Filament a transport.** Filament reads the connect-query transport from context. A host whose global transport already reaches Filament's services needs nothing more. Otherwise nest a `TransportProvider` in the layout route's component. Create the transport once, at module scope, and pass the same instance to `useFilamentCommandItems` when the palette lives outside the mount, so the palette and the pages share cache entries. The module takes no `baseUrl`. Only the host adds auth interceptors or picks the wire format.
@@ -62,6 +62,10 @@ pnpm check:host      # type-check and build the fixture host against the package
 6. **Own the query client.** Filament works with TanStack's defaults. Skip retries for `NotFound`, `PermissionDenied`, `Unauthenticated`, `InvalidArgument` and `Unimplemented`, or a missing pipeline retries for about 7s before its not-found page. A `staleTime` of 30s is recommended.
 7. **Proxy** `/ingestion.v1.IngestionService`, `/metrics.v1.MetricsService` and `/auth.v1.AuthService` to the Filament API at the transport's `baseUrl`. When another product also serves `metrics.v1.MetricsService`, put one product behind a prefix.
 8. **Give the layout a box.** `FilamentLayout` fills its parent, so the parent needs a definite height (a flex child with `min-height: 0`).
+
+### Releasing
+
+`@galaxy-io/filament-ui` is published to npm by `.github/workflows/ui-release.yaml`. The `filament-ui` release-please component bumps `package.json` from conventional commits under `ui/`. Merging its release PR tags `filament-ui-x.y.z`, and the workflow then runs `pnpm check` and publishes through npm trusted publishing, with no token.
 
 ## Codegen
 
