@@ -1,6 +1,8 @@
 import type { FC, ReactNode } from "react";
 
 import PoweredBy, { PoweredByWordmark } from "@galaxy-io/dls/brand/PoweredBy";
+import { AppFrameToggle } from "@galaxy-io/dls/layout/AppFrame";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import SidebarNav, { NavItem } from "@galaxy-io/dls/navigation/SidebarNav";
 
 import RouterLink from "@/components/RouterLink";
@@ -34,11 +36,18 @@ const MainLayoutSidebar: FC<MainLayoutSidebarProps> = ({ footer }) => {
       footer={
         <>
           {footer}
-          <PoweredBy
-            wordmark={PoweredByWordmark.FILAMENT}
-            href={GITHUB_REPO_URL}
-            ariaLabel="Filament on GitHub"
-          />
+          <Flex
+            alignItems={AlignItems.CENTER}
+            justifyContent={JustifyContent.SPACE_BETWEEN}
+            height={40}
+          >
+            <PoweredBy
+              wordmark={PoweredByWordmark.FILAMENT}
+              href={GITHUB_REPO_URL}
+              ariaLabel="Filament on GitHub"
+            />
+            <AppFrameToggle />
+          </Flex>
         </>
       }
     >
