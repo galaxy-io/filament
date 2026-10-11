@@ -1,5 +1,6 @@
 {
   ".": "0.18.0",
   "sdks/python": "0.4.0",
-  "sdks/typescript": "0.4.0"
+  "sdks/typescript": "0.4.0",
+  "ui": "0.1.0"
 }
