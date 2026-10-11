@@ -6,7 +6,6 @@ interface MainLayoutSidebarProviderProps {
   isCollapsed: boolean;
 }
 
-/** Shares whether the sidebar is the icon rail with footer content passed in from outside it. */
 export const MainLayoutSidebarProvider: FC<PropsWithChildren<MainLayoutSidebarProviderProps>> = ({
   isCollapsed,
   children,

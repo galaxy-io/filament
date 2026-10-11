@@ -66,7 +66,6 @@ const AccountButton = styled.button`
   ${FOCUS_RING}
 `;
 
-/** On the sidebar's icon rail: the avatar alone, in a square the width of a rail item. */
 const ACCOUNT_BUTTON_COLLAPSED_CSS = css`
   justify-content: center;
   width: ${t.size.control.medium};

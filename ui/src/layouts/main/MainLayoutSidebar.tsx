@@ -4,6 +4,7 @@ import PoweredBy, { PoweredByWordmark } from "@galaxy-io/dls/brand/PoweredBy";
 import { AppFrameToggle } from "@galaxy-io/dls/layout/AppFrame";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import SidebarNav, { NavItem } from "@galaxy-io/dls/navigation/SidebarNav";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import RouterLink from "@/components/RouterLink";
 
@@ -39,7 +40,7 @@ const MainLayoutSidebar: FC<MainLayoutSidebarProps> = ({ footer }) => {
           <Flex
             alignItems={AlignItems.CENTER}
             justifyContent={JustifyContent.SPACE_BETWEEN}
-            height={40}
+            height={t.size.control.xLarge}
           >
             <PoweredBy
               wordmark={PoweredByWordmark.FILAMENT}
