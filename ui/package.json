@@ -1,14 +1,23 @@
 {
   "name": "@galaxy-io/filament-ui",
   "version": "0.1.1",
+  "description": "Filament's web UI as a Galaxy module a host app mounts",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/galaxy-io/filament.git",
+    "directory": "ui"
+  },
+  "bugs": "https://github.com/galaxy-io/filament/issues",
   "type": "module",
   "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": ">=22"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "sideEffects": [
     "**/*.css"
@@ -156,14 +165,5 @@
     "typescript": "~5.9.3",
     "vite": "^8.0.16",
     "vite-plugin-dts": "^5.1.2"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org",
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/galaxy-io/filament.git",
-    "directory": "ui"
   }
 }

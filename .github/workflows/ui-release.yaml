@@ -59,6 +59,21 @@ jobs:
         if: steps.version.outputs.published == 'false'
         run: just ui-check
 
+      - name: Pack package
+        if: steps.version.outputs.published == 'false'
+        working-directory: ui
+        run: |
+          mkdir -p "$RUNNER_TEMP/ui-dist"
+          pnpm pack --pack-destination "$RUNNER_TEMP/ui-dist"
+
+      - name: Upload package
+        if: steps.version.outputs.published == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: filament-ui-${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/ui-dist/
+          if-no-files-found: error
+
       - name: Publish to npm
         if: steps.version.outputs.published == 'false'
         working-directory: ui
