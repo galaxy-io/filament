@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, {
   SelectInputSize,
   SelectInputVariant,
@@ -28,13 +30,13 @@ interface PipelineTransformFieldsFunctionPickerProps {
   isError?: boolean;
 }
 
-const PipelineTransformFieldsFunctionPicker = ({
+const PipelineTransformFieldsFunctionPicker: FC<PipelineTransformFieldsFunctionPickerProps> = ({
   input,
   inputType,
   fn,
   onChange,
   isError = false,
-}: PipelineTransformFieldsFunctionPickerProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const options = getTransformFunctionChoices(input, inputType, fn, functionsByName).map(

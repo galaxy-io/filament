@@ -54,8 +54,8 @@ day.
 | `just control-plane` | Control plane alone, with `DISPATCH_MODE=worker` |
 | `just ui` | Vite dev server on `:5173`, proxying the API to `:8080` |
 | `just gen` | Regenerate protobuf/ConnectRPC stubs (`buf generate`) and sqlc code |
-| `just ui-dist` | Build the UI bundle the server embeds |
-| `just build` | `gen` + `ui-dist` + compile every Go module |
+| `just ui-build` | Build the UI bundle the server embeds |
+| `just build` | `gen` + `ui-build` + compile every Go module |
 | `just binaries` | Linux release binaries into `bin/filament/` |
 | `just images` | Build images with the selected container engine |
 | `just docs` | Mintlify docs preview on `:3000` |
@@ -87,7 +87,7 @@ local development.
 
 `just binaries` builds the server, standalone, and cli binaries with
 `-tags embedui` so the compiled UI ships inside them. A plain `go build ./cmd/server` without
-the tag serves a placeholder page at `/`, not the UI. `just ui-dist` produces
+the tag serves a placeholder page at `/`, not the UI. `just ui-build` produces
 the embeddable bundle on its own.
 
 ## Building the worker images

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -25,10 +27,10 @@ interface PipelineTransformFieldsStepRenameProps {
   onChange: (step: TransformEditableStep) => void;
 }
 
-const PipelineTransformFieldsStepRename = ({
+const PipelineTransformFieldsStepRename: FC<PipelineTransformFieldsStepRenameProps> = ({
   step,
   onChange,
-}: PipelineTransformFieldsStepRenameProps) => {
+}) => {
   const { errors, isDisabled } = usePipelineTransformFieldsEditor();
   const setPair = (index: number, pair: TransformRenamePair) =>
     onChange({

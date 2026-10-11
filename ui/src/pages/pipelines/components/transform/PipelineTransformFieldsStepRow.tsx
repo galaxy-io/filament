@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
@@ -18,12 +20,12 @@ interface PipelineTransformFieldsStepRowProps {
   onOpen?: () => void;
 }
 
-const PipelineTransformFieldsStepRow = ({
+const PipelineTransformFieldsStepRow: FC<PipelineTransformFieldsStepRowProps> = ({
   step,
   issues,
   handle,
   onOpen,
-}: PipelineTransformFieldsStepRowProps) => (
+}) => (
   <PipelineTransformFieldsStepSurface $isHoverable={onOpen !== undefined}>
     <PipelineTransformFieldsStepHeader isOpen={false} onToggle={onOpen} handle={handle}>
       <Flex alignItems={AlignItems.START} gap={8} fillWidth>

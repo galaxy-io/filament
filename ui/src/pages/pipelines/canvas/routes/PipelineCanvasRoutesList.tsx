@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -45,11 +45,11 @@ interface PipelineCanvasRoutesListProps {
   draftState: PipelineCanvasRoutesDraftState;
 }
 
-const PipelineCanvasRoutesList = ({
+const PipelineCanvasRoutesList: FC<PipelineCanvasRoutesListProps> = ({
   routes,
   hasRoutes,
   draftState,
-}: PipelineCanvasRoutesListProps) => {
+}) => {
   const { selectedNodeId, selectedResourceId, selectResource, clearSelection } =
     usePipelineCanvasSelection();
   const isRunning = usePipelineCanvasIsRunning();

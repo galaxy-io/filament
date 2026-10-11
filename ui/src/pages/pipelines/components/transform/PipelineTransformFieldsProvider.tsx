@@ -1,5 +1,6 @@
 import {
   createContext,
+  type FC,
   type PropsWithChildren,
   useContext,
   useMemo,
@@ -111,7 +112,9 @@ interface PipelineTransformFieldsProviderProps {
   isReadOnly?: boolean;
 }
 
-const PipelineTransformFieldsProvider = ({
+const PipelineTransformFieldsProvider: FC<
+  PropsWithChildren<PipelineTransformFieldsProviderProps>
+> = ({
   definition,
   onChange,
   resources,
@@ -119,7 +122,7 @@ const PipelineTransformFieldsProvider = ({
   sourceConnectionId,
   isReadOnly = false,
   children,
-}: PropsWithChildren<PipelineTransformFieldsProviderProps>) => {
+}) => {
   const { data: catalog } = useSuspenseListTransformFunctionsQuery({
     input: create(ListTransformFunctionsRequestSchema, {}),
   });

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -43,7 +45,7 @@ interface PipelineTransformFieldsCallProps {
   onChange: (call: TransformChainCall) => void;
 }
 
-const PipelineTransformFieldsCall = ({
+const PipelineTransformFieldsCall: FC<PipelineTransformFieldsCallProps> = ({
   call,
   path,
   input,
@@ -52,7 +54,7 @@ const PipelineTransformFieldsCall = ({
   showFunction,
   depth,
   onChange,
-}: PipelineTransformFieldsCallProps) => {
+}) => {
   const editor = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const fn = functionsByName.get(call.fn);

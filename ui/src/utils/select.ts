@@ -1,31 +1,16 @@
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-export interface SelectAllOption {
-  id: string;
-  label: string;
-  optionIds: string[];
-}
+type ProtoEnum<TEnum extends number> = { UNSPECIFIED: TEnum } & Record<string, string | TEnum>;
 
-export const isSelectAllChecked = (selectAll: SelectAllOption, selected: string[]) =>
-  selectAll.optionIds.length > 0 && selectAll.optionIds.every((id) => selected.includes(id));
+export const getEnumValues = <TEnum extends number>(enumObject: ProtoEnum<TEnum>) =>
+  Object.values(enumObject).filter(
+    (value): value is TEnum => typeof value === "number" && value !== enumObject.UNSPECIFIED,
+  );
 
-export const getSelectAllOptions = (
-  selectAll: SelectAllOption,
-  options: SelectOption[],
-): SelectOption[] => [{ id: selectAll.id, label: selectAll.label }, ...options];
+export const createEnumSelectOptions = <TEnum extends number>(
+  values: readonly TEnum[],
+  labels: Record<TEnum, string>,
+): SelectOption[] => values.map((value) => ({ id: String(value), label: labels[value] }));
 
-export const getSelectAllValue = (selectAll: SelectAllOption, selected: string[]) =>
-  isSelectAllChecked(selectAll, selected) ? [selectAll.id, ...selected] : selected;
-
-export const getSelectAllChange = (
-  selectAll: SelectAllOption,
-  next: string[],
-  selected: string[],
-): string[] => {
-  const wasChecked = isSelectAllChecked(selectAll, selected);
-  const isChecked = next.includes(selectAll.id);
-  const rest = next.filter((id) => id !== selectAll.id);
-  if (isChecked === wasChecked) return rest;
-  if (isChecked) return [...rest, ...selectAll.optionIds.filter((id) => !rest.includes(id))];
-  return rest.filter((id) => !selectAll.optionIds.includes(id));
-};
+export const mapOptionIdToEnum = <TEnum extends number>(enumObject: ProtoEnum<TEnum>, id: string) =>
+  getEnumValues(enumObject).find((value) => value === Number(id)) ?? enumObject.UNSPECIFIED;

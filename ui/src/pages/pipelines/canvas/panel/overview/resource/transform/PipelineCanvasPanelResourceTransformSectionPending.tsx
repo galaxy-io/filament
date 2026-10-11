@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { FunctionIcon } from "@phosphor-icons/react";
 
 import {
@@ -8,7 +10,7 @@ import {
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import PipelineTransformFieldsPending from "@/pages/pipelines/components/transform/PipelineTransformFieldsPending";
 
-const PipelineCanvasPanelResourceTransformSectionPending = () => (
+const PipelineCanvasPanelResourceTransformSectionPending: FC = () => (
   <PipelineCanvasPanelSection
     icon={FunctionIcon}
     header={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_HEADER}

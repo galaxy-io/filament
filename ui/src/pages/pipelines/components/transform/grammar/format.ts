@@ -25,7 +25,7 @@ export enum TransformSummaryPartKind {
   VALUE = "value",
 }
 
-export interface TransformSummaryPart {
+interface TransformSummaryPart {
   kind: TransformSummaryPartKind;
   text: string;
 }
@@ -108,7 +108,7 @@ const needsParentheses = (
   expr.kind === TransformExprKind.CALL &&
   (isInfix(functionsByName.get(expr.fn)) || expr.args[0]?.kind === TransformExprKind.CALL);
 
-export const formatTransformExpr = (
+const formatTransformExpr = (
   expr: TransformExpr,
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
 ): TransformSummaryPart[] =>

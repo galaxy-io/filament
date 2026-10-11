@@ -32,6 +32,11 @@
       "release-type": "node",
       "component": "filament-ts",
       "include-v-in-tag": false
+    },
+    "ui": {
+      "release-type": "node",
+      "component": "filament-ui",
+      "include-v-in-tag": false
     }
   }
 }

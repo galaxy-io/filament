@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { type FC, useCallback, useMemo } from "react";
 
 import { styled } from "@linaria/react";
 import {
@@ -21,6 +21,9 @@ import "@xyflow/react/dist/style.css";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_MINIMAP_HEIGHT,
+  PIPELINE_CANVAS_MINIMAP_LEFT,
+  PIPELINE_CANVAS_MINIMAP_WIDTH,
   PIPELINE_CANVAS_OVERLAY_Z_INDEX,
   PIPELINE_CANVAS_PAN_ON_DRAG,
   PIPELINE_CANVAS_SNAP_GRID,
@@ -46,9 +49,10 @@ import {
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 import {
   getPipelineCanvasFitViewOptions,
+  isConnectionNode,
   mapEdgesToStyledEdges,
   mapElementsToSelected,
 } from "@/pages/pipelines/canvas/utils";
@@ -85,11 +89,11 @@ const FlowWrapper = styled.div`
 
   .react-flow__minimap {
     position: absolute;
-    bottom: 16px;
-    left: 54px;
+    bottom: ${t.space[16]};
+    left: ${PIPELINE_CANVAS_MINIMAP_LEFT}px;
     margin: 0;
-    width: 160px;
-    height: 92px;
+    width: ${PIPELINE_CANVAS_MINIMAP_WIDTH}px;
+    height: ${PIPELINE_CANVAS_MINIMAP_HEIGHT}px;
     background-color: ${t.color.background.base};
     border: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
     border-radius: ${t.radius.lg};
@@ -107,7 +111,7 @@ const ViewSwitcherOverlay = styled.div`
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
 `;
 
-const PipelineCanvasFlow = () => {
+const PipelineCanvasFlow: FC = () => {
   const { theme } = useGalaxyTheme();
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();

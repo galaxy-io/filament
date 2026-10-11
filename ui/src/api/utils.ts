@@ -1,14 +1,12 @@
 import { create, type DescMessage, type MessageInitShape } from "@bufbuild/protobuf";
-import type {
-  UseInfiniteQueryOptions as ConnectUseInfiniteQueryOptions,
-  useSuspenseQuery,
-} from "@connectrpc/connect-query";
-import z from "zod";
+import type { UseInfiniteQueryOptions as ConnectUseInfiniteQueryOptions } from "@connectrpc/connect-query";
 
 import type { PaginationRequestSchema, PaginationResponse } from "@/gen/ingestion/v1/pagination_pb";
 import { SortBy, SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 
-export const DEFAULT_PAGE_SIZE = 25;
+import type { ListSearchParams } from "@/module/schemas";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 export const INITIAL_PAGE_PARAM: MessageInitShape<typeof PaginationRequestSchema> = {
   pageSize: DEFAULT_PAGE_SIZE,
@@ -29,27 +27,14 @@ export type UseInfiniteQueryOptions<
   ParamKey extends keyof MessageInitShape<I>,
 > = Omit<ConnectUseInfiniteQueryOptions<I, O, ParamKey>, "pageParamKey" | "getNextPageParam">;
 
-export type UseSuspenseQueryOptions<I extends DescMessage, O extends DescMessage> = NonNullable<
-  Parameters<typeof useSuspenseQuery<I, O>>[2]
->;
-
 export type InfiniteQueryInput<I extends DescMessage> = Omit<
   MessageInitShape<I>,
   "pagination" | "$typeName"
 >;
 
-export const DEFAULT_LIST_SORT_BY = SortBy.CREATED_AT;
-export const DEFAULT_LIST_SORT_ORDER = SortOrder.DESC;
+const DEFAULT_LIST_SORT_BY = SortBy.CREATED_AT;
+const DEFAULT_LIST_SORT_ORDER = SortOrder.DESC;
 export const MAX_LIST_SEARCH_LENGTH = 256;
-export const LIST_SEARCH_DEBOUNCE_MS = 300;
-
-export const listSearchParamsSchema = z.object({
-  q: z.string().optional().catch(undefined),
-  sortBy: z.enum(SortBy).optional().catch(undefined),
-  sortOrder: z.enum(SortOrder).optional().catch(undefined),
-});
-
-export type ListSearchParams = z.infer<typeof listSearchParamsSchema>;
 
 export const createListSortingInput = ({
   sortBy,

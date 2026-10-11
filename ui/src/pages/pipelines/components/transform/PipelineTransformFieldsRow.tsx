@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -74,14 +74,14 @@ interface PipelineTransformFieldsRowProps {
   isAddRow?: boolean;
 }
 
-const PipelineTransformFieldsRow = ({
+const PipelineTransformFieldsRow: FC<PropsWithChildren<PipelineTransformFieldsRowProps>> = ({
   variant,
   gutter,
   action,
   isBoxed = false,
   isAddRow = false,
   children,
-}: PropsWithChildren<PipelineTransformFieldsRowProps>) => {
+}) => {
   const isArg = variant === PipelineTransformFieldsRowVariant.ARG;
   const hasGutter = isArg || gutter !== undefined;
   const hasAction = action !== undefined;

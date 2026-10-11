@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { FunctionIcon, PlusIcon } from "@phosphor-icons/react";
 
@@ -17,7 +17,7 @@ import {
   usePipelineTransformFieldsState,
 } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 
-const PipelineCanvasPanelResourceTransformSection = () => {
+const PipelineCanvasPanelResourceTransformSection: FC = () => {
   const { stepsByResource, draft } = usePipelineTransformFieldsState();
   const { openNew } = usePipelineTransformFieldsActions();
   const { isReadOnly } = usePipelineTransformFieldsEnvironment();

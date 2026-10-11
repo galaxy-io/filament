@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import { create, fromJsonString, toJsonString } from "@bufbuild/protobuf";
 import { keepPreviousData } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
 
 import { useDebouncedValue } from "@galaxy-io/dls/hooks/useDebouncedValue";
 
@@ -12,36 +11,28 @@ import {
   type ValidatePipelineResponse,
 } from "@/gen/ingestion/v1/capabilities_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS } from "@/pages/pipelines/canvas/constants";
 import {
   getCanvasEdgeKey,
   mapCanvasStateToVersionRequest,
 } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
+import {
+  type PipelineCanvasValidationIssue,
+  PipelineCanvasValidationIssueKind,
+} from "@/pages/pipelines/canvas/types";
 import { groupTransformIssuesByStep } from "@/pages/pipelines/components/transform/grammar/paths";
 import { getEdgeBlockingRequirements, getEdgeValidationErrors } from "@/pages/pipelines/utils";
 
+import { usePipelineParams } from "@/module/hooks";
+
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-export enum PipelineCanvasValidationIssueKind {
-  TRANSFORM = "transform",
-  EDGE = "edge",
-  GRAPH = "graph",
-}
+import { VALIDATION_DEBOUNCE_MS } from "@/constants";
 
-export interface PipelineCanvasValidationIssue {
-  kind: PipelineCanvasValidationIssueKind;
-  resource?: string;
-  edgeId?: CanvasEdge["id"];
-  invalidSteps?: number;
-  message: string;
-}
-
-export interface PipelineCanvasValidation {
+interface PipelineCanvasValidation {
   validation: ValidatePipelineResponse | undefined;
   invalidEdgeIds: Set<CanvasEdge["id"]>;
   edgeValidationByEdgeId: Map<CanvasEdge["id"], EdgeValidation>;
@@ -100,9 +91,9 @@ const getCanvasValidationIssues = (
 };
 
 export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+  const { id } = usePipelineParams();
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const currentVersion = pipelineData.pipeline?.currentVersion;
   const executionMode = pipelineData.pipeline?.executionMode;
@@ -119,7 +110,7 @@ export const usePipelineCanvasValidation = (): PipelineCanvasValidation => {
       ),
     [state, id, currentVersion, executionMode],
   );
-  const debouncedJson = useDebouncedValue(requestJson, PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS);
+  const debouncedJson = useDebouncedValue(requestJson, VALIDATION_DEBOUNCE_MS);
   const input = useMemo(
     () => fromJsonString(ValidatePipelineRequestSchema, debouncedJson),
     [debouncedJson],

@@ -1,21 +1,19 @@
 import { useMemo } from "react";
 
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
+
 import { ExecutionMode, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
-import {
-  PipelineCanvasValidationIssueKind,
-  usePipelineCanvasValidation,
-} from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
+import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
 import { getPipelineCanvasRouteGroupKey } from "@/pages/pipelines/canvas/routes/utils";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasValidationIssueKind } from "@/pages/pipelines/canvas/types";
 import { getCanvasEdgeResourceLabel, getTransformStepCount } from "@/pages/pipelines/canvas/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
-
-import { isSearchMatch } from "@/utils/search";
 
 interface PipelineCanvasRoutesOptions {
   search: string;

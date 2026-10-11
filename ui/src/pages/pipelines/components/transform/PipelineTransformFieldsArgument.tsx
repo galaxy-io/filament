@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import type { TransformArgument } from "@/gen/ingestion/v1/transformations_pb";
 
 import PipelineTransformFieldsLeaf from "@/pages/pipelines/components/transform/PipelineTransformFieldsLeaf";
@@ -18,7 +20,7 @@ interface PipelineTransformFieldsArgumentProps {
   onChange: (expr: TransformExpr) => void;
 }
 
-const PipelineTransformFieldsArgument = ({
+const PipelineTransformFieldsArgument: FC<PipelineTransformFieldsArgumentProps> = ({
   expr,
   spec,
   expectedTypes,
@@ -26,7 +28,7 @@ const PipelineTransformFieldsArgument = ({
   rootColumn,
   depth,
   onChange,
-}: PipelineTransformFieldsArgumentProps) => {
+}) => {
   const { errors } = usePipelineTransformFieldsEditor();
   if (expr.kind === TransformExprKind.CALL) {
     return (

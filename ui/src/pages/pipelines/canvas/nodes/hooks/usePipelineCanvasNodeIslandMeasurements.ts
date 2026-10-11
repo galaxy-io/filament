@@ -23,7 +23,6 @@ export const usePipelineCanvasNodeIslandMeasurements = (hiddenHandleIds: string[
     const nodeRect = nodeElement.getBoundingClientRect();
     const listRect = listElement.getBoundingClientRect();
     const badgeRect = badgeRef.current?.getBoundingClientRect() ?? null;
-    // Whole pixels only: subpixel rects at fractional zoom would republish every render.
     const toNodeX = (clientX: number) => Math.round((clientX - nodeRect.left) / zoom);
     const toNodeY = (clientY: number) => Math.round((clientY - nodeRect.top) / zoom);
 
@@ -43,8 +42,6 @@ export const usePipelineCanvasNodeIslandMeasurements = (hiddenHandleIds: string[
     publishMeasurements();
   };
 
-  // No dependency array: list height and badge presence track content, not any cheap dep.
-  // The store's equality bail-out drops the publishes this makes redundant.
   useLayoutEffect(publishMeasurements);
 
   useEffect(

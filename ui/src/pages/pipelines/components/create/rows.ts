@@ -13,6 +13,7 @@ import type {
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
 import {
+  getCompatibleWriteModes,
   getCursorOptions,
   getDefaultCursor,
   getPipelineResourceStatus,
@@ -29,18 +30,6 @@ export const getDefaultPipelineName = (
   return sinkNames;
 };
 
-const writeModesForRead = (readMode: ReadMode): WriteMode[] => {
-  if (readMode === ReadMode.INCREMENTAL) return [WriteMode.APPEND, WriteMode.UPSERT];
-  return [WriteMode.APPEND, WriteMode.REPLACE, WriteMode.UPSERT];
-};
-
-const getCompatibleWriteModes = (readModes: ReadMode[]): WriteMode[] =>
-  readModes.length
-    ? readModes
-        .map(writeModesForRead)
-        .reduce((left, right) => left.filter((mode) => right.includes(mode)))
-    : [WriteMode.APPEND, WriteMode.REPLACE, WriteMode.UPSERT];
-
 export const isResourceSelected = (
   selection: Record<Resource["name"], boolean> | undefined,
   resource: Resource,
@@ -48,7 +37,7 @@ export const isResourceSelected = (
   resource.isSelectable &&
   (selection?.[resource.name] ?? resource.metadata.default_resources !== "false");
 
-const buildResourceRows = ({
+const createResourceRows = ({
   state,
   sinkId,
   resources,
@@ -119,7 +108,7 @@ const buildResourceRows = ({
   });
 };
 
-export const buildResourceRowsBySink = ({
+export const createResourceRowsBySink = ({
   state,
   resources,
   columns,
@@ -135,7 +124,7 @@ export const buildResourceRowsBySink = ({
   Object.fromEntries(
     state.sinkConnections.map((sink) => [
       sink.id,
-      buildResourceRows({
+      createResourceRows({
         state,
         sinkId: sink.id,
         resources,
@@ -146,7 +135,7 @@ export const buildResourceRowsBySink = ({
     ]),
   );
 
-export const buildSinkRows = ({
+export const createSinkRows = ({
   state,
   rowsBySink,
   hasReadLevers,
@@ -167,7 +156,7 @@ export const buildSinkRows = ({
     ];
     const supported = supportedWriteModesBySink[connection.id] ?? [];
     const writeModeOptions = hasReadLevers
-      ? supported.filter((mode) => getCompatibleWriteModes(readModes).includes(mode))
+      ? getCompatibleWriteModes(supported, readModes)
       : supported;
     const stored =
       state.sinkWriteModes[connection.id] ??

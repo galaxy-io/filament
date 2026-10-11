@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type FC, memo } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -35,41 +35,37 @@ interface PipelineCanvasRoutesRowProps {
   onAddSink: ((resource: PipelineCanvasRoute["resource"]) => void) | undefined;
 }
 
-const PipelineCanvasRoutesRow = memo(
-  ({
-    route,
-    isSelected,
-    isGroupSelected,
-    isRunning,
-    onSelect,
-    onAddSink,
-  }: PipelineCanvasRoutesRowProps) => (
-    <RowWrapper>
-      <SourceSlot>
-        {route.groupIndex === 0 && (
-          <PipelineCanvasRoutesSourceIsland
-            route={route}
-            isSelected={isGroupSelected}
-            onSelect={() => onSelect(route.edge.id)}
-            onAddSink={onAddSink && (() => onAddSink(route.resource))}
-          />
-        )}
-      </SourceSlot>
-      <PipelineCanvasRoutesRowEdge
-        route={route}
-        isSelected={isSelected}
-        isRunning={isRunning}
-        onSelect={() => onSelect(route.edge.id)}
-      />
-      <PipelineCanvasRoutesSinkIsland
-        route={route}
-        isSelected={isSelected}
-        onSelect={() => onSelect(route.edge.id)}
-      />
-    </RowWrapper>
-  ),
+const PipelineCanvasRoutesRow: FC<PipelineCanvasRoutesRowProps> = ({
+  route,
+  isSelected,
+  isGroupSelected,
+  isRunning,
+  onSelect,
+  onAddSink,
+}) => (
+  <RowWrapper>
+    <SourceSlot>
+      {route.groupIndex === 0 && (
+        <PipelineCanvasRoutesSourceIsland
+          route={route}
+          isSelected={isGroupSelected}
+          onSelect={() => onSelect(route.edge.id)}
+          onAddSink={onAddSink && (() => onAddSink(route.resource))}
+        />
+      )}
+    </SourceSlot>
+    <PipelineCanvasRoutesRowEdge
+      route={route}
+      isSelected={isSelected}
+      isRunning={isRunning}
+      onSelect={() => onSelect(route.edge.id)}
+    />
+    <PipelineCanvasRoutesSinkIsland
+      route={route}
+      isSelected={isSelected}
+      onSelect={() => onSelect(route.edge.id)}
+    />
+  </RowWrapper>
 );
 
-PipelineCanvasRoutesRow.displayName = "PipelineCanvasRoutesRow";
-
-export default PipelineCanvasRoutesRow;
+export default memo(PipelineCanvasRoutesRow);

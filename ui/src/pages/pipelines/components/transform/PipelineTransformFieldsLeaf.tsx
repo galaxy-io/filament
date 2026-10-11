@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import SelectInput, {
   SelectInputSize,
   SelectInputVariant,
@@ -58,7 +60,7 @@ interface PipelineTransformFieldsLeafProps {
   isError?: boolean;
 }
 
-const PipelineTransformFieldsLeaf = ({
+const PipelineTransformFieldsLeaf: FC<PipelineTransformFieldsLeafProps> = ({
   expr,
   onChange,
   placeholder,
@@ -68,7 +70,7 @@ const PipelineTransformFieldsLeaf = ({
   isOptional = false,
   onApplyFunction,
   isError = false,
-}: PipelineTransformFieldsLeafProps) => {
+}) => {
   const { columns, isDisabled } = usePipelineTransformFieldsEditor();
   const literalKind = getTransformLiteralKind(logicalTypes);
 

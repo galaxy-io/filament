@@ -1,16 +1,17 @@
-export enum SettingsPanel {
-  TEAM = "TEAM",
-  SERVICE_ACCOUNTS = "SERVICE_ACCOUNTS",
-  PREFERENCES = "PREFERENCES",
-}
+import type { RotateServiceAccountSecretResponse } from "@/gen/auth/v1/service_accounts_pb";
+import type { AcceptInviteRequest } from "@/gen/auth/v1/session_pb";
 
-export enum TeamSettingsView {
-  MEMBERS = "MEMBERS",
+export enum SettingsTeamView {
   INVITE = "INVITE",
   LINK = "LINK",
 }
 
-export interface ServiceAccountCredentials {
-  clientId: string;
-  clientSecret: string;
+export interface SettingsInviteToken {
+  userId: AcceptInviteRequest["userId"];
+  code: AcceptInviteRequest["code"];
 }
+
+export type ServiceAccountCredentials = Pick<
+  RotateServiceAccountSecretResponse,
+  "clientId" | "clientSecret"
+>;

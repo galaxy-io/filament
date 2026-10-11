@@ -8,7 +8,7 @@ import {
   TransformExprKind,
 } from "@/pages/pipelines/components/transform/types";
 
-export interface TransformConditionItem {
+interface TransformConditionItem {
   expr: TransformExpr;
   path: string;
 }
@@ -21,7 +21,7 @@ export interface TransformConditionGroup {
 export const isTransformConditionOperator = (fn: TransformFunction | undefined): boolean =>
   fn?.conditionOperator === true;
 
-export const getTransformConditionJoin = (
+const getTransformConditionJoin = (
   fn: TransformFunction | undefined,
 ): TransformConditionJoin | undefined =>
   Object.values(TransformConditionJoin).find((join) => join === fn?.conditionJoin);

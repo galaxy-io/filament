@@ -24,11 +24,26 @@
         "ui",
         "exec",
         "vite",
+        "--mode",
+        "verify",
         "--port",
         "5175",
         "--strictPort"
       ],
       "port": 5175
+    },
+    {
+      "name": "filament-host-fixture",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "ui",
+        "exec",
+        "vite",
+        "--config",
+        "fixtures/host/vite.config.ts"
+      ],
+      "port": 5176
     }
   ]
 }

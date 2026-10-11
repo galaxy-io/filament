@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { CopyIcon, PencilSimpleIcon, TrashSimpleIcon } from "@phosphor-icons/react";
 
 import SelectInput, {
@@ -62,14 +64,14 @@ interface PipelineTransformFieldsActionPickerProps {
   isError: boolean;
 }
 
-const PipelineTransformFieldsActionPicker = ({
+const PipelineTransformFieldsActionPicker: FC<PipelineTransformFieldsActionPickerProps> = ({
   root,
   rootType,
   action,
   offersKinds,
   onChange,
   isError,
-}: PipelineTransformFieldsActionPickerProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const currentFn = action.kind === TransformActionKind.FUNCTION ? action.fn : "";

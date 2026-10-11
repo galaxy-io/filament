@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { styled } from "@linaria/react";
 
@@ -34,11 +36,11 @@ interface PipelineTransformFieldsStepItemProps {
   hasDivider: boolean;
 }
 
-const PipelineTransformFieldsStepItem = ({
+const PipelineTransformFieldsStepItem: FC<PipelineTransformFieldsStepItemProps> = ({
   step,
   issues,
   hasDivider,
-}: PipelineTransformFieldsStepItemProps) => {
+}) => {
   const { draft } = usePipelineTransformFieldsState();
   const { openStep } = usePipelineTransformFieldsActions();
   const { isReadOnly } = usePipelineTransformFieldsEnvironment();

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { WarningIcon } from "@phosphor-icons/react";
 
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -11,10 +13,10 @@ interface PipelineTransformFieldsIssuesChipProps {
   warnings?: string[];
 }
 
-const PipelineTransformFieldsIssuesChip = ({
+const PipelineTransformFieldsIssuesChip: FC<PipelineTransformFieldsIssuesChipProps> = ({
   issues,
   warnings = NO_WARNINGS,
-}: PipelineTransformFieldsIssuesChipProps) => {
+}) => {
   const messages = issues.length > 0 ? issues : warnings;
   if (messages.length === 0) return null;
   return (

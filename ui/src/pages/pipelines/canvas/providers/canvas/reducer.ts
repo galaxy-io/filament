@@ -28,7 +28,8 @@ import {
   type SetRouteWriteModeAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
-import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): PipelineCanvasState {
   return {

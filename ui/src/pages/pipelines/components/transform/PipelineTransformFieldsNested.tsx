@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
@@ -32,13 +34,13 @@ interface PipelineTransformFieldsNestedProps {
   onChange: (expr: TransformExpr) => void;
 }
 
-const PipelineTransformFieldsNested = ({
+const PipelineTransformFieldsNested: FC<PipelineTransformFieldsNestedProps> = ({
   expr,
   basePath,
   rootColumn,
   depth,
   onChange,
-}: PipelineTransformFieldsNestedProps) => {
+}) => {
   const editor = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
   const chain = getTransformChain(expr);

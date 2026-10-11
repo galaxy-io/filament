@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { match } from "ts-pattern";
 
 import SelectInput, {
@@ -38,10 +40,10 @@ interface PipelineTransformFieldsStepCardProps {
   handle?: PipelineTransformFieldsStepHandle;
 }
 
-const PipelineTransformFieldsStepCard = ({
+const PipelineTransformFieldsStepCard: FC<PipelineTransformFieldsStepCardProps> = ({
   draft,
   handle,
-}: PipelineTransformFieldsStepCardProps) => {
+}) => {
   const { resources, isReadOnly } = usePipelineTransformFieldsEnvironment();
   const { setDraft, setResource, cancel, save, removeStep } = usePipelineTransformFieldsActions();
   const { editor, issues, warnings, typeSummary, isSaveDisabled } =

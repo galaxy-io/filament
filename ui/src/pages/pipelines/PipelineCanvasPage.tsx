@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
@@ -14,7 +16,7 @@ const PipelineCanvasPageWrapper = styled.div`
   height: 100%;
 `;
 
-const PipelineCanvasPage = () => {
+const PipelineCanvasPage: FC = () => {
   const { view } = usePipelineCanvasSelection();
 
   return (

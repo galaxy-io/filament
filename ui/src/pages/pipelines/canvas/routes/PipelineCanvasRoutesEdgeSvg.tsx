@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 
 import { t } from "@galaxy-io/dls/theme/tokens/t";
@@ -62,11 +64,11 @@ interface PipelineCanvasRoutesEdgeSvgProps {
   isRunning: boolean;
 }
 
-const PipelineCanvasRoutesEdgeSvg = ({
+const PipelineCanvasRoutesEdgeSvg: FC<PipelineCanvasRoutesEdgeSvgProps> = ({
   groupIndex,
   isSelected,
   isRunning,
-}: PipelineCanvasRoutesEdgeSvgProps) => {
+}) => {
   const { cy, lineStartX, fanPath } = getPipelineCanvasRouteEdgeGeometry(groupIndex);
 
   return (

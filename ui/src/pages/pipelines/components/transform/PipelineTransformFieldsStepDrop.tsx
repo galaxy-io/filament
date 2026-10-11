@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -21,10 +23,10 @@ interface PipelineTransformFieldsStepDropProps {
   onChange: (step: TransformEditableStep) => void;
 }
 
-const PipelineTransformFieldsStepDrop = ({
+const PipelineTransformFieldsStepDrop: FC<PipelineTransformFieldsStepDropProps> = ({
   step,
   onChange,
-}: PipelineTransformFieldsStepDropProps) => {
+}) => {
   const { errors, isDisabled } = usePipelineTransformFieldsEditor();
 
   return (

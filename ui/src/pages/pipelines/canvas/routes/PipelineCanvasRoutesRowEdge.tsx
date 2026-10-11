@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { FunctionIcon } from "@phosphor-icons/react";
 
@@ -57,12 +59,12 @@ interface PipelineCanvasRoutesRowEdgeProps {
   onSelect: () => void;
 }
 
-const PipelineCanvasRoutesRowEdge = ({
+const PipelineCanvasRoutesRowEdge: FC<PipelineCanvasRoutesRowEdgeProps> = ({
   route,
   isSelected,
   isRunning,
   onSelect,
-}: PipelineCanvasRoutesRowEdgeProps) => {
+}) => {
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     onSelect();

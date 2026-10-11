@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { styled } from "@linaria/react";
 import { FunctionIcon } from "@phosphor-icons/react";
 
@@ -17,9 +19,9 @@ interface PipelineTransformFieldsMarkerProps {
   isInvalid?: boolean;
 }
 
-const PipelineTransformFieldsMarker = ({
+const PipelineTransformFieldsMarker: FC<PipelineTransformFieldsMarkerProps> = ({
   isInvalid = false,
-}: PipelineTransformFieldsMarkerProps) => (
+}) => (
   <MarkerSlot>
     <Icon
       component={FunctionIcon}

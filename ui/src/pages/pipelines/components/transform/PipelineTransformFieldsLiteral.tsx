@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import { XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -36,14 +38,14 @@ interface PipelineTransformFieldsLiteralProps {
   onClear?: () => void;
 }
 
-const PipelineTransformFieldsLiteral = ({
+const PipelineTransformFieldsLiteral: FC<PipelineTransformFieldsLiteralProps> = ({
   expr,
   logicalTypes,
   placeholder,
   isError,
   onChange,
   onClear,
-}: PipelineTransformFieldsLiteralProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   const trailing = onClear ? (
     <Button

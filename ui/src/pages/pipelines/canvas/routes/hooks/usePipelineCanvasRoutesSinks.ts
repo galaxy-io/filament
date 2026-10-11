@@ -4,11 +4,8 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import {
-  type CanvasNode,
-  isConnectionNode,
-  PipelineCanvasNodeType,
-} from "@/pages/pipelines/canvas/types";
+import { type CanvasNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 export interface PipelineCanvasRoutesSink {
   nodeId: CanvasNode["id"];

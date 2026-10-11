@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import ToggleInput, { type ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
 
 import { usePipelineTransformFieldsEditor } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
@@ -15,10 +17,10 @@ interface PipelineTransformFieldsConditionScopeProps {
   onChange: (isMatching: boolean) => void;
 }
 
-const PipelineTransformFieldsConditionScope = ({
+const PipelineTransformFieldsConditionScope: FC<PipelineTransformFieldsConditionScopeProps> = ({
   isMatching,
   onChange,
-}: PipelineTransformFieldsConditionScopeProps) => {
+}) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   return (
     <ToggleInput

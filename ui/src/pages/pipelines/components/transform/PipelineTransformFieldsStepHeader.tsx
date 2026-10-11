@@ -1,4 +1,4 @@
-import type { MouseEvent, PropsWithChildren } from "react";
+import type { FC, MouseEvent, PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 import { CaretDownIcon, DotsSixVerticalIcon } from "@phosphor-icons/react";
@@ -66,12 +66,9 @@ interface PipelineTransformFieldsStepHeaderProps {
   handle?: PipelineTransformFieldsStepHandle;
 }
 
-const PipelineTransformFieldsStepHeader = ({
-  isOpen,
-  onToggle,
-  handle,
-  children,
-}: PropsWithChildren<PipelineTransformFieldsStepHeaderProps>) => (
+const PipelineTransformFieldsStepHeader: FC<
+  PropsWithChildren<PipelineTransformFieldsStepHeaderProps>
+> = ({ isOpen, onToggle, handle, children }) => (
   <Header
     $isClickable={!isOpen && onToggle !== undefined}
     $isOpen={isOpen}

@@ -1,3 +1,1 @@
-export const MAIN_LAYOUT_GUTTER = 12;
-
-export const MAIN_LAYOUT_SETTINGS_MENU_WIDTH = 260;
+export const MAIN_LAYOUT_SIDEBAR_COLLAPSED_STORAGE_KEY = "filament:sidebar-collapsed";

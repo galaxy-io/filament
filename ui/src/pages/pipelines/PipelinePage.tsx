@@ -1,28 +1,33 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { ArrowLeftIcon, LinkBreakIcon } from "@phosphor-icons/react";
-import { notFound, Outlet, useNavigate, useParams } from "@tanstack/react-router";
+import { notFound, Outlet } from "@tanstack/react-router";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button from "@galaxy-io/dls/buttons/Button";
+import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
+import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
-
-import ErrorLayout from "@/layouts/ErrorLayout";
-import PipelineLayout from "@/layouts/pipeline/PipelineLayout";
+import RouterLink from "@/components/RouterLink";
 
 import { mapPipelineVersionToCanvasState } from "@/pages/pipelines/canvas/graph/serialize";
 import PipelineCanvasProvider from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import PipelinePageActions from "@/pages/pipelines/components/header/PipelinePageActions";
+import PipelinePageHeading from "@/pages/pipelines/components/header/PipelinePageHeading";
+import PipelinePagePreviewBanner from "@/pages/pipelines/components/header/PipelinePagePreviewBanner";
+import PipelinePageScheduleBanner from "@/pages/pipelines/components/header/PipelinePageScheduleBanner";
+import PipelinePageTabs from "@/pages/pipelines/components/header/PipelinePageTabs";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
+import { createFilamentHref, FilamentPath } from "@/module/paths";
 
-const PipelinePage = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
-  const navigate = useNavigate();
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+
+const PipelinePage: FC = () => {
+  const { id } = usePipelineParams();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
 
   const pipeline = pipelineData.pipeline;
@@ -34,10 +39,6 @@ const PipelinePage = () => {
     () => mapPipelineVersionToCanvasState(previewed ?? version),
     [previewed, version],
   );
-
-  const handleGoToPipelines = () => {
-    void navigate({ to: "/pipelines" });
-  };
 
   if (!pipeline) {
     throw notFound();
@@ -53,8 +54,8 @@ const PipelinePage = () => {
           <Button
             label="Go back to pipelines"
             icon={ArrowLeftIcon}
-            variant={ButtonVariant.SECONDARY}
-            onClick={handleGoToPipelines}
+            href={createFilamentHref(FilamentPath.PIPELINES)}
+            as={RouterLink}
           />
         }
       />
@@ -67,9 +68,14 @@ const PipelinePage = () => {
       graph={graph}
       isReadOnly={Boolean(previewed)}
     >
-      <PipelineLayout>
+      <PageLayout
+        header={<PipelinePageHeading />}
+        actions={<PipelinePageActions />}
+        tabs={<PipelinePageTabs />}
+        banner={previewed ? <PipelinePagePreviewBanner /> : <PipelinePageScheduleBanner />}
+      >
         <Outlet />
-      </PipelineLayout>
+      </PageLayout>
     </PipelineCanvasProvider>
   );
 };

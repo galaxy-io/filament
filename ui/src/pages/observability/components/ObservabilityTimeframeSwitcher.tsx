@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import ToggleInput, {
   ToggleInputVariant,
   type ToggleOption,
@@ -10,10 +12,10 @@ interface ObservabilityTimeframeSwitcherProps {
   onChange: (timeframe: ObservabilityTimeframe) => void;
 }
 
-const ObservabilityTimeframeSwitcher = ({
+const ObservabilityTimeframeSwitcher: FC<ObservabilityTimeframeSwitcherProps> = ({
   value,
   onChange,
-}: ObservabilityTimeframeSwitcherProps) => {
+}) => {
   const items: ToggleOption<ObservabilityTimeframe>[] = Object.values(ObservabilityTimeframe).map(
     (timeframe) => ({ id: timeframe, label: timeframe }),
   );
@@ -24,6 +26,7 @@ const ObservabilityTimeframeSwitcher = ({
       options={items}
       value={value}
       onChange={onChange}
+      ariaLabel="Timeframe"
     />
   );
 };

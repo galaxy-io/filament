@@ -1,10 +1,10 @@
-import { type PropsWithChildren, useCallback } from "react";
+import { type FC, type PropsWithChildren, useCallback } from "react";
 
 import { styled } from "@linaria/react";
 import { ArrowsClockwiseIcon, GearIcon, TrashIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
+import { ChipSize } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
@@ -13,10 +13,10 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+
 import {
-  CONNECTOR_KIND_TO_CHIP_COLOR_MAP,
   CONNECTOR_KIND_TO_HANDLE_ID_MAP,
   CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP,
 } from "@/pages/pipelines/canvas/constants";
@@ -51,7 +51,7 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   onDelete?: () => void;
 }
 
-const PipelineCanvasNode = ({
+const PipelineCanvasNode: FC<PipelineCanvasNodeProps> = ({
   connector,
   label,
   kind,
@@ -61,7 +61,7 @@ const PipelineCanvasNode = ({
   onSettings,
   onDelete,
   children,
-}: PipelineCanvasNodeProps) => {
+}) => {
   const handleRefresh = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();
@@ -89,11 +89,7 @@ const PipelineCanvasNode = ({
   return (
     <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
-        <Chip
-          label={CONNECTOR_KIND_TO_LABEL_MAP[kind]}
-          color={CONNECTOR_KIND_TO_CHIP_COLOR_MAP[kind]}
-          size={ChipSize.SMALL}
-        />
+        <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />
         <Flex alignItems={AlignItems.CENTER} gap={4}>
           {onRefresh && (
             <Button

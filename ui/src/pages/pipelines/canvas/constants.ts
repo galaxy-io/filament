@@ -3,7 +3,6 @@ import { FlowArrowIcon, PlusIcon, TreeStructureIcon } from "@phosphor-icons/reac
 import { type HandleType, Position } from "@xyflow/react";
 
 import type { Space } from "@galaxy-io/dls/theme/enums";
-import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
@@ -15,6 +14,8 @@ export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
 
 export const PIPELINE_CANVAS_FIT_INSET_Y = 48;
 export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
+export const PIPELINE_CANVAS_REVEAL_DURATION = 300;
+export const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
@@ -61,12 +62,6 @@ export const CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP: Record<ConnectorKind, Positi
   [ConnectorKind.SINK]: Position.Left,
 };
 
-export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<ConnectorKind, PaletteColor> = {
-  [ConnectorKind.UNSPECIFIED]: "lime",
-  [ConnectorKind.SOURCE]: "lime",
-  [ConnectorKind.SINK]: "pink",
-};
-
 export const CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP: Record<ConnectorKind, ConnectorKind> = {
   [ConnectorKind.UNSPECIFIED]: ConnectorKind.SOURCE,
   [ConnectorKind.SOURCE]: ConnectorKind.SOURCE,
@@ -95,8 +90,6 @@ export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;
 
-export const PIPELINE_CANVAS_VALIDATION_DEBOUNCE_MS = 250;
-
 export const PIPELINE_CANVAS_VIEW_TO_LABEL_MAP: Record<PipelineCanvasView, string> = {
   [PipelineCanvasView.CANVAS]: "Canvas",
   [PipelineCanvasView.ROUTES]: "Routes",
@@ -107,4 +100,8 @@ export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, Phosph
   [PipelineCanvasView.ROUTES]: FlowArrowIcon,
 };
 
-export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 12;
+export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 16;
+
+export const PIPELINE_CANVAS_MINIMAP_LEFT = 54;
+export const PIPELINE_CANVAS_MINIMAP_WIDTH = 114;
+export const PIPELINE_CANVAS_MINIMAP_HEIGHT = 72;

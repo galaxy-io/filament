@@ -12,9 +12,9 @@ import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize"
 import {
   type CanvasEdge,
   type CanvasNode,
-  isConnectionNode,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 export const createNodeFromConnection = (
   connection: Connection,

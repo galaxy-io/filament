@@ -12,7 +12,7 @@ import {
   PipelineCanvasRoutesListItemKind,
 } from "@/pages/pipelines/canvas/routes/types";
 
-export interface PipelineCanvasRouteEdgeGeometry {
+interface PipelineCanvasRouteEdgeGeometry {
   cy: number;
   lineStartX: number;
   fanPath: string | undefined;

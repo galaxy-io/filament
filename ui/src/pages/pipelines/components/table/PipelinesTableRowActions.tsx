@@ -1,6 +1,9 @@
+import type { FC } from "react";
+
 import {
   CalendarCheckIcon,
   CalendarXIcon,
+  CopyIcon,
   GearIcon,
   PencilSimpleIcon,
   PlayIcon,
@@ -11,7 +14,7 @@ import { MenuItem, MenuSeparator } from "@galaxy-io/dls/menu/Menu";
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
-import { ACTIVE_RUN_STATUSES } from "@/api/queries/constants";
+import { ACTIVE_RUN_STATUSES } from "@/constants";
 
 interface PipelinesTableRowActionsProps {
   pipeline: Pipeline;
@@ -19,15 +22,17 @@ interface PipelinesTableRowActionsProps {
   onScheduleToggle: (pipeline: Pipeline) => void;
   onEdit: (pipeline: Pipeline) => void;
   onSettings: (pipeline: Pipeline) => void;
+  onCopyId: (pipeline: Pipeline) => void;
 }
 
-const PipelinesTableRowActions = ({
+const PipelinesTableRowActions: FC<PipelinesTableRowActionsProps> = ({
   pipeline,
   onRun,
   onScheduleToggle,
   onEdit,
   onSettings,
-}: PipelinesTableRowActionsProps) => {
+  onCopyId,
+}) => {
   const isActive = pipeline.lastRun ? ACTIVE_RUN_STATUSES.has(pipeline.lastRun.status) : false;
   const scheduleConfig =
     pipeline.executionMode === ExecutionMode.CONTINUOUS ? undefined : pipeline.schedule?.config;
@@ -50,6 +55,8 @@ const PipelinesTableRowActions = ({
       <MenuSeparator />
       <MenuItem label="Edit pipeline" icon={PencilSimpleIcon} onSelect={() => onEdit(pipeline)} />
       <MenuItem label="Settings" icon={GearIcon} onSelect={() => onSettings(pipeline)} />
+      <MenuSeparator />
+      <MenuItem label="Copy pipeline ID" icon={CopyIcon} onSelect={() => onCopyId(pipeline)} />
     </>
   );
 };

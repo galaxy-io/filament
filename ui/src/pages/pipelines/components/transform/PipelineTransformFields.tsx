@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
@@ -8,7 +10,7 @@ import {
 import PipelineTransformFieldsResourceSteps from "@/pages/pipelines/components/transform/PipelineTransformFieldsResourceSteps";
 import PipelineTransformFieldsStepCard from "@/pages/pipelines/components/transform/PipelineTransformFieldsStepCard";
 
-const PipelineTransformFields = () => {
+const PipelineTransformFields: FC = () => {
   const { stepsByResource, draft } = usePipelineTransformFieldsState();
   const { resources } = usePipelineTransformFieldsEnvironment();
   const hasSteps = (resource: string) => (stepsByResource.get(resource)?.length ?? 0) > 0;

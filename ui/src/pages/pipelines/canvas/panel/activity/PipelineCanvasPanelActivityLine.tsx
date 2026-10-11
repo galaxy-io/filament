@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type FC, memo } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -25,7 +25,7 @@ interface PipelineCanvasPanelActivityLineProps {
   event: RunEvent;
 }
 
-const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActivityLineProps) => {
+const PipelineCanvasPanelActivityLine: FC<PipelineCanvasPanelActivityLineProps> = ({ event }) => {
   const detail = formatRunEventDetail(event);
 
   return (
@@ -48,6 +48,6 @@ const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActi
       </Detail>
     </Flex>
   );
-});
+};
 
-export default PipelineCanvasPanelActivityLine;
+export default memo(PipelineCanvasPanelActivityLine);

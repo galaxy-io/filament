@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type FC, memo } from "react";
 
 import { useNodeConnections } from "@xyflow/react";
 
@@ -12,15 +12,17 @@ import {
   usePipelineCanvasReadOnly,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
+import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 
-const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeSinkProps) => {
+const PipelineCanvasNodeSink: FC<PipelineCanvasNodeSinkProps> = ({ id, data, selected }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const connections = useNodeConnections({ handleType: "target" });
   const { removeNode } = usePipelineCanvasActions();
   const { selectNode } = usePipelineCanvasSelection();
-  const { data: connectionsData } = useSuspenseListConnectionsQuery();
-  const connection = connectionsData.connections.find((item) => item.id === data.connectionId);
+  const { data: connectionData } = useGetConnectionQuery({
+    input: createGetConnectionInput(data.connectionId),
+  });
+  const connection = connectionData?.connection;
 
   return (
     <PipelineCanvasNode
@@ -33,8 +35,6 @@ const PipelineCanvasNodeSink = memo(({ id, data, selected }: PipelineCanvasNodeS
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
     />
   );
-});
+};
 
-PipelineCanvasNodeSink.displayName = "PipelineCanvasNodeSink";
-
-export default PipelineCanvasNodeSink;
+export default memo(PipelineCanvasNodeSink);
