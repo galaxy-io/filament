@@ -28,7 +28,7 @@ Without `-tags embedui`, `ui.Handler()` serves a placeholder page and `go build 
 
 ## Module and host
 
-The same `src/` tree also builds `@galaxy-io/filament`, a module a Galaxy host mounts under any path.
+The same `src/` tree also builds `@galaxy-io/filament-ui`, a module a Galaxy host mounts under any path.
 
 ```bash
 pnpm build:lib       # vite.lib.config.ts → dist/
@@ -49,8 +49,8 @@ pnpm check:host      # type-check and build the fixture host against the package
 
 `fixtures/host/` is the reference host and the executable copy of this contract. A host does the following.
 
-1. **Install** `@galaxy-io/filament` and every peer dependency in `package.json`. The host `tsconfig` uses `"moduleResolution": "bundler"`, which every Vite host does. The host bundler replaces `process.env.NODE_ENV`, which Vite and webpack do.
-2. **Import the CSS once** at the app entry, in this order. `@galaxy-io/dls/styles.css`, `tokens.css`, `fonts.css`, then `@galaxy-io/filament/styles.css`. Filament overrides the DLS at equal specificity, so its file comes last.
+1. **Install** `@galaxy-io/filament-ui` and every peer dependency in `package.json`. The host `tsconfig` uses `"moduleResolution": "bundler"`, which every Vite host does. The host bundler replaces `process.env.NODE_ENV`, which Vite and webpack do.
+2. **Import the CSS once** at the app entry, in this order. `@galaxy-io/dls/styles.css`, `tokens.css`, `fonts.css`, then `@galaxy-io/filament-ui/styles.css`. Filament overrides the DLS at equal specificity, so its file comes last.
 3. **Mount the providers** above the router. `GalaxyProvider` owns the theme (Filament has no theme API), then `QueryClientProvider` and `RouterProvider`.
 4. **Give Filament a transport.** Filament reads the connect-query transport from context. A host whose global transport already reaches Filament's services needs nothing more. Otherwise nest a `TransportProvider` in the layout route's component. Create the transport once, at module scope, and pass the same instance to `useFilamentCommandItems` when the palette lives outside the mount, so the palette and the pages share cache entries. The module takes no `baseUrl`. Only the host adds auth interceptors or picks the wire format.
 5. **Add the routes.**

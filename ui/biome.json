@@ -76,7 +76,7 @@
                     "message": "Host-only module. Library code must not import src/host."
                   },
                   {
-                    "group": ["@galaxy-io/filament", "@galaxy-io/filament/**"],
+                    "group": ["@galaxy-io/filament-ui", "@galaxy-io/filament-ui/**"],
                     "message": "Import library code by @/ path. The package name is for hosts."
                   }
                 ]
@@ -96,7 +96,7 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@galaxy-io/filament", "@galaxy-io/filament/**"],
+                    "group": ["@galaxy-io/filament-ui", "@galaxy-io/filament-ui/**"],
                     "message": "Import library code by @/ path. The package name is for hosts."
                   }
                 ]

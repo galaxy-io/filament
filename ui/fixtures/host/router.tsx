@@ -14,9 +14,9 @@ import {
 } from "@tanstack/react-router";
 
 import CommandPalette from "@galaxy-io/dls/navigation/CommandPalette";
-import { useFilamentCommandItems } from "@galaxy-io/filament/commands";
-import FilamentLayout from "@galaxy-io/filament/FilamentLayout";
-import { FilamentPath } from "@galaxy-io/filament/paths";
+import { useFilamentCommandItems } from "@galaxy-io/filament-ui/commands";
+import FilamentLayout from "@galaxy-io/filament-ui/FilamentLayout";
+import { FilamentPath } from "@galaxy-io/filament-ui/paths";
 import {
   filamentLayoutRouteOptions,
   filamentNotFoundRouteOptions,
@@ -28,7 +28,7 @@ import {
   pipelinesRouteOptions,
   sinksRouteOptions,
   sourcesRouteOptions,
-} from "@galaxy-io/filament/routes";
+} from "@galaxy-io/filament-ui/routes";
 
 const MOUNT_PATH = "ingest";
 
@@ -84,28 +84,28 @@ const observabilityRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "observability",
   ...observabilityRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/ObservabilityPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/ObservabilityPage")),
 });
 
 const notFoundRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "$",
   ...filamentNotFoundRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/NotFoundPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/NotFoundPage")),
 });
 
 const pipelinesRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "pipelines",
   ...pipelinesRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelinesPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/PipelinesPage")),
 });
 
 const pipelineRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "pipelines/$id",
   ...pipelineRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelinePage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/PipelinePage")),
 });
 
 const pipelineIndexRoute = createRoute({
@@ -120,35 +120,35 @@ const pipelineCanvasRoute = createRoute({
   getParentRoute: () => pipelineRoute,
   path: "canvas",
   ...pipelineCanvasRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineCanvasPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/PipelineCanvasPage")),
 });
 
 const pipelineHistoryRoute = createRoute({
   getParentRoute: () => pipelineRoute,
   path: "history",
   ...pipelineHistoryRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineHistoryPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/PipelineHistoryPage")),
 });
 
 const pipelineSettingsRoute = createRoute({
   getParentRoute: () => pipelineRoute,
   path: "settings",
   ...pipelineSettingsRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/PipelineSettingsPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/PipelineSettingsPage")),
 });
 
 const sourcesRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "sources",
   ...sourcesRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/SourcesPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/SourcesPage")),
 });
 
 const sinksRoute = createRoute({
   getParentRoute: () => mountRoute,
   path: "sinks",
   ...sinksRouteOptions,
-  component: lazyRouteComponent(() => import("@galaxy-io/filament/pages/SinksPage")),
+  component: lazyRouteComponent(() => import("@galaxy-io/filament-ui/pages/SinksPage")),
 });
 
 const routeTree = rootRoute.addChildren([

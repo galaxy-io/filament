@@ -14,7 +14,7 @@ import { router } from "./router";
 import "@galaxy-io/dls/styles.css";
 import "@galaxy-io/dls/tokens.css";
 import "@galaxy-io/dls/fonts.css";
-import "@galaxy-io/filament/styles.css";
+import "@galaxy-io/filament-ui/styles.css";
 
 const DECOY_BASE_URL = "/elsewhere";
 const STALE_TIME = 30_000;

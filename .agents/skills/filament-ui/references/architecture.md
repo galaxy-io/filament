@@ -27,13 +27,13 @@ There is no test runner. `pnpm check` runs every gate (see [workflow.md](./workf
 | Build | Command | Output | Who uses it |
 |---|---|---|---|
 | The standalone app | `pnpm build` | `ui/build/` | the Go server embeds it |
-| The module | `pnpm build:lib` | `ui/dist/` | a Galaxy host installs `@galaxy-io/filament` |
+| The module | `pnpm build:lib` | `ui/dist/` | a Galaxy host installs `@galaxy-io/filament-ui` |
 
 `src/host/**` is standalone-only. Everything else is library code, and library code never imports `src/host`. The boundary is written in three places that must agree.
 
 - `tsconfig.lib.json` excludes `src/host/**`, so `pnpm typecheck:lib` fails on a leak.
 - Biome bans `@/host/**` imports in `src/**` outside `src/host/**`.
-- Biome bans importing the package by its own name (`@galaxy-io/filament`) inside `src/`.
+- Biome bans importing the package by its own name (`@galaxy-io/filament-ui`) inside `src/`.
 
 The package surface is the `exports` map in `ui/package.json`, and nothing else is public.
 
