@@ -1,6 +1,6 @@
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import { ReadMode, type WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import {
@@ -15,11 +15,20 @@ import {
 
 import { createEnumSelectOptions } from "@/utils/select";
 
-export const getReadModeSelectOptions = (modes: ReadMode[]): SelectOption[] =>
-  createEnumSelectOptions(modes, READ_MODE_TO_LABEL_MAP);
+export const getReadModeSelectOptions = (modes: ReadMode[], selected: ReadMode): SelectOption[] =>
+  createEnumSelectOptions(
+    selected === ReadMode.UNSPECIFIED || modes.includes(selected) ? modes : [...modes, selected],
+    READ_MODE_TO_LABEL_MAP,
+  );
 
-export const getWriteModeSelectOptions = (modes: WriteMode[]): SelectOption[] =>
-  createEnumSelectOptions(modes, WRITE_MODE_TO_LABEL_MAP);
+export const getWriteModeSelectOptions = (
+  modes: WriteMode[],
+  selected: WriteMode,
+): SelectOption[] =>
+  createEnumSelectOptions(
+    selected === WriteMode.UNSPECIFIED || modes.includes(selected) ? modes : [...modes, selected],
+    WRITE_MODE_TO_LABEL_MAP,
+  );
 
 export const getCursorSelectOptions = (columns: ResourceColumn[]): SelectOption[] =>
   columns.map((column) => ({ id: column.name, label: column.name }));

@@ -11,12 +11,10 @@ import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import { getPipelineGraphConflicts } from "@/pages/pipelines/canvas/graph/rules";
 import {
   mapCanvasStateToVersionRequest,
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
-import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import {
   usePipelineCanvasActions,
@@ -41,7 +39,6 @@ const PipelinePageEditActions: FC = () => {
   const { id } = usePipelineParams();
   const state = usePipelineCanvasState();
   const { loadGraph } = usePipelineCanvasActions();
-  const connectionByNodeId = usePipelineCanvasConnections();
   const navigateCanvas = usePipelineCanvasNavigate();
 
   const { data } = useSuspenseGetPipelineQuery({
@@ -55,10 +52,6 @@ const PipelinePageEditActions: FC = () => {
 
   const saveIssues = useMemo<PipelineCanvasValidationIssue[]>(
     () => [
-      ...getPipelineGraphConflicts(state.edges, connectionByNodeId).map((message) => ({
-        kind: PipelineCanvasValidationIssueKind.GRAPH,
-        message,
-      })),
       ...issues,
       ...(isError
         ? [
@@ -69,7 +62,7 @@ const PipelinePageEditActions: FC = () => {
           ]
         : []),
     ],
-    [state.edges, connectionByNodeId, issues, isError],
+    [issues, isError],
   );
 
   if (!pipeline) {

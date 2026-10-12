@@ -12,7 +12,7 @@ import {
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
-import { mapOptionIdToEnum } from "@/utils/select";
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
 interface CreatePipelineModalResourcesReadModeCellProps {
   row: CreatePipelineModalResourceRow;
@@ -23,7 +23,7 @@ const CreatePipelineModalResourcesReadModeCell: FC<
 > = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
   const { setResourceReadMode } = useCreatePipelineModalActions();
-  const options = getReadModeSelectOptions(row.readModeOptions);
+  const options = getReadModeSelectOptions(row.readModeOptions, row.readMode);
 
   const handleReadModeChange = (id: string | null) => {
     if (id === null) return;
@@ -38,7 +38,7 @@ const CreatePipelineModalResourcesReadModeCell: FC<
     <Box fillWidth minWidth={0}>
       <SelectInput
         options={options}
-        value={String(row.readMode)}
+        value={getEnumSelectValue(ReadMode, row.readMode)}
         onChange={handleReadModeChange}
         variant={SelectInputVariant.TERTIARY}
         isDisabled={!row.isSelected}

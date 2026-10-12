@@ -31,9 +31,10 @@ import {
 } from "@/pages/pipelines/canvas/constants";
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
-import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
+import { canConnectEdge, expandConnection } from "@/pages/pipelines/canvas/graph/rules";
 import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import PipelineCanvasNodePlaceholder from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodePlaceholder";
 import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSink";
@@ -116,6 +117,7 @@ const PipelineCanvasFlow: FC = () => {
   const state = usePipelineCanvasState();
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
+  const sourceResources = usePipelineCanvasSourceNodeResources();
   const {
     selectedNodeId,
     selectedResourceId,
@@ -159,14 +161,17 @@ const PipelineCanvasFlow: FC = () => {
   const onConnect = useCallback(
     (connection: Connection) => {
       if (isReadOnly) return;
-      connect(connection);
+      connect(expandConnection(connection, sourceResources));
     },
-    [connect, isReadOnly],
+    [connect, isReadOnly, sourceResources],
   );
 
   const isValidConnection = useCallback(
-    (connection: Connection | CanvasEdge) => canConnectEdge(connection, state.edges),
-    [state.edges],
+    (connection: Connection | CanvasEdge) =>
+      expandConnection(connection, sourceResources).some((expanded) =>
+        canConnectEdge(expanded, state.edges),
+      ),
+    [state.edges, sourceResources],
   );
 
   const selectedNodes = useMemo(

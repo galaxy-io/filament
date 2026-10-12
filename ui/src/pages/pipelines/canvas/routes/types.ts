@@ -7,8 +7,6 @@ import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 export interface PipelineCanvasRoute {
   edge: CanvasEdge;
   resource: PipelineEdge["resource"];
-  resourceLabel: string;
-  isNamedResource: boolean;
   sourceConnection: Connection | undefined;
   sinkConnection: Connection | undefined;
   groupKey: string;

@@ -12,7 +12,7 @@ import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types"
 import { getPipelineCanvasRouteGroupKey } from "@/pages/pipelines/canvas/routes/utils";
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasValidationIssueKind } from "@/pages/pipelines/canvas/types";
-import { getCanvasEdgeResourceLabel, getTransformStepCount } from "@/pages/pipelines/canvas/utils";
+import { getTransformStepCount } from "@/pages/pipelines/canvas/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 interface PipelineCanvasRoutesOptions {
@@ -29,7 +29,7 @@ const compareGroups = (
   const leftIsInvalid = left.some((route) => route.isInvalid);
   const rightIsInvalid = right.some((route) => route.isInvalid);
   if (leftIsInvalid !== rightIsInvalid) return leftIsInvalid ? -1 : 1;
-  return left[0].resourceLabel.localeCompare(right[0].resourceLabel);
+  return left[0].resource.localeCompare(right[0].resource);
 };
 
 const compareSinks = (left: PipelineCanvasRouteDraft, right: PipelineCanvasRouteDraft): number =>
@@ -58,13 +58,10 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
       .filter((edge) => sinkIds.length === 0 || sinkIds.includes(edge.target))
       .map<PipelineCanvasRouteDraft>((edge) => {
         const resource = getCanvasEdgeResource(edge);
-        const { label, isNamedResource } = getCanvasEdgeResourceLabel(resource, 0);
         const sourceConnection = connectionByNodeId.get(edge.source);
         return {
           edge,
           resource,
-          resourceLabel: label,
-          isNamedResource,
           sourceConnection,
           sinkConnection: connectionByNodeId.get(edge.target),
           groupKey: getPipelineCanvasRouteGroupKey(edge.source, resource),
@@ -79,7 +76,7 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
         isSearchMatch(
           search,
           draft.sourceConnection?.name ?? "",
-          draft.resourceLabel,
+          draft.resource,
           draft.sinkConnection?.name ?? "",
         ),
       );

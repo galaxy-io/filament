@@ -12,5 +12,10 @@ export const createEnumSelectOptions = <TEnum extends number>(
   labels: Record<TEnum, string>,
 ): SelectOption[] => values.map((value) => ({ id: String(value), label: labels[value] }));
 
+export const getEnumSelectValue = <TEnum extends number>(
+  enumObject: ProtoEnum<TEnum>,
+  value: TEnum,
+): string | null => (value === enumObject.UNSPECIFIED ? null : String(value));
+
 export const mapOptionIdToEnum = <TEnum extends number>(enumObject: ProtoEnum<TEnum>, id: string) =>
   getEnumValues(enumObject).find((value) => value === Number(id)) ?? enumObject.UNSPECIFIED;

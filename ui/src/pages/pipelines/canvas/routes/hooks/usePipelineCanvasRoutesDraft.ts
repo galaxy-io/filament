@@ -1,18 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { addEdge } from "@xyflow/react";
 
 import { ExecutionMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import { DiscoverResourcesRequestSchema, type Resource } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
   PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
 } from "@/pages/pipelines/canvas/constants";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
-import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
@@ -33,9 +32,6 @@ import {
 } from "@/pages/pipelines/canvas/types";
 import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
-
-import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
-import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 export interface PipelineCanvasRoutesDraftState {
   draft: PipelineCanvasRoutesDraft | undefined;
@@ -61,18 +57,12 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
   const { selectResource } = usePipelineCanvasSelection();
   const isReadOnly = usePipelineCanvasReadOnly();
   const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
-  const connectionByNodeId = usePipelineCanvasConnections();
   const allSinks = usePipelineCanvasRoutesSinks();
 
   const sourceNodeId = nodes
     .filter(isConnectionNode)
     .find((node) => node.type === PipelineCanvasNodeType.SOURCE)?.id;
-  const sourceConnectionId = sourceNodeId ? connectionByNodeId.get(sourceNodeId)?.id : undefined;
-
-  const { data: discovered } = useDiscoverResourcesQuery({
-    input: create(DiscoverResourcesRequestSchema, { connectionId: sourceConnectionId ?? "" }),
-    options: { ...PROBE_QUERY_OPTIONS, enabled: sourceConnectionId !== undefined && !isContinuous },
-  });
+  const sourceResources = usePipelineCanvasSourceNodeResources();
 
   const getConnection = useCallback(
     (resource: Resource["name"], sinkId: CanvasNode["id"]) => ({
@@ -90,11 +80,8 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
   );
 
   const discoveredNames = useMemo(
-    () =>
-      (discovered?.resources ?? [])
-        .filter((resource) => resource.isSelectable)
-        .map((resource) => resource.name),
-    [discovered],
+    () => (isContinuous ? [] : sourceResources),
+    [isContinuous, sourceResources],
   );
   const resourceNames = useMemo(() => {
     if (isContinuous || !draft) return undefined;
@@ -167,7 +154,7 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
       if (!draft || !canAdd) return;
       const connection = getConnection(resource, draft.sinkId);
       const [edge] = addEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, []);
-      connect(connection);
+      connect([connection]);
       setEdgeConfig(edge.id, config);
       if (config.writeMode !== WriteMode.UNSPECIFIED)
         setRouteWriteMode(connection.source, connection.target, config.writeMode);

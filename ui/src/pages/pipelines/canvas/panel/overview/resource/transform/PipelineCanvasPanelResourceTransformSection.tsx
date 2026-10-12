@@ -18,12 +18,11 @@ import {
 } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 
 const PipelineCanvasPanelResourceTransformSection: FC = () => {
-  const { stepsByResource, draft } = usePipelineTransformFieldsState();
+  const { steps, draft } = usePipelineTransformFieldsState();
   const { openNew } = usePipelineTransformFieldsActions();
   const { isReadOnly } = usePipelineTransformFieldsEnvironment();
   const [isOpen, setIsOpen] = useState(true);
-  const hasContent =
-    draft !== null || [...stepsByResource.values()].some((steps) => steps.length > 0);
+  const hasContent = draft !== null || steps.length > 0;
 
   return (
     <PipelineCanvasPanelSection

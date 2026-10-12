@@ -10,6 +10,7 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { createNodeFromConnection } from "@/pages/pipelines/canvas/graph/rules";
+import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import {
   CONNECTOR_KIND_TO_PLACEHOLDER_DESCRIPTION_MAP,
   CONNECTOR_KIND_TO_PLACEHOLDER_TITLE_MAP,
@@ -57,9 +58,13 @@ const PipelineCanvasNodePlaceholder: FC<PipelineCanvasNodePlaceholderProps> = ({
   positionAbsoluteY,
 }) => {
   const { addNode } = usePipelineCanvasActions();
+  const sourceResources = usePipelineCanvasSourceNodeResources();
 
   const handleSelect = (connection: Connection) => {
-    addNode(createNodeFromConnection(connection, { x: positionAbsoluteX, y: positionAbsoluteY }));
+    addNode(
+      createNodeFromConnection(connection, { x: positionAbsoluteX, y: positionAbsoluteY }),
+      sourceResources,
+    );
   };
 
   return (

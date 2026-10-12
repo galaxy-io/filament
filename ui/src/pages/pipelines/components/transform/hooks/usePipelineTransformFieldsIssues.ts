@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 import { ValidateTransformRequestSchema } from "@/gen/ingestion/v1/transformations_pb";
 
 import { groupTransformIssuesByStep } from "@/pages/pipelines/components/transform/grammar/paths";
@@ -15,16 +14,11 @@ import type { TransformStep } from "@/pages/pipelines/components/transform/types
 
 import { useValidateTransformQuery } from "@/api/queries/transforms";
 
-const NO_STEPS: TransformStep[] = [];
-
-export const usePipelineTransformFieldsIssues = (
-  resource: Resource["name"],
-): Map<TransformStep["id"], string[]> => {
-  const { stepsByResource } = usePipelineTransformFieldsState();
-  const { sourceConnectionId, grammarVersion } = usePipelineTransformFieldsEnvironment();
-  const steps = stepsByResource.get(resource) ?? NO_STEPS;
+export const usePipelineTransformFieldsIssues = (): Map<TransformStep["id"], string[]> => {
+  const { steps } = usePipelineTransformFieldsState();
+  const { resource, sourceConnectionId, grammarVersion } = usePipelineTransformFieldsEnvironment();
   const definition = useMemo(
-    () => serializeTransformDefinition(new Map([[resource, steps]]), grammarVersion),
+    () => serializeTransformDefinition(resource, steps, grammarVersion),
     [grammarVersion, resource, steps],
   );
   const { data } = useValidateTransformQuery({

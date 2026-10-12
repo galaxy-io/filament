@@ -30,13 +30,12 @@ export interface PipelineCanvasEdgeResources {
   isTransformable: boolean;
   isLoadingColumns: boolean;
   sourceConnectionId: Connection["id"];
-  edgeResource: Resource["name"];
-  coveredResources: Resource["name"][];
-  columnsByResource: Map<Resource["name"], ResourceColumn[]>;
-  cursorOptionsByResource: Record<Resource["name"], ResourceColumn[]>;
-  defaultCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
-  managedIncrementalResources: Set<Resource["name"]>;
-  primaryKeyByResource: Record<Resource["name"], Resource["primaryKey"]>;
+  resource: Resource["name"];
+  columns: ResourceColumn[] | undefined;
+  cursorOptions: ResourceColumn[];
+  defaultCursor: ResourceColumn["name"];
+  isManagedIncremental: boolean;
+  hasPrimaryKey: boolean;
 }
 
 export const usePipelineCanvasEdgeResources = (
@@ -51,101 +50,40 @@ export const usePipelineCanvasEdgeResources = (
   const isCdc = sourceConnection?.replication === ReplicationMode.CDC;
   const hasReadLevers = !isCdc && !isContinuous;
   const isTransformable = !isContinuous;
-  const edgeResource = getCanvasEdgeResource(edge);
+  const resource = getCanvasEdgeResource(edge);
+  const isQueryable = enabled && sourceConnectionId !== "" && resource !== "";
 
-  const { data: discovered, isLoading: isLoadingResources } = useDiscoverResourcesQuery({
+  const { data: discovered } = useDiscoverResourcesQuery({
     input: create(DiscoverResourcesRequestSchema, { connectionId: sourceConnectionId }),
-    options: {
-      ...PROBE_QUERY_OPTIONS,
-      enabled: enabled && sourceConnectionId !== "",
-    },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: isQueryable },
   });
 
-  const coveredResources = useMemo<Resource["name"][]>(
-    () =>
-      edgeResource !== ""
-        ? [edgeResource]
-        : (discovered?.resources ?? [])
-            .filter((resource) => resource.isSelectable)
-            .map((resource) => resource.name),
-    [edgeResource, discovered?.resources],
-  );
-
-  const { data: columns, isLoading: isLoadingResourceColumns } = useGetResourceColumnsQuery({
+  const { data: columnsData, isLoading } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, {
       connectionId: sourceConnectionId,
-      resources: coveredResources,
+      resources: [resource],
     }),
-    options: {
-      ...PROBE_QUERY_OPTIONS,
-      enabled: enabled && sourceConnectionId !== "" && coveredResources.length > 0,
-    },
+    options: { ...PROBE_QUERY_OPTIONS, enabled: isQueryable },
   });
 
-  const primaryKeyByResource = useMemo<Record<Resource["name"], Resource["primaryKey"]>>(
-    () =>
-      Object.fromEntries(
-        (discovered?.resources ?? []).map((resource) => [resource.name, resource.primaryKey]),
-      ),
-    [discovered?.resources],
-  );
-
-  const columnsByResource = useMemo(
-    () => new Map((columns?.resources ?? []).map((entry) => [entry.resource, entry.columns])),
-    [columns?.resources],
-  );
-
-  const cursorOptionsByResource = useMemo<Record<Resource["name"], ResourceColumn[]>>(
-    () =>
-      Object.fromEntries(
-        coveredResources.map((resource) => [
-          resource,
-          getCursorOptions(columnsByResource.get(resource) ?? []),
-        ]),
-      ),
-    [coveredResources, columnsByResource],
-  );
-
-  const managedIncrementalResources = useMemo(
-    () =>
-      new Set(
-        (columns?.resources ?? [])
-          .filter((entry) => entry.managedIncremental)
-          .map((entry) => entry.resource),
-      ),
-    [columns?.resources],
-  );
-
-  const defaultCursorByResource = useMemo<Record<Resource["name"], ResourceColumn["name"]>>(
-    () =>
-      Object.fromEntries(
-        coveredResources.map((resource) => [
-          resource,
-          managedIncrementalResources.has(resource)
-            ? ""
-            : getDefaultCursor(columnsByResource.get(resource) ?? []),
-        ]),
-      ),
-    [coveredResources, columnsByResource, managedIncrementalResources],
-  );
-
-  const isLoadingColumns =
-    enabled &&
-    ((edgeResource === "" && isLoadingResources) ||
-      (coveredResources.length > 0 && isLoadingResourceColumns));
+  const entry = columnsData?.resources.find((candidate) => candidate.resource === resource);
+  const columns = entry?.columns;
+  const isManagedIncremental = entry?.managedIncremental ?? false;
+  const cursorOptions = useMemo(() => getCursorOptions(columns ?? []), [columns]);
 
   return {
     isContinuous,
     hasReadLevers,
     isTransformable,
-    isLoadingColumns,
+    isLoadingColumns: isQueryable && isLoading,
     sourceConnectionId,
-    edgeResource,
-    coveredResources,
-    columnsByResource,
-    cursorOptionsByResource,
-    defaultCursorByResource,
-    managedIncrementalResources,
-    primaryKeyByResource,
+    resource,
+    columns,
+    cursorOptions,
+    defaultCursor: isManagedIncremental ? "" : getDefaultCursor(columns ?? []),
+    isManagedIncremental,
+    hasPrimaryKey:
+      (discovered?.resources.find((candidate) => candidate.name === resource)?.primaryKey.length ??
+        0) > 0,
   };
 };

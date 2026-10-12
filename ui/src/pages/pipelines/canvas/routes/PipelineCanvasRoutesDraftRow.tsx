@@ -50,7 +50,7 @@ import {
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoutesDraftState } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesDraft";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { getEdgeResourceStatuses, hasSiblingIncrementalRead } from "@/pages/pipelines/canvas/utils";
+import { getEdgeResourceStatus, hasSiblingIncrementalRead } from "@/pages/pipelines/canvas/utils";
 import {
   getCompatibleWriteModes,
   getCursorSelectOptions,
@@ -60,7 +60,7 @@ import {
 } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
-import { mapOptionIdToEnum } from "@/utils/select";
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
 const RowWrapper = styled.div`
   height: ${PIPELINE_CANVAS_ROUTES_DRAFT_ROW_HEIGHT}px;
@@ -145,10 +145,10 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
-    columnsByResource,
-    cursorOptionsByResource,
-    defaultCursorByResource,
-    managedIncrementalResources,
+    columns,
+    cursorOptions,
+    defaultCursor,
+    isManagedIncremental,
     isLoading,
   } = options;
 
@@ -178,8 +178,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const siblingEdges = edges.filter(
     (edge) => edge.source === draftEdge.source && edge.target === draftEdge.target,
   );
-  const isManagedIncremental = managedIncrementalResources.has(resource);
-  const hasRecommendedCursor = getRecommendedCursor(columnsByResource.get(resource) ?? []) !== "";
+  const hasRecommendedCursor = getRecommendedCursor(columns ?? []) !== "";
   const defaultReadMode =
     (isManagedIncremental || hasRecommendedCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
       ? ReadMode.INCREMENTAL
@@ -198,20 +197,21 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const writeMode = compatibleWriteModes.includes(preferredWriteMode)
     ? preferredWriteMode
     : (compatibleWriteModes[0] ?? WriteMode.UNSPECIFIED);
-  const cursor = draft.cursor ?? defaultCursorByResource[resource] ?? "";
+  const cursor = draft.cursor ?? defaultCursor;
   const hasCursorSelect =
     hasReadLevers && readMode === ReadMode.INCREMENTAL && !isManagedIncremental;
-  const statuses = getEdgeResourceStatuses(options, {
+  const status = getEdgeResourceStatus(options, {
     verdict,
     readMode,
     writeMode,
-    cursorsByResource: new Map(cursor !== "" ? [[resource, cursor]] : []),
+    cursor: cursor !== "" ? cursor : undefined,
   });
+  const issues = status?.isBlocking ? [status.message] : [];
+  const warnings = status && !status.isBlocking ? [status.message] : [];
 
-  const blockingStatuses = statuses.filter((status) => status.isBlocking);
-  const readModeSelectOptions = getReadModeSelectOptions(readModeOptions);
-  const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes);
-  const cursorSelectOptions = getCursorSelectOptions(cursorOptionsByResource[resource] ?? []);
+  const readModeSelectOptions = getReadModeSelectOptions(readModeOptions, readMode);
+  const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes, writeMode);
+  const cursorSelectOptions = getCursorSelectOptions(cursorOptions);
 
   const handleAdd = () =>
     draftState.add({
@@ -300,7 +300,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       ariaLabel="Read mode"
                       fillWidth
                       options={readModeSelectOptions}
-                      value={String(readMode)}
+                      value={getEnumSelectValue(ReadMode, readMode)}
                       onChange={(id) => {
                         if (id !== null)
                           draftState.setConfig({ readMode: mapOptionIdToEnum(ReadMode, id) });
@@ -331,12 +331,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                 )}
               </ControlsGroup>
               <CenterSlot>
-                <PipelineTransformFieldsIssuesChip
-                  issues={blockingStatuses.map((status) => status.message)}
-                  warnings={statuses
-                    .filter((status) => !status.isBlocking)
-                    .map((status) => status.message)}
-                />
+                <PipelineTransformFieldsIssuesChip issues={issues} warnings={warnings} />
               </CenterSlot>
               <ControlsGroup>
                 <Box width={PIPELINE_CANVAS_ROUTES_WRITE_MODE_SELECT_WIDTH}>
@@ -344,7 +339,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                     ariaLabel="Write mode"
                     fillWidth
                     options={writeModeSelectOptions}
-                    value={String(writeMode)}
+                    value={getEnumSelectValue(WriteMode, writeMode)}
                     onChange={(id) => {
                       if (id !== null)
                         draftState.setConfig({ writeMode: mapOptionIdToEnum(WriteMode, id) });
@@ -386,7 +381,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
               variant={ButtonVariant.PRIMARY}
               size={ButtonSize.SMALL}
               onClick={handleAdd}
-              isDisabled={!draftState.canAdd || isLoading || blockingStatuses.length > 0}
+              isDisabled={!draftState.canAdd || isLoading || issues.length > 0}
             />
           </Flex>
         </Widget>

@@ -19,5 +19,19 @@ export const usePipelineCanvasSourceResources = (connectionId: Connection["id"])
     [data?.resources],
   );
 
-  return { names, error, isLoading: isFetching, refresh: () => void refetch() };
+  const selectableNames = useMemo<Resource["name"][]>(
+    () =>
+      (data?.resources ?? [])
+        .filter((resource) => resource.isSelectable)
+        .map((resource) => resource.name),
+    [data?.resources],
+  );
+
+  return {
+    names,
+    selectableNames,
+    error,
+    isLoading: isFetching,
+    refresh: () => void refetch(),
+  };
 };

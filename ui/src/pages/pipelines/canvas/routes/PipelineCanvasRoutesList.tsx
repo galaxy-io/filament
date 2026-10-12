@@ -94,9 +94,7 @@ const PipelineCanvasRoutesList: FC<PipelineCanvasRoutesListProps> = ({
         isGroupSelected={route.groupKey === selectedGroupKey}
         isRunning={isRunning}
         onSelect={selectResource}
-        onAddSink={
-          route.isNamedResource && route.groupSize < draftState.sinkCount ? onAddSink : undefined
-        }
+        onAddSink={route.groupSize < draftState.sinkCount ? onAddSink : undefined}
       />
     );
   };

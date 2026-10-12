@@ -13,7 +13,6 @@ export enum PipelineTransformFieldsActionType {
   OPEN_STEP = "OPEN_STEP",
   CANCEL = "CANCEL",
   SET_DRAFT = "SET_DRAFT",
-  SET_RESOURCE = "SET_RESOURCE",
   SAVE = "SAVE",
   REMOVE_STEP = "REMOVE_STEP",
   MOVE_STEP = "MOVE_STEP",
@@ -23,14 +22,13 @@ export interface LoadAction {
   type: PipelineTransformFieldsActionType.LOAD;
   payload: {
     definition: TransformDefinition | undefined;
-    resources: Resource["name"][];
+    resource: Resource["name"];
     functionsByName: Map<TransformFunction["name"], TransformFunction>;
   };
 }
 
-export interface OpenNewAction {
+interface OpenNewAction {
   type: PipelineTransformFieldsActionType.OPEN_NEW;
-  payload: { resources: Resource["name"][] };
 }
 
 export interface OpenStepAction {
@@ -47,11 +45,6 @@ export interface SetDraftAction {
   payload: TransformEditableStep;
 }
 
-export interface SetResourceAction {
-  type: PipelineTransformFieldsActionType.SET_RESOURCE;
-  payload: Resource["name"];
-}
-
 interface SaveAction {
   type: PipelineTransformFieldsActionType.SAVE;
 }
@@ -63,7 +56,7 @@ export interface RemoveStepAction {
 
 export interface MoveStepAction {
   type: PipelineTransformFieldsActionType.MOVE_STEP;
-  payload: { resource: Resource["name"]; from: number; to: number };
+  payload: { from: number; to: number };
 }
 
 export type PipelineTransformFieldsAction =
@@ -72,7 +65,6 @@ export type PipelineTransformFieldsAction =
   | OpenStepAction
   | CancelAction
   | SetDraftAction
-  | SetResourceAction
   | SaveAction
   | RemoveStepAction
   | MoveStepAction;
