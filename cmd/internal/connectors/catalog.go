@@ -3,26 +3,59 @@ package connectors
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	httpapi "github.com/galaxy-io/filament/connectors/http"
 	"github.com/galaxy-io/filament/registry"
 )
 
-// SourcesFromEnv adds HTTP_MANIFESTS_DIR to the bundled catalog. Private versions
-// may be added and default aliases may change, but concrete bundled registrations
-// cannot be replaced. The process-wide registry is unchanged.
+// SourcesFromEnv adds HTTP_MANIFESTS_DIR to the bundled catalog, then keeps
+// only the sources CONNECTOR_SOURCES names when it is set. Private versions
+// may be added and default aliases may change, but concrete bundled
+// registrations cannot be replaced. The process-wide registry is unchanged.
 func SourcesFromEnv() (*registry.Sources, error) {
-	directory := os.Getenv("HTTP_MANIFESTS_DIR")
-	if directory == "" {
-		return registry.DefaultSources, nil
+	sources := registry.DefaultSources
+	if directory := os.Getenv("HTTP_MANIFESTS_DIR"); directory != "" {
+		private, err := httpapi.LoadDirectory(directory)
+		if err != nil {
+			return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
+		}
+		if sources, err = sources.WithOverrides(private); err != nil {
+			return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
+		}
 	}
-	private, err := httpapi.LoadDirectory(directory)
+	names := connectorNames("CONNECTOR_SOURCES")
+	if len(names) == 0 {
+		return sources, nil
+	}
+	only, err := sources.Only(names)
 	if err != nil {
-		return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
+		return nil, fmt.Errorf("CONNECTOR_SOURCES: %w", err)
 	}
-	sources, err := registry.DefaultSources.WithOverrides(private)
+	return only, nil
+}
+
+// SinksFromEnv keeps only the sinks CONNECTOR_SINKS names when it is set.
+// The process-wide registry is unchanged.
+func SinksFromEnv() (*registry.Sinks, error) {
+	names := connectorNames("CONNECTOR_SINKS")
+	if len(names) == 0 {
+		return registry.DefaultSinks, nil
+	}
+	only, err := registry.DefaultSinks.Only(names)
 	if err != nil {
-		return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
+		return nil, fmt.Errorf("CONNECTOR_SINKS: %w", err)
 	}
-	return sources, nil
+	return only, nil
+}
+
+// connectorNames splits a comma-separated list of connector names.
+func connectorNames(key string) []string {
+	var names []string
+	for name := range strings.SplitSeq(os.Getenv(key), ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }

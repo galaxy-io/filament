@@ -140,6 +140,12 @@ worker:
   # -- Minimum worker log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 
+  connectors:
+    # -- Source connectors the worker offers, by unversioned name. Empty offers every bundled source.
+    sources: []
+    # -- Sink connectors the worker offers. Empty offers every bundled sink.
+    sinks: []
+
   image:
     # -- Worker image repository.
     repository: ghcr.io/galaxy-io/filament/worker

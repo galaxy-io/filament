@@ -25,10 +25,11 @@ import (
 )
 
 // Deps are the providers every deployed binary resolves from the environment.
-// Sources and Worker are set by the binary: only the worker links drivers, so
-// FromEnv cannot load them.
+// Sources, Sinks and Worker are set by the binary: only the worker links
+// drivers, so FromEnv cannot load them.
 type Deps struct {
 	Sources filament.SourceRegistry
+	Sinks   filament.SinkRegistry
 	// Worker answers connector questions for the API and scheduler.
 	Worker filament.Worker
 	Log    filament.Logger
@@ -133,7 +134,7 @@ func Mount(ctx context.Context, d Deps, b bus.Bus, mods ...module.Module) (*host
 		DataStore: d.Store,
 		Secrets:   d.Secrets,
 		Sources:   d.Sources,
-		Sinks:     registry.DefaultSinks,
+		Sinks:     d.Sinks,
 		Worker:    d.Worker,
 		Log:       d.Log,
 		Metrics:   d.Metrics,
