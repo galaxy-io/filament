@@ -17,7 +17,6 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/engine"
 	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/worker"
 )
@@ -34,10 +33,14 @@ func serve(ctx context.Context, serveConnectors, execute bool) error {
 	if err != nil {
 		return err
 	}
+	sinks, err := connectors.SinksFromEnv()
+	if err != nil {
+		return err
+	}
 	var log filament.Logger
 	var checks []health.Check
 	if execute {
-		deps, executorChecks, closeExecutor, err := startExecutor(ctx, sources)
+		deps, executorChecks, closeExecutor, err := startExecutor(ctx, sources, sinks)
 		if err != nil {
 			return err
 		}
@@ -55,7 +58,7 @@ func serve(ctx context.Context, serveConnectors, execute bool) error {
 
 	var connectorWorker filament.Worker
 	if serveConnectors {
-		connectorWorker = worker.Local(sources, registry.DefaultSinks)
+		connectorWorker = worker.Local(sources, sinks)
 	}
 	handler, healthState := workerHandler(connectorWorker, checks...)
 	addr := workerAddress()
@@ -69,7 +72,7 @@ func serve(ctx context.Context, serveConnectors, execute bool) error {
 		filament.Field{Key: "serve", Value: serveConnectors},
 		filament.Field{Key: "execute", Value: execute},
 		filament.Field{Key: "sources", Value: len(sources.Specs())},
-		filament.Field{Key: "sinks", Value: len(registry.DefaultSinks.Specs())})
+		filament.Field{Key: "sinks", Value: len(sinks.Specs())})
 
 	select {
 	case err := <-errCh:
@@ -105,7 +108,7 @@ func workerHandler(connectorWorker filament.Worker, checks ...health.Check) (htt
 // supervises continuous attempts in this process. It returns the booted
 // dependencies, the readiness checks the executor adds, and a close that
 // cancels in-flight work, then releases everything in order.
-func startExecutor(parent context.Context, sources filament.SourceRegistry) (boot.Deps, []health.Check, func(), error) {
+func startExecutor(parent context.Context, sources filament.SourceRegistry, sinks filament.SinkRegistry) (boot.Deps, []health.Check, func(), error) {
 	ctx, cancel := context.WithCancel(parent)
 	deps, closeDeps, err := boot.FromEnv(ctx)
 	if err != nil {
@@ -113,6 +116,7 @@ func startExecutor(parent context.Context, sources filament.SourceRegistry) (boo
 		return boot.Deps{}, nil, nil, err
 	}
 	deps.Sources = sources
+	deps.Sinks = sinks
 	bus, closeBus, err := boot.Bus()
 	if err != nil {
 		cancel()
@@ -128,7 +132,7 @@ func startExecutor(parent context.Context, sources filament.SourceRegistry) (boo
 	}
 	streams := streamsupervisor.New(runner.Deps{
 		Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets,
-		Sources: sources, Sinks: registry.DefaultSinks, Log: deps.Log, Tracer: deps.Tracer,
+		Sources: sources, Sinks: sinks, Log: deps.Log, Tracer: deps.Tracer,
 	}, nil)
 	streams.Start(ctx)
 	checks := []health.Check{deps.Store.Ping, func(ctx context.Context) error {
