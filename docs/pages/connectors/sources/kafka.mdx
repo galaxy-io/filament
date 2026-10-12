@@ -3,6 +3,8 @@ title: "Kafka"
 description: "Consume Kafka message envelopes with certified partition checkpoints"
 ---
 
+Connector ID `kafka`
+
 `connectors/kafka` registers an **alpha** bounded and continuous message source. Topics are
 resources, and topic partitions have independent next-offset checkpoints. The
 first implementation uses direct partition assignment to one Filament owner.
@@ -129,7 +131,8 @@ unclean election followed by regrowth; configure broker durability accordingly.
 
 The source supports bounded full reads and continuous execution. Consumer groups,
 bounded incremental/resumable reads, distributed partition handoff, and Schema
-Registry decoding remain follow-up work.
+Registry decoding remain follow-up work. The [sink](/pages/connectors/sinks/kafka) supports both
+bounded and continuous execution.
 
 The continuous source processes one record per epoch initially and advertises no end-to-end
 ordering guarantee. Normal fetches use a 4 MiB request limit, 1 MiB partition
@@ -139,7 +142,8 @@ and restarting the stream; saved domains must remain present.
 
 ## Tested profiles
 
-The connector integration suite tests Kafka **4.0.2** using single-broker plaintext fixtures. It checks tombstones, source resume, retention loss, topic
+The connector integration suite tests Kafka **4.0.2** using single-broker plaintext
+fixtures. It checks both sink execution modes, partition routing, tombstones, source resume, retention loss, topic
 recreation, and live partition changes. Bounded tests cover fixed windows, JSON
 schemas, limits, empty partitions, transactions, and retention loss. TLS/SASL configuration has unit coverage;
 secured-cluster and multi-broker fault tests remain follow-up work.

@@ -1,0 +1,114 @@
+---
+title: "Kafka"
+description: "Publish acknowledged Kafka records in bounded runs and continuous epochs"
+---
+
+`connectors/kafka` registers the `kafka` source and sink (**alpha**). The sink
+publishes one Kafka record per input row. It supports bounded `full_append`,
+`incremental_append`, and `cdc_append`, and continuous append epochs.
+
+## Configuration
+
+```json
+{
+  "brokers": ["localhost:9092"],
+  "topic_prefix": "warehouse",
+  "format": "json",
+  "key_field": "id",
+  "publish_timeout": "30s",
+  "max_in_flight": 1024,
+  "max_in_flight_bytes": 16777216,
+  "max_record_bytes": 1048576
+}
+```
+
+The example routes resource `orders` to `warehouse.orders`. Provision destination
+topics before running. The connector disables automatic topic creation and
+validates metadata before publishing. Use either `topic` (one fixed destination)
+or `topic_prefix`, never both. Topic names are validated without sanitization.
+
+Connection settings are shared with the [Kafka source](/pages/connectors/sources/kafka):
+`brokers`, `client_id`, `tls_enabled`, `tls_ca_pem`, `tls_cert_pem`,
+`tls_key_pem`, `sasl_mechanism`, `sasl_username`, and secret `sasl_password`.
+PEM values are pasted directly and stored as secrets; no worker filesystem paths
+are supported. TLS uses system trust unless a custom CA is supplied. The SASL
+authentication dropdown shows username/password inputs only for PLAIN or SCRAM.
+See the [source configuration](/pages/connectors/sources/kafka) for details.
+TLS verifies certificates using system roots plus optional CA certificates. Client
+certificates and keys must be configured together. Supported SASL mechanisms are
+`PLAIN`, `SCRAM-SHA-256`, and `SCRAM-SHA-512`.
+
+| Pipeline field | Default | Meaning |
+|---|---|---|
+| `topic` / `topic_prefix` | Required alternative | Existing destination topic or resource prefix |
+| `format` | `json` | JSON rows or `message` envelope passthrough |
+| `key_field` | No key | String or binary column, JSON mode only |
+| `partition_field` | Automatic | Signed integer column selecting an existing partition; nulls rejected |
+| `delete_mode` | `record` | Append change record, or `tombstone` for null values on deletes |
+| `publish_timeout` | `30s` | Total Apply publication/metadata wait, at least 1s |
+| `max_in_flight` | `1024` | Outstanding records, 1–65,536 |
+| `max_in_flight_bytes` | 16 MiB | Outstanding encoded record bytes, maximum 1 GiB |
+| `max_record_bytes` | 1 MiB | Conservative uncompressed record/batch limit from 512 bytes to 100 MiB. Must fit outstanding limit |
+
+Keys use the pinned client's sticky key partitioner (Kafka-compatible murmur2
+hashing for keys, sticky partition selection for null keys). Explicit partitions
+override this when `partition_field` is configured. Partition-count changes can
+move a key to another partition. No global or cross-attempt ordering is promised.
+
+## Message formats
+
+JSON mode uses the shared JSON row encoder, including any envelope columns.
+It attaches `Content-Type: application/json`, `Filament-Operation`, and an optional
+`Filament-Event-Id`. Updates and deletes append history; they do not mutate past
+records. A string key is UTF-8; a binary key is copied without conversion.
+
+Kafka and NATS sources now decode JSON into top-level columns; use `format=json`
+for those rows. `format=message` is for explicitly supplied raw envelopes and
+does not reconstruct the original JSON bytes from decoded columns.
+
+Message mode requires the public `_filament_key`, `_filament_payload`,
+`_filament_headers`, and `_filament_event_ts` columns. It preserves null versus
+empty binary values, ordered duplicate headers, and timestamps at Kafka's
+millisecond precision. `key_field` is invalid in this mode. Filament operation
+and event-ID headers are added; input collisions with those reserved names fail
+before publication. This means passthrough of records already carrying those
+reserved headers requires an explicit transformation.
+
+With `delete_mode=tombstone`, delete operations produce a null value and require
+a nonnull key. An empty key is valid. Existing raw-envelope tombstones remain
+null. Compaction does not imply upsert support or immediate physical deletion.
+
+## Durability and failures
+
+The producer requires `acks=all` with idempotence enabled. `Apply` waits for every
+record acknowledgment. Broker replication, minimum in-sync replicas, and retention
+settings determine the durability of acknowledged data.
+
+`Commit` closes a bounded run. `CommitEpoch` certifies already acknowledged
+continuous writes and returns per-resource totals. Neither operation makes the
+batch or epoch atomic. Aborting cannot retract accepted records.
+
+Delivery is **at least once**. Producer idempotence protects transport retries;
+it does not deduplicate a replayed Filament batch or epoch. Event-ID headers are
+metadata for downstream consumers, not broker-enforced deduplication.
+
+A publish error poisons the session. Partial publication may remain visible. A
+lost acknowledgment or timeout conservatively leaves destination effects
+uncertain, and continuous closure reports an error. Closing a client does not
+prove that an already submitted broker request cannot take effect later.
+The sink advertises no owner fencing, isolated epochs, or server-enforced bound
+on residual effects.
+
+The complete batch is encoded and locally validated before publication.
+Outstanding byte limits include key, value, headers, topic, and a framing
+allowance; the separately retained encoded batch is additional memory. Broker
+limits can still reject a record. Write receipts count value bytes and contain
+CRC32C over values in input order, excluding keys, headers, routing, and wire
+compression. Empty and null values both contribute zero checksum bytes.
+
+## Tested profiles
+
+The connector integration suite tests Kafka **4.0.2** using single-broker plaintext fixtures. It checks both sink execution
+modes, partition routing, tombstones, source resume, retention loss, topic
+recreation, and live partition changes. TLS/SASL configuration has unit coverage;
+secured-cluster and multi-broker fault tests remain follow-up work.

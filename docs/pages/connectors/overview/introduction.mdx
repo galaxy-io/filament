@@ -29,36 +29,36 @@ Every connector is registered with one of three maturity levels.
 
 ## Sources
 
-| Source | Maturity | Modes |
-|---|---|---|
-| [PostgreSQL](/pages/connectors/sources/postgres) | beta | Full, incremental, CDC |
-| [Kafka](/pages/connectors/sources/kafka) | alpha | Full (bounded), continuous messages |
-| [MySQL](/pages/connectors/sources/mysql) | beta | Full, incremental, CDC |
-| [NATS JetStream](/pages/connectors/sources/nats) | alpha | Continuous retained-message consumption |
-| [Apollo](/pages/connectors/sources/apollo) | alpha | Full |
-| [Attio](/pages/connectors/sources/attio) | alpha | Full |
-| [FHIR](/pages/connectors/sources/fhir) | alpha | Full, incremental |
-| [FXMacroData](/pages/connectors/sources/fxmacrodata) | alpha | Full |
-| [GitHub](/pages/connectors/sources/github) | beta | Full, incremental |
-| [Gong](/pages/connectors/sources/gong) | alpha | Full |
-| [Granola](/pages/connectors/sources/granola) | alpha | Full, incremental |
-| [HeyReach](/pages/connectors/sources/heyreach) | alpha | Full |
-| [HubSpot](/pages/connectors/sources/hubspot) | alpha | Full, incremental |
-| [Instantly](/pages/connectors/sources/instantly) | alpha | Full |
-| [Linear](/pages/connectors/sources/linear) | beta | Full, incremental |
-| [Live Tennis API](/pages/connectors/sources/livetennisapi) | alpha | Full |
-| [Mailchimp](/pages/connectors/sources/mailchimp) | alpha | Full, incremental (members) |
-| [monday.com](/pages/connectors/sources/monday) | alpha | Full, incremental (audit logs) |
-| [Notion](/pages/connectors/sources/notion) | beta | Full, incremental |
-| [Novada](/pages/connectors/sources/novada) | alpha | Full |
-| [Pipedrive](/pages/connectors/sources/pipedrive) | alpha | Full, incremental |
-| [PostHog](/pages/connectors/sources/posthog) | beta | Full, incremental |
-| [Resend](/pages/connectors/sources/resend) | beta | Full |
-| [ServiceTitan](/pages/connectors/sources/servicetitan) | alpha | Full, Incremental |
-| [Slack](/pages/connectors/sources/slack) | alpha | Full, incremental |
-| [Stripe](/pages/connectors/sources/stripe) | beta | Full, incremental |
-| [Zoho CRM](/pages/connectors/sources/zoho) | alpha | Full |
-| [Sample](/pages/connectors/sources/sample) | stable | Full |
+| Source | ID | Maturity | Modes |
+|---|---|---|---|
+| [PostgreSQL](/pages/connectors/sources/postgres) | `postgres` | beta | Full, incremental, CDC |
+| [Kafka](/pages/connectors/sources/kafka) | `kafka` | alpha | Full (bounded), continuous messages |
+| [MySQL](/pages/connectors/sources/mysql) | `mysql` | beta | Full, incremental, CDC |
+| [NATS JetStream](/pages/connectors/sources/nats) | `nats` | alpha | Continuous retained-message consumption |
+| [Apollo](/pages/connectors/sources/apollo) | `apollo` | alpha | Full |
+| [Attio](/pages/connectors/sources/attio) | `attio` | alpha | Full |
+| [FHIR](/pages/connectors/sources/fhir) | `fhir` | alpha | Full, incremental |
+| [FXMacroData](/pages/connectors/sources/fxmacrodata) | `fxmacrodata` | alpha | Full |
+| [GitHub](/pages/connectors/sources/github) | `github` | beta | Full, incremental |
+| [Gong](/pages/connectors/sources/gong) | `gong` | alpha | Full |
+| [Granola](/pages/connectors/sources/granola) | `granola` | alpha | Full, incremental |
+| [HeyReach](/pages/connectors/sources/heyreach) | `heyreach` | alpha | Full |
+| [HubSpot](/pages/connectors/sources/hubspot) | `hubspot` | alpha | Full, incremental |
+| [Instantly](/pages/connectors/sources/instantly) | `instantly` | alpha | Full |
+| [Linear](/pages/connectors/sources/linear) | `linear` | beta | Full, incremental |
+| [Live Tennis API](/pages/connectors/sources/livetennisapi) | `livetennisapi` | alpha | Full |
+| [Mailchimp](/pages/connectors/sources/mailchimp) | `mailchimp` | alpha | Full, incremental (members) |
+| [monday.com](/pages/connectors/sources/monday) | `monday` | alpha | Full, incremental (audit logs) |
+| [Notion](/pages/connectors/sources/notion) | `notion` | beta | Full, incremental |
+| [Novada](/pages/connectors/sources/novada) | `novada` | alpha | Full |
+| [Pipedrive](/pages/connectors/sources/pipedrive) | `pipedrive` | alpha | Full, incremental |
+| [PostHog](/pages/connectors/sources/posthog) | `posthog` | beta | Full, incremental |
+| [Resend](/pages/connectors/sources/resend) | `resend` | beta | Full |
+| [ServiceTitan](/pages/connectors/sources/servicetitan) | `servicetitan` | alpha | Full, Incremental |
+| [Slack](/pages/connectors/sources/slack) | `slack` | alpha | Full, incremental |
+| [Stripe](/pages/connectors/sources/stripe) | `stripe` | beta | Full, incremental |
+| [Zoho CRM](/pages/connectors/sources/zoho) | `zoho` | alpha | Full |
+| [Sample](/pages/connectors/sources/sample) | `sample` | stable | Full |
 
 Most SaaS sources are YAML manifests interpreted by one generic
 [HTTP connector](/pages/connectors/building-a-connector/http-manifests).
@@ -69,19 +69,20 @@ documented in
 
 ## Sinks
 
-| Sink | Maturity | Writes |
-|---|---|---|
-| [PostgreSQL](/pages/connectors/sinks/postgres) | beta | Typed tables. Replace, append, upsert, and CDC merge |
-| [MySQL](/pages/connectors/sinks/mysql) | alpha | Typed tables. Same write policies as the PostgreSQL sink |
-| [NATS JetStream](/pages/connectors/sinks/nats) | alpha | Acknowledged JSON messages; bounded and continuous append |
-| [ClickHouse](/pages/connectors/sinks/clickhouse) | alpha | MergeTree tables. Atomic replace via staging, no CDC |
-| [MotherDuck](/pages/connectors/sinks/motherduck) | alpha | Cloud DuckDB tables through the bulk appender. Worker `-libc` image only |
-| [Snowflake](/pages/connectors/sinks/snowflake) | alpha | Typed tables loaded from staged Parquet batches |
-| [Amazon Redshift](/pages/connectors/sinks/redshift) | alpha | Typed tables loaded from S3-staged Parquet manifests |
-| [Meilisearch](/pages/connectors/sinks/meilisearch) | alpha | Search documents, one index per resource. Add or replace by primary key |
-| [Iceberg](/pages/connectors/sinks/iceberg) | alpha | Parquet tables; data commits per resource at run end |
-| [Amazon S3](/pages/connectors/sinks/aws-s3) | alpha | NDJSON objects, one per resource per run |
-| [stdout](/pages/connectors/sinks/standard-output) | stable | NDJSON to standard output, the reference sink |
+| Sink | ID | Maturity | Writes |
+|---|---|---|---|
+| [PostgreSQL](/pages/connectors/sinks/postgres) | `postgres` | beta | Typed tables. Replace, append, upsert, and CDC merge |
+| [MySQL](/pages/connectors/sinks/mysql) | `mysql` | alpha | Typed tables. Same write policies as the PostgreSQL sink |
+| [NATS JetStream](/pages/connectors/sinks/nats) | `nats` | alpha | Acknowledged JSON messages; bounded and continuous append |
+| [Kafka](/pages/connectors/sinks/kafka) | `kafka` | alpha | Acknowledged JSON or raw messages. Bounded and continuous append |
+| [ClickHouse](/pages/connectors/sinks/clickhouse) | `clickhouse` | alpha | MergeTree tables. Atomic replace via staging, no CDC |
+| [MotherDuck](/pages/connectors/sinks/motherduck) | `motherduck` | alpha | Cloud DuckDB tables through the bulk appender. Worker `-libc` image only |
+| [Snowflake](/pages/connectors/sinks/snowflake) | `snowflake` | alpha | Typed tables loaded from staged Parquet batches |
+| [Amazon Redshift](/pages/connectors/sinks/redshift) | `redshift` | alpha | Typed tables loaded from S3-staged Parquet manifests |
+| [Meilisearch](/pages/connectors/sinks/meilisearch) | `meilisearch` | alpha | Search documents, one index per resource. Add or replace by primary key |
+| [Iceberg](/pages/connectors/sinks/iceberg) | `iceberg` | alpha | Parquet tables; data commits per resource at run end |
+| [Amazon S3](/pages/connectors/sinks/aws-s3) | `s3` | alpha | NDJSON objects, one per resource per run |
+| [stdout](/pages/connectors/sinks/standard-output) | `stdout` | stable | NDJSON to standard output, the reference sink |
 
 ## Where to go next
 

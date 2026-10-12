@@ -18,6 +18,14 @@ data:
   # Listener
   WORKER_ADDR: ":{{ .Values.worker.service.port }}"
 
+  # Connectors
+  {{- with .Values.worker.connectors.sources }}
+  CONNECTOR_SOURCES: {{ join "," . | quote }}
+  {{- end }}
+  {{- with .Values.worker.connectors.sinks }}
+  CONNECTOR_SINKS: {{ join "," . | quote }}
+  {{- end }}
+
   # Heartbeat
   {{- with .Values.worker.heartbeatSeconds }}
   HEARTBEAT_SECONDS: {{ . | quote }}
