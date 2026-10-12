@@ -41,7 +41,7 @@ control plane learn the catalog from the worker, so connectors left off the
 list do not appear in the UI or CLI, and runs that use them fail. Names are
 unversioned. Listing an HTTP connector such as `instantly` keeps its default
 alias and every registered version. An unknown or versioned name stops
-startup. The Helm chart sets these from `worker.connectors.sources` and
+startup, and so does a value such as `,` that names no connectors. The Helm chart sets these from `worker.connectors.sources` and
 `worker.connectors.sinks`.
 
 ### Datastore

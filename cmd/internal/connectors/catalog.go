@@ -24,7 +24,10 @@ func SourcesFromEnv() (*registry.Sources, error) {
 			return nil, fmt.Errorf("HTTP_MANIFESTS_DIR: %w", err)
 		}
 	}
-	names := connectorNames("CONNECTOR_SOURCES")
+	names, err := connectorNames("CONNECTOR_SOURCES")
+	if err != nil {
+		return nil, err
+	}
 	if len(names) == 0 {
 		return sources, nil
 	}
@@ -38,7 +41,10 @@ func SourcesFromEnv() (*registry.Sources, error) {
 // SinksFromEnv keeps only the sinks CONNECTOR_SINKS names when it is set.
 // The process-wide registry is unchanged.
 func SinksFromEnv() (*registry.Sinks, error) {
-	names := connectorNames("CONNECTOR_SINKS")
+	names, err := connectorNames("CONNECTOR_SINKS")
+	if err != nil {
+		return nil, err
+	}
 	if len(names) == 0 {
 		return registry.DefaultSinks, nil
 	}
@@ -49,13 +55,22 @@ func SinksFromEnv() (*registry.Sinks, error) {
 	return only, nil
 }
 
-// connectorNames splits a comma-separated list of connector names.
-func connectorNames(key string) []string {
+// connectorNames splits a comma-separated list of connector names. A blank
+// value is no list. A value that names nothing is an error, so a mistyped
+// allowlist never falls back to every connector.
+func connectorNames(key string) ([]string, error) {
+	value := os.Getenv(key)
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
 	var names []string
-	for name := range strings.SplitSeq(os.Getenv(key), ",") {
+	for name := range strings.SplitSeq(value, ",") {
 		if name = strings.TrimSpace(name); name != "" {
 			names = append(names, name)
 		}
 	}
-	return names
+	if len(names) == 0 {
+		return nil, fmt.Errorf("%s: %q names no connectors", key, value)
+	}
+	return names, nil
 }
