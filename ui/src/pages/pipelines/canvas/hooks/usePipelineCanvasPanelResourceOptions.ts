@@ -33,7 +33,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
   const sourceConnection = connectionByNodeId.get(edge.source);
   const sinkConnection = connectionByNodeId.get(edge.target);
   const resources = usePipelineCanvasEdgeResources(edge);
-  const { edgeResource, hasReadLevers, isLoadingColumns } = resources;
+  const { resource, hasReadLevers, isLoadingColumns } = resources;
 
   const validationInput = useMemo(
     () =>
@@ -61,7 +61,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
             create(PipelineEdgeSchema, {
               fromNode: edge.source,
               toNode: edge.target,
-              resource: edgeResource,
+              resource,
               destinationResource: edge.data?.destinationResource,
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
@@ -70,7 +70,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
           ],
         }),
       }),
-    [sourceConnection, sinkConnection, edge, edgeResource, executionMode, sourceConfig, sinkConfig],
+    [sourceConnection, sinkConnection, edge, resource, executionMode, sourceConfig, sinkConfig],
   );
 
   const { data: validation, isLoading: isLoadingValidation } = useValidatePipelineQuery({

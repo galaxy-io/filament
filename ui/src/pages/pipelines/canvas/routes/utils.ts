@@ -62,11 +62,7 @@ export const getPipelineCanvasRoutesListItems = (
   if (!draft) return routeItems;
 
   const groupEnd = draft.isResourceLocked
-    ? routes.reduce(
-        (last, route, index) =>
-          route.isNamedResource && route.resource === draftResource ? index : last,
-        -1,
-      )
+    ? routes.reduce((last, route, index) => (route.resource === draftResource ? index : last), -1)
     : -1;
   return [
     ...routeItems.slice(0, groupEnd + 1),

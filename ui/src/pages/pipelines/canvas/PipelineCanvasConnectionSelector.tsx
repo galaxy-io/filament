@@ -17,6 +17,7 @@ import {
 } from "@/pages/pipelines/canvas/constants";
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
 import { canAddSourceNode, createNodeFromConnection } from "@/pages/pipelines/canvas/graph/rules";
+import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import PipelineCanvasConnectionSelectorList from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorList";
 import {
   usePipelineCanvasActions,
@@ -51,6 +52,7 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
   const [state, setState] = useState<PipelineCanvasConnectionSelectorState>(DEFAULT_STATE);
   const canvasState = usePipelineCanvasState();
   const { addNode } = usePipelineCanvasActions();
+  const sourceResources = usePipelineCanvasSourceNodeResources();
 
   const handleSearch = (q: string) => {
     setState((prev) => ({ ...prev, q }));
@@ -72,7 +74,7 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
     }
 
     const position = getNextNodePosition(connection.kind, canvasState.nodes);
-    addNode(createNodeFromConnection(connection, position));
+    addNode(createNodeFromConnection(connection, position), sourceResources);
   };
 
   return (

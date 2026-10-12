@@ -33,9 +33,8 @@ export const isTransformDraftComplete = (
   draft: PipelineTransformFieldsDraft,
   columns: ResourceColumn[],
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
-): boolean => {
-  if (draft.resource === "") return false;
-  return match(draft.step)
+): boolean =>
+  match(draft.step)
     .with(
       { kind: TransformStepKind.RENAME },
       (step) =>
@@ -66,7 +65,6 @@ export const isTransformDraftComplete = (
       );
     })
     .exhaustive();
-};
 
 const isGrammarValue = (value: JsonValue): boolean =>
   value === null
@@ -78,7 +76,7 @@ const isGrammarValue = (value: JsonValue): boolean =>
         : true;
 
 export const isTransformDraftValidatable = (draft: PipelineTransformFieldsDraft): boolean =>
-  draft.resource !== "" && isGrammarValue(serializeTransformStep(draft.step));
+  isGrammarValue(serializeTransformStep(draft.step));
 
 const getTransformExprError = (
   expr: TransformExpr,

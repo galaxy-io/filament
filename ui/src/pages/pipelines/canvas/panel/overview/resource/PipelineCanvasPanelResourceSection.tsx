@@ -1,6 +1,5 @@
 import { type FC, useState } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -12,7 +11,6 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
-import { DiscoverResourcesRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
@@ -35,14 +33,11 @@ import {
   type CanvasNode,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
-import { getCanvasEdgeResourceLabel, isConnectionNode } from "@/pages/pipelines/canvas/utils";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
 import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsMarker from "@/pages/pipelines/components/transform/PipelineTransformFieldsMarker";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
-
-import { useDiscoverResourcesQuery } from "@/api/queries/connectors";
-import { PROBE_QUERY_OPTIONS } from "@/api/queries/constants";
 
 interface PipelineCanvasPanelResourceSectionProps {
   edges: CanvasEdge[];
@@ -85,17 +80,6 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
       node.type === PipelineCanvasNodeType.SINK &&
       (nodeType !== PipelineCanvasNodeType.SINK || node.id === nodeId),
   );
-  const sourceConnectionId = sourceNode?.data.connectionId ?? "";
-
-  const { data: discovered } = useDiscoverResourcesQuery({
-    input: create(DiscoverResourcesRequestSchema, {
-      connectionId: sourceConnectionId,
-    }),
-    options: { ...PROBE_QUERY_OPTIONS, enabled: sourceConnectionId !== "" },
-  });
-  const discoveredCount = (discovered?.resources ?? []).filter(
-    (resource) => resource.isSelectable,
-  ).length;
 
   const canCreate = isContinuous && !isReadOnly && !!sourceNode && sinkNodes.length > 0;
 
@@ -107,12 +91,14 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
 
   const handleCreate = ({ resource, sinkId }: PipelineResourceCreateState) => {
     if (!sourceNode) return;
-    connect({
-      source: sourceNode.id,
-      sourceHandle: resource,
-      target: sinkId,
-      targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
-    });
+    connect([
+      {
+        source: sourceNode.id,
+        sourceHandle: resource,
+        target: sinkId,
+        targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
+      },
+    ]);
     setLocalState((prev) => ({ ...prev, isCreating: false }));
   };
 
@@ -155,10 +141,6 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
         {edges.map((edge) => {
           const sourceConnection = connectionByNodeId.get(edge.source);
           const sinkConnection = connectionByNodeId.get(edge.target);
-          const { label, isNamedResource } = getCanvasEdgeResourceLabel(
-            getCanvasEdgeResource(edge),
-            discoveredCount,
-          );
           return (
             <PipelineCanvasPanelItem key={edge.id} onClick={() => selectResource(edge.id)}>
               <Flex
@@ -169,12 +151,8 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
                 fillWidth
               >
                 <FlexItem minWidth={0}>
-                  <Text
-                    size={TextSize.BODY_SM}
-                    family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
-                    lineClamp={1}
-                  >
-                    {label}
+                  <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
+                    {getCanvasEdgeResource(edge)}
                   </Text>
                 </FlexItem>
                 <Flex alignItems={AlignItems.CENTER} gap={8} shrink={0}>

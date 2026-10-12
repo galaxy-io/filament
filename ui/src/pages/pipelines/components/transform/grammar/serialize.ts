@@ -82,21 +82,19 @@ export const serializeTransformStep = (step: TransformStep): JsonValue =>
     .exhaustive();
 
 export const serializeTransformDefinition = (
-  stepsByResource: Map<Resource["name"], TransformStep[]>,
+  resource: Resource["name"],
+  steps: TransformStep[],
   grammarVersion: number,
   base?: TransformDefinition,
 ): TransformDefinition | undefined => {
   const resources: Record<string, JsonValue> = {};
   const saved = base?.resources;
   if (saved !== undefined && isJsonObject(saved)) {
-    for (const [resource, entry] of Object.entries(saved)) {
-      if (!stepsByResource.has(resource)) resources[resource] = entry;
+    for (const [name, entry] of Object.entries(saved)) {
+      if (name !== resource) resources[name] = entry;
     }
   }
-  for (const [resource, steps] of stepsByResource) {
-    if (steps.length === 0) continue;
-    resources[resource] = { steps: steps.map(serializeTransformStep) };
-  }
+  if (steps.length > 0) resources[resource] = { steps: steps.map(serializeTransformStep) };
   if (Object.keys(resources).length === 0) return undefined;
   return { version: grammarVersion, resources };
 };

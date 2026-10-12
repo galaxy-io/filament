@@ -29,7 +29,7 @@ import PipelineNodeConfigFields from "@/pages/pipelines/components/node/Pipeline
 import { getWriteModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 import { formatIdentifier } from "@/utils/naming";
-import { mapOptionIdToEnum } from "@/utils/select";
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
 interface CreatePipelineModalDeliveryConnectionProps {
   connection: Connection;
@@ -95,8 +95,8 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
       {sink && (
         <SelectInput
           label="Write mode"
-          options={getWriteModeSelectOptions(sink.writeModeOptions)}
-          value={String(sink.writeMode)}
+          options={getWriteModeSelectOptions(sink.writeModeOptions, sink.writeMode)}
+          value={getEnumSelectValue(WriteMode, sink.writeMode)}
           onChange={handleWriteModeChange}
           fillWidth
         />

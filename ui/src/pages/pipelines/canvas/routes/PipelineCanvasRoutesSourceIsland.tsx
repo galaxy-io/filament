@@ -61,10 +61,10 @@ const PipelineCanvasRoutesSourceIsland: FC<PipelineCanvasRoutesSourceIslandProps
       <Text
         size={TextSize.BODY_SM}
         weight={TextWeight.MEDIUM}
-        family={route.isNamedResource ? FontFamily.MONO : FontFamily.SANS}
+        family={FontFamily.MONO}
         lineClamp={1}
       >
-        {route.resourceLabel}
+        {route.resource}
       </Text>
     </FlexItem>
     {onAddSink && (

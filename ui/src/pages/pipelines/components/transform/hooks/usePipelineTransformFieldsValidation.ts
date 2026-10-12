@@ -43,30 +43,36 @@ const NO_ERRORS = new Map<string, string[]>();
 const NO_TYPES = new Map<string, string>();
 
 export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFieldsDraft) => {
-  const { stepsByResource } = usePipelineTransformFieldsState();
-  const { columnsByResource, sourceConnectionId, functionsByName, grammarVersion, isReadOnly } =
-    usePipelineTransformFieldsEnvironment();
-  const savedIssues = usePipelineTransformFieldsIssues(draft.resource);
-  const requiresValidation = sourceConnectionId !== "" && draft.resource !== "";
+  const { steps } = usePipelineTransformFieldsState();
+  const {
+    resource,
+    columns: resourceColumns,
+    sourceConnectionId,
+    functionsByName,
+    grammarVersion,
+    isReadOnly,
+  } = usePipelineTransformFieldsEnvironment();
+  const savedIssues = usePipelineTransformFieldsIssues();
+  const requiresValidation = sourceConnectionId !== "";
 
   const prefixDefinition = useMemo(() => {
-    if (draft.resource === "") return undefined;
-    const placed = placeTransformDraft(stepsByResource, draft);
-    const steps = (placed.stepsByResource.get(draft.resource) ?? []).slice(0, placed.index);
-    return serializeTransformDefinition(new Map([[draft.resource, steps]]), grammarVersion);
-  }, [draft, grammarVersion, stepsByResource]);
+    const placed = placeTransformDraft(steps, draft);
+    return serializeTransformDefinition(
+      resource,
+      placed.steps.slice(0, placed.index),
+      grammarVersion,
+    );
+  }, [draft, grammarVersion, resource, steps]);
   const hasPrefix = requiresValidation && prefixDefinition !== undefined;
   const prefix = useValidateTransformQuery({
     input: create(ValidateTransformRequestSchema, {
       sourceConnectionId,
-      resource: draft.resource,
+      resource,
       transform: prefixDefinition,
     }),
     options: { enabled: hasPrefix },
   });
-  const columns = hasPrefix
-    ? (prefix.data?.outputColumns ?? NO_COLUMNS)
-    : (columnsByResource.get(draft.resource) ?? NO_COLUMNS);
+  const columns = hasPrefix ? (prefix.data?.outputColumns ?? NO_COLUMNS) : resourceColumns;
   const prefixError =
     prefix.error !== null ? "Unable to load the columns available before this step." : null;
   const isPrefixPending = hasPrefix && prefix.data === undefined && prefixError === null;
@@ -77,18 +83,15 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
 
   const debounced = useDebouncedValue(draft, VALIDATION_DEBOUNCE_MS);
   const isSettled = debounced === draft;
-  const placed = useMemo(
-    () => placeTransformDraft(stepsByResource, debounced),
-    [debounced, stepsByResource],
-  );
+  const placed = useMemo(() => placeTransformDraft(steps, debounced), [debounced, steps]);
   const definition = useMemo(
-    () => serializeTransformDefinition(placed.stepsByResource, grammarVersion),
-    [placed, grammarVersion],
+    () => serializeTransformDefinition(resource, placed.steps, grammarVersion),
+    [resource, placed, grammarVersion],
   );
   const validation = useValidateTransformQuery({
     input: create(ValidateTransformRequestSchema, {
       sourceConnectionId,
-      resource: debounced.resource,
+      resource,
       transform: definition,
     }),
     options: {
@@ -101,7 +104,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       placeholderData: keepPreviousData,
     },
   });
-  const stepPath = getTransformStepPath(debounced.resource, placed.index);
+  const stepPath = getTransformStepPath(resource, placed.index);
   const isFresh = isSettled && validation.data !== undefined && !validation.isPlaceholderData;
   const showsIssues = isFresh && isComplete && clientError === null;
   const validationError =
@@ -109,10 +112,9 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
 
   const { errors, downstream } = useMemo(() => {
     if (!showsIssues || !validation.data) return { errors: NO_ERRORS, downstream: [] };
-    const steps = placed.stepsByResource.get(debounced.resource) ?? [];
     const downstream = [...groupTransformIssuesByStep(validation.data.issues)].flatMap(
       ([index, messages]) => {
-        const step = steps[index];
+        const step = placed.steps[index];
         if (!step || index <= placed.index) return [];
         const saved = savedIssues.get(step.id) ?? [];
         return messages
@@ -121,7 +123,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       },
     );
     return { errors: getTransformStepIssues(validation.data.issues, stepPath), downstream };
-  }, [debounced.resource, placed, savedIssues, showsIssues, stepPath, validation.data]);
+  }, [placed, savedIssues, showsIssues, stepPath, validation.data]);
   const types = useMemo(
     () =>
       validation.data
@@ -130,7 +132,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
     [stepPath, validation.data],
   );
 
-  const isDisabled = isReadOnly || isPrefixPending || prefixError !== null || draft.resource === "";
+  const isDisabled = isReadOnly || isPrefixPending || prefixError !== null;
   const editor = useMemo<PipelineTransformFieldsEditor>(
     () => ({ columns, types, errors, isDisabled }),
     [columns, types, errors, isDisabled],

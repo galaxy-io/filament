@@ -2,11 +2,6 @@ import type { FC } from "react";
 
 import { match } from "ts-pattern";
 
-import SelectInput, {
-  SelectInputSize,
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import {
@@ -19,9 +14,6 @@ import {
   usePipelineTransformFieldsActions,
   usePipelineTransformFieldsEnvironment,
 } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
-import PipelineTransformFieldsRow, {
-  PipelineTransformFieldsRowVariant,
-} from "@/pages/pipelines/components/transform/PipelineTransformFieldsRow";
 import PipelineTransformFieldsStepCompute from "@/pages/pipelines/components/transform/PipelineTransformFieldsStepCompute";
 import PipelineTransformFieldsStepDrop from "@/pages/pipelines/components/transform/PipelineTransformFieldsStepDrop";
 import PipelineTransformFieldsStepFooter from "@/pages/pipelines/components/transform/PipelineTransformFieldsStepFooter";
@@ -44,14 +36,10 @@ const PipelineTransformFieldsStepCard: FC<PipelineTransformFieldsStepCardProps> 
   draft,
   handle,
 }) => {
-  const { resources, isReadOnly } = usePipelineTransformFieldsEnvironment();
-  const { setDraft, setResource, cancel, save, removeStep } = usePipelineTransformFieldsActions();
+  const { isReadOnly } = usePipelineTransformFieldsEnvironment();
+  const { setDraft, cancel, save, removeStep } = usePipelineTransformFieldsActions();
   const { editor, issues, warnings, typeSummary, isSaveDisabled } =
     usePipelineTransformFieldsValidation(draft);
-  const resourceOptions: SelectOption[] = resources.map((resource) => ({
-    id: resource,
-    label: resource,
-  }));
   const { id, step } = draft;
 
   return (
@@ -71,26 +59,6 @@ const PipelineTransformFieldsStepCard: FC<PipelineTransformFieldsStepCardProps> 
           fillWidth
         >
           <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={8} fillWidth>
-            {id === null && resources.length > 1 && (
-              <PipelineTransformFieldsRow
-                variant={PipelineTransformFieldsRowVariant.STEP}
-                gutter="for"
-              >
-                <SelectInput
-                  ariaLabel="Resource"
-                  options={resourceOptions}
-                  value={draft.resource || null}
-                  onChange={(id) => {
-                    if (id !== null) setResource(id);
-                  }}
-                  placeholder="Choose a resource..."
-                  variant={SelectInputVariant.TERTIARY}
-                  size={SelectInputSize.MEDIUM}
-                  isDisabled={isReadOnly}
-                  fillWidth
-                />
-              </PipelineTransformFieldsRow>
-            )}
             {match(step)
               .with({ kind: TransformStepKind.RENAME }, (rename) => (
                 <PipelineTransformFieldsStepRename step={rename} onChange={setDraft} />

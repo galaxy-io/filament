@@ -99,19 +99,18 @@ export type TransformAction =
   | { kind: TransformActionKind.FUNCTION; fn: TransformFunction["name"] };
 
 export interface PipelineTransformFieldsDraft {
-  resource: Resource["name"];
   id: TransformStep["id"] | null;
   step: TransformEditableStep;
 }
 
 export interface PipelineTransformFieldsState {
-  stepsByResource: Map<Resource["name"], TransformStep[]>;
+  steps: TransformStep[];
   draft: PipelineTransformFieldsDraft | null;
 }
 
 export interface PipelineTransformFieldsEnvironment {
-  resources: Resource["name"][];
-  columnsByResource: Map<Resource["name"], ResourceColumn[]>;
+  resource: Resource["name"];
+  columns: ResourceColumn[];
   sourceConnectionId: Connection["id"];
   functionsByName: Map<TransformFunction["name"], TransformFunction>;
   grammarVersion: ListTransformFunctionsResponse["grammarVersion"];

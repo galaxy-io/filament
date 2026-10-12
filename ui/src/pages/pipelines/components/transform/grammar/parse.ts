@@ -103,14 +103,7 @@ const getResourceSteps = (
 
 export const parseTransformDefinition = (
   definition: TransformDefinition | undefined,
-  resources: Resource["name"][],
+  resource: Resource["name"],
   functionsByName: Map<TransformFunction["name"], TransformFunction>,
-): Map<Resource["name"], TransformStep[]> =>
-  new Map(
-    resources.map((resource) => [
-      resource,
-      getResourceSteps(definition, resource).map((step) =>
-        parseTransformStep(step, functionsByName),
-      ),
-    ]),
-  );
+): TransformStep[] =>
+  getResourceSteps(definition, resource).map((step) => parseTransformStep(step, functionsByName));

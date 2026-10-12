@@ -6,7 +6,7 @@ import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { isJsonObject } from "@/components/fields/utils";
@@ -64,50 +64,44 @@ export const getEdgeModeOptions = (
 type PipelineCanvasEdgeStatusResources = Pick<
   PipelineCanvasEdgeResources,
   | "hasReadLevers"
-  | "coveredResources"
-  | "columnsByResource"
-  | "cursorOptionsByResource"
-  | "managedIncrementalResources"
-  | "primaryKeyByResource"
+  | "resource"
+  | "columns"
+  | "cursorOptions"
+  | "isManagedIncremental"
+  | "hasPrimaryKey"
 >;
 
 interface PipelineCanvasEdgeStatusConfig {
   verdict: EdgeValidation | undefined;
   readMode: ReadMode;
   writeMode: WriteMode;
-  cursorsByResource: Map<Resource["name"], ResourceColumn["name"]>;
+  cursor: ResourceColumn["name"] | undefined;
 }
 
-export const getEdgeResourceStatuses = (
+export const getEdgeResourceStatus = (
   {
     hasReadLevers,
-    coveredResources,
-    columnsByResource,
-    cursorOptionsByResource,
-    managedIncrementalResources,
-    primaryKeyByResource,
+    resource,
+    columns,
+    cursorOptions,
+    isManagedIncremental,
+    hasPrimaryKey,
   }: PipelineCanvasEdgeStatusResources,
-  { verdict, readMode, writeMode, cursorsByResource }: PipelineCanvasEdgeStatusConfig,
-): PipelineResourceStatus[] => {
-  if (!hasReadLevers || verdict === undefined) return [];
-  const { readModeOptions } = getEdgeModeOptions(verdict, hasReadLevers);
-  const supportedReadModesByResource = new Map(
-    verdict.resources.map((resource) => [resource.resource, resource.supportedReadModes]),
-  );
-  return coveredResources.flatMap((resource) => {
-    const columns = columnsByResource.get(resource);
-    const status = getPipelineResourceStatus({
-      resource,
-      readMode,
-      readModeOptions: supportedReadModesByResource.get(resource) ?? readModeOptions,
-      cursorField: cursorsByResource.get(resource) ?? getRecommendedCursor(columns ?? []),
-      cursorOptions: cursorOptionsByResource[resource] ?? [],
-      isCursorKnown: columns !== undefined,
-      managedIncremental: managedIncrementalResources.has(resource),
-      hasPrimaryKey: (primaryKeyByResource[resource]?.length ?? 0) > 0,
-      needsPrimaryKey: writeMode === WriteMode.UPSERT,
-    });
-    return status ? [status] : [];
+  { verdict, readMode, writeMode, cursor }: PipelineCanvasEdgeStatusConfig,
+): PipelineResourceStatus | undefined => {
+  if (!hasReadLevers || verdict === undefined || resource === "") return undefined;
+  return getPipelineResourceStatus({
+    resource,
+    readMode,
+    readModeOptions:
+      verdict.resources.find((candidate) => candidate.resource === resource)?.supportedReadModes ??
+      getEdgeModeOptions(verdict, hasReadLevers).readModeOptions,
+    cursorField: cursor ?? getRecommendedCursor(columns ?? []),
+    cursorOptions,
+    isCursorKnown: columns !== undefined,
+    managedIncremental: isManagedIncremental,
+    hasPrimaryKey,
+    needsPrimaryKey: writeMode === WriteMode.UPSERT,
   });
 };
 
@@ -133,11 +127,7 @@ export const getTransformStepCount = (
 ): number => {
   const resources = transform?.resources;
   if (resources === undefined || !isJsonObject(resources)) return 0;
-  if (resource !== "") return getTransformEntryStepCount(resources[resource]);
-  return Object.values(resources).reduce<number>(
-    (total, entry) => total + getTransformEntryStepCount(entry),
-    0,
-  );
+  return getTransformEntryStepCount(resources[resource]);
 };
 
 export const getPipelineCanvasFitPadding = (
@@ -168,17 +158,6 @@ export const mapElementsToSelected = <T extends { id: string; selected?: boolean
 
 export const getDefaultDestinationResource = (resource: PipelineEdge["resource"]): string =>
   resource.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
-
-export const getCanvasEdgeResourceLabel = (
-  resource: PipelineEdge["resource"],
-  coveredCount: number,
-): { label: string; isNamedResource: boolean } => {
-  if (resource) return { label: resource, isNamedResource: true };
-  return {
-    label: coveredCount ? `${coveredCount} resources` : "All resources",
-    isNamedResource: false,
-  };
-};
 
 export const mapEdgesToStyledEdges = (
   edges: CanvasEdge[],

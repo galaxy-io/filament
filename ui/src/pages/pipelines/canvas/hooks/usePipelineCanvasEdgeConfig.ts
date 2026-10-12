@@ -20,8 +20,8 @@ import {
 } from "@/pages/pipelines/components/resource/utils";
 
 interface PipelineCanvasEdgeConfigOptions extends PipelineCanvasEdgeModeOptions {
-  coveredResources: Resource["name"][];
-  defaultCursorByResource: Record<Resource["name"], ResourceColumn["name"]>;
+  resource: Resource["name"];
+  defaultCursor: ResourceColumn["name"];
 }
 
 export const usePipelineCanvasEdgeConfig = (
@@ -31,8 +31,8 @@ export const usePipelineCanvasEdgeConfig = (
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
-    coveredResources,
-    defaultCursorByResource,
+    resource,
+    defaultCursor,
   }: PipelineCanvasEdgeConfigOptions,
 ) => {
   const { edges } = usePipelineCanvasState();
@@ -45,18 +45,19 @@ export const usePipelineCanvasEdgeConfig = (
   const writeMode =
     configuredWriteMode === WriteMode.UNSPECIFIED ? effectiveWriteMode : configuredWriteMode;
   const cursors = edge.data?.cursors ?? [];
-  const cursorsByResource = new Map(cursors.map((cursor) => [cursor.resource, cursor.field]));
+  const cursorConfig = cursors.find((candidate) => candidate.resource === resource);
+  const cursor = cursorConfig?.field;
 
   const createDefaultCursors = () =>
-    coveredResources
-      .filter((resourceName) => (defaultCursorByResource[resourceName] ?? "") !== "")
-      .map((resourceName) =>
-        create(ResourceCursorConfigSchema, {
-          resource: resourceName,
-          field: defaultCursorByResource[resourceName],
-          lookbackSeconds: 0n,
-        }),
-      );
+    defaultCursor === ""
+      ? []
+      : [
+          create(ResourceCursorConfigSchema, {
+            resource,
+            field: defaultCursor,
+            lookbackSeconds: 0n,
+          }),
+        ];
 
   const routeHasIncremental =
     readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, edge, edge.id);
@@ -84,24 +85,22 @@ export const usePipelineCanvasEdgeConfig = (
   const handleWriteModeChange = (mode: WriteMode) =>
     setRouteWriteMode(edge.source, edge.target, mode);
 
-  const handleCursorChange = (resourceName: Resource["name"], field: ResourceColumn["name"]) =>
+  const handleCursorChange = (field: ResourceColumn["name"]) =>
     setEdgeConfig(edge.id, {
       readMode,
       writeMode,
       transform: edge.data?.transform,
       cursors: [
-        ...cursors.filter((cursor) => cursor.resource !== resourceName),
         create(ResourceCursorConfigSchema, {
-          resource: resourceName,
+          resource,
           field,
-          lookbackSeconds:
-            cursors.find((cursor) => cursor.resource === resourceName)?.lookbackSeconds ?? 0n,
+          lookbackSeconds: cursorConfig?.lookbackSeconds ?? 0n,
         }),
       ],
     });
 
-  const readModeSelectOptions = getReadModeSelectOptions(readModeOptions);
-  const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes);
+  const readModeSelectOptions = getReadModeSelectOptions(readModeOptions, readMode);
+  const writeModeSelectOptions = getWriteModeSelectOptions(compatibleWriteModes, writeMode);
 
   return {
     configuredReadMode,
@@ -109,7 +108,7 @@ export const usePipelineCanvasEdgeConfig = (
     readMode,
     writeMode,
     cursors,
-    cursorsByResource,
+    cursor,
     readModeSelectOptions,
     writeModeSelectOptions,
     handleReadModeChange,

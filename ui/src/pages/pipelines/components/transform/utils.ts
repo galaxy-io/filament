@@ -2,7 +2,7 @@ import { match } from "ts-pattern";
 
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import {
@@ -250,20 +250,13 @@ export const applyTransformAction = (
 };
 
 export const placeTransformDraft = (
-  stepsByResource: Map<Resource["name"], TransformStep[]>,
+  steps: TransformStep[],
   draft: PipelineTransformFieldsDraft,
-): { stepsByResource: Map<Resource["name"], TransformStep[]>; index: number } => {
-  const steps = stepsByResource.get(draft.resource) ?? [];
+): { steps: TransformStep[]; index: number } => {
   const at = draft.id === null ? -1 : steps.findIndex((step) => step.id === draft.id);
-  const index = at === -1 ? steps.length : at;
-  const next = new Map(stepsByResource);
-  next.set(
-    draft.resource,
-    at === -1
-      ? [...steps, draft.step]
-      : steps.map((step, slot) => (slot === at ? draft.step : step)),
-  );
-  return { stepsByResource: next, index };
+  return at === -1
+    ? { steps: [...steps, draft.step], index: steps.length }
+    : { steps: steps.map((step, slot) => (slot === at ? draft.step : step)), index: at };
 };
 
 export const getTransformColumnType = (

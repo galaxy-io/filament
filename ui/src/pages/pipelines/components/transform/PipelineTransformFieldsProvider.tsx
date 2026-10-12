@@ -39,10 +39,9 @@ interface PipelineTransformFieldsActions {
   openStep: (id: TransformStep["id"]) => void;
   cancel: () => void;
   setDraft: (step: TransformEditableStep) => void;
-  setResource: (resource: Resource["name"]) => void;
   save: () => void;
   removeStep: (id: TransformStep["id"]) => void;
-  moveStep: (resource: Resource["name"], from: number, to: number) => void;
+  moveStep: (from: number, to: number) => void;
 }
 
 const PipelineTransformFieldsStateContext = createContext<PipelineTransformFieldsState | null>(
@@ -106,8 +105,8 @@ export const usePipelineTransformFieldsEditor = () => {
 interface PipelineTransformFieldsProviderProps {
   definition: TransformDefinition | undefined;
   onChange: (definition: TransformDefinition | undefined) => void;
-  resources: Resource["name"][];
-  columnsByResource: Map<Resource["name"], ResourceColumn[]>;
+  resource: Resource["name"];
+  columns: ResourceColumn[];
   sourceConnectionId: Connection["id"];
   isReadOnly?: boolean;
 }
@@ -117,8 +116,8 @@ const PipelineTransformFieldsProvider: FC<
 > = ({
   definition,
   onChange,
-  resources,
-  columnsByResource,
+  resource,
+  columns,
   sourceConnectionId,
   isReadOnly = false,
   children,
@@ -132,18 +131,18 @@ const PipelineTransformFieldsProvider: FC<
   );
   const [state, dispatch] = useReducer(
     pipelineTransformFieldsReducer,
-    { definition, resources, functionsByName },
+    { definition, resource, functionsByName },
     createInitialPipelineTransformFieldsState,
   );
 
   const emitted = useRef(definition);
-  const [loaded, setLoaded] = useState({ definition, resources });
-  if (loaded.definition !== definition || loaded.resources !== resources) {
-    setLoaded({ definition, resources });
-    if (definition !== emitted.current || loaded.resources !== resources) {
+  const [loaded, setLoaded] = useState({ definition, resource });
+  if (loaded.definition !== definition || loaded.resource !== resource) {
+    setLoaded({ definition, resource });
+    if (definition !== emitted.current || loaded.resource !== resource) {
       dispatch({
         type: PipelineTransformFieldsActionType.LOAD,
-        payload: { definition, resources, functionsByName },
+        payload: { definition, resource, functionsByName },
       });
     }
   }
@@ -153,7 +152,8 @@ const PipelineTransformFieldsProvider: FC<
       const next = pipelineTransformFieldsReducer(state, action);
       dispatch(action);
       const nextDefinition = serializeTransformDefinition(
-        next.stepsByResource,
+        resource,
+        next.steps,
         catalog.grammarVersion,
         definition,
       );
@@ -161,43 +161,30 @@ const PipelineTransformFieldsProvider: FC<
       onChange(nextDefinition);
     };
     return {
-      openNew: () =>
-        dispatch({ type: PipelineTransformFieldsActionType.OPEN_NEW, payload: { resources } }),
+      openNew: () => dispatch({ type: PipelineTransformFieldsActionType.OPEN_NEW }),
       openStep: (id) =>
         dispatch({ type: PipelineTransformFieldsActionType.OPEN_STEP, payload: id }),
       cancel: () => dispatch({ type: PipelineTransformFieldsActionType.CANCEL }),
       setDraft: (step) =>
         dispatch({ type: PipelineTransformFieldsActionType.SET_DRAFT, payload: step }),
-      setResource: (resource) =>
-        dispatch({ type: PipelineTransformFieldsActionType.SET_RESOURCE, payload: resource }),
       save: () => commit({ type: PipelineTransformFieldsActionType.SAVE }),
       removeStep: (id) =>
         commit({ type: PipelineTransformFieldsActionType.REMOVE_STEP, payload: id }),
-      moveStep: (resource, from, to) =>
-        commit({
-          type: PipelineTransformFieldsActionType.MOVE_STEP,
-          payload: { resource, from, to },
-        }),
+      moveStep: (from, to) =>
+        commit({ type: PipelineTransformFieldsActionType.MOVE_STEP, payload: { from, to } }),
     };
-  }, [state, catalog.grammarVersion, onChange, resources, definition]);
+  }, [state, catalog.grammarVersion, onChange, resource, definition]);
 
   const environment = useMemo<PipelineTransformFieldsEnvironment>(
     () => ({
-      resources,
-      columnsByResource,
+      resource,
+      columns,
       sourceConnectionId,
       functionsByName,
       grammarVersion: catalog.grammarVersion,
       isReadOnly,
     }),
-    [
-      resources,
-      columnsByResource,
-      sourceConnectionId,
-      functionsByName,
-      catalog.grammarVersion,
-      isReadOnly,
-    ],
+    [resource, columns, sourceConnectionId, functionsByName, catalog.grammarVersion, isReadOnly],
   );
 
   return (

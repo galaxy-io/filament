@@ -21,11 +21,11 @@ import {
   PIPELINE_CANVAS_ROUTES_WRITE_MODE_SELECT_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
-import { getEdgeModeOptions, getEdgeResourceStatuses } from "@/pages/pipelines/canvas/utils";
+import { getEdgeModeOptions, getEdgeResourceStatus } from "@/pages/pipelines/canvas/utils";
 import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
-import { mapOptionIdToEnum } from "@/utils/select";
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
 const ControlsGroup = styled.div`
   position: relative;
@@ -70,18 +70,13 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
 }) => {
   const isReadOnly = usePipelineCanvasReadOnly();
   const resources = usePipelineCanvasEdgeResources(route.edge, { enabled: route.hasReadLevers });
-  const {
-    coveredResources,
-    cursorOptionsByResource,
-    defaultCursorByResource,
-    managedIncrementalResources,
-    isLoadingColumns,
-  } = resources;
+  const { resource, cursorOptions, defaultCursor, isManagedIncremental, isLoadingColumns } =
+    resources;
 
   const {
     readMode,
     writeMode,
-    cursorsByResource,
+    cursor,
     readModeSelectOptions,
     writeModeSelectOptions,
     handleReadModeChange,
@@ -89,28 +84,21 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
     handleCursorChange,
   } = usePipelineCanvasEdgeConfig(route.edge, {
     ...getEdgeModeOptions(route.verdict, route.hasReadLevers),
-    coveredResources,
-    defaultCursorByResource,
+    resource,
+    defaultCursor,
   });
 
-  const cursorSelectOptions = getCursorSelectOptions(cursorOptionsByResource[route.resource] ?? []);
-  const cursorValue = cursorsByResource.get(route.resource) ?? "";
+  const cursorSelectOptions = getCursorSelectOptions(cursorOptions);
   const hasCursorSelect =
-    route.hasReadLevers &&
-    route.isNamedResource &&
-    readMode === ReadMode.INCREMENTAL &&
-    !managedIncrementalResources.has(route.resource);
-  const statuses = getEdgeResourceStatuses(resources, {
+    route.hasReadLevers && readMode === ReadMode.INCREMENTAL && !isManagedIncremental;
+  const status = getEdgeResourceStatus(resources, {
     verdict: route.verdict,
     readMode,
     writeMode,
-    cursorsByResource,
+    cursor,
   });
-  const issues = [
-    ...route.issues,
-    ...statuses.filter((status) => status.isBlocking).map((status) => status.message),
-  ];
-  const warnings = statuses.filter((status) => !status.isBlocking).map((status) => status.message);
+  const issues = status?.isBlocking ? [...route.issues, status.message] : route.issues;
+  const warnings = status && !status.isBlocking ? [status.message] : [];
 
   return (
     <>
@@ -125,7 +113,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
               ariaLabel="Read mode"
               fillWidth
               options={readModeSelectOptions}
-              value={String(readMode)}
+              value={getEnumSelectValue(ReadMode, readMode)}
               onChange={(id) => {
                 if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
               }}
@@ -142,9 +130,9 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
               ariaLabel="Cursor"
               fillWidth
               options={cursorSelectOptions}
-              value={cursorValue || null}
+              value={cursor || null}
               onChange={(id) => {
-                if (id !== null) handleCursorChange(route.resource, id);
+                if (id !== null) handleCursorChange(id);
               }}
               variant={SelectInputVariant.SECONDARY}
               size={SelectInputSize.SMALL}
@@ -168,7 +156,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
             ariaLabel="Write mode"
             fillWidth
             options={writeModeSelectOptions}
-            value={String(writeMode)}
+            value={getEnumSelectValue(WriteMode, writeMode)}
             onChange={(id) => {
               if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
             }}

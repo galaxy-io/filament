@@ -14,11 +14,11 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 
-import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -35,15 +35,16 @@ import {
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import {
-  getCanvasEdgeResourceLabel,
   getDefaultDestinationResource,
-  getEdgeResourceStatuses,
+  getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
-import { mapOptionIdToEnum } from "@/utils/select";
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
+
+const NO_COLUMNS: ResourceColumn[] = [];
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -56,8 +57,6 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
 
-  const resource = getCanvasEdgeResource(edge);
-
   const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
     isContinuous,
@@ -66,22 +65,17 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     isLoading,
     isLoadingColumns,
     sourceConnectionId,
-    coveredResources,
-    columnsByResource,
+    resource,
+    columns,
     verdict,
     readModeOptions,
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
-    cursorOptionsByResource,
-    defaultCursorByResource,
-    managedIncrementalResources,
+    cursorOptions,
+    defaultCursor,
+    isManagedIncremental,
   } = options;
-
-  const { label: resourceLabel, isNamedResource } = getCanvasEdgeResourceLabel(
-    resource,
-    coveredResources.length,
-  );
 
   const {
     configuredReadMode,
@@ -89,7 +83,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     readMode,
     writeMode,
     cursors,
-    cursorsByResource,
+    cursor,
     readModeSelectOptions,
     writeModeSelectOptions,
     handleReadModeChange,
@@ -100,23 +94,13 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     writeModeOptions,
     effectiveReadMode,
     effectiveWriteMode,
-    coveredResources,
-    defaultCursorByResource,
+    resource,
+    defaultCursor,
   });
   const destinationResource = edge.data?.destinationResource ?? "";
-  const statuses = getEdgeResourceStatuses(options, {
-    verdict,
-    readMode,
-    writeMode,
-    cursorsByResource,
-  });
-  const getFieldError = (field: PipelineResourceStatusField, resourceName?: string) =>
-    statuses.find(
-      (status) =>
-        status.isBlocking &&
-        status.field === field &&
-        (resourceName === undefined || status.resource === resourceName),
-    )?.message;
+  const status = getEdgeResourceStatus(options, { verdict, readMode, writeMode, cursor });
+  const getFieldError = (field: PipelineResourceStatusField) =>
+    status?.isBlocking && status.field === field ? status.message : undefined;
 
   const handleTransformChange = (transform: TransformDefinition | undefined) =>
     setEdgeConfig(edge.id, {
@@ -131,7 +115,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   return (
     <>
       <PipelineCanvasPanelHeader
-        title={resourceLabel}
+        title={resource}
         icon={FlowArrowIcon}
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
@@ -160,11 +144,8 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
               <KeyValueListRow
                 label="Resource"
                 value={
-                  <Text
-                    size={TextSize.BODY_SM}
-                    family={isNamedResource ? FontFamily.MONO : FontFamily.SANS}
-                  >
-                    {resourceLabel}
+                  <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+                    {resource}
                   </Text>
                 }
               />
@@ -195,7 +176,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   <SelectInput
                     label="Read mode"
                     options={readModeSelectOptions}
-                    value={String(readMode)}
+                    value={getEnumSelectValue(ReadMode, readMode)}
                     onChange={(id) => {
                       if (id !== null) handleReadModeChange(mapOptionIdToEnum(ReadMode, id));
                     }}
@@ -209,7 +190,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                 <SelectInput
                   label="Write mode"
                   options={writeModeSelectOptions}
-                  value={String(writeMode)}
+                  value={getEnumSelectValue(WriteMode, writeMode)}
                   onChange={(id) => {
                     if (id !== null) handleWriteModeChange(mapOptionIdToEnum(WriteMode, id));
                   }}
@@ -219,7 +200,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   variant={SelectInputVariant.TERTIARY}
                   fillWidth
                 />
-                {isContinuous && isNamedResource && (
+                {isContinuous && (
                   <TextInput
                     label="Destination"
                     value={destinationResource}
@@ -232,22 +213,17 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                 )}
                 {hasReadLevers &&
                   readMode === ReadMode.INCREMENTAL &&
-                  coveredResources.map((resourceName) =>
-                    managedIncrementalResources.has(resourceName) ? (
-                      <Text key={resourceName} size={TextSize.BODY_SM}>
-                        {resourceName}: incremental state is managed by the source.
-                      </Text>
-                    ) : (
-                      <PipelineCanvasPanelResourceCursorField
-                        key={resourceName}
-                        value={cursorsByResource.get(resourceName) ?? ""}
-                        options={cursorOptionsByResource[resourceName] ?? []}
-                        isDisabled={isReadOnly || isLoading}
-                        error={getFieldError(PipelineResourceStatusField.CURSOR, resourceName)}
-                        onChange={(field) => handleCursorChange(resourceName, field)}
-                      />
-                    ),
-                  )}
+                  (isManagedIncremental ? (
+                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
+                  ) : (
+                    <PipelineCanvasPanelResourceCursorField
+                      value={cursor ?? ""}
+                      options={cursorOptions}
+                      isDisabled={isReadOnly || isLoading}
+                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
+                      onChange={handleCursorChange}
+                    />
+                  ))}
               </Flex>
             </PipelineCanvasPanelSection>
             {isTransformable &&
@@ -262,8 +238,8 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     <PipelineTransformFieldsProvider
                       definition={edge.data?.transform}
                       onChange={handleTransformChange}
-                      resources={coveredResources}
-                      columnsByResource={columnsByResource}
+                      resource={resource}
+                      columns={columns ?? NO_COLUMNS}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >

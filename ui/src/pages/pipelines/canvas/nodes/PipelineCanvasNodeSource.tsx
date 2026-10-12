@@ -53,16 +53,10 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
     const transformed = new Map<string, boolean>();
     for (const edge of own) {
       const resource = getCanvasEdgeResource(edge);
-      const resources = edge.data?.transform?.resources;
-      const names =
-        resource !== ""
-          ? [resource]
-          : typeof resources === "object" && resources !== null && !Array.isArray(resources)
-            ? Object.keys(resources)
-            : [];
-      for (const name of names) {
-        transformed.set(name, (transformed.get(name) ?? false) || invalidEdgeIds.has(edge.id));
-      }
+      transformed.set(
+        resource,
+        (transformed.get(resource) ?? false) || invalidEdgeIds.has(edge.id),
+      );
     }
     return [...new Set([...discoveredNames, ...connectedNames])].map((name) => ({
       name,
