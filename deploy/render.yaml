@@ -33,7 +33,7 @@ projects:
             name: server
             runtime: image
             image:
-              url: ghcr.io/galaxy-io/filament/server:0.1.0
+              url: ghcr.io/galaxy-io/filament/server:0.21.0
             region: oregon
             plan: 0.5c-512mb
             numInstances: 1
@@ -44,6 +44,11 @@ projects:
               - fromGroup: filament-runtime
               - key: SERVER_ADDR
                 value: 0.0.0.0:10000
+              - key: WORKER_URL
+                fromService:
+                  type: pserv
+                  name: worker
+                  property: hostport
               - key: PERSISTENCE_DSN
                 fromDatabase:
                   name: postgres
@@ -59,7 +64,38 @@ projects:
             name: control-plane
             runtime: image
             image:
-              url: ghcr.io/galaxy-io/filament/control-plane:0.1.0
+              url: ghcr.io/galaxy-io/filament/control-plane:0.21.0
+            region: oregon
+            plan: 0.5c-512mb
+            numInstances: 1
+            autoDeployTrigger: off
+            envVars:
+              - fromGroup: filament-runtime
+              - key: DISPATCH_MODE
+                value: worker
+              - key: WORKER_URL
+                fromService:
+                  type: pserv
+                  name: worker
+                  property: hostport
+              - key: PERSISTENCE_DSN
+                fromDatabase:
+                  name: postgres
+                  property: connectionString
+              - key: NATS_URL
+                fromService:
+                  type: pserv
+                  name: nats
+                  property: hostport
+
+          # The worker links the connectors. It serves the catalog to the server and
+          # control plane and executes every run itself, since Render has no Jobs API.
+          - type: pserv
+            name: worker
+            runtime: image
+            image:
+              url: ghcr.io/galaxy-io/filament/worker:0.21.0
+            dockerCommand: /app -serve -execute
             region: oregon
             plan: 0.5c-512mb
             numInstances: 1
@@ -67,8 +103,8 @@ projects:
             autoDeployTrigger: off
             envVars:
               - fromGroup: filament-runtime
-              - key: DISPATCH_MODE
-                value: inproc
+              - key: WORKER_ADDR
+                value: 0.0.0.0:10000
               - key: PERSISTENCE_DSN
                 fromDatabase:
                   name: postgres
