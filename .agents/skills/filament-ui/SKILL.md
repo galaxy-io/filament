@@ -28,6 +28,7 @@ This skill lets an engineer who does not usually write frontend ship a Filament 
 | Comments | none that restate the code | zero comments. Only `biome-ignore` |
 | `styled` | two or three per file at most | no hard cap, but as few as possible. Props first, always |
 | Gates | typecheck, lint, format, build | `pnpm check`, the [workflow.md](./references/workflow.md) greps and the route-tree diff |
+| Icon-only tooltips | always | not on the canvas panel chrome (open panel, Back, Delete, Close, activity caret), `ariaLabel` only |
 
 ## The product in one glance
 
@@ -102,7 +103,7 @@ import { formatTimestamp } from "@/utils/format";
 - One `PRIMARY` button per view. Others `SECONDARY`, low emphasis and icon-only `TERTIARY`, `ERROR` only for delete or irreversible.
 - Cards are `Widget`s. `Box` is for layout. Text goes through `Text` and `Span`, never raw `<p>` or `<span>`.
 - Every field has a visible label. Placeholders are examples ending in three dots. Components never validate, pass `error` as `string | undefined`.
-- Icon-only controls need `ariaLabel` and a `tooltip` with the same words.
+- Icon-only controls need `ariaLabel` and a `tooltip` with the same words. The canvas panel chrome is the one exception and carries `ariaLabel` only ([product.md](./references/product.md#interaction-rules)).
 - `variant` is meaning, `color` is category, never both. No hex, margins or shadows.
 - Pass `tooltip` on a `Chip`. Wrapping it in `Tooltip` turns it into a button.
 - A missing DLS piece is composed from DLS parts with as little `styled` as possible, then requested as a GitHub issue on `galaxy-io/dls`. Never select a DLS internal class.
@@ -139,6 +140,7 @@ These are Filament's choices. galaxy-ui's component tables cover the rest.
 | Nothing to show | DLS `EmptyLayout` (`graphic` for a feature first-run graphic) · filtered: `EmptyLayout icon={MagnifyingGlassIcon}` · went wrong: DLS `ErrorLayout` |
 | One record | `KeyValueList` + `KeyValueListRow` · JSON payload: `CodeBlock` · nested table: `InfiniteTable hasHeader={false}` |
 | Trend over time | `LineChart` · stacked series: `AreaChart` · counts per bucket: `BarChart` · KPIs: `BigNumberGroup` of `BigNumber`s · linked charts: `ChartGroupProvider` |
+| Panes beside a canvas or list | `ResizablePanels hasDividers storageKey`, the main pane fluid with a `min`. Collapse is a conditional panel plus a header outside the group |
 | A scrolling region | `FlexItem grow={1} minHeight={0}` › `ScrollArea` › `Box padding`, never `overflow: auto` (the DLS reset hides native scrollbars) · a bounded table never scrolls the page: `Flex direction={COLUMN} grow={1} basis={0} minHeight={0}` |
 | A time | lists: `formatRelativeTime` with `formatTimestamp` in the tooltip · detail views: `formatTimestamp` |
 | Any other value | DLS `utils/format` (`formatNumber`, `formatBytes`, `formatDuration`, all `bigint`-safe) · versions: `formatVersion` · entity names: the domain's `formatX` |
@@ -179,7 +181,7 @@ The build prefixes every class with `filament-`, which keeps the module's styles
 - [ ] One primary action. Only deletes and data or credential loss are confirmed, by name.
 - [ ] Loading, empty, filtered-empty, error and permission states designed, and all different. Failures stacked, summary over raw.
 - [ ] Copy is plain, sentence case, verb buttons, specific errors. Times relative with an absolute tooltip in lists.
-- [ ] Every field labelled, every icon-only control has `ariaLabel` + `tooltip`, charts and tables have `ariaLabel`.
+- [ ] Every field labelled, every icon-only control has `ariaLabel` + `tooltip` (except the canvas panel chrome), charts and tables have `ariaLabel`.
 - [ ] Keyboard. `C`, `/` and `⌘↵` bound where they apply, rows open with `↵`, overlays close on Escape and restore focus, palette items added.
 - [ ] Files, names, state, URL params and queries follow the app conventions. `pnpm check` passes, the [workflow.md](./references/workflow.md) greps print nothing, `src/host/routeTree.gen.ts` is committed.
 - [ ] Screenshots of the changed screen in Dark, in Light and at 1024px wide.

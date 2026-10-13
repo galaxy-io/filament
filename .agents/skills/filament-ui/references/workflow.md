@@ -113,6 +113,7 @@ In order, they catch DLS internal selectors, escape-hatch casts, comments, compo
 | A static `Chip` renders as a button | it is wrapped in `Tooltip`, which injects `onClick` | pass `tooltip` on the Chip |
 | The canvas looks broken or exit animations linger in a hidden Browser pane | `requestAnimationFrame` does not fire while hidden | take a screenshot to flush a frame, or bring the pane forward |
 | Queries stop retrying in a hidden Browser pane | TanStack pauses retries while the window is unfocused | focus the pane, or wait |
+| Activity stops following new lines | you scrolled up, which unpins the feed | scroll back within 24px of the bottom and it follows again |
 | A run's activity feed goes stale with `ERR_INCOMPLETE_CHUNKED_ENCODING` | the run ended and the server closed the stream | not a UI bug |
 | An auth outage sends users to the login page | the gate redirected on a code other than `Unauthenticated` | the server must return `Unavailable`, and the gate redirects only on `Unauthenticated` |
 | The console logs an error while a not-found or error page renders | React 18 logs errors caught by a boundary in development | expected in dev |

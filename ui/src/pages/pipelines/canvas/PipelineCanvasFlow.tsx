@@ -21,6 +21,7 @@ import "@xyflow/react/dist/style.css";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
+  PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
   PIPELINE_CANVAS_MINIMAP_HEIGHT,
   PIPELINE_CANVAS_MINIMAP_LEFT,
   PIPELINE_CANVAS_MINIMAP_WIDTH,
@@ -43,7 +44,7 @@ import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasContr
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
 import PipelineCanvasSelectionReveal from "@/pages/pipelines/canvas/PipelineCanvasSelectionReveal";
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
-import PipelineCanvasPanel from "@/pages/pipelines/canvas/panel/PipelineCanvasPanel";
+import PipelineCanvasPanelOpenButton from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelOpenButton";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
@@ -52,7 +53,6 @@ import {
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 import {
-  getPipelineCanvasFitViewOptions,
   isConnectionNode,
   mapEdgesToStyledEdges,
   mapElementsToSelected,
@@ -105,11 +105,20 @@ const FlowWrapper = styled.div`
   }
 `;
 
-const ViewSwitcherOverlay = styled.div`
+const FlowToolbar = styled.div`
   position: absolute;
-  left: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
   top: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
+  left: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
+  right: ${PIPELINE_CANVAS_VIEW_SWITCHER_INSET}px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
   z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
+
+  & > * {
+    pointer-events: auto;
+  }
 `;
 
 const PipelineCanvasFlow: FC = () => {
@@ -118,14 +127,8 @@ const PipelineCanvasFlow: FC = () => {
   const { applyNodeChanges, applyEdgeChanges, connect } = usePipelineCanvasActions();
   const isReadOnly = usePipelineCanvasReadOnly();
   const sourceResources = usePipelineCanvasSourceNodeResources();
-  const {
-    selectedNodeId,
-    selectedResourceId,
-    showPanel,
-    selectNode,
-    selectResource,
-    clearSelection,
-  } = usePipelineCanvasSelection();
+  const { selectedNodeId, selectedResourceId, selectNode, selectResource, clearSelection } =
+    usePipelineCanvasSelection();
 
   const onNodesChange = useCallback(
     (changes: NodeChange<CanvasNode>[]) => {
@@ -189,8 +192,6 @@ const PipelineCanvasFlow: FC = () => {
     [selectedNodes, state.nodes, isReadOnly],
   );
 
-  const fitViewOptions = useMemo(() => getPipelineCanvasFitViewOptions(showPanel), [showPanel]);
-
   const isRunning = usePipelineCanvasIsRunning();
 
   const { invalidEdgeIds } = usePipelineCanvasValidation();
@@ -221,7 +222,7 @@ const PipelineCanvasFlow: FC = () => {
         snapToGrid
         snapGrid={PIPELINE_CANVAS_SNAP_GRID}
         fitView
-        fitViewOptions={fitViewOptions}
+        fitViewOptions={PIPELINE_CANVAS_FIT_VIEW_OPTIONS}
         deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
       >
@@ -251,11 +252,11 @@ const PipelineCanvasFlow: FC = () => {
           zoomable
         />
       </ReactFlow>
-      <ViewSwitcherOverlay>
+      <FlowToolbar>
         <PipelineCanvasViewSwitcher />
-      </ViewSwitcherOverlay>
+        <PipelineCanvasPanelOpenButton />
+      </FlowToolbar>
       {!isReadOnly && <PipelineCanvasEditWidget />}
-      <PipelineCanvasPanel />
     </FlowWrapper>
   );
 };

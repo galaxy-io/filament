@@ -12,6 +12,7 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import {
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
   PIPELINE_CANVAS_FIT_MIN_ZOOM,
+  PIPELINE_CANVAS_FIT_PADDING,
   PIPELINE_CANVAS_OVERLAY_Z_INDEX,
 } from "@/pages/pipelines/canvas/constants";
 import {
@@ -19,13 +20,11 @@ import {
   getPlaceholderNodes,
   mapNodesToStackedPositions,
 } from "@/pages/pipelines/canvas/graph/layout";
-import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import {
   usePipelineCanvasActions,
   usePipelineCanvasReadOnly,
   usePipelineCanvasState,
 } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 
 const ControlsWrapper = styled.div`
   position: absolute;
@@ -41,7 +40,6 @@ const PipelineCanvasControls: FC = () => {
   const state = usePipelineCanvasState();
   const isReadOnly = usePipelineCanvasReadOnly();
   const { setNodes } = usePipelineCanvasActions();
-  const { showPanel } = usePipelineCanvasSelection();
 
   const handleResetView = () => {
     let repositioned = state.nodes;
@@ -63,7 +61,7 @@ const PipelineCanvasControls: FC = () => {
         height,
         PIPELINE_CANVAS_FIT_MIN_ZOOM,
         PIPELINE_CANVAS_FIT_MAX_ZOOM,
-        getPipelineCanvasFitPadding(showPanel),
+        PIPELINE_CANVAS_FIT_PADDING,
       ),
     );
   };

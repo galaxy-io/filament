@@ -24,6 +24,7 @@ import { ConnectorTileSize } from "@/components/connections/types";
 import { PIPELINE_CANVAS_VIEW_SWITCHER_INSET } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
+import PipelineCanvasPanelOpenButton from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelOpenButton";
 import {
   PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH,
@@ -112,6 +113,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
           onClick={onAddRoute}
         />
       )}
+      <PipelineCanvasPanelOpenButton />
     </Flex>
   );
 };

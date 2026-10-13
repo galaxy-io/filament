@@ -31,13 +31,13 @@ const PipelineCanvasPanelActivityLine: FC<PipelineCanvasPanelActivityLineProps> 
   return (
     <Flex alignItems={AlignItems.BASELINE} gap={8}>
       <FlexItem shrink={0}>
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
           {formatRunEventTime(event)}
         </Text>
       </FlexItem>
       <Detail>
         <Text
-          size={TextSize.CAPTION}
+          size={TextSize.BODY_SM}
           variant={getRunEventTextVariant(event)}
           family={FontFamily.MONO}
           isSelectable

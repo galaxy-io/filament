@@ -119,6 +119,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
         icon={FlowArrowIcon}
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
+        hasDivider
         onDelete={
           isReadOnly
             ? undefined

@@ -11,7 +11,6 @@ import {
   ObservabilityTimeframe,
   ObservabilityUsageView,
 } from "@/pages/observability/types";
-import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 import { SettingsTeamView } from "@/pages/settings/types";
 
@@ -76,7 +75,7 @@ export const pipelineCanvasSearchSchema = z.object({
   node: z.string().optional().catch(undefined),
   resource: z.string().optional().catch(undefined),
   showPanel: z.boolean().optional().catch(undefined),
-  tab: z.enum(PipelineCanvasPanelTab).optional().catch(undefined),
+  showActivity: z.boolean().optional().catch(undefined),
   view: z.enum(PipelineCanvasView).optional().catch(undefined),
   sinks: z.array(z.string()).optional().catch(undefined),
 });

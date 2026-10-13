@@ -1,30 +1,26 @@
 import { useEffect } from "react";
 
-import { getViewportForBounds, useReactFlow, useStoreApi } from "@xyflow/react";
+import { getViewportForBounds, useReactFlow, useStore } from "@xyflow/react";
 
 import {
   PIPELINE_CANVAS_FIT_INSET_LEFT,
   PIPELINE_CANVAS_FIT_INSET_Y,
   PIPELINE_CANVAS_FIT_MAX_ZOOM,
   PIPELINE_CANVAS_FIT_MIN_ZOOM,
+  PIPELINE_CANVAS_FIT_PADDING,
   PIPELINE_CANVAS_REVEAL_DURATION,
   PIPELINE_CANVAS_REVEAL_ZOOM,
 } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
-import {
-  PIPELINE_CANVAS_PANEL_INSET,
-  PIPELINE_CANVAS_PANEL_WIDTH,
-} from "@/pages/pipelines/canvas/panel/constants";
-import { getPipelineCanvasFitPadding } from "@/pages/pipelines/canvas/utils";
 
 export const usePipelineCanvasSelectionReveal = () => {
   const { getViewport, setViewport, getInternalNode, getEdge, getNodes, getNodesBounds } =
     useReactFlow();
-  const store = useStoreApi();
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
   const { selectedNodeId, selectedResourceId, showPanel } = usePipelineCanvasSelection();
 
   useEffect(() => {
-    const { width, height } = store.getState();
     if (!width || !height) return;
 
     const edge = selectedResourceId ? getEdge(selectedResourceId) : undefined;
@@ -44,7 +40,7 @@ export const usePipelineCanvasSelectionReveal = () => {
           height,
           PIPELINE_CANVAS_FIT_MIN_ZOOM,
           PIPELINE_CANVAS_FIT_MAX_ZOOM,
-          getPipelineCanvasFitPadding(showPanel),
+          PIPELINE_CANVAS_FIT_PADDING,
         ),
         { duration: PIPELINE_CANVAS_REVEAL_DURATION },
       );
@@ -52,9 +48,8 @@ export const usePipelineCanvasSelectionReveal = () => {
     }
 
     const { zoom } = getViewport();
-    const panelLeft = width - PIPELINE_CANVAS_PANEL_INSET - PIPELINE_CANVAS_PANEL_WIDTH;
     const maxFitZoom = Math.min(
-      (panelLeft - PIPELINE_CANVAS_FIT_INSET_LEFT * 2) / bounds.width,
+      (width - PIPELINE_CANVAS_FIT_INSET_LEFT * 2) / bounds.width,
       (height - PIPELINE_CANVAS_FIT_INSET_Y * 2) / bounds.height,
     );
     const targetZoom = Math.max(
@@ -65,9 +60,8 @@ export const usePipelineCanvasSelectionReveal = () => {
     void setViewport(
       {
         x:
-          (PIPELINE_CANVAS_FIT_INSET_LEFT + panelLeft) / 2 -
-          (bounds.x + bounds.width / 2) * targetZoom,
-        y: (height - PIPELINE_CANVAS_FIT_INSET_Y) / 2 - (bounds.y + bounds.height / 2) * targetZoom,
+          (PIPELINE_CANVAS_FIT_INSET_LEFT + width) / 2 - (bounds.x + bounds.width / 2) * targetZoom,
+        y: height / 2 - (bounds.y + bounds.height / 2) * targetZoom,
         zoom: targetZoom,
       },
       {
@@ -79,12 +73,13 @@ export const usePipelineCanvasSelectionReveal = () => {
     selectedNodeId,
     selectedResourceId,
     showPanel,
+    width,
+    height,
     getEdge,
     getInternalNode,
     getNodes,
     getNodesBounds,
     getViewport,
     setViewport,
-    store,
   ]);
 };

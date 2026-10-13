@@ -1,5 +1,4 @@
 import type { JsonValue } from "@bufbuild/protobuf";
-import type { FitViewOptions } from "@xyflow/react";
 
 import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
@@ -12,18 +11,8 @@ import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 import { isJsonObject } from "@/components/fields/utils";
 import type { PipelineFlowEndpoints } from "@/components/pipelines/utils";
 
-import {
-  PIPELINE_CANVAS_EDGE_Z_INDEX,
-  PIPELINE_CANVAS_FIT_INSET_LEFT,
-  PIPELINE_CANVAS_FIT_INSET_Y,
-  PIPELINE_CANVAS_FIT_MAX_ZOOM,
-} from "@/pages/pipelines/canvas/constants";
+import { PIPELINE_CANVAS_EDGE_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import type { PipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
-import {
-  PIPELINE_CANVAS_PANEL_COLLAPSED_WIDTH,
-  PIPELINE_CANVAS_PANEL_INSET,
-  PIPELINE_CANVAS_PANEL_WIDTH,
-} from "@/pages/pipelines/canvas/panel/constants";
 import type {
   CanvasEdge,
   CanvasNode,
@@ -129,23 +118,6 @@ export const getTransformStepCount = (
   if (resources === undefined || !isJsonObject(resources)) return 0;
   return getTransformEntryStepCount(resources[resource]);
 };
-
-export const getPipelineCanvasFitPadding = (
-  showPanel: boolean,
-): NonNullable<FitViewOptions["padding"]> => ({
-  top: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
-  bottom: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
-  left: `${PIPELINE_CANVAS_FIT_INSET_LEFT}px`,
-  right: `${
-    PIPELINE_CANVAS_PANEL_INSET * 2 +
-    (showPanel ? PIPELINE_CANVAS_PANEL_WIDTH : PIPELINE_CANVAS_PANEL_COLLAPSED_WIDTH)
-  }px`,
-});
-
-export const getPipelineCanvasFitViewOptions = (showPanel: boolean): FitViewOptions => ({
-  padding: getPipelineCanvasFitPadding(showPanel),
-  maxZoom: PIPELINE_CANVAS_FIT_MAX_ZOOM,
-});
 
 export const mapElementsToSelected = <T extends { id: string; selected?: boolean }>(
   elements: T[],

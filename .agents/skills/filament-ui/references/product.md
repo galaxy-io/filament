@@ -47,7 +47,7 @@ Every screen works from **1024px** wide up. At 1024 nothing clips, overlaps or s
 
 - Tables keep the naming column readable and drop or narrow optional columns first.
 - Settings and form columns stay `maxWidth={640}`, so wide screens get whitespace, not long lines.
-- Side panels (the canvas panel, a drawer) keep their width and the main region gives way.
+- Drawers keep their width and the main region gives way. The canvas sidebar and Activity pane resize within their limits, nothing covers the canvas, and the canvas keeps at least 240px on both axes.
 - Nothing is designed below 1024. There is no mobile layout.
 
 ## The core flows
@@ -78,7 +78,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** An engineer adds transforms and routes between the source and its sinks.
 
-**The path.** The pipeline's **Canvas** tab → select a node or an edge → edit in the side panel → the header shows unsaved changes and any save issues → **Save** writes a new version ("Pipeline saved"). Any earlier version can be previewed from history behind a preview banner.
+**The path.** The pipeline's **Canvas** tab → select a node or an edge, which opens the right sidebar → edit in the sidebar → the header shows unsaved changes and any save issues → **Save** writes a new version ("Pipeline saved"). Any earlier version can be previewed from history behind a preview banner.
 
 **How it should feel.** Safe to explore. Nothing reaches production until Save, Undo always works, and a preview is read-only. Problems are listed as you go, not at save time.
 
@@ -98,7 +98,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** Anyone with access starts a run now and follows it to the end.
 
-**The path.** Pipeline header → **Run now** → "Starting run..." becomes "Run started" → the header switches to the live run's actions (cancel) → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
+**The path.** Pipeline header → **Run now** → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
 
 **How it should feel.** Live while it runs and still when it is done. Polling runs only while a run is active, and everything stops moving at the end. Durations and record counts are real numbers in mono.
 
@@ -147,6 +147,7 @@ The calls an engineer would otherwise guess at. Each follows from the flows abov
 | Bulk actions or row selection? | **Ask first.** No table has selection today. Propose the design and wait for a yes. |
 | Category color? | From the **one registry map** of domain concept to `RoleColor`. Transforms are blue, schedules are yellow. A new concept gets an entry there, never a hue picked in a feature. |
 | Status color? | Only for status, through `variant` or the run hue map. A healthy screen is monochrome. |
+| Tooltips on the canvas panel chrome? | **None** (decided 2026-10-12). The open panel, Back, Delete, Close and activity caret buttons use standard icons and sit under the cursor all the time, so tooltips there fired on every pass. Each keeps its `ariaLabel`. The exception covers that chrome only, every other icon-only control keeps its tooltip. |
 | Something the DLS lacks? | **Compose, then request.** Build it from DLS parts with as little local `styled` as possible, then open a GitHub issue on `galaxy-io/dls` with the file path, a screenshot and the API you wish existed. |
 
 ## Keyboard

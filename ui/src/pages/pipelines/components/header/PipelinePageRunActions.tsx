@@ -5,7 +5,6 @@ import { create } from "@bufbuild/protobuf";
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
 import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 
-import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
 import PipelinePageActiveRunActions from "@/pages/pipelines/components/header/PipelinePageActiveRunActions";
 import PipelinePageRunButton from "@/pages/pipelines/components/header/PipelinePageRunButton";
 import { formatWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
@@ -67,13 +66,7 @@ const PipelinePageRunActions: FC = () => {
   const handleRun = (workerConfiguration?: WorkerConfiguration) => {
     startRun(pipeline, {
       workerConfiguration,
-      onSuccess: () =>
-        navigateCanvas({
-          node: undefined,
-          resource: undefined,
-          showPanel: true,
-          tab: PipelineCanvasPanelTab.ACTIVITY,
-        }),
+      onSuccess: () => navigateCanvas({}),
     });
   };
 

@@ -5,6 +5,7 @@ import { match } from "ts-pattern";
 
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasFlow from "@/pages/pipelines/canvas/PipelineCanvasFlow";
+import PipelineCanvasPanelLayout from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelLayout";
 import PipelineCanvasRoutes from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutes";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
@@ -21,10 +22,12 @@ const PipelineCanvasPage: FC = () => {
 
   return (
     <PipelineCanvasPageWrapper>
-      {match(view)
-        .with(PipelineCanvasView.ROUTES, () => <PipelineCanvasRoutes />)
-        .with(PipelineCanvasView.CANVAS, () => <PipelineCanvasFlow />)
-        .exhaustive()}
+      <PipelineCanvasPanelLayout>
+        {match(view)
+          .with(PipelineCanvasView.ROUTES, () => <PipelineCanvasRoutes />)
+          .with(PipelineCanvasView.CANVAS, () => <PipelineCanvasFlow />)
+          .exhaustive()}
+      </PipelineCanvasPanelLayout>
     </PipelineCanvasPageWrapper>
   );
 };

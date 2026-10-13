@@ -74,7 +74,7 @@ const PipelinePageEditActions: FC = () => {
   };
 
   const handleSelectResource = (edgeId: string) => {
-    navigateCanvas({ node: undefined, resource: edgeId, showPanel: true, tab: undefined });
+    navigateCanvas({ node: undefined, resource: edgeId, showPanel: true });
   };
 
   const handleSave = () => {

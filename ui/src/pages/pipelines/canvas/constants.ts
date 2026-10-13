@@ -1,6 +1,6 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { FlowArrowIcon, PlusIcon, TreeStructureIcon } from "@phosphor-icons/react";
-import { type HandleType, Position } from "@xyflow/react";
+import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
 
 import type { Space } from "@galaxy-io/dls/theme/enums";
 
@@ -14,6 +14,16 @@ export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
 
 export const PIPELINE_CANVAS_FIT_INSET_Y = 48;
 export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
+export const PIPELINE_CANVAS_FIT_PADDING: NonNullable<FitViewOptions["padding"]> = {
+  top: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+  bottom: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+  left: `${PIPELINE_CANVAS_FIT_INSET_LEFT}px`,
+  right: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+};
+export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
+  padding: PIPELINE_CANVAS_FIT_PADDING,
+  maxZoom: PIPELINE_CANVAS_FIT_MAX_ZOOM,
+};
 export const PIPELINE_CANVAS_REVEAL_DURATION = 300;
 export const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 

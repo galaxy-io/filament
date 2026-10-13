@@ -6,6 +6,7 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import { PIPELINE_CANVAS_ROUTES_ROW_MIN_WIDTH } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoutesDraftState } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesDraft";
 import { usePipelineCanvasRoutesVirtualizer } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesVirtualizer";
 import PipelineCanvasRoutesDraftRow from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesDraftRow";
@@ -30,6 +31,7 @@ const ListFrame = styled.div`
 const ListInner = styled.div`
   position: relative;
   width: 100%;
+  min-width: ${PIPELINE_CANVAS_ROUTES_ROW_MIN_WIDTH}px;
 `;
 
 const ListRowSlot = styled.div`
@@ -101,7 +103,7 @@ const PipelineCanvasRoutesList: FC<PipelineCanvasRoutesListProps> = ({
 
   return (
     <ListFrame onClick={handleBackgroundClick}>
-      <ScrollArea ref={scrollerRef}>
+      <ScrollArea ref={scrollerRef} canScrollHorizontally>
         <ListInner style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((item) => (
             <ListRowSlot

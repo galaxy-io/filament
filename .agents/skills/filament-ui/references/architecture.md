@@ -137,7 +137,7 @@ pages/pipelines
 
 | Thing | Shape | Example |
 |---|---|---|
-| Constant | `SCREAMING_SNAKE`, surface prefixed | `PIPELINE_CANVAS_PANEL_WIDTH`, `SETTINGS_INVITE_PATH_PREFIX` |
+| Constant | `SCREAMING_SNAKE`, surface prefixed | `PIPELINE_CANVAS_PANEL_SIDEBAR_WIDTH`, `SETTINGS_INVITE_PATH_PREFIX` |
 | Lookup | `X_TO_Y_MAP`, an exhaustive `Record` | `PIPELINE_RUN_STATUS_TO_HUE_MAP`, `READ_MODE_TO_WRITE_MODES_MAP` |
 | Enum | `PascalCase` with `SCREAMING` members whose value equals the name | `enum Flow { CREATE_PIPELINE = "CREATE_PIPELINE" }` |
 | Helper | `create`, `map`, `get`, `format`, `is`, `has`. `parse` and `serialize` only for codec pairs. Never `build`, `to` or `resolve` | `createGetPipelineInput`, `getCompatibleWriteModes`, `formatMemberName` |

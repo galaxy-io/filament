@@ -10,6 +10,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorNameChips from "@/components/connections/ConnectorNameChips";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
 import KeyValueList from "@/components/KeyValueList";
@@ -86,6 +87,7 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
         }
         onBack={clearSelection}
         onClose={() => setShowPanel(false)}
+        hasDivider
         onDelete={
           isReadOnly
             ? undefined
@@ -101,7 +103,13 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
             <KeyValueList variant={BoxVariant.SECONDARY}>
               <KeyValueListRow
                 label="Connector"
-                value={<Text size={TextSize.BODY_SM}>{connection?.connector ?? EMPTY_VALUE}</Text>}
+                value={
+                  connection ? (
+                    <ConnectorNameChips connector={connection.connector} kind={kind} />
+                  ) : (
+                    <Text size={TextSize.BODY_SM}>{EMPTY_VALUE}</Text>
+                  )
+                }
               />
               <KeyValueListRow
                 label="Kind"

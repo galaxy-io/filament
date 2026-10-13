@@ -91,6 +91,28 @@ return (
 - Body blocks, shared with the canvas panel. `KeyValueList` with `KeyValueListRow`s (label on the left, a node on the right, hairline separators), a collapsible section `Widget` with a count `Chip` in `actions` (the chip hides a zero count) and `EmptyLayout size={EmptyLayoutSize.SMALL}` when empty, and a JSON section around `CodeBlock`.
 - A related-entities list inside a drawer is a stack of compact `PipelineCard` rows, not a table.
 
+## Canvas
+
+The pipeline's Canvas tab is two flat panes flush with the page. Nothing floats over the canvas, it shrinks instead.
+
+```
+PipelineCanvasPanelLayout          ResizablePanels hasDividers, storageKey filament:pipeline-canvas:sidebar
+├─ main (fluid, min 240)
+│  └─ PipelineCanvasPanelColumn    the run ids, Activity open or closed by the showActivity param
+│     ├─ ResizablePanels VERTICAL hasDividers, storageKey filament:pipeline-canvas:activity
+│     │  ├─ view (fluid, min 240)  PipelineCanvasFlow or PipelineCanvasRoutes
+│     │  └─ Activity (open only)   header and feed, 320 by default, 160 to 640
+│     └─ Activity header (collapsed only), under a Divider
+└─ sidebar (showPanel only)        PipelineCanvasPanel, 420 by default, 320 to 760
+```
+
+- The sidebar shows Overview with nothing selected. Selecting a node or a connection shows its detail in place, with Back, Delete and Close in one header row. Selecting opens the sidebar, clicking empty canvas clears the selection. Open or closed is the `showPanel` search param.
+- Every pane title row is `PipelineCanvasPanelHeader`, 41px tall. Extra controls go in `actions` before Delete and Close, and `hasDivider` draws the hairline under it.
+- The open panel button is a `MEDIUM` `SECONDARY` icon button. On Canvas it sits top-right in the row of the view switcher, 16px in. On Routes it is the last toolbar item. It hides while the sidebar is open.
+- Activity never opens by itself. Its header shows a square `PipelineRunStatusSwatch` and Running while a run is active, and only the caret toggles it. The feed is mono `BODY_SM`, virtualized and follows new lines. Wheel up, ↑, PageUp, Home or grabbing the scrollbar unpins it, and within 24px of the bottom it follows again. While unpinned the visible lines stay put and new events only append.
+- Open or closed is the `showActivity` search param, the same way `showPanel` drives the sidebar. Nothing but the caret sets it, so a run never opens Activity. Sizes persist in the two storage keys, never in the URL.
+- The panel chrome (open panel, Back, Delete, Close, activity caret) carries no tooltips, only `ariaLabel` ([product.md](./product.md#interaction-rules)).
+
 ## Modal
 
 - Opened by `?flow=` and rendered by `FilamentLayout`. It stays mounted, takes `isOpen`, `onClose` and its record as props, and keys its provider with `useOverlaySession(isOpen)` so each open starts fresh while the exit still animates.

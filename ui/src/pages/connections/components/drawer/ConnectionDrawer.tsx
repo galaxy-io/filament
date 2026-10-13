@@ -1,11 +1,9 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { KeyIcon, LinkBreakIcon, SlidersIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import CopyButton from "@galaxy-io/dls/buttons/CopyButton";
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Drawer, { DrawerSize } from "@galaxy-io/dls/drawer/Drawer";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -14,14 +12,9 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
-import {
-  formatConnectorName,
-  getConnectorFamilyName,
-  getConnectorVariantName,
-} from "@/components/connections/utils";
+import ConnectorNameChips from "@/components/connections/ConnectorNameChips";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 
@@ -31,7 +24,6 @@ import ConnectionDrawerJsonSection from "@/pages/connections/components/drawer/C
 import ConnectionDrawerPipelines from "@/pages/connections/components/drawer/ConnectionDrawerPipelines";
 
 import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
-import { useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { useOverlaySession } from "@/hooks/useOverlaySession";
 
@@ -54,16 +46,6 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
     options: { enabled: !!connectionId, retry: false },
   });
   const connection = data?.connection;
-
-  const { data: connectorData } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, {
-      connector: connection?.connector ?? "",
-      kind: connection?.kind,
-    }),
-    options: { enabled: !!connection },
-  });
-  const connector = connectorData?.connector;
-  const connectorVariant = connection && getConnectorVariantName(connection.connector);
 
   const renderContent = () => {
     if (isError) {
@@ -115,26 +97,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           <KeyValueListRow label="Kind" value={<ConnectionKindChip kind={connection.kind} />} />
           <KeyValueListRow
             label="Connector"
-            value={
-              <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
-                <Chip
-                  label={
-                    connector
-                      ? formatConnectorName(connector)
-                      : getConnectorFamilyName(connection.connector)
-                  }
-                  variant={ChipVariant.SECONDARY}
-                  size={ChipSize.SMALL}
-                />
-                {connectorVariant && (
-                  <Chip
-                    label={connectorVariant}
-                    variant={ChipVariant.SECONDARY}
-                    size={ChipSize.SMALL}
-                  />
-                )}
-              </Flex>
-            }
+            value={<ConnectorNameChips connector={connection.connector} kind={connection.kind} />}
           />
           <KeyValueListRow
             label="Version"
