@@ -46,6 +46,7 @@ type session struct {
 	done       chan struct{}
 	closeOnce  sync.Once
 	closeErr   error
+	consumerClosed chan string
 }
 
 func selectedStreams(resources, defaults []string) ([]string, error) {
@@ -91,7 +92,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err != nil {
 		return nil, err
 	}
-	ss := &session{done: make(chan struct{}), streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
+	ss := &session{done: make(chan struct{}), streams: map[string]*streamState{}, deliveries: make(chan delivery, 16), consumerClosed: make(chan string, 16), writers: map[string]arrowbatch.RowWriter{}, columns: map[string]*streamkit.MessageColumns{}, projectors: map[string]*streamkit.Projector{}, codecs: s}
 	cleanup := func() {
 		close(ss.done)
 		for _, opened := range ss.streams {
@@ -132,6 +133,17 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 			return nil, fmt.Errorf("rabbitmq: open stream %s: %w", name, err)
 		}
 		ss.streams[name] = state
+		closed := state.consumer.NotifyClose()
+		go func(streamName string) {
+			select {
+			case <-closed:
+				select {
+				case ss.consumerClosed <- streamName:
+				case <-ss.done:
+				}
+			case <-ss.done:
+			}
+		}(name)
 	}
 	for d := range opts.CommittedPositions {
 		if !known[d] {
@@ -182,6 +194,8 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		return coverage, ctx.Err()
 	case <-timer.C:
 		return coverage, nil
+	case name := <-s.consumerClosed:
+		return coverage, fmt.Errorf("rabbitmq: consumer for stream %q closed unexpectedly", name)
 	case d := <-s.deliveries:
 		return s.readDelivery(ctx, out, d)
 	}
@@ -189,7 +203,7 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 
 func (s *session) readDelivery(ctx context.Context, out filament.StreamRecordSink, d delivery) (coverage filament.Coverage, result error) {
 	st := s.streams[d.stream]
-	if st == nil || d.offset < st.next || (st.hasRead && d.offset != st.lastRead+1) || (!st.initial && !st.hasRead && d.offset != st.next) {
+	if st == nil || d.offset < st.next || (st.hasRead && d.offset <= st.lastRead) {
 		return coverage, errors.New("rabbitmq: invalid delivery position")
 	}
 	payload := d.msg.GetData()
