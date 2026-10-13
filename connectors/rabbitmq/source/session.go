@@ -22,30 +22,30 @@ import (
 type delivery struct {
 	stream string
 	offset int64
-	msg *amqp.Message
+	msg    *amqp.Message
 }
 
 type streamState struct {
-	domain filament.DomainKey
-	next int64
-	lastRead int64
-	hasRead bool
-	initial bool
-	consumer *rmq.Consumer
+	domain     filament.DomainKey
+	next       int64
+	lastRead   int64
+	hasRead    bool
+	initial    bool
+	consumer   *rmq.Consumer
 	deliveries chan delivery
 }
 
 type session struct {
-	lifecycle istream.SourceLifecycle
-	streams map[string]*streamState
+	lifecycle  istream.SourceLifecycle
+	streams    map[string]*streamState
 	deliveries chan delivery
-	writers map[string]arrowbatch.RowWriter
-	columns map[string]*streamkit.MessageColumns
+	writers    map[string]arrowbatch.RowWriter
+	columns    map[string]*streamkit.MessageColumns
 	projectors map[string]*streamkit.Projector
-	codecs filament.CodecResolver
-	done chan struct{}
-	closeOnce sync.Once
-	closeErr error
+	codecs     filament.CodecResolver
+	done       chan struct{}
+	closeOnce  sync.Once
+	closeErr   error
 }
 
 func selectedStreams(resources, defaults []string) ([]string, error) {
@@ -160,7 +160,9 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, b fil
 		}
 	}()
 	names := make([]string, 0, len(s.streams))
-	for name := range s.streams { names = append(names, name) }
+	for name := range s.streams {
+		names = append(names, name)
+	}
 	slices.Sort(names)
 	for _, name := range names {
 		st := s.streams[name]
@@ -194,24 +196,36 @@ func (s *session) readDelivery(ctx context.Context, out filament.StreamRecordSin
 	writer := s.writers[d.stream]
 	if writer == nil {
 		columns, schema, err := streamkit.NewMessageColumns(messageBaseSchema(d.stream), payload)
-		if err != nil { return coverage, err }
+		if err != nil {
+			return coverage, err
+		}
 		writer, err = out.Builder(d.stream, 0, schema)
-		if err != nil { return coverage, err }
+		if err != nil {
+			return coverage, err
+		}
 		s.writers[d.stream] = writer
 		s.columns[d.stream] = columns
 		s.projectors[d.stream] = streamkit.NewEventMetadataProjector(writer, s.codecs)
 	}
 	appendPayload, err := s.columns[d.stream].Prepare(payload)
-	if err != nil { return coverage, err }
+	if err != nil {
+		return coverage, err
+	}
 	writer.String(d.stream)
 	writer.Int64(d.offset)
 	appendPayload(writer)
 	next := position(d.offset + 1)
 	envelope := streamkit.Envelope{Identity: filament.EventIdentity{Domain: st.domain, Position: next}, Payload: payload, PayloadNull: payload == nil}
-	if err := s.projectors[d.stream].EndEvent(envelope, rowmodel.Meta{}); err != nil { return coverage, err }
-	if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: st.domain, Position: next}); err != nil { return coverage, err }
+	if err := s.projectors[d.stream].EndEvent(envelope, rowmodel.Meta{}); err != nil {
+		return coverage, err
+	}
+	if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: st.domain, Position: next}); err != nil {
+		return coverage, err
+	}
 	coverage.Positions = filament.DomainPositions{st.domain: next}
-	if err := s.lifecycle.MarkRead(coverage); err != nil { return coverage, err }
+	if err := s.lifecycle.MarkRead(coverage); err != nil {
+		return coverage, err
+	}
 	st.lastRead, st.hasRead = d.offset, true
 	return coverage, nil
 }
@@ -223,7 +237,9 @@ func (s *session) Acknowledge(ctx context.Context, c filament.Coverage) error {
 	for _, st := range s.streams {
 		if p, ok := c.Positions[st.domain]; ok {
 			n, err := offset(p)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			st.next, st.initial = n, false
 		}
 	}
@@ -240,6 +256,8 @@ func (s *session) Close(ctx context.Context) error {
 		}
 		s.lifecycle.MarkClosed(s.closeErr)
 	})
-	if err := ctx.Err(); err != nil { return err }
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return s.closeErr
 }

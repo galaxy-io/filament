@@ -15,7 +15,7 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 	if err := s.Validate(req.Config); err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}
-	streams, err := selectedStreams(req.Resources, configStrings(req.Config, "streams"))
+	streams, err := selectedStreams(req.Resources, configStrings(req.Config))
 	if err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}
@@ -32,11 +32,11 @@ func (s *Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReq
 
 // BindReplicationStream verifies that the stored configuration still matches admitted stream membership.
 func (*Source) BindReplicationStream(config map[string]any, admitted filament.ReplicationStream) (map[string]any, error) {
-	bound, err := selectedStreams(nil, configStrings(filament.NewConfig(admitted.ConsumerConfig), "streams"))
+	bound, err := selectedStreams(nil, configStrings(filament.NewConfig(admitted.ConsumerConfig)))
 	if err != nil {
 		return nil, err
 	}
-	configured, err := selectedStreams(nil, configStrings(filament.NewConfig(config), "streams"))
+	configured, err := selectedStreams(nil, configStrings(filament.NewConfig(config)))
 	if err != nil || !slices.Equal(configured, bound) {
 		return nil, fmt.Errorf("rabbitmq: configuration does not match admitted streams")
 	}

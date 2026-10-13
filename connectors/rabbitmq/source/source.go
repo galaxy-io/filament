@@ -16,14 +16,15 @@ import (
 // Source consumes replayable RabbitMQ Streams. Classic queue delivery tags are
 // intentionally not used as durable positions because they are channel-local.
 type Source struct {
-	env *rmq.Environment
-	uri string
+	env            *rmq.Environment
+	uri            string
 	defaultStreams []string
 }
 
 // New returns an unconfigured RabbitMQ Streams source.
 func New() *Source { return &Source{} }
 
+// Validate checks the RabbitMQ source configuration.
 func (*Source) Validate(cfg filament.Config) error {
 	raw := cfg.String("uri")
 	if raw == "" {
@@ -39,6 +40,7 @@ func (*Source) Validate(cfg filament.Config) error {
 	return nil
 }
 
+// Configure initializes the RabbitMQ source.
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if s.env != nil {
 		return errors.New("rabbitmq: already configured")
@@ -54,10 +56,11 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		return err
 	}
 	s.env, s.uri = env, cfg.String("uri")
-	s.defaultStreams = configStrings(cfg, "streams")
+	s.defaultStreams = configStrings(cfg)
 	return nil
 }
 
+// Extract reads records from the configured RabbitMQ source.
 func (*Source) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
 	return filament.ErrContinuousDisabled
 }
@@ -73,6 +76,7 @@ func (*Source) TestConnection(ctx context.Context, cfg filament.Config) (err err
 	return err
 }
 
+// Teardown releases resources held by the RabbitMQ source.
 func (s *Source) Teardown(context.Context) error {
 	if s.env == nil {
 		return nil
@@ -82,14 +86,15 @@ func (s *Source) Teardown(context.Context) error {
 	return err
 }
 
+// Spec returns the RabbitMQ connector specification.
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
-		Name:        "rabbitmq",
-		DisplayName: "RabbitMQ",
-		Description: "Read RabbitMQ queues continuously with deliveries acknowledged only after Filament commits each batch.",
-		DarkLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-dark.svg",
+		Name:         "rabbitmq",
+		DisplayName:  "RabbitMQ",
+		Description:  "Read RabbitMQ queues continuously with deliveries acknowledged only after Filament commits each batch.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-light.svg",
-		Version:     "1",
+		Version:      "1",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "uri", Type: filament.FieldSecret, Secret: true, Required: true, Scope: filament.ScopeConnection, Help: "RabbitMQ Stream URI, for example rabbitmq-stream://user:password@host:5552/%2f"},
 			{Name: "streams", Type: filament.FieldList, Scope: filament.ScopePipeline, Help: "RabbitMQ stream resources to consume"},
@@ -98,8 +103,8 @@ func (*Source) Spec() filament.ConnectorSpec {
 	}
 }
 
-func configStrings(cfg filament.Config, key string) []string {
-	raw := cfg.Raw()[key]
+func configStrings(cfg filament.Config) []string {
+	raw := cfg.Raw()["streams"]
 	switch v := raw.(type) {
 	case []string:
 		return slices.Clone(v)
@@ -124,7 +129,7 @@ func messageBaseSchema(resource string) rowmodel.Schema {
 }
 
 var (
-	_ filament.Source       = (*Source)(nil)
+	_ filament.Source                   = (*Source)(nil)
 	_ filament.StreamSource             = (*Source)(nil)
 	_ filament.SchemaProvider           = (*Source)(nil)
 	_ filament.Discoverable             = (*Source)(nil)

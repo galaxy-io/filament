@@ -14,6 +14,7 @@ const PositionCodec = "rabbitmq.stream.next_offset"
 // OffsetCodec validates nonnegative RabbitMQ Stream offsets.
 type OffsetCodec struct{}
 
+// Validate checks that a position is a valid RabbitMQ stream offset.
 func (OffsetCodec) Validate(p rowmodel.Position) error {
 	if p.Codec != PositionCodec || p.Version != 0 {
 		return fmt.Errorf("rabbitmq: incompatible offset codec")
@@ -25,6 +26,7 @@ func (OffsetCodec) Validate(p rowmodel.Position) error {
 	return err
 }
 
+// Canonicalize validates and normalizes a RabbitMQ stream position.
 func (c OffsetCodec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error) {
 	if err := c.Validate(p); err != nil {
 		return rowmodel.Position{}, err
@@ -32,6 +34,7 @@ func (c OffsetCodec) Canonicalize(p rowmodel.Position) (rowmodel.Position, error
 	return (streamkit.Uint64Codec{}).Canonicalize(p)
 }
 
+// Compare orders two compatible RabbitMQ stream positions.
 func (c OffsetCodec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, error) {
 	if a.Codec != b.Codec || a.Version != b.Version {
 		return rowmodel.PositionIncomparable, nil
@@ -45,6 +48,7 @@ func (c OffsetCodec) Compare(a, b rowmodel.Position) (rowmodel.PositionOrder, er
 	return (streamkit.Uint64Codec{}).Compare(a, b)
 }
 
+// Lookup returns the codec for the requested RabbitMQ position format.
 func (*Source) Lookup(name string, version int) (rowmodel.PositionCodec, error) {
 	if name != PositionCodec || version != 0 {
 		return nil, fmt.Errorf("%w: %s v%d", streamkit.ErrUnknownCodec, name, version)
