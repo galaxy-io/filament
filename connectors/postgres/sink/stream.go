@@ -42,6 +42,17 @@ func (t *Sink) BeginEpoch(ctx context.Context, ref filament.EpochRef) error {
 	if err != nil {
 		return err
 	}
+	// Acquire locks in a stable order, retaining them through epoch completion.
+	names := make([]string, 0, len(t.tables))
+	for name := range t.tables {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if err := t.validateTable(ctx, tx, t.tables[name]); err != nil {
+			return errors.Join(err, tx.Rollback(ctx))
+		}
+	}
 	if err := t.stream.lifecycle.MarkBegun(ref); err != nil {
 		return errors.Join(err, tx.Rollback(ctx))
 	}
