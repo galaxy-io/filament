@@ -126,6 +126,94 @@ Aborting discards only tentative effects. It cannot undo messages already
 published or earlier committed epochs. Document that boundary so users can
 reason about retries and duplicates.
 
+## Add live message schema support
+
+Implement `filament.MessageSchemaSource.OpenMessageStream` to opt in. The runner
+uses this method when the sink implements `SchemaPolicySink` and enables a
+policy. There is no separate source capability flag. Ordinary `OpenStream`
+retains the connector's existing behavior.
+
+Create one `streamkit.MessageBatches` with `NewMessageBatches(opts, baseSchema)`
+when opening the session. The base schema contains transport columns only.
+The helper validates saved layouts and owns independent copies. Share this
+instance across physical readers of the same logical resources and call it
+only from the serial read owner.
+
+Buffer one complete epoch within its record, byte, and time limits. Keep its
+messages alive and unacknowledged. Before writing transport fields or rows,
+call the helper with all payloads from that batch.
+
+```go
+columns, writer, err := layouts.Prepare(ctx, out, baseSchema(resource), payloads)
+if err != nil {
+    return filament.Coverage{}, err
+}
+```
+
+The helper restores the decoder, probes every payload, applies the policy, and
+asks the pipeline for the current writer. Use `columns.Prepare(payload)` to
+obtain the payload appender, write the transport fields, and finish the row
+with the existing event metadata projector. Do not keep using an older writer
+after negotiation. A failed epoch ends the session and discards tentative
+layouts. The runner persists accepted layouts with certified progress.
+
+JSON inference remains in `streamkit`. It is separate from pipeline admission
+through `MessageSchemaRecordSink`. The saved message layout currently supports
+JSON object fields and raw payloads. Typed database and schema registry sources
+need an expanded layout contract before using this path.
+
+For a sink, implement `SchemaPolicySink`, which includes `Schematized`, and
+return the configured policy from `SchemaPolicy`. Normalize the requested model
+to canonical physical types, create the table if needed, and acquire the
+destination's lock or transaction. Then call `schema.Reconcile` with an adapter
+implementing `schema.Target`.
+
+`Inspect` returns the complete physical model. `AddNullable` receives all
+approved fields together so the adapter can issue one `ALTER TABLE`. The helper
+compares columns by name, validates the entire diff, emits detection events,
+applies the additions, and verifies the result. It never creates or truncates
+tables and never commits a transaction. The adapter must restore its lock
+before returning if DDL releases it.
+
+A transactional destination can keep DDL with its writes. A destination that
+commits DDL separately must restore any released lock before verification.
+A failed run can leave additions behind, so retries inspect the destination
+without a separate migration state machine. Keep native type mapping and
+unsupported-feature checks in each connector. Implementing reconciliation
+alone does not establish continuous sink support.
+
+The MySQL bounded sink demonstrates this adapter with independently committed
+DDL. It applies approved additions together and reacquires its table lock
+before verification. Its schema-policy support does not advertise continuous
+epoch support.
+
+### Schema diagnostics
+
+Call `schema.Observe` with the operation context and the complete diff before
+applying changes. The reconciler does this automatically for destination diffs.
+The message helper does this automatically for structural
+changes to an accepted layout. The runner publishes typed `schema.detected`
+events with source or sink origin, policy, field names, and change categories.
+An initial inferred layout is not drift. Empty diffs produce no event.
+
+The runner publishes `schema.blocked` when a typed block ends an attempt or
+bounded resource operation. Payload validation failures can block without a
+structural detection event. Neither event claims that DDL committed. Publication
+is best effort and may repeat on replay. Events contain no row values, and
+checkpoint persistence remains the authority for progress.
+
+Exercise late fields, omitted fields after restart, strict additions, invalid
+types later in a batch, failed negotiation, and shared logical resources.
+The shared helper tests cover inference and admission. Each connector must
+also test its real transport, acknowledgements, and destination rollback.
+
+`TestMessageSchemaConnectorIndependentLifecycle` in
+`runner/message_schema_integration_test.go` exercises the complete shared path
+with in-memory adapters and serialized certificates. It covers both policies,
+late fields, restart restoration, event publication, and blocked batches without
+importing a production connector or opening a database. Run it with
+`go test ./runner -run TestMessageSchemaConnectorIndependentLifecycle`.
+
 ## Make shutdown an honest promise
 
 A successful `CloseSession` means no later destination effects remain possible
