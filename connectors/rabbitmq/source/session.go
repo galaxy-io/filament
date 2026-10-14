@@ -36,16 +36,16 @@ type streamState struct {
 }
 
 type session struct {
-	lifecycle  istream.SourceLifecycle
-	streams    map[string]*streamState
-	deliveries chan delivery
-	writers    map[string]arrowbatch.RowWriter
-	columns    map[string]*streamkit.MessageColumns
-	projectors map[string]*streamkit.Projector
-	codecs     filament.CodecResolver
-	done       chan struct{}
-	closeOnce  sync.Once
-	closeErr   error
+	lifecycle      istream.SourceLifecycle
+	streams        map[string]*streamState
+	deliveries     chan delivery
+	writers        map[string]arrowbatch.RowWriter
+	columns        map[string]*streamkit.MessageColumns
+	projectors     map[string]*streamkit.Projector
+	codecs         filament.CodecResolver
+	done           chan struct{}
+	closeOnce      sync.Once
+	closeErr       error
 	consumerClosed chan string
 }
 
