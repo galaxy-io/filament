@@ -1,19 +1,31 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { PlusIcon } from "@phosphor-icons/react";
-import { type HandleType, Position } from "@xyflow/react";
+import { FlowArrowIcon, PlusIcon, TreeStructureIcon } from "@phosphor-icons/react";
+import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
 
-import type { PaletteColor } from "@galaxy-io/dls/theme/tokens/types";
+import type { Space } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canvas/types";
-import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { PipelineCanvasNodeType, PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_FIT_MIN_ZOOM = 0.5;
 export const PIPELINE_CANVAS_FIT_MAX_ZOOM = 1;
 
 export const PIPELINE_CANVAS_FIT_INSET_Y = 48;
 export const PIPELINE_CANVAS_FIT_INSET_LEFT = 80;
+export const PIPELINE_CANVAS_FIT_PADDING: NonNullable<FitViewOptions["padding"]> = {
+  top: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+  bottom: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+  left: `${PIPELINE_CANVAS_FIT_INSET_LEFT}px`,
+  right: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
+};
+export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
+  padding: PIPELINE_CANVAS_FIT_PADDING,
+  maxZoom: PIPELINE_CANVAS_FIT_MAX_ZOOM,
+};
+export const PIPELINE_CANVAS_REVEAL_DURATION = 300;
+export const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
@@ -60,12 +72,6 @@ export const CONNECTOR_KIND_TO_XYFLOW_POSITION_MAP: Record<ConnectorKind, Positi
   [ConnectorKind.SINK]: Position.Left,
 };
 
-export const CONNECTOR_KIND_TO_CHIP_COLOR_MAP: Record<ConnectorKind, PaletteColor> = {
-  [ConnectorKind.UNSPECIFIED]: "lime",
-  [ConnectorKind.SOURCE]: "lime",
-  [ConnectorKind.SINK]: "pink",
-};
-
 export const CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP: Record<ConnectorKind, ConnectorKind> = {
   [ConnectorKind.UNSPECIFIED]: ConnectorKind.SOURCE,
   [ConnectorKind.SOURCE]: ConnectorKind.SOURCE,
@@ -93,3 +99,19 @@ export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
 
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;
+
+export const PIPELINE_CANVAS_VIEW_TO_LABEL_MAP: Record<PipelineCanvasView, string> = {
+  [PipelineCanvasView.CANVAS]: "Canvas",
+  [PipelineCanvasView.ROUTES]: "Routes",
+};
+
+export const PIPELINE_CANVAS_VIEW_TO_ICON_MAP: Record<PipelineCanvasView, PhosphorIcon> = {
+  [PipelineCanvasView.CANVAS]: TreeStructureIcon,
+  [PipelineCanvasView.ROUTES]: FlowArrowIcon,
+};
+
+export const PIPELINE_CANVAS_VIEW_SWITCHER_INSET: Space = 16;
+
+export const PIPELINE_CANVAS_MINIMAP_LEFT = 54;
+export const PIPELINE_CANVAS_MINIMAP_WIDTH = 114;
+export const PIPELINE_CANVAS_MINIMAP_HEIGHT = 72;

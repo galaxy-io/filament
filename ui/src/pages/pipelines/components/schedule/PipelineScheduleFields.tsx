@@ -1,4 +1,4 @@
-import { type ComponentProps, type PropsWithChildren, useState } from "react";
+import { type FC, type PropsWithChildren, useState } from "react";
 
 import CronInput from "@galaxy-io/dls/inputs/CronInput";
 import Field from "@galaxy-io/dls/inputs/Field";
@@ -9,29 +9,27 @@ import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { Orientation } from "@galaxy-io/dls/theme/enums";
 import Widget from "@galaxy-io/dls/widget/Widget";
 
-import { PIPELINE_SCHEDULE_TIMEZONE_OPTIONS } from "@/pages/pipelines/settings/constants";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import { PIPELINE_SCHEDULE_TIMEZONE_OPTIONS } from "@/pages/pipelines/components/schedule/constants";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 import {
   formatPipelineScheduleSummary,
   isPipelineScheduleCronValid,
-} from "@/pages/pipelines/settings/utils";
+} from "@/pages/pipelines/components/schedule/utils";
 
 interface PipelineScheduleFieldsProps {
   header: string;
-  size?: ComponentProps<typeof Widget>["size"];
   isOpenInitial?: boolean;
-  state: PipelineSettingsPageScheduleState;
-  onChange: (partial: Partial<PipelineSettingsPageScheduleState>) => void;
+  state: PipelineScheduleState;
+  onChange: (partial: Partial<PipelineScheduleState>) => void;
 }
 
-const PipelineScheduleFields = ({
+const PipelineScheduleFields: FC<PropsWithChildren<PipelineScheduleFieldsProps>> = ({
   header,
-  size,
   isOpenInitial = false,
   state,
   onChange,
   children,
-}: PropsWithChildren<PipelineScheduleFieldsProps>) => {
+}) => {
   const [isOpen, setIsOpen] = useState(isOpenInitial);
 
   const summary = formatPipelineScheduleSummary(state);
@@ -57,7 +55,6 @@ const PipelineScheduleFields = ({
     <Widget
       isCollapsible
       header={header}
-      size={size}
       isOpen={isOpen}
       onOpenChange={() => setIsOpen((prev) => !prev)}
       actions={
@@ -67,7 +64,11 @@ const PipelineScheduleFields = ({
               {summary}
             </Text>
           )}
-          <SwitchInput isChecked={state.isEnabled} onChange={handleEnabledChange} />
+          <SwitchInput
+            isChecked={state.isEnabled}
+            onChange={handleEnabledChange}
+            ariaLabel="Enable schedule"
+          />
         </Flex>
       }
     >

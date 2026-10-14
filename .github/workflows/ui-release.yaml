@@ -1,0 +1,80 @@
+name: "CD: UI"
+
+on:
+  push:
+    tags: ["filament-ui-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish @galaxy-io/filament-ui
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # npm trusted publishing: the workflow's OIDC identity is the credential.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: ui/package.json
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      # Trusted publishing needs a newer npm than Node 22 ships.
+      - run: npm install -g npm@latest
+
+      - name: Read UI package version
+        id: version
+        working-directory: ui
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "@galaxy-io/filament-ui@$version" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A rerun, or the bootstrap release of a version published by hand, has nothing to publish.
+      - name: Skip a published version
+        if: steps.version.outputs.published == 'true'
+        run: echo "@galaxy-io/filament-ui@${{ steps.version.outputs.version }} is already on npm"
+
+      - name: Check
+        if: steps.version.outputs.published == 'false'
+        run: just ui-check
+
+      - name: Pack package
+        if: steps.version.outputs.published == 'false'
+        working-directory: ui
+        run: |
+          mkdir -p "$RUNNER_TEMP/ui-dist"
+          pnpm pack --pack-destination "$RUNNER_TEMP/ui-dist"
+
+      - name: Upload package
+        if: steps.version.outputs.published == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: filament-ui-${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/ui-dist/
+          if-no-files-found: error
+
+      - name: Publish to npm
+        if: steps.version.outputs.published == 'false'
+        working-directory: ui
+        run: npm publish --access public

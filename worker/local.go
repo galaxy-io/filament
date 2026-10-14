@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/galaxy-io/filament"
 )
@@ -150,8 +151,8 @@ func (l local) Inspect(ctx context.Context, name string, cfg filament.Config, re
 
 // inspectResource reports one resource from an already configured source. The
 // primary key comes from the schema when the source has one, else from
-// discovery; columns are ranked cursor candidates when the source ranks them,
-// else schema fields.
+// discovery. The schema supplies the columns, because a source may rank only
+// the cursor it supports; ranked cursor columns are laid over them.
 func inspectResource(ctx context.Context, source filament.Source, resource string, discover func() ([]filament.Resource, error)) filament.Inspection {
 	inspection := filament.Inspection{Name: resource}
 	if managed, ok := source.(filament.ManagedIncrementalSource); ok {
@@ -162,13 +163,13 @@ func inspectResource(ctx context.Context, source filament.Source, resource strin
 		return inspection
 	}
 	schemas, hasSchema := source.(filament.SchemaProvider)
-	var schema filament.RecordSchema
 	if hasSchema {
-		var err error
-		if schema, err = schemas.Schema(ctx, resource); err != nil {
+		schema, err := schemas.Schema(ctx, resource)
+		if err != nil {
 			return failed(fmt.Errorf("schema for %q: %w", resource, err))
 		}
-		inspection.PrimaryKey = schema.PrimaryKey
+		schema.Resource = resource
+		inspection.Schema, inspection.PrimaryKey = &schema, schema.PrimaryKey
 	} else if discover != nil {
 		all, err := discover()
 		if err != nil {
@@ -181,21 +182,31 @@ func inspectResource(ctx context.Context, source filament.Source, resource strin
 			}
 		}
 	}
-	cursors, hasCursors := source.(filament.CursorColumnProvider)
-	switch {
-	case hasCursors:
+	var ranked []filament.CursorColumn
+	if cursors, ok := source.(filament.CursorColumnProvider); ok {
 		columns, err := cursors.CursorColumns(ctx, resource)
 		if err != nil {
 			return failed(fmt.Errorf("resource columns %q: %w", resource, err))
 		}
-		inspection.Columns, inspection.Ranked = columns, true
-	case hasSchema:
-		for _, field := range schema.Fields {
-			inspection.Columns = append(inspection.Columns, filament.CursorColumn{SchemaField: field})
-		}
-	default:
-		inspection.Status = filament.InspectUnsupported
+		ranked, inspection.Ranked = columns, true
 	}
+	if !hasSchema {
+		if !inspection.Ranked {
+			inspection.Status = filament.InspectUnsupported
+		}
+		inspection.Columns = ranked
+		return inspection
+	}
+	for _, field := range inspection.Schema.Fields {
+		column := filament.CursorColumn{SchemaField: field}
+		if i := slices.IndexFunc(ranked, func(c filament.CursorColumn) bool { return c.Name == field.Name }); i >= 0 {
+			column = ranked[i]
+			ranked = slices.Delete(ranked, i, i+1)
+		}
+		column.PrimaryKey = column.PrimaryKey || slices.Contains(inspection.Schema.PrimaryKey, field.Name)
+		inspection.Columns = append(inspection.Columns, column)
+	}
+	inspection.Columns = append(inspection.Columns, ranked...)
 	return inspection
 }
 

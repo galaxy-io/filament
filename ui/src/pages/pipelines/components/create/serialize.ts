@@ -30,12 +30,12 @@ import type {
   CreatePipelineModalSinkRow,
   CreatePipelineModalState,
 } from "@/pages/pipelines/components/create/types";
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
-const buildNodes = (
+const createNodes = (
   sourceConnection: Connection | null,
   sinks: CreatePipelineModalSinkRow[],
   nodeConfigs: Record<Connection["id"], PipelineNodeConfig>,
@@ -59,7 +59,7 @@ const buildNodes = (
   ];
 };
 
-const buildCursors = (
+const createCursors = (
   rows: CreatePipelineModalResourceRow[],
   readMode: ReadMode,
 ): ResourceCursorConfig[] => {
@@ -75,77 +75,49 @@ const buildCursors = (
     );
 };
 
-const buildSinkEdges = ({
+const createSinkEdges = ({
   sourceId,
   rows,
   sink,
   hasReadLevers,
-  isContinuous,
 }: {
   sourceId: PipelineNode["id"];
   rows: CreatePipelineModalResourceRow[];
   sink: CreatePipelineModalSinkRow;
   hasReadLevers: boolean;
-  isContinuous: boolean;
-}): PipelineEdge[] => {
-  const selectable = rows.filter((row) => row.isSelectable);
-  const selected = rows.filter((row) => row.isSelected);
-  const readModes = [
-    ...new Set(selected.map((row) => (hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED))),
-  ];
-
-  const isCollapsible =
-    !isContinuous &&
-    (!selectable.length || (selected.length === selectable.length && readModes.length <= 1));
-
-  if (isCollapsible) {
-    const readMode = readModes[0] ?? (hasReadLevers ? ReadMode.FULL : ReadMode.UNSPECIFIED);
-    return [
-      create(PipelineEdgeSchema, {
+}): PipelineEdge[] =>
+  rows
+    .filter((row) => row.isSelected)
+    .map((row) => {
+      const readMode = hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
+      return create(PipelineEdgeSchema, {
         fromNode: sourceId,
-        resource: "",
+        resource: row.name,
         toNode: sink.connection.id,
         readMode,
         writeMode: sink.writeMode,
-        cursors: hasReadLevers ? buildCursors(selected, readMode) : [],
-      }),
-    ];
-  }
-
-  return selected.map((row) => {
-    const readMode = hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
-    return create(PipelineEdgeSchema, {
-      fromNode: sourceId,
-      resource: row.name,
-      toNode: sink.connection.id,
-      readMode,
-      writeMode: sink.writeMode,
-      cursors: hasReadLevers ? buildCursors([row], readMode) : [],
+        cursors: hasReadLevers ? createCursors([row], readMode) : [],
+      });
     });
-  });
-};
 
-const buildEdges = ({
+const createEdges = ({
   sourceConnection,
   rowsBySink,
   sinks,
   hasReadLevers,
-  isContinuous,
 }: {
   sourceConnection: Connection | null;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   hasReadLevers: boolean;
-  isContinuous: boolean;
 }): PipelineEdge[] => {
   if (!sourceConnection) return [];
   return sinks.flatMap((sink) =>
-    buildSinkEdges({
+    createSinkEdges({
       sourceId: sourceConnection.id,
       rows: rowsBySink[sink.connection.id] ?? [],
       sink,
       hasReadLevers,
-      isContinuous,
     }),
   );
 };
@@ -170,14 +142,13 @@ export const mapCreatePipelineStateToVersionRequest = ({
   create(CreatePipelineVersionRequestSchema, {
     pipelineId,
     graph: {
-      nodes: buildNodes(sourceConnection, sinks, nodeConfigs),
-      edges: buildEdges({
+      nodes: createNodes(sourceConnection, sinks, nodeConfigs),
+      edges: createEdges({
         sourceConnection,
         rowsBySink,
         sinks,
         hasReadLevers:
           replication !== ReplicationMode.CDC && executionMode !== ExecutionMode.CONTINUOUS,
-        isContinuous: executionMode === ExecutionMode.CONTINUOUS,
       }),
     },
   });

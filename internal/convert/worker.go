@@ -243,6 +243,7 @@ func InspectionsToProto(inspections []filament.Inspection) []*workerv1.Inspectio
 			Columns:            CursorColumnsToProto(inspection.Columns),
 			Ranked:             inspection.Ranked,
 			ManagedIncremental: inspection.ManagedIncremental,
+			Schema:             schemaToProto(inspection.Schema),
 		})
 	}
 	return out
@@ -264,9 +265,40 @@ func InspectionsFromProto(inspections []*workerv1.Inspection) ([]filament.Inspec
 			Columns:            CursorColumnsFromProto(inspection.GetColumns()),
 			Ranked:             inspection.GetRanked(),
 			ManagedIncremental: inspection.GetManagedIncremental(),
+			Schema:             schemaFromProto(inspection.GetName(), inspection.GetSchema()),
 		})
 	}
 	return out, nil
+}
+
+func schemaToProto(schema *filament.RecordSchema) *workerv1.Schema {
+	if schema == nil {
+		return nil
+	}
+	out := &workerv1.Schema{PrimaryKey: schema.PrimaryKey, Engine: schema.Engine}
+	for _, field := range schema.Fields {
+		out.Fields = append(out.Fields, &workerv1.SchemaField{
+			Name: field.Name, Nullable: field.Nullable,
+			LogicalType: string(field.Logical), NativeType: field.Native,
+			Precision: int32(field.Precision), Scale: int32(field.Scale), //nolint:gosec // decimal digits
+		})
+	}
+	return out
+}
+
+func schemaFromProto(resource string, schema *workerv1.Schema) *filament.RecordSchema {
+	if schema == nil {
+		return nil
+	}
+	out := &filament.RecordSchema{Resource: resource, PrimaryKey: schema.GetPrimaryKey(), Engine: schema.GetEngine()}
+	for _, field := range schema.GetFields() {
+		out.Fields = append(out.Fields, filament.SchemaField{
+			Name: field.GetName(), Nullable: field.GetNullable(),
+			Logical: filament.LogicalType(field.GetLogicalType()), Native: field.GetNativeType(),
+			Precision: int(field.GetPrecision()), Scale: int(field.GetScale()),
+		})
+	}
+	return out
 }
 
 // ReplicationStreamPlanToProto encodes a plan; its config maps become Structs.

@@ -40,6 +40,24 @@ message Inspection {
   repeated ingestion.v1.ResourceColumn columns = 5;
   bool ranked = 6;
   bool managed_incremental = 7;
+  // schema is unset when the source provides none.
+  Schema schema = 8;
+}
+
+// Schema is a resource's record schema exactly as the source reports it.
+message Schema {
+  repeated SchemaField fields = 1;
+  repeated string primary_key = 2;
+  string engine = 3;
+}
+
+message SchemaField {
+  string name = 1;
+  bool nullable = 2;
+  string logical_type = 3;
+  string native_type = 4;
+  int32 precision = 5;
+  int32 scale = 6;
 }
 
 message InspectResponse {

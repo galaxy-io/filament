@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/galaxy-io/filament?filter=v*)](https://github.com/galaxy-io/filament/releases)
 [![Tests](https://github.com/galaxy-io/filament/actions/workflows/test.yaml/badge.svg)](https://github.com/galaxy-io/filament/actions/workflows/test.yaml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/galaxy-io/filament)
+[![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-7B3FE4)](https://deepwiki.com/galaxy-io/filament)
 [![Slack](https://img.shields.io/badge/slack-join-4A154B?logo=slack&logoColor=white)](https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ)
 
 </div>

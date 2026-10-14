@@ -2,6 +2,7 @@ import type { Connection as CanvasConnection } from "@xyflow/react";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
 import {
   PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
@@ -12,9 +13,9 @@ import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize"
 import {
   type CanvasEdge,
   type CanvasNode,
-  isConnectionNode,
   PipelineCanvasNodeType,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 export const createNodeFromConnection = (
   connection: Connection,
@@ -36,58 +37,30 @@ type CanvasEdgeEndpoints = Pick<CanvasEdge, "source" | "target" | "sourceHandle"
 const getPairEdges = (edges: CanvasEdge[], pair: Pick<CanvasEdge, "source" | "target">) =>
   edges.filter((edge) => edge.source === pair.source && edge.target === pair.target);
 
-const mapEdgesToPairs = (edges: CanvasEdge[]): CanvasEdge[][] => {
-  const pairs = new Map<string, CanvasEdge[]>();
-  for (const edge of edges) {
-    const key = `${edge.source} ${edge.target}`;
-    pairs.set(key, [...(pairs.get(key) ?? []), edge]);
-  }
-  return [...pairs.values()];
-};
-
 export const canConnectEdge = (connection: CanvasEdgeEndpoints, edges: CanvasEdge[]): boolean => {
-  const pairEdges = getPairEdges(edges, connection);
-  if (!pairEdges.length) return true;
-
   const resource = getCanvasEdgeResource(connection);
-  if (!resource) return false;
-
-  return pairEdges.every((edge) => {
-    const existing = getCanvasEdgeResource(edge);
-    return existing !== "" && existing !== resource;
-  });
+  return (
+    resource !== "" &&
+    !getPairEdges(edges, connection).some((edge) => getCanvasEdgeResource(edge) === resource)
+  );
 };
 
-export const getPipelineGraphConflicts = (
-  edges: CanvasEdge[],
-  connectionByNodeId: Map<CanvasNode["id"], Connection | undefined>,
-): string[] => {
-  const getNodeLabel = (nodeId: CanvasNode["id"]) => connectionByNodeId.get(nodeId)?.name ?? nodeId;
-
-  return mapEdgesToPairs(edges).flatMap((pairEdges) => {
-    const { source, target } = pairEdges[0];
-    const resources = pairEdges.map(getCanvasEdgeResource);
-    const named = resources.filter(Boolean);
-    const route = `${getNodeLabel(source)} → ${getNodeLabel(target)}`;
-
-    const conflicts: string[] = [];
-    if (named.length && named.length !== resources.length) {
-      conflicts.push(
-        `${route} routes all resources and individual resources at the same time. Remove one or the other.`,
-      );
-    }
-    const duplicated = [...new Set(named.filter((name, index) => named.indexOf(name) !== index))];
-    if (duplicated.length) {
-      conflicts.push(`${route} routes ${duplicated.join(", ")} more than once.`);
-    }
-    return conflicts;
-  });
-};
+export const expandConnection = <T extends CanvasEdgeEndpoints>(
+  connection: T,
+  resources: Resource["name"][],
+): T[] =>
+  connection.sourceHandle === PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID
+    ? resources.map((resource) => ({ ...connection, sourceHandle: resource }))
+    : [connection];
 
 export const canAddSourceNode = (nodes: CanvasNode[]): boolean =>
   !nodes.some((node) => node.type === PipelineCanvasNodeType.SOURCE);
 
-export const getAutoConnections = (node: CanvasNode, nodes: CanvasNode[]): CanvasConnection[] => {
+export const getAutoConnections = (
+  node: CanvasNode,
+  nodes: CanvasNode[],
+  resources: Resource["name"][],
+): CanvasConnection[] => {
   if (!isConnectionNode(node) || nodes.some((existing) => existing.type === node.type)) {
     return [];
   }
@@ -97,10 +70,15 @@ export const getAutoConnections = (node: CanvasNode, nodes: CanvasNode[]): Canva
 
   return nodes
     .filter((counterpart) => counterpart.type === counterpartType)
-    .map((counterpart) => ({
-      source: isSource ? node.id : counterpart.id,
-      sourceHandle: PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
-      target: isSource ? counterpart.id : node.id,
-      targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
-    }));
+    .flatMap((counterpart) =>
+      expandConnection(
+        {
+          source: isSource ? node.id : counterpart.id,
+          sourceHandle: PIPELINE_CANVAS_NODE_SOURCE_HANDLE_ID,
+          target: isSource ? counterpart.id : node.id,
+          targetHandle: PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
+        },
+        resources,
+      ),
+    );
 };

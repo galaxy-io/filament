@@ -1,6 +1,7 @@
 import {
   createContext,
   type Dispatch,
+  type FC,
   type PropsWithChildren,
   useContext,
   useMemo,
@@ -11,6 +12,7 @@ import {
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
@@ -64,8 +66,8 @@ export const usePipelineCanvasActions = () => {
     () => ({
       loadGraph: (graph: PipelineCanvasGraph) =>
         dispatch({ type: PipelineCanvasActionType.LOAD_GRAPH, payload: graph }),
-      addNode: (node: CanvasNode) =>
-        dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: node }),
+      addNode: (node: CanvasNode, resources: Resource["name"][]) =>
+        dispatch({ type: PipelineCanvasActionType.ADD_NODE, payload: { node, resources } }),
       removeNode: (nodeId: PipelineNode["id"]) =>
         dispatch({
           type: PipelineCanvasActionType.REMOVE_NODE,
@@ -83,10 +85,10 @@ export const usePipelineCanvasActions = () => {
           type: PipelineCanvasActionType.APPLY_EDGE_CHANGES,
           payload: changes,
         }),
-      connect: (connection: Connection) =>
+      connect: (connections: Connection[]) =>
         dispatch({
           type: PipelineCanvasActionType.CONNECT,
-          payload: connection,
+          payload: connections,
         }),
       setActiveMode: (mode: PipelineCanvasEditMode | null) =>
         dispatch({
@@ -123,12 +125,12 @@ interface PipelineCanvasProviderProps {
   isReadOnly?: boolean;
 }
 
-const PipelineCanvasProvider = ({
+const PipelineCanvasProvider: FC<PropsWithChildren<PipelineCanvasProviderProps>> = ({
   graph,
   graphKey,
   isReadOnly = false,
   children,
-}: PropsWithChildren<PipelineCanvasProviderProps>) => {
+}) => {
   const [state, dispatch] = useReducer(
     pipelineCanvasReducer,
     graph,

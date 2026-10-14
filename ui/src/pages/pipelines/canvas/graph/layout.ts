@@ -47,7 +47,7 @@ export const getNextNodePosition = (kind: ConnectorKind, nodes: CanvasNode[]) =>
   return { x: baseX, y: Math.round(nextY / snapY) * snapY };
 };
 
-const buildPlaceholderNode = (kind: ConnectorKind): PipelineCanvasPlaceholderNode => ({
+const createPlaceholderNode = (kind: ConnectorKind): PipelineCanvasPlaceholderNode => ({
   id: CONNECTOR_KIND_TO_PLACEHOLDER_ID_MAP[kind],
   type: PipelineCanvasNodeType.PLACEHOLDER,
   position: {
@@ -62,8 +62,8 @@ const buildPlaceholderNode = (kind: ConnectorKind): PipelineCanvasPlaceholderNod
   style: { pointerEvents: "all" },
 });
 
-const SOURCE_PLACEHOLDER_NODE = buildPlaceholderNode(ConnectorKind.SOURCE);
-const SINK_PLACEHOLDER_NODE = buildPlaceholderNode(ConnectorKind.SINK);
+const SOURCE_PLACEHOLDER_NODE = createPlaceholderNode(ConnectorKind.SOURCE);
+const SINK_PLACEHOLDER_NODE = createPlaceholderNode(ConnectorKind.SINK);
 
 export const getPlaceholderNodes = (nodes: CanvasNode[], isReadOnly: boolean): CanvasNode[] => {
   if (isReadOnly) return [];

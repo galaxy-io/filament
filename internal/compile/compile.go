@@ -115,6 +115,10 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		if err != nil {
 			return nil, err
 		}
+		transformDef, err := transformDefinition(group)
+		if err != nil {
+			return nil, err
+		}
 		replicationStream, err := c.planRouteReplicationStream(
 			ctx, cdc, pipeline.GetId(), version.GetId(), tenant,
 			key, group, connections, sourceRef, sinkRef,
@@ -141,6 +145,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				Options:             options,
 				ScheduleID:          scheduleID,
 				WorkerConfiguration: worker,
+				Transform:           transformDef,
 			},
 			DesiredReplicationStream: replicationStream,
 		}})

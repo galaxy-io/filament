@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { TrashIcon } from "@phosphor-icons/react";
 
@@ -18,13 +18,13 @@ interface PipelineNotifierFormProps {
   onDelete?: () => void;
 }
 
-const PipelineNotifierForm = ({
+const PipelineNotifierForm: FC<PipelineNotifierFormProps> = ({
   initialState,
   isSaving = false,
   onSave,
   onCancel,
   onDelete,
-}: PipelineNotifierFormProps) => {
+}) => {
   const [state, setState] = useState<PipelineNotifierState>(initialState);
 
   const handleChange = (partial: Partial<PipelineNotifierState>) => {

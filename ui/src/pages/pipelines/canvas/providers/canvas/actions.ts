@@ -1,6 +1,7 @@
 import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
+import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type {
@@ -34,7 +35,7 @@ export interface LoadGraphAction {
 
 export interface AddNodeAction {
   type: PipelineCanvasActionType.ADD_NODE;
-  payload: CanvasNode;
+  payload: { node: CanvasNode; resources: Resource["name"][] };
 }
 
 export interface RemoveNodeAction {
@@ -59,7 +60,7 @@ export interface ApplyEdgeChangesAction {
 
 export interface ConnectAction {
   type: PipelineCanvasActionType.CONNECT;
-  payload: Connection;
+  payload: Connection[];
 }
 
 export interface SetActiveModeAction {

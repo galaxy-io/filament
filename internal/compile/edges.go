@@ -1,10 +1,12 @@
 package compile
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
@@ -23,6 +25,7 @@ type routeGroup struct {
 	resources     map[string]bool
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
+	transforms    map[string]any // resource → steps, merged across the route's edges
 	destinations  map[string]string
 }
 
@@ -64,6 +67,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
 			byKey[key] = group
@@ -79,6 +83,9 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		resource := edge.GetResource()
+		if err := mergeTransform(group, edge); err != nil {
+			return nil, err
+		}
 		if label := edge.GetDestinationResource(); label != "" {
 			group.destinations[resource] = label
 		}
@@ -101,6 +108,68 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		}
 	}
 	return ordered, nil
+}
+
+// mergeTransform folds an edge's transform into its route. The definition is
+// checked against the grammar here so a bad one fails compilation, not the
+// run. A resource-specific edge may only define its own resource, and two
+// edges may not define the same one.
+func mergeTransform(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
+	if !HasTransform(edge) {
+		return nil
+	}
+	resources, err := TransformResources(edge)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	for resource, steps := range resources {
+		if _, exists := group.transforms[resource]; exists {
+			return fmt.Errorf("%w: resource %q is transformed by more than one edge", ErrInvalid, resource)
+		}
+		group.transforms[resource] = steps
+	}
+	return nil
+}
+
+// HasTransform reports whether the edge carries a transform definition. An
+// empty object is the same as none: rows pass through unchanged.
+func HasTransform(edge *ingestionv1.PipelineEdge) bool {
+	return len(edge.GetTransform().GetFields()) > 0
+}
+
+// TransformResources parses an edge's transform against the grammar and
+// returns its per-resource steps. An edge naming a resource may only define
+// that resource.
+func TransformResources(edge *ingestionv1.PipelineEdge) (map[string]any, error) {
+	raw, err := edge.GetTransform().MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("transform: %w", err)
+	}
+	if _, err := transform.Parse(raw); err != nil {
+		return nil, err
+	}
+	resources, _ := edge.GetTransform().AsMap()["resources"].(map[string]any)
+	if own := edge.GetResource(); own != "" {
+		for resource := range resources {
+			if resource != own {
+				return nil, fmt.Errorf("transform: edge for %q defines resource %q", own, resource)
+			}
+		}
+	}
+	return resources, nil
+}
+
+// transformDefinition renders a route's merged transforms as the JSON
+// definition a run request carries, or "" when the route has none.
+func transformDefinition(group *routeGroup) (string, error) {
+	if len(group.transforms) == 0 {
+		return "", nil
+	}
+	raw, err := json.Marshal(map[string]any{"version": transform.GrammarVersion(), "resources": group.transforms})
+	if err != nil {
+		return "", fmt.Errorf("transform: %w", err)
+	}
+	return string(raw), nil
 }
 
 func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {

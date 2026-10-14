@@ -138,6 +138,8 @@ encryption to protect resolved connection credentials in transit.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| worker.connectors.sinks | list | `[]` | Sink connectors the worker offers. Empty offers every bundled sink. |
+| worker.connectors.sources | list | `[]` | Source connectors the worker offers, by unversioned name. Empty offers every bundled source. |
 | worker.heartbeatSeconds | int | `30` | Interval in seconds between run heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
 | worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | worker.image.pullSecrets | list | `[]` | Image pull secrets for the worker Deployment and Jobs. |

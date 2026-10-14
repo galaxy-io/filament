@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { FC } from "react";
 
 import { styled } from "@linaria/react";
 import { Handle, type Position } from "@xyflow/react";
@@ -11,17 +11,13 @@ import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
 import {
   PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
+  PIPELINE_CANVAS_NODE_PORT_BORDER_WIDTH,
   PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE,
   PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE,
 } from "@/pages/pipelines/canvas/nodes/constants";
 import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-const HandleBase = ({
-  $isConnected: _isConnected,
-  ...props
-}: { $isConnected?: boolean } & ComponentProps<typeof Handle>) => <Handle {...props} />;
-
-const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
+const StyledHandle = styled(Handle)`
   &.react-flow__handle {
     position: relative;
     top: auto;
@@ -30,18 +26,28 @@ const StyledHandle = styled(HandleBase)<{ $isConnected?: boolean }>`
     left: auto;
     transform: none;
 
-    width: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
-    height: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
+    width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE}px;
+    height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE}px;
 
-    background-color: ${({ $isConnected }) =>
-      $isConnected ? "transparent" : t.color.text.tertiary};
-    border: ${({ $isConnected }) =>
-      $isConnected ? `2px solid ${t.color.solid.primary.background}` : "none"};
+    background-color: ${t.color.text.tertiary};
+    border: none;
     border-radius: ${t.radius.pill};
 
     transition:
-      width 100ms ease,
-      height 100ms ease;
+      width ${t.duration.fast},
+      height ${t.duration.fast};
+  }
+
+  &.react-flow__handle[data-connected="true"] {
+    width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
+    height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
+
+    background-color: transparent;
+    border: ${PIPELINE_CANVAS_NODE_PORT_BORDER_WIDTH}px solid ${t.color.solid.primary.background};
+  }
+
+  &.react-flow__handle[data-connected="true"][data-invalid="true"] {
+    border-color: ${t.color.border.error};
   }
 
   &.react-flow__handle:hover {
@@ -55,14 +61,16 @@ interface PipelineCanvasNodeHandleProps {
   kind: ConnectorKind;
   position: Position;
   isConnected?: boolean;
+  isInvalid?: boolean;
 }
 
-const PipelineCanvasNodeHandle = ({
+const PipelineCanvasNodeHandle: FC<PipelineCanvasNodeHandleProps> = ({
   id,
   kind,
   position,
   isConnected,
-}: PipelineCanvasNodeHandleProps) => {
+  isInvalid,
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
 
   return (
@@ -78,7 +86,8 @@ const PipelineCanvasNodeHandle = ({
         type={CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind]}
         position={position}
         isConnectable={!isReadOnly}
-        $isConnected={isConnected}
+        data-connected={!!isConnected}
+        data-invalid={!!isInvalid}
       />
     </Flex>
   );

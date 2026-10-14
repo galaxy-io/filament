@@ -1,5 +1,4 @@
-import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
+import type { FC } from "react";
 
 import { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -7,11 +6,11 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import KeyValueList from "@/components/KeyValueList";
+import KeyValueListRow from "@/components/KeyValueListRow";
+import { formatPipelineName } from "@/components/pipelines/utils";
 
-import ConnectorTile from "@/pages/connectors/components/ConnectorTile";
-import ConnectionDrawerKeyValueRow from "@/pages/connectors/components/drawer/ConnectionDrawerKeyValueRow";
-import ConnectionDrawerList from "@/pages/connectors/components/drawer/ConnectionDrawerList";
 import { PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -20,23 +19,26 @@ import PipelineCanvasPanelResourceSection from "@/pages/pipelines/canvas/panel/o
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import {
-  isConnectionNode,
   PipelineCanvasNodeType,
   type PipelineCanvasSinkNode,
   type PipelineCanvasSourceNode,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
-import { formatPipelineName } from "@/pages/pipelines/utils";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
 
-const PipelineCanvasPanelOverview = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+
+import { formatVersion } from "@/utils/format";
+
+const PipelineCanvasPanelOverview: FC = () => {
+  const { id } = usePipelineParams();
   const state = usePipelineCanvasState();
   const { selectNode } = usePipelineCanvasSelection();
   const connectionByNodeId = usePipelineCanvasConnections();
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
   const previewed = usePipelinePreviewVersion();
   const version = previewed?.version ?? pipelineData.pipeline?.currentVersion?.version;
@@ -69,8 +71,8 @@ const PipelineCanvasPanelOverview = () => {
     <FlexItem grow={1} minHeight={0}>
       <ScrollArea>
         <Flex direction={FlexDirection.COLUMN} gap={8} padding={12}>
-          <ConnectionDrawerList variant={BoxVariant.SECONDARY}>
-            <ConnectionDrawerKeyValueRow
+          <KeyValueList variant={BoxVariant.SECONDARY}>
+            <KeyValueListRow
               label="Name"
               value={
                 <Text size={TextSize.BODY_SM}>
@@ -78,18 +80,18 @@ const PipelineCanvasPanelOverview = () => {
                 </Text>
               }
             />
-            <ConnectionDrawerKeyValueRow
+            <KeyValueListRow
               label="Version"
               value={
                 <Text
                   size={TextSize.BODY_SM}
                   variant={previewed ? TextVariant.ERROR : TextVariant.SECONDARY}
                 >
-                  {version ? `Version ${version}` : "—"}
+                  {formatVersion(version)}
                 </Text>
               }
             />
-          </ConnectionDrawerList>
+          </KeyValueList>
 
           <PipelineCanvasPanelSection
             header="Source"

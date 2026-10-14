@@ -1,6 +1,5 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { PipelineNode, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
@@ -12,43 +11,39 @@ import {
   getCanvasEdgeKey,
   getProtoEdgeKey,
 } from "@/pages/pipelines/canvas/graph/serialize";
-import {
-  type CanvasEdge,
-  type CanvasNode,
-  isConnectionNode,
-  type PipelineCanvasEdgeData,
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
-export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
-  (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
-  (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&
-  (version?.graph?.edges ?? []).length > 0;
-
-const canonicalize = (value: JsonValue): JsonValue => {
-  if (Array.isArray(value)) return value.map(canonicalize);
+const getCanonicalJson = (value: JsonValue): JsonValue => {
+  if (Array.isArray(value)) return value.map(getCanonicalJson);
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map((key) => [key, canonicalize(value[key] ?? null)]),
+        .map((key) => [key, getCanonicalJson(value[key] ?? null)]),
     );
   }
   return value;
 };
 
-const serializeNodeConfig = (config: PipelineNode["config"]): string =>
-  config && Object.keys(config).length > 0 ? JSON.stringify(canonicalize(config)) : "";
+const getNodeConfigKey = (config: PipelineNode["config"]): string =>
+  config && Object.keys(config).length > 0 ? JSON.stringify(getCanonicalJson(config)) : "";
 
-const serializeEdgeConfig = ({
+const getEdgeConfigKey = ({
   readMode,
   writeMode,
   cursors,
+  transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
   `${JSON.stringify(destinationResource ?? "")}|${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
-    .join(";")}`;
+    .join(";")}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
@@ -59,13 +54,13 @@ export const hasPipelineGraphChanges = (
     .filter(isConnectionNode)
     .map(
       (node) =>
-        `${node.id}|${PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP[node.type]}|${node.data.connectionId}|${serializeNodeConfig(node.data.config ?? versionNodesById.get(node.id)?.config)}`,
+        `${node.id}|${PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP[node.type]}|${node.data.connectionId}|${getNodeConfigKey(node.data.config ?? versionNodesById.get(node.id)?.config)}`,
     )
     .sort();
   const pipelineNodes = (version?.graph?.nodes ?? [])
     .map(
       (node) =>
-        `${node.id}|${CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP[node.kind]}|${node.connectionId}|${serializeNodeConfig(node.config)}`,
+        `${node.id}|${CONNECTOR_KIND_TO_NORMALIZED_KIND_MAP[node.kind]}|${node.connectionId}|${getNodeConfigKey(node.config)}`,
     )
     .sort();
 
@@ -75,11 +70,11 @@ export const hasPipelineGraphChanges = (
   const canvasEdges = state.edges
     .map((edge) => {
       const key = getCanvasEdgeKey(edge);
-      return `${key}|${serializeEdgeConfig(getCanvasEdgeConfig(edge, versionEdgesByKey.get(key)))}`;
+      return `${key}|${getEdgeConfigKey(getCanvasEdgeConfig(edge, versionEdgesByKey.get(key)))}`;
     })
     .sort();
   const pipelineEdges = (version?.graph?.edges ?? [])
-    .map((edge) => `${getProtoEdgeKey(edge)}|${serializeEdgeConfig(edge)}`)
+    .map((edge) => `${getProtoEdgeKey(edge)}|${getEdgeConfigKey(edge)}`)
     .sort();
 
   return (

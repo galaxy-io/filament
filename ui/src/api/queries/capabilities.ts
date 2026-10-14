@@ -29,8 +29,5 @@ export const useValidatePipelineQuery = ({
     ValidatePipelineResponse
   >;
 }) => {
-  return useQuery<
-    typeof IngestionService.method.validatePipeline.input,
-    typeof IngestionService.method.validatePipeline.output
-  >(IngestionService.method.validatePipeline, input, { retry: false, ...options });
+  return useQuery(IngestionService.method.validatePipeline, input, { retry: false, ...options });
 };

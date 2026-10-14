@@ -29,6 +29,21 @@ empty, or invalid configured directories stop startup. The variable does not mou
 [private catalog setup](/pages/connectors/building-a-connector/http-manifests#load-a-private-catalog-at-startup)
 for the directory structure and override behavior.
 
+### Connector allowlist
+
+| Variable | Default | Description |
+|---|---|---|
+| `CONNECTOR_SOURCES` | unset | Comma-separated source connector names the worker offers. Unset offers every bundled source |
+| `CONNECTOR_SINKS` | unset | Comma-separated sink connector names the worker offers. Unset offers every bundled sink |
+
+Set them on every worker, the same as `HTTP_MANIFESTS_DIR`. The server and
+control plane learn the catalog from the worker, so connectors left off the
+list do not appear in the UI or CLI, and runs that use them fail. Names are
+unversioned. Listing an HTTP connector such as `instantly` keeps its default
+alias and every registered version. An unknown or versioned name stops
+startup, and so does a value such as `,` that names no connectors. The Helm chart sets these from `worker.connectors.sources` and
+`worker.connectors.sinks`.
+
 ### Datastore
 
 | Variable | Default | Description |

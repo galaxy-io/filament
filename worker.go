@@ -60,11 +60,14 @@ type Inspection struct {
 	Message string
 
 	PrimaryKey []string
-	// Columns are ranked cursor candidates when Ranked is true, otherwise the
-	// resource's schema fields with no cursor eligibility.
+	// Columns are the resource's schema fields with cursor eligibility laid
+	// over them when Ranked is true; cursor columns the schema lacks follow.
+	// Without a schema they are the cursor columns alone.
 	Columns            []CursorColumn
 	Ranked             bool
 	ManagedIncremental bool
+	// Schema is nil when the source provides none.
+	Schema *RecordSchema
 }
 
 // Worker answers every connector question the control services ask: the
