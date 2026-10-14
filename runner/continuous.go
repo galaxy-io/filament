@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 	"github.com/galaxy-io/filament/streamkit"
 )
 
@@ -25,6 +26,8 @@ const DefaultDrainTimeout = 30 * time.Second
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
 // bounded runs. Write intent is resolved by the shared stream planner. Schemas default to the configured source.
 type ContinuousConfig struct {
+	messagePolicy          schema.Policy
+	messageSchemas         map[string]schema.MessageLayout
 	Bus                    eventbus.Bus
 	Log                    filament.Logger
 	events                 *emitter
@@ -66,7 +69,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err != nil {
 		return err
 	}
-	runCtx, cancel := context.WithCancelCause(ctx)
+	runCtx, cancel := context.WithCancelCause(observeSchemaEvents(ctx, cfg.events))
 	defer cancel(nil)
 	var stopping atomic.Bool
 	hb, err := startContinuousHeartbeat(ctx, cfg, lease, &stopping, cancel)
@@ -105,10 +108,10 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	}
 	spec = cfg.Spec
 	opened = true
-	if err := ensureContinuousSchemas(runCtx, &cfg); err != nil {
+	if err := prepareContinuousSchemas(runCtx, &cfg, state); err != nil {
 		return err
 	}
-	session, err = cfg.Source.(filament.StreamSource).OpenStream(runCtx, filament.StreamOpenOpts{ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
@@ -240,8 +243,7 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		if err != nil {
 			return err
 		}
-		rows, nbytes := proof.Totals()
-		commit := filament.EpochCommit{Completion: proof, Certificate: filament.EpochCertificate{FormatVersion: filament.EpochCertificateFormatVersion, Tenant: spec.Tenant, Ref: ref, PipelineVersionID: spec.PipelineVersionID, Coverage: coverage, Records: rows, Bytes: nbytes}}
+		commit := messageEpochCommit(cfg, ref, coverage, proof)
 		// Check source coverage before making destination effects durable.
 		for resource, total := range proof.Resources() {
 			commit.Certificate.Receipts = append(commit.Certificate.Receipts, filament.EpochReceipt{Resource: resource, Rows: total.Rows, Bytes: total.Bytes})
@@ -290,10 +292,13 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 }
 
 func ensureContinuousSchemas(runCtx context.Context, cfg *ContinuousConfig) error {
+	if cfg.messagePolicy != "" {
+		return nil
+	} // Message schemas are complete only after the epoch probe.
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
 		for _, resource := range cfg.Spec.Resources {
-			destination, schema := destinationSchema(resource, cfg.Schemas[resource], cfg.Spec.WritePolicies)
-			if err := schemaSink.EnsureSchema(runCtx, destination, schema); err != nil {
+			destination, model := destinationSchema(resource, cfg.Schemas[resource], cfg.Spec.WritePolicies)
+			if err := schemaSink.EnsureSchema(runCtx, destination, model); err != nil {
 				return err
 			}
 		}
@@ -304,6 +309,9 @@ func ensureContinuousSchemas(runCtx context.Context, cfg *ContinuousConfig) erro
 func continuousReason(err error) string {
 	if err == nil {
 		return ""
+	}
+	if errors.Is(err, schema.ErrBlocked) {
+		return schema.ErrBlocked.Error() + ": " + err.Error()
 	}
 	return err.Error()
 }
@@ -350,10 +358,10 @@ func continuousResourceErrorReporter(cfg ContinuousConfig, lease filament.LeaseT
 
 func newContinuousPipeline(cfg *ContinuousConfig, ordering filament.Ordering) (*pipeline.Pipeline, error) {
 	spec := cfg.Spec
-	pipelineConfig := pipeline.Config{Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	pipelineConfig := pipeline.Config{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: cfg.messageSchemas, Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
 		pipelineConfig.PrepareSchema = func(ctx context.Context, resource string, schema rowmodel.Schema) error {
-			if planned, ok := cfg.Schemas[resource]; ok && planned.Equal(schema) {
+			if planned, ok := cfg.Schemas[resource]; cfg.messagePolicy == "" && ok && planned.Equal(schema) {
 				return nil
 			}
 			destination, actual := destinationSchema(resource, schema, spec.WritePolicies)
@@ -384,6 +392,7 @@ func startContinuousEvents(ctx context.Context, cfg *ContinuousConfig) func(erro
 	cfg.events = newEmitter(ctx, cfg.Bus, cfg.Log, cfg.Spec.Tenant, cfg.Spec.Run)
 	return func(result error) {
 		defer cfg.events.finish()()
+		cfg.events.schemaBlocked(result)
 		emit(cfg.events, events.StreamAttemptEnded, "", events.StreamAttemptEndedEvent{Error: continuousReason(result)})
 	}
 }

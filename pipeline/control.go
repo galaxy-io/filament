@@ -39,6 +39,7 @@ type streamInlet struct {
 	closed                bool
 	epoch                 *filament.EpochRef
 	touched, sealed       bool
+	epochWritten          bool
 	completed             filament.DomainPositions
 	epochRows, epochBytes int64
 	epochResources        map[string]streamproof.ResourceTotals

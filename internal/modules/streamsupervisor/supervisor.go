@@ -4,6 +4,7 @@ package streamsupervisor
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/runner"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // Supervisor reconciles durable intent and dispatches admitted worker attempts.
@@ -125,6 +127,11 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 			return nil
 		}
 		if a != nil {
+			// The persisted attempt reason survives supervisor restarts. A manual
+			// pause/resume changes the revision and permits a fresh assessment.
+			if schemaBlocked(state) {
+				return nil
+			}
 			if a.Termination != filament.AttemptClean {
 				return filament.ErrTakeoverBlocked
 			}
@@ -166,4 +173,9 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 		}
 	}(a.Spec)
 	return nil
+}
+
+func schemaBlocked(state filament.StreamState) bool {
+	a := state.Attempt
+	return a != nil && a.EndedAt != nil && a.Revision == state.Revision && strings.HasPrefix(a.Reason, schema.ErrBlocked.Error()+":")
 }

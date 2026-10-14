@@ -28,6 +28,7 @@ func (p *Pipeline) BindEpoch(ref filament.EpochRef) error {
 	}
 	in.epoch = &ref
 	in.sealed = false
+	in.epochWritten = false
 	in.completed = make(filament.DomainPositions)
 	in.epochRows, in.epochBytes = 0, 0
 	in.epochResources = make(map[string]streamproof.ResourceTotals)
@@ -51,5 +52,5 @@ func (p *Pipeline) SealEpoch() (filament.EpochCompletion, error) {
 		return filament.EpochCompletion{}, filament.ErrIncompleteCoverage
 	}
 	in.sealed = true
-	return streamproof.New(in.epoch.Binding(), in.completed, in.epochRows, in.epochBytes, in.epochResources), nil
+	return streamproof.NewWithMessageSchemas(in.epoch.Binding(), in.completed, in.epochRows, in.epochBytes, in.epochResources, p.messageSchemas), nil
 }
