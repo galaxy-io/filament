@@ -1,35 +1,39 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, FC, ReactNode } from "react";
 
-import { ArrowLeftIcon, TrashIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
 interface PipelineCanvasPanelHeaderProps {
   title: string;
   description?: string;
   icon?: ComponentProps<typeof BaseHeader>["icon"];
-  tile?: React.ReactNode;
+  tile?: ReactNode;
+  actions?: ReactNode[];
+  hasDivider?: boolean;
   onBack?: () => void;
-  onClose: () => void;
+  onClose?: () => void;
   onDelete?: () => void;
 }
 
-const PipelineCanvasPanelHeader = ({
+const PipelineCanvasPanelHeader: FC<PipelineCanvasPanelHeaderProps> = ({
   title,
   description,
   icon,
   tile,
+  actions,
+  hasDivider,
   onBack,
   onClose,
   onDelete,
-}: PipelineCanvasPanelHeaderProps) => (
+}) => (
   <>
-    <FlexWrapper alignItems={AlignItems.CENTER} gap={8} padding="8px 12px" shrink={0} fillWidth>
+    <Flex alignItems={AlignItems.CENTER} gap={8} padding={[8, 12]} shrink={0} fillWidth>
       {onBack && (
         <FlexItem shrink={0}>
           <Button
@@ -48,25 +52,33 @@ const PipelineCanvasPanelHeader = ({
           title={title}
           description={description}
           icon={icon}
-          actions={
-            onDelete
-              ? [
-                  <Button
-                    key="delete"
-                    icon={TrashIcon}
-                    variant={ButtonVariant.SECONDARY}
-                    size={ButtonSize.SMALL}
-                    onClick={onDelete}
-                    ariaLabel="Delete"
-                  />,
-                ]
-              : undefined
-          }
-          onClose={onClose}
+          actions={[
+            ...(actions ?? []),
+            onDelete && (
+              <Button
+                key="delete"
+                icon={TrashIcon}
+                variant={ButtonVariant.SECONDARY}
+                size={ButtonSize.SMALL}
+                onClick={onDelete}
+                ariaLabel="Delete"
+              />
+            ),
+            onClose && (
+              <Button
+                key="close"
+                icon={XIcon}
+                variant={ButtonVariant.SECONDARY}
+                size={ButtonSize.SMALL}
+                onClick={onClose}
+                ariaLabel="Close"
+              />
+            ),
+          ]}
         />
       </FlexItem>
-    </FlexWrapper>
-    <HorizontalDivider />
+    </Flex>
+    {hasDivider && <Divider />}
   </>
 );
 

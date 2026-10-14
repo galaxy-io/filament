@@ -3,5 +3,5 @@
 import typing
 
 IngestionV1ReadMode = typing.Union[
-    typing.Literal["READ_MODE_UNSPECIFIED", "READ_MODE_FULL", "READ_MODE_INCREMENTAL"], typing.Any
+    typing.Literal["READ_MODE_UNSPECIFIED", "READ_MODE_FULL", "READ_MODE_INCREMENTAL", "READ_MODE_CDC"], typing.Any
 ]

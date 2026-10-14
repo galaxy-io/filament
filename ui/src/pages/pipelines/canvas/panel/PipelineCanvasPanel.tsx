@@ -1,75 +1,19 @@
-import { styled } from "@linaria/react";
-import { SidebarSimpleIcon } from "@phosphor-icons/react";
-import { match } from "ts-pattern";
+import type { FC } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import { PIPELINE_CANVAS_OVERLAY_Z_INDEX } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
-import PipelineCanvasPanelActivity from "@/pages/pipelines/canvas/panel/activity/PipelineCanvasPanelActivity";
-import {
-  PIPELINE_CANVAS_PANEL_INSET,
-  PIPELINE_CANVAS_PANEL_WIDTH,
-} from "@/pages/pipelines/canvas/panel/constants";
 import PipelineCanvasPanelNodeDetail from "@/pages/pipelines/canvas/panel/overview/node/PipelineCanvasPanelNodeDetail";
 import PipelineCanvasPanelOverview from "@/pages/pipelines/canvas/panel/overview/PipelineCanvasPanelOverview";
 import PipelineCanvasPanelResourceDetail from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceDetail";
-import PipelineCanvasPanelTabHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelTabHeader";
-import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
+import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 import { usePipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
-import { isConnectionNode } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
-const PanelWrapper = withTheme(styled.div<PropsWithTheme>`
-  position: absolute;
-  top: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  right: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  bottom: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
-
-  width: ${PIPELINE_CANVAS_PANEL_WIDTH}px;
-
-  display: flex;
-  flex-direction: column;
-
-  background-color: ${({ theme }) => theme.color.background.primary};
-
-  border: 0.5px solid ${({ theme }) => theme.color.border.primary};
-  border-radius: 6px;
-
-  overflow: hidden;
-`);
-
-const CollapsedWrapper = styled.div`
-  position: absolute;
-  top: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  right: ${PIPELINE_CANVAS_PANEL_INSET}px;
-  z-index: ${PIPELINE_CANVAS_OVERLAY_Z_INDEX};
-
-  padding: 8px 12px;
-
-  border: 0.5px solid transparent;
-`;
-
-const PipelineCanvasPanel = () => {
+const PipelineCanvasPanel: FC = () => {
   const state = usePipelineCanvasState();
-  const { selectedNodeId, selectedResourceId, showPanel, activeTab, setShowPanel } =
-    usePipelineCanvasSelection();
-
-  if (!showPanel) {
-    return (
-      <CollapsedWrapper>
-        <Button
-          icon={SidebarSimpleIcon}
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.SMALL}
-          onClick={() => setShowPanel(true)}
-          ariaLabel="Open configuration panel"
-        />
-      </CollapsedWrapper>
-    );
-  }
+  const { selectedNodeId, selectedResourceId, setShowPanel } = usePipelineCanvasSelection();
 
   const selectedNode = state.nodes
     .filter(isConnectionNode)
@@ -85,16 +29,23 @@ const PipelineCanvasPanel = () => {
     }
     return (
       <>
-        <PipelineCanvasPanelTabHeader />
-        {match(activeTab)
-          .with(PipelineCanvasPanelTab.ACTIVITY, () => <PipelineCanvasPanelActivity />)
-          .with(PipelineCanvasPanelTab.OVERVIEW, () => <PipelineCanvasPanelOverview />)
-          .exhaustive()}
+        <PipelineCanvasPanelHeader
+          title="Overview"
+          onClose={() => setShowPanel(false)}
+          hasDivider
+        />
+        <PipelineCanvasPanelOverview />
       </>
     );
   };
 
-  return <PanelWrapper>{renderContent()}</PanelWrapper>;
+  return (
+    <Box variant={BoxVariant.PRIMARY} height="100%">
+      <Flex direction={FlexDirection.COLUMN} height="100%">
+        {renderContent()}
+      </Flex>
+    </Box>
+  );
 };
 
 export default PipelineCanvasPanel;

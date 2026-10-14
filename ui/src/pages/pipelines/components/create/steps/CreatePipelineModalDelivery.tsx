@@ -1,30 +1,38 @@
-import FlexWrapper, { FlexDirection, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import type { FC } from "react";
 
-import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import { useCreatePipelineModalState } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import CreatePipelineModalDeliveryAdvanced from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryAdvanced";
-import CreatePipelineModalDeliveryDestinations from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryDestinations";
+import CreatePipelineModalDeliveryConnection from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryConnection";
 import CreatePipelineModalDeliveryNotifications from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNotifications";
 import CreatePipelineModalDeliverySchedule from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySchedule";
-import CreatePipelineModalDeliverySection from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySection";
+import CreatePipelineModalDeliveryWorker from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryWorker";
 
-const CreatePipelineModalDelivery = () => {
-  const { sinks, executionMode } = useCreatePipelineModalState();
+const CreatePipelineModalDelivery: FC = () => {
+  const { sourceConnection, sinks, executionMode } = useCreatePipelineModalState();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.LARGE} fillWidth>
-      {sinks.length > 0 && (
-        <CreatePipelineModalDeliverySection header="Destinations">
-          <CreatePipelineModalDeliveryDestinations />
-        </CreatePipelineModalDeliverySection>
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
+      {sourceConnection && (
+        <CreatePipelineModalDeliveryConnection
+          connection={sourceConnection}
+          kind={ConnectorKind.SOURCE}
+        />
       )}
+      {sinks.map((sink) => (
+        <CreatePipelineModalDeliveryConnection
+          key={sink.connection.id}
+          connection={sink.connection}
+          kind={ConnectorKind.SINK}
+          sink={sink}
+        />
+      ))}
       {executionMode !== ExecutionMode.CONTINUOUS && <CreatePipelineModalDeliverySchedule />}
       <CreatePipelineModalDeliveryNotifications />
-      <CreatePipelineModalDeliverySection header="Advanced">
-        <CreatePipelineModalDeliveryAdvanced />
-      </CreatePipelineModalDeliverySection>
-    </FlexWrapper>
+      <CreatePipelineModalDeliveryWorker />
+    </Flex>
   );
 };
 

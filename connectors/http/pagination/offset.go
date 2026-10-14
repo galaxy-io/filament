@@ -9,7 +9,8 @@ import (
 )
 
 // offsetPaginator increments a numeric offset by page_size. Stops when the
-// API returns fewer records than page_size (short page).
+// API returns fewer records than page_size (short page), unless has_more_path
+// supplies an explicit continuation signal.
 //
 // Single-threaded per resource extraction: lastOffset tracks the offset most
 // recently injected by Apply so that Next can advance it.
@@ -19,6 +20,7 @@ type offsetPaginator struct {
 	pageSize    int
 	injectInto  string
 	lastOffset  int
+	hasMorePath string
 }
 
 func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
@@ -30,6 +32,7 @@ func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
 	}
 	return &offsetPaginator{
 		offsetParam: spec.OffsetParam,
+		hasMorePath: spec.HasMorePath,
 		limitParam:  spec.LimitParam,
 		pageSize:    spec.PageSize,
 		injectInto:  spec.OffsetInjectInto,
@@ -56,7 +59,17 @@ func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, err
 	return nil, nil
 }
 
-func (p *offsetPaginator) Next(_ *http.Response, _ map[string]any, recordCount int) (State, error) {
+func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
+	if p.hasMorePath != "" {
+		more, err := hasMore(body, p.hasMorePath)
+		if err != nil {
+			return State{}, fmt.Errorf("offset pagination: has_more_path %q: %w", p.hasMorePath, err)
+		}
+		if !more {
+			return State{Done: true}, nil
+		}
+		return State{Offset: p.lastOffset + p.pageSize}, nil
+	}
 	if recordCount < p.pageSize {
 		return State{Done: true}, nil
 	}

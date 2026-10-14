@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import pluralize from "pluralize";
 
-import type { SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
   NotificationType,
@@ -10,25 +10,20 @@ import {
   NotifierInputSchema,
 } from "@/gen/ingestion/v1/notifiers_pb";
 
-import { isNameValid } from "@/pages/connectors/components/form/validation";
 import {
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENTS,
   PIPELINE_NOTIFIER_SLACK_URL_PREFIXES,
   PIPELINE_NOTIFIER_URL_SECRET_REF_KEY,
 } from "@/pages/pipelines/components/notifier/constants";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 
-export const formatPipelineNotifierEventsSelection = (
-  selectedOptions: SelectInputOption[],
-  placeholder: string,
-): string => {
-  if (selectedOptions.length === 0) return placeholder;
-  if (selectedOptions.length === 1) return selectedOptions[0].label;
-  if (selectedOptions.length === PIPELINE_NOTIFIER_EVENTS.length) {
-    return PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION.label;
-  }
-  return pluralize("event", selectedOptions.length, true);
+import { isNameValid } from "@/utils/validation";
+
+export const formatPipelineNotifierEventsSelection = (options: SelectOption[]): string => {
+  if (options.length === 1) return options[0].label;
+  if (options.length === PIPELINE_NOTIFIER_EVENTS.length) return PIPELINE_NOTIFIER_ALL_EVENTS_LABEL;
+  return pluralize("event", options.length, true);
 };
 
 export const isPipelineNotifierUrlValid = (url: string): boolean => {
@@ -72,12 +67,19 @@ const isPipelineNotifierSlackValid = (state: PipelineNotifierState): boolean =>
 const isPipelineNotifierWebhookValid = (state: PipelineNotifierState): boolean =>
   isPipelineNotifierUrlValid(state.url) && parsePipelineNotifierHeaders(state.headers) !== null;
 
+const PIPELINE_NOTIFIER_TYPE_TO_VALIDATOR_MAP: Record<
+  NotificationType,
+  (state: PipelineNotifierState) => boolean
+> = {
+  [NotificationType.UNSPECIFIED]: isPipelineNotifierWebhookValid,
+  [NotificationType.WEBHOOK]: isPipelineNotifierWebhookValid,
+  [NotificationType.SLACK]: isPipelineNotifierSlackValid,
+};
+
 export const isPipelineNotifierValid = (state: PipelineNotifierState): boolean =>
   isNameValid(state.name) &&
   state.events.length > 0 &&
-  (state.notificationType === NotificationType.SLACK
-    ? isPipelineNotifierSlackValid(state)
-    : isPipelineNotifierWebhookValid(state));
+  PIPELINE_NOTIFIER_TYPE_TO_VALIDATOR_MAP[state.notificationType](state);
 
 const mapPipelineNotifierStateToConfig = (
   state: PipelineNotifierState,

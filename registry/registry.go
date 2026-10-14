@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/galaxy-io/filament"
@@ -27,12 +28,16 @@ type providerRegistry[P, S any] struct {
 	aliases     map[string]string
 	specOf      func(P) S
 	setMaturity func(*S, filament.ConnectorMaturity)
+	// contracts reports a capability the spec declares but the type does not
+	// implement. Registration refuses it so spec readers never need the instance.
+	contracts func(P) error
 }
 
 func newProviderRegistry[P, S any](
 	kind string,
 	specOf func(P) S,
 	setMaturity func(*S, filament.ConnectorMaturity),
+	contracts func(P) error,
 ) *providerRegistry[P, S] {
 	return &providerRegistry[P, S]{
 		kind:        kind,
@@ -40,6 +45,7 @@ func newProviderRegistry[P, S any](
 		aliases:     make(map[string]string),
 		specOf:      specOf,
 		setMaturity: setMaturity,
+		contracts:   contracts,
 	}
 }
 
@@ -51,6 +57,9 @@ func (r *providerRegistry[P, S]) register(name string, maturity filament.Connect
 	}
 	if factory == nil {
 		panic("registry: nil " + r.kind + " factory for " + name)
+	}
+	if err := r.contracts(factory()); err != nil {
+		panic("registry: " + r.kind + " " + name + ": " + err.Error())
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -103,6 +112,35 @@ func (r *providerRegistry[P, S]) specs() []S {
 	return out
 }
 
+// only copies into fresh what each name selects: the registration of that
+// name, every name@version registration, and an alias of that name with its
+// target. A versioned name or one that selects nothing is an error.
+func (r *providerRegistry[P, S]) only(fresh *providerRegistry[P, S], names []string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, name := range names {
+		if name == "" || strings.Contains(name, "@") {
+			return fmt.Errorf("registry: %s %q is not an unversioned connector name", r.kind, name)
+		}
+		selected := false
+		for registered, registration := range r.factories {
+			if registered == name || strings.HasPrefix(registered, name+"@") {
+				fresh.factories[registered] = registration
+				selected = true
+			}
+		}
+		if target, ok := r.aliases[name]; ok {
+			fresh.aliases[name] = target
+			fresh.factories[target] = r.factories[target]
+			selected = true
+		}
+		if !selected {
+			return fmt.Errorf("%w: %s %q", ErrUnknownProvider, r.kind, name)
+		}
+	}
+	return nil
+}
+
 func (r *providerRegistry[P, S]) snapshot() []registration[P] {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -129,7 +167,23 @@ func NewSources() *Sources {
 		"source",
 		func(source filament.Source) filament.ConnectorSpec { return source.Spec() },
 		func(spec *filament.ConnectorSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		sourceContracts,
 	)}
+}
+
+// sourceContracts requires a source that declares stream capabilities to
+// implement the native stream session and planning contracts.
+func sourceContracts(source filament.Source) error {
+	if source.Spec().Stream == nil {
+		return nil
+	}
+	if _, ok := source.(filament.StreamSource); !ok {
+		return errors.New("declares stream capabilities but does not implement filament.StreamSource")
+	}
+	if _, ok := source.(filament.ReplicationStreamPlanner); !ok {
+		return errors.New("declares stream capabilities but does not implement filament.ReplicationStreamPlanner")
+	}
+	return nil
 }
 
 var _ filament.SourceRegistry = (*Sources)(nil)
@@ -173,6 +227,17 @@ func (r *Sources) WithOverrides(overrides *Sources) (*Sources, error) {
 		}
 	}
 	return merged, nil
+}
+
+// Only returns an independent registry holding the sources names select. A
+// name keeps its alias and every name@version registration. The receiver is
+// not mutated, and source factories still produce fresh instances.
+func (r *Sources) Only(names []string) (*Sources, error) {
+	only := NewSources()
+	if err := r.providers.only(only.providers, names); err != nil {
+		return nil, err
+	}
+	return only, nil
 }
 
 // Register adds a factory under name. It panics on a nil factory or a duplicate
@@ -264,10 +329,32 @@ func NewSinks() *Sinks {
 		"sink",
 		func(sink filament.Sink) filament.SinkSpec { return sink.Spec() },
 		func(spec *filament.SinkSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		sinkContracts,
 	)}
 }
 
+// sinkContracts requires a sink that declares streaming capabilities to
+// implement the native epoch contract.
+func sinkContracts(sink filament.Sink) error {
+	if sink.Spec().Capabilities.Stream == nil {
+		return nil
+	}
+	if _, ok := sink.(filament.StreamingSink); !ok {
+		return errors.New("declares streaming capabilities but does not implement filament.StreamingSink")
+	}
+	return nil
+}
+
 var _ filament.SinkRegistry = (*Sinks)(nil)
+
+// Only returns an independent registry holding the named sinks.
+func (r *Sinks) Only(names []string) (*Sinks, error) {
+	only := NewSinks()
+	if err := r.providers.only(only.providers, names); err != nil {
+		return nil, err
+	}
+	return only, nil
+}
 
 // Register adds a factory under name. Panics on nil factory or duplicate name.
 func (r *Sinks) Register(name string, factory filament.SinkFactory) {

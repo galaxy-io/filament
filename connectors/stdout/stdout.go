@@ -62,7 +62,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "stdout",
 		DisplayName:  "Standard Output (NDJSON)",
-		Description:  "Standard output stream for writing pipeline logs and output directly to the terminal.",
+		Description:  "Standard output stream for displaying data in the terminal or passing it to other programs through shell pipes and redirection.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-stdout-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-stdout-light.svg",
 		Version:      "1",

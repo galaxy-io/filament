@@ -9,8 +9,8 @@ old pages or constructor APIs.
 Write `connectors/http/manifests/<name>/<api-version>/manifest.yaml` for a new connector.
 The manifest owns `name`,
 `display_name`, `description`, `dark_logo_url`, `light_logo_url`, and
-`api_version`, as well as its config schema. Describe the data the connector reads, not the product's
-marketing positioning.
+`api_version`, as well as its config schema. Use the connector card description
+guidance below for UI metadata.
 
 Prefer the existing catalog CDN convention:
 
@@ -29,6 +29,45 @@ available, identify that remaining dependency.
 
 Use the same dark logo URL in the docs frontmatter. When the user later supplies
 CDN assets, update both manifest variants and the docs icon, then check the URLs.
+
+## Connector card descriptions
+
+Apply this convention to the manifest's `description` and driver
+`ConnectorSpec.Description` / `SinkSpec.Description`. Describe the external
+system in its own official terminology, with enough detail to explain what it
+does to someone unfamiliar with the product.
+
+- Start with a concrete product category, such as "CRM platform", "AI notepad",
+  or "Column-oriented database". Do not start with "A", "An", or "The", or
+  repeat the product name already shown on the card.
+- Research the vendor's official product explanation. Prefer an introductory
+  documentation or product overview page when the homepage is only a slogan.
+  Preserve its category and terminology; adapt grammar and length without
+  adding unsupported positioning or capabilities.
+- Follow the category with the core purpose or a defining capability: what
+  people use it for, how it works, or who it serves. Prefer concrete facts to
+  adjectives such as "modern", "powerful", "seamless", or "industry-leading".
+- Aim for one sentence of roughly 15-30 words. Keep enough substance to identify
+  the product; a generic category or marketing tagline alone is insufficient.
+- Describe product capabilities rather than enumerating API resources. Keep
+  supported-resource inventories, Filament behavior, checkpoints, ingestion
+  modes, and file formats in the resource/configuration docs. A brief product
+  or API qualifier is appropriate when it clarifies scope, such as Mailchimp
+  Marketing API, FHIR R4, or the S3 API.
+- Store plain text only. Keep research citations and documentation links outside
+  the description; the UI provides a separate documentation control.
+- Use the same description for source and sink entries of the same system unless
+  they target different products or interfaces. For utilities such as Sample
+  Generator and Standard Output, explain the utility's purpose directly.
+
+Examples:
+
+- Gong: "Revenue intelligence platform that captures and analyzes customer
+  interactions to help sales teams understand deals, coach reps, and forecast
+  revenue."
+- NATS JetStream: "Persistence layer for NATS that stores messages for later
+  delivery and replay, allowing publishers and subscribers to communicate at
+  different times."
 
 ## Register upstream API versions
 

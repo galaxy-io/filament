@@ -10,7 +10,7 @@ func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:         "nats",
 		DisplayName:  connection.DisplayName,
-		Description:  "Consume subject patterns such as orders.> with automatically managed durable consumers.",
+		Description:  "Persistence layer for NATS that stores messages for later delivery and replay, allowing publishers and subscribers to communicate at different times.",
 		DarkLogoURL:  connection.DarkLogoURL,
 		LightLogoURL: connection.LightLogoURL,
 		Version:      "1",

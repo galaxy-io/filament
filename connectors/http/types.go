@@ -82,12 +82,7 @@ func parseInt(bits int, set func(arrowbatch.RowWriter, int64)) valueParser {
 		}
 		v, err := strconv.ParseInt(s, 10, bits)
 		if err != nil {
-			// A JSON number may carry a fraction of zeros (1.0) or an exponent.
-			f, ferr := strconv.ParseFloat(s, 64)
-			if ferr != nil || f != float64(int64(f)) {
-				return err
-			}
-			v = int64(f)
+			return err
 		}
 		set(w, v)
 		return nil

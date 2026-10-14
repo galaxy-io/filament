@@ -6,6 +6,7 @@ package mysql
 // appends into a row. A type absent from the table travels as utf8.
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -23,6 +24,9 @@ type mysqlType struct {
 	logical          rowmodel.LogicalType
 	precision, scale int
 	parse            func(w arrowbatch.RowWriter, text []byte) error
+	// binlog renders a binlog row value as the text parse reads, for the types
+	// the binlog carries as integers (enum, set, bit); nil uses valueBytes.
+	binlog func(v any) ([]byte, error)
 }
 
 // typeFor classifies a column by its information_schema DATA_TYPE (the bare
@@ -65,8 +69,14 @@ func typeFor(dataType, fullType string) mysqlType {
 		return mysqlType{logical: rowmodel.LogicalDecimal, parse: parseText}
 	case "json":
 		return mysqlType{logical: rowmodel.LogicalJSON, parse: parseText}
-	case "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob", "bit":
+	case "binary", "varbinary", "blob", "tinyblob", "mediumblob", "longblob":
 		return mysqlType{logical: rowmodel.LogicalBytes, parse: parseBytes}
+	case "bit":
+		return mysqlType{logical: rowmodel.LogicalBytes, parse: parseBytes, binlog: binlogBit(bitWidth(full))}
+	case "enum":
+		return mysqlType{logical: rowmodel.LogicalString, parse: parseText, binlog: binlogEnum(members(fullType))}
+	case "set":
+		return mysqlType{logical: rowmodel.LogicalString, parse: parseText, binlog: binlogSet(members(fullType))}
 	case "date":
 		return mysqlType{logical: rowmodel.LogicalDate, parse: parseDate}
 	case "datetime":
@@ -75,8 +85,126 @@ func typeFor(dataType, fullType string) mysqlType {
 		return mysqlType{logical: rowmodel.LogicalTimestampTZ, parse: parseDatetime}
 	case "time":
 		return mysqlType{logical: rowmodel.LogicalTime, parse: parseTime}
-	default: // char, varchar, text, enum, set, year, and anything else
+	default: // char, varchar, text, year, and anything else
 		return mysqlType{logical: rowmodel.LogicalString, parse: parseText}
+	}
+}
+
+// members reads the quoted member list of an enum(...) or set(...) declaration.
+// MySQL doubles a quote inside a member and backslash-escapes a backslash, NUL,
+// newline and carriage return.
+func members(fullType string) []string {
+	open := strings.IndexByte(fullType, '(')
+	if open < 0 {
+		return nil
+	}
+	var out []string
+	var cur []byte
+	quoted := false
+	for i := open + 1; i < len(fullType); i++ {
+		c := fullType[i]
+		switch {
+		case !quoted && c == '\'':
+			quoted, cur = true, cur[:0]
+		case !quoted:
+			// separators and the closing parenthesis
+		case c == '\'' && i+1 < len(fullType) && fullType[i+1] == '\'':
+			cur = append(cur, '\'')
+			i++
+		case c == '\'':
+			out = append(out, string(cur))
+			quoted = false
+		case c == '\\' && i+1 < len(fullType):
+			i++
+			switch fullType[i] {
+			case '0':
+				cur = append(cur, 0)
+			case 'n':
+				cur = append(cur, '\n')
+			case 'r':
+				cur = append(cur, '\r')
+			default:
+				cur = append(cur, fullType[i])
+			}
+		default:
+			cur = append(cur, c)
+		}
+	}
+	return out
+}
+
+// bitWidth reads M out of a bit(M) declaration; MySQL's default is 1.
+func bitWidth(full string) int {
+	open := strings.IndexByte(full, '(')
+	end := strings.IndexByte(full, ')')
+	if open < 0 || end < open {
+		return 1
+	}
+	m, err := strconv.Atoi(strings.TrimSpace(full[open+1 : end]))
+	if err != nil || m < 1 || m > 64 {
+		return 1
+	}
+	return m
+}
+
+// binlogEnum maps the binlog's 1-based member index to the member; 0 is the
+// empty string MySQL stores for an invalid value.
+func binlogEnum(members []string) func(any) ([]byte, error) {
+	return func(v any) ([]byte, error) {
+		i, ok := v.(int64)
+		if !ok {
+			return valueBytes(v), nil
+		}
+		if i == 0 {
+			return []byte{}, nil
+		}
+		if i < 0 || i > int64(len(members)) {
+			return nil, fmt.Errorf("enum index %d out of range for %d members", i, len(members))
+		}
+		return []byte(members[i-1]), nil
+	}
+}
+
+// binlogSet maps the binlog's member bitmap to the comma-separated members, in
+// declaration order as the query path reads them.
+func binlogSet(members []string) func(any) ([]byte, error) {
+	return func(v any) ([]byte, error) {
+		i, ok := v.(int64)
+		if !ok {
+			return valueBytes(v), nil
+		}
+		bits := uint64(i) //nolint:gosec // a 64-member set uses the sign bit
+		if len(members) < 64 && bits>>len(members) != 0 {
+			return nil, fmt.Errorf("set bitmap %#x has bits past %d members", bits, len(members))
+		}
+		out := []byte{}
+		for m, member := range members {
+			if bits&(1<<m) == 0 {
+				continue
+			}
+			// MySQL adds the comma only after nonempty text, so an empty
+			// first member leaves no leading comma.
+			if len(out) > 0 {
+				out = append(out, ',')
+			}
+			out = append(out, member...)
+		}
+		return out, nil
+	}
+}
+
+// binlogBit renders the binlog's bit(M) integer as the ceil(M/8) big-endian
+// bytes the query path reads.
+func binlogBit(width int) func(any) ([]byte, error) {
+	n := (width + 7) / 8
+	return func(v any) ([]byte, error) {
+		i, ok := v.(int64)
+		if !ok {
+			return valueBytes(v), nil
+		}
+		var buf [8]byte
+		binary.BigEndian.PutUint64(buf[:], uint64(i)) //nolint:gosec // bit pattern
+		return buf[8-n:], nil
 	}
 }
 
@@ -176,7 +304,7 @@ func parseBytes(w arrowbatch.RowWriter, text []byte) error {
 // parseDate reads "YYYY-MM-DD"; MySQL's zero date, which has no calendar
 // meaning, lands as null.
 func parseDate(w arrowbatch.RowWriter, text []byte) error {
-	if string(text) == "0000-00-00" {
+	if string(text) == "0000-00-00" || string(text) == "0000-00-00T00:00:00Z" {
 		w.Null()
 		return nil
 	}

@@ -35,7 +35,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name:           "sample",
 		DisplayName:    "Sample Generator",
-		Description:    "Synthetic data generator that emits configurable rows per resource for demos, testing, and end-to-end pipeline wiring.",
+		Description:    "Synthetic data generator for testing and demonstrations, with configurable row counts and no external service or credentials required.",
 		DarkLogoURL:    "https://cdn.getgalaxy.io/sources/source-icon-sample-dark.svg",
 		LightLogoURL:   "https://cdn.getgalaxy.io/sources/source-icon-sample-light.svg",
 		Version:        "1",

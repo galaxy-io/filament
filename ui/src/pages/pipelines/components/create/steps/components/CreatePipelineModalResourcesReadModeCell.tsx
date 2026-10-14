@@ -1,60 +1,51 @@
-import { styled } from "@linaria/react";
+import type { FC } from "react";
 
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 
-import type { ReadMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import {
-  CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH,
-  READ_MODE_TO_LABEL_MAP,
-} from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { getReadModeSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
-const CellWrapper = styled.div`
-  width: 100%;
-  min-width: 0;
-`;
+import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
-const CreatePipelineModalResourcesReadModeCell = ({
-  row,
-}: {
+interface CreatePipelineModalResourcesReadModeCellProps {
   row: CreatePipelineModalResourceRow;
-}) => {
+}
+
+const CreatePipelineModalResourcesReadModeCell: FC<
+  CreatePipelineModalResourcesReadModeCellProps
+> = ({ row }) => {
   const { activeSinkId } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
-  const options: SelectInputOption[] = row.readModeOptions.map((mode) => ({
-    id: String(mode),
-    label: READ_MODE_TO_LABEL_MAP[mode],
-    value: mode,
-  }));
+  const { setResourceReadMode } = useCreatePipelineModalActions();
+  const options = getReadModeSelectOptions(row.readModeOptions, row.readMode);
+
+  const handleReadModeChange = (id: string | null) => {
+    if (id === null) return;
+    setResourceReadMode({
+      sinkId: activeSinkId,
+      resource: row.name,
+      readMode: mapOptionIdToEnum(ReadMode, id),
+    });
+  };
 
   return (
-    <CellWrapper>
+    <Box fillWidth minWidth={0}>
       <SelectInput
         options={options}
-        value={options.find((option) => option.value === row.readMode) ?? null}
-        onChange={(option) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_READ_MODE,
-            payload: {
-              sinkId: activeSinkId,
-              resource: row.name,
-              readMode: option.value as ReadMode,
-            },
-          })
-        }
-        variant={InputVariant.TERTIARY}
-        dropdownWidth={CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH}
+        value={getEnumSelectValue(ReadMode, row.readMode)}
+        onChange={handleReadModeChange}
+        variant={SelectInputVariant.TERTIARY}
         isDisabled={!row.isSelected}
+        ariaLabel={`Read mode for ${row.displayName}`}
         fillWidth
       />
-    </CellWrapper>
+    </Box>
   );
 };
 

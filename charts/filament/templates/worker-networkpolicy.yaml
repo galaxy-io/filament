@@ -1,0 +1,29 @@
+{{- if .Values.worker.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "filament.worker.fullname" . }}
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.worker.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "filament.worker.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "filament.server.selectorLabels" . | nindent 14 }}
+        - podSelector:
+            matchLabels:
+              {{- include "filament.controlPlane.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.worker.service.port }}
+    {{- with .Values.worker.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

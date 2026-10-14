@@ -34,6 +34,8 @@ type Deps struct {
 
 	Sources filament.SourceRegistry
 	Sinks   filament.SinkRegistry
+	// Worker answers connector questions without the module holding a driver.
+	Worker filament.Worker
 
 	Log     filament.Logger
 	Metrics filament.Metrics

@@ -1,104 +1,64 @@
-import { styled } from "@linaria/react";
-import { PlusIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
-import pluralize from "pluralize";
+import type { FC } from "react";
 
-import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { AlignItems, JustifyContent } from "@galaxy-io/dls/containers/FlexWrapper";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import PendingLayout, { PendingLayoutSize } from "@galaxy-io/dls/layout/PendingLayout";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
-import { Flow } from "@/layouts/app/types";
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
+import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 
-import { CONNECTOR_KIND_TO_LABEL_MAP } from "@/pages/connectors/constants";
+import PipelineCanvasConnectionSelectorEmpty from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorEmpty";
 import PipelineCanvasConnectionSelectorItem from "@/pages/pipelines/canvas/PipelineCanvasConnectionSelectorItem";
-
-const ConnectionList = withTheme(styled.div<PropsWithTheme>`
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-  background-color: ${({ theme }) => theme.color.background.primary};
-
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`);
-
-const PipelineCanvasConnectionSelectorEmpty = ({
-  message,
-  connectorKind,
-}: {
-  message: string;
-  connectorKind: ConnectorKind;
-}) => {
-  const navigate = useNavigate();
-
-  const handleCreateConnection = () => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        connectionId: undefined,
-        flow: Flow.CREATE_CONNECTION,
-        connectorKind,
-      }),
-    });
-  };
-
-  return (
-    <FlexWrapper
-      fillWidth
-      fillHeight
-      minHeight={240}
-      alignItems={AlignItems.CENTER}
-      justifyContent={JustifyContent.CENTER}
-      padding={24}
-    >
-      <EmptyLayout
-        size={LayoutSize.SMALL}
-        message={message}
-        actions={[
-          <Button
-            key="create-connection"
-            label={`Create ${CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase()}`}
-            icon={PlusIcon}
-            size={ButtonSize.SMALL}
-            onClick={handleCreateConnection}
-          />,
-        ]}
-      />
-    </FlexWrapper>
-  );
-};
-
-const isConnectionDisabled = (connection: Connection, isSourceDisabled: boolean) =>
-  isSourceDisabled && connection.kind === ConnectorKind.SOURCE;
+import { isPipelineCanvasConnectionDisabled } from "@/pages/pipelines/canvas/utils";
 
 interface PipelineCanvasConnectionSelectorListProps {
   connections: Connection[];
   hasConnections: boolean;
+  isLoading: boolean;
+  isError: boolean;
   connectorKind: ConnectorKind;
   isSourceDisabled: boolean;
   onConnectionClick: (connection: Connection) => void;
 }
 
-const PipelineCanvasConnectionSelectorList = ({
+const PipelineCanvasConnectionSelectorList: FC<PipelineCanvasConnectionSelectorListProps> = ({
   connections,
   hasConnections,
+  isLoading,
+  isError,
   connectorKind,
   isSourceDisabled,
   onConnectionClick,
-}: PipelineCanvasConnectionSelectorListProps) => {
+}) => {
+  if (isLoading) {
+    return (
+      <Flex
+        fillWidth
+        minHeight={240}
+        alignItems={AlignItems.CENTER}
+        justifyContent={JustifyContent.CENTER}
+      >
+        <PendingLayout size={PendingLayoutSize.SMALL} />
+      </Flex>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Flex alignItems={AlignItems.START} padding={16} fillWidth>
+        <ErrorLayout size={ErrorLayoutSize.SMALL} header="Failed to load connections" />
+      </Flex>
+    );
+  }
+
   if (!hasConnections) {
     return (
       <PipelineCanvasConnectionSelectorEmpty
-        message={`No ${pluralize(CONNECTOR_KIND_TO_LABEL_MAP[connectorKind].toLowerCase())} found`}
+        message={`No ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[connectorKind]} found`}
         connectorKind={connectorKind}
       />
     );
@@ -114,21 +74,29 @@ const PipelineCanvasConnectionSelectorList = ({
   }
 
   const orderedConnections = [
-    ...connections.filter((connection) => !isConnectionDisabled(connection, isSourceDisabled)),
-    ...connections.filter((connection) => isConnectionDisabled(connection, isSourceDisabled)),
+    ...connections.filter(
+      (connection) => !isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
+    ...connections.filter((connection) =>
+      isPipelineCanvasConnectionDisabled(connection, isSourceDisabled),
+    ),
   ];
 
   return (
-    <ConnectionList>
-      {orderedConnections.map((connection) => (
-        <PipelineCanvasConnectionSelectorItem
-          key={connection.id}
-          connection={connection}
-          isDisabled={isConnectionDisabled(connection, isSourceDisabled)}
-          onClick={() => onConnectionClick(connection)}
-        />
-      ))}
-    </ConnectionList>
+    <FlexItem grow={1} minHeight={0}>
+      <ScrollArea>
+        <Flex direction={FlexDirection.COLUMN} gap={2} padding={8}>
+          {orderedConnections.map((connection) => (
+            <PipelineCanvasConnectionSelectorItem
+              key={connection.id}
+              connection={connection}
+              isDisabled={isPipelineCanvasConnectionDisabled(connection, isSourceDisabled)}
+              onClick={() => onConnectionClick(connection)}
+            />
+          ))}
+        </Flex>
+      </ScrollArea>
+    </FlexItem>
   );
 };
 

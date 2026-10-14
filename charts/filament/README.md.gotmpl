@@ -9,7 +9,7 @@
 
 ## Introduction
 
-This chart deploys Filament server, control plane, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
+This chart deploys Filament server, control plane, a persistent worker that answers connector calls, Kubernetes worker dispatch support, and the configuration needed to connect Filament to PostgreSQL and NATS.
 
 > [!CAUTION]
 > We strongly recommend running exactly one control-plane replica. Multiple replicas may race while coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and leave `controlPlane.autoscaling.enabled` disabled.
@@ -61,6 +61,19 @@ helm upgrade --install filament \
   --set-string eventBus.nats.url='nats://filament-nats:4222'
 ```
 
+## Worker access
+
+The persistent worker's NetworkPolicy is enabled by default. Only this release's
+server and control plane in the same namespace can reach `worker.service.port`.
+The policy is ingress-only, so connector operations retain outbound access to
+their databases, brokers, and APIs. It does not select dispatched worker Jobs.
+
+The cluster's network plugin must enforce NetworkPolicy. Other policies can
+allow additional traffic. Configure `worker.networkPolicy.extraIngress` for
+additional callers, or disable this policy when access is managed externally.
+NetworkPolicy does not encrypt the RPC connection; use TLS or service mesh
+encryption to protect resolved connection credentials in transit.
+
 ## Overrides
 
 | Key | Type | Default | Description |
@@ -97,6 +110,16 @@ helm upgrade --install filament \
 |-----|------|---------|-------------|
 {{- range .Values }}
   {{- if hasPrefix "controlPlane." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
+## Worker parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "worker." .Key }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}

@@ -1,16 +1,9 @@
-import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
-import { notFound, useParams } from "@tanstack/react-router";
+import type { FC } from "react";
 
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { notFound } from "@tanstack/react-router";
 
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
-
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSettingsPageAdvanced";
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";
@@ -18,32 +11,15 @@ import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSett
 import PipelineSettingsPageNotifications from "@/pages/pipelines/settings/PipelineSettingsPageNotifications";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: 100%;
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const ScrollWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-`;
-
-const PipelineSettingsPage = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+const PipelineSettingsPage: FC = () => {
+  const { id } = usePipelineParams();
 
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
 
   if (!data.pipeline) {
@@ -51,27 +27,22 @@ const PipelineSettingsPage = () => {
   }
 
   return (
-    <PageWrapper>
-      <Wrapper padding={"16px"} fillWidth>
-        <BaseHeader size={BaseHeaderSize.LARGE} title="Settings" />
-      </Wrapper>
-      <HorizontalDivider />
-      <ScrollWrapper>
-        <FlexWrapper
-          direction={FlexDirection.COLUMN}
-          gap={12}
-          padding={"16px"}
-          minWidth={400}
-          maxWidth={640}
-        >
-          <PipelineSettingsPageGeneral />
-          <PipelineSettingsPageSchedule />
-          <PipelineSettingsPageNotifications />
-          <PipelineSettingsPageAdvanced />
-          <PipelineSettingsPageDanger />
-        </FlexWrapper>
-      </ScrollWrapper>
-    </PageWrapper>
+    <ScrollArea>
+      <Flex
+        alignItems={AlignItems.STRETCH}
+        direction={FlexDirection.COLUMN}
+        gap={12}
+        padding={16}
+        minWidth={400}
+        maxWidth={640}
+      >
+        <PipelineSettingsPageGeneral key={`${data.pipeline.name}:${data.pipeline.description}`} />
+        <PipelineSettingsPageSchedule />
+        <PipelineSettingsPageNotifications />
+        <PipelineSettingsPageAdvanced />
+        <PipelineSettingsPageDanger />
+      </Flex>
+    </ScrollArea>
   );
 };
 

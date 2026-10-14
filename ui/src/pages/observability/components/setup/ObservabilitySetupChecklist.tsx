@@ -1,97 +1,40 @@
-import { styled } from "@linaria/react";
-import { useNavigate } from "@tanstack/react-router";
-import { match } from "ts-pattern";
+import type { FC } from "react";
 
-import DotGridBackground from "@galaxy-io/dls/backgrounds/DotGridBackground";
-import { ButtonSize } from "@galaxy-io/dls/buttons/Button";
-import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/charts/ProgressBar";
-import FlexWrapper, { AlignItems, FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import GalaxyFilamentWordmark from "@galaxy-io/dls/icons/GalaxyFilamentWordmark";
+import GridBackground, {
+  GRID_BACKGROUND_OPACITY_VAR,
+  GridBackgroundSize,
+} from "@galaxy-io/dls/backgrounds/GridBackground";
+import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
+import ProgressBar, { ProgressBarVariant } from "@galaxy-io/dls/feedback/ProgressBar";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import { useGalaxyTheme, withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
-
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
-import DocsButton from "@/components/DocsButton";
-
-import { Flow } from "@/layouts/app/types";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import {
   OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH,
+  OBSERVABILITY_SETUP_GRID_OPACITY,
   OBSERVABILITY_SETUP_STEP_COUNT,
   OBSERVABILITY_SETUP_STEP_ORDER,
+  OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP,
 } from "@/pages/observability/components/setup/constants";
 import ObservabilitySetupChecklistStep from "@/pages/observability/components/setup/ObservabilitySetupChecklistStep";
 import {
-  ObservabilitySetupStep,
+  type ObservabilitySetupStep,
   ObservabilitySetupStepStatus,
 } from "@/pages/observability/components/setup/types";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 
-const SetupContent = styled.div`
-  position: relative;
+import { useFilamentFlowOpen } from "@/module/hooks";
 
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-
-  width: 100%;
-  max-width: ${OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH}px;
-`;
-
-const SetupCard = withTheme(styled.div<PropsWithTheme>`
-  display: flex;
-  flex-direction: column;
-
-  width: 100%;
-
-  background-color: ${({ theme }) => theme.color.background.secondary};
-
-  border: 0.5px solid ${({ theme }) => theme.color.border.galaxy};
-  border-radius: 6px;
-
-  overflow: hidden;
-`);
-
-const ObservabilitySetupChecklist = () => {
-  const { theme } = useGalaxyTheme();
-  const navigate = useNavigate();
+const ObservabilitySetupChecklist: FC = () => {
+  const openFlow = useFilamentFlowOpen();
   const { completedSteps, activeStep, completedCount } = useObservabilitySetup();
 
   const handleStepClick = (step: ObservabilitySetupStep) => {
-    match(step)
-      .with(ObservabilitySetupStep.SOURCE, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({
-            ...prev,
-            connectionId: undefined,
-            flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SOURCE,
-          }),
-        });
-      })
-      .with(ObservabilitySetupStep.SINK, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({
-            ...prev,
-            connectionId: undefined,
-            flow: Flow.CREATE_CONNECTION,
-            connectorKind: ConnectorKind.SINK,
-          }),
-        });
-      })
-      .with(ObservabilitySetupStep.PIPELINE, () => {
-        void navigate({
-          to: ".",
-          search: (prev) => ({ ...prev, connectionId: undefined, flow: Flow.CREATE_PIPELINE }),
-        });
-      })
-      .exhaustive();
+    const { flow, connectorKind } = OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP[step];
+    openFlow(flow, connectorKind);
   };
 
   const getStepStatus = (step: ObservabilitySetupStep) => {
@@ -105,43 +48,52 @@ const ObservabilitySetupChecklist = () => {
   };
 
   return (
-    <DotGridBackground dotSize={2} backgroundColor={theme.color.background.primary}>
-      <SetupContent>
-        <GalaxyFilamentWordmark height={28} />
-        <FlexWrapper
+    <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
+      <GridBackground
+        size={GridBackgroundSize.X_SMALL}
+        style={{ [GRID_BACKGROUND_OPACITY_VAR]: OBSERVABILITY_SETUP_GRID_OPACITY }}
+      >
+        <Flex
           direction={FlexDirection.COLUMN}
           alignItems={AlignItems.CENTER}
-          gap={6}
+          gap={16}
           fillWidth
+          maxWidth={OBSERVABILITY_SETUP_CONTENT_MAX_WIDTH}
         >
-          <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
-          <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
-        </FlexWrapper>
-        <SetupCard>
-          <FlexWrapper padding={"12px 16px"}>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
-            </Text>
-          </FlexWrapper>
-          <HorizontalDivider />
-          {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
-            <ObservabilitySetupChecklistStep
-              key={step}
-              step={step}
-              status={getStepStatus(step)}
-              onClick={handleStepClick}
-            />
-          ))}
-        </SetupCard>
-        <ProgressBar
-          percentage={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
-          variant={ProgressBarVariant.SUCCESS}
-          height={4}
-          noAnimation
-        />
-        <DocsButton label="Read the docs" size={ButtonSize.LARGE} />
-      </SetupContent>
-    </DotGridBackground>
+          <GalaxyFilamentWordmark size={28} />
+          <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>
+            <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
+            <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
+          </Flex>
+          <FlexItem fillWidth>
+            <Widget
+              variant={WidgetVariant.SECONDARY}
+              isFlush
+              gap={0}
+              header={
+                <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
+                  {completedCount} of {OBSERVABILITY_SETUP_STEP_COUNT} complete
+                </Text>
+              }
+            >
+              {OBSERVABILITY_SETUP_STEP_ORDER.map((step) => (
+                <ObservabilitySetupChecklistStep
+                  key={step}
+                  step={step}
+                  status={getStepStatus(step)}
+                  onClick={handleStepClick}
+                />
+              ))}
+            </Widget>
+          </FlexItem>
+          <ProgressBar
+            ariaLabel="Setup progress"
+            value={(completedCount / OBSERVABILITY_SETUP_STEP_COUNT) * 100}
+            variant={ProgressBarVariant.SUCCESS}
+          />
+        </Flex>
+      </GridBackground>
+    </Box>
   );
 };
 

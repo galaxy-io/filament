@@ -45,6 +45,17 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     api_version: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="apiVersion"), pydantic.Field(alias="apiVersion")
     ] = None
+    alias_target: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="aliasTarget"),
+        pydantic.Field(
+            alias="aliasTarget",
+            description="Concrete registration selected by a source catalog alias; empty otherwise.",
+        ),
+    ] = None
+    """
+    Concrete registration selected by a source catalog alias; empty otherwise.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

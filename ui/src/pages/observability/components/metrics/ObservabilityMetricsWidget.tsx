@@ -1,63 +1,43 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 import { HardDrivesIcon, InfoIcon, RowsIcon } from "@phosphor-icons/react";
-import { useSearch } from "@tanstack/react-router";
 
-import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import { StatChartVariant } from "@galaxy-io/dls/charts/StatChart";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import BigNumber from "@galaxy-io/dls/charts/BigNumber";
+import BigNumberGroup, { BigNumberGroupVariant } from "@galaxy-io/dls/charts/BigNumberGroup";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
-import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { Metric, MetricDimension, QueryAggregateRequestSchema } from "@/gen/metrics/v1/metrics_pb";
 
-import MetricCard from "@/components/metrics/MetricCard";
-import MetricGroup from "@/components/metrics/MetricGroup";
+import { PIPELINE_RUN_STATUS_TO_LABEL_MAP } from "@/components/runs/constants";
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
-import { OBSERVABILITY_RUN_STATUSES } from "@/pages/observability/components/runs/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
-import { createTimeframeSince } from "@/pages/observability/utils";
 import {
-  PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
+  OBSERVABILITY_METRICS_FEATURED_STATUSES,
+  OBSERVABILITY_METRICS_OTHER_STATUSES,
+} from "@/pages/observability/components/metrics/constants";
+import { OBSERVABILITY_RUNS_SCHEDULED_INPUT } from "@/pages/observability/components/runs/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
+import { createTimeframeSince } from "@/pages/observability/utils";
+
+import { useObservabilitySearch } from "@/module/hooks";
 
 import { useQueryAggregateQuery } from "@/api/queries/metrics";
 import { useListRunsQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount } from "@/utils/format";
+import { mapOptionIdToEnum } from "@/utils/select";
 
-const OBSERVABILITY_METRICS_FEATURED_STATUSES = [
-  RunStatus.COMPLETED,
-  RunStatus.FAILED,
-  RunStatus.RUNNING,
-];
+const ObservabilityMetricsWidget: FC = () => {
+  const { timeframe } = useObservabilitySearch();
 
-const OBSERVABILITY_METRICS_OTHER_STATUSES = OBSERVABILITY_RUN_STATUSES.filter(
-  (status) =>
-    !OBSERVABILITY_METRICS_FEATURED_STATUSES.includes(status) && status !== RunStatus.SCHEDULED,
-);
-
-const OBSERVABILITY_METRICS_SCHEDULED_INPUT = create(ListRunsRequestSchema, {
-  status: [RunStatus.SCHEDULED],
-});
-
-const ObservabilityMetricsWidget = () => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
 
   const { totalsInput, statusCountsInput } = useMemo(() => {
-    const sinceMs = createTimeframeSince(timeframe);
+    const sinceMs = createTimeframeSince(timeframe, bucketStartMs);
     return {
       totalsInput: create(QueryAggregateRequestSchema, {
         metrics: [Metric.RUN_COUNT, Metric.RUN_RECORDS, Metric.RUN_BYTES],
@@ -69,7 +49,7 @@ const ObservabilityMetricsWidget = () => {
         groupBy: MetricDimension.STATUS,
       }),
     };
-  }, [timeframe]);
+  }, [timeframe, bucketStartMs]);
 
   const { data: totalsData, isLoading: isTotalsLoading } = useQueryAggregateQuery({
     input: totalsInput,
@@ -78,7 +58,7 @@ const ObservabilityMetricsWidget = () => {
     input: statusCountsInput,
   });
   const { data: scheduledData, isLoading: isScheduledLoading } = useListRunsQuery({
-    input: OBSERVABILITY_METRICS_SCHEDULED_INPUT,
+    input: OBSERVABILITY_RUNS_SCHEDULED_INPUT,
   });
 
   const [totalRuns = 0, totalRecords = 0, totalBytes = 0] = totalsData?.rows[0]?.values ?? [];
@@ -87,7 +67,7 @@ const ObservabilityMetricsWidget = () => {
     () =>
       new Map(
         (statusCountsData?.rows ?? []).map((row) => [
-          Number(row.key) as RunStatus,
+          mapOptionIdToEnum(RunStatus, row.key),
           row.values[0] ?? 0,
         ]),
       ),
@@ -99,106 +79,85 @@ const ObservabilityMetricsWidget = () => {
     0,
   );
 
-  const totalValue = (value: string) =>
-    isTotalsLoading ? <TextShimmer width={48} height={18} /> : value;
-
   return (
-    <MetricGroup
+    <BigNumberGroup
+      ariaLabel="Run metrics"
+      variant={BigNumberGroupVariant.PRIMARY}
+      hasBorder
+      hasFadeEdges
+      fillWidth
       primary={
-        <MetricCard
+        <BigNumber
           label="Total runs"
-          value={totalValue(formatCount(BigInt(Math.round(totalRuns))))}
-          noBorder
+          value={formatNumber(totalRuns, { precision: 0 })}
+          isLoading={isTotalsLoading}
         />
       }
     >
-      <MetricCard
+      <BigNumber
         label="Total records"
-        value={totalValue(formatCount(BigInt(Math.round(totalRecords))))}
-        icon={RowsIcon}
-        variant={StatChartVariant.TERTIARY}
+        value={formatNumber(totalRecords, { precision: 0 })}
+        suffix={<Icon component={RowsIcon} variant={IconVariant.TERTIARY} size={14} />}
+        isLoading={isTotalsLoading}
       />
-      <MetricCard
+      <BigNumber
         label="Total volume"
-        value={totalValue(formatBytes(BigInt(Math.round(totalBytes))))}
-        icon={HardDrivesIcon}
-        variant={StatChartVariant.TERTIARY}
+        value={formatBytes(totalBytes)}
+        suffix={<Icon component={HardDrivesIcon} variant={IconVariant.TERTIARY} size={14} />}
+        isLoading={isTotalsLoading}
       />
       {OBSERVABILITY_METRICS_FEATURED_STATUSES.map((status) => (
-        <MetricCard
+        <BigNumber
           key={status}
           label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-          value={
-            <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-              {isStatusCountsLoading ? (
-                <TextShimmer width={32} height={18} />
-              ) : (
-                <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                  {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
-                </Text>
-              )}
-              <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
-            </FlexWrapper>
-          }
+          value={formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
+          suffix={<PipelineRunStatusSwatch status={status} />}
+          isLoading={isStatusCountsLoading}
         />
       ))}
-      <MetricCard
+      <BigNumber
         label={PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED]}
-        value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-            {isScheduledLoading ? (
-              <TextShimmer width={32} height={18} />
-            ) : (
-              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                {formatCount(BigInt(scheduledData?.runs.length ?? 0))}
-              </Text>
-            )}
-            <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[RunStatus.SCHEDULED]} />
-          </FlexWrapper>
-        }
+        value={formatNumber(scheduledData?.pagination?.total ?? 0, { precision: 0 })}
+        suffix={<PipelineRunStatusSwatch status={RunStatus.SCHEDULED} />}
+        isLoading={isScheduledLoading}
       />
-      <MetricCard
+      <BigNumber
         label="Other"
-        value={
-          <FlexWrapper alignItems={AlignItems.CENTER} gap={6}>
-            {isStatusCountsLoading ? (
-              <TextShimmer width={32} height={18} />
-            ) : (
-              <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
-                {formatCount(BigInt(Math.round(otherStatusesCount)))}
-              </Text>
-            )}
-            <Tooltip
-              body={
-                <FlexWrapper direction={FlexDirection.COLUMN} gap={6}>
-                  {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
-                    <FlexWrapper
-                      key={status}
-                      alignItems={AlignItems.CENTER}
-                      justifyContent={JustifyContent.SPACE_BETWEEN}
-                      gap={48}
-                      fillWidth
-                    >
-                      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL}>
-                        <Beacon variant={PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[status]} />
-                        <Text size={TextSize.BODY_SM}>
-                          {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
-                        </Text>
-                      </FlexWrapper>
+        value={formatNumber(otherStatusesCount, { precision: 0 })}
+        suffix={
+          <Icon
+            component={InfoIcon}
+            variant={IconVariant.TERTIARY}
+            size={14}
+            ariaLabel="Other statuses"
+            tooltip={
+              <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={4}>
+                {OBSERVABILITY_METRICS_OTHER_STATUSES.map((status) => (
+                  <Flex
+                    key={status}
+                    alignItems={AlignItems.CENTER}
+                    justifyContent={JustifyContent.SPACE_BETWEEN}
+                    gap={48}
+                    fillWidth
+                  >
+                    <Flex alignItems={AlignItems.CENTER} gap={8}>
+                      <PipelineRunStatusSwatch status={status} />
                       <Text size={TextSize.BODY_SM}>
-                        {formatCount(BigInt(Math.round(countsByStatus.get(status) ?? 0)))}
+                        {PIPELINE_RUN_STATUS_TO_LABEL_MAP[status]}
                       </Text>
-                    </FlexWrapper>
-                  ))}
-                </FlexWrapper>
-              }
-            >
-              <Icon component={InfoIcon} variant={IconVariant.TERTIARY} size={14} />
-            </Tooltip>
-          </FlexWrapper>
+                    </Flex>
+                    <Text size={TextSize.BODY_SM}>
+                      {formatNumber(countsByStatus.get(status) ?? 0, { precision: 0 })}
+                    </Text>
+                  </Flex>
+                ))}
+              </Flex>
+            }
+          />
         }
+        isLoading={isStatusCountsLoading}
       />
-    </MetricGroup>
+    </BigNumberGroup>
   );
 };
 

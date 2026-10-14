@@ -18,12 +18,12 @@ import {
   PIPELINE_CANVAS_NODE_TYPE_TO_CONNECTOR_KIND_MAP,
 } from "@/pages/pipelines/canvas/constants";
 import { getNextNodePosition } from "@/pages/pipelines/canvas/graph/layout";
-import {
-  type CanvasEdge,
-  type CanvasNode,
-  isConnectionNode,
-  type PipelineCanvasEdgeData,
+import type {
+  CanvasEdge,
+  CanvasNode,
+  PipelineCanvasEdgeData,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 export const getCanvasEdgeResource = (
   edge: Pick<CanvasEdge, "sourceHandle">,
@@ -36,10 +36,15 @@ export const getCanvasEdgeConfig = (
   edge: Pick<CanvasEdge, "data">,
   baseEdge: PipelineEdgeProto | undefined,
 ): PipelineCanvasEdgeData => ({
-  destinationResource: edge.data?.destinationResource ?? baseEdge?.destinationResource ?? "",
+  destinationResource: (
+    edge.data?.destinationResource ??
+    baseEdge?.destinationResource ??
+    ""
+  ).trim(),
   readMode: edge.data?.readMode ?? baseEdge?.readMode ?? ReadMode.UNSPECIFIED,
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
+  transform: edge.data && "transform" in edge.data ? edge.data.transform : baseEdge?.transform,
 });
 
 export const getProtoEdgeKey = (edge: PipelineEdgeProto) =>
@@ -119,7 +124,7 @@ export const mapCanvasStateToVersionRequest = (
       selector: baseEdge?.selector ?? "",
       ...getCanvasEdgeConfig(edge, baseEdge),
       ...(executionMode === ExecutionMode.CONTINUOUS
-        ? { readMode: ReadMode.UNSPECIFIED, cursors: [] }
+        ? { readMode: ReadMode.UNSPECIFIED, cursors: [], transform: undefined }
         : {}),
     };
   });

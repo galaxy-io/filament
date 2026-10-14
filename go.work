@@ -5,6 +5,7 @@ use (
 	./cmd
 	./connectors/bigquery
 	./connectors/iceberg
+	./connectors/motherduck
 	./connectors/object
 	./connectors/redshift
 	./connectors/snowflake

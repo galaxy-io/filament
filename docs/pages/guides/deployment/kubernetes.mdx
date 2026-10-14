@@ -4,9 +4,8 @@ description: "Deploy Filament with the Helm chart"
 ---
 
 Kubernetes with Helm is the recommended way to run Filament in production.
-The chart deploys the server and control plane, runs database migrations, and
-creates a worker Job for each run. It does not create a long-running worker
-Deployment.
+The chart deploys the server, control plane, and a persistent worker for connector
+calls. It runs database migrations and creates a worker Job for each run.
 
 <Warning>
 Run exactly one control-plane replica. Multiple replicas may race while
@@ -99,14 +98,30 @@ settings from a Secret and ConfigMap, then loads the run from the datastore.
 Each pipeline can set its own CPU, memory, node selectors, and tolerations.
 This lets Kubernetes place and size each run independently.
 
+The chart also runs the worker image as a persistent Deployment that answers
+the server's connector calls. It shares the Jobs' image and ServiceAccount and
+receives no runtime Secret.
+
+The worker NetworkPolicy is enabled by default. It allows connector calls only
+from this release's server and control plane in the same namespace, on
+`worker.service.port`. It does not restrict outbound connector traffic or select
+dispatched worker Jobs. The cluster's network plugin must enforce NetworkPolicy,
+and other policies can allow additional traffic. Use
+`worker.networkPolicy.extraIngress` for additional callers, or set
+`worker.networkPolicy.enabled=false` when access is managed externally.
+
+NetworkPolicy does not encrypt the RPC connection. Use TLS or a service mesh to
+protect resolved connection credentials in transit.
+
 Common worker settings include:
 
-- `controlPlane.dispatch.job.namePrefix` (default `filament`)
-- `controlPlane.dispatch.job.backoffLimit` (default 1)
-- `controlPlane.dispatch.job.ttlSecondsAfterFinished` (default 3600)
-- `controlPlane.dispatch.worker.restartPolicy` (default `Never`)
-- `controlPlane.dispatch.worker.terminationGraceSeconds`
-- `controlPlane.dispatch.worker.activeDeadlineSeconds`
+- `worker.job.namePrefix` (default `filament`)
+- `worker.job.backoffLimit` (default 1)
+- `worker.job.ttlSecondsAfterFinished` (default 3600)
+- `worker.job.restartPolicy` (default `Never`)
+- `worker.job.terminationGraceSeconds`
+- `worker.job.activeDeadlineSeconds`
+- `worker.replicas` (default 1) and `worker.resources` for the persistent worker
 
 For all worker settings, see the
 [Helm chart README](https://github.com/galaxy-io/filament/tree/main/charts/filament).

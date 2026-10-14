@@ -15,6 +15,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/tidwall/gjson"
 
@@ -231,18 +232,21 @@ func decodeExportRecords(ctx context.Context, r io.Reader, spec manifest.ExportR
 		}
 		return scanner.Err()
 	case "csv":
-		recordInput := &exportRecordReader{r: r}
-		reader := csv.NewReader(recordInput)
-		readRow := func() ([]string, error) {
-			recordInput.start = reader.InputOffset()
-			row, err := reader.Read()
-			if reader.InputOffset()-recordInput.start > maxExportRecordBytes {
-				return nil, fmt.Errorf("export CSV record exceeds 10 MiB")
-			}
-			return row, err
-		}
-		header, err := readRow()
-		if err != nil {
+		return decodeExportCSV(r, spec.CSV, deliver)
+	default:
+		return fmt.Errorf("unsupported export format")
+	}
+}
+
+// decodeExportCSV reads a header row unless the dialect names the columns.
+// Every row must have exactly as many fields as there are columns; a short or
+// long row is an error rather than values shifted into the wrong fields.
+func decodeExportCSV(r io.Reader, dialect *manifest.ExportCSV, deliver func(map[string]any) error) error {
+	readRow := exportCSVRows(r, dialect)
+	var header []string
+	if dialect.HasHeader() {
+		var err error
+		if header, err = readRow(); err != nil {
 			return fmt.Errorf("read CSV header: %w", err)
 		}
 		seen := map[string]bool{}
@@ -252,24 +256,72 @@ func decodeExportRecords(ctx context.Context, r io.Reader, spec manifest.ExportR
 			}
 			seen[key] = true
 		}
-		for {
-			values, err := readRow()
-			if err == io.EOF {
-				return nil
-			}
-			if err != nil {
-				return fmt.Errorf("read CSV row: %w", err)
-			}
-			row := make(map[string]any, len(header))
-			for i, key := range header {
-				row[key] = values[i]
-			}
-			if err := deliver(row); err != nil {
-				return err
-			}
+	} else {
+		header = dialect.Columns
+	}
+	for n := 1; ; n++ {
+		values, err := readRow()
+		if err == io.EOF {
+			return nil
 		}
-	default:
-		return fmt.Errorf("unsupported export format")
+		if err != nil {
+			return fmt.Errorf("read CSV row: %w", err)
+		}
+		if len(values) != len(header) { // quoting: none; encoding/csv checks its own rows
+			return fmt.Errorf("read CSV row: data row %d has %d fields, want %d", n, len(values), len(header))
+		}
+		row := make(map[string]any, len(header))
+		for i, key := range header {
+			row[key] = values[i]
+		}
+		if err := deliver(row); err != nil {
+			return err
+		}
+	}
+}
+
+// exportCSVRows returns a reader of raw rows. Standard quoting uses
+// encoding/csv. Quoting "none" splits each line on the delimiter: LazyQuotes
+// is not enough, since a field that starts with a quote would still be parsed
+// as quoted and swallow delimiters up to the next quote. Blank lines are
+// skipped in both modes, as encoding/csv does.
+func exportCSVRows(r io.Reader, dialect *manifest.ExportCSV) func() ([]string, error) {
+	delimiter := ','
+	if dialect != nil && dialect.Delimiter != "" {
+		delimiter, _ = utf8.DecodeRuneInString(dialect.Delimiter)
+	}
+	if dialect != nil && dialect.Quoting == "none" {
+		scanner := bufio.NewScanner(r)
+		scanner.Buffer(make([]byte, 64*1024), maxExportRecordBytes)
+		return func() ([]string, error) {
+			for scanner.Scan() {
+				if line := scanner.Text(); line != "" {
+					return strings.Split(line, string(delimiter)), nil
+				}
+			}
+			if err := scanner.Err(); err == bufio.ErrTooLong {
+				return nil, fmt.Errorf("export CSV record exceeds 10 MiB")
+			} else if err != nil {
+				return nil, err
+			}
+			return nil, io.EOF
+		}
+	}
+	recordInput := &exportRecordReader{r: r}
+	reader := csv.NewReader(recordInput)
+	reader.Comma = delimiter
+	if !dialect.HasHeader() {
+		// Without a header row, encoding/csv would take the field count from
+		// the first data row; hold every row to the declared columns instead.
+		reader.FieldsPerRecord = len(dialect.Columns)
+	}
+	return func() ([]string, error) {
+		recordInput.start = reader.InputOffset()
+		row, err := reader.Read()
+		if reader.InputOffset()-recordInput.start > maxExportRecordBytes {
+			return nil, fmt.Errorf("export CSV record exceeds 10 MiB")
+		}
+		return row, err
 	}
 }
 

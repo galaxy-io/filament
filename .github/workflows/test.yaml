@@ -31,6 +31,13 @@ jobs:
           GOOS: linux
         run: cd cmd && go build ./...
 
+      - name: Build worker
+        env:
+          GOWORK: off
+          CGO_ENABLED: "1"
+          GOOS: linux
+        run: go build -C cmd/worker -o /dev/null .
+
   unit:
     if: github.event.pull_request.user.login != 'gx-null[bot]'
     runs-on: ubuntu-latest

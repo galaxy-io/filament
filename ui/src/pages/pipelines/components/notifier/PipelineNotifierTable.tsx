@@ -2,38 +2,34 @@ import { useState } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 
-import Accordion, { type AccordionSize } from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import ToggleInput from "@galaxy-io/dls/inputs/ToggleInput";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  TableVariant,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import SwitchInput from "@galaxy-io/dls/inputs/SwitchInput";
+import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import {
   PIPELINE_NOTIFIER_DEFAULT_STATE,
   PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
+  PIPELINE_NOTIFIER_TABLE_EMPTY_HEIGHT,
 } from "@/pages/pipelines/components/notifier/constants";
 import PipelineNotifierForm from "@/pages/pipelines/components/notifier/PipelineNotifierForm";
+import PipelineNotifierTypeTile from "@/pages/pipelines/components/notifier/PipelineNotifierTypeTile";
 import type {
   PipelineNotifier,
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
 
 interface PipelineNotifierTableProps<TRow extends PipelineNotifier> {
-  header: string;
-  size?: AccordionSize;
+  header?: string;
   rows: TRow[];
-  isLoading?: boolean;
+  isOpenInitial?: boolean;
   isSaving?: boolean;
   onCreate: (state: PipelineNotifierState, onSuccess: () => void) => void;
   onUpdate: (row: TRow, state: PipelineNotifierState, onSuccess: () => void) => void;
@@ -47,34 +43,31 @@ interface PipelineNotifierTableState {
   expandedRowIds: PipelineNotifier["id"][];
 }
 
-const DEFAULT_STATE: PipelineNotifierTableState = {
-  isOpen: false,
-  isCreating: false,
-  expandedRowIds: [],
-};
-
 const PipelineNotifierTable = <TRow extends PipelineNotifier>({
-  header,
-  size,
+  header = "Notifiers",
   rows,
-  isLoading = false,
+  isOpenInitial = true,
   isSaving = false,
   onCreate,
   onUpdate,
   onDelete,
   onToggleEnabled,
 }: PipelineNotifierTableProps<TRow>) => {
-  const [state, setState] = useState<PipelineNotifierTableState>(DEFAULT_STATE);
+  const [state, setState] = useState<PipelineNotifierTableState>(() => ({
+    isOpen: isOpenInitial,
+    isCreating: false,
+    expandedRowIds: [],
+  }));
 
-  const handleToggle = () => {
-    setState((prev) => ({ ...prev, isOpen: !prev.isOpen }));
+  const handleOpenChange = (isOpen: boolean) => {
+    setState((prev) => ({ ...prev, isOpen }));
   };
 
   const handleCreatingChange = (isCreating: boolean) => {
     setState((prev) => ({
       ...prev,
+      isOpen: prev.isOpen || isCreating,
       isCreating,
-      isOpen: isCreating || prev.isOpen,
       expandedRowIds: isCreating ? [] : prev.expandedRowIds,
     }));
   };
@@ -83,53 +76,66 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
     setState((prev) => ({ ...prev, expandedRowIds }));
   };
 
-  const columns: ColumnDef<TRow>[] = [
+  const columns: TableColumn<TRow>[] = [
     {
       id: "name",
       header: "Name",
-      cellLoading: () => <TextShimmer width={140} height={16} />,
+      isRowHeader: true,
       cell: ({ row }) => (
-        <Text size={TextSize.BODY_SM} isEllipsis>
-          {row.original.name}
-        </Text>
+        <Flex alignItems={AlignItems.CENTER} gap={8}>
+          <PipelineNotifierTypeTile notificationType={row.notificationType} />
+          <Text size={TextSize.BODY_SM} lineClamp={1}>
+            {row.name}
+          </Text>
+        </Flex>
       ),
     },
     {
       id: "enabled",
       header: "",
-      align: ColumnAlign.RIGHT,
-      size: PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
-      cellLoading: () => null,
+      align: "right",
+      width: PIPELINE_NOTIFIER_TABLE_COLUMN_WIDTH_ENABLED,
       cell: ({ row }) => (
-        <ToggleInput
-          size={InputSize.LARGE}
-          value={row.original.isEnabled}
-          onChange={(isEnabled) => onToggleEnabled(row.original, isEnabled)}
+        <SwitchInput
+          isChecked={row.isEnabled}
+          onChange={(isEnabled) => onToggleEnabled(row, isEnabled)}
           isDisabled={isSaving}
+          ariaLabel={`Enable ${row.name}`}
         />
       ),
     },
   ];
 
+  const hasRows = rows.length > 0;
+
   return (
-    <Accordion
+    <Widget
+      isCollapsible
       header={header}
-      size={size}
-      padding={0}
+      isFlush
       isOpen={state.isOpen}
-      onToggle={handleToggle}
-      trailing={
-        <Button
-          label="Add notifier"
-          icon={PlusIcon}
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.SMALL}
-          onClick={() => handleCreatingChange(true)}
-          isDisabled={state.isCreating || isSaving}
-        />
+      onOpenChange={handleOpenChange}
+      actions={
+        <Flex alignItems={AlignItems.CENTER} gap={8}>
+          <Button
+            label="Add notifier"
+            icon={PlusIcon}
+            variant={ButtonVariant.SECONDARY}
+            size={ButtonSize.SMALL}
+            onClick={() => handleCreatingChange(true)}
+            isDisabled={state.isCreating || isSaving}
+          />
+          <Chip
+            hasBorder
+            isPill
+            count={rows.length}
+            size={ChipSize.SMALL}
+            variant={ChipVariant.SECONDARY}
+          />
+        </Flex>
       }
     >
-      <FlexWrapper direction={FlexDirection.COLUMN} fillWidth>
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} fillWidth>
         {state.isCreating && (
           <>
             <PipelineNotifierForm
@@ -138,41 +144,42 @@ const PipelineNotifierTable = <TRow extends PipelineNotifier>({
               onSave={(next) => onCreate(next, () => handleCreatingChange(false))}
               onCancel={() => handleCreatingChange(false)}
             />
-            <HorizontalDivider />
+            {hasRows && <Divider />}
           </>
         )}
-        <InfiniteTable<TRow>
-          columns={columns}
-          data={rows}
-          getRowId={(row) => row.id}
-          isLoading={isLoading}
-          contentWhenEmpty={
+        {!hasRows && !state.isCreating && (
+          <Box height={PIPELINE_NOTIFIER_TABLE_EMPTY_HEIGHT} fillWidth>
             <EmptyLayout
-              size={LayoutSize.SMALL}
+              size={EmptyLayoutSize.SMALL}
               header="No notifiers"
-              message="Add a notifier to get notified when runs complete or fail."
+              description="Add a notifier to get notified when runs complete or fail."
             />
-          }
-          expandedRowIds={state.expandedRowIds}
-          onExpandedChange={handleExpandedChange}
-          onRowExpand={(row) => (
-            <PipelineNotifierForm
-              initialState={row.original}
-              isSaving={isSaving}
-              onSave={(next) => onUpdate(row.original, next, () => handleExpandedChange([]))}
-              onCancel={() => handleExpandedChange([])}
-              onDelete={() => onDelete(row.original)}
+          </Box>
+        )}
+        {hasRows && (
+          <Box variant={BoxVariant.PRIMARY} fillWidth>
+            <InfiniteTable<TRow>
+              ariaLabel={header}
+              hasHeader={false}
+              columns={columns}
+              data={rows}
+              getRowId={(row) => row.id}
+              expandedIds={state.expandedRowIds}
+              onExpandedIdsChange={handleExpandedChange}
+              renderExpandedRow={(row) => (
+                <PipelineNotifierForm
+                  initialState={row}
+                  isSaving={isSaving}
+                  onSave={(next) => onUpdate(row, next, () => handleExpandedChange([]))}
+                  onCancel={() => handleExpandedChange([])}
+                  onDelete={() => onDelete(row)}
+                />
+              )}
             />
-          )}
-          enableMultiRowExpansion={false}
-          variant={TableVariant.PRIMARY}
-          noLastRowBorder
-          noLastRowPadding
-          noHeader
-          fillWidth
-        />
-      </FlexWrapper>
-    </Accordion>
+          </Box>
+        )}
+      </Flex>
+    </Widget>
   );
 };
 

@@ -1,30 +1,29 @@
 import { styled } from "@linaria/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import { FOCUS_RING, HAIRLINE_WIDTH, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-const PipelineCanvasPanelItem = withTheme(styled.button<PropsWithTheme>`
+const PipelineCanvasPanelItem = styled.button`
+  ${INTERACTIVE_RESET}
+  ${FOCUS_RING}
   width: 100%;
-  padding: 12px;
+  padding: ${t.space[12]};
 
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${t.space[8]};
 
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
   text-align: left;
 
-  transition: background-color 100ms ease;
+  transition: background-color ${t.duration.fast};
 
   &:not(:last-child) {
-    border-bottom: 0.5px solid ${({ theme }) => theme.color.border.primary};
+    border-bottom: ${HAIRLINE_WIDTH} solid ${t.color.border.primary};
   }
 
   &:hover {
-    background-color: ${({ theme }) => theme.color.background.tertiary};
+    background-color: ${t.color.background.hovered};
   }
-`);
+`;
 
 export default PipelineCanvasPanelItem;

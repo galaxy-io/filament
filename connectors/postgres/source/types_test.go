@@ -101,6 +101,37 @@ func TestTextDecode(t *testing.T) {
 	}
 }
 
+// TestTextDecodeFiveDigitYear reads a year past 9999, which Postgres prints
+// with five digits in pgoutput text (and textDate renders the same way).
+func TestTextDecodeFiveDigitYear(t *testing.T) {
+	rs := rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "d", Logical: rowmodel.LogicalDate},
+		{Name: "at", Logical: rowmodel.LogicalTimestampTZ},
+	}}
+	oids := []uint32{pgtype.DateOID, pgtype.TimestamptzOID}
+	texts := []string{"10000-01-01", "10000-01-01 12:00:00+00"}
+	c := &collect{}
+	b := arrowbatch.NewBuilder(arrowbatch.Schema(rs), nil, arrowbatch.Options{MaxRows: 1}, c)
+	for i, f := range rs.Fields {
+		pt, _ := typeFor(oids[i], f)
+		if err := pt.fromText(b, []byte(texts[i])); err != nil {
+			t.Fatalf("%s: %v", f.Name, err)
+		}
+	}
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
+		t.Fatal(err)
+	}
+	defer c.chunks[0].Release()
+	rows := c.chunks[0].Rows()
+	days := arrowtext.DateToDays(10000, 1, 1)
+	if got := int64(rows.Column(0).(*array.Date32).Value(0)); got != days {
+		t.Errorf("d = %d want %d", got, days)
+	}
+	if got, want := int64(rows.Column(1).(*array.Timestamp).Value(0)), days*arrowtext.MicrosPerDay+12*arrowtext.MicrosPerHour; got != want {
+		t.Errorf("at = %d want %d", got, want)
+	}
+}
+
 // TestDecDecimal covers the wire forms Postgres actually sends: trailing zero
 // groups stripped (50000.00 is one group at weight 1), fraction groups past the
 // scale, and the extremes of a 38-digit column.
@@ -119,6 +150,7 @@ func TestDecDecimal(t *testing.T) {
 		{"0.05 scale 2", 2, numericWire(0, -1, 2, 500), "0.05", false},
 		{"-123456.000", 3, numericWire(numericNeg, 1, 3, 12, 3456), "-123456.000", false},
 		{"zero", 2, numericWire(0, 0, 2), "0.00", false},
+		{"zero scale 36", 36, numericWire(0, 0, 36), "0.000000000000000000000000000000000000", false},
 		{"1.5 in scale 4", 4, numericWire(0, 0, 1, 1, 5000), "1.5000", false},
 		{"38 digits", 2, numericWire(0, 8, 2, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9999, 9900), "999999999999999999999999999999999999.99", false},
 		{"NaN is null", 2, numericWire(numericNaN, 0, 0), "", false},

@@ -1,4 +1,5 @@
 import {
+  type Connection as CanvasConnection,
   addEdge as xyflowAddEdge,
   applyEdgeChanges as xyflowApplyEdgeChanges,
   applyNodeChanges as xyflowApplyNodeChanges,
@@ -28,7 +29,8 @@ import {
   type SetRouteWriteModeAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
-import { isConnectionNode, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { type CanvasEdge, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 
 function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): PipelineCanvasState {
   return {
@@ -39,21 +41,36 @@ function loadGraph(state: PipelineCanvasState, action: LoadGraphAction): Pipelin
   };
 }
 
+function addEdges(edges: CanvasEdge[], connections: CanvasConnection[]): CanvasEdge[] {
+  return connections.reduce((nextEdges, connection) => {
+    if (!canConnectEdge(connection, nextEdges)) return nextEdges;
+    const routeWriteMode = nextEdges.find(
+      (edge) => edge.source === connection.source && edge.target === connection.target,
+    )?.data?.writeMode;
+    return xyflowAddEdge(
+      {
+        ...connection,
+        type: PIPELINE_CANVAS_EDGE_TYPE,
+        ...(routeWriteMode !== undefined && {
+          data: { readMode: ReadMode.UNSPECIFIED, writeMode: routeWriteMode, cursors: [] },
+        }),
+      },
+      nextEdges,
+    );
+  }, edges);
+}
+
 function addNode(state: PipelineCanvasState, action: AddNodeAction): PipelineCanvasState {
-  const node = action.payload;
+  const { node, resources } = action.payload;
   if (node.type === PipelineCanvasNodeType.SOURCE && !canAddSourceNode(state.nodes)) {
     return state;
   }
 
-  const edges = getAutoConnections(node, state.nodes).reduce(
-    (nextEdges, connection) =>
-      canConnectEdge(connection, nextEdges)
-        ? xyflowAddEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, nextEdges)
-        : nextEdges,
-    state.edges,
-  );
-
-  return { ...state, nodes: [...state.nodes, node], edges };
+  return {
+    ...state,
+    nodes: [...state.nodes, node],
+    edges: addEdges(state.edges, getAutoConnections(node, state.nodes, resources)),
+  };
 }
 
 function removeNode(state: PipelineCanvasState, action: RemoveNodeAction): PipelineCanvasState {
@@ -94,12 +111,7 @@ function applyEdgeChanges(
 }
 
 function connect(state: PipelineCanvasState, action: ConnectAction): PipelineCanvasState {
-  if (!canConnectEdge(action.payload, state.edges)) return state;
-
-  return {
-    ...state,
-    edges: xyflowAddEdge({ ...action.payload, type: PIPELINE_CANVAS_EDGE_TYPE }, state.edges),
-  };
+  return { ...state, edges: addEdges(state.edges, action.payload) };
 }
 
 function setActiveMode(
@@ -155,6 +167,7 @@ function setRouteWriteMode(
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: action.payload.writeMode,
               cursors: edge.data?.cursors ?? [],
+              transform: edge.data?.transform,
             },
           }
         : edge,

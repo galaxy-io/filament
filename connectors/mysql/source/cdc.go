@@ -358,7 +358,8 @@ func (r *cdcRun) table(ctx context.Context, s *Source, table string, want int) (
 // appendBinlogRow appends one decoded binlog row in column order. Every value
 // is taken in its text form ([]byte, string, or a Stringer such as a decimal;
 // numbers rendered), the same form the query path parses; binary columns are
-// their raw bytes.
+// their raw bytes. Enum, set and bit values arrive as integers and are mapped
+// back to that form by the column's type.
 func (d *rowDecoder) appendBinlogRow(w arrowbatch.RowWriter, row []any) error {
 	if len(row) < len(d.types) {
 		return fmt.Errorf("row has %d values for %d columns", len(row), len(d.types))
@@ -368,7 +369,16 @@ func (d *rowDecoder) appendBinlogRow(w arrowbatch.RowWriter, row []any) error {
 			w.Null()
 			continue
 		}
-		if err := t.parse(w, valueBytes(row[i])); err != nil {
+		var text []byte
+		if t.binlog != nil {
+			var err error
+			if text, err = t.binlog(row[i]); err != nil {
+				return fmt.Errorf("column %q: %w", d.schema.Fields[i].Name, err)
+			}
+		} else {
+			text = valueBytes(row[i])
+		}
+		if err := t.parse(w, text); err != nil {
 			return fmt.Errorf("column %q: %w", d.schema.Fields[i].Name, err)
 		}
 	}

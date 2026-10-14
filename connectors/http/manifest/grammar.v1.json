@@ -286,6 +286,16 @@
                 "records_path": { "type": "string", "minLength": 1 }
               }
             },
+            "csv": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "delimiter": { "type": "string", "minLength": 1 },
+                "header": { "type": "boolean" },
+                "columns": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+                "quoting": { "type": "string", "enum": ["standard", "none"] }
+              }
+            },
             "max_download_bytes": { "type": "integer", "minimum": 1 },
             "max_uncompressed_bytes": { "type": "integer", "minimum": 1 }
           }
@@ -490,6 +500,7 @@
               "required": ["offset", "limit", "page_size"],
               "additionalProperties": false,
               "properties": {
+                "more": { "type": "string", "minLength": 1 },
                 "offset": { "type": "string" },
                 "limit": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 }

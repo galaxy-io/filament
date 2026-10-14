@@ -15,7 +15,7 @@ func ResolveIngestionPlan(ctx context.Context, src Source, snk Sink, spec RunSpe
 	if spec.Options.Execution.Normalize() == ExecutionContinuous {
 		return resolveContinuousIngestionPlan(ctx, src, snk, spec)
 	}
-	replication := ReplicationOf(src, NewConfig(spec.Source.Config))
+	replication := ReplicationFor(src.Spec(), NewConfig(spec.Source.Config))
 	validated := map[IngestionType]bool{}
 	validate := func(t IngestionType) error {
 		if validated[t] {

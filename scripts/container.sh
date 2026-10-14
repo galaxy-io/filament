@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared engine/endpoint setup for Compose, image builds, and Testcontainers.
+# Shared engine/endpoint setup for Compose, image builds, container runs, and Testcontainers.
 set -euo pipefail
 
 fail() { echo "container setup: $*" >&2; exit 1; }
@@ -10,7 +10,7 @@ command -v "$CONTAINER_ENGINE" >/dev/null || fail "$CONTAINER_ENGINE is not inst
 
 action="${1:-doctor}"
 shift || true
-case "$action" in compose|build|exec|doctor) ;; *) fail "expected compose, build, exec, or doctor" ;; esac
+case "$action" in compose|build|run|exec|doctor) ;; *) fail "expected compose, build, run, exec, or doctor" ;; esac
 
 if [[ "$CONTAINER_ENGINE" == podman ]]; then
     platform="$(uname -s)"
@@ -64,6 +64,7 @@ case "$action" in
         exec "$CONTAINER_ENGINE" compose "${env_files[@]}" "$@"
         ;;
     build) exec "$CONTAINER_ENGINE" build "$@" ;;
+    run) exec "$CONTAINER_ENGINE" run "$@" ;;
     exec) exec "$@" ;;
     doctor)
         echo "Engine: $CONTAINER_ENGINE"

@@ -4,7 +4,12 @@ import typing
 
 IngestionV1WriteMode = typing.Union[
     typing.Literal[
-        "WRITE_MODE_UNSPECIFIED", "WRITE_MODE_APPEND", "WRITE_MODE_REPLACE", "WRITE_MODE_UPSERT", "WRITE_MODE_MERGE"
+        "WRITE_MODE_UNSPECIFIED",
+        "WRITE_MODE_APPEND",
+        "WRITE_MODE_REPLACE",
+        "WRITE_MODE_UPSERT",
+        "WRITE_MODE_MERGE",
+        "WRITE_MODE_DELETE",
     ],
     typing.Any,
 ]

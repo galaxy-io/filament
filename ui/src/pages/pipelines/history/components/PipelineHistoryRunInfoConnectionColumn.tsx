@@ -1,30 +1,35 @@
-import { create } from "@bufbuild/protobuf";
-import { useNavigate } from "@tanstack/react-router";
+import type { FC } from "react";
 
-import FlexItem from "@galaxy-io/dls/containers/FlexItem";
-import FlexWrapper, { AlignItems, FlexGap } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { EMPTY_VALUE } from "@galaxy-io/dls/utils/format";
 
-import { type Connection, GetConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { RunResourceState } from "@/gen/ingestion/v1/runs_pb";
 
-import ConnectorTile, { ConnectorTileSize } from "@/pages/connectors/components/ConnectorTile";
+import ConnectorTile from "@/components/connections/ConnectorTile";
+import { ConnectorTileSize } from "@/components/connections/types";
 
-import { useGetConnectionQuery } from "@/api/queries/connections";
+import { useFilamentSearchUpdate } from "@/module/hooks";
+import type { FilamentLayoutSearch } from "@/module/schemas";
+
+import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 
 interface PipelineHistoryRunInfoConnectionColumnProps {
   connectionId: Connection["id"];
   resourceName?: RunResourceState["resourceName"];
 }
 
-const PipelineHistoryRunInfoConnectionColumn = ({
+const PipelineHistoryRunInfoConnectionColumn: FC<PipelineHistoryRunInfoConnectionColumnProps> = ({
   connectionId,
   resourceName,
-}: PipelineHistoryRunInfoConnectionColumnProps) => {
-  const navigate = useNavigate();
+}) => {
+  const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
 
   const { data: connectionData } = useGetConnectionQuery({
-    input: create(GetConnectionRequestSchema, { id: connectionId }),
+    input: createGetConnectionInput(connectionId),
     options: { enabled: !!connectionId },
   });
 
@@ -32,19 +37,16 @@ const PipelineHistoryRunInfoConnectionColumn = ({
     e.preventDefault();
     e.stopPropagation();
     if (connectionData?.connection) {
-      navigate({
-        to: ".",
-        search: (prev) => ({
-          ...prev,
-          connectionId: connectionData?.connection?.id,
-        }),
-      });
+      void updateSearch((prev) => ({
+        ...prev,
+        connectionId: connectionData?.connection?.id,
+      }));
     }
   };
 
   const renderContent = () => {
     return (
-      <FlexWrapper alignItems={AlignItems.CENTER} gap={FlexGap.SMALL} width={200}>
+      <Flex alignItems={AlignItems.CENTER} gap={8} width={200}>
         <ConnectorTile
           connector={connectionData?.connection?.connector ?? ""}
           kind={connectionData?.connection?.kind}
@@ -52,21 +54,26 @@ const PipelineHistoryRunInfoConnectionColumn = ({
           onClick={handleConnectorTileClick}
         />
         <FlexItem shrink={0}>
-          <Text size={TextSize.BODY_SM}>{connectionData?.connection?.name ?? "—"}</Text>
+          <Text size={TextSize.BODY_SM}>{connectionData?.connection?.name ?? EMPTY_VALUE}</Text>
         </FlexItem>
         {resourceName && (
           <>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} isMonospace>
+            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
               /
             </Text>
             <FlexItem shrink={0}>
-              <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} isMonospace isEllipsis>
+              <Text
+                size={TextSize.BODY_SM}
+                weight={TextWeight.MEDIUM}
+                family={FontFamily.MONO}
+                lineClamp={1}
+              >
                 {resourceName}
               </Text>
             </FlexItem>
           </>
         )}
-      </FlexWrapper>
+      </Flex>
     );
   };
 

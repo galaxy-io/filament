@@ -1,26 +1,29 @@
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import type { FC } from "react";
+
 import TextAreaInput from "@galaxy-io/dls/inputs/TextAreaInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 
-const CreatePipelineModalDetails = () => {
+const CreatePipelineModalDetails: FC = () => {
   const { effectiveName, nameError, description } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setDescription, setName } = useCreatePipelineModalActions();
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={16} fillWidth fillHeight>
+    <Flex
+      alignItems={AlignItems.START}
+      direction={FlexDirection.COLUMN}
+      gap={16}
+      fillWidth
+      height="100%"
+    >
       <TextInput
         value={effectiveName}
-        onChange={(name) =>
-          dispatch({ type: CreatePipelineModalActionType.SET_NAME, payload: name })
-        }
-        size={InputSize.LARGE}
+        onChange={(name) => setName(name)}
         placeholder="Enter pipeline name..."
         label="Name"
         isRequired
@@ -30,19 +33,14 @@ const CreatePipelineModalDetails = () => {
       />
       <TextAreaInput
         value={description}
-        onChange={(nextDescription) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_DESCRIPTION,
-            payload: nextDescription,
-          })
-        }
-        size={InputSize.LARGE}
+        onChange={(nextDescription) => setDescription(nextDescription)}
         placeholder="Enter an optional description..."
         label="Description"
-        fillHeight
+        minRows={12}
+        isAutoGrow
         fillWidth
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -134,9 +134,17 @@ func AppendPadded(dst []byte, v int64, width int) []byte {
 var ErrBadDate = errors.New("invalid date")
 
 // ReadDate reads "YYYY-MM-DD" and returns days since the Unix epoch and the
-// unread tail.
+// unread tail. The year may run past four digits, as PostgreSQL prints years
+// after 9999 (its dates reach 5874897).
 func ReadDate(text []byte) (days int64, rest []byte, err error) {
-	y, rest, ok := digits(text, 4)
+	n := 0
+	for n < len(text) && n < 7 && text[n] >= '0' && text[n] <= '9' {
+		n++
+	}
+	if n < 4 {
+		return 0, nil, ErrBadDate
+	}
+	y, rest, ok := digits(text, n)
 	if !ok || len(rest) == 0 || rest[0] != '-' {
 		return 0, nil, ErrBadDate
 	}

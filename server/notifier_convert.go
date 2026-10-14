@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/internal/convert"
 	"github.com/galaxy-io/filament/internal/notifier"
 )
 
@@ -30,5 +31,5 @@ func notifierFromInput(in *ingestionv1.NotifierInput, tenant string) (*ingestion
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, nil, nil, err
 	}
-	return n, structMap(in.GetConfig()), refs, nil
+	return n, convert.StructMap(in.GetConfig()), refs, nil
 }

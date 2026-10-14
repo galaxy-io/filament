@@ -1,15 +1,13 @@
-import { useMemo } from "react";
-
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { type FC, useMemo } from "react";
 
 import BarChart from "@galaxy-io/dls/charts/BarChart";
-import type { ChartSelectionEvent, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import type { ChartSelection, ChartSelectionInput } from "@galaxy-io/dls/charts/types";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
 import {
   OBSERVABILITY_RUNS_CHART_HEIGHT,
   OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH,
-  OBSERVABILITY_RUNS_DEFAULT_STATUSES,
+  OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER,
   OBSERVABILITY_RUNS_SERIES,
 } from "@/pages/observability/components/runs/constants";
 import {
@@ -17,28 +15,34 @@ import {
   mapChartSelectionToRunsFilter,
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
-import { useBucketLabelFormatter } from "@/pages/observability/utils";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
+import { getBucketLabelFormatter } from "@/pages/observability/utils";
+
+import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
+import type { ObservabilitySearch } from "@/module/schemas";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
-const ObservabilityRunsChart = () => {
-  const navigate = useNavigate();
-  const {
-    timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS,
-    statuses = OBSERVABILITY_RUNS_DEFAULT_STATUSES,
-    runsBucket,
-    runsStatus,
-  } = useSearch({ from: "/_app/_main/observability" });
+const ObservabilityRunsChart: FC = () => {
+  const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
+  const { timeframe, statuses, runsBucket, runsStatus } = useObservabilitySearch();
 
-  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
 
-  const input = useMemo(
-    () => createRunCountTimeseriesInput(timeframe, statuses),
-    [timeframe, statuses],
+  const bucketLabelFormatter = getBucketLabelFormatter(
+    OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
   );
 
-  const { data, isLoading } = useQueryTimeseriesQuery({ input });
+  const input = useMemo(
+    () => createRunCountTimeseriesInput(timeframe, bucketStartMs, statuses),
+    [timeframe, bucketStartMs, statuses],
+  );
+
+  const { data, isLoading } = useQueryTimeseriesQuery({
+    input,
+    options: { enabled: statuses.length > 0 },
+  });
 
   const groups = useMemo(() => {
     if (!statuses.length) {
@@ -49,32 +53,25 @@ const ObservabilityRunsChart = () => {
 
   const selection = useMemo<ChartSelectionInput>(
     () =>
-      runsBucket === undefined
+      runsBucket === undefined && runsStatus === undefined
         ? null
         : {
-            categoryKey: String(runsBucket),
+            categoryKey: runsBucket === undefined ? undefined : String(runsBucket),
             seriesKey: runsStatus === undefined ? undefined : String(runsStatus),
           },
     [runsBucket, runsStatus],
   );
 
-  const handleSelect = (event: ChartSelectionEvent) => {
-    const selected = mapChartSelectionToRunsFilter(event);
-    const isSelected = selected.runsBucket === runsBucket && selected.runsStatus === runsStatus;
-    void navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        runsBucket: isSelected ? undefined : selected.runsBucket,
-        runsStatus: isSelected ? undefined : selected.runsStatus,
-      }),
-    });
+  const handleSelectionChange = (next: ChartSelection[]) => {
+    const filter = mapChartSelectionToRunsFilter(next[next.length - 1]);
+    void updateSearch((prev) => ({ ...prev, ...filter }));
   };
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"24px 12px"}
+      padding={[12, 16]}
       height={OBSERVABILITY_RUNS_CHART_HEIGHT}
       fillWidth
     >
@@ -83,13 +80,14 @@ const ObservabilityRunsChart = () => {
         groups={groups}
         labelFormatter={bucketLabelFormatter}
         selection={selection}
-        onSelect={handleSelect}
+        onSelectionChange={handleSelectionChange}
+        isFilterable
         isLoading={isLoading}
+        placeholder={statuses.length ? undefined : OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER}
+        ariaLabel="Runs by status"
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}
-        fillWidth
-        fillHeight
       />
-    </FlexWrapper>
+    </Flex>
   );
 };
 

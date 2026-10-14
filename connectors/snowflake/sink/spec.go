@@ -10,7 +10,7 @@ func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         sinkName,
 		DisplayName:  "Snowflake",
-		Description:  "Cloud-native data platform for scalable analytics, elastic compute, and secure data sharing.",
+		Description:  "Cloud data platform that combines SQL analytics and managed storage, with independent compute resources that scale to different workloads.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-snowflake-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-snowflake-light.svg",
 		Version:      "1",

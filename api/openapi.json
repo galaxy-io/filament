@@ -2247,6 +2247,69 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/ListTransformFunctions": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "ListTransformFunctions",
+        "description": "Transformations; the function catalog and per-resource compile check a builder needs.",
+        "operationId": "ingestion.v1.IngestionService.ListTransformFunctions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.ListTransformFunctionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.ListTransformFunctionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/RunPipeline": {
       "post": {
         "tags": [
@@ -2740,6 +2803,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ingestion.v1.ValidatePipelineResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingestion.v1.IngestionService/ValidateTransform": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "ValidateTransform",
+        "operationId": "ingestion.v1.IngestionService.ValidateTransform",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.ValidateTransformRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.ValidateTransformResponse"
                 }
               }
             }
@@ -4869,6 +4994,42 @@
         "title": "ListRunsResponse",
         "additionalProperties": false
       },
+      "ingestion.v1.ListTransformFunctionsRequest": {
+        "type": "object",
+        "properties": {
+          "logicalType": {
+            "type": "string",
+            "title": "logical_type"
+          }
+        },
+        "title": "ListTransformFunctionsRequest",
+        "additionalProperties": false,
+        "description": "ListTransformFunctionsRequest asks for the transform catalog. With a\n logical_type only the functions that accept a column of that type are\n returned, so a builder can offer exactly what applies to the column at hand."
+      },
+      "ingestion.v1.ListTransformFunctionsResponse": {
+        "type": "object",
+        "properties": {
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.TransformFunction"
+            },
+            "title": "functions"
+          },
+          "grammarVersion": {
+            "type": "integer",
+            "title": "grammar_version",
+            "format": "int32"
+          },
+          "grammarSchema": {
+            "type": "string",
+            "title": "grammar_schema"
+          }
+        },
+        "title": "ListTransformFunctionsResponse",
+        "additionalProperties": false,
+        "description": "ListTransformFunctionsResponse carries the catalog, the grammar version a\n definition must declare, and the grammar's JSON schema for client-side\n shape checks."
+      },
       "ingestion.v1.NotificationType": {
         "type": "string",
         "title": "NotificationType",
@@ -5235,6 +5396,15 @@
             "type": "string",
             "title": "destination_resource",
             "description": "Optional destination name for this resource in any execution mode; source identity is unchanged."
+          },
+          "transform": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "transform",
+            "description": "transform is the edge's transform definition as a JSON object matching\n the transform grammar, keyed by resource. A resource-specific edge may\n only define its own resource. Empty means rows pass through unchanged."
           }
         },
         "title": "PipelineEdge",
@@ -5465,7 +5635,8 @@
         "enum": [
           "READ_MODE_UNSPECIFIED",
           "READ_MODE_FULL",
-          "READ_MODE_INCREMENTAL"
+          "READ_MODE_INCREMENTAL",
+          "READ_MODE_CDC"
         ],
         "description": "ReadMode is the per-resource read lever on Standard connections."
       },
@@ -6206,6 +6377,121 @@
         "title": "TailRunResponse",
         "additionalProperties": false
       },
+      "ingestion.v1.TransformArgument": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "logicalTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "logical_types"
+          },
+          "isColumn": {
+            "type": "boolean",
+            "title": "is_column"
+          },
+          "isLiteral": {
+            "type": "boolean",
+            "title": "is_literal"
+          },
+          "isOptional": {
+            "type": "boolean",
+            "title": "is_optional"
+          },
+          "isVariadic": {
+            "type": "boolean",
+            "title": "is_variadic",
+            "description": "is_variadic on the last argument lets a call repeat it any number of times."
+          },
+          "displayName": {
+            "type": "string",
+            "title": "display_name",
+            "description": "display_name is the field label a builder shows for this argument."
+          }
+        },
+        "title": "TransformArgument",
+        "additionalProperties": false,
+        "description": "TransformArgument is one positional argument of a catalog function. An empty\n logical_types accepts any type."
+      },
+      "ingestion.v1.TransformExpressionType": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "path"
+          },
+          "logicalType": {
+            "type": "string",
+            "title": "logical_type"
+          }
+        },
+        "title": "TransformExpressionType",
+        "additionalProperties": false,
+        "description": "TransformExpressionType is the logical type of one compiled sub-expression.\n path uses the grammar ValidationError.field uses, extended into\n expressions: resources[\"r\"].steps[2].compute[\"x\"] is a whole expression,\n resources[\"r\"].steps[2].compute[\"x\"].concat[1] its second argument, and\n resources[\"r\"].steps[2].where.and[0].gt[1] a value inside a condition."
+      },
+      "ingestion.v1.TransformFunction": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "description": {
+            "type": "string",
+            "title": "description"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.TransformArgument"
+            },
+            "title": "args"
+          },
+          "returns": {
+            "type": "string",
+            "title": "returns"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "display_name"
+          },
+          "sameType": {
+            "type": "boolean",
+            "title": "same_type"
+          },
+          "returnsInput": {
+            "type": "boolean",
+            "title": "returns_input"
+          },
+          "operatorSymbol": {
+            "type": "string",
+            "title": "operator_symbol"
+          },
+          "conditionOperator": {
+            "type": "boolean",
+            "title": "condition_operator",
+            "description": "condition_operator marks functions suitable for the compact row-condition picker."
+          },
+          "variadicAddLabel": {
+            "type": "string",
+            "title": "variadic_add_label",
+            "description": "variadic_add_label names the action that appends another variadic argument."
+          },
+          "conditionJoin": {
+            "type": "string",
+            "title": "condition_join",
+            "description": "condition_join is \"and\" or \"or\" for functions that join compact conditions."
+          }
+        },
+        "title": "TransformFunction",
+        "additionalProperties": false,
+        "description": "TransformFunction is one catalog entry. name is what a definition calls;\n display_name is what a builder shows for it. operator_symbol is optional\n presentation metadata for a binary function that can use compact infix UI."
+      },
       "ingestion.v1.UpdateConnectionRequest": {
         "type": "object",
         "properties": {
@@ -6459,6 +6745,63 @@
         "title": "ValidatePipelineResponse",
         "additionalProperties": false
       },
+      "ingestion.v1.ValidateTransformRequest": {
+        "type": "object",
+        "properties": {
+          "sourceConnectionId": {
+            "type": "string",
+            "title": "source_connection_id"
+          },
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "transform": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "transform"
+          }
+        },
+        "title": "ValidateTransformRequest",
+        "additionalProperties": false,
+        "description": "ValidateTransformRequest compiles a transform against one resource's\n schema, read from the source connection, exactly as a run would. The\n transform is the same JSON object an edge carries."
+      },
+      "ingestion.v1.ValidateTransformResponse": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "valid"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ValidationError"
+            },
+            "title": "issues"
+          },
+          "outputColumns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourceColumn"
+            },
+            "title": "output_columns"
+          },
+          "expressionTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.TransformExpressionType"
+            },
+            "title": "expression_types"
+          }
+        },
+        "title": "ValidateTransformResponse",
+        "additionalProperties": false,
+        "description": "ValidateTransformResponse lists every issue with the path in the definition\n it sits at, the columns the resource will have after the steps that\n compiled, and the type of every sub-expression that compiled. Columns and\n types come back on failure too, so a builder can show them while a\n definition is still being edited."
+      },
       "ingestion.v1.ValidationError": {
         "type": "object",
         "properties": {
@@ -6561,7 +6904,8 @@
           "WRITE_MODE_APPEND",
           "WRITE_MODE_REPLACE",
           "WRITE_MODE_UPSERT",
-          "WRITE_MODE_MERGE"
+          "WRITE_MODE_MERGE",
+          "WRITE_MODE_DELETE"
         ],
         "description": "WriteMode is the destination-route write lever. Delete remains an internal\n engine policy; merge is selectable for CDC routes."
       },

@@ -1,12 +1,5 @@
+import type { PipelineCanvasNodeIslandMeasurements } from "@/pages/pipelines/canvas/nodes/types";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
-
-export interface PipelineCanvasNodeIslandMeasurements {
-  listTop: number;
-  listBottom: number;
-  badgeAnchorX: number | null;
-  badgeAnchorY: number | null;
-  hiddenHandleIds: string[];
-}
 
 const pipelineCanvasNodeMeasurementsMap = new Map<
   CanvasNode["id"],
@@ -35,8 +28,6 @@ export const setPipelineCanvasNodeMeasurements = (
   nodeId: CanvasNode["id"],
   next: PipelineCanvasNodeIslandMeasurements,
 ) => {
-  // Bailing on equal values keeps the stored object identity stable, which is what
-  // lets useSyncExternalStore consumers cache a snapshot across redundant publishes.
   const prev = pipelineCanvasNodeMeasurementsMap.get(nodeId);
   if (prev && isSameMeasurements(prev, next)) return;
 

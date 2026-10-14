@@ -299,3 +299,63 @@ func TestHTTPBudgetResetUsesConfiguredLimiter(t *testing.T) {
 		t.Fatalf("calls=%d error=%v", calls.Load(), err)
 	}
 }
+
+const linkHeaderTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Generic HTTP runtime fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    records: $
+    primary_key: [id]
+    fields:
+      id: int64
+    pagination:
+      link: next
+`
+
+// TestHTTPLinkHeaderWalksRepeatedLinkFields pages an API that puts each Link
+// relation in its own Link field — the second one holding rel="next" — rather
+// than in a single comma-separated field. Both forms are the same list, so the
+// walk must reach page 2 and emit both rows.
+func TestHTTPLinkHeaderWalksRepeatedLinkFields(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "2" {
+			fmt.Fprint(w, `[{"id":2}]`)
+			return
+		}
+		base := "http://" + r.Host + "/items"
+		w.Header().Add("Link", `<`+base+`?page=9>; rel="last"`)
+		w.Header().Add("Link", `<`+base+`?page=2>; rel="next"`)
+		fmt.Fprint(w, `[{"id":1}]`)
+	}))
+	t.Cleanup(api.Close)
+
+	src := NewManifest([]byte(strings.Replace(linkHeaderTestManifest,
+		"base_url: https://example.com", "base_url: "+api.URL, 1)))
+	if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+
+	var sink collectSink
+	if err := src.Extract(context.Background(), &sink, filament.ExtractOpts{
+		Resources: []string{"items"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var ids []string
+	for _, rec := range sink.records {
+		ids = append(ids, rec.ID)
+	}
+	if strings.Join(ids, ",") != "1,2" {
+		t.Fatalf("ids=%v, want [1 2] — the rel=\"next\" field after the first was not followed", ids)
+	}
+}

@@ -1,50 +1,66 @@
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
+import type { FC, PropsWithChildren, ReactNode } from "react";
 
-import Accordion, { AccordionVariant } from "@galaxy-io/dls/accordion/Accordion";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
-import { LayoutSize } from "@/layouts/types";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 interface PipelineCanvasPanelSectionProps {
+  icon?: PhosphorIcon;
   header: string;
   isEmpty: boolean;
   emptyHeader: string;
   emptyMessage: string;
-  padding?: ComponentProps<typeof Accordion>["padding"];
+  hasInset?: boolean;
   isOpenInitial?: boolean;
   trailing?: ReactNode;
   isOpen?: boolean;
   onToggle?: () => void;
 }
 
-const PipelineCanvasPanelSection = ({
+const PipelineCanvasPanelSection: FC<PropsWithChildren<PipelineCanvasPanelSectionProps>> = ({
+  icon,
   header,
   isEmpty,
   emptyHeader,
   emptyMessage,
-  padding = 0,
+  hasInset = false,
   isOpenInitial = true,
   trailing,
   isOpen,
   onToggle,
   children,
-}: PropsWithChildren<PipelineCanvasPanelSectionProps>) => {
+}) => {
   return (
-    <Accordion
+    <Widget
+      isCollapsible
+      icon={icon}
       header={header}
-      variant={AccordionVariant.TERTIARY}
-      padding={isEmpty ? "24px" : padding}
-      isOpenInitial={isOpenInitial}
+      variant={WidgetVariant.SECONDARY}
+      isFlush={isEmpty || !hasInset}
+      defaultIsOpen={isOpenInitial}
       isOpen={isOpen}
-      onToggle={onToggle}
-      trailing={trailing}
+      onOpenChange={onToggle}
+      actions={trailing}
     >
-      {isEmpty ? (
-        <EmptyLayout size={LayoutSize.SMALL} header={emptyHeader} message={emptyMessage} />
-      ) : (
-        children
-      )}
-    </Accordion>
+      <Flex
+        alignItems={AlignItems.STRETCH}
+        direction={FlexDirection.COLUMN}
+        padding={isEmpty ? 24 : undefined}
+        fillWidth
+      >
+        {isEmpty ? (
+          <EmptyLayout
+            size={EmptyLayoutSize.SMALL}
+            header={emptyHeader}
+            description={emptyMessage}
+          />
+        ) : (
+          children
+        )}
+      </Flex>
+    </Widget>
   );
 };
 

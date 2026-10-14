@@ -1,73 +1,18 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { CheckCircleIcon, CircleIcon, InfinityIcon, StackIcon } from "@phosphor-icons/react";
-
-import { IconVariant, IconWeight } from "@galaxy-io/dls/icons/Icon";
-import { TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
+import { CircleIcon, InfinityIcon, StackIcon } from "@phosphor-icons/react";
 
 import { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
-import {
-  CreatePipelineModalStep,
-  CreatePipelineModalStepStatus,
-} from "@/pages/pipelines/components/create/types";
+import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 
-export const CREATE_PIPELINE_MODAL_WIDTH = 1080;
-export const CREATE_PIPELINE_MODAL_HEIGHT = 720;
 export const CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH = 240;
 
-export const CREATE_PIPELINE_MODAL_RESOURCE_LOADING_ROW_COUNT = 8;
 export const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
-export const CREATE_PIPELINE_MODAL_SINK_SELECT_WIDTH = 264;
+export const CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT = 40;
+export const CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH = 12;
 
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR = 180;
-export const CREATE_PIPELINE_MODAL_READ_MODE_DROPDOWN_WIDTH = 220;
-export const CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH = 260;
-
-export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_MAP: Record<
-  CreatePipelineModalStepStatus,
-  PhosphorIcon
-> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: CheckCircleIcon,
-  [CreatePipelineModalStepStatus.CURRENT]: CircleIcon,
-  [CreatePipelineModalStepStatus.UPCOMING]: CircleIcon,
-};
-
-export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_WEIGHT_MAP: Record<
-  CreatePipelineModalStepStatus,
-  IconWeight
-> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: IconWeight.FILL,
-  [CreatePipelineModalStepStatus.CURRENT]: IconWeight.BOLD,
-  [CreatePipelineModalStepStatus.UPCOMING]: IconWeight.REGULAR,
-};
-
-export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_ICON_VARIANT_MAP: Record<
-  CreatePipelineModalStepStatus,
-  IconVariant
-> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: IconVariant.SUCCESS,
-  [CreatePipelineModalStepStatus.CURRENT]: IconVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.UPCOMING]: IconVariant.DISABLED,
-};
-
-export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_VARIANT_MAP: Record<
-  CreatePipelineModalStepStatus,
-  TextVariant
-> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: TextVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.CURRENT]: TextVariant.PRIMARY,
-  [CreatePipelineModalStepStatus.UPCOMING]: TextVariant.TERTIARY,
-};
-
-export const CREATE_PIPELINE_MODAL_STEP_STATUS_TO_TEXT_WEIGHT_MAP: Record<
-  CreatePipelineModalStepStatus,
-  TextWeight
-> = {
-  [CreatePipelineModalStepStatus.COMPLETED]: TextWeight.REGULAR,
-  [CreatePipelineModalStepStatus.CURRENT]: TextWeight.MEDIUM,
-  [CreatePipelineModalStepStatus.UPCOMING]: TextWeight.REGULAR,
-};
 
 export const CREATE_PIPELINE_MODAL_STEP_ORDER: CreatePipelineModalStep[] = [
   CreatePipelineModalStep.CONNECTIONS,
@@ -141,6 +86,7 @@ export const READ_MODE_TO_LABEL_MAP: Record<ReadMode, string> = {
   [ReadMode.UNSPECIFIED]: "Unknown",
   [ReadMode.FULL]: "Full",
   [ReadMode.INCREMENTAL]: "Incremental",
+  [ReadMode.CDC]: "CDC",
 };
 
 export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
@@ -149,7 +95,10 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
   [WriteMode.REPLACE]: "Replace",
   [WriteMode.UPSERT]: "Upsert",
   [WriteMode.MERGE]: "Merge",
+  [WriteMode.DELETE]: "Delete",
 };
 
 export const CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE = ReadMode.FULL;
 export const CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE = WriteMode.UPSERT;
+
+export const CREATE_PIPELINE_MODAL_DEFAULT_CRON = "0 * * * *";

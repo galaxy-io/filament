@@ -1,34 +1,41 @@
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
+import type { FC } from "react";
 
-import FieldWrapper from "@/components/fields/FieldWrapper";
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import Field from "@galaxy-io/dls/inputs/Field";
 
-import { DEFAULT_WORKER_CONFIGURATION_TEXT } from "@/pages/pipelines/components/worker/utils";
+import { PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT } from "@/pages/pipelines/components/worker/constants";
 
 interface PipelineWorkerConfigurationEditorProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
-  label?: string;
-  help?: string;
+  isPerRun?: boolean;
 }
 
-const PipelineWorkerConfigurationEditor = ({
+const PipelineWorkerConfigurationEditor: FC<PipelineWorkerConfigurationEditorProps> = ({
   value,
   onChange,
   error,
-  label = "Pod template",
-  help = "Applied to the Kubernetes Job for every run of this pipeline",
-}: PipelineWorkerConfigurationEditorProps) => (
-  <FieldWrapper label={label} help={help} error={error}>
+  isPerRun = false,
+}) => (
+  <Field
+    label="Pod template"
+    labelTooltip={
+      isPerRun
+        ? "Applied to the Kubernetes Job for this run only"
+        : "Applied to the Kubernetes Job for every run of this pipeline"
+    }
+    error={error}
+    fillWidth
+  >
     <CodeEditor
-      content={value}
+      value={value}
       onChange={onChange}
-      lang="json"
-      placeholder={DEFAULT_WORKER_CONFIGURATION_TEXT}
-      borderRadius={4}
-      noLineNumbers
+      language={CodeEditorLanguage.JSON}
+      placeholder={PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT}
+      hasLineNumbers={false}
     />
-  </FieldWrapper>
+  </Field>
 );
 
 export default PipelineWorkerConfigurationEditor;

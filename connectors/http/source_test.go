@@ -634,19 +634,19 @@ func TestEmbeddedCatalogMetadata(t *testing.T) {
 	}{
 		{
 			name: "github", source: catalogSource(t, "github@2022-11-28"),
-			description: "Code hosting platform for version control, collaboration, and software development workflows.",
+			description: "Software development platform for hosting Git repositories, reviewing code, and collaborating on projects from planning through deployment.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-github-light.svg",
 		},
 		{
 			name: "slack", source: catalogSource(t, "slack@unversioned"),
-			description: "Messaging and collaboration platform designed for teams to communicate and work together efficiently.",
+			description: "Collaboration platform that brings team conversations, shared information, and tools together in searchable channels organized around projects and work.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-slack-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-slack-light.svg",
 		},
 		{
 			name: "attio", source: catalogSource(t, "attio@v2"),
-			description: "CRM platform designed for modern teams to centralize customer data, pipelines, and workflows.",
+			description: "CRM for go-to-market teams, with a flexible data model that can be tailored to how each business manages customer relationships.",
 			darkLogo:    "https://cdn.getgalaxy.io/sources/source-icon-attio-dark.svg",
 			lightLogo:   "https://cdn.getgalaxy.io/sources/source-icon-attio-light.svg",
 		},

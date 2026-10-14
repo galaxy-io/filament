@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/worker"
 )
 
 type columnSourceCounts struct {
@@ -41,6 +42,18 @@ func (s *columnSource) CursorColumns(_ context.Context, resource string) ([]fila
 	return []filament.CursorColumn{{
 		SchemaField: filament.SchemaField{Name: resource + "_updated_at"},
 		Eligible:    true, Configurable: true, SupportsLookback: true,
+	}}, nil
+}
+
+// cursorOnlySource reports a full schema but names only its cursor, as a
+// source with a declared watermark does.
+type cursorOnlySource struct{ columnSource }
+
+func (s *cursorOnlySource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
+	return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{
+		{Name: "id", Logical: filament.LogicalString},
+		{Name: "email", Logical: filament.LogicalString, Nullable: true},
+		{Name: resource + "_updated_at", Logical: filament.LogicalTimestamp},
 	}}, nil
 }
 
@@ -80,7 +93,7 @@ func TestValidateConfigRunsLiveSinkProbe(t *testing.T) {
 	sinks.Register("live-sink", func() filament.Sink {
 		return &liveProbeSink{probes: probes, err: context.DeadlineExceeded}
 	})
-	api := New(registry.NewSources(), sinks, sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(registry.NewSources(), sinks), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.ValidateConfig(testCtx(), connect.NewRequest(&ingestionv1.ValidateConfigRequest{
 		Connector: "live-sink",
@@ -144,7 +157,7 @@ func TestGetConnector(t *testing.T) {
 	sources.RegisterWithMaturity("columns", filament.MaturityBeta, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
-	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
 		Connector: "columns",
@@ -181,7 +194,7 @@ func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
 	sources.RegisterWithMaturity("columns", filament.MaturityStable, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
-	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
 		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
@@ -207,7 +220,7 @@ func TestListConnectorsSearchSortAndPage(t *testing.T) {
 		spec := spec
 		sources.Register(spec.name, func() filament.Source { return &spec })
 	}
-	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
 		Kind:       ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
@@ -230,7 +243,7 @@ func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
 	sinks.RegisterWithMaturity("live-sink", filament.MaturityBeta, func() filament.Sink {
 		return &liveProbeSink{probes: &atomic.Int32{}}
 	})
-	api := New(registry.NewSources(), sinks, sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(registry.NewSources(), sinks), sqlite.NewMemory(), nil, nil)
 
 	getResponse, err := api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
 		Connector: "live-sink",
@@ -261,7 +274,7 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	counts := &columnSourceCounts{}
 	sources := registry.NewSources()
 	sources.Register("columns", func() filament.Source { return &columnSource{counts: counts} })
-	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
 
 	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
 		Connector: "columns",
@@ -288,6 +301,36 @@ func TestGetResourceColumnsBatchesOneConfiguredSource(t *testing.T) {
 	}
 }
 
+func TestGetResourceColumnsListsSchemaColumnsBesideTheCursor(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("columns", func() filament.Source {
+		return &cursorOnlySource{columnSource{counts: &columnSourceCounts{}}}
+	})
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
+
+	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
+		Connector: "columns",
+		Resources: []string{"orders"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	columns := response.Msg.GetResources()[0].GetColumns()
+	if len(columns) != 3 {
+		t.Fatalf("columns = %d, want 3: %#v", len(columns), columns)
+	}
+	id, email, cursor := columns[0], columns[1], columns[2]
+	if id.GetName() != "id" || !id.GetIsPrimaryKey() || id.GetIsCursorEligible() {
+		t.Fatalf("id = %#v", id)
+	}
+	if email.GetName() != "email" || email.GetIsPrimaryKey() || email.GetIsCursorEligible() {
+		t.Fatalf("email = %#v", email)
+	}
+	if cursor.GetName() != "orders_updated_at" || !cursor.GetIsCursorEligible() || !cursor.GetSupportsLookback() {
+		t.Fatalf("cursor = %#v", cursor)
+	}
+}
+
 type managedColumnSource struct{ columnSource }
 
 func (s *managedColumnSource) ManagedIncremental(resource string) bool { return resource == "exports" }
@@ -302,7 +345,7 @@ func (s *managedColumnSource) CursorColumns(ctx context.Context, resource string
 func TestResourceColumnsDistinguishesManagedIncrementalFromMissingCursor(t *testing.T) {
 	sources := registry.NewSources()
 	sources.Register("managed-columns", func() filament.Source { return &managedColumnSource{columnSource{counts: &columnSourceCounts{}}} })
-	api := New(sources, registry.NewSinks(), sqlite.NewMemory(), nil, nil)
+	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
 	response, err := api.GetResourceColumns(testCtx(), connect.NewRequest(&ingestionv1.GetResourceColumnsRequest{
 		Connector: "managed-columns", Resources: []string{"exports", "orders", "full_only"},
 	}))

@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import type { InputVariant } from "@galaxy-io/dls/inputs/Input";
@@ -15,4 +17,4 @@ export interface FieldComponentProps {
   hasStoredSecret?: boolean;
 }
 
-export type FieldComponent = React.FC<FieldComponentProps>;
+export type FieldComponent = FC<FieldComponentProps>;

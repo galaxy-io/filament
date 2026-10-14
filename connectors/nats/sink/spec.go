@@ -15,7 +15,7 @@ func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name: "nats", DisplayName: connection.DisplayName, Version: "1",
 		DarkLogoURL: connection.DarkLogoURL, LightLogoURL: connection.LightLogoURL,
-		Description: "Publish JSON records to an existing JetStream stream with acknowledged, append-only delivery.",
+		Description: "Persistence layer for NATS that stores messages for later delivery and replay, allowing publishers and subscribers to communicate at different times.",
 		Config: filament.ConfigSchema{Fields: append(connection.Fields(), []filament.ConfigField{
 			{Name: "stream", Type: filament.FieldString, Required: true, Scope: filament.ScopePipeline, Help: "Destination stream name: letters, digits, - and _, no dots. {resource} or {{resource}} expands to the destination resource name, e.g. EVENTS or {resource}_events"},
 			{Name: "create_stream", Type: filament.FieldBool, Default: true, Scope: filament.ScopePipeline, Help: "Create missing streams"},

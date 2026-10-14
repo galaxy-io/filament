@@ -37,7 +37,19 @@ server mode="": migrate
       AUTH_ADMIN_USERNAME="${AUTH_ADMIN_USERNAME:-admin}" \
       AUTH_ADMIN_PASSWORD="${AUTH_ADMIN_PASSWORD:-admin}" \
       AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
+      WORKER_URL="${WORKER_URL:-http://localhost:8082}" \
       GOWORK=off go run .
+
+# run the persistent worker locally: answers connector calls and executes runs
+worker:
+    cd cmd/worker && \
+      PERSISTENCE_DSN="${PERSISTENCE_DSN:-postgresql://filament:filament@localhost:5432/filament?sslmode=disable}" \
+      NATS_URL="${NATS_URL:-nats://localhost:4222}" \
+      NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
+      NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
+      WORKER_ADDR="${WORKER_ADDR:-:8082}" \
+      GOWORK=off go run . -serve -execute
 
 # run the control plane locally (defaults match docker-compose.yaml; env overrides)
 control-plane:
@@ -46,7 +58,8 @@ control-plane:
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
-      DISPATCH_MODE="${DISPATCH_MODE:-inproc}" \
+      DISPATCH_MODE="${DISPATCH_MODE:-worker}" \
+      WORKER_URL="${WORKER_URL:-http://localhost:8082}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
@@ -54,20 +67,22 @@ control-plane:
 ui:
     cd ui && pnpm install && pnpm dev
 
-# run the full app: control plane, API server, UI; `just dev zitadel|keycloak` turns auth on
+# run the full app: worker, control plane, API server, UI; `just dev zitadel|keycloak` turns auth on
 dev mode="": migrate
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'kill $(jobs -p) 2>/dev/null' EXIT
+    just worker &
     just control-plane &
     just server {{ mode }} &
+    until curl -sf http://localhost:8082/startupz > /dev/null 2>&1; do sleep 0.2; done
     until curl -sf http://localhost:8080/startupz > /dev/null 2>&1; do sleep 0.2; done
     until curl -sf http://localhost:8081/startupz > /dev/null 2>&1; do sleep 0.2; done
     just ui &
     wait
 
 # install the cli with the web UI embedded
-cli: ui-dist
+cli: ui-build
     GOWORK=off CGO_ENABLED=0 go install -C cmd -tags embedui -trimpath -ldflags="-s -w" ./filament
 
 # generate all checked-in generated code
@@ -102,17 +117,25 @@ proto-check:
     git diff --exit-code -- api
 
 # build the UI bundle the server embeds
-ui-dist:
+ui-build:
     cd ui && pnpm install && pnpm build
 
-# regenerate code, build the UI, and compile every Go module
-build: gen ui-dist (_each "GOWORK=off go build ./...")
+# run every UI gate: types, lint, format, both builds, the package checks, and the committed route tree
+ui-check:
+    cd ui && pnpm install --frozen-lockfile && pnpm check && git diff --exit-code src/host/routeTree.gen.ts
 
-# build linux release binaries into bin/ (server, standalone, and filament embed ui/dist)
-binaries: ui-dist
+# regenerate code, build the UI, and compile every Go module
+build: gen ui-build (_each "GOWORK=off go build ./...")
+
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/build; the worker -libc build is cgo, so it compiles in a linux container)
+binaries: ui-build
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
+    bash scripts/container.sh run --rm --platform "linux/$(go env GOARCH)" \
+      -v "{{ justfile_directory() }}:/src" -v "$(go env GOMODCACHE):/go/pkg/mod" -v filament-go-build:/root/.cache/go-build \
+      -w /src/cmd/worker -e GOWORK=off -e CGO_ENABLED=1 -e GOFLAGS=-buildvcs=false \
+      golang:1.26-trixie go build -trimpath -ldflags="-s -w" -o ../../bin/filament/worker-libc .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
@@ -121,17 +144,18 @@ images: binaries
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/server/Dockerfile -t galaxy-io/filament/server:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/control-plane/Dockerfile -t galaxy-io/filament/control-plane:latest .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile -t galaxy-io/filament/worker:latest .
+    bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/worker/Dockerfile.libc -t galaxy-io/filament/worker:latest-libc .
     bash scripts/container.sh build --platform "linux/$(go env GOARCH)" -f cmd/standalone/Dockerfile -t galaxy-io/filament/standalone:latest .
 
 # run a command in every Go module (tests/ needs docker; excluded where noted)
 _each cmd:
     for dir in $(find . -name go.mod -exec dirname {} \;); do (cd "$dir" && {{ cmd }}) || exit 1; done
 
-# format Go, UI, and proto; `just format check` verifies without writing
-format mode="fix": (go-format mode) (ui-format mode) (proto-format mode)
+# format Go, UI, proto, and HTTP manifests; `just format check` verifies without writing
+format mode="fix": (go-format mode) (ui-format mode) (proto-format mode) (manifest-format mode)
 
 # run all linters; `just lint check` runs without fixing
-lint mode="fix": (go-lint mode) (ui-lint mode)
+lint mode="fix": (go-lint mode) (ui-lint mode) manifest-lint
 
 # gofumpt + goimports across every Go module (settings in .golangci.yaml)
 go-format mode="fix": (_each ("GOWORK=off golangci-lint fmt " + (if mode == "check" { "--diff " } else { "" }) + "./..."))
@@ -146,6 +170,12 @@ ui-format mode="fix":
 # Biome lint for the UI package
 ui-lint mode="fix":
     cd ui && pnpm run {{ if mode == "check" { "lint:check" } else { "lint" } }}
+
+manifest-lint: (manifest-format "check")
+
+# format HTTP manifest YAML with a pinned Go tool; check mode does not write
+manifest-format mode="fix":
+    go run github.com/google/yamlfmt/cmd/yamlfmt@v0.21.0 -conf connectors/http/.yamlfmt.yaml {{ if mode == "check" { "-lint" } else { "" } }} connectors/http/manifests
 
 # run unit tests in every Go module except tests/ (integration; needs docker)
 test:

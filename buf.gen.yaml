@@ -20,3 +20,6 @@ plugins:
       - format=json
       - path=openapi.json
       - trim-unused-types
+    # worker.v1 is the in-cluster worker contract, not public API.
+    exclude_types:
+      - worker.v1

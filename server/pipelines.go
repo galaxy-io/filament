@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/internal/convert"
 	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 )
@@ -175,17 +176,17 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 		if err != nil {
 			return fmt.Errorf("load connection %q: %w", sinkNode.GetConnectionId(), err)
 		}
-		source, err := a.sources.Resolve(sourceConn.Connector)
+		sourceSpec, err := a.worker.SourceSpec(ctx, sourceConn.Connector)
 		if err != nil {
 			return err
 		}
-		sink, err := a.sinks.Resolve(sinkConn.Connector)
+		sinkSpec, err := a.worker.SinkSpec(ctx, sinkConn.Connector)
 		if err != nil {
 			return err
 		}
 
 		var ingestionType filament.IngestionType
-		if filament.ReplicationOf(source, filament.NewConfig(sourceConn.Config)) == filament.ReplicationCDC {
+		if filament.ReplicationFor(sourceSpec, filament.NewConfig(sourceConn.Config)) == filament.ReplicationCDC {
 			if edge.GetReadMode() != ingestionv1.ReadMode_READ_MODE_UNSPECIFIED {
 				return fmt.Errorf("edge %s -> %s: CDC connections do not accept a read mode", edge.GetFromNode(), edge.GetToNode())
 			}
@@ -204,13 +205,13 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
 			}
 			routeWriteModes[route] = writeMode
-			edge.WriteMode = writeModeToProto(writeMode)
+			edge.WriteMode = convert.WriteModeToProto(writeMode)
 		} else {
-			readMode, err := readModeFromProto(edge.GetReadMode())
+			readMode, err := convert.ReadModeFromProto(edge.GetReadMode())
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
-			writeMode, err := writeModeFromProto(edge.GetWriteMode())
+			writeMode, err := convert.WriteModeFromProto(edge.GetWriteMode())
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
@@ -219,17 +220,17 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
 			}
 			routeWriteModes[route] = writeMode
-			edge.ReadMode = readModeToProto(readMode)
-			edge.WriteMode = writeModeToProto(writeMode)
+			edge.ReadMode = convert.ReadModeToProto(readMode)
+			edge.WriteMode = convert.WriteModeToProto(writeMode)
 			ingestionType, err = filament.IngestionFor(readMode, writeMode)
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
 		}
-		if err := filament.ValidateSourceIngestion(source.Spec(), ingestionType); err != nil {
+		if err := filament.ValidateSourceIngestion(sourceSpec, ingestionType); err != nil {
 			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 		}
-		if err := filament.ValidateSinkIngestion(sink.Spec(), ingestionType); err != nil {
+		if err := filament.ValidateSinkIngestion(sinkSpec, ingestionType); err != nil {
 			return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 		}
 	}

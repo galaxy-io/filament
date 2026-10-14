@@ -79,11 +79,13 @@ with versioned keys that older workers cannot resolve.
 
 ## Load a private catalog at startup
 
-Set `HTTP_MANIFESTS_DIR` to a directory on the server's filesystem to load
-private manifests without rebuilding the binary:
+Set `HTTP_MANIFESTS_DIR` to a directory on the worker's filesystem to load
+private manifests without rebuilding the binary. Every worker needs it: the
+persistent worker that answers connector calls and the workers that execute
+runs.
 
 ```sh
-HTTP_MANIFESTS_DIR=/etc/filament/manifests ./server
+HTTP_MANIFESTS_DIR=/etc/filament/manifests ./worker -serve
 ```
 
 The directory contains connector folders directly, using the same registry and
@@ -115,8 +117,8 @@ empty, or invalid directory fails startup. Files are read and validated once;
 restart the process to pick up changes. A bad catalog is not partially registered.
 The process-wide bundled registry is left unchanged.
 
-In a split deployment, configure the directory on the server, control plane,
-and every worker. Each must receive the same files. The setting does not copy
+In a split deployment, configure the directory on every worker: the persistent
+worker and the workers that execute runs. Each must receive the same files. The setting does not copy
 files between machines or mount volumes into worker pods;
 provision the files in each container or filesystem before startup. Private here
 means deployment-local, not tenant-specific: registered sources appear in the
@@ -416,6 +418,7 @@ creation, polling, downloading, and decoding and remains fixed across recovery.
 | `files` | Required for archives. A Go `path.Match` pattern over member names; `*` does not cross `/`. No matching files is an error. |
 | `format` | Required: `json` (an array), `ndjson` (one object per line), or `csv` (header row and string values). |
 | `records_path` | Optional dot path to an array inside a JSON document. Missing paths fail rather than producing an empty export. |
+| `csv` | Optional CSV dialect with `delimiter`, `header`, `columns`, and `quoting`, described below. |
 | `allowed_hosts` | Required exact download hostnames, without ports or wildcards. Checked on the initial HTTPS URL and every redirect. |
 | `auth` | Only `none` is supported. Downloads never inherit API authentication, connection headers, or cookies. |
 | `max_download_bytes` | Maximum downloaded bytes; default 1 GiB. |
@@ -425,6 +428,28 @@ JSON numbers retain their precision. Records are limited to 10 MiB. Archives
 are limited to 10,000 entries and cannot contain links or unsafe file paths.
 ZIP downloads use a temporary file, removed when the read ends; gzip and tar
 are processed as streams. CSV headers must be nonempty and unique.
+
+CSV defaults to commas, a header row, and standard double-quote handling. A
+`csv` block changes the dialect. This one reads a tab-separated file that has
+no header and never quotes its fields.
+
+```yaml
+result:
+  format: csv
+  csv:
+    delimiter: "\t"
+    header: false
+    columns: [GLOBALEVENTID, SQLDATE, Actor1Code]
+    quoting: none
+```
+
+`delimiter` is one character other than a double quote, CR, or LF. With
+`header: false`, `columns` names the fields in order and is required. Fields
+then map by these names exactly as they do by header names. `columns` is
+rejected when the file has a header. `quoting: none` splits each line on the
+delimiter and keeps quotes as data, for files that never quote but may contain
+a stray `"`. Every row must have as many fields as there are columns, and a
+short or long row fails the export.
 
 Batch-operation archives can contain envelopes rather than records. Add an
 `envelope` to require operation success and parse a JSON string inside each

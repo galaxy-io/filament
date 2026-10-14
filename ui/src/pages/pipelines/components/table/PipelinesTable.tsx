@@ -1,100 +1,105 @@
-import { styled } from "@linaria/react";
+import type { FC } from "react";
+
+import { create } from "@bufbuild/protobuf";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
 
-import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
-import InfiniteTable, {
-  ColumnAlign,
-  type ColumnDef,
-  ColumnPin,
-  type Row,
-} from "@galaxy-io/dls/table/InfiniteTable";
+import { useClipboard } from "@galaxy-io/dls/hooks/useClipboard";
+import { useLocalStorage } from "@galaxy-io/dls/hooks/useLocalStorage";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn, TableColumnLayout, TableSort } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-
-import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
-
-import EmptyLayout from "@/layouts/EmptyLayout";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
+import { useToast } from "@galaxy-io/dls/toast/useToast";
+import { EMPTY_VALUE, formatNumber, formatRelativeTime } from "@galaxy-io/dls/utils/format";
 
 import {
+  type Pipeline,
+  UpdatePipelineScheduleRequestSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
+
+import PipelineName from "@/components/pipelines/PipelineName";
+import PipelineScheduleIndicator from "@/components/pipelines/PipelineScheduleIndicator";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
+
+import PipelinesTableColumnFlow from "@/pages/pipelines/components/table/columns/PipelinesTableColumnFlow";
+import PipelinesTableColumnRecentRuns from "@/pages/pipelines/components/table/columns/PipelinesTableColumnRecentRuns";
+import {
+  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
+  PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
   PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
   PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
+  PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
   PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-  PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
   PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
   PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
 } from "@/pages/pipelines/components/table/constants";
-import PipelinesTableFlowCell from "@/pages/pipelines/components/table/PipelinesTableFlowCell";
-import {
-  PIPELINES_TABLE_COLUMN_ID_PIPELINE,
-  type PipelinesTableSorting,
-  type PipelinesTableSortingChange,
-} from "@/pages/pipelines/components/table/utils";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
+import PipelinesTableRowActions from "@/pages/pipelines/components/table/PipelinesTableRowActions";
+import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 
-import PipelinesTableColumnName from "./columns/PipelinesTableColumnName";
-import PipelinesTableColumnRecentRuns from "./columns/PipelinesTableColumnRecentRuns";
-import { formatCount, formatDuration, formatTimeAgo } from "@/utils/format";
+import { useFilamentNavigate } from "@/module/hooks";
+import { FilamentPath } from "@/module/paths";
 
-const PipelinesTableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
+import { useUpdatePipelineScheduleMutation } from "@/api/queries/schedules";
 
-const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
+import { getErrorMessage } from "@/utils/errors";
+import { formatRunDuration } from "@/utils/runs";
+
+const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
   {
     id: "flow",
     header: "Flow",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
-    pin: ColumnPin.LEFT,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={120} height={18} />,
-    cell: ({ row }) => <PipelinesTableFlowCell pipeline={row.original} />,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_FLOW,
+    canSort: false,
+    cell: ({ row }) => <PipelinesTableColumnFlow pipeline={row} />,
   },
   {
     id: PIPELINES_TABLE_COLUMN_ID_PIPELINE,
     header: "Pipeline",
-    minSize: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
-    accessorFn: (pipeline) => pipeline.name,
-    enableSorting: true,
-    sortDescFirst: false,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => <PipelinesTableColumnName pipeline={row.original} />,
+    minWidth: PIPELINES_TABLE_COLUMN_MIN_WIDTH_PIPELINE,
+    accessor: (pipeline) => pipeline.name,
+    isRowHeader: true,
+    canSort: true,
+    canHide: false,
+    cell: ({ row }) => (
+      <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+        <PipelineName pipelineId={row.id} pipeline={row} />
+        <PipelineScheduleIndicator pipelineId={row.id} pipeline={row} />
+      </Flex>
+    ),
   },
   {
     id: "recentRuns",
     header: "Runs",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={136} height={18} />,
-    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row.original} />,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_RECENT_RUNS,
+    canSort: false,
+    cell: ({ row }) => <PipelinesTableColumnRecentRuns pipeline={row} />,
   },
   {
     id: "lastRun",
-    header: "Ran",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={64} height={14} />,
+    header: "Last run",
+    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RUN,
+    canSort: false,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isEllipsis>
-        {row.original.lastRun ? formatTimeAgo(row.original.lastRun.requestedAt) : "—"}
+      <Text size={TextSize.BODY_SM} lineClamp={1}>
+        {row.lastRun ? formatRelativeTime(row.lastRun.requestedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
   {
     id: "status",
     header: "Status",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={64} height={18} />,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_STATUS,
+    canSort: false,
     cell: ({ row }) =>
-      row.original.lastRun ? (
-        <PipelineHistoryRunStatus
-          status={row.original.lastRun.status}
-          error={row.original.lastRun.error}
-          executionStatus={row.original.lastRun.executionStatus}
+      row.lastRun ? (
+        <PipelineRunStatus
+          status={row.lastRun.status}
+          error={row.lastRun.error}
+          executionStatus={row.lastRun.executionStatus}
         />
       ) : (
         <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
@@ -105,27 +110,24 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
   {
     id: "lastDuration",
     header: "Duration",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_DURATION,
+    align: "right",
+    canSort: false,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRun
-          ? formatDuration(row.original.lastRun.startedAt, row.original.lastRun.endedAt)
-          : "—"}
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+        {row.lastRun ? formatRunDuration(row.lastRun.startedAt, row.lastRun.endedAt) : EMPTY_VALUE}
       </Text>
     ),
   },
   {
-    id: "lastVolume",
+    id: "lastRecords",
     header: "Records",
-    size: PIPELINES_TABLE_COLUMN_WIDTH_LAST_VOLUME,
-    align: ColumnAlign.RIGHT,
-    enableSorting: false,
-    cellLoading: () => <TextShimmer width={52} height={14} />,
+    width: PIPELINES_TABLE_COLUMN_WIDTH_LAST_RECORDS,
+    align: "right",
+    canSort: false,
     cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.lastRun ? formatCount(row.original.lastRun.records) : "—"}
+      <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+        {row.lastRun ? formatNumber(row.lastRun.records) : EMPTY_VALUE}
       </Text>
     ),
   },
@@ -133,54 +135,123 @@ const PIPELINES_TABLE_COLUMNS: ColumnDef<Pipeline>[] = [
 
 interface PipelinesTableProps {
   pipelines: Pipeline[];
-  sorting: PipelinesTableSorting;
-  onSortingChange: PipelinesTableSortingChange;
+  sorting: TableSort | null;
+  onSortingChange: (sorting: TableSort | null) => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
 }
 
-const PipelinesTable = ({
+const PipelinesTable: FC<PipelinesTableProps> = ({
   pipelines,
   sorting,
   onSortingChange,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
-}: PipelinesTableProps) => {
-  const navigate = useNavigate();
+}) => {
+  const navigate = useFilamentNavigate();
+  const { toast } = useToast();
+  const { copy } = useClipboard();
 
-  const handleRowClick = (row: Row<Pipeline>) => {
-    navigate({
-      to: "/pipelines/$id",
-      params: { id: row.original.id },
+  const { startRun } = usePipelineRun();
+  const { mutateAsync: updateSchedule } = useUpdatePipelineScheduleMutation();
+
+  const [columnLayout, setColumnLayout] = useLocalStorage<TableColumnLayout>(
+    PIPELINES_TABLE_COLUMN_LAYOUT_STORAGE_KEY,
+    {},
+  );
+
+  const handleRowClick = (row: Pipeline) => {
+    void navigate({
+      to: FilamentPath.PIPELINE,
+      params: { id: row.id },
     });
   };
 
+  const handleRun = (pipeline: Pipeline) => {
+    startRun(pipeline);
+  };
+
+  const handleScheduleToggle = (pipeline: Pipeline) => {
+    const config = pipeline.schedule?.config;
+    if (!config) return;
+    const isEnabled = !config.isEnabled;
+    toast.promise(
+      updateSchedule(
+        create(UpdatePipelineScheduleRequestSchema, {
+          pipelineId: pipeline.id,
+          schedule: { ...config, isEnabled },
+        }),
+      ),
+      {
+        loading: isEnabled ? "Resuming schedule..." : "Pausing schedule...",
+        success: {
+          header: isEnabled ? "Schedule resumed" : "Schedule paused",
+          variant: ToastVariant.SUCCESS,
+        },
+        error: (error) => ({
+          header: "Schedule update failed",
+          description: getErrorMessage(error, "Failed to update schedule"),
+          variant: ToastVariant.ERROR,
+        }),
+      },
+    );
+  };
+
+  const handleEdit = (pipeline: Pipeline) => {
+    void navigate({ to: FilamentPath.PIPELINE_CANVAS, params: { id: pipeline.id } });
+  };
+
+  const handleSettings = (pipeline: Pipeline) => {
+    void navigate({ to: FilamentPath.PIPELINE_SETTINGS, params: { id: pipeline.id } });
+  };
+
+  const handleCopyId = async (pipeline: Pipeline) => {
+    const hasCopied = await copy(pipeline.id);
+    toast(
+      hasCopied
+        ? { header: "Pipeline ID copied", variant: ToastVariant.SUCCESS }
+        : {
+            header: "Copy failed",
+            description: "Your browser blocked clipboard access.",
+            variant: ToastVariant.ERROR,
+          },
+    );
+  };
+
   return (
-    <PipelinesTableWrapper>
+    <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
       <InfiniteTable<Pipeline>
         columns={PIPELINES_TABLE_COLUMNS}
         data={pipelines}
         getRowId={(pipeline) => pipeline.id}
-        contentWhenEmpty={
-          <EmptyLayout
-            icon={<Icon component={MagnifyingGlassIcon} variant={IconVariant.TERTIARY} />}
-            message="No pipelines match your search"
-          />
+        emptyState={
+          <EmptyLayout icon={MagnifyingGlassIcon} header="No pipelines match your search" />
         }
         onRowClick={handleRowClick}
-        hasNextPage={hasNextPage}
-        isFetchingNextPage={isFetchingNextPage}
-        fetchNextPage={fetchNextPage}
-        enableSorting
-        manualSorting
-        sorting={sorting}
-        onSortingChange={onSortingChange}
-        fillWidth
-        fillHeight
+        isLoading={isFetchingNextPage}
+        onEndReached={() => {
+          if (hasNextPage) fetchNextPage?.();
+        }}
+        sort={sorting}
+        onSortChange={onSortingChange}
+        rowActions={(row) => (
+          <PipelinesTableRowActions
+            pipeline={row}
+            onRun={handleRun}
+            onScheduleToggle={handleScheduleToggle}
+            onEdit={handleEdit}
+            onSettings={handleSettings}
+            onCopyId={handleCopyId}
+          />
+        )}
+        canCustomizeColumns
+        columnLayout={columnLayout}
+        onColumnLayoutChange={setColumnLayout}
+        ariaLabel="Pipelines"
       />
-    </PipelinesTableWrapper>
+    </Flex>
   );
 };
 

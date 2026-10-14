@@ -40,12 +40,10 @@ func (p *linkHeaderPaginator) Apply(req *http.Request, s State) (map[string]any,
 }
 
 func (p *linkHeaderPaginator) Next(resp *http.Response, _ map[string]any, _ int) (State, error) {
-	link := resp.Header.Get("Link")
-	if link == "" {
-		return State{Done: true}, nil
-	}
-	if next := parseLinkHeader(link, p.rel); next != "" {
-		return State{NextURL: next}, nil
+	for _, link := range resp.Header.Values("Link") {
+		if next := parseLinkHeader(link, p.rel); next != "" {
+			return State{NextURL: next}, nil
+		}
 	}
 	return State{Done: true}, nil
 }

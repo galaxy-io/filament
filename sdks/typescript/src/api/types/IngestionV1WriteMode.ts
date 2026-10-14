@@ -10,5 +10,6 @@ export const IngestionV1WriteMode = {
     WriteModeReplace: "WRITE_MODE_REPLACE",
     WriteModeUpsert: "WRITE_MODE_UPSERT",
     WriteModeMerge: "WRITE_MODE_MERGE",
+    WriteModeDelete: "WRITE_MODE_DELETE",
 } as const;
 export type IngestionV1WriteMode = (typeof IngestionV1WriteMode)[keyof typeof IngestionV1WriteMode];

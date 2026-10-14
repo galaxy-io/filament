@@ -1,17 +1,21 @@
-import Beacon from "@galaxy-io/dls/beacons/Beacon";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
-import CodeEditor from "@galaxy-io/dls/editor/CodeEditor";
-import { InputSize } from "@galaxy-io/dls/inputs/Input";
+import type { FC } from "react";
+
+import CodeEditor, { CodeEditorLanguage } from "@galaxy-io/dls/editor/CodeEditor";
+import Field from "@galaxy-io/dls/inputs/Field";
 import MultiSelectInput from "@galaxy-io/dls/inputs/MultiSelectInput";
 import PasswordInput from "@galaxy-io/dls/inputs/PasswordInput";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Text from "@galaxy-io/dls/text/Text";
 
-import { NotificationType, type NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+import { NotificationType, NotifierEvent } from "@/gen/ingestion/v1/notifiers_pb";
+
+import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import {
-  PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION,
+  PIPELINE_NOTIFIER_ALL_EVENTS_LABEL,
   PIPELINE_NOTIFIER_EVENT_OPTIONS,
   PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP,
   PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT,
@@ -19,6 +23,7 @@ import {
   PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY,
   PIPELINE_NOTIFIER_TYPE_OPTIONS,
 } from "@/pages/pipelines/components/notifier/constants";
+import PipelineNotifierTypeTile from "@/pages/pipelines/components/notifier/PipelineNotifierTypeTile";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import {
   formatPipelineNotifierEventsSelection,
@@ -27,18 +32,24 @@ import {
   isPipelineNotifierUrlValid,
   parsePipelineNotifierHeaders,
 } from "@/pages/pipelines/components/notifier/utils";
-import { PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP } from "@/pages/pipelines/history/constants";
 
-const EVENT_OPTIONS: SelectInputOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
+import { mapOptionIdToEnum } from "@/utils/select";
+
+const EVENT_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_EVENT_OPTIONS.map((option) => ({
   ...option,
-  icon: (
-    <Beacon
-      variant={
-        PIPELINE_RUN_STATUS_TO_BEACON_VARIANT_MAP[
-          PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[option.value as NotifierEvent]
-        ]
+  leading: (
+    <PipelineRunStatusSwatch
+      status={
+        PIPELINE_NOTIFIER_EVENT_TO_RUN_STATUS_MAP[mapOptionIdToEnum(NotifierEvent, option.id)]
       }
     />
+  ),
+}));
+
+const TYPE_OPTIONS: SelectOption[] = PIPELINE_NOTIFIER_TYPE_OPTIONS.map((option) => ({
+  ...option,
+  leading: (
+    <PipelineNotifierTypeTile notificationType={mapOptionIdToEnum(NotificationType, option.id)} />
   ),
 }));
 
@@ -48,11 +59,11 @@ interface PipelineNotifierFieldsProps {
   isDisabled?: boolean;
 }
 
-const PipelineNotifierFields = ({
+const PipelineNotifierFields: FC<PipelineNotifierFieldsProps> = ({
   state,
   onChange,
   isDisabled = false,
-}: PipelineNotifierFieldsProps) => {
+}) => {
   const isSlack = state.notificationType === NotificationType.SLACK;
   const urlError =
     state.url !== "" && !isPipelineNotifierUrlValid(state.url)
@@ -73,23 +84,19 @@ const PipelineNotifierFields = ({
     PIPELINE_NOTIFIER_HEADERS_SECRET_REF_KEY in state.secretRefs
       ? PIPELINE_NOTIFIER_HEADERS_KEEP_PLACEHOLDER_TEXT
       : PIPELINE_NOTIFIER_HEADERS_PLACEHOLDER_TEXT;
-  const selectedTypeOption =
-    PIPELINE_NOTIFIER_TYPE_OPTIONS.find((option) => option.value === state.notificationType) ??
-    null;
-  const selectedEventOptions = EVENT_OPTIONS.filter((option) =>
-    state.events.includes(option.value as NotifierEvent),
-  );
+  const selectedEventIds = state.events.map(String);
 
   const handleNameChange = (name: string) => {
     onChange({ name });
   };
 
-  const handleTypeChange = (option: SelectInputOption) => {
-    onChange({ notificationType: option.value as NotificationType, url: "", headers: "" });
+  const handleTypeChange = (id: string | null) => {
+    if (id === null) return;
+    onChange({ notificationType: mapOptionIdToEnum(NotificationType, id), url: "", headers: "" });
   };
 
-  const handleEventsChange = (options: SelectInputOption[]) => {
-    onChange({ events: options.map((option) => option.value as NotifierEvent) });
+  const handleEventsChange = (ids: string[]) => {
+    onChange({ events: ids.map((id) => mapOptionIdToEnum(NotifierEvent, id)) });
   };
 
   const handleUrlChange = (url: string) => {
@@ -101,38 +108,46 @@ const PipelineNotifierFields = ({
   };
 
   return (
-    <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
+    <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
       <TextInput
         label="Name"
         value={state.name}
         onChange={handleNameChange}
-        placeholder="Notifier name"
-        size={InputSize.LARGE}
+        placeholder="Notifier name..."
         isDisabled={isDisabled}
         fillWidth
       />
-      <SelectInput
-        label="Type"
-        options={PIPELINE_NOTIFIER_TYPE_OPTIONS}
-        value={selectedTypeOption}
-        onChange={handleTypeChange}
-        placeholder="Select type"
-        size={InputSize.LARGE}
-        isDisabled={isDisabled}
-        fillWidth
-      />
-      <MultiSelectInput
-        label="Events"
-        options={EVENT_OPTIONS}
-        value={selectedEventOptions}
-        onChange={handleEventsChange}
-        renderSelectedText={formatPipelineNotifierEventsSelection}
-        pinnedOptions={[PIPELINE_NOTIFIER_ALL_EVENTS_PINNED_OPTION]}
-        placeholder="Select events"
-        size={InputSize.LARGE}
-        isDisabled={isDisabled}
-        fillWidth
-      />
+      <Flex alignItems={AlignItems.START} gap={12} fillWidth>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <SelectInput
+            label="Type"
+            options={TYPE_OPTIONS}
+            value={String(state.notificationType)}
+            onChange={handleTypeChange}
+            placeholder="Select a type..."
+            isDisabled={isDisabled}
+            fillWidth
+          />
+        </FlexItem>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <MultiSelectInput
+            label="Events"
+            options={EVENT_OPTIONS}
+            selectAllLabel={PIPELINE_NOTIFIER_ALL_EVENTS_LABEL}
+            value={selectedEventIds}
+            onChange={handleEventsChange}
+            renderValue={(options) => (
+              <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+                {options.length === 1 && options[0].leading}
+                <Text lineClamp={1}>{formatPipelineNotifierEventsSelection(options)}</Text>
+              </Flex>
+            )}
+            placeholder="Select events..."
+            isDisabled={isDisabled}
+            fillWidth
+          />
+        </FlexItem>
+      </Flex>
       {isSlack ? (
         <PasswordInput
           label="Webhook URL"
@@ -140,7 +155,6 @@ const PipelineNotifierFields = ({
           onChange={handleUrlChange}
           error={slackUrlError}
           placeholder={slackUrlPlaceholder}
-          size={InputSize.LARGE}
           isDisabled={isDisabled}
           fillWidth
         />
@@ -152,32 +166,22 @@ const PipelineNotifierFields = ({
             onChange={handleUrlChange}
             error={urlError}
             placeholder="https://example.com/hooks/filament"
-            size={InputSize.LARGE}
             isDisabled={isDisabled}
             fillWidth
           />
-          <FlexWrapper direction={FlexDirection.COLUMN} gap={8} fillWidth>
-            <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              Headers
-            </Text>
+          <Field label="Headers" error={headersError} fillWidth>
             <CodeEditor
-              content={state.headers}
+              value={state.headers}
               onChange={handleHeadersChange}
-              lang="json"
+              language={CodeEditorLanguage.JSON}
               placeholder={headersPlaceholder}
-              borderRadius={4}
               isReadOnly={isDisabled}
-              noLineNumbers
+              hasLineNumbers={false}
             />
-            {headersError && (
-              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-                {headersError}
-              </Text>
-            )}
-          </FlexWrapper>
+          </Field>
         </>
       )}
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -3,13 +3,26 @@
 import typing
 
 import pydantic
+import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
+from ..core.serialization import FieldMetadata
 from .ingestion_v1resource_column import IngestionV1ResourceColumn
 
 
 class IngestionV1ResourceColumns(UniversalBaseModel):
     resource: typing.Optional[str] = None
     columns: typing.Optional[typing.List[IngestionV1ResourceColumn]] = None
+    managed_incremental: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="managedIncremental"),
+        pydantic.Field(
+            alias="managedIncremental",
+            description="Incremental state is owned by the source; no cursor column is required.",
+        ),
+    ] = None
+    """
+    Incremental state is owned by the source; no cursor column is required.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

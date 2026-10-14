@@ -12,7 +12,7 @@ func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         sinkName,
 		DisplayName:  "Google BigQuery",
-		Description:  "Serverless Google Cloud data warehouse for large-scale analytics.",
+		Description:  "Serverless data platform from Google Cloud for analyzing large datasets with SQL and Python, without managing the underlying infrastructure.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-bigquery-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-bigquery-light.svg",
 		Version:      "1",

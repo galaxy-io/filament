@@ -1,22 +1,17 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
-import { styled } from "@linaria/react";
-import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-
-import Wrapper from "@galaxy-io/dls/containers/Wrapper";
-import HorizontalDivider from "@galaxy-io/dls/dividers/HorizontalDivider";
-import InfiniteTable, { ColumnAlign, type ColumnDef } from "@galaxy-io/dls/table/InfiniteTable";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import TextShimmer from "@galaxy-io/dls/text/TextShimmer";
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
 
-import { GetPipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
-import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
+import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
-import BaseHeader, { BaseHeaderSize } from "@/layouts/components/BaseHeader";
-import EmptyLayout from "@/layouts/EmptyLayout";
+import PipelineRunDuration from "@/components/runs/PipelineRunDuration";
+import PipelineRunRecords from "@/components/runs/PipelineRunRecords";
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
+import PipelineRunVolume from "@/components/runs/PipelineRunVolume";
 
 import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
@@ -25,59 +20,46 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
-import PipelineHistoryRunDuration from "@/pages/pipelines/history/PipelineHistoryRunDuration";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
-import PipelineHistoryRunStatus from "@/pages/pipelines/history/PipelineHistoryRunStatus";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
 
-import { useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
+import {
+  useFilamentSearchUpdate,
+  usePipelineHistorySearch,
+  usePipelineParams,
+} from "@/module/hooks";
+import type { PipelineHistorySearch } from "@/module/schemas";
+
+import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
+import { formatTimestamp, formatVersion } from "@/utils/format";
 
-const PageWrapper = withTheme(styled.div<PropsWithTheme>`
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  background-color: ${({ theme }) => theme.color.background.base};
-`);
-
-const RunTableWrapper = styled.div`
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-`;
-
-const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): ColumnDef<RunInfo>[] => [
+const createRunTableColumns = (
+  versionById: ReadonlyMap<string, bigint>,
+): TableColumn<RunInfo>[] => [
   {
     id: "status",
     header: "Status",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
-    cellLoading: () => <TextShimmer width={64} height={18} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_STATUS,
     cell: ({ row }) => (
-      <PipelineHistoryRunStatus
-        status={row.original.status}
-        error={row.original.error}
-        executionStatus={row.original.executionStatus}
+      <PipelineRunStatus
+        status={row.status}
+        error={row.error}
+        executionStatus={row.executionStatus}
       />
     ),
   },
   {
     id: "startedAt",
     header: "Started",
-    cellLoading: () => <TextShimmer width={160} height={14} />,
     cell: ({ row }) => {
-      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row.original);
+      const { timestamp, isStarted } = getPipelineHistoryRunTimestamp(row);
       return (
         <Text
           size={TextSize.BODY_SM}
           variant={isStarted ? TextVariant.PRIMARY : TextVariant.TERTIARY}
-          isEllipsis
+          lineClamp={1}
         >
           {formatTimestamp(timestamp)}
         </Text>
@@ -87,58 +69,42 @@ const createRunTableColumns = (versionById: ReadonlyMap<string, bigint>): Column
   {
     id: "version",
     header: "Version",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
-    cellLoading: () => <TextShimmer width={32} height={14} />,
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
     cell: ({ row }) => {
-      const version = versionById.get(row.original.pipelineVersionId);
-      return <Text size={TextSize.BODY_SM}>{version ? `Version ${version.toString()}` : "—"}</Text>;
+      const version = versionById.get(row.pipelineVersionId);
+      return <Text size={TextSize.BODY_SM}>{formatVersion(version)}</Text>;
     },
   },
   {
     id: "duration",
     header: "Duration",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
-    cellLoading: () => <TextShimmer width={160} height={14} />,
-    cell: ({ row }) => (
-      <PipelineHistoryRunDuration
-        status={row.original.status}
-        startedAt={row.original.startedAt}
-        endedAt={row.original.endedAt}
-      />
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
+    align: "right",
+    cell: ({ row }) => <PipelineRunDuration run={row} />,
   },
   {
     id: "records",
     header: "Records",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
-    cellLoading: () => <TextShimmer width={48} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.startedAt ? formatCount(row.original.records) : "—"}
-      </Text>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+    align: "right",
+    cell: ({ row }) => <PipelineRunRecords run={row} />,
   },
   {
     id: "volume",
     header: "Volume",
-    size: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
-    align: ColumnAlign.RIGHT,
-    cellLoading: () => <TextShimmer width={52} height={14} />,
-    cell: ({ row }) => (
-      <Text size={TextSize.BODY_SM} isMonospace>
-        {row.original.startedAt ? formatBytes(row.original.bytes) : "—"}
-      </Text>
-    ),
+    width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+    align: "right",
+    cell: ({ row }) => <PipelineRunVolume run={row} />,
   },
 ];
 
-const PipelineHistoryPage = () => {
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
-  const navigate = useNavigate();
-  const { runId: runIds = [] } = useSearch({ from: "/_app/pipelines/$id/history" });
+const PipelineHistoryPage: FC = () => {
+  const { id } = usePipelineParams();
+  const updateSearch = useFilamentSearchUpdate<PipelineHistorySearch>();
+  const { runId: runIds = [] } = usePipelineHistorySearch();
 
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id, includeVersions: true }),
+    input: createGetPipelineInput(id),
   });
   const columns = useMemo(() => {
     const versions = pipelineData.pipeline?.versions ?? [];
@@ -152,57 +118,39 @@ const PipelineHistoryPage = () => {
     },
   );
 
-  const runs = useMemo(() => {
-    const seen = new Set<string>();
-    return data.pages
-      .flatMap((page) => page.runs)
-      .filter((run) => {
-        if (seen.has(run.id)) return false;
-        seen.add(run.id);
-        return true;
-      });
-  }, [data.pages]);
+  const runs = useMemo(() => data.pages.flatMap((page) => page.runs), [data.pages]);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
-    void navigate({
-      to: ".",
-      replace: true,
-      search: (prev) => ({
+    void updateSearch(
+      (prev) => ({
         ...prev,
         runId: expandedRowIds.length > 0 ? expandedRowIds : undefined,
       }),
-    });
+      { replace: true },
+    );
   };
 
   return (
-    <PageWrapper>
-      <Wrapper padding={"16px"} fillWidth>
-        <BaseHeader size={BaseHeaderSize.LARGE} title="History" />
-      </Wrapper>
-
-      <HorizontalDivider />
-
-      <RunTableWrapper>
-        <InfiniteTable<RunInfo>
-          columns={columns}
-          data={runs}
-          getRowId={(run) => run.id}
-          contentWhenEmpty={
-            <EmptyLayout header="No runs yet" message="Run a pipeline to see its history here." />
-          }
-          expandedRowIds={runIds}
-          onExpandedChange={handleExpandedChange}
-          onRowExpand={(row) => {
-            return <PipelineHistoryRunInfo runId={row.original.id} />;
-          }}
-          hasNextPage={hasNextPage}
-          isFetchingNextPage={isFetchingNextPage}
-          fetchNextPage={fetchNextPage}
-          fillWidth
-          fillHeight
-        />
-      </RunTableWrapper>
-    </PageWrapper>
+    <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
+      <InfiniteTable<RunInfo>
+        ariaLabel="Run history"
+        columns={columns}
+        data={runs}
+        getRowId={(run) => run.id}
+        emptyState={
+          <EmptyLayout header="No runs yet" description="Run a pipeline to see its history here." />
+        }
+        expandedIds={runIds}
+        onExpandedIdsChange={handleExpandedChange}
+        renderExpandedRow={(row) =>
+          row.status === RunStatus.SCHEDULED ? null : <PipelineHistoryRunInfo runId={row.id} />
+        }
+        isLoading={isFetchingNextPage}
+        onEndReached={() => {
+          if (hasNextPage) fetchNextPage();
+        }}
+      />
+    </Flex>
   );
 };
 

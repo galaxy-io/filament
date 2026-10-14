@@ -153,3 +153,117 @@ func TestSourcesWithOverridesRejectsConcreteOverAlias(t *testing.T) {
 		t.Fatalf("concrete replacement of alias accepted: %v, %v", merged, err)
 	}
 }
+
+func TestSourcesOnly(t *testing.T) {
+	base := NewSources()
+	for _, name := range []string{"example@v1", "example@v2", "examples@v1", "other"} {
+		base.Register(name, func() filament.Source { return &specSource{name: name} })
+	}
+	base.RegisterAlias("example", "example@v2")
+	only, err := base.Only([]string{"example"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, spec := range only.Specs() {
+		names = append(names, spec.Name)
+	}
+	if got := strings.Join(names, ","); got != "example,example@v1,example@v2" {
+		t.Fatalf("kept %s", got)
+	}
+	spec, err := only.Spec("example")
+	if err != nil || spec.Name != "example@v2" {
+		t.Fatalf("alias spec=%+v err=%v", spec, err)
+	}
+	if _, err := base.Resolve("other"); err != nil {
+		t.Fatal("base mutated")
+	}
+	for _, names := range [][]string{{"missing"}, {"example@v1"}, {""}} {
+		if only, err := base.Only(names); err == nil || only != nil {
+			t.Fatalf("Only(%q) accepted", names)
+		}
+	}
+}
+
+func TestSinksOnly(t *testing.T) {
+	base := NewSinks()
+	for _, name := range []string{"kept", "dropped"} {
+		base.Register(name, func() filament.Sink { return streamSink{} })
+	}
+	only, err := base.Only([]string{"kept"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := only.Resolve("kept"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := only.Resolve("dropped"); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatalf("dropped sink resolved: %v", err)
+	}
+	if _, err := base.Only([]string{"missing"}); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatalf("unknown sink accepted: %v", err)
+	}
+}
+
+type streamSpecSource struct{ filament.Source }
+
+func (streamSpecSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Name: "stream", Stream: &filament.StreamCapabilities{}}
+}
+
+type streamSource struct {
+	streamSpecSource
+	filament.StreamSource
+	filament.ReplicationStreamPlanner
+}
+
+type streamSpecSink struct{ filament.Sink }
+
+func (streamSpecSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}}}
+}
+
+type streamSink struct {
+	streamSpecSink
+	filament.StreamingSink
+}
+
+func TestRegisterRequiresDeclaredContracts(t *testing.T) {
+	mustPanic := func(t *testing.T, want string, register func()) {
+		t.Helper()
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected registration panic")
+			}
+			if msg := fmt.Sprint(r); !strings.Contains(msg, want) {
+				t.Fatalf("panic %q does not mention %q", msg, want)
+			}
+		}()
+		register()
+	}
+	t.Run("source without stream contracts", func(t *testing.T) {
+		mustPanic(t, "filament.StreamSource", func() {
+			NewSources().Register("stream", func() filament.Source { return streamSpecSource{} })
+		})
+	})
+	t.Run("source with stream contracts", func(t *testing.T) {
+		sources := NewSources()
+		sources.Register("stream", func() filament.Source { return streamSource{} })
+		if _, err := sources.Spec("stream"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("sink without stream contract", func(t *testing.T) {
+		mustPanic(t, "filament.StreamingSink", func() {
+			NewSinks().Register("stream", func() filament.Sink { return streamSpecSink{} })
+		})
+	})
+	t.Run("sink with stream contract", func(t *testing.T) {
+		sinks := NewSinks()
+		sinks.Register("stream", func() filament.Sink { return streamSink{} })
+		if _, err := sinks.Spec("stream"); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

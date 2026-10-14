@@ -1,33 +1,27 @@
-import { styled } from "@linaria/react";
+import type { FC } from "react";
 
-import { InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputVariant } from "@galaxy-io/dls/inputs/SelectInput";
+import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
-import { CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH } from "@/pages/pipelines/components/create/constants";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
-
-const CellWrapper = styled.div`
-  width: 100%;
-  min-width: 0;
-`;
+import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 
 interface CreatePipelineModalResourcesCursorCellProps {
   row: CreatePipelineModalResourceRow;
 }
 
-const CreatePipelineModalResourcesCursorCell = ({
+const CreatePipelineModalResourcesCursorCell: FC<CreatePipelineModalResourcesCursorCellProps> = ({
   row,
-}: CreatePipelineModalResourcesCursorCellProps) => {
+}) => {
   const { activeSinkId } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setResourceCursor } = useCreatePipelineModalActions();
 
   if (!row.isSelected || row.readMode !== ReadMode.INCREMENTAL) {
     return (
@@ -45,35 +39,25 @@ const CreatePipelineModalResourcesCursorCell = ({
     );
   }
 
-  const options: SelectInputOption[] = row.cursorOptions.map((column) => ({
-    id: column.name,
-    label: column.name,
-    value: column.name,
-  }));
+  const options = getCursorSelectOptions(row.cursorOptions);
 
-  const selectedOption = options.find((option) => option.value === row.cursorField) ?? null;
+  const handleCursorChange = (id: string | null) => {
+    if (id === null) return;
+    setResourceCursor({ sinkId: activeSinkId, resource: row.name, cursorField: id });
+  };
 
   return (
-    <CellWrapper>
+    <Box fillWidth minWidth={0}>
       <SelectInput
         options={options}
-        value={selectedOption}
-        onChange={(option) =>
-          dispatch({
-            type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR,
-            payload: {
-              sinkId: activeSinkId,
-              resource: row.name,
-              cursorField: option.value as string,
-            },
-          })
-        }
+        value={row.cursorField || null}
+        onChange={handleCursorChange}
         placeholder="Select a column..."
-        variant={InputVariant.TERTIARY}
-        dropdownWidth={CREATE_PIPELINE_MODAL_CURSOR_DROPDOWN_WIDTH}
+        ariaLabel={`Cursor for ${row.displayName}`}
+        variant={SelectInputVariant.TERTIARY}
         fillWidth
       />
-    </CellWrapper>
+    </Box>
   );
 };
 

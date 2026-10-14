@@ -10,7 +10,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         "iceberg",
 		DisplayName:  "Apache Iceberg",
-		Description:  "Open table format for large-scale analytics on data lakes with schema evolution and time travel.",
+		Description:  "Open table format for large analytic datasets that lets multiple processing engines share tables, with schema evolution and reproducible snapshot queries.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-iceberg-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-iceberg-light.svg",
 		Version:      "2",

@@ -26,7 +26,7 @@ func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         sinkName,
 		DisplayName:  "Amazon Redshift",
-		Description:  "Fully managed, petabyte-scale AWS cloud data warehouse with provisioned clusters and automatically scaling Serverless workgroups.",
+		Description:  "Cloud data warehouse from AWS for analyzing large datasets with SQL and business intelligence tools, with provisioned and serverless deployment options.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-redshift-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-redshift-light.svg",
 		Version:      "1",

@@ -56,8 +56,8 @@ func TestPageExplicitMoreOverridesShortPages(t *testing.T) {
 	}
 }
 
-func TestPageAndCursorContinuation(t *testing.T) {
-	for _, strategy := range []string{"page", "cursor"} {
+func TestExplicitContinuation(t *testing.T) {
+	for _, strategy := range []string{"page", "cursor", "offset"} {
 		for _, tc := range []struct {
 			name       string
 			body       map[string]any
@@ -70,7 +70,7 @@ func TestPageAndCursorContinuation(t *testing.T) {
 			{"wrong_type", map[string]any{"more": "true", "cursor": "next"}, false, true},
 		} {
 			t.Run(strategy+"/"+tc.name, func(t *testing.T) {
-				p, err := New(manifest.PaginationSpec{Type: strategy, PageParam: "page", PageSize: 50, CursorParam: "cursor", CursorPath: "cursor", HasMorePath: "more"})
+				p, err := New(manifest.PaginationSpec{Type: strategy, PageParam: "page", OffsetParam: "offset", PageSize: 50, CursorParam: "cursor", CursorPath: "cursor", HasMorePath: "more"})
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -1,90 +1,106 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
-import { useSearch } from "@tanstack/react-router";
-
-import LineChart from "@galaxy-io/dls/charts/LineChart";
-import type {
-  ChartPalette,
-  ChartValueFormatter,
-  LineChartCurve,
-  LineChartLineDatum,
+import AreaChart from "@galaxy-io/dls/charts/AreaChart";
+import LineChart, { type LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
+import {
+  type ChartCurve,
+  type ChartPalette,
+  ChartSwatch,
+  type ChartValueFormatter,
 } from "@galaxy-io/dls/charts/types";
-import FlexWrapper, { FlexDirection } from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { type Metric, MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
+
+import { formatPipelineName } from "@/components/pipelines/utils";
+import {
+  PIPELINE_RUN_STATUS_TO_HUE_MAP,
+  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
+} from "@/components/runs/constants";
 
 import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
-import { OBSERVABILITY_PIPELINES_INPUT } from "@/pages/observability/constants";
-import { ObservabilityTimeframe } from "@/pages/observability/types";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import {
   createObservabilityTimeseriesInput,
   formatBucketKey,
-  useBucketLabelFormatter,
+  getBucketLabelFormatter,
 } from "@/pages/observability/utils";
-import {
-  PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/pages/pipelines/history/constants";
-import { formatPipelineName } from "@/pages/pipelines/utils";
+
+import { useObservabilitySearch } from "@/module/hooks";
 
 import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
-import { useListPipelinesQuery } from "@/api/queries/pipelines";
+import { useGetPipelineQueries } from "@/api/queries/pipelines";
+
+import { mapOptionIdToEnum } from "@/utils/select";
 
 interface ObservabilityTimeseriesChartProps {
   seriesLabel: string;
   metric: Metric;
   color: ChartPalette;
   pivot: MetricDimension | undefined;
-  curve: LineChartCurve;
+  curve: ChartCurve;
+  isStacked: boolean;
   valueFormatter?: ChartValueFormatter;
 }
 
-const ObservabilityTimeseriesChart = ({
+const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   seriesLabel,
   metric,
   color,
   pivot,
   curve,
+  isStacked,
   valueFormatter,
-}: ObservabilityTimeseriesChartProps) => {
-  const { timeframe = ObservabilityTimeframe.TWENTY_FOUR_HOURS } = useSearch({
-    from: "/_app/_main/observability",
-  });
+}) => {
+  const { timeframe } = useObservabilitySearch();
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
-  const bucketLabelFormatter = useBucketLabelFormatter(timeframe);
+  const bucketStartMs = useObservabilityBucketStart(timeframe);
+
+  const bucketLabelFormatter = getBucketLabelFormatter(
+    OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
+  );
 
   const input = useMemo(
     () =>
-      createObservabilityTimeseriesInput(timeframe, {
+      createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
         metrics: [metric],
         groupBy: pivotDimension,
       }),
-    [timeframe, metric, pivotDimension],
+    [timeframe, bucketStartMs, metric, pivotDimension],
   );
 
   const { data, isLoading } = useQueryTimeseriesQuery({ input });
-  const { data: pipelinesData } = useListPipelinesQuery({
-    input: OBSERVABILITY_PIPELINES_INPUT,
-  });
+
+  const pivotPipelineIds = useMemo(
+    () =>
+      pivotDimension === MetricDimension.PIPELINE_ID
+        ? (data?.series ?? []).map((keySeries) => keySeries.key)
+        : [],
+    [data, pivotDimension],
+  );
+
+  const pivotPipelines = useGetPipelineQueries(pivotPipelineIds);
 
   const { series, lines } = useMemo(() => {
-    const timeseries = data?.series ?? [];
+    const timeseries = (data?.series ?? []).filter(
+      (keySeries) =>
+        pivotDimension !== MetricDimension.STATUS ||
+        PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, keySeries.key)] !== undefined,
+    );
     const pipelineNamesByPipelineId = new Map(
-      (pipelinesData?.pipelines ?? []).map((pipeline) => [
-        pipeline.id,
-        formatPipelineName(pipeline, true),
-      ]),
+      pivotPipelines.map((pipeline) => [pipeline.id, formatPipelineName(pipeline, true)]),
     );
 
     const keyToLabel = (key: Timeseries["key"]) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_LABEL_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_LABEL_MAP[mapOptionIdToEnum(RunStatus, key)];
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return pipelineNamesByPipelineId.get(key) ?? key;
@@ -94,7 +110,7 @@ const ObservabilityTimeseriesChart = ({
 
     const keyToColor = (key: Timeseries["key"], index: number) => {
       if (pivotDimension === MetricDimension.STATUS) {
-        return PIPELINE_RUN_STATUS_TO_CHART_PALETTE_MAP[Number(key) as RunStatus];
+        return PIPELINE_RUN_STATUS_TO_HUE_MAP[mapOptionIdToEnum(RunStatus, key)];
       }
       if (pivotDimension === MetricDimension.PIPELINE_ID) {
         return OBSERVABILITY_TIMESERIES_PIVOT_PALETTE[
@@ -123,29 +139,43 @@ const ObservabilityTimeseriesChart = ({
         })),
       })),
     };
-  }, [data, pipelinesData, pivotDimension, seriesLabel, color]);
+  }, [data, pivotPipelines, pivotDimension, seriesLabel, color]);
 
   return (
-    <FlexWrapper
+    <Flex
+      alignItems={AlignItems.START}
       direction={FlexDirection.COLUMN}
-      padding={"16px 12px"}
+      padding={[12, 16]}
       height={OBSERVABILITY_TIMESERIES_CHART_HEIGHT}
       fillWidth
     >
-      <LineChart<string>
-        series={series}
-        lines={lines}
-        curve={curve}
-        valueFormatter={valueFormatter}
-        labelFormatter={bucketLabelFormatter}
-        tooltipMaxItems={8}
-        isLoading={isLoading}
-        fillWidth
-        fillHeight
-        showGrid
-        showLegend
-      />
-    </FlexWrapper>
+      {isStacked ? (
+        <AreaChart<string>
+          series={series}
+          areas={lines}
+          curve={curve}
+          valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
+          isLoading={isLoading}
+          swatch={ChartSwatch.SQUARE}
+          hasLegend
+          isFilterable
+          isStacked
+        />
+      ) : (
+        <LineChart<string>
+          series={series}
+          lines={lines}
+          curve={curve}
+          valueFormatter={valueFormatter}
+          labelFormatter={bucketLabelFormatter}
+          isLoading={isLoading}
+          swatch={ChartSwatch.SQUARE}
+          hasLegend
+          isFilterable
+        />
+      )}
+    </Flex>
   );
 };
 

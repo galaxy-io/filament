@@ -110,14 +110,6 @@ var (
 	_ filament.ReplicationStreamCleaner = (*Source)(nil)
 )
 
-// Replication reports the mode the connection's config selects.
-func (s *Source) Replication(cfg filament.Config) filament.ReplicationMode {
-	if cfg.String("replication") == replicationCDC {
-		return filament.ReplicationCDC
-	}
-	return filament.ReplicationStandard
-}
-
 // PlanReplicationStream gives one pipeline route its own logical replication
 // slot while keeping the publication shared at the connection level.
 func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {

@@ -4,7 +4,7 @@ description: "Deploy Filament from the Render Blueprint"
 ---
 
 The repository's `deploy/render.yaml` Blueprint deploys the Filament server,
-control plane, PostgreSQL, and NATS as one connected stack:
+control plane, worker, PostgreSQL, and NATS as one connected stack:
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fgalaxy-io%2Ffilament&branch=main&path=deploy%2Frender.yaml)
 
@@ -13,7 +13,8 @@ control plane, PostgreSQL, and NATS as one connected stack:
 | Filament component | Hosted on Render as | Purpose |
 |---|---|---|
 | Server (`server`) | Public web service | Serves the API and embedded web application |
-| Control plane (`control-plane`) | Private background service | Manages schedules and executes runs |
+| Control plane (`control-plane`) | Private background service | Fires schedules and tracks runs |
+| Worker (`worker`) | Private network service | Links the connectors, serves the catalog, and executes runs |
 | NATS (`nats`) | Private network service with a 1 GiB disk | Carries lifecycle events through JetStream |
 | PostgreSQL (`postgres`) | Free managed database | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials for up to 30 days unless upgraded |
 
@@ -38,7 +39,7 @@ to retain its data.
   </Step>
   <Step title="Select the Blueprint">
     Confirm **Blueprint Path** is `deploy/render.yaml`. Then choose a workspace and
-    review the four resources, their region, plans, and estimated monthly cost.
+    review the five resources, their region, plans, and estimated monthly cost.
   </Step>
   <Step title="Deploy">
     Create the Blueprint and wait for every resource to become available. The
@@ -55,25 +56,28 @@ to retain its data.
 Render does not provide a managed NATS service. The Blueprint runs the official
 `nats:2-alpine` image as the smallest private service, enables JetStream, and
 mounts a 1 GiB persistent disk at `/data`. Render injects the service's private
-host and port into `NATS_URL` for both Filament services.
+host and port into `NATS_URL` for the control plane and the worker.
 
 NATS cannot use a free web service: free web services cannot receive private
 network traffic, and a public Render web service accepts HTTP rather than the
 NATS protocol. Render Key Value is also not a substitute because Filament's
 event-bus implementation requires NATS JetStream.
 
-## Run execution
+## Connectors and run execution
 
-Render has no Kubernetes Jobs API, so the control plane uses
-`DISPATCH_MODE=inproc`. Every run executes inside the control-plane service and
-shares its CPU and memory.
+The worker is the only service that links connector drivers. It runs with
+`-serve -execute`. With `-serve` it answers connector calls from the server and
+control plane, which reach it through `WORKER_URL` on the private network. With
+`-execute` it consumes requested runs from NATS and executes them itself, since
+Render has no Kubernetes Jobs API. The control plane uses `DISPATCH_MODE=worker`
+and dispatches nothing. Every run shares the worker service's CPU and memory.
 
 <Warning>
 Keep `control-plane` at one instance. Multiple control-plane replicas may race
 while coordinating schedules and runs.
 </Warning>
 
-Increase the control-plane service's compute plan for concurrent or
+Increase the worker service's compute plan for concurrent or
 resource-intensive pipelines. Use the
 [Kubernetes deployment](/pages/guides/deployment/kubernetes) when runs need
 isolated containers or independent resource configuration.
@@ -97,7 +101,7 @@ server. See
 
 ## Upgrades
 
-The Blueprint pins the Filament server and control-plane images to the same
-release. To upgrade, change both image tags in `deploy/render.yaml`, sync the
-Blueprint, and confirm that the server's migration step completes before using
-the new version.
+The Blueprint pins the Filament server, control-plane, and worker images to
+the same release. To upgrade, change all three image tags in
+`deploy/render.yaml`, sync the Blueprint, and confirm that the server's
+migration step completes before using the new version.

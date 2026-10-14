@@ -4,18 +4,17 @@ import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb"
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type {
   PipelineNotifier,
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export enum CreatePipelineModalActionType {
   SELECT_SOURCE = "SELECT_SOURCE",
   TOGGLE_SINK = "TOGGLE_SINK",
   SET_ACTIVE_SINK = "SET_ACTIVE_SINK",
-  OPEN_SINK_RESOURCES = "OPEN_SINK_RESOURCES",
   SET_EXECUTION_MODE = "SET_EXECUTION_MODE",
   ADD_RESOURCE = "ADD_RESOURCE",
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
@@ -48,11 +47,6 @@ export interface ToggleSinkAction {
 
 export interface SetActiveSinkAction {
   type: CreatePipelineModalActionType.SET_ACTIVE_SINK;
-  payload: Connection["id"];
-}
-
-export interface OpenSinkResourcesAction {
-  type: CreatePipelineModalActionType.OPEN_SINK_RESOURCES;
   payload: Connection["id"];
 }
 
@@ -111,7 +105,7 @@ export interface SetDescriptionAction {
 
 export interface SetScheduleAction {
   type: CreatePipelineModalActionType.SET_SCHEDULE;
-  payload: Partial<PipelineSettingsPageScheduleState>;
+  payload: Partial<PipelineScheduleState>;
 }
 
 export interface AddNotifierAction {
@@ -139,11 +133,11 @@ export interface GoToStepAction {
   payload: CreatePipelineModalStep;
 }
 
-export interface GoBackAction {
+interface GoBackAction {
   type: CreatePipelineModalActionType.GO_BACK;
 }
 
-export interface GoNextAction {
+interface GoNextAction {
   type: CreatePipelineModalActionType.GO_NEXT;
 }
 
@@ -158,7 +152,6 @@ export type CreatePipelineModalAction =
   | SetActiveSinkAction
   | SetExecutionModeAction
   | AddResourceAction
-  | OpenSinkResourcesAction
   | SetResourceSelectionAction
   | SetResourceReadModeAction
   | SetResourceCursorAction

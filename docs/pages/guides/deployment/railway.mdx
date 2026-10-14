@@ -4,7 +4,7 @@ description: "Deploy Filament from the Railway template"
 ---
 
 Filament publishes a Railway template that deploys the server, control plane,
-PostgreSQL, and NATS as one connected project:
+worker, PostgreSQL, and NATS as one connected project:
 
 <a href="https://railway.com/deploy/filament?referralCode=H5DcHR&amp;utm_medium=integration&amp;utm_source=template&amp;utm_campaign=generic">
   <img src="https://railway.com/button.svg" alt="Deploy on Railway" />
@@ -15,13 +15,14 @@ PostgreSQL, and NATS as one connected project:
 | Resource | Purpose |
 |---|---|
 | Filament server | Serves the API and web application over Railway's public network |
-| Filament control plane | Manages schedules and executes pipeline runs |
+| Filament control plane | Fires schedules and tracks pipeline runs |
+| Filament worker | Links the connectors, serves the catalog, and executes pipeline runs |
 | PostgreSQL | Stores pipelines, runs, checkpoints, schedules, and encrypted credentials |
 | NATS | Carries lifecycle events through JetStream |
 
 The template connects the services over Railway's private network and supplies
-the shared PostgreSQL DSN, NATS URL, and encryption key. Database migrations
-run before the server starts.
+the shared PostgreSQL DSN, NATS URL, worker URL, and encryption key. Database
+migrations run before the server starts.
 
 ## Deploy the template
 
@@ -31,14 +32,14 @@ run before the server starts.
     you want to create the project.
   </Step>
   <Step title="Review the project">
-    Confirm that the server, control plane, PostgreSQL, and NATS services are
-    included. Review the resource plans and generated variables before
+    Confirm that the server, control plane, worker, PostgreSQL, and NATS
+    services are included. Review the resource plans and generated variables before
     deploying.
   </Step>
   <Step title="Wait for the services">
     Railway provisions the backing services, applies database migrations, and
-    starts the server and control plane. Wait for every service to become
-    healthy.
+    starts the server, control plane, and worker. Wait for every service to
+    become healthy.
   </Step>
   <Step title="Open Filament">
     Open the public domain for the Filament server. If the template has not
@@ -47,18 +48,22 @@ run before the server starts.
   </Step>
 </Steps>
 
-## Run execution
+## Connectors and run execution
 
-Railway has no Kubernetes Jobs API, so the template sets
-`DISPATCH_MODE=inproc`. Every pipeline run executes inside the control-plane
-service and shares its CPU and memory.
+The worker is the only service that links connector drivers. It runs with
+`-serve -execute`. With `-serve` it answers connector calls from the server and
+control plane, which reach it through `WORKER_URL` on the private network. With
+`-execute` it consumes requested runs from NATS and executes them itself, since
+Railway has no Kubernetes Jobs API. The control plane sets
+`DISPATCH_MODE=worker` and dispatches nothing. Every pipeline run shares the
+worker service's CPU and memory.
 
 <Warning>
 Keep the control plane at one replica. Multiple replicas may race while
 coordinating schedules and pipeline runs.
 </Warning>
 
-Increase the control-plane service's CPU and memory for concurrent or
+Increase the worker service's CPU and memory for concurrent or
 resource-intensive pipelines. Use the
 [Kubernetes deployment](/pages/guides/deployment/kubernetes) when runs need
 isolated containers or independent resource configuration.
@@ -72,8 +77,9 @@ isolated containers or independent resource configuration.
   encrypted credentials unreadable.
 - Configure retention and backups for PostgreSQL and JetStream to match your
   recovery requirements.
-- Pin the server and control-plane images to the same Filament release, and
-  upgrade both together.
+- The template tracks the `latest` image tag for the server, control plane,
+  and worker. Pin all three to the same Filament release before relying on
+  the deployment, and upgrade them together.
 
 See [Configuration](/pages/guides/deployment/configuration) for authentication,
 secrets, logging, and other runtime settings.

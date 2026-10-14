@@ -16,6 +16,7 @@ import (
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/worker"
 )
 
 type versionedTestSource struct {
@@ -54,7 +55,7 @@ func TestApplyUnversionedDocumentPreservesPinnedConnection(t *testing.T) {
 		} else {
 			sources.RegisterAlias("example", "example@"+defaultVersion)
 		}
-		api := server.New(sources, registry.NewSinks(), db, nil, nil)
+		api := server.New(worker.Local(sources, registry.NewSinks()), db, nil, nil)
 		_, handler := ingestionv1connect.NewIngestionServiceHandler(api)
 		httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			handler.ServeHTTP(w, r.WithContext(identity.WithTenant(r.Context(), filament.DefaultTenantID)))

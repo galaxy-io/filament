@@ -29,6 +29,7 @@ import (
 	"github.com/galaxy-io/filament/tests/internal/testutil"
 	gxtc "github.com/galaxy-io/filament/tests/testcontainers"
 	"github.com/galaxy-io/filament/tests/testcontainers/seed"
+	"github.com/galaxy-io/filament/worker"
 )
 
 // TestPostgresPipelineThroughServer drives the full SaaS control-plane flow the
@@ -81,7 +82,7 @@ func TestPostgresPipelineThroughServer(t *testing.T) {
 	}
 	defer func() { _ = h.Close() }()
 
-	api := server.New(sources, sinks, store, orch, bus, server.WithSecrets(secrets))
+	api := server.New(worker.Local(sources, sinks), store, orch, bus, server.WithSecrets(secrets))
 
 	// 1. Create the source and sink Connections through the API. dsn is
 	//    CONNECTION-scoped, so it belongs in the connection config.

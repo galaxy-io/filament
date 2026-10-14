@@ -2,6 +2,9 @@ version: v2
 clean: true
 inputs:
   - directory: ../protos
+    # worker.v1 is the in-cluster worker contract, not public API.
+    exclude_paths:
+      - ../protos/worker
 plugins:
   - local: protoc-gen-es
     out: src/gen

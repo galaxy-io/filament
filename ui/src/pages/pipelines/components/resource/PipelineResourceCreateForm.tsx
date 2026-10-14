@@ -1,116 +1,95 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
-import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  AlignItems,
-  FlexDirection,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
-import { InputSize, InputVariant } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, { type SelectInputOption } from "@galaxy-io/dls/inputs/SelectInput";
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import SelectInput, {
+  SelectInputVariant,
+  type SelectOption,
+} from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
-import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
-
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
+import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
-export interface PipelineResourceCreateSink {
+interface PipelineResourceCreateSink {
   id: CanvasNode["id"];
   label: string;
 }
 
-export interface PipelineResourceCreateState {
-  resource: Resource["name"];
-  sinkId: CanvasNode["id"];
-}
-
 interface PipelineResourceCreateFormProps {
   sinks: PipelineResourceCreateSink[];
-  getError: (state: PipelineResourceCreateState) => string | null;
+  getError: (state: PipelineResourceCreateState) => string | undefined;
   onSave: (state: PipelineResourceCreateState) => void;
   onCancel: () => void;
+  variant?: WidgetVariant;
 }
 
-const PipelineResourceCreateForm = ({
+const DEFAULT_STATE: PipelineResourceCreateState = {
+  resource: "",
+  sinkId: "",
+};
+
+const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   sinks,
   getError,
   onSave,
   onCancel,
-}: PipelineResourceCreateFormProps) => {
-  const [state, setState] = useState<PipelineResourceCreateState>({
-    resource: "",
-    sinkId: sinks[0]?.id ?? "",
-  });
+  variant = WidgetVariant.TERTIARY,
+}) => {
+  const [state, setState] = useState<PipelineResourceCreateState>(() => ({
+    ...DEFAULT_STATE,
+    sinkId: sinks[0]?.id ?? DEFAULT_STATE.sinkId,
+  }));
 
   const trimmed = { ...state, resource: state.resource.trim() };
-  const error = trimmed.resource === "" ? null : getError(trimmed);
-  const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== null;
+  const error = trimmed.resource === "" ? undefined : getError(trimmed);
+  const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== undefined;
 
-  const sinkOptions: SelectInputOption[] = sinks.map((sink) => ({
+  const sinkOptions: SelectOption[] = sinks.map((sink) => ({
     id: sink.id,
     label: sink.label,
-    value: sink.id,
   }));
 
   return (
-    <FlexWrapper padding="12px" fillWidth>
-      <Widget variant={WidgetVariant.TERTIARY} noHover padding="16px" fillWidth>
-        <FlexWrapper direction={FlexDirection.COLUMN} gap={12} fillWidth>
-          <TextInput
-            label="Resource"
-            value={state.resource}
-            onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
+    <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} padding={12} fillWidth>
+      <Widget variant={variant} size={WidgetSize.LARGE} gap={12}>
+        <TextInput
+          label="Resource"
+          value={state.resource}
+          onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
+          }}
+          placeholder="orders.>"
+          error={error}
+          autoFocus
+          variant={InputVariant.TERTIARY}
+          fillWidth
+        />
+        {sinks.length > 1 && (
+          <SelectInput
+            label="Sink"
+            options={sinkOptions}
+            value={state.sinkId || null}
+            onChange={(sinkId) => {
+              if (sinkId !== null) setState((prev) => ({ ...prev, sinkId }));
             }}
-            placeholder="orders.>"
-            variant={InputVariant.TERTIARY}
-            size={InputSize.LARGE}
-            autoFocus
+            variant={SelectInputVariant.TERTIARY}
             fillWidth
           />
-          {sinks.length > 1 && (
-            <SelectInput
-              label="Sink"
-              options={sinkOptions}
-              value={sinkOptions.find((option) => option.value === state.sinkId) ?? null}
-              onChange={(option) =>
-                setState((prev) => ({ ...prev, sinkId: option.value as string }))
-              }
-              variant={InputVariant.TERTIARY}
-              size={InputSize.LARGE}
-              fillWidth
-            />
-          )}
-          {error && (
-            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-              {error}
-            </Text>
-          )}
-          <FlexWrapper
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.END}
-            gap={8}
-            fillWidth
-          >
-            <Button
-              label="Cancel"
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
-              onClick={onCancel}
-            />
-            <Button
-              label="Add"
-              size={ButtonSize.MEDIUM}
-              onClick={() => onSave(trimmed)}
-              isDisabled={isSaveDisabled}
-            />
-          </FlexWrapper>
-        </FlexWrapper>
+        )}
+        <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={8} fillWidth>
+          <Button label="Cancel" variant={ButtonVariant.SECONDARY} onClick={onCancel} />
+          <Button
+            label="Add resource"
+            onClick={() => onSave(trimmed)}
+            isDisabled={isSaveDisabled}
+          />
+        </Flex>
       </Widget>
-    </FlexWrapper>
+    </Flex>
   );
 };
 

@@ -4,7 +4,8 @@ import type * as Filament from "../index.js";
 
 /**
  * Notifier holds settings, plain config, and secret references, never secret
- *  values. Webhook config carries url; secret_refs carries headers.
+ *  values. Webhook config carries url; secret_refs carries headers. Slack
+ *  config is empty; secret_refs carries url.
  */
 export interface IngestionV1Notifier {
     id?: string | undefined;

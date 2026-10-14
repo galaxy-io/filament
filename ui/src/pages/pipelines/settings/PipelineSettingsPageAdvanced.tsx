@@ -1,39 +1,38 @@
-import { useState } from "react";
+import { type FC, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
-import { useParams } from "@tanstack/react-router";
 
-import Accordion from "@galaxy-io/dls/accordion/Accordion";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
-import FlexWrapper, {
-  FlexDirection,
-  FlexGap,
-  JustifyContent,
-} from "@galaxy-io/dls/containers/FlexWrapper";
+import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
-import {
-  GetPipelineRequestSchema,
-  UpdatePipelineRequestSchema,
-} from "@/gen/ingestion/v1/pipelines_pb";
+import { WorkerConfigurationSchema } from "@/gen/ingestion/v1/common_pb";
+import { UpdatePipelineRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
+  isWorkerConfigurationEqual,
   parseWorkerConfiguration,
-  workerConfigurationEquals,
 } from "@/pages/pipelines/components/worker/utils";
 
-import { useSuspenseGetPipelineQuery, useUpdatePipelineMutation } from "@/api/queries/pipelines";
+import { usePipelineParams } from "@/module/hooks";
+
+import {
+  createGetPipelineInput,
+  useSuspenseGetPipelineQuery,
+  useUpdatePipelineMutation,
+} from "@/api/queries/pipelines";
 
 import { getErrorMessage } from "@/utils/errors";
 
-const PipelineSettingsPageAdvanced = () => {
-  const { showToast } = useToast();
-  const { id } = useParams({ from: "/_app/pipelines/$id" });
+const PipelineSettingsPageAdvanced: FC = () => {
+  const { toast } = useToast();
+  const { id } = usePipelineParams();
   const { data } = useSuspenseGetPipelineQuery({
-    input: create(GetPipelineRequestSchema, { id }),
+    input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
   const { mutate: updatePipeline, isPending: isSaving } = useUpdatePipelineMutation();
@@ -44,7 +43,10 @@ const PipelineSettingsPageAdvanced = () => {
   if (!pipeline) return null;
 
   const parsed = parseWorkerConfiguration(workerConfiguration);
-  const hasChanges = !workerConfigurationEquals(parsed.configuration, pipeline.workerConfiguration);
+  const hasChanges = !isWorkerConfigurationEqual(
+    parsed.configuration,
+    pipeline.workerConfiguration,
+  );
   const canSave = hasChanges && !parsed.error;
 
   const handleCancel = () => {
@@ -57,20 +59,19 @@ const PipelineSettingsPageAdvanced = () => {
         pipelineId: pipeline.id,
         name: pipeline.name,
         description: pipeline.description,
-        workerConfiguration: parsed.configuration,
+        workerConfiguration: parsed.configuration ?? create(WorkerConfigurationSchema),
       }),
       {
         onSuccess: () => {
-          showToast({
+          toast({
             header: "Configuration saved",
-            subheader: "Your worker configuration has been saved successfully.",
             variant: ToastVariant.SUCCESS,
           });
         },
         onError: (error) => {
-          showToast({
+          toast({
             header: "Save failed",
-            subheader: getErrorMessage(error, "Failed to save worker configuration"),
+            description: getErrorMessage(error, "Failed to save worker configuration"),
             variant: ToastVariant.ERROR,
           });
         },
@@ -79,14 +80,14 @@ const PipelineSettingsPageAdvanced = () => {
   };
 
   return (
-    <Accordion header="Worker configuration">
-      <FlexWrapper direction={FlexDirection.COLUMN} gap={FlexGap.MEDIUM} fillWidth>
+    <Widget isCollapsible header="Worker configuration">
+      <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={12} fillWidth>
         <PipelineWorkerConfigurationEditor
           value={workerConfiguration}
           onChange={setWorkerConfiguration}
           error={parsed.error}
         />
-        <FlexWrapper justifyContent={JustifyContent.END} gap={8} fillWidth>
+        <Flex alignItems={AlignItems.START} justifyContent={JustifyContent.END} gap={8} fillWidth>
           <Button
             label="Cancel"
             variant={ButtonVariant.SECONDARY}
@@ -94,9 +95,9 @@ const PipelineSettingsPageAdvanced = () => {
             onClick={handleCancel}
           />
           <Button label="Save" isDisabled={!canSave} isLoading={isSaving} onClick={handleSave} />
-        </FlexWrapper>
-      </FlexWrapper>
-    </Accordion>
+        </Flex>
+      </Flex>
+    </Widget>
   );
 };
 

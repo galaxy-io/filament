@@ -5,6 +5,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
 )
@@ -80,9 +81,22 @@ type ExportResult struct {
 	Format               string          `yaml:"format"`                 // json | ndjson | csv
 	RecordsPath          string          `yaml:"records_path,omitempty"` // array in a JSON document
 	Envelope             *ExportEnvelope `yaml:"envelope,omitempty"`
+	CSV                  *ExportCSV      `yaml:"csv,omitempty"`
 	MaxDownloadBytes     int64           `yaml:"max_download_bytes,omitempty"`
 	MaxUncompressedBytes int64           `yaml:"max_uncompressed_bytes,omitempty"`
 }
+
+// ExportCSV overrides the CSV dialect. Omitted fields keep the defaults: comma
+// delimiter, a header row, and standard double-quote handling.
+type ExportCSV struct {
+	Delimiter string   `yaml:"delimiter,omitempty"`
+	Header    *bool    `yaml:"header,omitempty"`
+	Columns   []string `yaml:"columns,omitempty"` // names for a headerless file, in column order
+	Quoting   string   `yaml:"quoting,omitempty"` // standard | none (split on the delimiter, quotes are data)
+}
+
+// HasHeader reports whether the first row names the columns.
+func (c *ExportCSV) HasHeader() bool { return c == nil || c.Header == nil || *c.Header }
 
 // ExportEnvelope unwraps operation results such as Mailchimp batch responses.
 // Every operation must succeed; partial exports are never reported as complete.
@@ -234,6 +248,9 @@ func validateExportFiles(agg *errs.ManifestErrors, at string, result ExportResul
 	if result.RecordsPath != "" && result.Format != "json" {
 		_ = agg.Addf(at+".result.records_path", "requires JSON format")
 	}
+	if result.CSV != nil {
+		validateExportCSV(agg, at+".result.csv", result.Format, *result.CSV)
+	}
 	if result.MaxDownloadBytes < 0 || result.MaxUncompressedBytes < 0 || result.MaxDownloadBytes > 1<<50 || result.MaxUncompressedBytes > 1<<50 {
 		_ = agg.Addf(at+".result", "byte limits must be between 1 and 2^50 when set")
 	}
@@ -246,6 +263,38 @@ func validateExportFiles(agg *errs.ManifestErrors, at string, result ExportResul
 				_ = agg.Addf(at+".result.envelope.success", "must contain 2xx status codes")
 			}
 		}
+	}
+}
+
+func validateExportCSV(agg *errs.ManifestErrors, at, format string, c ExportCSV) {
+	if format != "csv" {
+		_ = agg.Addf(at, "requires CSV format")
+	}
+	if c.Delimiter != "" {
+		r, size := utf8.DecodeRuneInString(c.Delimiter)
+		if size != len(c.Delimiter) || r == utf8.RuneError || r == '"' || r == '\r' || r == '\n' {
+			_ = agg.Addf(at+".delimiter", "must be one character other than a double quote, CR, or LF")
+		}
+	}
+	if err := checkEnum(c.Quoting, []string{"", "standard", "none"}); err != nil {
+		_ = agg.Addf(at+".quoting", "%v", err)
+	}
+	if c.HasHeader() {
+		if len(c.Columns) > 0 {
+			_ = agg.Addf(at+".columns", "requires header: false")
+		}
+		return
+	}
+	if len(c.Columns) == 0 {
+		_ = agg.Addf(at+".columns", "required when header is false")
+	}
+	seen := map[string]bool{}
+	for _, name := range c.Columns {
+		if name == "" || seen[name] {
+			_ = agg.Addf(at+".columns", "names must be nonempty and unique")
+			return
+		}
+		seen[name] = true
 	}
 }
 

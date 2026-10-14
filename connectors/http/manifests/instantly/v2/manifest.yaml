@@ -1,7 +1,7 @@
 version: 1
 name: instantly
 display_name: Instantly
-description: Campaigns, leads, emails, accounts, analytics, and workspace data from Instantly.
+description: Sales engagement and lead intelligence platform for finding prospects and automating personalized email outreach, with tools for managing deliverability.
 api_version: v2
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-instantly-light.svg
@@ -12,8 +12,8 @@ config:
     help: Instantly API v2 key with read scopes for the selected resources.
 connection:
   base_url: https://api.instantly.ai
-  auth: { bearer: config.api_key }
-  headers: { Accept: application/json }
+  auth: {bearer: config.api_key}
+  headers: {Accept: application/json}
   timeout_seconds: 60
   rate_limit:
     # Email listing permits 20 requests/minute. The limiter is connection-wide.
@@ -23,11 +23,11 @@ defaults:
 resources:
   - name: campaigns
     path: /api/v2/campaigns
-    query: { limit: "100", include_ai_sales_agent_campaigns: "true" }
-    capture: { campaign_id: id }
+    query: {limit: "100", include_ai_sales_agent_campaigns: "true"}
+    capture: {campaign_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -69,13 +69,13 @@ resources:
       created_by: string?
       ai_sdr_id: string?
       provider_routing_rules: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   # The export endpoint returns a campaign object directly, not a lead export job.
   - name: campaign_exports
     for_each: campaigns
     path: /api/v2/campaigns/{id}/export
-    params: { id: parent.campaign_id }
+    params: {id: parent.campaign_id}
     method: POST
     response:
       records: $
@@ -90,15 +90,15 @@ resources:
       sequences: json?
       timestamp_created: timestamptz?
       timestamp_updated: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: accounts
     path: /api/v2/accounts
-    query: { limit: "100", include_tags: "true" }
-    capture: { email: email }
+    query: {limit: "100", include_tags: "true"}
+    capture: {email: email}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [email]
     fields:
       email: string
@@ -130,17 +130,17 @@ resources:
       reply_to: string?
       autofix_failed: bool?
       tags: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: leads
     path: /api/v2/leads/list
     method: POST
     body:
       encoding: json
-      template: { limit: 100 }
+      template: {limit: 100}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: body.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: body.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -158,15 +158,15 @@ resources:
       status_summary: json?
       lt_interest_status: float64?
       verification_status: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lead_lists
     path: /api/v2/lead-lists
-    query: { limit: "100" }
-    capture: { list_id: id }
+    query: {limit: "100"}
+    capture: {list_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -175,14 +175,14 @@ resources:
       owned_by: string?
       name: string?
       timestamp_created: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: emails
     path: /api/v2/emails
-    query: { limit: "100", mode: emode_all, preview_only: "false", latest_of_thread: "false" }
+    query: {limit: "100", mode: emode_all, preview_only: "false", latest_of_thread: "false"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -202,14 +202,14 @@ resources:
       i_status: float64?
       thread_id: string?
       attachment_json: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lead_labels
     path: /api/v2/lead-labels
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -222,14 +222,14 @@ resources:
       description: string?
       use_with_ai: bool?
       access_grants: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: custom_tags
     path: /api/v2/custom-tags
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -238,14 +238,14 @@ resources:
       organization_id: string?
       label: string?
       description: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: custom_tag_mappings
     path: /api/v2/custom-tag-mappings
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -254,14 +254,14 @@ resources:
       resource_type: float64?
       timestamp_created: timestamptz?
       organization_id: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: block_list_entries
     path: /api/v2/block-lists-entries
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -269,7 +269,7 @@ resources:
       organization_id: string?
       bl_value: string?
       is_domain: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   # CSV omits IDs and organization metadata; keep the richer list resource too.
   - name: block_list_entries_export
@@ -286,17 +286,17 @@ resources:
         auth: connection
         format: csv
     fields:
-      bl_value: { path: 'Blocked Email', type: string }
-      timestamp_created: { path: Date, type: timestamptz, nullable: true }
-      raw: { path: $, type: json, mode: remainder }
+      bl_value: {path: 'Blocked Email', type: string}
+      timestamp_created: {path: Date, type: timestamptz, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
 
   - name: subsequences
     path: /api/v2/subsequences
-    query: { limit: "100" }
-    capture: { subsequence_id: id }
+    query: {limit: "100"}
+    capture: {subsequence_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -313,14 +313,14 @@ resources:
       daily_limit_mode: string?
       daily_limit: float64?
       ignore_account_daily_limit: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: audit_logs
     path: /api/v2/audit-logs
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -339,14 +339,14 @@ resources:
       list_id: string?
       audit_metadata: json?
       user_name: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhooks
     path: /api/v2/webhooks
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -360,14 +360,14 @@ resources:
       timestamp_created: timestamptz?
       status: float64?
       timestamp_error: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: webhook_events
     path: /api/v2/webhook-events
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -386,14 +386,14 @@ resources:
       retry_successful: bool?
       lead_email: string?
       response_time_ms: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workspace_members
     path: /api/v2/workspace-members
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -408,14 +408,14 @@ resources:
       accepted: bool?
       issuer_id: string?
       permissions: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workspace_group_members
     path: /api/v2/workspace-group-members
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -426,15 +426,15 @@ resources:
       timestamp_updated: timestamptz?
       sub_workspace_name: string?
       admin_workspace_name: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: inbox_placement_tests
     path: /api/v2/inbox-placement-tests
-    query: { limit: "100" }
-    capture: { test_id: id }
+    query: {limit: "100"}
+    capture: {test_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -459,14 +459,14 @@ resources:
       automations: json?
       status: float64?
       not_sending_status: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: agent_items
     path: /api/v2/agent-items
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [resource_id, type]
     fields:
       resource_id: string
@@ -478,14 +478,14 @@ resources:
       timestamp_created: timestamptz?
       timestamp_updated: timestamptz?
       tags: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: dfy_email_account_orders
     path: /api/v2/dfy-email-account-orders
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: []
     fields:
       workspace_id: string?
@@ -495,7 +495,7 @@ resources:
       is_pre_warmed_up: bool?
       timestamp_cancelled: timestamptz?
       timestamp_created: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workspace
     path: /api/v2/workspaces/current
@@ -522,7 +522,7 @@ resources:
       plan_id_crm: string?
       plan_id_website_visitor: string?
       plan_id_inbox_placement: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workspace_plan
     path: /api/v2/workspace-billing/plan-details
@@ -536,7 +536,7 @@ resources:
       organization_name: string?
       subscriptions: json?
       addons: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: workspace_subscription
     path: /api/v2/workspace-billing/subscription-details
@@ -548,7 +548,7 @@ resources:
     fields:
       subscriptions: json?
       all_subs_cancelled: bool?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: phone_numbers
     path: /api/v2/crm-actions/phone-numbers
@@ -567,24 +567,24 @@ resources:
       twilio_sid: string?
       renewal_date: string?
       price: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: account_campaign_mappings
     path: /api/v2/account-campaign-mappings/{email}
     for_each: accounts
-    params: { email: parent.email }
-    query: { limit: "100" }
+    params: {email: parent.email}
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: []
     fields:
-      email: { path: parent.email, type: string }
+      email: {path: parent.email, type: string}
       campaign_id: string?
       campaign_name: string?
       timestamp_created: string?
       status: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: account_warmup_analytics
     path: /api/v2/accounts/warmup-analytics
@@ -592,7 +592,7 @@ resources:
     for_each: accounts
     body:
       encoding: json
-      template: { emails: ["{{ parent.email }}"] }
+      template: {emails: ["{{ parent.email }}"]}
     response:
       records: $
       pagination: none
@@ -601,7 +601,7 @@ resources:
     fields:
       email_date_data: json?
       aggregate_data: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: account_daily_analytics
     path: /api/v2/accounts/analytics/daily
@@ -624,7 +624,7 @@ resources:
       unique_replies_automatic: int64?
       clicks: int64?
       unique_clicks: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_analytics
     path: /api/v2/campaigns/analytics
@@ -658,7 +658,7 @@ resources:
       completed_count: int64?
       total_opportunities: int64?
       total_opportunity_value: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_analytics_overview
     path: /api/v2/campaigns/analytics/overview
@@ -692,18 +692,18 @@ resources:
       total_meeting_booked: int64?
       total_meeting_completed: int64?
       total_closed: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_daily_analytics
     path: /api/v2/campaigns/analytics/daily
     for_each: campaigns
-    query: { campaign_id: "{{ parent.campaign_id }}" }
+    query: {campaign_id: "{{ parent.campaign_id }}"}
     response:
       records: $
       pagination: none
     primary_key: [campaign_id, date]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       date: string
       sent: int64?
       contacted: int64?
@@ -718,18 +718,18 @@ resources:
       unique_clicks: int64?
       opportunities: int64?
       unique_opportunities: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_steps_analytics
     path: /api/v2/campaigns/analytics/steps
     for_each: campaigns
-    query: { campaign_id: "{{ parent.campaign_id }}" }
+    query: {campaign_id: "{{ parent.campaign_id }}"}
     response:
       records: $
       pagination: none
     primary_key: []
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       step: string?
       variant: string?
       sent: int64?
@@ -745,49 +745,49 @@ resources:
       unique_opportunities: int64?
       meetings_booked: int64?
       won: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: campaign_sending_status
     path: /api/v2/campaigns/{id}/sending-status
     for_each: campaigns
-    params: { id: parent.campaign_id }
+    params: {id: parent.campaign_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: [campaign_id]
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       diagnostics: json?
       summary: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: subsequence_analytics
     path: /api/v2/subsequences/analytics
     for_each: campaigns
-    query: { campaign_id: "{{ parent.campaign_id }}" }
+    query: {campaign_id: "{{ parent.campaign_id }}"}
     response:
       records: $
       pagination: none
     primary_key: []
     fields:
-      campaign_id: { path: parent.campaign_id, type: string }
+      campaign_id: {path: parent.campaign_id, type: string}
       subsequence_id: string?
       emails_sent: float64?
       unique_opens: float64?
       unique_replies: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: subsequence_steps_analytics
     path: /api/v2/subsequences/{id}/analytics/steps
     for_each: subsequences
-    params: { id: parent.subsequence_id }
+    params: {id: parent.subsequence_id}
     response:
       records: $
       pagination: none
     primary_key: []
     fields:
-      subsequence_id: { path: parent.subsequence_id, type: string }
+      subsequence_id: {path: parent.subsequence_id, type: string}
       step: string?
       variant: string?
       sent: int64?
@@ -799,33 +799,33 @@ resources:
       unique_replies_automatic: int64?
       clicks: int64?
       unique_clicks: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: lead_list_verification_stats
     path: /api/v2/lead-lists/{id}/verification-stats
     for_each: lead_lists
-    params: { id: parent.list_id }
+    params: {id: parent.list_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: [list_id]
     fields:
-      list_id: { path: parent.list_id, type: string }
+      list_id: {path: parent.list_id, type: string}
       stats: json?
       total_leads: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: inbox_placement_analytics
     path: /api/v2/inbox-placement-analytics
     for_each: inbox_placement_tests
-    query: { test_id: "{{ parent.test_id }}", limit: "100" }
+    query: {test_id: "{{ parent.test_id }}", limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      test_id: { path: parent.test_id, type: string }
+      test_id: {path: parent.test_id, type: string}
       id: string
       timestamp_created: string?
       timestamp_created_date: string?
@@ -844,18 +844,18 @@ resources:
       smtp_ip_blacklist_report: json?
       authentication_failure_results: json?
       record_type: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: inbox_placement_reports
     path: /api/v2/inbox-placement-reports
     for_each: inbox_placement_tests
-    query: { test_id: "{{ parent.test_id }}", limit: "100" }
+    query: {test_id: "{{ parent.test_id }}", limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      test_id: { path: parent.test_id, type: string }
+      test_id: {path: parent.test_id, type: string}
       id: string
       timestamp_created: string?
       timestamp_created_date: string?
@@ -867,15 +867,15 @@ resources:
       spam_assassin_score: float64?
       spam_assassin_report: json?
       blacklist_report: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_sales_agents
     path: /api/v2/ai-agents/sales
-    query: { limit: "100" }
-    capture: { agent_id: id }
+    query: {limit: "100"}
+    capture: {agent_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -896,15 +896,15 @@ resources:
       timestamp_last_action: timestamptz?
       timestamp_last_decision: timestamptz?
       next_decision_time: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_inbox_managers
     path: /api/v2/ai-agents/inbox-manager
-    query: { limit: "100" }
-    capture: { agent_id: id }
+    query: {limit: "100"}
+    capture: {agent_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -919,15 +919,15 @@ resources:
       created_by: string?
       description: string?
       metadata: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_lead_finders
     path: /api/v2/ai-agents/lead-finder
-    query: { limit: "100" }
-    capture: { agent_id: id }
+    query: {limit: "100"}
+    capture: {agent_id: id}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -941,19 +941,19 @@ resources:
       is_auto_created: bool?
       created_by: string?
       description: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_sales_activities
     path: /api/v2/ai-agents/sales/{id}/activities
     for_each: ai_sales_agents
-    params: { id: parent.agent_id }
-    query: { limit: "100" }
+    params: {id: parent.agent_id}
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       id: string
       ai_sdr_id: string?
       workspace_id: string?
@@ -976,34 +976,34 @@ resources:
       timestamp_updated: timestamptz?
       timestamp_executed: timestamptz?
       timestamp_completed: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_sales_guidance_rules
     path: /api/v2/ai-agents/sales/{id}/guidance-rules
     for_each: ai_sales_agents
-    params: { id: parent.agent_id }
+    params: {id: parent.agent_id}
     response:
       records: $.items
       pagination: none
     primary_key: [id]
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       id: string
       title: string?
       content: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_inbox_guidances
     path: /api/v2/ai-agents/inbox-manager/{id}/guidances
     for_each: ai_inbox_managers
-    params: { id: parent.agent_id }
-    query: { limit: "100" }
+    params: {id: parent.agent_id}
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       id: string
       organization_id: string?
       label: string?
@@ -1013,19 +1013,19 @@ resources:
       basic_guidance_options: json?
       timestamp_created: string?
       timestamp_updated: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_inbox_replies
     path: /api/v2/ai-agents/inbox-manager/{id}/replies
     for_each: ai_inbox_managers
-    params: { id: parent.agent_id }
-    query: { limit: "100" }
+    params: {id: parent.agent_id}
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       id: string
       organization_id: string?
       timestamp_created: string?
@@ -1049,70 +1049,70 @@ resources:
       sending_status: float64?
       is_followup: bool?
       error_code: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_lead_finder_activities
     path: /api/v2/ai-agents/lead-finder/{id}/activities
     for_each: ai_lead_finders
-    params: { id: parent.agent_id }
-    query: { limit: "100" }
+    params: {id: parent.agent_id}
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       id: string
       organization_id: string?
       timestamp_created: timestamptz?
       event_type: string?
       payload: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_sales_analytics
     path: /api/v2/ai-agents/sales/{id}/analytics
     for_each: ai_sales_agents
-    params: { id: parent.agent_id }
+    params: {id: parent.agent_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: []
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       total_email_activity_per_day: json?
       replies_per_day: json?
       leads_found_per_day: json?
       opportunities_per_day: json?
       totals: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_sales_opportunities
     path: /api/v2/ai-agents/sales/{id}/opportunities/summary
     for_each: ai_sales_agents
-    params: { id: parent.agent_id }
+    params: {id: parent.agent_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: []
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       summary: json?
       campaigns: json?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_inbox_analytics
     path: /api/v2/ai-agents/inbox-manager/{id}/analytics/summary
     for_each: ai_inbox_managers
-    params: { id: parent.agent_id }
+    params: {id: parent.agent_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: []
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       total_actions: float64?
       replies_count: float64?
       follow_ups_count: float64?
@@ -1128,30 +1128,30 @@ resources:
       no_show_total_revenue_recovered: float64?
       no_show_time_saved: float64?
       no_show_recovery_rate: float64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ai_lead_finder_stats
     path: /api/v2/ai-agents/lead-finder/{id}/stats
     for_each: ai_lead_finders
-    params: { id: parent.agent_id }
+    params: {id: parent.agent_id}
     response:
       records: $
       pagination: none
       cardinality: one
     primary_key: []
     fields:
-      agent_id: { path: parent.agent_id, type: string }
+      agent_id: {path: parent.agent_id, type: string}
       leads_added_total: int64?
       top_ups_completed: int64?
       top_ups_failed: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: saved_searches
     path: /api/v2/supersearch-enrichment/saved-searches
-    query: { limit: "100" }
+    query: {limit: "100"}
     response:
       records: $.items
-      pagination: { cursor: { response: next_starting_after, request: query.starting_after, null_terminates: true } }
+      pagination: {cursor: {response: next_starting_after, request: query.starting_after, null_terminates: true}}
     primary_key: [id]
     fields:
       id: string
@@ -1159,7 +1159,7 @@ resources:
       search_filters: json?
       organization_id: string?
       timestamp_created: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
 discovery:
   mode: static

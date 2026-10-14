@@ -5,4 +5,6 @@ import type * as Filament from "../index.js";
 export interface IngestionV1ResourceColumns {
     resource?: string | undefined;
     columns?: Filament.IngestionV1ResourceColumn[] | undefined;
+    /** Incremental state is owned by the source; no cursor column is required. */
+    managedIncremental?: boolean | undefined;
 }

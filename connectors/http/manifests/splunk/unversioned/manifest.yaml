@@ -1,7 +1,7 @@
 version: 1
 name: splunk
 display_name: Splunk
-description: Ingest log events and search results from Splunk Enterprise and Splunk Cloud.
+description: Data analytics platform for searching, monitoring, and investigating machine data, using the search APIs for Splunk Enterprise and Splunk Cloud.
 dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-splunk-dark.svg
 light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-splunk-light.svg
 
@@ -77,14 +77,14 @@ resources:
         records_path: results
 
     fields:
-      _cd: { path: _cd, type: string }
-      _time: { path: _time, type: timestamptz }
+      _cd: {path: _cd, type: string}
+      _time: {path: _time, type: timestamptz}
       _raw: string
       host: string?
       source: string?
       sourcetype: string?
       index: string?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
 discovery:
   mode: static

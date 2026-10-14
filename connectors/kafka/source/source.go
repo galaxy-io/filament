@@ -103,7 +103,7 @@ func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "kafka", DisplayName: client.DisplayName,
 		DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL,
-		Description:    "Read retained Kafka messages in bounded runs or continuously with Filament-owned partition checkpoints.",
+		Description:    "Open source distributed event streaming platform for publishing, storing, and processing streams of events that power data pipelines and real-time applications.",
 		Version:        "1",
 		Modes:          []filament.ReadMode{filament.ModeFull},
 		SourcePolicies: filament.SourcePolicies(filament.IngestionFullAppend),

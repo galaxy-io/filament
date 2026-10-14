@@ -29,11 +29,8 @@ import (
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
-
-	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -60,6 +57,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	defer closeDeps()
+	if deps.Worker, err = boot.RemoteWorker(); err != nil {
+		return err
+	}
 	serverLog := deps.Log.With(filament.Field{Key: "component", Value: "server"})
 
 	// A nil provider means auth is disabled: the API stays unauthenticated
@@ -124,7 +124,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
-	api := server.New(deps.Sources, registry.DefaultSinks, deps.Store, orch, eventBus, apiOpts...)
+	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err

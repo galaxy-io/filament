@@ -1,40 +1,23 @@
-import type { ComponentProps } from "react";
+import type { FC } from "react";
 
 import { styled } from "@linaria/react";
 import { Handle, type Position } from "@xyflow/react";
 
-import { withTheme } from "@galaxy-io/dls/theme/GalaxyTheme";
-import type { PropsWithTheme } from "@galaxy-io/dls/theme/types";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_TYPE_MAP } from "@/pages/pipelines/canvas/constants";
 import {
   PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE,
+  PIPELINE_CANVAS_NODE_PORT_BORDER_WIDTH,
   PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE,
   PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE,
 } from "@/pages/pipelines/canvas/nodes/constants";
 import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 
-const HandleSlot = styled.div`
-  width: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
-  height: ${PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}px;
-  flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const HandleBase = ({
-  $isConnected: _isConnected,
-  theme: _theme,
-  ...props
-}: PropsWithTheme<{ $isConnected?: boolean }> & ComponentProps<typeof Handle>) => (
-  <Handle {...props} />
-);
-
-const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?: boolean }>>`
+const StyledHandle = styled(Handle)`
   &.react-flow__handle {
     position: relative;
     top: auto;
@@ -43,51 +26,70 @@ const StyledHandle = withTheme(styled(HandleBase)<PropsWithTheme<{ $isConnected?
     left: auto;
     transform: none;
 
-    width: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
-    height: ${({ $isConnected }) => ($isConnected ? PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE : PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE)}px;
+    width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE}px;
+    height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_IDLE}px;
 
-    background-color: ${({ theme, $isConnected }) =>
-      $isConnected ? "transparent" : theme.color.text.tertiary};
-    border: ${({ theme, $isConnected }) =>
-      $isConnected ? `2px solid ${theme.color.background.galaxy}` : "none"};
-    border-radius: 50%;
+    background-color: ${t.color.text.tertiary};
+    border: none;
+    border-radius: ${t.radius.pill};
 
     transition:
-      width 100ms ease,
-      height 100ms ease;
+      width ${t.duration.fast},
+      height ${t.duration.fast};
+  }
+
+  &.react-flow__handle[data-connected="true"] {
+    width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
+    height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
+
+    background-color: transparent;
+    border: ${PIPELINE_CANVAS_NODE_PORT_BORDER_WIDTH}px solid ${t.color.solid.primary.background};
+  }
+
+  &.react-flow__handle[data-connected="true"][data-invalid="true"] {
+    border-color: ${t.color.border.error};
   }
 
   &.react-flow__handle:hover {
     width: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
     height: ${PIPELINE_CANVAS_NODE_PORT_SIZE_ACTIVE}px;
   }
-`);
+`;
 
 interface PipelineCanvasNodeHandleProps {
   id: string;
   kind: ConnectorKind;
   position: Position;
   isConnected?: boolean;
+  isInvalid?: boolean;
 }
 
-const PipelineCanvasNodeHandle = ({
+const PipelineCanvasNodeHandle: FC<PipelineCanvasNodeHandleProps> = ({
   id,
   kind,
   position,
   isConnected,
-}: PipelineCanvasNodeHandleProps) => {
+  isInvalid,
+}) => {
   const isReadOnly = usePipelineCanvasReadOnly();
 
   return (
-    <HandleSlot>
+    <Flex
+      width={PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}
+      height={PIPELINE_CANVAS_NODE_HANDLE_SLOT_SIZE}
+      shrink={0}
+      alignItems={AlignItems.CENTER}
+      justifyContent={JustifyContent.CENTER}
+    >
       <StyledHandle
         id={id}
         type={CONNECTOR_KIND_TO_HANDLE_TYPE_MAP[kind]}
         position={position}
         isConnectable={!isReadOnly}
-        $isConnected={isConnected}
+        data-connected={!!isConnected}
+        data-invalid={!!isInvalid}
       />
-    </HandleSlot>
+    </Flex>
   );
 };
 

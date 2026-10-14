@@ -171,7 +171,6 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 
 	// First sink fails at write 5 (mid-extract); the resume sink is the real typed sink.
 	var firstRun atomic.Bool
-	firstRun.Store(true)
 	sources := registry.NewSources()
 	sources.Register("postgres", func() filament.Source { return pgsource.New() })
 	sinks := registry.NewSinks()
@@ -182,6 +181,8 @@ func runResumeScenario(t *testing.T, mode readMode, op gapOp) {
 		}
 		return ts
 	})
+	// Register constructs one instance to check its contracts; arm after it.
+	firstRun.Store(true)
 
 	bus := inproc.New()
 	store := sqlite.NewMemory()

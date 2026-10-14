@@ -160,7 +160,17 @@ type flakySink struct {
 
 // NewFlakySink wraps a sink and fails the requested Apply call.
 func NewFlakySink(sink filament.Sink, failAt int) filament.Sink {
-	return &flakySink{Sink: sink, failAt: failAt}
+	flaky := &flakySink{Sink: sink, failAt: failAt}
+	// A sink that declares streaming must still implement it once wrapped.
+	if streaming, ok := sink.(filament.StreamingSink); ok {
+		return &flakyStreamingSink{flakySink: flaky, StreamingSink: streaming}
+	}
+	return flaky
+}
+
+type flakyStreamingSink struct {
+	*flakySink
+	filament.StreamingSink
 }
 
 func (s *flakySink) Apply(ctx context.Context, batch *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
