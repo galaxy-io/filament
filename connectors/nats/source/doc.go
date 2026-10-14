@@ -8,8 +8,10 @@
 // when a logical resource spans physical streams.
 //
 // JSON object payloads become top-level source columns, with the same projection
-// rules as Kafka. The first message fixes each logical resource's schema;
-// missing values are null and incompatible changes fail before certification.
+// rules as Kafka. By default the first message fixes each logical resource's
+// schema. With negotiated evolution, a bounded epoch is probed before emission
+// and nullable additions are admitted at its start. Decoder layouts are restored
+// from certified progress. Missing values are null; incompatible changes block.
 // Non-object payloads retain raw bytes in a source-owned payload column.
 // Filament event metadata is separate and never contains _filament_payload.
 //
