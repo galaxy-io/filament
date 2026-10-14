@@ -1,8 +1,8 @@
 apiVersion: v2
 name: filament
 description: A Helm chart for Filament
-version: 0.22.0
-appVersion: 0.22.0
+version: 0.23.0
+appVersion: 0.23.0
 dependencies:
   - name: postgresql
     repository: https://charts.bitnami.com/bitnami
