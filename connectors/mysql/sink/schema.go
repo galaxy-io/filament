@@ -12,12 +12,19 @@ import (
 
 // EnsureSchema creates resource's typed table from schema (MySQL column types, NOT
 // NULL, primary key), empties it for full-snapshot replace semantics, and prepares
-// the resource's load and delete statements. A pre-existing table gains any new
-// columns; an incompatible existing column type surfaces later as a load error
-// (full type-change handling is deferred to schema evolution).
+// the resource's load and delete statements. Checked mode validates the full
+// diff before DDL or truncation. Disabled mode retains legacy column additions.
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if t.db == nil {
 		return fmt.Errorf("mysql sink: ensure schema before open")
+	}
+	var checked rowmodel.Schema
+	if t.evolution != "" {
+		var err error
+		checked, err = physicalSchema(resource, schema)
+		if err != nil {
+			return err
+		}
 	}
 	qualified := quoteIdent(t.database) + "." + quoteIdent(resource)
 	same := schema.Engine == engine
@@ -28,6 +35,9 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	for i, f := range schema.Fields {
 		idents[i] = quoteIdent(f.Name)
 		types[i] = columnType(f, same)
+		if t.evolution != "" {
+			types[i] = checked.Fields[i].Native
+		}
 		cols[i] = idents[i] + " " + types[i]
 		if !f.Nullable {
 			cols[i] += " NOT NULL"
@@ -43,32 +53,14 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		ddl += ",\n\tPRIMARY KEY (" + strings.Join(pk, ", ") + ")"
 	}
 	ddl += "\n)"
-	if _, err := t.db.ExecContext(ctx, ddl); err != nil {
-		return fmt.Errorf("create %s: %w", qualified, err)
-	}
-	// A resumable table upserts by key and must preserve any partial load from a prior
-	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
-	// a non-resumable table, or a keyless table that re-reads whole on resume).
 	mode := t.modeFor(resource)
 	resumable := t.resumableFor(resource)
-	if mode == filament.WriteReplace {
-		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
-		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+qualified); err != nil {
-			return fmt.Errorf("truncate %s: %w", qualified, err)
+	if t.evolution != "" {
+		if err := t.reconcileSchema(ctx, checked, ddl); err != nil {
+			return err
 		}
-	}
-	// MySQL has no ADD COLUMN IF NOT EXISTS; add only the columns the live table lacks.
-	existing, err := t.columnSet(ctx, resource)
-	if err != nil {
-		return fmt.Errorf("columns %s: %w", qualified, err)
-	}
-	for i, f := range schema.Fields {
-		if existing[f.Name] {
-			continue
-		}
-		if _, err := t.db.ExecContext(ctx, "ALTER TABLE "+qualified+" ADD COLUMN "+cols[i]); err != nil {
-			return fmt.Errorf("add column on %s: %w", qualified, err)
-		}
+	} else if err := t.legacySchema(ctx, resource, schema, qualified, ddl, cols); err != nil {
+		return err
 	}
 
 	// The batches' Arrow schema is a pure function of the RecordSchema, so the
@@ -78,7 +70,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	for i := range all {
 		all[i] = i
 	}
-	tbl := &table{qualified: qualified, idents: idents, resumable: resumable || mode == filament.WriteAppend, rows: newLoader(as, all), json: make([]bool, len(types))}
+	tbl := &table{model: checked, input: as, qualified: qualified, idents: idents, resumable: resumable || mode == filament.WriteAppend, rows: newLoader(as, all), json: make([]bool, len(types))}
 	for i, typ := range types {
 		tbl.json[i] = strings.EqualFold(strings.TrimSpace(typ), "json")
 	}
@@ -123,4 +115,35 @@ func (t *Sink) columnSet(ctx context.Context, resource string) (map[string]bool,
 		out[name] = true
 	}
 	return out, rows.Err()
+}
+
+func (t *Sink) legacySchema(ctx context.Context, resource string, schema rowmodel.Schema, qualified, ddl string, cols []string) error {
+	if _, err := t.db.ExecContext(ctx, ddl); err != nil {
+		return fmt.Errorf("create %s: %w", qualified, err)
+	}
+	// A resumable table upserts by key and must preserve any partial load from a prior
+	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
+	// a non-resumable table, or a keyless table that re-reads whole on resume).
+	mode := t.modeFor(resource)
+	if mode == filament.WriteReplace {
+		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
+		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+qualified); err != nil {
+			return fmt.Errorf("truncate %s: %w", qualified, err)
+		}
+	}
+	// MySQL has no ADD COLUMN IF NOT EXISTS; add only the columns the live table lacks.
+	existing, err := t.columnSet(ctx, resource)
+	if err != nil {
+		return fmt.Errorf("columns %s: %w", qualified, err)
+	}
+	for i, f := range schema.Fields {
+		if existing[f.Name] {
+			continue
+		}
+		if _, err := t.db.ExecContext(ctx, "ALTER TABLE "+qualified+" ADD COLUMN "+cols[i]); err != nil {
+			return fmt.Errorf("add column on %s: %w", qualified, err)
+		}
+	}
+
+	return nil
 }

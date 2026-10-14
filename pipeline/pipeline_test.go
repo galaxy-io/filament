@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/rowmodel"
+	schemadrift "github.com/galaxy-io/filament/schema"
 )
 
 // fakeSink is an in-memory filament.Sink. By default it echoes a correct write-side
@@ -358,7 +359,7 @@ func TestPipelineRejectsSchemaChangeWithinRun(t *testing.T) {
 	changed := schema
 	changed.Fields = append([]filament.SchemaField(nil), schema.Fields...)
 	changed.Fields[0].Logical = filament.LogicalString
-	if _, err := in.Builder("users", 1, changed); err == nil || !strings.Contains(err.Error(), "schema changed") {
+	if _, err := in.Builder("users", 1, changed); !errors.Is(err, schemadrift.ErrBlocked) {
 		t.Fatalf("schema change error = %v", err)
 	}
 }

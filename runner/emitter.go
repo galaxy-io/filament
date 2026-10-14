@@ -277,6 +277,7 @@ func sourceObserver(e *emitter) filament.SourceObserver {
 // in RunRunning. The emitter owns the detach: callers never sequence it.
 func (e *emitter) failed(err error, resources []string, resumable bool) {
 	defer e.finish()()
+	e.schemaBlocked(err)
 	for _, res := range resources {
 		emit(e, events.ResourceFailed, res, events.ResourceFailedEvent{Error: err.Error()})
 	}

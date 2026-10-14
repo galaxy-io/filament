@@ -14,9 +14,45 @@ Bounded extraction is unsupported.
 ## Payload columns
 
 JSON object members become source columns alongside the subject and Filament
-event metadata. The first message fixes each resource's schema. Missing fields
-become null; incompatible payload changes fail before certification. Non-object
+event metadata. By default, the first message fixes each resource's schema. Missing fields
+become null. Incompatible payload changes fail before certification. Non-object
 payloads remain raw bytes in a source-owned `payload` column.
+
+### Live nullable fields
+
+With a PostgreSQL sink, set its `schema_evolution` option to `nullable_add` to
+accept newly observed payload fields during continuous execution. Filament buffers
+and probes every message in an epoch before encoding any rows. The buffer is
+bounded by the epoch limits and the consumer's pending-message credit. Heartbeats
+keep buffered messages alive while schema checks or migrations are waiting.
+
+An initial message such as `{"id": 1}` can therefore be followed by
+`{"id": 2, "email": "a@example.com"}`. The sink adds a nullable `email` column.
+Earlier rows and later messages without `email` have null in that column. Absence
+never removes an accepted field or makes it required.
+
+Strings and booleans use their scalar types. Numbers, objects, arrays, and
+null-only fields use JSON to preserve their values without guessing a narrower
+type. JSON fields can later contain other JSON values. An incompatible change to
+an accepted scalar field blocks the entire epoch before row emission. Raw-byte
+payloads cannot automatically switch to object columns or vice versa.
+
+Use `strict` to establish the layout from the initial whole batch and block later
+additions. Leave `schema_evolution` disabled to retain first-message inference.
+Resources spanning several physical streams share one accepted layout.
+
+The accepted payload layout is stored in the epoch certificate alongside source
+progress. A restarted worker restores it even when the first replayed message
+omits previously seen fields. The source acknowledges only after both destination
+commit and checkpoint persistence succeed. Destination and checkpoint commits
+remain separate, so existing duplicate-delivery and uncertain-commit recovery
+limitations still apply.
+
+Streams with earlier checkpoints that contain no accepted layout must start a
+new generation before enabling live evolution. Resuming saved layouts requires
+the same pipeline version and enabled schema negotiation. A schema block keeps
+the last certified progress unchanged and suppresses automatic retries. Resolve
+the issue before requesting another attempt.
 
 ## Retention and recovery
 

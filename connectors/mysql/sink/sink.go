@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/apache/arrow-go/v18/arrow"
+
 	"github.com/galaxy-io/filament"
 	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -17,11 +21,12 @@ import (
 // deletes). The server must allow local_infile. It implements
 // filament.Schematized; the engine only runs schema discovery for sinks that do.
 type Sink struct {
-	db       *sql.DB
-	run      filament.RunID
-	database string
-	policies map[string]filament.WritePolicy
-	written  atomic.Int64
+	evolution schema.Policy
+	db        *sql.DB
+	run       filament.RunID
+	database  string
+	policies  map[string]filament.WritePolicy
+	written   atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -32,6 +37,8 @@ type Sink struct {
 // renderers, and the merge path's key temp table and delete. resumable marks a
 // table whose writes are idempotent by key, so a resume must preserve its rows.
 type table struct {
+	model     rowmodel.Schema
+	input     *arrow.Schema
 	qualified string
 	idents    []string // quoted column names, schema order
 	keyIdx    []int    // primary-key positions in schema order
@@ -76,6 +83,9 @@ func (t *Sink) Name() string { return "mysql" }
 
 // Validate checks connection syntax without opening a network connection.
 func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
+		return err
+	}
 	if _, err := mysqlconnection.Resolve(cfg); err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
@@ -102,6 +112,11 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
+	policy, err := schemaPolicy(cfg.String("schema_evolution"))
+	if err != nil {
+		return err
+	}
+	t.evolution = policy
 	resolved, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
@@ -149,7 +164,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit releases the pool; the loads are already durable (autocommit).
+// Commit releases the pool. Successful batches are already durable.
 func (t *Sink) Commit(context.Context) error {
 	t.release()
 	return nil

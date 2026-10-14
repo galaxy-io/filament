@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/galaxy-io/filament/streamkit"
+
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -15,6 +17,7 @@ import (
 // Source reads subject resources using managed consumers, or binds explicit
 // user-owned consumers. One connection serves all resources.
 type Source struct {
+	live     *streamkit.MessageBatches // private to the copy made by OpenStream
 	conn     *nats.Conn
 	js       jetstream.JetStream
 	identity string

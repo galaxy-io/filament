@@ -68,7 +68,7 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 		s.next = (i + 1) % len(s.children)
 		// A pattern may span multiple physical streams. All its children must
 		// share the one builder allowed for that logical resource.
-		if s.writers != nil && child.writer == nil {
+		if child.live == nil && s.writers != nil && child.writer == nil {
 			if writer := s.writers[child.binding.resource]; writer != nil {
 				child.writer = writer
 				child.columns = s.columns[child.binding.resource]
@@ -82,7 +82,7 @@ func (s *multiSession) Read(ctx context.Context, out filament.StreamRecordSink, 
 			s.failed = err
 			return filament.Coverage{}, err
 		}
-		if s.writers != nil && child.writer != nil {
+		if child.live == nil && s.writers != nil && child.writer != nil {
 			s.writers[child.binding.resource] = child.writer
 			if s.columns == nil {
 				s.columns = map[string]*streamkit.MessageColumns{}

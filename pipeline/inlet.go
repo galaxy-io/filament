@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/rowmodel"
+	schemadrift "github.com/galaxy-io/filament/schema"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -76,7 +77,7 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	registered, ok := p.schemas[resource]
 	if ok {
 		if !registered.model.Equal(schema) {
-			return nil, fmt.Errorf("pipeline: schema changed for resource %q", resource)
+			return nil, schemaChanged(resource)
 		}
 		want = registered.arrow
 	} else {
@@ -100,6 +101,10 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 		return b, nil
 	}
 	return &auditWriter{RowWriter: b, run: p.run, audit: *p.audit}, nil
+}
+
+func schemaChanged(resource string) error {
+	return &schemadrift.BlockError{Resource: resource, Reasons: []string{"source schema changed within the running pipeline"}}
 }
 
 // auditWriter appends run lineage after the source has supplied its own fields.
