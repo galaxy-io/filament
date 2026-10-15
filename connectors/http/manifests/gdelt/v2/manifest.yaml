@@ -1,0 +1,46 @@
+version: 1
+name: gdelt
+display_name: GDELT
+description: "Global event database that monitors broadcast, print, and web news in over 100 languages and codes the events, people, and places it reports, updated every 15 minutes."
+api_version: v2
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-gdelt-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-gdelt-light.svg"
+connection:
+  base_url: "https://data.gdeltproject.org"
+defaults:
+  method: GET
+resources:
+  - name: events
+    mode: export
+    primary_key: [global_event_id]
+    export:
+      direct: true
+      locate:
+        request: {method: GET, path: /gdeltv2/lastupdate.txt}
+        capture:
+          export_file: {regex: 'gdeltv2/(\d{14}\.export\.CSV\.zip)'}
+      wait: {type: download, interval_seconds: 1, timeout_seconds: 600}
+      result:
+        url: "https://data.gdeltproject.org/gdeltv2/{{ job.export_file }}"
+        allowed_hosts: [data.gdeltproject.org]
+        auth: none
+        archive: zip
+        files: "*.export.CSV"
+        format: csv
+        csv:
+          delimiter: "\t"
+          header: false
+          quoting: none
+          columns: [GlobalEventID, Day, MonthYear, Year, FractionDate, Actor1Code, Actor1Name, Actor1CountryCode, Actor1KnownGroupCode, Actor1EthnicCode, Actor1Religion1Code, Actor1Religion2Code, Actor1Type1Code, Actor1Type2Code, Actor1Type3Code, Actor2Code, Actor2Name, Actor2CountryCode, Actor2KnownGroupCode, Actor2EthnicCode, Actor2Religion1Code, Actor2Religion2Code, Actor2Type1Code, Actor2Type2Code, Actor2Type3Code, IsRootEvent, EventCode, EventBaseCode, EventRootCode, QuadClass, GoldsteinScale, NumMentions, NumSources, NumArticles, AvgTone, Actor1Geo_Type, Actor1Geo_FullName, Actor1Geo_CountryCode, Actor1Geo_ADM1Code, Actor1Geo_ADM2Code, Actor1Geo_Lat, Actor1Geo_Long, Actor1Geo_FeatureID, Actor2Geo_Type, Actor2Geo_FullName, Actor2Geo_CountryCode, Actor2Geo_ADM1Code, Actor2Geo_ADM2Code, Actor2Geo_Lat, Actor2Geo_Long, Actor2Geo_FeatureID, ActionGeo_Type, ActionGeo_FullName, ActionGeo_CountryCode, ActionGeo_ADM1Code, ActionGeo_ADM2Code, ActionGeo_Lat, ActionGeo_Long, ActionGeo_FeatureID, DATEADDED, SOURCEURL]
+    fields:
+      global_event_id: {path: GlobalEventID, type: string}
+      date_added: {path: DATEADDED, type: string}
+      event_code: {path: EventCode, type: string, nullable: true}
+      actor1_name: {path: Actor1Name, type: string, nullable: true}
+      actor2_name: {path: Actor2Name, type: string, nullable: true}
+      action_geo_country_code: {path: ActionGeo_CountryCode, type: string, nullable: true}
+      source_url: {path: SOURCEURL, type: string, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+discovery:
+  mode: static
+  default_resources: [events]

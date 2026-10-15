@@ -1,0 +1,58 @@
+---
+title: "GDELT"
+description: "Read the latest 15-minute export of world events from the GDELT 2.0 Event Database"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-gdelt-dark.svg"
+---
+
+The GDELT source reads the GDELT 2.0 Event Database. GDELT codes world events
+from news coverage and publishes them as a new file every 15 minutes. The source
+uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests)
+and is **alpha**. It targets GDELT `v2` and has been read live from GDELT's
+public download server.
+
+## Configuration
+
+The source has no configuration fields. GDELT publishes its files openly, so
+Filament downloads them without credentials. See the
+[GDELT 2.0 event codebook](https://data.gdeltproject.org/documentation/GDELT-Event_Codebook-V2.0.pdf)
+for the meaning of each column.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `events` | `GET /gdeltv2/lastupdate.txt`, then `GET /gdeltv2/{timestamp}.export.CSV.zip` | |
+
+Each row is one event record. `global_event_id`, `date_added`, `event_code`,
+`actor1_name`, `actor2_name`, `action_geo_country_code`, and `source_url` have
+their own columns. The other columns of the export, such as actor codes, the
+Goldstein scale, tone, and geographic coordinates, are kept as text in `raw`.
+
+The mentions and Global Knowledge Graph files that GDELT publishes next to the
+event export are not included.
+
+## Modes
+
+`events` supports full reads only. Each run reads the file that
+`lastupdate.txt` announces at that moment, which covers the most recent 15
+minutes. Earlier files are not read, so a run that is skipped or delayed leaves
+a gap. A run started again within the same 15 minutes reads the same file.
+
+Use **full upsert** on `global_event_id`. Repeated reads of one file then
+update the same rows, and earlier windows stay in the destination. Full
+replace would keep only the latest 15 minutes.
+
+## Behavior
+
+- **Auth**: requests carry no credentials and go to
+  `https://data.gdeltproject.org`.
+- **Locate**: each run first reads `lastupdate.txt` and takes the name of the
+  event export from it. The index lists `http` links, so Filament builds the
+  download link itself and always fetches the file over HTTPS from the same
+  host.
+- **Resume**: the file name is saved in the checkpoint before the download
+  starts. An interrupted run resumes with the same file even after GDELT has
+  published a newer one.
+- **Format**: the download is a zip archive with one tab-separated file of 61
+  columns and no header row. Values are read as text without quote handling.
+- The `raw` column keeps any fields that are not mapped to their own columns.
