@@ -54,8 +54,8 @@ import { getEdgeResourceStatus, hasSiblingIncrementalRead } from "@/pages/pipeli
 import {
   getCompatibleWriteModes,
   getCursorSelectOptions,
+  getDefaultReadMode,
   getReadModeSelectOptions,
-  getRecommendedCursor,
   getWriteModeSelectOptions,
 } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
@@ -178,11 +178,12 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const siblingEdges = edges.filter(
     (edge) => edge.source === draftEdge.source && edge.target === draftEdge.target,
   );
-  const hasRecommendedCursor = getRecommendedCursor(columns ?? []) !== "";
-  const defaultReadMode =
-    (isManagedIncremental || hasRecommendedCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
-      ? ReadMode.INCREMENTAL
-      : effectiveReadMode;
+  const defaultReadMode = getDefaultReadMode({
+    columns: columns ?? [],
+    readModeOptions,
+    managedIncremental: isManagedIncremental,
+    fallback: effectiveReadMode,
+  });
   const readMode = draft.readMode ?? defaultReadMode;
   const routeHasIncremental =
     readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, draftEdge);
