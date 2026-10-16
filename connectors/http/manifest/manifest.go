@@ -103,6 +103,7 @@ type ConfigCondition struct {
 // ConfigSpec declares one user-facing connector configuration field. Enum is
 // the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
+	Order    int      `yaml:"order,omitempty"` // positive display order, before unordered fields
 	Pattern  string   `yaml:"pattern,omitempty"`
 	Format   string   `yaml:"format,omitempty"`
 	Minimum  *int     `yaml:"minimum,omitempty"`

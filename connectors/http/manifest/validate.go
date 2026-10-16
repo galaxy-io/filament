@@ -134,6 +134,9 @@ func (m *Manifest) validateSemantics() error {
 	}
 
 	for name, spec := range m.Config {
+		if spec.Order < 0 {
+			_ = agg.Addf("config."+name+".order", "must be nonnegative")
+		}
 		for value := range spec.EnumLabels {
 			if (spec.Type != "enum" && spec.Type != "list") || !slices.Contains(spec.Enum, value) {
 				_ = agg.Addf("config."+name+".enum_labels", "label references unknown enum option %q", value)

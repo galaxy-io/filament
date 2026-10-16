@@ -197,9 +197,14 @@ resources:
 
 ### Config
 
-`config` maps field names to `{type, required, default, enum, help, scope}`.
+`config` maps field names to `{type, required, default, enum, help, scope, order}`.
 Secrets (`type: secret`) render masked and are stored as refs. Config values
 are referenced elsewhere in the manifest as `config.<name>`.
+
+Set a positive `order` to control the configuration form's field order. Lower
+values appear first, followed by fields with no order or an order of zero.
+Ties and unordered fields sort alphabetically. Visibility selectors still
+appear before dependent fields.
 
 ### Configure requests
 

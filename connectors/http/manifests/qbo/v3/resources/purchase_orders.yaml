@@ -1,0 +1,98 @@
+resources:
+  - name: "purchase_orders"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction, purchase_by_vendor]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      tax_code_id: {"path": "TaxCodeRef.value", "type": "string", "nullable": true}
+      tax_code_name: {"path": "TaxCodeRef.name", "type": "string", "nullable": true}
+      class_id: {"path": "ClassRef.value", "type": "string", "nullable": true}
+      class_name: {"path": "ClassRef.name", "type": "string", "nullable": true}
+      reimbursable_info_id: {"path": "ReimbursableInfoRef.value", "type": "string", "nullable": true}
+      reimbursable_info_name: {"path": "ReimbursableInfoRef.name", "type": "string", "nullable": true}
+      sales_term_id: {"path": "SalesTermRef.value", "type": "string", "nullable": true}
+      sales_term_name: {"path": "SalesTermRef.name", "type": "string", "nullable": true}
+      due_date: {"path": "DueDate", "type": "date", "nullable": true}
+      expected_date: {"path": "ExpectedDate", "type": "date", "nullable": true}
+      vendor_addr_id: {"path": "VendorAddr.Id", "type": "string", "nullable": true}
+      vendor_addr_line1: {"path": "VendorAddr.Line1", "type": "string", "nullable": true}
+      vendor_addr_line2: {"path": "VendorAddr.Line2", "type": "string", "nullable": true}
+      vendor_addr_line3: {"path": "VendorAddr.Line3", "type": "string", "nullable": true}
+      vendor_addr_line4: {"path": "VendorAddr.Line4", "type": "string", "nullable": true}
+      vendor_addr_line5: {"path": "VendorAddr.Line5", "type": "string", "nullable": true}
+      vendor_addr_city: {"path": "VendorAddr.City", "type": "string", "nullable": true}
+      vendor_addr_country: {"path": "VendorAddr.Country", "type": "string", "nullable": true}
+      vendor_addr_country_code: {"path": "VendorAddr.CountryCode", "type": "string", "nullable": true}
+      vendor_addr_county: {"path": "VendorAddr.County", "type": "string", "nullable": true}
+      vendor_addr_country_sub_division_code: {"path": "VendorAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      vendor_addr_postal_code: {"path": "VendorAddr.PostalCode", "type": "string", "nullable": true}
+      vendor_addr_postal_code_suffix: {"path": "VendorAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      vendor_addr_lat: {"path": "VendorAddr.Lat", "type": "string", "nullable": true}
+      vendor_addr_long: {"path": "VendorAddr.Long", "type": "string", "nullable": true}
+      vendor_addr_tag: {"path": "VendorAddr.Tag", "type": "string", "nullable": true}
+      vendor_addr_note: {"path": "VendorAddr.Note", "type": "string", "nullable": true}
+      ship_to_id: {"path": "ShipTo.value", "type": "string", "nullable": true}
+      ship_to_name: {"path": "ShipTo.name", "type": "string", "nullable": true}
+      drop_ship_to_entity_id: {"path": "DropShipToEntity.value", "type": "string", "nullable": true}
+      drop_ship_to_entity_name: {"path": "DropShipToEntity.name", "type": "string", "nullable": true}
+      inventory_site_id: {"path": "InventorySiteRef.value", "type": "string", "nullable": true}
+      inventory_site_name: {"path": "InventorySiteRef.name", "type": "string", "nullable": true}
+      ship_addr_id: {"path": "ShipAddr.Id", "type": "string", "nullable": true}
+      ship_addr_line1: {"path": "ShipAddr.Line1", "type": "string", "nullable": true}
+      ship_addr_line2: {"path": "ShipAddr.Line2", "type": "string", "nullable": true}
+      ship_addr_line3: {"path": "ShipAddr.Line3", "type": "string", "nullable": true}
+      ship_addr_line4: {"path": "ShipAddr.Line4", "type": "string", "nullable": true}
+      ship_addr_line5: {"path": "ShipAddr.Line5", "type": "string", "nullable": true}
+      ship_addr_city: {"path": "ShipAddr.City", "type": "string", "nullable": true}
+      ship_addr_country: {"path": "ShipAddr.Country", "type": "string", "nullable": true}
+      ship_addr_country_code: {"path": "ShipAddr.CountryCode", "type": "string", "nullable": true}
+      ship_addr_county: {"path": "ShipAddr.County", "type": "string", "nullable": true}
+      ship_addr_country_sub_division_code: {"path": "ShipAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      ship_addr_postal_code: {"path": "ShipAddr.PostalCode", "type": "string", "nullable": true}
+      ship_addr_postal_code_suffix: {"path": "ShipAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      ship_addr_lat: {"path": "ShipAddr.Lat", "type": "string", "nullable": true}
+      ship_addr_long: {"path": "ShipAddr.Long", "type": "string", "nullable": true}
+      ship_addr_tag: {"path": "ShipAddr.Tag", "type": "string", "nullable": true}
+      ship_addr_note: {"path": "ShipAddr.Note", "type": "string", "nullable": true}
+      ship_method_id: {"path": "ShipMethodRef.value", "type": "string", "nullable": true}
+      ship_method_name: {"path": "ShipMethodRef.name", "type": "string", "nullable": true}
+      fob: {"path": "FOB", "type": "string", "nullable": true}
+      po_email_id: {"path": "POEmail.Id", "type": "string", "nullable": true}
+      po_email_address: {"path": "POEmail.Address", "type": "string", "nullable": true}
+      po_email_default: {"path": "POEmail.Default", "type": "bool", "nullable": true}
+      po_email_tag: {"path": "POEmail.Tag", "type": "string", "nullable": true}
+      template_id: {"path": "TemplateRef.value", "type": "string", "nullable": true}
+      template_name: {"path": "TemplateRef.name", "type": "string", "nullable": true}
+      print_status: {"path": "PrintStatus", "type": "string", "nullable": true}
+      email_status: {"path": "EmailStatus", "type": "string", "nullable": true}
+      manually_closed: {"path": "ManuallyClosed", "type": "bool", "nullable": true}
+      po_status: {"path": "POStatus", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM PurchaseOrder{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.PurchaseOrder"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "purchase_orders.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

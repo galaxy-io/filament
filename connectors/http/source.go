@@ -268,6 +268,13 @@ func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	sort.SliceStable(names, func(i, j int) bool {
+		left, right := m.Config[names[i]].Order, m.Config[names[j]].Order
+		if left == 0 || right == 0 {
+			return left != 0 && right == 0
+		}
+		return left < right
+	})
 	controllers := map[string]bool{}
 	for _, spec := range m.Config {
 		if spec.VisibleWhen != nil {
