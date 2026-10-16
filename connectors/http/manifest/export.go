@@ -3,6 +3,7 @@ package manifest
 import (
 	"fmt"
 	"path"
+	"reflect"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -357,7 +358,7 @@ func validateExportResourceFields(agg *errs.ManifestErrors, at string, r Resourc
 	if r.Stream != nil || r.EmitAs != "" || r.CaptureOnly || len(r.Capture) > 0 {
 		_ = agg.Addf(at, "cannot combine export with stream, emit_as, capture, or capture_only")
 	}
-	if r.Path != "" || r.Method != "" || len(r.Headers) > 0 || len(r.Query) > 0 || len(r.Params) > 0 || r.Body.Encoding != "" || r.Body.Template != nil || r.Records != "" || (r.Pagination.Type != "" && r.Pagination.Type != "none") || r.Response != (ResponseSpec{}) {
+	if r.Path != "" || r.Method != "" || len(r.Headers) > 0 || len(r.Query) > 0 || len(r.Params) > 0 || r.Body.Encoding != "" || r.Body.Template != nil || r.Records != "" || (r.Pagination.Type != "" && r.Pagination.Type != "none") || !reflect.DeepEqual(r.Response, ResponseSpec{}) {
 		_ = agg.Addf(at, "declare requests and decoding inside export, without resource path, body, records, or pagination")
 	}
 }
