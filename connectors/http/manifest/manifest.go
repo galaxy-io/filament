@@ -239,21 +239,29 @@ func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
 	case "oauth2":
 		a.Type = "oauth2_cc"
 		var spec struct {
-			TokenURL     string            `yaml:"token_url"`
-			ClientID     string            `yaml:"client_id"`
-			ClientSecret string            `yaml:"client_secret"`
-			Scope        string            `yaml:"scope"`
-			GrantType    string            `yaml:"grant_type"`
-			RefreshToken string            `yaml:"refresh_token"`
-			HeaderPrefix string            `yaml:"header_prefix"`
-			Params       map[string]string `yaml:"params"`
+			TokenURL       string            `yaml:"token_url"`
+			ManagedRefresh bool              `yaml:"managed_refresh"`
+			Binding        []string          `yaml:"binding"`
+			FallbackToken  string            `yaml:"fallback_token"`
+			ClientID       string            `yaml:"client_id"`
+			ClientSecret   string            `yaml:"client_secret"`
+			ClientAuth     string            `yaml:"client_auth"`
+			Scope          string            `yaml:"scope"`
+			GrantType      string            `yaml:"grant_type"`
+			RefreshToken   string            `yaml:"refresh_token"`
+			HeaderPrefix   string            `yaml:"header_prefix"`
+			Params         map[string]string `yaml:"params"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
+		a.Params["managed_refresh"] = spec.ManagedRefresh
+		a.Params["binding"] = spec.Binding
+		a.Params["fallback_token"] = referenceTemplate(spec.FallbackToken)
 		a.Params["token_url"] = spec.TokenURL
 		a.Params["client_id"] = referenceTemplate(spec.ClientID)
 		a.Params["client_secret"] = referenceTemplate(spec.ClientSecret)
+		a.Params["client_auth"] = spec.ClientAuth
 		a.Params["scope"] = spec.Scope
 		a.Params["grant_type"] = spec.GrantType
 		a.Params["refresh_token"] = referenceTemplate(spec.RefreshToken)

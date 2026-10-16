@@ -13,6 +13,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/http/auth"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
@@ -289,6 +290,7 @@ func (c *Connector) doRequest(
 ) (*http.Response, []byte, error) {
 	resourceName := res.Name
 	var serverRetries int
+	refreshed := false
 	for attempt := range maxRetries {
 		if err := c.limiter.Wait(ctx); err != nil {
 			return nil, nil, err
@@ -314,6 +316,19 @@ func (c *Connector) doRequest(
 			return resp, nil, fmt.Errorf("response exceeds %d bytes", maxResponseSize)
 		}
 
+		if resp.StatusCode == http.StatusUnauthorized && !refreshed {
+			rejected := req.Header.Get("Authorization")
+			if _, token, ok := strings.Cut(rejected, " "); ok {
+				handled, err := auth.RefreshRejected(ctx, c.builder.Auth, token)
+				if err != nil {
+					return nil, nil, fmt.Errorf("oauth refresh: %w", err)
+				}
+				if handled {
+					refreshed = true
+					continue
+				}
+			}
+		}
 		c.limiter.Observe(resp)
 		delay, limited := rateLimitDelay(resp, body, attempt, c.manifest.Connection.RateLimit)
 

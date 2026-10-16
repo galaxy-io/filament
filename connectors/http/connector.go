@@ -22,6 +22,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/response"
 	"github.com/galaxy-io/filament/connectors/http/template"
+	"github.com/galaxy-io/filament/oauth"
 )
 
 // Capture is one parent record's flattened, captured field map keyed by the
@@ -46,6 +47,7 @@ const (
 // Connector is the generic HTTP connector. Configure with a v1 manifest and
 // per-source credentials, then call Extract.
 type Connector struct {
+	oauthStore   oauth.Store
 	manifestPath string
 	manifestData []byte
 	creds        map[string]string
@@ -155,6 +157,10 @@ func (c *Connector) Configure(ctx context.Context) error {
 	authn, err := buildAuth(m.Connection.Auth, c.creds, c.env)
 	if err != nil {
 		return fmt.Errorf("build auth: %w", err)
+	}
+
+	if err := auth.WithOAuthStore(authn, c.oauthStore); err != nil {
+		return err
 	}
 
 	// Rendered once here rather than per request: the host is fixed for the
@@ -275,3 +281,7 @@ func buildLimiter(rl manifest.RateLimit) request.Limiter {
 		MinFloorRPS:     rl.Dynamic.MinFloorRPS,
 	})
 }
+
+// SetOAuthStore binds token storage for one authorization before configuration.
+// Both extraction and connection testing use it. Nil keeps in-memory tokens.
+func (c *Connector) SetOAuthStore(store oauth.Store) { c.oauthStore = store }

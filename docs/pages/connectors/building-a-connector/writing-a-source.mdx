@@ -147,8 +147,9 @@ without an external dependency.
 ## OAuth tokens
 
 The root `oauth` package handles client credentials and refresh-token grants.
-It refreshes on demand and exposes `Token(ctx)` to Go drivers. Browser
-authorization and callback handlers are outside this package.
+It refreshes on demand and exposes `Token(ctx)` to Go drivers. HTTP manifests
+use the same implementation. Browser authorization and callback handlers are
+outside this package.
 
 Bind a run-scoped store to an existing connection refresh-token secret. The
 provider must implement `filament.SecretRotator`. PostgreSQL, SQLite, AWS and
@@ -184,7 +185,9 @@ if err != nil {
 token.SetAuthHeader(req)
 ```
 
-A driver can depend on the small `oauth.TokenSource` interface.
+A driver can depend on the small `oauth.TokenSource` interface. For an HTTP
+source, call `source.SetOAuthStore(store)` before `Configure` or `TestConnection`.
+This is an explicit Go integration hook.
 
 A driver can implement `oauth/secrets.Configurable` to identify its saved
 refresh-token field and authorization settings. The runner binds that secret
@@ -214,7 +217,8 @@ and persistence can require fresh authorization.
 Check `errors.Is(err, oauth.ErrReauthorizationRequired)` for an expired or revoked
 refresh grant. Endpoint errors expose HTTP status and an allowlisted OAuth code,
 without provider descriptions or raw responses. Token requests do not retry
-automatically.
+automatically. The HTTP adapter's optional retry policy accepts explicit
+temporary rejections and avoids retrying ambiguous transport failures.
 
 Use the connection’s existing secret lifecycle when removing an authorization. Provider-side revocation remains a separate operation. Token values
 must never appear in logs, events, ordinary connection config or API responses.

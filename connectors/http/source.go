@@ -19,6 +19,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
+	"github.com/galaxy-io/filament/oauth"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -35,6 +36,7 @@ type selectorToken struct {
 
 // Source adapts the manifest-driven HTTP connector to ingestion's source API.
 type Source struct {
+	oauthStore           oauth.Store
 	connector            *Connector
 	name                 string
 	displayName          string
@@ -193,7 +195,7 @@ func (s *Source) Validate(cfg filament.Config) error {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
 	}
-	if s.embeddedManifest != nil && s.embeddedManifest.Connection.Auth.Type == "select" {
+	if s.embeddedManifest != nil {
 		_, err := buildAuth(s.embeddedManifest.Connection.Auth, credentialsFromConfig(cfg, s.embeddedManifest.Config), processEnvironment())
 		return err
 	}
@@ -311,6 +313,9 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 		return fmt.Errorf("%s source: configure connection probe: %w", s.name, err)
 	}
 	defer func() { _ = c.Teardown(ctx) }()
+	if field, _ := s.OAuthRefreshConfig(cfg); field != "" && s.oauthStore == nil {
+		return nil
+	}
 	if err := c.TestConnection(ctx); err != nil {
 		return fmt.Errorf("%s source: %w", s.name, err)
 	}
@@ -318,7 +323,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 }
 
 func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
-	c := &Connector{}
+	c := &Connector{oauthStore: s.oauthStore}
 	if s.manifestErr != nil {
 		return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
@@ -1201,3 +1206,7 @@ func (s *Source) planResponseCursor(resource string, res manifest.Resource, prev
 	}
 	return cp.ToCheckpoint(resource), nil
 }
+
+// SetOAuthStore binds token storage for one authorization before configuration.
+// Both extraction and connection testing use it. Nil keeps in-memory tokens.
+func (s *Source) SetOAuthStore(store oauth.Store) { s.oauthStore = store }

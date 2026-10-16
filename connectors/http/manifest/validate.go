@@ -173,6 +173,7 @@ func (m *Manifest) validateSemantics() error {
 	validateTemplateScopes(&agg, "connection.base_url", m.Connection.BaseURL, template.AuthScopes)
 	validateVersionHeaders(&agg, m)
 	validateAuthParams(&agg, "connection.auth", m.Connection.Auth.Params)
+	validateManagedAuth(&agg, m, m.Connection.Auth)
 
 	names := make(map[string]struct{}, len(m.Resources))
 	byName := make(map[string]*Resource, len(m.Resources))
@@ -790,5 +791,33 @@ func (m *Manifest) normalizeResourceFields(r *Resource) {
 			}
 		}
 		r.Fields = fields
+	}
+}
+
+func validateManagedAuth(agg *errs.ManifestErrors, m *Manifest, spec AuthSpec) {
+	if spec.Type == "select" {
+		cases, _ := spec.Params["cases"].(map[string]any)
+		for _, value := range cases {
+			choice, _ := value.(map[string]any)
+			kind, _ := choice["type"].(string)
+			params, _ := choice["params"].(map[string]any)
+			validateManagedAuth(agg, m, AuthSpec{Type: kind, Params: params})
+		}
+	}
+	if spec.Params["managed_refresh"] != true {
+		return
+	}
+	ref, _ := spec.Params["refresh_token"].(string)
+	field := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(ref, "{{"), "}}"))
+	name := strings.TrimPrefix(field, "config.")
+	if spec.Params["grant_type"] != "refresh_token" || !strings.HasPrefix(field, "config.") || m.Config[name].Type != "secret" {
+		_ = agg.Addf("connection.auth.oauth2", "managed_refresh requires a refresh_token grant and direct config secret reference")
+	}
+	binding, _ := spec.Params["binding"].([]string)
+	if len(binding) == 0 {
+		_ = agg.Addf("connection.auth.oauth2.binding", "managed_refresh requires authorization binding components")
+	}
+	for _, value := range binding {
+		validateTemplateScopes(agg, "connection.auth.oauth2.binding", value, []string{"config"})
 	}
 }
