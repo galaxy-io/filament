@@ -14,5 +14,7 @@ SELECT ciphertext, nonce, metadata FROM secrets WHERE ref = @ref;
 -- name: DeleteSecret :exec
 DELETE FROM secrets WHERE ref = @ref;
 
--- name: LockSecret :one
-SELECT ciphertext, nonce, metadata FROM secrets WHERE tenant_id = @tenant_id AND ref = @ref FOR UPDATE;
+-- name: RotateSecret :execrows
+UPDATE secrets SET ciphertext = @ciphertext, nonce = @nonce, key_id = @key_id,
+    metadata = @metadata, updated_at = now()
+WHERE tenant_id = @tenant_id AND ref = @ref;

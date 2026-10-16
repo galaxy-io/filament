@@ -3,7 +3,6 @@ package secrets_test
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -42,33 +41,24 @@ func TestManagedRefreshSecretLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved, err := provider.Read(t.Context(), ref)
-	if err != nil || saved.Meta["field"] != "refresh_token" || saved.Meta["oauth_format"] != "v1" {
+	if err != nil || saved.Meta["field"] != "refresh_token" || saved.Meta["oauth_format"] != "" || string(saved.Value) != "rotated" {
 		t.Fatal("secret metadata or format marker lost")
-	}
-	if strings.Contains(saved.Meta["oauth_format"], "rotated") {
-		t.Fatal("token material stored in metadata")
 	}
 	reopened, err := oauthsecrets.FromRefreshToken(provider, tenant, ref, "account-client-binding")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token, err := reopened.Update(t.Context(), func(_ context.Context, token oauth.Token) (oauth.Token, error) { return token, nil }); err != nil || token != rotated {
+	if token, err := reopened.Update(t.Context(), func(_ context.Context, token oauth.Token) (oauth.Token, error) { return token, nil }); err != nil || token != (oauth.Token{RefreshToken: "rotated"}) {
 		t.Fatal("rotation was not reused")
-	}
-	changed, err := oauthsecrets.FromRefreshToken(provider, tenant, ref, "different-account")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := changed.Update(t.Context(), func(_ context.Context, token oauth.Token) (oauth.Token, error) {
-		t.Error("mismatched authorization reached token exchange")
-		return token, nil
-	}); err == nil {
-		t.Fatal("changed authorization accepted")
 	}
 	if err := provider.Delete(t.Context(), ref); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := reopened.Update(t.Context(), func(_ context.Context, token oauth.Token) (oauth.Token, error) { return token, nil }); !errors.Is(err, filament.ErrNotFound) {
+	fresh, err := oauthsecrets.FromRefreshToken(provider, tenant, ref, "account-client-binding")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fresh.Update(t.Context(), func(_ context.Context, token oauth.Token) (oauth.Token, error) { return token, nil }); !errors.Is(err, filament.ErrNotFound) {
 		t.Fatal("deleted connection credentials were resurrected")
 	}
 }

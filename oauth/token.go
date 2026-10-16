@@ -21,17 +21,11 @@ type TokenSource interface {
 	Token(context.Context) (Token, error)
 }
 
-// Store owns the tokens for one authorization. Update must read the latest
-// token, call fn exactly once, and commit its result before returning success.
-// An error from fn must leave the stored token unchanged.
-//
-// Implementations must serialize the entire operation, including fn, against
-// other refreshes and credential replacements for the same authorization.
-// Durable stores must do this across processes, encrypt token material, and
-// scope access to the tenant. A Load followed by an unconditional Save, or a
-// compare-and-swap after fn, does not meet this contract: fn can rotate the
-// upstream credential. Never automatically retry fn after a commit failure.
-// Pass a context to fn that is canceled when transaction ownership ends.
+// Store owns run-scoped tokens for one authorization. Update serializes callers
+// within the store, calls fn once, and commits its result before returning success.
+// An error from fn leaves the token unchanged. Stores may retain a successful
+// result after a write-back failure and return it on a later save attempt without
+// calling fn again. Never repeat an exchange merely because persistence failed.
 type Store interface {
 	Update(ctx context.Context, fn func(context.Context, Token) (Token, error)) (Token, error)
 }
@@ -45,7 +39,7 @@ func (f StoreFunc) Update(ctx context.Context, fn func(context.Context, Token) (
 }
 
 // MemoryStore shares token state between sources in one process. It is not
-// durable. Use a durable Store for providers with rotating refresh tokens.
+// durable. Use oauth/secrets for write-back of rotating refresh tokens.
 type MemoryStore struct {
 	lock  chan struct{}
 	token Token

@@ -22,7 +22,6 @@ import (
 
 // Provider encrypts secret values with AES-GCM before persisting them.
 type Provider struct {
-	db    *sql.DB
 	q     *sqlcgen.Queries
 	keyID string
 	gcm   cipher.AEAD
@@ -59,13 +58,25 @@ func New(db *sql.DB, keyID string, key []byte) (*Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("secret/sqlite: gcm: %w", err)
 	}
-	return &Provider{db: db, q: sqlcgen.New(db), keyID: keyID, gcm: gcm}, nil
+	return &Provider{q: sqlcgen.New(db), keyID: keyID, gcm: gcm}, nil
 }
 
 // Name returns the provider identifier.
 func (p *Provider) Name() string { return "sqlite" }
 
 func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret) error {
+	return p.write(ctx, ref, secret, false)
+}
+
+// RotateSecret updates an existing tenant-owned secret without inserting a row.
+func (p *Provider) RotateSecret(ctx context.Context, ref string, secret filament.Secret) error {
+	if err := filament.ValidateConnectionSecretRef(ref, secret.Tenant); err != nil {
+		return err
+	}
+	return p.write(ctx, ref, secret, true)
+}
+
+func (p *Provider) write(ctx context.Context, ref string, secret filament.Secret, rotate bool) error {
 	if secret.Tenant == "" {
 		return fmt.Errorf("secret/sqlite: tenant is required")
 	}
@@ -78,11 +89,20 @@ func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret
 		return fmt.Errorf("secret/sqlite: marshal metadata: %w", err)
 	}
 	now := time.Now().UnixMilli()
-	err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{
-		TenantID: string(secret.Tenant), Ref: ref,
-		Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce,
-		KeyID: p.keyID, Metadata: string(meta), CreatedAt: now, UpdatedAt: now,
-	})
+	if rotate {
+		var count int64
+		count, err = p.q.RotateSecret(ctx, sqlcgen.RotateSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: string(meta), UpdatedAt: now})
+		if err == nil && count == 0 {
+			return filament.ErrNotFound
+		}
+	} else {
+		err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{
+			TenantID: string(secret.Tenant), Ref: ref,
+			Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce,
+			KeyID: p.keyID, Metadata: string(meta), CreatedAt: now, UpdatedAt: now,
+		})
+	}
+
 	if err != nil {
 		return fmt.Errorf("secret/sqlite: write: %w", err)
 	}

@@ -15,10 +15,8 @@ type Configurable interface {
 	SetOAuthStore(oauth.Store)
 }
 
-// Bind connects a source to its own saved refresh secret. It performs no reads
-// or token exchanges. The first successful refresh converts the initial secret
-// into encrypted token state under the same reference, so replacement and
-// deletion keep using the connection's existing secret lifecycle.
+// Bind connects a source to its saved refresh secret with a new run-scoped store.
+// It performs no reads or token exchanges.
 func Bind(source any, cfg filament.Config, provider filament.Secrets, tenant filament.TenantID, refs map[string]string) error {
 	connector, ok := source.(Configurable)
 	if !ok {
@@ -36,10 +34,8 @@ func Bind(source any, cfg filament.Config, provider filament.Secrets, tenant fil
 	return nil
 }
 
-// FromRefreshToken binds a connection-managed refresh-token secret. Initial
-// values are opaque refresh tokens. After exchange, the value holds encrypted
-// token state tagged in metadata. Binding identifies the provider, account and
-// client settings, preventing reuse after those settings change.
+// FromRefreshToken binds an existing connection secret. Only a changed refresh
+// token is written back. Access tokens remain in this store's memory.
 func FromRefreshToken(provider filament.Secrets, tenant filament.TenantID, ref, binding string) (*Store, error) {
 	if tenant == "" || binding == "" || !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
 		return nil, errors.New("oauth: automatic refresh requires a saved connection refresh-token secret")
@@ -47,9 +43,9 @@ func FromRefreshToken(provider filament.Secrets, tenant filament.TenantID, ref, 
 	if err := filament.ValidateConnectionSecretRef(ref, tenant); err != nil {
 		return nil, err
 	}
-	u, ok := provider.(updater)
+	rotator, ok := provider.(filament.SecretRotator)
 	if !ok {
-		return nil, errors.New("oauth: secret provider does not support atomic token updates")
+		return nil, errors.New("oauth: secret provider does not support secret rotation")
 	}
-	return &Store{provider: provider, updater: u, tenant: tenant, ref: ref, binding: binding}, nil
+	return &Store{provider: provider, rotator: rotator, tenant: tenant, ref: ref, binding: binding, lock: make(chan struct{}, 1)}, nil
 }

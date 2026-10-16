@@ -18,28 +18,6 @@ func (q *Queries) DeleteSecret(ctx context.Context, ref string) error {
 	return err
 }
 
-const lockSecret = `-- name: LockSecret :one
-SELECT ciphertext, nonce, metadata FROM secrets WHERE tenant_id = ?1 AND ref = ?2
-`
-
-type LockSecretParams struct {
-	TenantID string
-	Ref      string
-}
-
-type LockSecretRow struct {
-	Ciphertext []byte
-	Nonce      []byte
-	Metadata   string
-}
-
-func (q *Queries) LockSecret(ctx context.Context, arg LockSecretParams) (*LockSecretRow, error) {
-	row := q.db.QueryRowContext(ctx, lockSecret, arg.TenantID, arg.Ref)
-	var i LockSecretRow
-	err := row.Scan(&i.Ciphertext, &i.Nonce, &i.Metadata)
-	return &i, err
-}
-
 const readSecret = `-- name: ReadSecret :one
 SELECT ciphertext, nonce, metadata FROM secrets WHERE ref = ?1
 `
@@ -55,6 +33,38 @@ func (q *Queries) ReadSecret(ctx context.Context, ref string) (*ReadSecretRow, e
 	var i ReadSecretRow
 	err := row.Scan(&i.Ciphertext, &i.Nonce, &i.Metadata)
 	return &i, err
+}
+
+const rotateSecret = `-- name: RotateSecret :execrows
+UPDATE secrets SET ciphertext = ?1, nonce = ?2, key_id = ?3,
+    metadata = ?4, updated_at = ?5
+WHERE tenant_id = ?6 AND ref = ?7
+`
+
+type RotateSecretParams struct {
+	Ciphertext []byte
+	Nonce      []byte
+	KeyID      string
+	Metadata   string
+	UpdatedAt  int64
+	TenantID   string
+	Ref        string
+}
+
+func (q *Queries) RotateSecret(ctx context.Context, arg RotateSecretParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, rotateSecret,
+		arg.Ciphertext,
+		arg.Nonce,
+		arg.KeyID,
+		arg.Metadata,
+		arg.UpdatedAt,
+		arg.TenantID,
+		arg.Ref,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const writeSecret = `-- name: WriteSecret :exec

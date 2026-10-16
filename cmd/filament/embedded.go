@@ -126,9 +126,9 @@ type layeredSecrets struct {
 
 func (s layeredSecrets) Name() string { return "local" }
 
-// UpdateSecret delegates atomic token updates to the writable SQLite layer.
-func (s layeredSecrets) UpdateSecret(ctx context.Context, tenant filament.TenantID, ref string, fn func(filament.Secret) (filament.Secret, error)) (filament.Secret, error) {
-	return s.stored.UpdateSecret(ctx, tenant, ref, fn)
+// RotateSecret delegates refresh-token writes to the SQLite layer.
+func (s layeredSecrets) RotateSecret(ctx context.Context, ref string, secret filament.Secret) error {
+	return s.stored.RotateSecret(ctx, ref, secret)
 }
 
 func (s layeredSecrets) Read(ctx context.Context, ref string) (filament.Secret, error) {
