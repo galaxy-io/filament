@@ -18,6 +18,28 @@ func (q *Queries) DeleteSecret(ctx context.Context, ref string) error {
 	return err
 }
 
+const lockSecret = `-- name: LockSecret :one
+SELECT ciphertext, nonce, metadata FROM secrets WHERE tenant_id = ?1 AND ref = ?2
+`
+
+type LockSecretParams struct {
+	TenantID string
+	Ref      string
+}
+
+type LockSecretRow struct {
+	Ciphertext []byte
+	Nonce      []byte
+	Metadata   string
+}
+
+func (q *Queries) LockSecret(ctx context.Context, arg LockSecretParams) (*LockSecretRow, error) {
+	row := q.db.QueryRowContext(ctx, lockSecret, arg.TenantID, arg.Ref)
+	var i LockSecretRow
+	err := row.Scan(&i.Ciphertext, &i.Nonce, &i.Metadata)
+	return &i, err
+}
+
 const readSecret = `-- name: ReadSecret :one
 SELECT ciphertext, nonce, metadata FROM secrets WHERE ref = ?1
 `

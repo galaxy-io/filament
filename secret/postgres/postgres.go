@@ -22,6 +22,7 @@ import (
 
 // Provider encrypts secret values with AES-GCM before persisting them.
 type Provider struct {
+	pool  *pgxpool.Pool
 	q     *sqlcgen.Queries
 	keyID string
 	gcm   cipher.AEAD
@@ -57,7 +58,7 @@ func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("secret/postgres: gcm: %w", err)
 	}
-	return &Provider{q: sqlcgen.New(pool), keyID: keyID, gcm: gcm}, nil
+	return &Provider{pool: pool, q: sqlcgen.New(pool), keyID: keyID, gcm: gcm}, nil
 }
 
 // Name returns the provider identifier.
@@ -90,13 +91,17 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 		}
 		return filament.Secret{}, fmt.Errorf("secret/postgres: read: %w", err)
 	}
-	value, err := p.gcm.Open(nil, row.Nonce, row.Ciphertext, nil)
+	return p.decodeSecret(ref, row.Ciphertext, row.Nonce, row.Metadata)
+}
+
+func (p *Provider) decodeSecret(ref string, ciphertext, nonce, metadata []byte) (filament.Secret, error) {
+	value, err := p.gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return filament.Secret{}, fmt.Errorf("secret/postgres: decrypt %q: %w", ref, err)
 	}
 	var meta map[string]string
-	if len(row.Metadata) > 0 {
-		if err := json.Unmarshal(row.Metadata, &meta); err != nil {
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &meta); err != nil {
 			return filament.Secret{}, fmt.Errorf("secret/postgres: unmarshal metadata: %w", err)
 		}
 	}

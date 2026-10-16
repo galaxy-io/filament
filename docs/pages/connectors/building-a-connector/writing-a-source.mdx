@@ -142,3 +142,90 @@ for those capability sets.
 The repository's [`connectors/sample`](https://github.com/galaxy-io/filament/tree/main/connectors/sample)
 package is the smallest complete source. It demonstrates the same builder flow
 without an external dependency.
+
+
+## OAuth tokens
+
+The root `oauth` package handles client credentials and refresh-token grants.
+It refreshes on demand and exposes `Token(ctx)` to Go drivers. Browser
+authorization and callback handlers are outside this package.
+
+Create an encrypted token store with an existing Postgres or SQLite secret
+provider. Give each authorization a stable ID scoped to its tenant. Connections
+that share an authorization should use the same ID and OAuth client settings.
+
+```go
+import (
+    "github.com/galaxy-io/filament/oauth"
+    oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
+)
+
+store, err := oauthsecrets.New(secretProvider, tenant, credentialID)
+if err != nil {
+    return err
+}
+
+// Run once when provisioning or explicitly replacing the authorization.
+// Do not reseed it when starting a run.
+if err := store.Set(ctx, oauth.Token{RefreshToken: refreshToken}); err != nil {
+    return err
+}
+
+tokens, err := oauth.NewSource(oauth.Config{
+    TokenURL:     tokenURL,
+    ClientID:     clientID,
+    ClientSecret: clientSecret,
+    ClientAuth:   oauth.ClientSecretBasic,
+    GrantType:    oauth.RefreshToken,
+}, store)
+if err != nil {
+    return err
+}
+
+// Call before an API request. The source reuses unexpired tokens.
+token, err := tokens.Token(ctx)
+if err != nil {
+    return err
+}
+token.SetAuthHeader(req)
+```
+
+A future authorization-code callback can pass the issued tokens to the same
+`store.Set` method. A driver can depend on the small `oauth.TokenSource`
+interface. The connection API and worker protocol do not provision standalone
+OAuth credential IDs. A driver can implement `oauth/secrets.Configurable` to
+identify its saved refresh-token field and an authorization-settings fingerprint.
+The runner binds that managed secret through `oauth/secrets.Bind` before source
+configuration. Binding performs no secret reads or token exchanges. The first
+refresh saves token state under the same encrypted reference. Connection
+replacement and deletion use the existing secret lifecycle. Unsaved connection
+validation must not exchange rotating tokens.
+
+Token state is encrypted in the existing secrets table. Refreshes and explicit
+replacements serialize under a Postgres row lock or SQLite writer transaction.
+SQLite holds its writer lock while requesting a token, so other writes wait.
+Token requests default to a 30-second timeout and store updates are bounded
+by 35 seconds. This avoids a separate lease service or background refresher.
+The supplied transaction callback must not reenter the same database.
+
+Use `oauth.NewMemoryStore` for temporary credentials or tests. It shares state
+only within one process. The encrypted adapter rejects secret providers without
+atomic updates, including the environment, AWS and GCP providers. Applications
+with other storage can implement `oauth.Store` or use `oauth.StoreFunc`. The
+whole read, exchange and save operation must be serialized across callers.
+A conditional write after concurrent exchanges is insufficient.
+
+A returned token is available only after persistence succeeds. If saving fails,
+the source retains the exchange and tries to save it on the next call. It does
+not overwrite a newer authorization. A process crash after upstream rotation
+but before persistence can still require reauthorization. Remote token issuance
+and local storage cannot share a transaction.
+
+Check `errors.Is(err, oauth.ErrReauthorizationRequired)` for an expired or revoked
+refresh grant. Endpoint errors expose HTTP status and an allowlisted OAuth code,
+without provider descriptions or raw responses. Token requests do not retry
+automatically.
+
+Call `store.Delete(ctx)` when removing an authorization. This removes local
+tokens only. Provider-side revocation remains a separate operation. Token values
+must never appear in logs, events, ordinary connection config or API responses.

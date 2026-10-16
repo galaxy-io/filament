@@ -126,6 +126,11 @@ type layeredSecrets struct {
 
 func (s layeredSecrets) Name() string { return "local" }
 
+// UpdateSecret delegates atomic token updates to the writable SQLite layer.
+func (s layeredSecrets) UpdateSecret(ctx context.Context, tenant filament.TenantID, ref string, fn func(filament.Secret) (filament.Secret, error)) (filament.Secret, error) {
+	return s.stored.UpdateSecret(ctx, tenant, ref, fn)
+}
+
 func (s layeredSecrets) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	secret, err := s.stored.Read(ctx, ref)
 	if errors.Is(err, filament.ErrNotFound) {

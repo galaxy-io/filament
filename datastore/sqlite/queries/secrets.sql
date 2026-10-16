@@ -13,3 +13,6 @@ SELECT ciphertext, nonce, metadata FROM secrets WHERE ref = @ref;
 
 -- name: DeleteSecret :exec
 DELETE FROM secrets WHERE ref = @ref;
+
+-- name: LockSecret :one
+SELECT ciphertext, nonce, metadata FROM secrets WHERE tenant_id = @tenant_id AND ref = @ref;

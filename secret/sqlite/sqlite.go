@@ -22,6 +22,7 @@ import (
 
 // Provider encrypts secret values with AES-GCM before persisting them.
 type Provider struct {
+	db    *sql.DB
 	q     *sqlcgen.Queries
 	keyID string
 	gcm   cipher.AEAD
@@ -58,7 +59,7 @@ func New(db *sql.DB, keyID string, key []byte) (*Provider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("secret/sqlite: gcm: %w", err)
 	}
-	return &Provider{q: sqlcgen.New(db), keyID: keyID, gcm: gcm}, nil
+	return &Provider{db: db, q: sqlcgen.New(db), keyID: keyID, gcm: gcm}, nil
 }
 
 // Name returns the provider identifier.
@@ -96,13 +97,17 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 		}
 		return filament.Secret{}, fmt.Errorf("secret/sqlite: read: %w", err)
 	}
-	value, err := p.gcm.Open(nil, row.Nonce, row.Ciphertext, nil)
+	return p.decodeSecret(ref, row.Ciphertext, row.Nonce, []byte(row.Metadata))
+}
+
+func (p *Provider) decodeSecret(ref string, ciphertext, nonce, metadata []byte) (filament.Secret, error) {
+	value, err := p.gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return filament.Secret{}, fmt.Errorf("secret/sqlite: decrypt %q: %w", ref, err)
 	}
 	var meta map[string]string
-	if row.Metadata != "" {
-		if err := json.Unmarshal([]byte(row.Metadata), &meta); err != nil {
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &meta); err != nil {
 			return filament.Secret{}, fmt.Errorf("secret/sqlite: unmarshal metadata: %w", err)
 		}
 	}

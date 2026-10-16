@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 )
 
 // ExecuteContinuousAttempt executes a supervisor-admitted identity exactly once.
@@ -42,6 +43,9 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	}
 	source, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
+		return err
+	}
+	if err := oauthsecrets.Bind(source, filament.NewConfig(spec.Source.Config), deps.Secrets, spec.Tenant, spec.Source.SecretRefs); err != nil {
 		return err
 	}
 	sink, err := deps.Sinks.Resolve(spec.Sink.Connector)
