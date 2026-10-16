@@ -27,6 +27,7 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/rowmodel"
+	schemadrift "github.com/galaxy-io/filament/schema"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -41,7 +42,10 @@ const defaultFlushInterval = time.Second
 // Commit/Abort are the engine's responsibility, not the pipeline's — the pipeline
 // only calls Apply.
 type Config struct {
-	// PrepareSchema runs once per resource, on the writer, before its first Apply.
+	MessageSchemaPolicy schemadrift.Policy
+	MessageSchemas      map[string]schemadrift.MessageLayout
+	// PrepareSchema runs once per admitted resource layout, on the writer,
+	// before its first Apply. Live message layouts change only between epochs.
 	PrepareSchema func(context.Context, string, rowmodel.Schema) error
 	Tenant        filament.TenantID
 	Run           filament.RunID
@@ -72,6 +76,8 @@ type AuditConfig struct {
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
+	messagePolicy    schemadrift.Policy
+	messageSchemas   map[string]schemadrift.MessageLayout
 	prepareSchema    func(context.Context, string, rowmodel.Schema) error
 	tenant           filament.TenantID
 	run              filament.RunID
@@ -145,6 +151,8 @@ func New(cfg Config) *Pipeline {
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
 	return &Pipeline{
+		messagePolicy:    cfg.MessageSchemaPolicy,
+		messageSchemas:   schemadrift.CloneMessageLayouts(cfg.MessageSchemas),
 		prepareSchema:    cfg.PrepareSchema,
 		tenant:           cfg.Tenant,
 		run:              cfg.Run,

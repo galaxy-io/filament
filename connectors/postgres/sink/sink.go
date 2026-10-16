@@ -14,6 +14,8 @@ import (
 	"github.com/galaxy-io/filament"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
 	"github.com/galaxy-io/filament/internal/stream"
+	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -23,6 +25,7 @@ import (
 // implements filament.Schematized; the engine only runs schema discovery for sinks
 // that do.
 type Sink struct {
+	evolution  schema.Policy
 	continuous bool
 	stream     streamSession
 
@@ -43,6 +46,8 @@ type Sink struct {
 // marks a table whose writes are idempotent by key, so a resume must preserve its
 // rows.
 type table struct {
+	input     *arrow.Schema
+	model     rowmodel.Schema
 	qualified string
 	idents    []string // sanitized column names, schema order
 	types     []string // Postgres column types, schema order
@@ -91,6 +96,9 @@ func (t *Sink) Name() string { return "postgres" }
 
 // Validate checks connection syntax without opening a network connection.
 func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
+		return err
+	}
 	if _, err := pgconnection.Resolve(cfg); err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
@@ -134,6 +142,14 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		t.stream = streamSession{lifecycle: lifecycle}
 	}
 	cfg := filament.NewConfig(run.Sink.Config)
+	policy, err := schemaPolicy(cfg.String("schema_evolution"))
+	if err != nil {
+		return err
+	}
+	t.evolution = policy
+	if policy != "" && cfg.String("schema") != "" && !validIdentifier(cfg.String("schema")) {
+		return fmt.Errorf("invalid PostgreSQL schema name")
+	}
 	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)

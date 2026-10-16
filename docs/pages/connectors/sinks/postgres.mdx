@@ -26,6 +26,7 @@ same destination tables.
 | `ssl_mode` | Connection | `prefer` | TLS verification: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
 | `schema` | Pipeline | `public` | Destination schema |
 | `mode` | Pipeline | `typed` | Destination table mode. `typed` is the only value. |
+| `schema_evolution` | Pipeline | `disabled` | Use `strict` to block schema differences or `nullable_add` to permit nullable column additions. |
 
 A `schema` left empty is defaulted by the server to the normalized source
 connection name. `Open` sizes a pgx pool to at least the run's snapshot
@@ -48,7 +49,7 @@ planner picks one. They bind to three write behaviors:
 
 ## Table management
 
-Before extraction starts, `EnsureSchema` runs per resource:
+With `schema_evolution` disabled, `EnsureSchema` runs per resource before extraction.
 
 1. `CREATE TABLE IF NOT EXISTS` with columns from the source schema, a primary
    key from the source's key fields, and `NOT NULL` from field nullability.
@@ -58,6 +59,52 @@ Before extraction starts, `EnsureSchema` runs per resource:
    existing tables. Evolution is add-only. Type changes, dropped columns, and
    nullability changes are not applied. An incompatible type change fails later
    when a write cannot cast the value.
+
+### Schema drift rules
+
+Enable `strict` or `nullable_add` to compare the complete requested schema with
+the actual destination table before writing. Both policies create missing tables.
+For existing tables, `strict` blocks differences and `nullable_add` permits only
+new nullable columns. Type, nullability, primary key, and removed field changes
+block with `schema_blocked`. Renames are treated as a removal and an addition.
+Column order may differ because writes name columns explicitly.
+
+The sink checks the entire diff before making changes. Permitted additions,
+verification, and any replace-mode truncation share one PostgreSQL transaction.
+A rejected diff leaves that table and its rows unchanged. Reconciliation is per
+table, so earlier tables in a multi-resource run may already have been prepared.
+A retry inspects the actual table again and skips additions already committed.
+
+Each bounded write transaction and continuous epoch rechecks the prepared schema
+under a table lock held through commit or rollback. A change made after startup
+therefore blocks before the affected write. These checks add catalog queries and
+can wait for concurrent DDL.
+
+Sources with complete schemas reconcile before extraction. NATS instead probes
+each buffered epoch before encoding rows. With `nullable_add`, newly observed
+payload fields become nullable columns. Missing fields remain in the accepted
+layout and produce nulls. With `strict`, the initial batch establishes the layout
+and subsequent additions block.
+
+For NATS, additions and that epoch's data writes share the same destination
+transaction. Accepted decoder layouts are saved with the epoch checkpoint before
+acknowledgement. Restarts restore those layouts instead of inferring them again.
+Older streams without saved layouts require a new stream generation to enable
+this feature. Other message sources retain their existing inference behavior.
+
+This does not make destination commits and checkpoint commits atomic together.
+The existing recovery rules for uncertain destination commits still apply.
+
+Checked schemas currently support the portable scalar mappings below, including
+decimal precision and scale. Unsupported native modifiers, arrays, custom types,
+identity or generated columns, custom collations, partitioning, inheritance,
+row security, and user triggers block. These restrictions apply only when a
+schema policy is enabled.
+
+A continuous schema block suppresses automatic retries using the persisted
+attempt reason. After resolving the issue, pause and resume to request another
+assessment. Existing ownership and clean-shutdown checks still apply. Bounded
+runs report the schema error through their normal failure path.
 
 ### Type mapping
 

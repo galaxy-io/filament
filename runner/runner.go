@@ -87,7 +87,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	em.span = span
-	extractCtx, control, err := prepareRunExecution(ctx, deps, spec, em)
+	extractCtx, control, err := prepareRunExecution(observeSchemaEvents(ctx, em), deps, spec, em)
 	if err != nil {
 		em.failed(err, nil, false)
 		return nil

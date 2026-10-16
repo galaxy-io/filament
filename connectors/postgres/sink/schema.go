@@ -9,14 +9,15 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // EnsureSchema creates resource's typed table from schema (Postgres column types, NOT
 // NULL, primary key), empties it for full-snapshot replace semantics, and prepares the
 // resource's COPY and fold statements. A pre-existing table gains any new columns
-// (ADD COLUMN IF NOT EXISTS); an incompatible existing column type surfaces later as
-// a COPY error (full type-change handling is deferred to schema evolution).
+// (ADD COLUMN IF NOT EXISTS) in legacy mode. With a schema policy enabled, the
+// entire diff is checked before transactional DDL or replace-mode truncation.
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
 	if t.continuous && t.modeFor(resource) != filament.WriteAppend {
 		return filament.ErrEpochMismatch
@@ -31,8 +32,16 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		exec = t.stream.active.tx.Exec
 	}
 	qualified := pgx.Identifier{t.schema, resource}.Sanitize()
+	var checked rowmodel.Schema
+	if t.evolution != "" {
+		var err error
+		checked, err = physicalSchema(resource, schema)
+		if err != nil {
+			return err
+		}
+	}
 	var builtin map[string]bool
-	if schema.Engine == engine {
+	if t.evolution == "" && schema.Engine == engine {
 		var err error
 		if builtin, err = t.builtinTypes(ctx, schema); err != nil {
 			return err
@@ -45,6 +54,9 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	for i, f := range schema.Fields {
 		idents[i] = pgx.Identifier{f.Name}.Sanitize()
 		types[i] = columnType(f, builtin[f.Native])
+		if t.evolution != "" {
+			types[i] = checked.Fields[i].Native
+		}
 		cols[i] = idents[i] + " " + types[i]
 		if !f.Nullable {
 			cols[i] += " NOT NULL"
@@ -59,27 +71,33 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		ddl += ",\n\tPRIMARY KEY (" + strings.Join(pk, ", ") + ")"
 	}
 	ddl += "\n)"
-	if _, err := exec(ctx, ddl); err != nil {
-		return fmt.Errorf("create %s: %w", qualified, err)
-	}
-	// A resumable table upserts by key and must preserve any partial load from a prior
-	// attempt, so it skips the full-snapshot TRUNCATE (kept only when we cannot dedup:
-	// a non-resumable table, or a keyless table that re-reads whole on resume).
 	mode := t.modeFor(resource)
 	resumable := t.resumableFor(resource)
-	if mode == filament.WriteReplace {
-		// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
-		if _, err := exec(ctx, "TRUNCATE "+qualified); err != nil {
-			return fmt.Errorf("truncate %s: %w", qualified, err)
+	if t.evolution != "" {
+		if err := t.reconcileSchema(ctx, checked, ddl); err != nil {
+			return err
 		}
-	}
-	for i := range schema.Fields {
-		if _, err := exec(ctx, "ALTER TABLE "+qualified+" ADD COLUMN IF NOT EXISTS "+cols[i]); err != nil {
-			return fmt.Errorf("add column on %s: %w", qualified, err)
+	} else {
+		if _, err := exec(ctx, ddl); err != nil {
+			return fmt.Errorf("create %s: %w", qualified, err)
 		}
+		// Only explicit replace mode clears rows from earlier attempts.
+		if mode == filament.WriteReplace {
+			// TRUNCATE before any ADD COLUMN so a NOT NULL add lands on an empty table.
+			if _, err := exec(ctx, "TRUNCATE "+qualified); err != nil {
+				return fmt.Errorf("truncate %s: %w", qualified, err)
+			}
+		}
+		for i := range schema.Fields {
+			if _, err := exec(ctx, "ALTER TABLE "+qualified+" ADD COLUMN IF NOT EXISTS "+cols[i]); err != nil {
+				return fmt.Errorf("add column on %s: %w", qualified, err)
+			}
+		}
+
 	}
 
 	tbl := &table{
+		model:     checked,
 		qualified: qualified,
 		idents:    idents,
 		types:     types,
@@ -103,16 +121,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		tbl.keysTempSQL = tempTableSQL(tbl.keysTemp, keyIdents, keyTypes, false)
 		tbl.deleteSQL = deleteSQL(tbl.qualified, tbl.keysTemp, keyIdents)
 	}
-	if t.continuous && t.stream.active != nil {
-		epoch := t.stream.active
-		if epoch.previousTables == nil {
-			epoch.previousTables = map[string]*table{}
-		}
-		if _, saved := epoch.previousTables[resource]; !saved {
-			epoch.previousTables[resource] = t.tables[resource]
-		}
-	}
-	t.tables[resource] = tbl
+	t.installTable(resource, tbl, schema)
 	return nil
 }
 
@@ -249,4 +258,20 @@ func pick[T any](all []T, idx []int) []T {
 		out[n] = all[i]
 	}
 	return out
+}
+
+func (t *Sink) installTable(resource string, tbl *table, model rowmodel.Schema) {
+	if t.evolution != "" {
+		tbl.input = arrowbatch.Schema(model)
+	}
+	if t.continuous && t.stream.active != nil {
+		epoch := t.stream.active
+		if epoch.previousTables == nil {
+			epoch.previousTables = map[string]*table{}
+		}
+		if _, saved := epoch.previousTables[resource]; !saved {
+			epoch.previousTables[resource] = t.tables[resource]
+		}
+	}
+	t.tables[resource] = tbl
 }

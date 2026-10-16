@@ -25,6 +25,7 @@ It requires MySQL 8.0 or newer.
 | `tls_mode` | Connection | `preferred` | `false`, `preferred`, `true`, or `skip-verify` |
 | `database` | Pipeline | — | Destination database. Falls back to the database in the DSN. |
 | `mode` | Pipeline | `typed` | Destination table mode. `typed` is the only value. |
+| `schema_evolution` | Pipeline | `disabled` | `strict` blocks drift. `nullable_add` allows only nullable additions. |
 
 Filament must be able to resolve a destination database. If `database` is not
 set on the pipeline, it uses the database in the DSN or the normalized source
@@ -71,7 +72,7 @@ three behaviors:
 
 ## Table management
 
-Before extraction, `EnsureSchema` runs per resource:
+With `schema_evolution` disabled, `EnsureSchema` runs per resource before extraction.
 
 1. `CREATE TABLE IF NOT EXISTS` with typed columns and a primary key.
 2. `TRUNCATE` — only for replace. Append preserves existing rows; upsert and
@@ -80,6 +81,33 @@ Before extraction, `EnsureSchema` runs per resource:
    issuing `ALTER TABLE … ADD COLUMN` for each absent one (MySQL has no
    `ADD COLUMN IF NOT EXISTS`). Evolution is add-only. Incompatible type
    changes are not applied and fail later if a write cannot cast the value.
+
+### Checked schema evolution
+
+Set `schema_evolution` to `strict` or `nullable_add` to compare the complete
+source model with the destination before changing it. A new table can be
+created in either mode. Existing tables gain only nullable fields under
+`nullable_add`. Drops, type changes, key changes, and nullability changes block.
+The full diff must pass before any additions or replace-mode truncation.
+
+Checked mode supports ordinary InnoDB tables and compiler-owned scalar types.
+Text columns use `utf8mb4_bin`. Unsupported native declarations, column defaults,
+generated columns, auto-increment, other collations, partitions, triggers, and
+non-primary constraints block instead of being approximated. Each batch must
+match the prepared Arrow layout. The sink rechecks the destination under a
+metadata lock held through its write transaction.
+
+MySQL DDL commits separately from data writes. All approved additions use one
+`ALTER TABLE`, then the sink reacquires its table lock and verifies the result.
+If the run fails afterward, added columns can remain. A retry inspects the
+current table and only applies remaining additions. This does not provide
+PostgreSQL's transactional DDL rollback. Replace mode still clears rows after
+successful schema validation and retains its existing abort behavior.
+
+The destination account needs `LOCK TABLES` in addition to its existing DDL and
+write permissions. Schema detections and blocks use the shared event catalog.
+This option applies to bounded runs. The MySQL sink does not yet implement
+continuous epochs, so it cannot receive the live NATS evolution path.
 
 ### Type mapping
 

@@ -16,6 +16,7 @@ func (t *Sink) Spec() filament.SinkSpec {
 		Version:      "2",
 		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Destination schema. Empty defaults to the normalized source connection name."},
+			{Name: "schema_evolution", Type: filament.FieldEnum, Default: "disabled", Scope: filament.ScopePipeline, Enum: []filament.EnumOption{{Value: "disabled", Label: "Disabled"}, {Value: "strict", Label: "Block schema changes"}, {Value: "nullable_add", Label: "Allow backward compatible additions"}}, Help: "Compare complete source schemas with destination tables before writing. Other changes block the run."},
 			{Name: "mode", Type: filament.FieldEnum, Default: "typed", Enum: []filament.EnumOption{{Value: "typed", Label: "Typed"}}, Scope: filament.ScopePipeline, Help: "Destination table mode"},
 		}...)},
 		SchemaField: "schema",

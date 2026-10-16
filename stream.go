@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // ExecutionMode selects bounded or continuous execution independently of input semantics.
@@ -147,6 +148,10 @@ func ValidateContinuous(source ConnectorSpec, sink SinkSpec) error {
 
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
+	// MessageSchemaPolicy opts into batch-boundary negotiation. Empty retains
+	// fixed first-message inference. Layouts come from certified progress only.
+	MessageSchemaPolicy schema.Policy
+	MessageSchemas      map[string]schema.MessageLayout
 	// SourceConnectionID identifies the connection used during stream planning.
 	SourceConnectionID string
 	// CheckAuthority verifies current admitted ownership before provider acknowledgements,
@@ -185,6 +190,27 @@ type StreamSession interface {
 type StreamRecordSink interface {
 	RecordSink
 	Control(context.Context, Control) error
+}
+
+// MessageSchemaSource supports batch probing and restoration of accepted layouts.
+// The runner calls this method only when the destination enables schema policy.
+// Implementations must validate the whole batch before emitting any rows.
+type MessageSchemaSource interface {
+	StreamSource
+	OpenMessageStream(context.Context, StreamOpenOpts) (StreamSession, error)
+}
+
+// MessageSchemaRecordSink admits a message layout before any rows in an epoch.
+// The returned builder replaces the resource's previous builder when needed.
+type MessageSchemaRecordSink interface {
+	StreamRecordSink
+	MessageBuilder(context.Context, string, rowmodel.Schema, schema.MessageLayout) (RowWriter, error)
+}
+
+// SchemaPolicySink exposes the sink's configured migration rules after Open.
+type SchemaPolicySink interface {
+	Schematized
+	SchemaPolicy() schema.Policy
 }
 
 // StreamingSinkCapabilities are claims requiring connector-specific evidence.

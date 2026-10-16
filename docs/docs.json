@@ -116,6 +116,7 @@
           "pages/guides/concepts/overview",
           "pages/guides/concepts/architecture",
           "pages/guides/concepts/replication-modes",
+          "pages/guides/concepts/transformations",
           "pages/guides/concepts/streaming",
           "pages/guides/concepts/integrity-and-checkpoints",
           "pages/guides/concepts/runs-and-recovery"
@@ -181,6 +182,7 @@
               "pages/connectors/sinks/kafka",
               "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
+              "pages/connectors/sinks/databricks-zerobus",
               "pages/connectors/sinks/motherduck",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
@@ -223,6 +225,7 @@
           "pages/api-reference/service/connectors",
           "pages/api-reference/service/connections",
           "pages/api-reference/service/pipelines",
+          "pages/api-reference/service/transformations",
           "pages/api-reference/service/runs",
           "pages/api-reference/service/metrics"
         ]

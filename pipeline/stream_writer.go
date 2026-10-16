@@ -26,6 +26,7 @@ func (w *streamWriter) beforeWrite() bool {
 		return false
 	}
 	w.in.touched = true
+	w.in.epochWritten = true
 	clear(w.in.completed)
 	if w.in.ready() != nil {
 		return false

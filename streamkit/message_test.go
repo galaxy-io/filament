@@ -1,6 +1,7 @@
 package streamkit
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow/array"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
+	schemadrift "github.com/galaxy-io/filament/schema"
 )
 
 type messageReceiver struct{ batches []*arrowbatch.Batch }
@@ -91,7 +93,7 @@ func TestMessageSchemaValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, payload := range []string{`{"name":2}`, `{"active":"true"}`, `{"new":1}`, `{"name":"x","name":"y"}`, `[]`, `invalid`} {
-		if _, err := columns.Prepare([]byte(payload)); err == nil {
+		if _, err := columns.Prepare([]byte(payload)); !errors.Is(err, schemadrift.ErrBlocked) {
 			t.Fatalf("accepted schema drift %s", payload)
 		}
 	}
