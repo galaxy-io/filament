@@ -26,6 +26,19 @@ func (disabledAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.G
 	return connect.NewResponse(&authv1.GetAuthConfigResponse{}), nil
 }
 
+// externalAuth answers AuthService when the authenticator has no login of
+// its own: requests are authenticated, but people sign in upstream. The
+// config document keeps an empty issuer and names the login URL, and every
+// other RPC stays unimplemented.
+type externalAuth struct {
+	authv1connect.UnimplementedAuthServiceHandler
+	loginURL string
+}
+
+func (e externalAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
+	return connect.NewResponse(&authv1.GetAuthConfigResponse{LoginUrl: e.loginURL}), nil
+}
+
 // publicProcedures are the AuthService RPCs a caller reaches before holding
 // a token. Everything absent from this set requires authentication, so a new
 // RPC is locked down until it is deliberately listed here.
@@ -54,7 +67,7 @@ func tenantFromContext(ctx context.Context) (filament.TenantID, error) {
 // procedures, resolves the caller's tenant, and puts the caller on the
 // context for handlers to scope their work by.
 type authInterceptor struct {
-	provider      identity.Provider
+	provider      identity.Authenticator
 	store         filament.DataStore
 	defaultTenant filament.TenantID
 	// tenants caches ResolveTenant by provider organization id; a tenant
@@ -123,6 +136,10 @@ func (i *authInterceptor) authenticate(ctx context.Context, procedure string, he
 		tenant, _ = i.tenants.LoadOrStore(caller.TenantExternalID, resolved)
 	}
 	caller.Tenant = tenant.(filament.TenantID)
+	// A service acts on its own behalf and has no user row to mint.
+	if caller.Service != "" {
+		return identity.WithCaller(ctx, caller), nil
+	}
 	key := userKey{caller.Tenant, caller.UserID}
 	id, ok := i.users.Load(key)
 	if !ok {

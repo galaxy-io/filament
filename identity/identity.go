@@ -14,18 +14,32 @@ import (
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 )
 
-// Provider serves AuthService and authenticates the credentials its session
-// flow hands out. Implementing the generated handler is the bulk of it;
-// Authenticate is the one method the RPC interceptor needs that no service
-// definition covers.
-type Provider interface {
-	authv1connect.AuthServiceHandler
-
+// Authenticator resolves the credentials on a request to its caller. It is
+// the one method the RPC interceptor needs that no service definition
+// covers.
+type Authenticator interface {
 	// Authenticate resolves the credentials on a request's headers, a bearer
-	// token or the provider's own session cookie, to their caller. It fails
-	// when there are none, they are invalid, or they carry no tenant; a
-	// *connect.Error keeps its code on the way to the client.
+	// token, a session cookie or identity headers set by a trusted gateway,
+	// to their caller. It fails when there are none, they are invalid, or
+	// they carry no tenant; a *connect.Error keeps its code on the way to
+	// the client.
 	Authenticate(ctx context.Context, header http.Header) (Caller, error)
+}
+
+// Provider is an Authenticator that also serves AuthService: login, session,
+// members and service accounts. Implementing the generated handler is the
+// bulk of it. An Authenticator that is not a Provider, such as a gateway
+// proxy, leaves sign-in to something upstream.
+type Provider interface {
+	Authenticator
+	authv1connect.AuthServiceHandler
+}
+
+// ExternalLogin is implemented by an Authenticator whose sign-in happens
+// upstream of filament. The server reports the URL in the auth config
+// document so clients send people there instead of to filament's own login.
+type ExternalLogin interface {
+	LoginURL() string
 }
 
 // Caller is the authenticated identity behind a request.
@@ -45,6 +59,9 @@ type Caller struct {
 	// TenantName is a display name for the tenant when the provider has one.
 	TenantName string
 	Roles      []authv1.Role
+	// Service names a trusted service calling on its own behalf rather than
+	// a person. A service caller has a tenant but no user row.
+	Service string
 }
 
 // HasRole reports whether the caller holds role.
