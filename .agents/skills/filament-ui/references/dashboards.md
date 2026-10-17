@@ -54,7 +54,7 @@ const ObservabilityPage: FC = () => {
 ```
 
 - **Gate first.** `useObservabilitySetup()` suspends on three `pageSize: 1` inputs in `components/setup/constants.ts` (sources and sinks filtered by kind, pipelines including deleted). Until a source, a sink and a pipeline exist the page renders `ObservabilitySetupChecklist`. After that nothing suspends.
-- **The page is a DLS `PageLayout`.** `ObservabilityPageActions` fills `actions` with `ObservabilityTimeframeSwitcher` (a `ToggleInput` over `ObservabilityTimeframe`) and an icon-only Refresh `Button` (`ariaLabel`, `tooltip`) that calls `useRefreshObservabilityQueries()`.
+- **The page is a DLS `PageLayout`.** `ObservabilityPageActions` fills `actions` with `ObservabilityTimeframeSwitcher` (a `ToggleInput` over `ObservabilityTimeframe`, labelled from `OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP` the way Alchemy labels its timeframes), `ObservabilityRefreshIntervalSelect` (a `SelectInput` over `ObservabilityRefreshInterval`) and an icon-only Refresh `Button` (`ariaLabel`, `tooltip`) that awaits `useRefreshObservabilityQueries()` and holds `isLoading` in local state until it resolves.
 - **Scroll with `ScrollArea`**, never `overflow="auto"`.
 - **The responsive grid is flex wrap**, not CSS grid. Each card is a `FlexItem grow={1} basis={OBSERVABILITY_WIDGET_BASIS} minWidth={0}` (`"400px"`) in a `FlexWrap.WRAP` row.
 - **Every card is `<Widget isFlush gap={0} header="…" icon={…} actions={…}>`.** The view toggle and the pivot or status select sit in `actions`. The body is the chart in a `Flex` with `padding={[12, 16]}` and a fixed `height` constant.
@@ -65,6 +65,7 @@ const ObservabilityPage: FC = () => {
 ```ts
 export const observabilitySearchSchema = z.object({
   timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  refreshInterval: z.enum(ObservabilityRefreshInterval).optional().catch(undefined),
   runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
   throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
   throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
@@ -76,7 +77,7 @@ export const observabilitySearchSchema = z.object({
 });
 ```
 
-- Timeframe, the runs view, each card's view and pivot, the status filter and the selected bar are all search params. There is no context provider for page state, and a link reproduces the dashboard.
+- Timeframe, the refresh interval, the runs view, each card's view and pivot, the status filter and the selected bar are all search params. There is no context provider for page state, and a link reproduces the dashboard.
 - **Defaults are applied in the read hook, never in the schema.** `useObservabilitySearch` in `module/hooks.ts` parses and fills them in its `select`, so every widget reads a complete value.
 
 ```ts
@@ -89,6 +90,7 @@ export const useObservabilitySearch = () =>
       return {
         ...parsed,
         timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
+        refreshInterval: parsed.refreshInterval ?? OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
         runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
         statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
       };
@@ -103,7 +105,7 @@ export const useObservabilitySearch = () =>
 
 ## Loading, empty, error
 
-- Every panel runs its own plain query and takes `isLoading` straight from it. Charts and `BigNumber` take `isLoading` as a prop. The past runs table passes `isLoading || isFetchingNextPage`.
+- Every panel runs its own plain query and takes its loading flag straight from it. Charts pass `isFetching` to `isLoading`, so the DLS pulses the plot over the data it already has on a refetch and an empty plot on first load. `BigNumber` passes `isLoading`, since its skeleton replaces the value. The past runs table passes `isLoading || isFetchingNextPage`.
 - No `keepPreviousData`. A changed timeframe shows loading states, not the previous window's numbers.
 - No `PendingLayout` inside a dashboard. It would blank the whole card.
 - A query that has nothing to ask is disabled (`options: { enabled: windowedStatuses.length > 0 }`) and the panel renders `[]`. Gate loading UI on `isLoading`, which is false for a disabled query.
@@ -257,7 +259,7 @@ navigate({
 
 ## Maps and constants
 
-- Page-wide maps live in `pages/observability/constants.ts`. `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP` gives each timeframe its `durationMs` and `granularity`, and `OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP` gives each granularity its bucket length. Defaults (`OBSERVABILITY_DEFAULT_TIMEFRAME`) sit beside them. Bucket start, offset and label are functions in `utils.ts`.
+- Page-wide maps live in `pages/observability/constants.ts`. `OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP` gives each timeframe its `durationMs` and `granularity`, and `OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP` gives each granularity its bucket length. `OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP` gives each refresh interval the `refetchInterval` every metrics panel passes. Defaults (`OBSERVABILITY_DEFAULT_TIMEFRAME`, `OBSERVABILITY_DEFAULT_REFRESH_INTERVAL`) sit beside them. Bucket start, offset and label are functions in `utils.ts`.
 - Card-level maps live in the card folder's `constants.ts` (`components/timeseries/constants.ts`, `components/runs/constants.ts`, `components/setup/constants.ts`).
 - Enums live in `pages/observability/types.ts` (`ObservabilityTimeframe`, `ObservabilityRunsView`, `ObservabilityThroughputView`, `ObservabilityUsageView`).
 - Pure request builders live in `utils.ts` (`createTimeframeSince`, `createObservabilityTimeseriesInput`, `createRunsWindowInput`, `mapTimeseriesToChartGroups`). Each takes `bucketStartMs` from `useObservabilityBucketStart`, which moves at every hour or day boundary, so the window slides forward instead of freezing at mount.

@@ -26,7 +26,7 @@ const ObservabilityRunsScheduledChart: FC = () => {
     OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
   );
 
-  const { data, isLoading } = useListRunsQuery({ input: OBSERVABILITY_RUNS_SCHEDULED_INPUT });
+  const { data, isFetching } = useListRunsQuery({ input: OBSERVABILITY_RUNS_SCHEDULED_INPUT });
 
   const groups = useMemo(
     () => createScheduledRunsChartGroups(data?.runs ?? [], timeframe, bucketStartMs),
@@ -45,7 +45,7 @@ const ObservabilityRunsScheduledChart: FC = () => {
         series={OBSERVABILITY_RUNS_SCHEDULED_SERIES}
         groups={groups}
         labelFormatter={bucketLabelFormatter}
-        isLoading={isLoading}
+        isLoading={isFetching}
         ariaLabel="Scheduled runs"
       />
     </Flex>

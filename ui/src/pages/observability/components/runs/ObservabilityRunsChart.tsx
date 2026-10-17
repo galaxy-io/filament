@@ -15,7 +15,10 @@ import {
   mapChartSelectionToRunsFilter,
   mapTimeseriesToChartGroups,
 } from "@/pages/observability/components/runs/utils";
-import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import {
+  OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/constants";
 import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import { getBucketLabelFormatter } from "@/pages/observability/utils";
 
@@ -26,7 +29,7 @@ import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
 const ObservabilityRunsChart: FC = () => {
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
-  const { timeframe, statuses, runsBucket, runsStatus } = useObservabilitySearch();
+  const { timeframe, refreshInterval, statuses, runsBucket, runsStatus } = useObservabilitySearch();
 
   const bucketStartMs = useObservabilityBucketStart(timeframe);
 
@@ -39,9 +42,12 @@ const ObservabilityRunsChart: FC = () => {
     [timeframe, bucketStartMs, statuses],
   );
 
-  const { data, isLoading } = useQueryTimeseriesQuery({
+  const { data, isFetching } = useQueryTimeseriesQuery({
     input,
-    options: { enabled: statuses.length > 0 },
+    options: {
+      enabled: statuses.length > 0,
+      refetchInterval: OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP[refreshInterval],
+    },
   });
 
   const groups = useMemo(() => {
@@ -82,7 +88,7 @@ const ObservabilityRunsChart: FC = () => {
         selection={selection}
         onSelectionChange={handleSelectionChange}
         isFilterable
-        isLoading={isLoading}
+        isLoading={isFetching}
         placeholder={statuses.length ? undefined : OBSERVABILITY_RUNS_NO_STATUSES_PLACEHOLDER}
         ariaLabel="Runs by status"
         minSegmentLength={OBSERVABILITY_RUNS_CHART_MIN_SEGMENT_LENGTH}

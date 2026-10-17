@@ -6,6 +6,7 @@ import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import {
+  ObservabilityRefreshInterval,
   ObservabilityRunsView,
   ObservabilityThroughputView,
   ObservabilityTimeframe,
@@ -43,6 +44,7 @@ export type TeamSearch = z.infer<typeof teamSearchSchema>;
 
 export const observabilitySearchSchema = z.object({
   timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  refreshInterval: z.enum(ObservabilityRefreshInterval).optional().catch(undefined),
   runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
   throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
   throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
