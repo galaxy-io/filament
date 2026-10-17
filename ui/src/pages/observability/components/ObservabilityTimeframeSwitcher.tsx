@@ -5,6 +5,7 @@ import ToggleInput, {
   type ToggleOption,
 } from "@galaxy-io/dls/inputs/ToggleInput";
 
+import { OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP } from "@/pages/observability/constants";
 import { ObservabilityTimeframe } from "@/pages/observability/types";
 
 interface ObservabilityTimeframeSwitcherProps {
@@ -17,7 +18,7 @@ const ObservabilityTimeframeSwitcher: FC<ObservabilityTimeframeSwitcherProps> = 
   onChange,
 }) => {
   const items: ToggleOption<ObservabilityTimeframe>[] = Object.values(ObservabilityTimeframe).map(
-    (timeframe) => ({ id: timeframe, label: timeframe }),
+    (timeframe) => ({ id: timeframe, label: OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP[timeframe] }),
   );
 
   return (

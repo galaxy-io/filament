@@ -13,6 +13,7 @@ import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
 import {
+  OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
   OBSERVABILITY_DEFAULT_RUNS_VIEW,
   OBSERVABILITY_DEFAULT_TIMEFRAME,
 } from "@/pages/observability/constants";
@@ -116,6 +117,7 @@ export const useObservabilitySearch = () =>
       return {
         ...parsed,
         timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
+        refreshInterval: parsed.refreshInterval ?? OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
         runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
         statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
       };
