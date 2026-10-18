@@ -713,3 +713,64 @@ func TestMergeMissingPrimaryKeyReturnsError(t *testing.T) {
 		t.Errorf("expected missing primary key error, got: %v", err)
 	}
 }
+
+// auditSchema is a keyless resource as the runner hands it to the sink: no
+// id-like source column, plus Filament's audit columns (_filament_run_id).
+func auditSchema(t *testing.T) rowmodel.Schema {
+	t.Helper()
+	schema, err := rowmodel.WithAuditFields(rowmodel.Schema{
+		Resource: "events",
+		Fields:   []rowmodel.Field{{Name: "sku", Logical: rowmodel.LogicalString}},
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return schema
+}
+
+func openEvents(t *testing.T, url string, mode filament.WriteMode) (*Sink, filament.WritePolicy) {
+	t.Helper()
+	policy := filament.WritePolicy{Capability: filament.WritePolicyCapability{Mode: mode}}
+	sink := New()
+	if err := sink.Open(context.Background(), filament.RunSpec{
+		Run:           "run-1",
+		Sink:          filament.Ref{Config: map[string]any{"url": url, "gzip": false}},
+		WritePolicies: map[string]filament.WritePolicy{"events": policy},
+	}); err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	return sink, policy
+}
+
+func TestEnsureSchemaSkipsAuditColumnsWhenGuessingKey(t *testing.T) {
+	server, calls := recordingServer(t, false)
+	sink, _ := openEvents(t, server.URL, filament.WriteAppend)
+
+	if err := sink.EnsureSchema(context.Background(), "events", auditSchema(t)); err != nil {
+		t.Fatalf("EnsureSchema failed: %v", err)
+	}
+	if len(*calls) == 0 || !strings.Contains((*calls)[0], `"primaryKey":"sku"`) {
+		t.Errorf("expected index keyed on sku, got calls %q", *calls)
+	}
+}
+
+func TestMergeSkipsAuditColumnsWhenGuessingKey(t *testing.T) {
+	server, calls := recordingServer(t, false)
+	sink, merge := openEvents(t, server.URL, filament.WriteMerge)
+
+	schema := auditSchema(t)
+	builder := array.NewRecordBuilder(memory.DefaultAllocator, arrowbatch.Schema(schema))
+	builder.Field(0).(*array.StringBuilder).Append("A-1")
+	builder.Field(1).(*array.StringBuilder).Append("run-1")
+	builder.Field(2).(*array.TimestampBuilder).Append(0)
+	rows := builder.NewRecordBatch()
+	builder.Release()
+	b := arrowbatch.NewBatch(rows, arrowbatch.NewOperations([]rowmodel.Operation{rowmodel.OpDelete}))
+	b.Resource = "events"
+	defer b.Release()
+
+	_, err := sink.Apply(context.Background(), b, filament.ApplyOptions{Policy: merge})
+	if err == nil || !strings.Contains(err.Error(), "no primary key configured or detected in schema") {
+		t.Errorf("expected no primary key error, got %v with calls %q", err, *calls)
+	}
+}

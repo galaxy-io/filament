@@ -178,6 +178,9 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			// If still empty, check for field ending in _id or Id
 			if primaryKey == "" {
 				for _, f := range schema.Fields {
+					if rowmodel.IsReservedColumn(f.Name) {
+						continue
+					}
 					if strings.HasSuffix(strings.ToLower(f.Name), "_id") || strings.HasSuffix(f.Name, "Id") {
 						primaryKey = f.Name
 						break
@@ -291,6 +294,9 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 			}
 			if primaryKey == "" {
 				for _, f := range fields {
+					if rowmodel.IsReservedColumn(f.Name) {
+						continue
+					}
 					if strings.HasSuffix(strings.ToLower(f.Name), "_id") || strings.HasSuffix(f.Name, "Id") {
 						primaryKey = f.Name
 						break
