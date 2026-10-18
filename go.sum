@@ -165,8 +165,8 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pressly/goose/v3 v3.27.3 h1:pIglVHjw99r4e/hDHHwbl9vfOsDMqUokfkXo6+n/RxA=
 github.com/pressly/goose/v3 v3.27.3/go.mod h1:Dag+xpV6o20HR2LFY1j0q6MDwc3f7vPUFDA77R+0yGY=
-github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3 h1:vbq4TFWTkSy8Nq2UYPWpRs/M+xbDTE/3EUZ+/+ZZZ7A=
-github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3/go.mod h1:K7ZMRvdpEu3joY5aVNl5gqBeLq1ks9swo4KxMq5ln1o=
+github.com/rabbitmq/rabbitmq-stream-go-client v1.8.4-0.20260914081524-2724b0fd2954 h1:ueapen08gRsZaAu4hVGVI/yK2f5QR5bQxxBSs4HQHmg=
+github.com/rabbitmq/rabbitmq-stream-go-client v1.8.4-0.20260914081524-2724b0fd2954/go.mod h1:FWXGkJIKDwklRH6zWmtfUmn6GjCv7DeqToww38Mrb7g=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

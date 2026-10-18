@@ -15,7 +15,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/nats-io/nats.go v1.54.0
 	github.com/pressly/goose/v3 v3.27.3
-	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.3
+	github.com/rabbitmq/rabbitmq-stream-go-client v1.8.4-0.20260914081524-2724b0fd2954
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/tidwall/gjson v1.19.0
