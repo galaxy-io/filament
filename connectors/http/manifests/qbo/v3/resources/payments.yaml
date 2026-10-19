@@ -1,0 +1,63 @@
+resources:
+  - name: "payments"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      customer_id: {"path": "CustomerRef.value", "type": "string", "nullable": true}
+      customer_name: {"path": "CustomerRef.name", "type": "string", "nullable": true}
+      remit_to_id: {"path": "RemitToRef.value", "type": "string", "nullable": true}
+      remit_to_name: {"path": "RemitToRef.name", "type": "string", "nullable": true}
+      ar_account_id: {"path": "ARAccountRef.value", "type": "string", "nullable": true}
+      ar_account_name: {"path": "ARAccountRef.name", "type": "string", "nullable": true}
+      deposit_to_account_id: {"path": "DepositToAccountRef.value", "type": "string", "nullable": true}
+      deposit_to_account_name: {"path": "DepositToAccountRef.name", "type": "string", "nullable": true}
+      payment_method_id: {"path": "PaymentMethodRef.value", "type": "string", "nullable": true}
+      payment_method_name: {"path": "PaymentMethodRef.name", "type": "string", "nullable": true}
+      payment_ref_num: {"path": "PaymentRefNum", "type": "string", "nullable": true}
+      payment_type: {"path": "PaymentType", "type": "string", "nullable": true}
+      check_payment: {"path": "CheckPayment", "type": "json", "nullable": true}
+      credit_card_payment: {"path": "CreditCardPayment", "type": "json", "nullable": true}
+      total_amt:
+        path: "TotalAmt"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      unapplied_amt:
+        path: "UnappliedAmt"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      process_payment: {"path": "ProcessPayment", "type": "bool", "nullable": true}
+      payment_extended_type: {"path": "PaymentExtendedType", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Payment{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Payment"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "payments.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

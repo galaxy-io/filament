@@ -1,0 +1,39 @@
+resources:
+  - name: "tax_rates"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      description: {"path": "Description", "type": "string", "nullable": true}
+      rate_value:
+        path: "RateValue"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      agency_id: {"path": "AgencyRef.value", "type": "string", "nullable": true}
+      agency_name: {"path": "AgencyRef.name", "type": "string", "nullable": true}
+      tax_return_line_id: {"path": "TaxReturnLineRef.value", "type": "string", "nullable": true}
+      tax_return_line_name: {"path": "TaxReturnLineRef.name", "type": "string", "nullable": true}
+      effective_tax_rate: {"path": "EffectiveTaxRate", "type": "json", "nullable": true}
+      special_tax_type: {"path": "SpecialTaxType", "type": "string", "nullable": true}
+      display_type: {"path": "DisplayType", "type": "string", "nullable": true}
+      original_tax_rate_id: {"path": "OriginalTaxRate.value", "type": "string", "nullable": true}
+      original_tax_rate_name: {"path": "OriginalTaxRate.name", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM TaxRate WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.TaxRate"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

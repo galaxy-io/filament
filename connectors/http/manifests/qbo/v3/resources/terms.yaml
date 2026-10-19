@@ -1,0 +1,35 @@
+resources:
+  - name: "terms"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      type: {"path": "Type", "type": "string", "nullable": true}
+      discount_percent:
+        path: "DiscountPercent"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      due_days: {"path": "DueDays", "type": "int64", "nullable": true}
+      discount_days: {"path": "DiscountDays", "type": "int64", "nullable": true}
+      day_of_month_due: {"path": "DayOfMonthDue", "type": "int64", "nullable": true}
+      due_next_month_days: {"path": "DueNextMonthDays", "type": "int64", "nullable": true}
+      discount_day_of_month: {"path": "DiscountDayOfMonth", "type": "int64", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Term WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Term"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

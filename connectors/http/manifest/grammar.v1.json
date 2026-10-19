@@ -23,6 +23,7 @@
         "properties": {
           "type": { "type": "string", "enum": ["string", "int", "bool", "duration", "enum", "object", "secret", "list"] },
           "required": { "type": "boolean" },
+          "order": { "type": "integer", "minimum": 0 },
           "default": {},
           "enum": { "type": "array", "items": { "type": "string" } },
           "help": { "type": "string" },

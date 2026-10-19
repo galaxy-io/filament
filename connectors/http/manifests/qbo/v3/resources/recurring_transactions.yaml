@@ -1,0 +1,59 @@
+resources:
+  - name: "recurring_transactions"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction]
+    field_overrides:
+      id:
+        type: "string"
+        tuple: ["TransactionType", "Id"]
+    fields:
+      transaction_type: {"path": "TransactionType", "type": "string", "nullable": false}
+      transaction_id: {"path": "Id", "type": "string", "nullable": false}
+      customer_id: {"path": "CustomerRef.value", "type": "string", "nullable": true}
+      customer_name: {"path": "CustomerRef.name", "type": "string", "nullable": true}
+      vendor_id: {"path": "VendorRef.value", "type": "string", "nullable": true}
+      vendor_name: {"path": "VendorRef.name", "type": "string", "nullable": true}
+      account_id: {"path": "AccountRef.value", "type": "string", "nullable": true}
+      account_name: {"path": "AccountRef.name", "type": "string", "nullable": true}
+      sales_term_id: {"path": "SalesTermRef.value", "type": "string", "nullable": true}
+      sales_term_name: {"path": "SalesTermRef.name", "type": "string", "nullable": true}
+      total_amt:
+        path: "TotalAmt"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      balance:
+        path: "Balance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      amount:
+        path: "Amount"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      due_date: {"path": "DueDate", "type": "date", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM RecurringTransaction ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.RecurringTransaction"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+      unwrap:
+        variants: ["Bill", "Purchase", "CreditMemo", "Deposit", "Estimate", "Invoice", "JournalEntry", "RefundReceipt", "SalesReceipt", "Transfer", "VendorCredit", "PurchaseOrder"]
+        tag: "TransactionType"
+        remainder: "Wrapper"

@@ -1,0 +1,21 @@
+resources:
+  - name: "report_sales_by_product"
+    path: "/v3/company/{{ config.realm_id }}/reports/ItemSales"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, report]
+    field_overrides:
+      id:
+        type: "string"
+        tuple: ["literal:ItemSales", "Header.StartPeriod", "Header.EndPeriod", "Header.ReportBasis", "Header.Currency", "query:start_date,end_date"]
+      header_report_name: {"path": "Header.ReportName", "type": "string", "nullable": false}
+    fields:
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"start_date": "{{ config.report_start_date }}", "end_date": "{{ config.report_end_date }}"}
+    response:
+      records: "$"
+      cardinality: "one"
+      pagination: "none"
+      strict_records: true
+      required_objects: ["Header", "Columns", "Rows"]
