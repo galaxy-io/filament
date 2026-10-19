@@ -32,6 +32,7 @@ func (c *Connector) exportRuntime(res manifest.Resource) *export.Runtime {
 	runtime := &export.Runtime{
 		Observe:      c.observe,
 		WaitDownload: c.limiter.Wait,
+		Locate:       c.locateExport,
 		Control:      exportControl{connector: c}, Transport: c.streamClient.Transport,
 		RetryAfter: retryAfterDuration, MaxRetries: maxRetries,
 		BaseURL: c.builder.BaseURL, Config: c.creds, Env: c.env, IdentityConfig: config,
