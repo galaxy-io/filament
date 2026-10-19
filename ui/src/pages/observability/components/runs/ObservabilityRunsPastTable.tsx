@@ -1,6 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import Box from "@galaxy-io/dls/layout/Box";
 import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
@@ -23,7 +22,6 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_TIMESTAMP,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
-  OBSERVABILITY_RUNS_TABLE_HEIGHT,
 } from "@/pages/observability/components/runs/constants";
 import { createRunsWindowInput } from "@/pages/observability/components/runs/utils";
 import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
@@ -129,25 +127,23 @@ const ObservabilityRunsPastTable: FC = () => {
   };
 
   return (
-    <Box height={OBSERVABILITY_RUNS_TABLE_HEIGHT}>
-      <InfiniteTable<RunInfo>
-        columns={OBSERVABILITY_RUNS_PAST_TABLE_COLUMNS}
-        data={runs}
-        getRowId={(run) => run.id}
-        onRowClick={handleRowClick}
-        isLoading={isLoading || isFetchingNextPage}
-        onEndReached={() => {
-          if (hasNextPage) fetchNextPage();
-        }}
-        ariaLabel="Recent runs"
-        emptyState={
-          <EmptyLayout
-            size={EmptyLayoutSize.SMALL}
-            header={OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[ObservabilityRunsView.PAST]}
-          />
-        }
-      />
-    </Box>
+    <InfiniteTable<RunInfo>
+      columns={OBSERVABILITY_RUNS_PAST_TABLE_COLUMNS}
+      data={runs}
+      getRowId={(run) => run.id}
+      onRowClick={handleRowClick}
+      isLoading={isLoading || isFetchingNextPage}
+      onEndReached={() => {
+        if (hasNextPage) fetchNextPage();
+      }}
+      ariaLabel="Recent runs"
+      emptyState={
+        <EmptyLayout
+          size={EmptyLayoutSize.SMALL}
+          header={OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[ObservabilityRunsView.PAST]}
+        />
+      }
+    />
   );
 };
 

@@ -8,6 +8,8 @@ import {
 } from "@/pages/observability/types";
 
 export const OBSERVABILITY_WIDGET_BASIS = "400px";
+export const OBSERVABILITY_SCROLL_END_TOLERANCE_PX = 1;
+export const OBSERVABILITY_WHEEL_LINE_PX = 16;
 
 export const OBSERVABILITY_DEFAULT_TIMEFRAME = ObservabilityTimeframe.TWENTY_FOUR_HOURS;
 export const OBSERVABILITY_DEFAULT_RUNS_VIEW = ObservabilityRunsView.PAST;
