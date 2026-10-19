@@ -1,0 +1,141 @@
+resources:
+  - name: "items"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      sku: {"path": "Sku", "type": "string", "nullable": true}
+      description: {"path": "Description", "type": "string", "nullable": true}
+      sub_item: {"path": "SubItem", "type": "bool", "nullable": true}
+      parent_id: {"path": "ParentRef.value", "type": "string", "nullable": true}
+      parent_name: {"path": "ParentRef.name", "type": "string", "nullable": true}
+      level: {"path": "Level", "type": "int64", "nullable": true}
+      fully_qualified_name: {"path": "FullyQualifiedName", "type": "string", "nullable": true}
+      taxable: {"path": "Taxable", "type": "bool", "nullable": true}
+      sales_tax_included: {"path": "SalesTaxIncluded", "type": "bool", "nullable": true}
+      percent_based: {"path": "PercentBased", "type": "bool", "nullable": true}
+      unit_price:
+        path: "UnitPrice"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      rate_percent:
+        path: "RatePercent"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      type: {"path": "Type", "type": "string", "nullable": true}
+      payment_method_id: {"path": "PaymentMethodRef.value", "type": "string", "nullable": true}
+      payment_method_name: {"path": "PaymentMethodRef.name", "type": "string", "nullable": true}
+      uom_set_id: {"path": "UOMSetRef.value", "type": "string", "nullable": true}
+      uom_set_name: {"path": "UOMSetRef.name", "type": "string", "nullable": true}
+      income_account_id: {"path": "IncomeAccountRef.value", "type": "string", "nullable": true}
+      income_account_name: {"path": "IncomeAccountRef.name", "type": "string", "nullable": true}
+      purchase_desc: {"path": "PurchaseDesc", "type": "string", "nullable": true}
+      purchase_tax_included: {"path": "PurchaseTaxIncluded", "type": "bool", "nullable": true}
+      purchase_cost:
+        path: "PurchaseCost"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      expense_account_id: {"path": "ExpenseAccountRef.value", "type": "string", "nullable": true}
+      expense_account_name: {"path": "ExpenseAccountRef.name", "type": "string", "nullable": true}
+      cogs_account_id: {"path": "COGSAccountRef.value", "type": "string", "nullable": true}
+      cogs_account_name: {"path": "COGSAccountRef.name", "type": "string", "nullable": true}
+      asset_account_id: {"path": "AssetAccountRef.value", "type": "string", "nullable": true}
+      asset_account_name: {"path": "AssetAccountRef.name", "type": "string", "nullable": true}
+      pref_vendor_id: {"path": "PrefVendorRef.value", "type": "string", "nullable": true}
+      pref_vendor_name: {"path": "PrefVendorRef.name", "type": "string", "nullable": true}
+      avg_cost:
+        path: "AvgCost"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      track_qty_on_hand: {"path": "TrackQtyOnHand", "type": "bool", "nullable": true}
+      qty_on_hand:
+        path: "QtyOnHand"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      qty_on_purchase_order:
+        path: "QtyOnPurchaseOrder"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      qty_on_sales_order:
+        path: "QtyOnSalesOrder"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      reorder_point:
+        path: "ReorderPoint"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      man_part_num: {"path": "ManPartNum", "type": "string", "nullable": true}
+      deposit_to_account_id: {"path": "DepositToAccountRef.value", "type": "string", "nullable": true}
+      deposit_to_account_name: {"path": "DepositToAccountRef.name", "type": "string", "nullable": true}
+      sales_tax_code_id: {"path": "SalesTaxCodeRef.value", "type": "string", "nullable": true}
+      sales_tax_code_name: {"path": "SalesTaxCodeRef.name", "type": "string", "nullable": true}
+      purchase_tax_code_id: {"path": "PurchaseTaxCodeRef.value", "type": "string", "nullable": true}
+      purchase_tax_code_name: {"path": "PurchaseTaxCodeRef.name", "type": "string", "nullable": true}
+      inv_start_date: {"path": "InvStartDate", "type": "date", "nullable": true}
+      build_point:
+        path: "BuildPoint"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      print_grouped_items: {"path": "PrintGroupedItems", "type": "bool", "nullable": true}
+      special_item: {"path": "SpecialItem", "type": "bool", "nullable": true}
+      special_item_type: {"path": "SpecialItemType", "type": "string", "nullable": true}
+      item_group_detail: {"path": "ItemGroupDetail", "type": "json", "nullable": true}
+      item_assembly_detail: {"path": "ItemAssemblyDetail", "type": "json", "nullable": true}
+      abatement_rate:
+        path: "AbatementRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      reverse_charge_rate:
+        path: "ReverseChargeRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      service_type: {"path": "ServiceType", "type": "string", "nullable": true}
+      item_category_type: {"path": "ItemCategoryType", "type": "string", "nullable": true}
+      tax_classification_id: {"path": "TaxClassificationRef.value", "type": "string", "nullable": true}
+      tax_classification_name: {"path": "TaxClassificationRef.name", "type": "string", "nullable": true}
+      uqc_display_text: {"path": "UQCDisplayText", "type": "string", "nullable": true}
+      uqc_id: {"path": "UQCId", "type": "string", "nullable": true}
+      class_id: {"path": "ClassRef.value", "type": "string", "nullable": true}
+      class_name: {"path": "ClassRef.name", "type": "string", "nullable": true}
+      source: {"path": "Source", "type": "string", "nullable": true}
+      deferred_revenue: {"path": "DeferredRevenue", "type": "bool", "nullable": true}
+      custom_extensions: {"path": "CustomExtensions", "type": "json", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Item WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Item"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

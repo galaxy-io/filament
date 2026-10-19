@@ -1,0 +1,168 @@
+resources:
+  - name: "preferences"
+    path: "/v3/company/{{ config.realm_id }}/preferences"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    field_overrides:
+      id: {"type": "string", "value": "{{ config.realm_id }}"}
+    fields:
+      accounting_info_prefs_use_account_numbers: {"path": "AccountingInfoPrefs.UseAccountNumbers", "type": "bool", "nullable": true}
+      accounting_info_prefs_default_ar_account_id: {"path": "AccountingInfoPrefs.DefaultARAccount.value", "type": "string", "nullable": true}
+      accounting_info_prefs_default_ar_account_name: {"path": "AccountingInfoPrefs.DefaultARAccount.name", "type": "string", "nullable": true}
+      accounting_info_prefs_default_ap_account_id: {"path": "AccountingInfoPrefs.DefaultAPAccount.value", "type": "string", "nullable": true}
+      accounting_info_prefs_default_ap_account_name: {"path": "AccountingInfoPrefs.DefaultAPAccount.name", "type": "string", "nullable": true}
+      accounting_info_prefs_requires_accounts: {"path": "AccountingInfoPrefs.RequiresAccounts", "type": "bool", "nullable": true}
+      accounting_info_prefs_track_departments: {"path": "AccountingInfoPrefs.TrackDepartments", "type": "bool", "nullable": true}
+      accounting_info_prefs_department_terminology: {"path": "AccountingInfoPrefs.DepartmentTerminology", "type": "string", "nullable": true}
+      accounting_info_prefs_class_tracking_per_txn: {"path": "AccountingInfoPrefs.ClassTrackingPerTxn", "type": "bool", "nullable": true}
+      accounting_info_prefs_class_tracking_per_txn_line: {"path": "AccountingInfoPrefs.ClassTrackingPerTxnLine", "type": "bool", "nullable": true}
+      accounting_info_prefs_auto_journal_entry_number: {"path": "AccountingInfoPrefs.AutoJournalEntryNumber", "type": "bool", "nullable": true}
+      accounting_info_prefs_first_month_of_fiscal_year: {"path": "AccountingInfoPrefs.FirstMonthOfFiscalYear", "type": "string", "nullable": true}
+      accounting_info_prefs_tax_year_month: {"path": "AccountingInfoPrefs.TaxYearMonth", "type": "string", "nullable": true}
+      accounting_info_prefs_tax_form: {"path": "AccountingInfoPrefs.TaxForm", "type": "string", "nullable": true}
+      accounting_info_prefs_book_close_date: {"path": "AccountingInfoPrefs.BookCloseDate", "type": "date", "nullable": true}
+      accounting_info_prefs_other_contact_info: {"path": "AccountingInfoPrefs.OtherContactInfo", "type": "json", "nullable": true}
+      accounting_info_prefs_customer_terminology: {"path": "AccountingInfoPrefs.CustomerTerminology", "type": "string", "nullable": true}
+      advanced_inventory_mli_available: {"path": "AdvancedInventoryPrefs.MLIAvailable", "type": "bool", "nullable": true}
+      advanced_inventory_mli_enabled: {"path": "AdvancedInventoryPrefs.MLIEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_enhanced_inventory_receiving_enabled: {"path": "AdvancedInventoryPrefs.EnhancedInventoryReceivingEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_tracking_serial_or_lot_number: {"path": "AdvancedInventoryPrefs.TrackingSerialOrLotNumber", "type": "bool", "nullable": true}
+      advanced_inventory_tracking_on_sales_transactions_enabled: {"path": "AdvancedInventoryPrefs.TrackingOnSalesTransactionsEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_tracking_on_purchase_transactions_enabled: {"path": "AdvancedInventoryPrefs.TrackingOnPurchaseTransactionsEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_tracking_on_inventory_adjustment_enabled: {"path": "AdvancedInventoryPrefs.TrackingOnInventoryAdjustmentEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_tracking_on_build_assembly_enabled: {"path": "AdvancedInventoryPrefs.TrackingOnBuildAssemblyEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_fifo_enabled: {"path": "AdvancedInventoryPrefs.FIFOEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_fifo_effective_date: {"path": "AdvancedInventoryPrefs.FIFOEffectiveDate", "type": "date", "nullable": true}
+      advanced_inventory_row_shelf_bin_enabled: {"path": "AdvancedInventoryPrefs.RowShelfBinEnabled", "type": "bool", "nullable": true}
+      advanced_inventory_barcode_enabled: {"path": "AdvancedInventoryPrefs.BarcodeEnabled", "type": "bool", "nullable": true}
+      product_and_services_prefs_for_sales: {"path": "ProductAndServicesPrefs.ForSales", "type": "bool", "nullable": true}
+      product_and_services_prefs_for_purchase: {"path": "ProductAndServicesPrefs.ForPurchase", "type": "bool", "nullable": true}
+      product_and_services_prefs_inventory_and_purchase_order: {"path": "ProductAndServicesPrefs.InventoryAndPurchaseOrder", "type": "bool", "nullable": true}
+      product_and_services_prefs_quantity_with_price_and_rate: {"path": "ProductAndServicesPrefs.QuantityWithPriceAndRate", "type": "bool", "nullable": true}
+      product_and_services_prefs_quantity_on_hand: {"path": "ProductAndServicesPrefs.QuantityOnHand", "type": "bool", "nullable": true}
+      product_and_services_prefs_uom: {"path": "ProductAndServicesPrefs.UOM", "type": "string", "nullable": true}
+      product_and_services_prefs_revenue_recognition: {"path": "ProductAndServicesPrefs.RevenueRecognition", "type": "bool", "nullable": true}
+      product_and_services_prefs_revenue_recognition_frequency: {"path": "ProductAndServicesPrefs.RevenueRecognitionFrequency", "type": "string", "nullable": true}
+      sales_forms_prefs_using_progress_invoicing: {"path": "SalesFormsPrefs.UsingProgressInvoicing", "type": "bool", "nullable": true}
+      sales_forms_prefs_custom_field: {"path": "SalesFormsPrefs.CustomField", "type": "json", "nullable": true}
+      sales_forms_prefs_custom_txn_numbers: {"path": "SalesFormsPrefs.CustomTxnNumbers", "type": "bool", "nullable": true}
+      sales_forms_prefs_delayed_charges: {"path": "SalesFormsPrefs.DelayedCharges", "type": "bool", "nullable": true}
+      sales_forms_prefs_sales_email_cc_id: {"path": "SalesFormsPrefs.SalesEmailCc.Id", "type": "string", "nullable": true}
+      sales_forms_prefs_sales_email_cc_address: {"path": "SalesFormsPrefs.SalesEmailCc.Address", "type": "string", "nullable": true}
+      sales_forms_prefs_sales_email_cc_default: {"path": "SalesFormsPrefs.SalesEmailCc.Default", "type": "bool", "nullable": true}
+      sales_forms_prefs_sales_email_cc_tag: {"path": "SalesFormsPrefs.SalesEmailCc.Tag", "type": "string", "nullable": true}
+      sales_forms_prefs_sales_email_bcc_id: {"path": "SalesFormsPrefs.SalesEmailBcc.Id", "type": "string", "nullable": true}
+      sales_forms_prefs_sales_email_bcc_address: {"path": "SalesFormsPrefs.SalesEmailBcc.Address", "type": "string", "nullable": true}
+      sales_forms_prefs_sales_email_bcc_default: {"path": "SalesFormsPrefs.SalesEmailBcc.Default", "type": "bool", "nullable": true}
+      sales_forms_prefs_sales_email_bcc_tag: {"path": "SalesFormsPrefs.SalesEmailBcc.Tag", "type": "string", "nullable": true}
+      sales_forms_prefs_email_copy_to_company: {"path": "SalesFormsPrefs.EmailCopyToCompany", "type": "bool", "nullable": true}
+      sales_forms_prefs_allow_deposit: {"path": "SalesFormsPrefs.AllowDeposit", "type": "bool", "nullable": true}
+      sales_forms_prefs_allow_discount: {"path": "SalesFormsPrefs.AllowDiscount", "type": "bool", "nullable": true}
+      sales_forms_prefs_default_discount_account: {"path": "SalesFormsPrefs.DefaultDiscountAccount", "type": "string", "nullable": true}
+      sales_forms_prefs_allow_estimates: {"path": "SalesFormsPrefs.AllowEstimates", "type": "bool", "nullable": true}
+      sales_forms_prefs_estimate_message: {"path": "SalesFormsPrefs.EstimateMessage", "type": "string", "nullable": true}
+      sales_forms_prefs_e_transaction_enabled_status: {"path": "SalesFormsPrefs.ETransactionEnabledStatus", "type": "string", "nullable": true}
+      sales_forms_prefs_e_transaction_attach_pdf: {"path": "SalesFormsPrefs.ETransactionAttachPDF", "type": "bool", "nullable": true}
+      sales_forms_prefs_e_transaction_payment_enabled: {"path": "SalesFormsPrefs.ETransactionPaymentEnabled", "type": "bool", "nullable": true}
+      sales_forms_prefs_ipn_support_enabled: {"path": "SalesFormsPrefs.IPNSupportEnabled", "type": "bool", "nullable": true}
+      sales_forms_prefs_invoice_message: {"path": "SalesFormsPrefs.InvoiceMessage", "type": "string", "nullable": true}
+      sales_forms_prefs_allow_service_date: {"path": "SalesFormsPrefs.AllowServiceDate", "type": "bool", "nullable": true}
+      sales_forms_prefs_allow_shipping: {"path": "SalesFormsPrefs.AllowShipping", "type": "bool", "nullable": true}
+      sales_forms_prefs_default_shipping_account: {"path": "SalesFormsPrefs.DefaultShippingAccount", "type": "string", "nullable": true}
+      sales_forms_prefs_default_item_id: {"path": "SalesFormsPrefs.DefaultItem.value", "type": "string", "nullable": true}
+      sales_forms_prefs_default_item_name: {"path": "SalesFormsPrefs.DefaultItem.name", "type": "string", "nullable": true}
+      sales_forms_prefs_default_terms_id: {"path": "SalesFormsPrefs.DefaultTerms.value", "type": "string", "nullable": true}
+      sales_forms_prefs_default_terms_name: {"path": "SalesFormsPrefs.DefaultTerms.name", "type": "string", "nullable": true}
+      sales_forms_prefs_default_delivery_method: {"path": "SalesFormsPrefs.DefaultDeliveryMethod", "type": "string", "nullable": true}
+      sales_forms_prefs_auto_apply_credit: {"path": "SalesFormsPrefs.AutoApplyCredit", "type": "bool", "nullable": true}
+      sales_forms_prefs_auto_apply_payments: {"path": "SalesFormsPrefs.AutoApplyPayments", "type": "bool", "nullable": true}
+      sales_forms_prefs_print_item_with_zero_amount: {"path": "SalesFormsPrefs.PrintItemWithZeroAmount", "type": "bool", "nullable": true}
+      sales_forms_prefs_default_ship_method_id: {"path": "SalesFormsPrefs.DefaultShipMethodRef.value", "type": "string", "nullable": true}
+      sales_forms_prefs_default_ship_method_name: {"path": "SalesFormsPrefs.DefaultShipMethodRef.name", "type": "string", "nullable": true}
+      sales_forms_prefs_default_markup:
+        path: "SalesFormsPrefs.DefaultMarkup"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      sales_forms_prefs_track_reimbursable_expenses_as_income: {"path": "SalesFormsPrefs.TrackReimbursableExpensesAsIncome", "type": "bool", "nullable": true}
+      sales_forms_prefs_using_sales_orders: {"path": "SalesFormsPrefs.UsingSalesOrders", "type": "bool", "nullable": true}
+      sales_forms_prefs_using_price_levels: {"path": "SalesFormsPrefs.UsingPriceLevels", "type": "bool", "nullable": true}
+      sales_forms_prefs_default_fob: {"path": "SalesFormsPrefs.DefaultFOB", "type": "string", "nullable": true}
+      sales_forms_prefs_default_customer_message: {"path": "SalesFormsPrefs.DefaultCustomerMessage", "type": "string", "nullable": true}
+      email_messages_prefs_name_value: {"path": "EmailMessagesPrefs.NameValue", "type": "json", "nullable": true}
+      email_messages_prefs_invoice_message: {"path": "EmailMessagesPrefs.InvoiceMessage", "type": "json", "nullable": true}
+      email_messages_prefs_estimate_message: {"path": "EmailMessagesPrefs.EstimateMessage", "type": "json", "nullable": true}
+      email_messages_prefs_sales_receipt_message: {"path": "EmailMessagesPrefs.SalesReceiptMessage", "type": "json", "nullable": true}
+      email_messages_prefs_statement_message: {"path": "EmailMessagesPrefs.StatementMessage", "type": "json", "nullable": true}
+      print_document_prefs_name_value: {"path": "PrintDocumentPrefs.NameValue", "type": "json", "nullable": true}
+      vendor_and_purchases_prefs_enable_bills: {"path": "VendorAndPurchasesPrefs.EnableBills", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_tracking_by_customer: {"path": "VendorAndPurchasesPrefs.TrackingByCustomer", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_billable_expense_tracking: {"path": "VendorAndPurchasesPrefs.BillableExpenseTracking", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_default_terms_id: {"path": "VendorAndPurchasesPrefs.DefaultTerms.value", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_default_terms_name: {"path": "VendorAndPurchasesPrefs.DefaultTerms.name", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_default_markup:
+        path: "VendorAndPurchasesPrefs.DefaultMarkup"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      vendor_and_purchases_prefs_default_markup_account_id: {"path": "VendorAndPurchasesPrefs.DefaultMarkupAccount.value", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_default_markup_account_name: {"path": "VendorAndPurchasesPrefs.DefaultMarkupAccount.name", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_automatic_bill_payment: {"path": "VendorAndPurchasesPrefs.AutomaticBillPayment", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_tpar_enabled: {"path": "VendorAndPurchasesPrefs.TPAREnabled", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_po_custom_field: {"path": "VendorAndPurchasesPrefs.POCustomField", "type": "json", "nullable": true}
+      vendor_and_purchases_prefs_msg_to_vendors: {"path": "VendorAndPurchasesPrefs.MsgToVendors", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_using_inventory: {"path": "VendorAndPurchasesPrefs.UsingInventory", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_using_multi_location_inventory: {"path": "VendorAndPurchasesPrefs.UsingMultiLocationInventory", "type": "bool", "nullable": true}
+      vendor_and_purchases_prefs_days_bills_are_due: {"path": "VendorAndPurchasesPrefs.DaysBillsAreDue", "type": "int64", "nullable": true}
+      vendor_and_purchases_prefs_discount_account_id: {"path": "VendorAndPurchasesPrefs.DiscountAccountRef.value", "type": "string", "nullable": true}
+      vendor_and_purchases_prefs_discount_account_name: {"path": "VendorAndPurchasesPrefs.DiscountAccountRef.name", "type": "string", "nullable": true}
+      time_tracking_prefs_use_services: {"path": "TimeTrackingPrefs.UseServices", "type": "bool", "nullable": true}
+      time_tracking_prefs_default_time_item_id: {"path": "TimeTrackingPrefs.DefaultTimeItem.value", "type": "string", "nullable": true}
+      time_tracking_prefs_default_time_item_name: {"path": "TimeTrackingPrefs.DefaultTimeItem.name", "type": "string", "nullable": true}
+      time_tracking_prefs_bill_customers: {"path": "TimeTrackingPrefs.BillCustomers", "type": "bool", "nullable": true}
+      time_tracking_prefs_show_bill_rate_to_all: {"path": "TimeTrackingPrefs.ShowBillRateToAll", "type": "bool", "nullable": true}
+      time_tracking_prefs_work_week_start_date: {"path": "TimeTrackingPrefs.WorkWeekStartDate", "type": "string", "nullable": true}
+      time_tracking_prefs_time_tracking_enabled: {"path": "TimeTrackingPrefs.TimeTrackingEnabled", "type": "bool", "nullable": true}
+      time_tracking_prefs_mark_time_entries_billable: {"path": "TimeTrackingPrefs.MarkTimeEntriesBillable", "type": "bool", "nullable": true}
+      time_tracking_prefs_mark_expenses_as_billable: {"path": "TimeTrackingPrefs.MarkExpensesAsBillable", "type": "bool", "nullable": true}
+      tax_prefs_using_sales_tax: {"path": "TaxPrefs.UsingSalesTax", "type": "bool", "nullable": true}
+      tax_prefs_partner_tax_enabled: {"path": "TaxPrefs.PartnerTaxEnabled", "type": "bool", "nullable": true}
+      tax_prefs_hide_tax_management: {"path": "TaxPrefs.HideTaxManagement", "type": "bool", "nullable": true}
+      tax_prefs_tax_group_code_id: {"path": "TaxPrefs.TaxGroupCodeRef.value", "type": "string", "nullable": true}
+      tax_prefs_tax_group_code_name: {"path": "TaxPrefs.TaxGroupCodeRef.name", "type": "string", "nullable": true}
+      tax_prefs_tax_rate_id: {"path": "TaxPrefs.TaxRateRef.value", "type": "string", "nullable": true}
+      tax_prefs_tax_rate_name: {"path": "TaxPrefs.TaxRateRef.name", "type": "string", "nullable": true}
+      tax_prefs_pay_sales_tax: {"path": "TaxPrefs.PaySalesTax", "type": "string", "nullable": true}
+      tax_prefs_non_taxable_sales_tax_code_id: {"path": "TaxPrefs.NonTaxableSalesTaxCodeRef.value", "type": "string", "nullable": true}
+      tax_prefs_non_taxable_sales_tax_code_name: {"path": "TaxPrefs.NonTaxableSalesTaxCodeRef.name", "type": "string", "nullable": true}
+      tax_prefs_taxable_sales_tax_code_id: {"path": "TaxPrefs.TaxableSalesTaxCodeRef.value", "type": "string", "nullable": true}
+      tax_prefs_taxable_sales_tax_code_name: {"path": "TaxPrefs.TaxableSalesTaxCodeRef.name", "type": "string", "nullable": true}
+      finance_charges_prefs_annual_interest_rate:
+        path: "FinanceChargesPrefs.AnnualInterestRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      finance_charges_prefs_min_fin_chrg:
+        path: "FinanceChargesPrefs.MinFinChrg"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      finance_charges_prefs_grace_period: {"path": "FinanceChargesPrefs.GracePeriod", "type": "int64", "nullable": true}
+      finance_charges_prefs_calc_fin_chrg_from_txn_date: {"path": "FinanceChargesPrefs.CalcFinChrgFromTxnDate", "type": "bool", "nullable": true}
+      finance_charges_prefs_assess_fin_chrg_for_overdue_charges: {"path": "FinanceChargesPrefs.AssessFinChrgForOverdueCharges", "type": "bool", "nullable": true}
+      finance_charges_prefs_fin_chrg_account_id: {"path": "FinanceChargesPrefs.FinChrgAccountRef.value", "type": "string", "nullable": true}
+      finance_charges_prefs_fin_chrg_account_name: {"path": "FinanceChargesPrefs.FinChrgAccountRef.name", "type": "string", "nullable": true}
+      currency_prefs_multi_currency_enabled: {"path": "CurrencyPrefs.MultiCurrencyEnabled", "type": "bool", "nullable": true}
+      currency_prefs_home_currency_id: {"path": "CurrencyPrefs.HomeCurrency.value", "type": "string", "nullable": true}
+      currency_prefs_home_currency_name: {"path": "CurrencyPrefs.HomeCurrency.name", "type": "string", "nullable": true}
+      report_prefs_report_basis: {"path": "ReportPrefs.ReportBasis", "type": "string", "nullable": true}
+      report_prefs_calc_aging_report_from_txn_date: {"path": "ReportPrefs.CalcAgingReportFromTxnDate", "type": "bool", "nullable": true}
+      other_prefs_name_value: {"path": "OtherPrefs.NameValue", "type": "json", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    response: {"records": "$.Preferences", "cardinality": "one", "pagination": "none", "strict_records": true}

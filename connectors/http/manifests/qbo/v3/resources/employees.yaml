@@ -1,0 +1,62 @@
+resources:
+  - name: "employees"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, name]
+    fields:
+      employee_type: {"path": "EmployeeType", "type": "string", "nullable": true}
+      employee_number: {"path": "EmployeeNumber", "type": "string", "nullable": true}
+      ssn: {"path": "SSN", "type": "string", "nullable": true}
+      primary_addr_id: {"path": "PrimaryAddr.Id", "type": "string", "nullable": true}
+      primary_addr_line1: {"path": "PrimaryAddr.Line1", "type": "string", "nullable": true}
+      primary_addr_line2: {"path": "PrimaryAddr.Line2", "type": "string", "nullable": true}
+      primary_addr_line3: {"path": "PrimaryAddr.Line3", "type": "string", "nullable": true}
+      primary_addr_line4: {"path": "PrimaryAddr.Line4", "type": "string", "nullable": true}
+      primary_addr_line5: {"path": "PrimaryAddr.Line5", "type": "string", "nullable": true}
+      primary_addr_city: {"path": "PrimaryAddr.City", "type": "string", "nullable": true}
+      primary_addr_country: {"path": "PrimaryAddr.Country", "type": "string", "nullable": true}
+      primary_addr_country_code: {"path": "PrimaryAddr.CountryCode", "type": "string", "nullable": true}
+      primary_addr_county: {"path": "PrimaryAddr.County", "type": "string", "nullable": true}
+      primary_addr_country_sub_division_code: {"path": "PrimaryAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      primary_addr_postal_code: {"path": "PrimaryAddr.PostalCode", "type": "string", "nullable": true}
+      primary_addr_postal_code_suffix: {"path": "PrimaryAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      primary_addr_lat: {"path": "PrimaryAddr.Lat", "type": "string", "nullable": true}
+      primary_addr_long: {"path": "PrimaryAddr.Long", "type": "string", "nullable": true}
+      primary_addr_tag: {"path": "PrimaryAddr.Tag", "type": "string", "nullable": true}
+      primary_addr_note: {"path": "PrimaryAddr.Note", "type": "string", "nullable": true}
+      other_addr: {"path": "OtherAddr", "type": "json", "nullable": true}
+      billable_time: {"path": "BillableTime", "type": "bool", "nullable": true}
+      bill_rate:
+        path: "BillRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      birth_date: {"path": "BirthDate", "type": "date", "nullable": true}
+      gender: {"path": "Gender", "type": "string", "nullable": true}
+      hired_date: {"path": "HiredDate", "type": "date", "nullable": true}
+      released_date: {"path": "ReleasedDate", "type": "date", "nullable": true}
+      use_time_entry: {"path": "UseTimeEntry", "type": "string", "nullable": true}
+      cost_rate:
+        path: "CostRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      notes: {"path": "Notes", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Employee WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Employee"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

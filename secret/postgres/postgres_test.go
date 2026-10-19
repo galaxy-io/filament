@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -53,10 +54,26 @@ func TestProviderRoundTrip(t *testing.T) {
 	if string(got.Value) != string(original.Value) || got.Meta["rotated"] != "2026-01-01" {
 		t.Fatalf("round trip = %+v", got)
 	}
+	original.Value = []byte("rotated")
+	if err := p.RotateSecret(ctx, ref, original); err != nil {
+		t.Fatal(err)
+	}
+	got, err = p.Read(ctx, ref)
+	if err != nil || string(got.Value) != "rotated" {
+		t.Fatal("rotation not persisted")
+	}
+	wrong := original
+	wrong.Tenant = "22222222-2222-4222-8222-222222222222"
+	if err := p.RotateSecret(ctx, ref, wrong); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatal("rotation crossed tenant boundary")
+	}
 	if err := p.Delete(ctx, ref); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := p.Read(ctx, ref); err == nil {
 		t.Fatal("expected not found after delete")
+	}
+	if err := p.RotateSecret(ctx, ref, original); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatal("rotation recreated a deleted secret")
 	}
 }

@@ -1,0 +1,31 @@
+resources:
+  - name: "tax_codes"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      description: {"path": "Description", "type": "string", "nullable": true}
+      hidden: {"path": "Hidden", "type": "bool", "nullable": true}
+      taxable: {"path": "Taxable", "type": "bool", "nullable": true}
+      tax_group: {"path": "TaxGroup", "type": "bool", "nullable": true}
+      sales_tax_rate_list: {"path": "SalesTaxRateList", "type": "json", "nullable": true}
+      purchase_tax_rate_list: {"path": "PurchaseTaxRateList", "type": "json", "nullable": true}
+      adjustment_tax_rate_list: {"path": "AdjustmentTaxRateList", "type": "json", "nullable": true}
+      tax_code_config_type: {"path": "TaxCodeConfigType", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM TaxCode WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.TaxCode"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

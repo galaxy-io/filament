@@ -1,0 +1,65 @@
+resources:
+  - name: "accounts"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      sub_account: {"path": "SubAccount", "type": "bool", "nullable": true}
+      parent_id: {"path": "ParentRef.value", "type": "string", "nullable": true}
+      parent_name: {"path": "ParentRef.name", "type": "string", "nullable": true}
+      description: {"path": "Description", "type": "string", "nullable": true}
+      fully_qualified_name: {"path": "FullyQualifiedName", "type": "string", "nullable": true}
+      account_alias: {"path": "AccountAlias", "type": "string", "nullable": true}
+      txn_location_type: {"path": "TxnLocationType", "type": "string", "nullable": true}
+      classification: {"path": "Classification", "type": "string", "nullable": true}
+      account_type: {"path": "AccountType", "type": "string", "nullable": true}
+      account_sub_type: {"path": "AccountSubType", "type": "string", "nullable": true}
+      account_purposes: {"path": "AccountPurposes", "type": "json", "nullable": true}
+      acct_num: {"path": "AcctNum", "type": "string", "nullable": true}
+      acct_num_extn: {"path": "AcctNumExtn", "type": "string", "nullable": true}
+      bank_num: {"path": "BankNum", "type": "string", "nullable": true}
+      opening_balance:
+        path: "OpeningBalance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      opening_balance_date: {"path": "OpeningBalanceDate", "type": "date", "nullable": true}
+      current_balance:
+        path: "CurrentBalance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      current_balance_with_sub_accounts:
+        path: "CurrentBalanceWithSubAccounts"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      currency_id: {"path": "CurrencyRef.value", "type": "string", "nullable": true}
+      currency_name: {"path": "CurrencyRef.name", "type": "string", "nullable": true}
+      tax_account: {"path": "TaxAccount", "type": "bool", "nullable": true}
+      tax_code_id: {"path": "TaxCodeRef.value", "type": "string", "nullable": true}
+      tax_code_name: {"path": "TaxCodeRef.name", "type": "string", "nullable": true}
+      online_banking_enabled: {"path": "OnlineBankingEnabled", "type": "bool", "nullable": true}
+      fi_name: {"path": "FIName", "type": "string", "nullable": true}
+      journal_code_id: {"path": "JournalCodeRef.value", "type": "string", "nullable": true}
+      journal_code_name: {"path": "JournalCodeRef.name", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Account WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Account"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

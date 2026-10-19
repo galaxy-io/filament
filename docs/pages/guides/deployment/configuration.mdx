@@ -100,6 +100,27 @@ GCP-safe IDs and retained in secret annotations. Grant workloads access through
 their attached service account or Workload Identity. Deleting a connection
 permanently deletes its managed GCP secrets.
 
+Managed OAuth refresh is supported with all four providers. Access tokens and
+expiry stay in memory for one run. Only a changed refresh token is written back
+to its existing secret. Rotation never creates a secret or updates a connection
+row. PostgreSQL and SQLite update the encrypted value in place. AWS uses
+[PutSecretValue](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_PutSecretValue.html).
+GCP adds a version and then
+[destroys the previous version](https://docs.cloud.google.com/secret-manager/regional-secrets/destroy-regional-secret-version).
+Grant GCP workloads the `secretmanager.versions.destroy` permission as well as
+read and write access. Cloud providers do not require `ENCRYPTION_KEY`.
+
+Refreshes are serialized within each run. Separate runs have independent token
+state and do not acquire datastore leases. Avoid overlapping runs that share an
+authorization when the upstream provider invalidates refresh tokens on use.
+The datastore no longer tracks cloud secret versions or refresh ownership.
+
+A failed save stops the read. The run retains a successful exchange in memory
+for another save attempt. A process exit between upstream rotation and persistence
+can require fresh authorization. If GCP version cleanup fails, rotation reports
+an error even though the new version is already available. The previous version
+may need cleanup.
+
 ### Logs and OpenTelemetry
 
 | Variable | Default | Description |

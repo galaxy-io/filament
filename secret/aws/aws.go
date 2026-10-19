@@ -9,6 +9,7 @@ package aws
 import (
 	"cmp"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,10 +102,11 @@ func (p *Provider) name(ref string) string {
 	return ref
 }
 
-// Read fetches and decodes the secret at ref.
+// Read fetches and decodes the current secret at ref.
 func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	name := p.name(ref)
-	out, err := p.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)})
+	input := &secretsmanager.GetSecretValueInput{SecretId: aws.String(name)}
+	out, err := p.client.GetSecretValue(ctx, input)
 	if err != nil {
 		// Scheduled-for-deletion secrets surface as InvalidRequestException.
 		var notFound *smtypes.ResourceNotFoundException
@@ -136,39 +138,52 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 
 // Write creates the secret if absent, otherwise stores a new version.
 func (p *Provider) Write(ctx context.Context, ref string, s filament.Secret) error {
+	return p.write(ctx, ref, s, true)
+}
+
+// RotateSecret appends a version under the existing name, never creating a secret.
+func (p *Provider) RotateSecret(ctx context.Context, ref string, s filament.Secret) error {
+	if s.Tenant == "" {
+		return errors.New("secret/aws: tenant is required")
+	}
+	if err := filament.ValidateConnectionSecretRef(ref, s.Tenant); err != nil {
+		return err
+	}
+	return p.write(ctx, ref, s, false)
+}
+
+func (p *Provider) write(ctx context.Context, ref string, s filament.Secret, create bool) error {
 	name := p.name(ref)
 	raw, err := json.Marshal(envelope{Value: s.Value, Meta: s.Meta})
 	if err != nil {
-		return fmt.Errorf("secret/aws: write %q: encode: %w", ref, err)
+		return fmt.Errorf("secret/aws: encode: %w", err)
 	}
-	body := string(raw)
+	token := fmt.Sprintf("%x", rand.Text())
 	put := func() error {
-		_, err := p.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
-			SecretId:     aws.String(name),
-			SecretString: aws.String(body),
-		})
-		return err
+		_, err := p.client.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{SecretId: aws.String(name), SecretString: aws.String(string(raw)), ClientRequestToken: aws.String(token)})
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	err = put()
 	if err == nil {
 		return nil
 	}
 	var notFound *smtypes.ResourceNotFoundException
+	if errors.As(err, &notFound) && !create {
+		return fmt.Errorf("secret/aws: rotate %q: %w", ref, filament.ErrNotFound)
+	}
 	if !errors.As(err, &notFound) {
 		return fmt.Errorf("secret/aws: write %q: %w", ref, err)
 	}
-	// Secret does not exist yet; create it, or put if a concurrent create wins.
-	if _, err := p.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
-		Name:         aws.String(name),
-		SecretString: aws.String(body),
-	}); err != nil {
+	_, err = p.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{Name: aws.String(name), SecretString: aws.String(string(raw)), ClientRequestToken: aws.String(token)})
+	if err != nil {
 		var exists *smtypes.ResourceExistsException
-		if !errors.As(err, &exists) {
-			return fmt.Errorf("secret/aws: create %q: %w", ref, err)
+		if errors.As(err, &exists) {
+			return put()
 		}
-		if err := put(); err != nil {
-			return fmt.Errorf("secret/aws: write %q: %w", ref, err)
-		}
+		return fmt.Errorf("secret/aws: create %q: %w", ref, err)
 	}
 	return nil
 }

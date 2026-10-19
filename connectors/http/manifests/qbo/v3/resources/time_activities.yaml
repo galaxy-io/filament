@@ -1,0 +1,68 @@
+resources:
+  - name: "time_activities"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      time_zone: {"path": "TimeZone", "type": "string", "nullable": true}
+      txn_date: {"path": "TxnDate", "type": "date", "nullable": true}
+      name_of: {"path": "NameOf", "type": "string", "nullable": true}
+      employee_id: {"path": "EmployeeRef.value", "type": "string", "nullable": true}
+      employee_name: {"path": "EmployeeRef.name", "type": "string", "nullable": true}
+      vendor_id: {"path": "VendorRef.value", "type": "string", "nullable": true}
+      vendor_name: {"path": "VendorRef.name", "type": "string", "nullable": true}
+      other_name_id: {"path": "OtherNameRef.value", "type": "string", "nullable": true}
+      other_name_name: {"path": "OtherNameRef.name", "type": "string", "nullable": true}
+      customer_id: {"path": "CustomerRef.value", "type": "string", "nullable": true}
+      customer_name: {"path": "CustomerRef.name", "type": "string", "nullable": true}
+      department_id: {"path": "DepartmentRef.value", "type": "string", "nullable": true}
+      department_name: {"path": "DepartmentRef.name", "type": "string", "nullable": true}
+      item_id: {"path": "ItemRef.value", "type": "string", "nullable": true}
+      item_name: {"path": "ItemRef.name", "type": "string", "nullable": true}
+      class_id: {"path": "ClassRef.value", "type": "string", "nullable": true}
+      class_name: {"path": "ClassRef.name", "type": "string", "nullable": true}
+      payroll_item_id: {"path": "PayrollItemRef.value", "type": "string", "nullable": true}
+      payroll_item_name: {"path": "PayrollItemRef.name", "type": "string", "nullable": true}
+      project_id: {"path": "ProjectRef.value", "type": "string", "nullable": true}
+      project_name: {"path": "ProjectRef.name", "type": "string", "nullable": true}
+      time_charge_id: {"path": "TimeChargeId", "type": "int64", "nullable": true}
+      billable_status: {"path": "BillableStatus", "type": "string", "nullable": true}
+      taxable: {"path": "Taxable", "type": "bool", "nullable": true}
+      hourly_rate:
+        path: "HourlyRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      cost_rate:
+        path: "CostRate"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      hours: {"path": "Hours", "type": "int64", "nullable": true}
+      minutes: {"path": "Minutes", "type": "int64", "nullable": true}
+      seconds: {"path": "Seconds", "type": "int64", "nullable": true}
+      break_hours: {"path": "BreakHours", "type": "int64", "nullable": true}
+      break_minutes: {"path": "BreakMinutes", "type": "int64", "nullable": true}
+      break_seconds: {"path": "BreakSeconds", "type": "int64", "nullable": true}
+      start_time: {"path": "StartTime", "type": "timestamptz", "nullable": true}
+      end_time: {"path": "EndTime", "type": "timestamptz", "nullable": true}
+      description: {"path": "Description", "type": "string", "nullable": true}
+      hours_in_employee_time_zone: {"path": "HoursInEmployeeTimeZone", "type": "bool", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM TimeActivity ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.TimeActivity"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

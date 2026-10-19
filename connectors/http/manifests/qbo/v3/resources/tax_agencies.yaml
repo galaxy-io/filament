@@ -1,0 +1,38 @@
+resources:
+  - name: "tax_agencies"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, name, vendor]
+    fields:
+      sales_tax_code_id: {"path": "SalesTaxCodeRef.value", "type": "string", "nullable": true}
+      sales_tax_code_name: {"path": "SalesTaxCodeRef.name", "type": "string", "nullable": true}
+      sales_tax_country: {"path": "SalesTaxCountry", "type": "string", "nullable": true}
+      sales_tax_return_id: {"path": "SalesTaxReturnRef.value", "type": "string", "nullable": true}
+      sales_tax_return_name: {"path": "SalesTaxReturnRef.name", "type": "string", "nullable": true}
+      tax_registration_number: {"path": "TaxRegistrationNumber", "type": "string", "nullable": true}
+      reporting_period: {"path": "ReportingPeriod", "type": "string", "nullable": true}
+      tax_tracked_on_purchases: {"path": "TaxTrackedOnPurchases", "type": "bool", "nullable": true}
+      tax_on_purchases_account_id: {"path": "TaxOnPurchasesAccountRef.value", "type": "string", "nullable": true}
+      tax_on_purchases_account_name: {"path": "TaxOnPurchasesAccountRef.name", "type": "string", "nullable": true}
+      tax_tracked_on_sales: {"path": "TaxTrackedOnSales", "type": "bool", "nullable": true}
+      tax_tracked_on_sales_account_id: {"path": "TaxTrackedOnSalesAccountRef.value", "type": "string", "nullable": true}
+      tax_tracked_on_sales_account_name: {"path": "TaxTrackedOnSalesAccountRef.name", "type": "string", "nullable": true}
+      tax_on_tax: {"path": "TaxOnTax", "type": "bool", "nullable": true}
+      last_file_date: {"path": "LastFileDate", "type": "date", "nullable": true}
+      tax_agency_config: {"path": "TaxAgencyConfig", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM TaxAgency ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.TaxAgency"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
