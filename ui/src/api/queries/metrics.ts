@@ -21,8 +21,6 @@ import { createListConnectionsQueryKey } from "@/api/queries/connections";
 import { createListPipelinesQueryKey } from "@/api/queries/pipelines";
 import { createListRunsQueryKey } from "@/api/queries/runs";
 
-const METRICS_REFETCH_INTERVAL = 30 * 1000;
-
 const createQueryTimeseriesQueryKey = (input?: QueryTimeseriesRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: MetricsService.method.queryTimeseries,
@@ -42,10 +40,7 @@ export const useQueryTimeseriesQuery = ({
     QueryTimeseriesResponse
   >;
 } = {}) => {
-  return useQuery(MetricsService.method.queryTimeseries, input, {
-    refetchInterval: METRICS_REFETCH_INTERVAL,
-    ...options,
-  });
+  return useQuery(MetricsService.method.queryTimeseries, input, options);
 };
 
 const createQueryAggregateQueryKey = (input?: QueryAggregateRequest, transport?: Transport) => {
@@ -67,25 +62,24 @@ export const useQueryAggregateQuery = ({
     QueryAggregateResponse
   >;
 } = {}) => {
-  return useQuery(MetricsService.method.queryAggregate, input, {
-    refetchInterval: METRICS_REFETCH_INTERVAL,
-    ...options,
-  });
+  return useQuery(MetricsService.method.queryAggregate, input, options);
 };
 
 export const useRefreshObservabilityQueries = () => {
   const queryClient = useQueryClient();
   const transport = useTransport();
 
-  return useCallback(() => {
-    for (const queryKey of [
-      createQueryTimeseriesQueryKey(undefined, transport),
-      createQueryAggregateQueryKey(undefined, transport),
-      createListRunsQueryKey(undefined, transport),
-      createListConnectionsQueryKey(undefined, transport),
-      createListPipelinesQueryKey(undefined, transport),
-    ]) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  }, [queryClient, transport]);
+  return useCallback(
+    () =>
+      Promise.all(
+        [
+          createQueryTimeseriesQueryKey(undefined, transport),
+          createQueryAggregateQueryKey(undefined, transport),
+          createListRunsQueryKey(undefined, transport),
+          createListConnectionsQueryKey(undefined, transport),
+          createListPipelinesQueryKey(undefined, transport),
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      ),
+    [queryClient, transport],
+  );
 };

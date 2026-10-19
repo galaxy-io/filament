@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import { css } from "@linaria/core";
 import { CpuIcon, GaugeIcon } from "@phosphor-icons/react";
 
 import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
@@ -7,6 +8,7 @@ import Flex, { AlignItems, FlexDirection, FlexWrap } from "@galaxy-io/dls/layout
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
@@ -23,11 +25,19 @@ import {
 } from "@/pages/observability/components/timeseries/constants";
 import ObservabilityTimeseriesWidget from "@/pages/observability/components/timeseries/ObservabilityTimeseriesWidget";
 import { OBSERVABILITY_WIDGET_BASIS } from "@/pages/observability/constants";
+import { useObservabilityScrollTakeover } from "@/pages/observability/hooks/useObservabilityScrollTakeover";
 import { useObservabilitySetup } from "@/pages/observability/hooks/useObservabilitySetup";
 import { ObservabilityThroughputView, ObservabilityUsageView } from "@/pages/observability/types";
 
+const OBSERVABILITY_PAGE_SCROLL_CSS = css`
+  container-type: size;
+`;
+
+const OBSERVABILITY_RUNS_TAKEOVER_HEIGHT = `calc(100cqh + ${HAIRLINE_WIDTH})`;
+
 const ObservabilityPage: FC = () => {
   const { isComplete } = useObservabilitySetup();
+  const { scrollRef, takeoverRef } = useObservabilityScrollTakeover(isComplete);
 
   if (!isComplete) {
     return (
@@ -40,7 +50,7 @@ const ObservabilityPage: FC = () => {
   return (
     <PageLayout header="Observability" actions={<ObservabilityPageActions />}>
       <ChartGroupProvider shouldShareTooltip>
-        <ScrollArea>
+        <ScrollArea ref={scrollRef} className={OBSERVABILITY_PAGE_SCROLL_CSS}>
           <Flex
             alignItems={AlignItems.START}
             direction={FlexDirection.COLUMN}
@@ -78,9 +88,13 @@ const ObservabilityPage: FC = () => {
             <FlexItem fillWidth>
               <ObservabilityRunsChartWidget />
             </FlexItem>
-            <FlexItem fillWidth>
-              <ObservabilityRunsTableWidget />
-            </FlexItem>
+          </Flex>
+          <Flex
+            ref={takeoverRef}
+            direction={FlexDirection.COLUMN}
+            height={OBSERVABILITY_RUNS_TAKEOVER_HEIGHT}
+          >
+            <ObservabilityRunsTableWidget />
           </Flex>
         </ScrollArea>
       </ChartGroupProvider>

@@ -65,6 +65,22 @@ export const getDefaultCursor = (columns: ResourceColumn[]): ResourceColumn["nam
   return eligible.length === 1 ? eligible[0].name : "";
 };
 
+export const getDefaultReadMode = ({
+  columns,
+  readModeOptions,
+  managedIncremental,
+  fallback,
+}: {
+  columns: ResourceColumn[];
+  readModeOptions: ReadMode[];
+  managedIncremental: boolean;
+  fallback: ReadMode;
+}): ReadMode =>
+  (managedIncremental || getRecommendedCursor(columns) !== "") &&
+  readModeOptions.includes(ReadMode.INCREMENTAL)
+    ? ReadMode.INCREMENTAL
+    : fallback;
+
 interface PipelineResourceStatusInput {
   resource: Resource["name"];
   readMode: ReadMode;

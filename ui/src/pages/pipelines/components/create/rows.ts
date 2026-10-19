@@ -16,8 +16,8 @@ import {
   getCompatibleWriteModes,
   getCursorOptions,
   getDefaultCursor,
+  getDefaultReadMode,
   getPipelineResourceStatus,
-  getRecommendedCursor,
 } from "@/pages/pipelines/components/resource/utils";
 
 export const getDefaultPipelineName = (
@@ -68,12 +68,13 @@ const createResourceRows = ({
     const resourceColumns = columnsByResource.get(resource.name);
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
-    const autoCursor = getRecommendedCursor(resourceColumns ?? []);
     const readModeOptions = hasReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
-    const defaultReadMode =
-      (managedIncremental || autoCursor) && readModeOptions.includes(ReadMode.INCREMENTAL)
-        ? ReadMode.INCREMENTAL
-        : CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE;
+    const defaultReadMode = getDefaultReadMode({
+      columns: resourceColumns ?? [],
+      readModeOptions,
+      managedIncremental,
+      fallback: CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE,
+    });
     const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
     const isSelected = isResourceSelected(state.resourceSelection[sinkId], resource);
     const cursorField = managedIncremental
