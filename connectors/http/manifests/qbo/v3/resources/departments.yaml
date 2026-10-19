@@ -1,0 +1,44 @@
+resources:
+  - name: "departments"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      sub_department: {"path": "SubDepartment", "type": "bool", "nullable": true}
+      parent_id: {"path": "ParentRef.value", "type": "string", "nullable": true}
+      parent_name: {"path": "ParentRef.name", "type": "string", "nullable": true}
+      fully_qualified_name: {"path": "FullyQualifiedName", "type": "string", "nullable": true}
+      address_id: {"path": "Address.Id", "type": "string", "nullable": true}
+      address_line1: {"path": "Address.Line1", "type": "string", "nullable": true}
+      address_line2: {"path": "Address.Line2", "type": "string", "nullable": true}
+      address_line3: {"path": "Address.Line3", "type": "string", "nullable": true}
+      address_line4: {"path": "Address.Line4", "type": "string", "nullable": true}
+      address_line5: {"path": "Address.Line5", "type": "string", "nullable": true}
+      address_city: {"path": "Address.City", "type": "string", "nullable": true}
+      address_country: {"path": "Address.Country", "type": "string", "nullable": true}
+      address_country_code: {"path": "Address.CountryCode", "type": "string", "nullable": true}
+      address_county: {"path": "Address.County", "type": "string", "nullable": true}
+      address_country_sub_division_code: {"path": "Address.CountrySubDivisionCode", "type": "string", "nullable": true}
+      address_postal_code: {"path": "Address.PostalCode", "type": "string", "nullable": true}
+      address_postal_code_suffix: {"path": "Address.PostalCodeSuffix", "type": "string", "nullable": true}
+      address_lat: {"path": "Address.Lat", "type": "string", "nullable": true}
+      address_long: {"path": "Address.Long", "type": "string", "nullable": true}
+      address_tag: {"path": "Address.Tag", "type": "string", "nullable": true}
+      address_note: {"path": "Address.Note", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Department WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Department"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

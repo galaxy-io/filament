@@ -22,6 +22,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/response"
 	"github.com/galaxy-io/filament/connectors/http/template"
+	"github.com/galaxy-io/filament/oauth"
 )
 
 // Capture is one parent record's flattened, captured field map keyed by the
@@ -46,6 +47,8 @@ const (
 // Connector is the generic HTTP connector. Configure with a v1 manifest and
 // per-source credentials, then call Extract.
 type Connector struct {
+	limit        int
+	oauthStore   oauth.Store
 	manifestPath string
 	manifestData []byte
 	creds        map[string]string
@@ -91,6 +94,7 @@ type resourceRef struct {
 }
 
 type extractOptions struct {
+	Limit                int
 	Observe              filament.SourceObserver
 	EnabledResources     []resourceRef
 	Resources            []string
@@ -157,12 +161,24 @@ func (c *Connector) Configure(ctx context.Context) error {
 		return fmt.Errorf("build auth: %w", err)
 	}
 
+	if err := auth.WithOAuthStore(authn, c.oauthStore); err != nil {
+		return err
+	}
+
 	// Rendered once here rather than per request: the host is fixed for the
 	// life of a configured connector. Lets a manifest select a regional host
 	// from config (`base_url: "{{ config.host }}"`) instead of pinning one
 	// cloud. Literal base URLs pass through untouched — Render short-circuits
 	// when there is no template.
-	baseURL, err := template.Render(m.Connection.BaseURL, template.Scope{Config: c.creds, Env: c.env})
+	baseTemplate := m.Connection.BaseURL
+	if m.Connection.BaseURLField != "" {
+		var ok bool
+		baseTemplate, ok = m.Connection.BaseURLs[c.creds[m.Connection.BaseURLField]]
+		if !ok {
+			return fmt.Errorf("invalid base URL selection for %s", m.Connection.BaseURLField)
+		}
+	}
+	baseURL, err := template.Render(baseTemplate, template.Scope{Config: c.creds, Env: c.env})
 	if err != nil {
 		return fmt.Errorf("render base_url: %w", err)
 	}
@@ -220,6 +236,11 @@ func (c *Connector) TestConnection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("connection probe: %w", err)
 	}
+	if probe.Response.StrictRecords {
+		if _, err := response.New(probe.Response).Records(body); err != nil {
+			return fmt.Errorf("connection probe: %w", err)
+		}
+	}
 	if err := response.New(probe.Response).CheckError(body); err != nil {
 		return fmt.Errorf("connection probe: %w", err)
 	}
@@ -275,3 +296,7 @@ func buildLimiter(rl manifest.RateLimit) request.Limiter {
 		MinFloorRPS:     rl.Dynamic.MinFloorRPS,
 	})
 }
+
+// SetOAuthStore binds token storage for one authorization before configuration.
+// Both extraction and connection testing use it. Nil keeps in-memory tokens.
+func (c *Connector) SetOAuthStore(store oauth.Store) { c.oauthStore = store }

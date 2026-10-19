@@ -15,6 +15,7 @@ import (
 // Single-threaded per resource extraction: lastOffset tracks the offset most
 // recently injected by Apply so that Next can advance it.
 type offsetPaginator struct {
+	start       int
 	offsetParam string
 	limitParam  string
 	pageSize    int
@@ -31,6 +32,7 @@ func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
 		return nil, fmt.Errorf("offset pagination: page_size > 0 is required")
 	}
 	return &offsetPaginator{
+		start:       spec.Start,
 		offsetParam: spec.OffsetParam,
 		hasMorePath: spec.HasMorePath,
 		limitParam:  spec.LimitParam,
@@ -39,10 +41,13 @@ func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
 	}, nil
 }
 
-func (p *offsetPaginator) Initial() State { return State{Offset: 0} }
+func (p *offsetPaginator) Initial() State { return State{Offset: p.start} }
 
 func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, error) {
 	p.lastOffset = s.Offset
+	if p.injectInto == "state" {
+		return nil, nil
+	}
 	if p.injectInto == "body" {
 		out := map[string]any{p.offsetParam: s.Offset}
 		if p.limitParam != "" {
@@ -60,6 +65,9 @@ func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, err
 }
 
 func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
+	if p.lastOffset > int(^uint(0)>>1)-p.pageSize {
+		return State{}, fmt.Errorf("offset pagination overflow")
+	}
 	if p.hasMorePath != "" {
 		more, err := hasMore(body, p.hasMorePath)
 		if err != nil {

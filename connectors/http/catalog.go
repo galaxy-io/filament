@@ -147,9 +147,9 @@ func loadCatalogEntry(files fs.FS, root string, registration catalogRegistry, ve
 		return catalogEntry{}, fmt.Errorf("%s: invalid maturity %q for %s", registryPath, release.Maturity, version)
 	}
 	manifestPath := path.Join(root, version, "manifest.yaml")
-	data, err := fs.ReadFile(files, manifestPath)
+	data, err := manifest.ReadFS(files, manifestPath)
 	if err != nil {
-		return catalogEntry{}, err
+		return catalogEntry{}, fmt.Errorf("%s: %w", manifestPath, err)
 	}
 	parsed, err := manifest.Parse(data)
 	if err != nil {

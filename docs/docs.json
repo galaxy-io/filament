@@ -165,6 +165,7 @@
               "pages/connectors/sources/novada",
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
+              "pages/connectors/sources/qbo",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",

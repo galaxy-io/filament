@@ -1,0 +1,155 @@
+# QuickBooks Online v3 accounting API. Reports are optional snapshots.
+version: 1
+name: "qbo"
+display_name: "QuickBooks Online"
+description: "Online accounting software for managing invoices, bills, payments, and company finances."
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-qbo-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-qbo-light.svg"
+api_version: "v3"
+config:
+  client_id: {"order": 1, "type": "string", "default": "", "help": "Intuit application client ID. Set with client_secret and refresh_token."}
+  client_secret: {"order": 2, "type": "secret", "default": "", "help": "Intuit application client secret for the selected environment."}
+  realm_id: {"order": 3, "type": "string", "required": true, "pattern": "^[0-9]+$", "help": "QuickBooks company ID returned during OAuth authorization."}
+  access_token: {"order": 4, "type": "secret", "default": "", "help": "OAuth access token. Required unless all refresh credentials are supplied."}
+  refresh_token: {"order": 5, "type": "secret", "default": "", "help": "Initial OAuth refresh token. Saved connections persist rotated tokens in the configured secret manager."}
+  environment:
+    type: "enum"
+    enum: ["production", "sandbox"]
+    default: "production"
+  minor_version: {"type": "string", "default": "", "pattern": "^[0-9]+$", "help": "Optional Intuit minor version. Empty uses the upstream default."}
+  page_size:
+    type: "int"
+    default: 500
+    minimum: 1
+    maximum: 1000
+    help: "Records per query request."
+  report_start_date:
+    type: "string"
+    scope: "pipeline"
+    default: ""
+    format: "date"
+    requires: ["report_end_date"]
+    before: "report_end_date"
+    help: "YYYY-MM-DD start for period reports. Set with report_end_date."
+  report_end_date:
+    type: "string"
+    scope: "pipeline"
+    default: ""
+    format: "date"
+    requires: ["report_start_date"]
+    help: "YYYY-MM-DD end for period reports."
+  report_date:
+    type: "string"
+    scope: "pipeline"
+    default: ""
+    format: "date"
+    help: "YYYY-MM-DD as-of date for aging and customer or vendor balance reports."
+  exchange_rate_currencies:
+    type: "string"
+    scope: "pipeline"
+    default: ""
+    pattern: "^\\s*[A-Z]{3}\\s*(,\\s*[A-Z]{3}\\s*)*$"
+    help: "Comma-separated source currencies. Required for exchange_rates."
+  exchange_rate_date:
+    type: "string"
+    scope: "pipeline"
+    default: ""
+    format: "date"
+    help: "YYYY-MM-DD effective date. Required for exchange_rates. No history backfill."
+connection:
+  base_url: "https://quickbooks.api.intuit.com"
+  base_url_field: "environment"
+  base_urls: {"production": "https://quickbooks.api.intuit.com", "sandbox": "https://sandbox-quickbooks.api.intuit.com"}
+  auth:
+    oauth2:
+      token_url: "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+      client_id: "config.client_id"
+      client_secret: "config.client_secret"
+      grant_type: "refresh_token"
+      client_auth: "client_secret_basic"
+      refresh_token: "config.refresh_token"
+      fallback_token: "config.access_token"
+      managed_refresh: true
+      binding: ["qbo", "{{ config.realm_id }}", "{{ config.environment }}", "{{ config.client_id }}", "{{ config.client_secret }}"]
+  headers: {"Accept": "application/json"}
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 5
+    burst: 1
+    responses:
+      - status: 429
+        backoff_seconds: 60
+defaults:
+  method: "GET"
+  query: {"minorversion": "{{ config.minor_version }}"}
+  response:
+    error: {"path": "Fault", "when_present": true, "code_path": "Fault.Error.0.code", "message_path": "Fault.Error.0.Message"}
+field_sets: {}
+includes:
+  - fields/shared.yaml
+  - resources/company_info.yaml
+  - resources/accounts.yaml
+  - resources/customers.yaml
+  - resources/vendors.yaml
+  - resources/items.yaml
+  - resources/invoices.yaml
+  - resources/payments.yaml
+  - resources/bills.yaml
+  - resources/bill_payments.yaml
+  - resources/purchases.yaml
+  - resources/journal_entries.yaml
+  - resources/estimates.yaml
+  - resources/sales_receipts.yaml
+  - resources/credit_memos.yaml
+  - resources/refund_receipts.yaml
+  - resources/purchase_orders.yaml
+  - resources/vendor_credits.yaml
+  - resources/deposits.yaml
+  - resources/transfers.yaml
+  - resources/terms.yaml
+  - resources/payment_methods.yaml
+  - resources/classes.yaml
+  - resources/departments.yaml
+  - resources/tax_codes.yaml
+  - resources/tax_rates.yaml
+  - resources/preferences.yaml
+  - resources/employees.yaml
+  - resources/time_activities.yaml
+  - resources/budgets.yaml
+  - resources/attachments.yaml
+  - resources/tax_agencies.yaml
+  - resources/company_currencies.yaml
+  - resources/recurring_transactions.yaml
+  - resources/exchange_rates.yaml
+  - reports/report_account_list.yaml
+  - reports/report_aged_payable_detail.yaml
+  - reports/report_aged_payables.yaml
+  - reports/report_aged_receivable_detail.yaml
+  - reports/report_aged_receivables.yaml
+  - reports/report_balance_sheet.yaml
+  - reports/report_cash_flow.yaml
+  - reports/report_customer_balance.yaml
+  - reports/report_customer_balance_detail.yaml
+  - reports/report_customer_income.yaml
+  - reports/report_general_ledger.yaml
+  - reports/report_inventory_valuation_detail.yaml
+  - reports/report_inventory_valuation_summary.yaml
+  - reports/report_journal.yaml
+  - reports/report_profit_and_loss.yaml
+  - reports/report_profit_and_loss_detail.yaml
+  - reports/report_sales_by_class.yaml
+  - reports/report_sales_by_customer.yaml
+  - reports/report_sales_by_department.yaml
+  - reports/report_sales_by_product.yaml
+  - reports/report_tax_summary.yaml
+  - reports/report_transaction_list.yaml
+  - reports/report_transaction_list_by_customer.yaml
+  - reports/report_transaction_list_by_vendor.yaml
+  - reports/report_transaction_list_with_splits.yaml
+  - reports/report_trial_balance.yaml
+  - reports/report_vendor_balance.yaml
+  - reports/report_vendor_balance_detail.yaml
+  - reports/report_vendor_expenses.yaml
+discovery:
+  mode: "static"
+  default_resources: ["accounts", "customers", "vendors", "items", "invoices", "payments", "bills", "bill_payments", "purchases", "journal_entries"]

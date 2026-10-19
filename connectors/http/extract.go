@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strconv"
+	"strings"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -28,6 +30,7 @@ func (c *Connector) Extract(ctx context.Context, sink recordSink, opts extractOp
 }
 
 func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOptions) error {
+	c.limit = opts.Limit
 	c.resumeExports = opts.ResumeExports
 	c.resumeStates = maps.Clone(opts.ResumeStates)
 	c.resumeWatermarks = opts.ResumeWatermarks
@@ -147,7 +150,35 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 // from the pagination state and watermark supplied by the engine. Child resources always
 // restart pagination because a resource-wide cursor cannot be applied to each
 // parent independently.
-func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
+func (c *Connector) readResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
+	if res.ForEachConfig != "" {
+		key := res.ForEachConfig
+		res.ForEachConfig = ""
+		seen := map[string]bool{}
+		for _, value := range strings.Split(c.creds[key], ",") {
+			value = strings.TrimSpace(value)
+			if value == "" || seen[value] {
+				continue
+			}
+			seen[value] = true
+			scope := maps.Clone(parent)
+			if scope == nil {
+				scope = Capture{}
+			}
+			scope[key] = value
+			if err := c.readResource(ctx, res, sink, scope); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if res.Pagination.PageSizeFrom != "" {
+		n, err := strconv.Atoi(c.creds[res.Pagination.PageSizeFrom])
+		if err != nil || n <= 0 {
+			return fmt.Errorf("invalid page size in %s", res.Pagination.PageSizeFrom)
+		}
+		res.Pagination.PageSize = n
+	}
 	if res.Mode == "export" {
 		return c.runExport(ctx, res, sink, nil)
 	}
@@ -179,7 +210,7 @@ func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, 
 	// single resource-level cursor — replaying that cursor for each parent
 	// is incorrect, so children always restart pagination from scratch.
 	var resumeState pagination.State
-	if res.Parent == nil && c.resumeStates != nil {
+	if res.Parent == nil && !res.RestartOnResume && c.resumeStates != nil {
 		resumeState = c.resumeStates[res.Name]
 	}
 
