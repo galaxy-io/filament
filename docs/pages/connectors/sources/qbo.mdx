@@ -1,0 +1,331 @@
+---
+title: "QuickBooks Online"
+description: "Read QuickBooks Online accounting records and optional report snapshots"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-qbo-dark.svg"
+---
+
+The `qbo` source reads 63 QuickBooks Online accounting resources through the
+v3 REST API using an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+The connector is alpha and supports sandbox and production accounts.
+The `qbo` alias resolves to `qbo@v3`. Live company reads have not been validated.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `client_id` | Connection | | Intuit application client ID. Set all three refresh fields together. |
+| `client_secret` | Connection | | Secret. Intuit application client secret for the selected environment. |
+| `realm_id` | Connection | | Required. QuickBooks company ID returned during OAuth authorization. |
+| `access_token` | Connection | | Secret. Required unless automatic refresh credentials are supplied. OAuth access token with the `com.intuit.quickbooks.accounting` scope. |
+| `refresh_token` | Connection | | Secret. Initial refresh token obtained through Intuit authorization. Filament saves rotated tokens automatically for saved connections. |
+| `environment` | Connection | `production` | `production` or `sandbox`. Credentials and company must match the environment. |
+| `minor_version` | Connection | | Optional numeric Intuit minor version. Empty uses Intuit's default. |
+| `page_size` | Connection | `500` | Records per request. An integer from 1 to 1000. |
+| `report_start_date` | Pipeline | | Optional pipeline field. YYYY-MM-DD start for period reports. Set with `report_end_date`, with start before end. |
+| `report_end_date` | Pipeline | | Optional pipeline field. YYYY-MM-DD end for period reports. |
+| `report_date` | Pipeline | | Optional pipeline field. YYYY-MM-DD as-of date for aging and customer or vendor balance reports. |
+| `exchange_rate_currencies` | Pipeline | | Pipeline field required for `exchange_rates`. Comma-separated uppercase currency codes such as `EUR,GBP`. |
+| `exchange_rate_date` | Pipeline | | Pipeline field required for `exchange_rates`. YYYY-MM-DD effective date. |
+
+### Get credentials with the OAuth Playground
+
+Use your own Intuit application. The Developer Portal provides the app's client
+ID and client secret. The OAuth Playground helps you authorize a company and
+exchange the authorization code for tokens. Filament does not host the initial
+authorization callback.
+
+1. Sign in to the [Intuit Developer Portal](https://developer.intuit.com/) and
+   create or select an app with access to the QuickBooks Online Accounting API.
+2. Open the app's **Keys & OAuth** or **Keys & Credentials** section. Copy the
+   client ID and client secret for your environment. Use development credentials
+   for a sandbox company and production credentials for a live company. Complete
+   Intuit's production setup requirements before connecting a live company.
+3. Check the app's redirect URI settings for the selected environment. The
+   Playground redirect URI may already be registered by default. Add it only
+   if it is missing.
+
+   ```text
+   https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl
+   ```
+
+4. Open the [OAuth 2.0 Playground](https://developer.intuit.com/app/developer/playground).
+   Select your app and environment or enter the matching app credentials. Use
+   the registered redirect URI and select the `com.intuit.quickbooks.accounting`
+   scope.
+5. Start authorization, sign in to QuickBooks, select the company, and approve
+   access. After the redirect, copy the `realmId`. This is the company ID that
+   Filament calls `realm_id`.
+6. Complete the Playground's code exchange step to obtain an access token and
+   a refresh token. The authorization code is temporary and single-use. It is
+   not an access token or refresh token and cannot be entered in either field.
+7. Create a saved `qbo` connection in Filament using the values below.
+
+| Filament field | Value |
+|---|---|
+| `client_id` | The client ID from the app's credential page |
+| `client_secret` | The matching client secret from the app's credential page |
+| `realm_id` | The `realmId` returned after company authorization |
+| `access_token` | Leave empty when using automatic refresh |
+| `refresh_token` | The refresh token returned by the code exchange |
+| `environment` | `sandbox` or `production`, matching the app credentials and company |
+
+Leave `access_token` empty when using automatic refresh. Filament obtains an
+access token on the first read and saves replacement tokens for subsequent runs.
+Store the client secret and refresh token as managed secrets on the saved
+connection. Once Filament manages the refresh token, avoid refreshing the same
+token in the Playground or another application.
+
+If you perform the code exchange yourself, send a form-encoded POST to
+`https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer`. Use HTTP Basic
+authentication with the client ID and client secret. Include
+`grant_type=authorization_code`, `code`, and the exact `redirect_uri` used for
+authorization. Save the returned refresh token, not the authorization code.
+The `realmId` comes from the authorization redirect rather than this exchange.
+
+See Intuit's [app credential guide](https://developer.intuit.com/app/developer/qbo/docs/get-started/get-client-id-and-client-secret)
+and [OAuth Playground guide](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0-playground).
+
+Access-token-only connections remain supported and require manual renewal.
+Their connection test reads CompanyInfo.
+
+### Automatic token refresh
+
+The HTTP engine uses Filament's shared `oauth` package. Automatic refresh requires
+a saved connection with a managed `refresh_token` secret in PostgreSQL, SQLite,
+AWS Secrets Manager, or Google Secret Manager. Tokens remain in the configured
+manager. Environment-only and inline credentials are not supported for automatic
+refresh through the runner. Go callers can
+instead bind an `oauth.Store` with `Source.SetOAuthStore`.
+
+The first read exchanges the saved refresh token. The optional `access_token`
+field is ignored when refresh credentials are configured. Later reads reuse
+the run’s access token until its expiry is within 30 seconds. If QuickBooks
+rejects it with HTTP 401, the source refreshes and replays the read once. A
+second 401 stops the read. Concurrent callers within the run reuse the fresh replacement.
+
+Access tokens and expiry stay in memory for one run. Only a changed refresh
+token is saved to the existing `refresh_token` secret. Rotation does not create
+a secret or change the connection row. PostgreSQL and SQLite update the encrypted
+value in place. AWS adds a version under the same name. GCP adds a version and
+destroys the previous one.
+
+Each run loads the saved refresh token once. Calls within the run share token
+state, while separate runs refresh independently. There are no datastore locks
+around token exchanges and no coordination table. Token requests have a
+30-second timeout and honor cancellation.
+
+Configuration validation for automatic-refresh connections is local only.
+The validation RPC does not exchange tokens. The first move verifies live
+access. Local catalog discovery remains available without exchanging tokens.
+A revoked or expired refresh token requires reauthorization. Failed or ambiguous
+token exchanges are not automatically retried. Save failures stop the read.
+The run retains a successful exchange for a later save attempt while it remains
+alive. A process exit between upstream rotation and persistence can still
+require reauthorization.
+
+Tokens and upstream OAuth error descriptions are never emitted in activity or
+logs. See Intuit's [refresh-token guidance](https://github.com/intuit/oauth-jsclient#refresh-access_token).
+
+## Resources
+
+| Family | Resources | Modes |
+|---|---|---|
+| Core reference data | `accounts`, `customers`, `vendors`, `items` | Full |
+| Core transactions | `invoices`, `payments`, `bills`, `bill_payments`, `purchases`, `journal_entries` | Full and incremental |
+| Additional transactions | `estimates`, `sales_receipts`, `credit_memos`, `refund_receipts`, `purchase_orders`, `vendor_credits`, `deposits`, `transfers` | Full and incremental |
+| Supporting reference data | `terms`, `payment_methods`, `classes`, `departments`, `tax_codes`, `tax_rates` | Full |
+| Company settings | `company_info`, `preferences` | Full |
+| People and time | `employees`, `time_activities` | Full |
+| Planning | `budgets`, `recurring_transactions` | Full |
+| Attachments | `attachments` | Full |
+| Tax and currencies | `tax_agencies`, `company_currencies`, `exchange_rates` | Full |
+| Reports | 29 `report_*` resources listed below | Full |
+
+The ten core resources are enabled by default. All other resources are optional. Account features,
+region, and permissions determine which resources can be read. Discovery
+returns a local catalog and does not probe those entitlements. An unavailable
+selected resource fails the read instead of being silently omitted.
+
+Employees are accounting Employee records. Time activities are accounting
+TimeActivity entries. These do not include Workforce payroll or QuickBooks Time
+timesheets. Attachments include metadata, notes, and linked entity references.
+File content is not downloaded. Budgets retain their nested budget details.
+
+Recurring transactions retain the transaction wrapper, schedule, lines, and
+references. They are templates rather than the transactions generated from them.
+Company currencies list configured currencies. Exchange rates read only the
+configured source currencies on one explicit date, against the company home
+currency. Currency reads require multicurrency support. There is no automatic
+rate-history backfill.
+
+Selecting `exchange_rates` requires both exchange-rate pipeline fields, including
+when selecting every resource. Set both fields or deselect that resource. Missing
+fields fail resource planning before destination setup and resource start events.
+
+### Reports
+
+Each report produces one snapshot row. Header fields have typed columns such as
+`header_report_name`, `header_time`, and `header_currency`. The `columns` and
+`rows` JSON columns preserve the dynamic column definitions, nested sections,
+and subtotals. Empty reports are preserved. The connector does not assign
+identities to report line positions.
+
+| Family | Resources |
+|---|---|
+| Financial statements | `report_balance_sheet`, `report_profit_and_loss`, `report_profit_and_loss_detail`, `report_cash_flow`, `report_trial_balance` |
+| Accounts and ledgers | `report_account_list`, `report_general_ledger`, `report_journal` |
+| Receivables | `report_aged_receivables`, `report_aged_receivable_detail`, `report_customer_balance`, `report_customer_balance_detail`, `report_customer_income` |
+| Payables | `report_aged_payables`, `report_aged_payable_detail`, `report_vendor_balance`, `report_vendor_balance_detail`, `report_vendor_expenses` |
+| Sales | `report_sales_by_class`, `report_sales_by_customer`, `report_sales_by_department`, `report_sales_by_product` |
+| Inventory and tax | `report_inventory_valuation_detail`, `report_inventory_valuation_summary`, `report_tax_summary` |
+| Transaction listings | `report_transaction_list`, `report_transaction_list_by_customer`, `report_transaction_list_by_vendor`, `report_transaction_list_with_splits` |
+
+Period reports use `report_start_date` and `report_end_date`. Aging reports and
+customer or vendor balance reports use `report_date` instead. The account list
+does not use date filters. Omitted dates use the upstream report defaults, not
+all history. The returned header records the effective period and basis.
+Accounting basis and other report-specific filters use Intuit's defaults.
+
+Report reads call `/reports/{name}` once per selected report. They do not use
+entity query pagination. An extraction row limit limits snapshots, not the
+number of lines within a report. Use a smaller date range for large reports.
+The HTTP engine rejects responses larger than 100 MiB. There is no automatic report
+partitioning or reconstruction of data omitted by the upstream report service.
+
+The catalog follows Intuit's [29 supported report families](https://medium.com/intuitdev/upcoming-changes-to-reports-apis-5083ec9aadce).
+Display names can differ from endpoint names. Sales reports use `ClassSales`,
+`CustomerSales`, `DepartmentSales`, and `ItemSales`. The account list uses
+`AccountList`. Retired and undocumented reports are not added as extra resources.
+
+### Coverage boundaries
+
+| API area | Coverage |
+|---|---|
+| Accounting entities and settings | The named resources above. Query results retain nested data. |
+| Accounting reports | The 29 named report families as response snapshots. Availability varies by region and company features. |
+| Attachments and printable forms | Attachment metadata only. Binary downloads and transaction PDFs are excluded. |
+| Change data capture and webhooks | Excluded. Query reads do not deliver deletion events. |
+| Inventory adjustments and change orders | Not implemented. The public collection lists these newer APIs, but their complete read contracts were not established during this expansion. |
+| Customer types and other SDK-only entity names | Not implemented without a verified public QBO read contract. Desktop SDK types do not establish Online API support. |
+| Projects and extended custom fields | Separate GraphQL and premium API work. Values returned on the included REST entities remain in the mapped columns or `raw`. |
+| Workforce, payroll, QuickBooks Time, and Payments processing | Separate product APIs outside this accounting source. Accounting Payment records are included. |
+| Create, update, delete, send, and batch mutations | Excluded from this read-only source. |
+
+The new resources remain alpha. Fixture tests verify request construction and
+response handling. No live company reads have been validated. Company currency
+queries in particular still need live confirmation of query pagination and
+inactive-currency visibility. Optional resource failures remain visible.
+
+## Modes
+
+All resources support full replacement, upsert, and append. The 14 transaction
+resources also support incremental upsert and append. Use upsert to reconcile
+replayed records.
+
+The first incremental run reads all currently available records. Later runs
+filter on `MetaData.LastUpdatedTime`, exposed as `updated_at`. The lower bound
+is inclusive and stays fixed throughout pagination. The default lookback is
+five minutes. Boundaries are rounded down to whole seconds so timestamp
+precision does not skip records. Transaction dates and SyncToken are not
+incremental cursors.
+
+Only a completed resource sends a new watermark through Filament's normal
+destination acknowledgement path. Interrupted or limited
+reads retain the previous watermark and replay. Empty results also retain the
+previous watermark. Full reads restart from the beginning after interruption.
+
+Query reads do not capture deleted transactions. Full replacement reconciles
+records that no longer exist. Upserts alone retain deleted destination rows.
+
+Paginated entity queries use `ORDERBY Id ASC` before `STARTPOSITION` and
+`MAXRESULTS`. Explicit ordering avoids relying on an unspecified response order.
+Sorting by the immutable ID keeps edits to names and timestamps from changing
+a record's sort position. See Intuit's [query guidance](https://medium.com/intuitdev/building-smarter-with-intuit-supercharge-your-queries-fde9d771f8fd).
+
+Ordering does not provide snapshot isolation. Inserts, deletions, and changes
+to which records match the filter can still shift offsets between requests,
+causing skipped or repeated records. The five-minute lookback cannot guarantee
+recovery from every such change or an arbitrary indexing delay. Use periodic
+full replacement when a current view is required. The source does not advertise CDC.
+
+## Behavior
+
+For entity resources, one row represents one entity. The primary key is `realm_id` and `id`. Company
+information and preferences each produce one row keyed by the company ID.
+Each resource has typed columns based on Intuit's [accounting response schemas](https://github.com/intuit/QuickBooks-V3-PHP-SDK/tree/master/src/XSD).
+Each resource declares its destination mapping in a separate manifest file.
+Missing and regional fields are nullable.
+
+| Data | Example columns | Destination type |
+|---|---|---|
+| Identity and references | `id`, `customer_id`, `vendor_id`, `currency_id` | String |
+| Amounts and quantities | `total_amt`, `balance`, `qty_on_hand` | Decimal with precision 38 and scale 18 |
+| Exchange rates | `exchange_rate`, `rate` | Decimal with precision 38 and scale 20 |
+| Dates | `txn_date`, `due_date`, `as_of_date` | Date |
+| Timestamps | `created_at`, `updated_at` | Timestamp with time zone |
+| Flags and counts | `active`, `taxable`, `hours`, `due_days` | Boolean or integer |
+| Contact and address fields | `primary_email_addr_address`, `bill_addr_city` | String |
+| Nested collections | `line`, `linked_txn`, `custom_field`, `budget_detail` | JSON |
+
+Postgres receives numeric, date, boolean, and JSONB columns. Snowflake receives
+NUMBER, DATE, BOOLEAN, and VARIANT columns through the shared destination type
+mapping. Amounts never pass through floating point. Values outside the declared
+decimal precision or scale fail the read instead of being rounded.
+
+The trailing `raw` JSON column preserves unprojected fields and unknown nested
+attributes. JSON columns retain their original numeric precision. Lines remain
+nested and are not expanded into separate resources. Preferences expose typed
+setting fields. Recurring templates expose their transaction type, common
+transaction fields, and schedule, with variant-specific fields retained in `raw`.
+
+Company currencies use their currency code as `id`. Exchange rates encode the
+source currency and effective date into `id`. Recurring templates encode the
+transaction type and nested entity ID. Reports encode the endpoint, returned
+period, accounting basis, currency, and request parameters. These composite
+identities use JSON arrays to avoid delimiter collisions. Report generation
+time is not part of the key, so upsert replaces the same report snapshot.
+Use append to retain repeated snapshots or full replacement to retain only the
+latest extraction. Reports leave entity timestamps and activity flags null.
+
+Entity reads use `GET /v3/company/{realm_id}/query`. SQL-like queries page with
+one-based `STARTPOSITION` and `MAXRESULTS`. The original reference resources and
+employees explicitly include active and inactive records. Other optional query
+resources use upstream visibility defaults. Company settings use their singleton endpoints.
+An empty query response ends the read. Fault envelopes and malformed responses
+fail visibly. Repeated record IDs across pages fail the resource to avoid
+advancing its watermark on an inconsistent scan.
+
+Resources may read concurrently through a shared limiter of five requests per
+second per source instance. Other runs share the upstream company quota, so this local limiter
+does not reserve quota across workers. Server errors receive up to three retries. Throttled requests retry within a
+ten-attempt request budget. Retry-After is honored when present. A throttled
+response without that header waits 60 seconds. Cancellation interrupts retry waits.
+
+See Intuit's [accounting API collection](https://www.postman.com/intuit-developer/intuit-developer-quickbooks-online-accounting-api/overview),
+[query builder](https://github.com/intuit/QuickBooks-V3-PHP-SDK/blob/master/src/QueryFilter/QueryMessage.php),
+[Payment query reference](https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/Payment),
+and [API limits](https://static.developer.intuit.com/output_html/qbo/docs/learn/limits-and-throttles.html).
+
+## Migration from the native source
+
+Existing connection fields, resource names, primary keys, typed columns, and
+report snapshot identities are retained. Saved refresh-token secrets keep their
+authorization binding and can be reused by the HTTP engine.
+
+Incremental checkpoint keys are now qualified by resource. The first incremental
+run after switching from the native source starts a new backfill. Use upsert to
+reconcile replayed records. Incremental append would append historical rows again.
+Full reads restart from the beginning after interruption.
+
+The manifest retains 34 entity and settings resources and 29 optional reports.
+Reports are useful as QuickBooks-calculated totals for reconciliation. Compare
+the same reporting period or cutoff date and accounting basis across systems.
+The underlying invoices, payments, credits, and journal entries provide the
+records needed to investigate differences. Reports use the upstream accounting
+basis by default and remain nested snapshots rather than flattened report lines.
+
+Local checks cover manifest loading, schema preservation, shared OAuth handling,
+query pagination, exact decimals, response validation, and checkpoint completion.
+Live checks remain outstanding for populated and empty pages, company-specific
+resource access, report periods, exchange-rate lookups, and token rotation against
+Intuit. Unavailable optional resources fail visibly and can be deselected.

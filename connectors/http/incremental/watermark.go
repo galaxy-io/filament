@@ -80,9 +80,9 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 		return nil, fmt.Errorf("incremental: start_param is required")
 	}
 	switch spec.InjectInto {
-	case "query", "body", "header":
+	case "query", "body", "header", "state":
 	default:
-		return nil, fmt.Errorf("incremental: inject_into must be query|body|header (got %q)", spec.InjectInto)
+		return nil, fmt.Errorf("incremental: inject_into must be query|body|header|state (got %q)", spec.InjectInto)
 	}
 	cmp, err := atomicwatermark.ForName(spec.Comparator)
 	if err != nil {
@@ -211,7 +211,11 @@ func (t *Tracker) effective() string {
 			"resource", t.resource, "value", v, "error", err)
 		return v
 	}
-	return parsed.Add(-time.Duration(t.spec.OverlapSeconds) * time.Second).Format(time.RFC3339)
+	effective := parsed.Add(-time.Duration(t.spec.OverlapSeconds) * time.Second)
+	if t.spec.CommitOnComplete && effective.Before(time.Unix(0, 0)) {
+		effective = time.Unix(0, 0)
+	}
+	return effective.Format(time.RFC3339)
 }
 
 // Apply injects the extraction's fixed starting watermark into a request. For
@@ -244,5 +248,5 @@ func (t *Tracker) injectedValue() string {
 	if v == "" {
 		return ""
 	}
-	return t.spec.ValuePrefix + v
+	return t.spec.ValuePrefix + v + t.spec.ValueSuffix
 }

@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/galaxy-io/filament/connectors/http/template"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
@@ -36,22 +39,46 @@ func schemaFields(res manifest.Resource) []rowmodel.Field {
 	fields := make([]rowmodel.Field, 0, len(res.Fields))
 	for _, f := range res.Fields {
 		fields = append(fields, rowmodel.Field{
-			Name:     f.Name,
-			Nullable: f.Nullable,
-			Logical:  logicalType(f.Type),
-			Native:   f.Type,
+			Name:      f.Name,
+			Nullable:  f.Nullable,
+			Logical:   logicalType(f.Type),
+			Native:    f.Type,
+			Precision: f.Precision, Scale: f.Scale,
 		})
 	}
 	return fields
 }
 
-func projectRecord(res manifest.Resource, record map[string]any, parent Capture) (map[string]any, bool, error) {
+func projectRecord(res manifest.Resource, record map[string]any, parent Capture, configs ...map[string]string) (map[string]any, bool, error) {
 	if len(res.Fields) == 0 {
 		return record, false, nil
+	}
+	var config map[string]string
+	if len(configs) > 0 {
+		config = configs[0]
 	}
 	out := make(map[string]any, len(res.Fields))
 	var remainder map[string]any
 	for _, field := range res.Fields {
+		if field.Value != nil {
+			value, err := template.Render(*field.Value, template.Scope{Config: config, Parent: parent})
+			if err != nil {
+				return nil, false, fmt.Errorf("project %s: %w", field.Name, err)
+			}
+			out[field.Name], err = coerceValue(field.Type, value)
+			if err != nil {
+				return nil, false, err
+			}
+			continue
+		}
+		if len(field.Tuple) > 0 {
+			value, err := projectTuple(field, res, record, parent, config)
+			if err != nil {
+				return nil, false, err
+			}
+			out[field.Name] = value
+			continue
+		}
 		if field.Mode == "remainder" {
 			if remainder == nil {
 				remainder = recordRemainder(record, res.Fields)
@@ -109,10 +136,50 @@ func projectRecord(res manifest.Resource, record map[string]any, parent Capture)
 	return out, true, nil
 }
 
+func projectTuple(field manifest.FieldSpec, res manifest.Resource, record map[string]any, parent Capture, config map[string]string) (string, error) {
+	values := make([]string, len(field.Tuple))
+	for i, path := range field.Tuple {
+		if strings.HasPrefix(path, "literal:") {
+			values[i] = strings.TrimPrefix(path, "literal:")
+			continue
+		}
+		if strings.HasPrefix(path, "query:") {
+			q := url.Values{}
+			for _, key := range strings.Split(strings.TrimPrefix(path, "query:"), ",") {
+				value, err := template.Render(res.Query[key], template.Scope{Config: config, Parent: parent})
+				if err != nil {
+					return "", err
+				}
+				if value != "" {
+					q.Set(key, value)
+				}
+			}
+			values[i] = q.Encode()
+			continue
+		}
+		value, err := projectedPathValue(path, record, parent)
+		if err != nil {
+			if errors.Is(err, errs.ErrPathMissing) || errors.Is(err, errs.ErrPathNull) {
+				continue
+			}
+			return "", err
+		}
+		values[i], err = scalarString(value)
+		if err != nil {
+			return "", err
+		}
+	}
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
+}
+
 func recordRemainder(record map[string]any, fields manifest.FieldList) map[string]any {
 	out := deepCopyMap(record)
 	for _, field := range fields {
-		if field.MaxString != "" || field.Mode == "remainder" || strings.HasPrefix(field.Path, "parent.") {
+		if field.Value != nil || len(field.Tuple) > 0 || field.MaxString != "" || field.Mode == "remainder" || strings.HasPrefix(field.Path, "parent.") {
 			continue
 		}
 		if len(field.Shape) > 0 {

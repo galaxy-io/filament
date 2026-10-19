@@ -145,6 +145,9 @@ func (b *Builder) BuildRendered(ctx context.Context, rendered manifest.Resource,
 	if len(rendered.Query) > 0 {
 		q := req.URL.Query()
 		for k, v := range rendered.Query {
+			if rendered.OmitEmptyQuery && v == "" {
+				continue
+			}
 			q.Set(k, v)
 		}
 		req.URL.RawQuery = q.Encode()

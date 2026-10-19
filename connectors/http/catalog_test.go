@@ -253,3 +253,38 @@ func TestCatalogRejectsUnsafeAPIVersionPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogExpandsManifestFragments(t *testing.T) {
+	files := testCatalog(t)
+	root := files["manifests/example/v2/manifest.yaml"]
+	declaration, resources, ok := strings.Cut(string(root.Data), "resources:\n")
+	if !ok {
+		t.Fatal("fixture has no resources")
+	}
+	root.Data = []byte(declaration + "includes: [resources/items.yaml]\n")
+	files["manifests/example/v2/resources/items.yaml"] = &fstest.MapFile{Data: []byte("resources:\n" + resources)}
+	entries, err := loadCatalog(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Registered entries retain expanded bytes rather than depending on files at runtime.
+	delete(files, "manifests/example/v2/resources/items.yaml")
+	for _, entry := range entries {
+		if entry.version != "v2" {
+			continue
+		}
+		first, second := entry.source().(*Source), entry.source().(*Source)
+		if first.manifestErr != nil || second.manifestErr != nil {
+			t.Fatalf("expanded source failed: %v %v", first.manifestErr, second.manifestErr)
+		}
+		if len(first.embeddedManifest.Resources) != 1 || first.embeddedManifest.Resources[0].Name != "items" {
+			t.Fatal("fragment resource missing")
+		}
+		first.embeddedManifest.Resources[0].Path = "/changed"
+		if second.embeddedManifest.Resources[0].Path != "/items" {
+			t.Fatal("source instances share fragment state")
+		}
+		return
+	}
+	t.Fatal("composed version missing")
+}

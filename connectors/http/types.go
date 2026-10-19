@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/internal/arrowtext"
@@ -35,7 +38,10 @@ func typeFor(f rowmodel.Field) valueParser {
 		return parseFloat(32, func(w arrowbatch.RowWriter, v float64) { w.Float32(float32(v)) })
 	case rowmodel.LogicalFloat64:
 		return parseFloat(64, func(w arrowbatch.RowWriter, v float64) { w.Float64(v) })
-	case rowmodel.LogicalDecimal: // a manifest declares no precision: the digits travel as text
+	case rowmodel.LogicalDecimal:
+		if f.Precision > 0 {
+			return parseFixedDecimal(f.Precision, f.Scale)
+		}
 		return parseNumberText
 	case rowmodel.LogicalJSON:
 		return parseJSON
@@ -201,4 +207,35 @@ func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		}
 	}
 	return fmt.Errorf("%q is not a timestamp", s)
+}
+
+// parseFixedDecimal rejects rounding and overflow before appending financial data.
+func parseFixedDecimal(precision, scale int) valueParser {
+	return func(w arrowbatch.RowWriter, raw json.RawMessage) error {
+		value, err := unquoted(raw)
+		if err != nil {
+			return err
+		}
+		invalid := fmt.Errorf("decimal exceeds declared precision or scale")
+		if len(value) > 128 || !json.Valid([]byte(value)) {
+			return invalid
+		}
+		if i := strings.IndexAny(value, "eE"); i >= 0 {
+			exponent, err := strconv.Atoi(value[i+1:])
+			if err != nil || exponent < -128 || exponent > 128 {
+				return invalid
+			}
+		}
+		number, ok := new(big.Rat).SetString(value)
+		if !ok {
+			return invalid
+		}
+		factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
+		number.Mul(number, new(big.Rat).SetInt(factor))
+		if !number.IsInt() || len(new(big.Int).Abs(number.Num()).String()) > precision {
+			return invalid
+		}
+		w.Decimal(decimal128.FromBigInt(number.Num()))
+		return nil
+	}
 }
