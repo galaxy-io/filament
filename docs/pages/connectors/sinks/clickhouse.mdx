@@ -1,6 +1,7 @@
 ---
-title: "ClickHouse"
-description: "Write typed analytical tables to ClickHouse"
+title: "ClickHouse sink connector"
+sidebarTitle: "ClickHouse"
+description: "Write typed analytical tables to ClickHouse with Filament, the open-source data movement engine."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-clickhouse-dark.svg"
 ---
 
@@ -117,3 +118,9 @@ tbl FINAL` to read the current state.
 leave the destination exactly as it was. Failed append or upsert runs can
 leave partial rows in live tables, which upsert re-runs converge through the
 primary key.
+
+## Related guides
+
+- [Replicate PostgreSQL to ClickHouse](/pages/how-to/postgres-to-clickhouse)
+- [Postgres to ClickHouse replication guide](https://www.getgalaxy.io/articles/postgres-to-clickhouse-the-complete-replication-guide)
+- [MySQL to ClickHouse replication guide](https://www.getgalaxy.io/articles/mysql-to-clickhouse-the-complete-replication-guide)

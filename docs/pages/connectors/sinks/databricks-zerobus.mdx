@@ -1,5 +1,6 @@
 ---
-title: "Databricks Zerobus"
+title: "Databricks Zerobus sink connector"
+sidebarTitle: "Databricks Zerobus"
 description: "Stream records into Databricks Delta tables via the Zerobus Ingest API"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-databricks-dark.svg"
 ---
@@ -7,7 +8,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-databricks-dark.svg"
 Connector ID `databrickszerobus`
 
 The Databricks Zerobus sink (**alpha**) appends each resource to a Delta table in
-Unity Catalog through the [Zerobus Ingest API](https://docs.databricks.com/ingestion/zerobus)
+Unity Catalog through the [Zerobus Ingest API](https://docs.databricks.com/aws/en/ingestion/zerobus-overview)
 over Arrow Flight. With `create_table` on, the sink creates the destination schema
 and tables itself, so a first run needs one grant on the catalog.
 
@@ -18,7 +19,7 @@ so deduplicate by primary key downstream when you need exactly-once results.
 ## Before you start
 
 Zerobus is in preview and is available only in some regions. Check the
-[Zerobus documentation](https://docs.databricks.com/ingestion/zerobus) for the
+[Zerobus documentation](https://docs.databricks.com/aws/en/ingestion/zerobus-overview) for the
 regions your cloud supports. Service principals in Databricks Free Edition cannot
 authenticate to Zerobus, so use a workspace on a paid plan.
 
