@@ -16,6 +16,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/worker-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "filament.worker.selectorLabels" . | nindent 8 }}
+        {{- include "filament.podLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.worker.serviceAccountName" . }}
       automountServiceAccountToken: false

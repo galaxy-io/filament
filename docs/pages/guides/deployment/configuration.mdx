@@ -211,6 +211,7 @@ sets them from its `worker` values.
 | `K8S_KUBECONFIG` | in-cluster configuration | Kubeconfig path. Falls back to `KUBECONFIG` |
 | `K8S_WORKER_SERVICE_ACCOUNT` | namespace default | ServiceAccount assigned to worker pods |
 | `K8S_WORKER_APP_NAME` | `filament` | Value of the worker's `app.kubernetes.io/name` label |
+| `K8S_WORKER_INSTANCE` | unset | Value of the worker's `app.kubernetes.io/instance` label |
 | `K8S_WORKER_IMAGE_PULL_POLICY` | `IfNotPresent` | Worker image pull policy |
 | `K8S_WORKER_RESTART_POLICY` | `Never` | Worker pod restart policy |
 | `K8S_WORKER_TERMINATION_GRACE_SECONDS` | Kubernetes default | Worker termination grace period |

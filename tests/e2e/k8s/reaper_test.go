@@ -124,7 +124,7 @@ func waitJobActive(t *testing.T, ctx context.Context, cluster *testcontainers.K3
 	defer cancel()
 	for {
 		jobs, err := cluster.Clientset.BatchV1().Jobs(namespace).List(waitCtx, metav1.ListOptions{
-			LabelSelector: "filament.galaxy.io/run-id=" + string(run),
+			LabelSelector: "filament.getgalaxy.io/run-id=" + string(run),
 		})
 		if err == nil && len(jobs.Items) == 1 && jobs.Items[0].Status.Active > 0 {
 			return jobs.Items[0].Name
