@@ -22,11 +22,7 @@ func TestManifests(t *testing.T) {
 	}
 	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatalf("read manifest: %v", err)
-			}
-			m, err := manifest.Parse(data)
+			m, err := manifest.Load(path)
 			if err != nil {
 				t.Fatalf("parse manifest: %v", err)
 			}

@@ -20,7 +20,7 @@ var (
 	ValidPaginationTypes  = []string{"cursor", "offset", "page", "link_header", "next_url", "none", ""}
 	ValidPaginationInject = []string{"body", "query", "header", ""}
 
-	ValidIncrementalInject = []string{"query", "body", "header"}
+	ValidIncrementalInject = []string{"query", "body", "header", "state"}
 	ValidComparators       = []string{"lex", "numeric", "time", ""}
 
 	ValidStreamTypes = []string{"ndjson", "sse", "chunked_array"}

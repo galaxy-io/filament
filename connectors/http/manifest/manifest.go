@@ -53,6 +53,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -63,6 +64,7 @@ const SupportedVersion = 1
 
 // Manifest is the root document describing one HTTP API connector.
 type Manifest struct {
+	Includes     []string              `yaml:"includes,omitempty"`
 	Version      int                   `yaml:"version"`
 	Name         string                `yaml:"name"`
 	DisplayName  string                `yaml:"display_name,omitempty"`
@@ -101,6 +103,14 @@ type ConfigCondition struct {
 // ConfigSpec declares one user-facing connector configuration field. Enum is
 // the ordered set of choices for enum and list fields.
 type ConfigSpec struct {
+	Order    int      `yaml:"order,omitempty"` // positive display order, before unordered fields
+	Pattern  string   `yaml:"pattern,omitempty"`
+	Format   string   `yaml:"format,omitempty"`
+	Minimum  *int     `yaml:"minimum,omitempty"`
+	Maximum  *int     `yaml:"maximum,omitempty"`
+	Requires []string `yaml:"requires,omitempty"`
+	Before   string   `yaml:"before,omitempty"`
+
 	VisibleWhen *ConfigCondition  `yaml:"visible_when,omitempty"`
 	Type        string            `yaml:"type"`
 	Required    bool              `yaml:"required,omitempty"`
@@ -162,6 +172,8 @@ type ScopeSpec struct {
 
 // Connection configures the base URL, auth, rate limit, and shared headers.
 type Connection struct {
+	BaseURLField   string            `yaml:"base_url_field,omitempty"`
+	BaseURLs       map[string]string `yaml:"base_urls,omitempty"`
 	BaseURL        string            `yaml:"base_url"`
 	Auth           AuthSpec          `yaml:"auth"`
 	RateLimit      RateLimit         `yaml:"rate_limit"`
@@ -239,21 +251,29 @@ func (a *AuthSpec) UnmarshalYAML(node *yaml.Node) error {
 	case "oauth2":
 		a.Type = "oauth2_cc"
 		var spec struct {
-			TokenURL     string            `yaml:"token_url"`
-			ClientID     string            `yaml:"client_id"`
-			ClientSecret string            `yaml:"client_secret"`
-			Scope        string            `yaml:"scope"`
-			GrantType    string            `yaml:"grant_type"`
-			RefreshToken string            `yaml:"refresh_token"`
-			HeaderPrefix string            `yaml:"header_prefix"`
-			Params       map[string]string `yaml:"params"`
+			TokenURL       string            `yaml:"token_url"`
+			ManagedRefresh bool              `yaml:"managed_refresh"`
+			Binding        []string          `yaml:"binding"`
+			FallbackToken  string            `yaml:"fallback_token"`
+			ClientID       string            `yaml:"client_id"`
+			ClientSecret   string            `yaml:"client_secret"`
+			ClientAuth     string            `yaml:"client_auth"`
+			Scope          string            `yaml:"scope"`
+			GrantType      string            `yaml:"grant_type"`
+			RefreshToken   string            `yaml:"refresh_token"`
+			HeaderPrefix   string            `yaml:"header_prefix"`
+			Params         map[string]string `yaml:"params"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
+		a.Params["managed_refresh"] = spec.ManagedRefresh
+		a.Params["binding"] = spec.Binding
+		a.Params["fallback_token"] = referenceTemplate(spec.FallbackToken)
 		a.Params["token_url"] = spec.TokenURL
 		a.Params["client_id"] = referenceTemplate(spec.ClientID)
 		a.Params["client_secret"] = referenceTemplate(spec.ClientSecret)
+		a.Params["client_auth"] = spec.ClientAuth
 		a.Params["scope"] = spec.Scope
 		a.Params["grant_type"] = spec.GrantType
 		a.Params["refresh_token"] = referenceTemplate(spec.RefreshToken)
@@ -305,15 +325,20 @@ type DynamicLimit struct {
 // Resource declares one extractable endpoint and how to page, decode, and
 // incrementally track it.
 type Resource struct {
-	Name          string    `yaml:"name"`
-	EmitAs        string    `yaml:"emit_as,omitempty"`
-	Path          string    `yaml:"path"`
-	Method        string    `yaml:"method"`
-	Mode          string    `yaml:"mode"` // paginated | stream (default paginated)
-	PrimaryKey    []string  `yaml:"primary_key"`
-	Fields        FieldList `yaml:"fields,omitempty"`
-	UseFields     []string  `yaml:"use_fields,omitempty"`
-	ExcludeFields []string  `yaml:"exclude_fields,omitempty"`
+	RestartOnResume bool      `yaml:"restart_on_resume,omitempty"`
+	OmitEmptyQuery  bool      `yaml:"omit_empty_query,omitempty"`
+	RequiredConfig  []string  `yaml:"required_config,omitempty"`
+	ForEachConfig   string    `yaml:"for_each_config,omitempty"`
+	Name            string    `yaml:"name"`
+	EmitAs          string    `yaml:"emit_as,omitempty"`
+	Path            string    `yaml:"path"`
+	Method          string    `yaml:"method"`
+	Mode            string    `yaml:"mode"` // paginated | stream (default paginated)
+	PrimaryKey      []string  `yaml:"primary_key"`
+	Fields          FieldList `yaml:"fields,omitempty"`
+	FieldOverrides  FieldList `yaml:"field_overrides,omitempty"`
+	UseFields       []string  `yaml:"use_fields,omitempty"`
+	ExcludeFields   []string  `yaml:"exclude_fields,omitempty"`
 	// Records is concise syntax for response.root + response.records_path.
 	// "$" means an array at the document root; "$.data.items" selects a path.
 	Records string `yaml:"records,omitempty"`
@@ -337,6 +362,11 @@ type Resource struct {
 
 // FieldSpec maps a response path to a typed output field.
 type FieldSpec struct {
+	Value     *string  `yaml:"value,omitempty"`
+	Tuple     []string `yaml:"tuple,omitempty"`
+	Precision int      `yaml:"precision,omitempty"`
+	Scale     int      `yaml:"scale,omitempty"`
+
 	MaxString string            `yaml:"max_string,omitempty"` // maximum nonempty string child of an array
 	Name      string            `yaml:"name"`
 	Path      string            `yaml:"path"`
@@ -366,6 +396,11 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			field.Type = strings.TrimSuffix(value.Value, "?")
 		} else {
 			type valueSpec struct {
+				Value     *string  `yaml:"value,omitempty"`
+				Tuple     []string `yaml:"tuple,omitempty"`
+				Precision int      `yaml:"precision,omitempty"`
+				Scale     int      `yaml:"scale,omitempty"`
+
 				MaxString string            `yaml:"max_string,omitempty"`
 				Path      string            `yaml:"path"`
 				Type      string            `yaml:"type"`
@@ -377,6 +412,7 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			if err := value.Decode(&spec); err != nil {
 				return fmt.Errorf("field %q: %w", name, err)
 			}
+			field.Value, field.Tuple, field.Precision, field.Scale = spec.Value, spec.Tuple, spec.Precision, spec.Scale
 			field.MaxString = spec.MaxString
 			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
 			if field.Path == "" && len(field.Shape) == 0 {
@@ -397,6 +433,12 @@ type BodySpec struct {
 
 // ResponseSpec configures where records live in the response body.
 type ResponseSpec struct {
+	Match           map[string]string `yaml:"match,omitempty"`
+	RequiredObjects []string          `yaml:"required_objects,omitempty"`
+	StrictRecords   bool              `yaml:"strict_records,omitempty"`
+	EmptyObject     string            `yaml:"empty_object,omitempty"`
+	Unwrap          *UnwrapSpec       `yaml:"unwrap,omitempty"`
+
 	Root        string             `yaml:"root"` // array | object (default object)
 	RecordsPath string             `yaml:"records_path"`
 	Cardinality string             `yaml:"cardinality,omitempty"`  // many (default) | one
@@ -405,6 +447,13 @@ type ResponseSpec struct {
 	Empty       *EmptyResponseSpec `yaml:"empty,omitempty"`
 	Records     string             `yaml:"records,omitempty"`
 	Pagination  *PaginationSpec    `yaml:"pagination,omitempty"`
+}
+
+// UnwrapSpec flattens exactly one tagged object while retaining wrapper fields.
+type UnwrapSpec struct {
+	Variants  []string `yaml:"variants"`
+	Tag       string   `yaml:"tag"`
+	Remainder string   `yaml:"remainder"`
 }
 
 // EmptyResponseSpec recognizes an API's empty-result error by status and an
@@ -425,6 +474,9 @@ type ErrorSpec struct {
 
 // PaginationSpec configures how list endpoints are paged.
 type PaginationSpec struct {
+	Start        int    `yaml:"start,omitempty"`
+	PageSizeFrom string `yaml:"page_size_from,omitempty"`
+
 	Strict bool   `yaml:"strict,omitempty"` // require an explicit cursor envelope, including terminal pages
 	Type   string `yaml:"type"`             // cursor | offset | page | link_header | next_url | none
 
@@ -516,19 +568,22 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	case "offset":
 		var spec struct {
-			More     string `yaml:"more"`
-			Offset   string `yaml:"offset"`
-			Limit    string `yaml:"limit"`
-			PageSize int    `yaml:"page_size"`
+			Start        int    `yaml:"start"`
+			PageSizeFrom string `yaml:"page_size_from"`
+			More         string `yaml:"more"`
+			Offset       string `yaml:"offset"`
+			Limit        string `yaml:"limit"`
+			PageSize     int    `yaml:"page_size"`
 		}
 		if err := value.Decode(&spec); err != nil {
 			return err
 		}
 		offsetTarget, offsetParam := paginationTarget(spec.Offset)
 		limitTarget, limitParam := paginationTarget(spec.Limit)
-		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body") {
-			return fmt.Errorf("offset pagination fields must share a query or body target")
+		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body" && offsetTarget != "state") {
+			return fmt.Errorf("offset pagination fields must share a query, body, or state target")
 		}
+		p.Start, p.PageSizeFrom = spec.Start, spec.PageSizeFrom
 		p.HasMorePath = spec.More
 		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
@@ -559,7 +614,7 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 // targets. Only known injection targets act as prefixes, so a dotted query
 // parameter name like pagination.page passes through verbatim.
 func paginationTarget(field string) (string, string) {
-	for _, target := range []string{"query", "body", "header"} {
+	for _, target := range []string{"query", "body", "header", "state"} {
 		if param, ok := strings.CutPrefix(field, target+"."); ok {
 			return target, param
 		}
@@ -569,6 +624,8 @@ func paginationTarget(field string) (string, string) {
 
 // IncrementalSpec configures watermark-based incremental extraction.
 type IncrementalSpec struct {
+	CommitOnComplete bool   `yaml:"commit_on_complete,omitempty"`
+	ValueSuffix      string `yaml:"value_suffix,omitempty"`
 	// ResponseCursor persists an opaque terminal response token across runs.
 	ResponseCursor string `yaml:"response_cursor,omitempty"`
 	CursorField    string `yaml:"cursor_field"`
@@ -631,11 +688,12 @@ type StreamSpec struct {
 
 // Load reads, parses, validates, and version-checks a manifest at path.
 func Load(path string) (*Manifest, error) {
-	data, err := os.ReadFile(path)
+	root, err := os.OpenRoot(filepath.Dir(path))
 	if err != nil {
 		return nil, fmt.Errorf("read manifest: %w", err)
 	}
-	return Parse(data)
+	defer func() { _ = root.Close() }()
+	return LoadFS(root.FS(), filepath.Base(path))
 }
 
 // Parse validates + decodes a YAML manifest byte slice. Two-phase validation:
@@ -652,6 +710,9 @@ func Parse(data []byte) (*Manifest, error) {
 	dec.KnownFields(true)
 	if err := dec.Decode(&m); err != nil {
 		return nil, fmt.Errorf("parse manifest: %w", err)
+	}
+	if len(m.Includes) > 0 {
+		return nil, fmt.Errorf("manifest includes require Load or LoadFS with a filesystem")
 	}
 	if m.Version != SupportedVersion {
 		return nil, fmt.Errorf("unsupported manifest version %d (want %d)", m.Version, SupportedVersion)
