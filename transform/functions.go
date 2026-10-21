@@ -24,7 +24,10 @@ func Functions() []FunctionSpec {
 
 // FunctionsFor returns the functions that accept a column of the given type
 // in some argument, in catalog order. It is the same acceptance the compiler
-// applies, so a builder offering these never proposes a call Compile rejects.
+// applies, so a builder offering these never proposes a call Compile rejects,
+// with one exception. The type carries no precision, so the comparisons are
+// listed for every decimal, and Compile refuses them on a decimal carried as
+// text.
 func FunctionsFor(t rowmodel.LogicalType) []FunctionSpec {
 	var out []FunctionSpec
 	for _, spec := range Functions() {
