@@ -37,6 +37,12 @@ func (*Source) Validate(cfg filament.Config) error {
 	if u.Scheme != "rabbitmq-stream" && u.Scheme != "rabbitmq-stream+tls" {
 		return fmt.Errorf("rabbitmq: unsupported uri scheme %q", u.Scheme)
 	}
+	if u.Hostname() == "" {
+		return errors.New("rabbitmq: uri must include a hostname")
+	}
+	if u.Fragment != "" {
+		return errors.New("rabbitmq: uri must not include a fragment")
+	}
 	return nil
 }
 
