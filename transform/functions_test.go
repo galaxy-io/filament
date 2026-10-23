@@ -1,9 +1,17 @@
 package transform
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/memory"
+
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -78,11 +86,13 @@ func TestCompileOrderableDecimalAndTimeComparisons(t *testing.T) {
 					}}}},
 				},
 			}
+			// A decimal needs a precision to be compared as decimal128
+			// rather than as text.
 			schema := rowmodel.Schema{
 				Resource: "items",
 				Fields: []rowmodel.Field{
-					{Name: "left", Logical: typ},
-					{Name: "right", Logical: typ},
+					{Name: "left", Logical: typ, Precision: 12, Scale: 2},
+					{Name: "right", Logical: typ, Precision: 12, Scale: 2},
 				},
 			}
 
@@ -93,6 +103,92 @@ func TestCompileOrderableDecimalAndTimeComparisons(t *testing.T) {
 			got := plan.Schema().Fields[2].Logical
 			if got != rowmodel.LogicalBool {
 				t.Fatalf("comparison result type = %s, want bool", got)
+			}
+		})
+	}
+}
+
+// TestCompileRejectsTextDecimalComparison covers decimals arrowbatch carries
+// as text: no precision (Postgres numeric without a typmod) or more than 38
+// digits. Compared as strings, 10 > 9 would be false and 1.0 = 1.00 too.
+func TestCompileRejectsTextDecimalComparison(t *testing.T) {
+	for _, precision := range []int{0, 39, 40} {
+		for _, fn := range []string{"eq", "neq", "gt", "gte", "lt", "lte"} {
+			t.Run(fmt.Sprintf("%s precision %d", fn, precision), func(t *testing.T) {
+				cond := Expr{Fn: fn, Args: []Expr{{Col: "left"}, {Col: "right"}}}
+				// The same comparison as a computed column and as a where
+				// condition, which compiles on its own path.
+				for _, tc := range []struct {
+					step Step
+					path string
+				}{
+					{Step{Compute: map[string]Expr{"compared": cond}}, `resources["items"].steps[0].compute["compared"].` + fn + `[0]`},
+					{Step{Compute: map[string]Expr{"flag": {Lit: "x"}}, Where: &cond}, `resources["items"].steps[0].where.` + fn + `[0]`},
+				} {
+					definition := &Definition{Version: 1, Resources: map[string]Resource{"items": {Steps: []Step{tc.step}}}}
+					schema := rowmodel.Schema{
+						Resource: "items",
+						Fields: []rowmodel.Field{
+							{Name: "left", Logical: rowmodel.LogicalDecimal, Precision: precision},
+							{Name: "right", Logical: rowmodel.LogicalDecimal, Precision: precision},
+						},
+					}
+					_, err := Compile(definition, schema)
+					var errs *Errors
+					if !errors.As(err, &errs) || len(errs.Issues) != 1 {
+						t.Fatalf("Compile %s over decimal precision %d = %v, want one issue", fn, precision, err)
+					}
+					if got := errs.Issues[0]; got.Path != tc.path || !strings.Contains(got.Message, "carried as text") {
+						t.Errorf("issue = %q: %q, want %q: carried as text", got.Path, got.Message, tc.path)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestApplyComparesBoundedDecimalsNumerically checks that decimals stored as
+// decimal128 still compile and compare as numbers, up to 38 digits.
+func TestApplyComparesBoundedDecimalsNumerically(t *testing.T) {
+	for _, precision := range []int{12, 38} {
+		t.Run(fmt.Sprintf("precision %d", precision), func(t *testing.T) {
+			definition := &Definition{Version: 1, Resources: map[string]Resource{"items": {Steps: []Step{{Compute: map[string]Expr{
+				"greater": {Fn: "gt", Args: []Expr{{Col: "left"}, {Col: "right"}}},
+				"equal":   {Fn: "eq", Args: []Expr{{Col: "left"}, {Col: "right"}}},
+			}}}}}}
+			schema := rowmodel.Schema{
+				Resource: "items",
+				Fields: []rowmodel.Field{
+					{Name: "left", Logical: rowmodel.LogicalDecimal, Precision: precision, Scale: 2},
+					{Name: "right", Logical: rowmodel.LogicalDecimal, Precision: precision, Scale: 2},
+				},
+			}
+			plan, err := Compile(definition, schema)
+			if err != nil {
+				t.Fatalf("Compile: %v", err)
+			}
+			b := array.NewRecordBuilder(memory.DefaultAllocator, arrowbatch.Schema(schema))
+			defer b.Release()
+			for i, values := range [][]string{{"10", "-1", "1.0", "2"}, {"9", "-2", "1.00", "10"}} {
+				for _, v := range values {
+					if err := b.Field(i).AppendValueFromString(v); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			in := b.NewRecordBatch()
+			defer in.Release()
+			out, err := plan.Apply(context.Background(), memory.DefaultAllocator, in)
+			if err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			defer out.Release()
+			greater := out.Column(out.Schema().FieldIndices("greater")[0]).(*array.Boolean)
+			equal := out.Column(out.Schema().FieldIndices("equal")[0]).(*array.Boolean)
+			for i, want := range []struct{ greater, equal bool }{{true, false}, {true, false}, {false, true}, {false, false}} {
+				if greater.Value(i) != want.greater || equal.Value(i) != want.equal {
+					t.Errorf("row %d gt = %v eq = %v, want %v %v", i, greater.Value(i), equal.Value(i), want.greater, want.equal)
+				}
 			}
 		})
 	}

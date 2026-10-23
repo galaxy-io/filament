@@ -173,7 +173,7 @@ func newLiteralNode(v any, t valueType) literalNode {
 // arrowbatch carries t as text rather than decimal128, in which case no
 // literal can stand in for it.
 func decimalLiteral(v any, t valueType) (n decimal128.Num, dt *arrow.Decimal128Type, ok bool) {
-	dt, ok = arrowbatch.Type(rowmodel.Field{Logical: t.logical, Precision: t.precision, Scale: t.scale}).(*arrow.Decimal128Type)
+	dt, ok = decimal128Of(t)
 	if !ok {
 		return n, nil, false
 	}
@@ -199,6 +199,14 @@ func decimalLiteral(v any, t valueType) (n decimal128.Num, dt *arrow.Decimal128T
 		return n, nil, false
 	}
 	return decimal128.FromBigInt(unscaled), dt, true
+}
+
+// decimal128Of returns the decimal128 type a decimal of type t is stored as.
+// ok is false when arrowbatch carries t as text, which it does for a decimal
+// with no precision or more than 38 digits.
+func decimal128Of(t valueType) (dt *arrow.Decimal128Type, ok bool) {
+	dt, ok = arrowbatch.Type(rowmodel.Field{Logical: t.logical, Precision: t.precision, Scale: t.scale}).(*arrow.Decimal128Type)
+	return dt, ok
 }
 
 func (n literalNode) eval(context.Context, *frame) (compute.Datum, error) {

@@ -116,8 +116,8 @@ column it sits beside when the value fits. `{eq: [{col: quantity}, 1]}`
 compares an `int16` column with an `int16` literal. A literal that does not
 fit, such as `70000` beside an `int16` column, is an error. A `decimal` column
 takes an integer or fractional literal when the literal needs no more scale or
-precision than the column has. A decimal column with precision above 38 is
-carried as text, and no literal can stand beside it.
+precision than the column has. A decimal column with no precision, or with
+precision above 38, is carried as text, and no literal can stand beside it.
 
 ## Functions
 
@@ -198,7 +198,9 @@ result has that type. Division by zero and integer overflow fail the batch.
 Both sides share one type, at least one is a column, and a literal widens to
 the column's type. Orderable types are the integer and float types, `decimal`,
 `date`, `time`, `timestamp`, and `timestamptz`. A null on either side compares
-to null.
+to null. A decimal column carried as text cannot be compared, since its digits
+would compare as strings. To compare one, declare a precision of 38 or less
+on the source column, such as `numeric(18,2)` in Postgres.
 
 ### Logic
 

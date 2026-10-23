@@ -330,7 +330,8 @@ func comparison(name, display, symbol, desc string, types []rowmodel.LogicalType
 			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol, ConditionOperator: true,
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: types}, {Name: "right", DisplayName: "Compare with", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
-		exec: exec,
+		validate: decimalNotText(name),
+		exec:     exec,
 	}
 }
 
@@ -440,6 +441,23 @@ func validPattern(name string, index int) func([]argType) error {
 		pattern, _ := args[index].value.(string)
 		if _, err := regexp.Compile(pattern); err != nil {
 			return argErrorf(index, "%s pattern: %w", name, err)
+		}
+		return nil
+	}
+}
+
+// decimalNotText refuses a decimal column carried as text, one with no
+// precision or more than 38 digits. Arrow would compare its digits as
+// strings, so 10 would sort below 9 and 1.0 would not equal 1.00.
+func decimalNotText(name string) func([]argType) error {
+	return func(args []argType) error {
+		for i, a := range args {
+			if a.logical != rowmodel.LogicalDecimal {
+				continue
+			}
+			if _, ok := decimal128Of(a.valueType); !ok {
+				return argErrorf(i, "%s cannot compare %s: a decimal with no precision or more than 38 digits is carried as text", name, a.valueType)
+			}
 		}
 		return nil
 	}
