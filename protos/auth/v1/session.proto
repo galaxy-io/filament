@@ -16,6 +16,10 @@ message GetAuthConfigResponse {
   // invite_only means sign-up is closed: Register is refused and the UI
   // offers no way to create an organization. People join by invitation.
   bool invite_only = 3;
+  // login_url is where people sign in when authentication happens upstream
+  // of filament, behind a gateway that forwards identity headers. Set with
+  // an empty issuer: filament authenticates but has no login of its own.
+  string login_url = 4;
 }
 
 // LoginRequest carries the credentials filament's own login page collected.

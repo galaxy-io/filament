@@ -30,7 +30,7 @@ type Server struct {
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
-	identity  identity.Provider
+	identity  identity.Authenticator
 	// defaultTenant scopes every request when identity is disabled.
 	defaultTenant filament.TenantID
 	log           filament.Logger
@@ -46,11 +46,12 @@ func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.s
 // MetricsService unimplemented.
 func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
 
-// WithIdentity sets the authentication provider. Unset leaves the API
-// unauthenticated and AuthService unimplemented apart from its config
-// document, the same way an unset metrics store leaves MetricsService
-// unimplemented.
-func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
+// WithIdentity sets the authenticator. Unset leaves the API unauthenticated
+// and AuthService unimplemented apart from its config document, the same way
+// an unset metrics store leaves MetricsService unimplemented. A full
+// identity.Provider also serves AuthService; any other Authenticator leaves
+// sign-in upstream and AuthService answers only its config document.
+func WithIdentity(a identity.Authenticator) Option { return func(s *Server) { s.identity = a } }
 
 // WithDefaultTenant sets the only tenant available when authentication is
 // disabled. Authenticated requests always use the identity provider's tenant.
@@ -107,11 +108,17 @@ func (a *Server) Mount(mux *http.ServeMux) {
 	mux.Handle(path, withCORS(handler))
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
-	// The provider serves AuthService directly; without one, a stub keeps
+	// A provider serves AuthService directly. Any other authenticator leaves
+	// sign-in upstream, so a stub reports where; without one, a stub keeps
 	// the config document answering so the UI can tell auth is off.
 	var authHandler authv1connect.AuthServiceHandler = disabledAuth{}
-	if a.identity != nil {
-		authHandler = a.identity
+	switch p := a.identity.(type) {
+	case identity.Provider:
+		authHandler = p
+	case identity.ExternalLogin:
+		authHandler = externalAuth{loginURL: p.LoginURL()}
+	case identity.Authenticator:
+		authHandler = externalAuth{}
 	}
 	path, handler = authv1connect.NewAuthServiceHandler(authHandler, opts...)
 	mux.Handle(path, withCORS(handler))
