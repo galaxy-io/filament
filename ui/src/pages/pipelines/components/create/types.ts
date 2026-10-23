@@ -30,6 +30,7 @@ export interface CreatePipelineModalState {
   resourceSelection: Record<Connection["id"], Record<Resource["name"], boolean>>;
   resourceReadModes: Record<Connection["id"], Record<Resource["name"], ReadMode>>;
   resourceCursors: Record<Connection["id"], Record<Resource["name"], ResourceColumn["name"]>>;
+  resourceWriteModes: Record<Connection["id"], Record<Resource["name"], WriteMode>>;
   sinkWriteModes: Record<Connection["id"], WriteMode>;
   nodeConfigs: Record<Connection["id"], PipelineNodeConfig>;
   name: Pipeline["name"];
@@ -48,6 +49,8 @@ export interface CreatePipelineModalResourceRow {
   isSelected: boolean;
   readMode: ReadMode;
   readModeOptions: ReadMode[];
+  writeMode: WriteMode;
+  writeModeOptions: WriteMode[];
   cursorField: ResourceColumn["name"];
   cursorOptions: ResourceColumn[];
   managedIncremental: boolean;

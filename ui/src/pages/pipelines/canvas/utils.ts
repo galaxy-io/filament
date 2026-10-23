@@ -94,19 +94,6 @@ export const getEdgeResourceStatus = (
   });
 };
 
-export const hasSiblingIncrementalRead = (
-  edges: CanvasEdge[],
-  { source, target }: Pick<CanvasEdge, "source" | "target">,
-  excludedEdgeId?: CanvasEdge["id"],
-): boolean =>
-  edges.some(
-    (edge) =>
-      edge.source === source &&
-      edge.target === target &&
-      edge.id !== excludedEdgeId &&
-      edge.data?.readMode === ReadMode.INCREMENTAL,
-  );
-
 const getTransformEntryStepCount = (entry: JsonValue | undefined): number =>
   entry !== undefined && isJsonObject(entry) && Array.isArray(entry.steps) ? entry.steps.length : 0;
 
