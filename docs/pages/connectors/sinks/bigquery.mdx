@@ -1,6 +1,7 @@
 ---
-title: "Google BigQuery"
-description: "Write typed analytical tables to Google BigQuery"
+title: "Google BigQuery sink connector"
+sidebarTitle: "Google BigQuery"
+description: "Write typed analytical tables to Google BigQuery with Filament, the open-source data movement engine."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-bigquery-dark.svg"
 ---
 
@@ -172,3 +173,7 @@ data to gRPC; response wait includes remaining network transfer and service
 processing, so it is not a measurement of BigQuery processing alone.
 DEBUG includes fast operations too. `bigquery.write.retry` reports failed append
 attempts and whether they can be retried. These events contain no row payloads.
+
+## Related guides
+
+- [Replicate PostgreSQL to BigQuery with CDC](/pages/how-to/postgres-to-bigquery)

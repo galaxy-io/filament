@@ -35,6 +35,38 @@ func (q *Queries) ReadSecret(ctx context.Context, ref string) (*ReadSecretRow, e
 	return &i, err
 }
 
+const rotateSecret = `-- name: RotateSecret :execrows
+UPDATE secrets SET ciphertext = ?1, nonce = ?2, key_id = ?3,
+    metadata = ?4, updated_at = ?5
+WHERE tenant_id = ?6 AND ref = ?7
+`
+
+type RotateSecretParams struct {
+	Ciphertext []byte
+	Nonce      []byte
+	KeyID      string
+	Metadata   string
+	UpdatedAt  int64
+	TenantID   string
+	Ref        string
+}
+
+func (q *Queries) RotateSecret(ctx context.Context, arg RotateSecretParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, rotateSecret,
+		arg.Ciphertext,
+		arg.Nonce,
+		arg.KeyID,
+		arg.Metadata,
+		arg.UpdatedAt,
+		arg.TenantID,
+		arg.Ref,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const writeSecret = `-- name: WriteSecret :exec
 INSERT INTO secrets (tenant_id, ref, ciphertext, nonce, key_id, metadata, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)

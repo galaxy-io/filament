@@ -1,6 +1,7 @@
 ---
-title: "Google Cloud Storage"
-description: "Write NDJSON, JSON, or Parquet objects to Google Cloud Storage"
+title: "Google Cloud Storage sink connector"
+sidebarTitle: "Google Cloud Storage"
+description: "Write NDJSON, JSON, or Parquet objects to Google Cloud Storage with Filament, the open-source data movement engine."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-gcs-dark.svg"
 ---
 
@@ -60,3 +61,7 @@ after all resource writers close successfully.
 `Abort` cancels unfinished resumable writers. If `Commit` fails after some
 resource objects have finalized, those objects can remain without a success
 manifest, matching the S3 sink's resource-level atomicity.
+
+## Related guides
+
+- [Postgres to GCS replication guide](https://www.getgalaxy.io/articles/postgres-to-gcs-the-complete-replication-guide)

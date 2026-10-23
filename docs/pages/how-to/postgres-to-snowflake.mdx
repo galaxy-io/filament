@@ -1,0 +1,290 @@
+---
+title: "Replicate PostgreSQL to Snowflake with CDC"
+sidebarTitle: "PostgreSQL to Snowflake"
+description: "Replicate PostgreSQL to Snowflake with change data capture in Filament. Set up logical replication, then merge every insert, update, and delete."
+---
+
+Filament replicates PostgreSQL to Snowflake with change data capture. It reads
+the `pgoutput` logical replication stream from a slot it creates for the
+pipeline, snapshots each table through the same consistent point, and merges
+inserts, updates, and deletes into typed Snowflake tables. Data is staged as
+Parquet in the Snowflake user's internal stage. Each run is a bounded catch-up
+from the last durable position to the current WAL position, so you schedule
+runs as often as you need fresh data.
+
+<Note>
+  The [PostgreSQL source](/pages/connectors/sources/postgres) is **beta** and
+  the [Snowflake sink](/pages/connectors/sinks/snowflake) is **alpha**.
+</Note>
+
+## How it works
+
+1. **Snapshot.** The first run creates a replication slot with an exported
+   snapshot and reads every selected table through it.
+2. **Catch up.** Later runs replay changes from the slot up to the current WAL
+   position and stop. A run with no changes still saves the position.
+3. **Merge.** `merge` writes upsert inserts and updates by primary key and
+   delete removed rows, so Snowflake mirrors PostgreSQL.
+
+In a test on a 1.1M-row database, a catch-up run after 1,000 updates, 200
+deletes, and 301 inserts moved exactly 1,501 records, and the next run with no
+changes moved 0.
+
+## Prerequisites
+
+- PostgreSQL with `wal_level=logical`, and a primary key on every replicated
+  table
+- A Snowflake account where you can create a role, warehouse, database, and
+  user
+- A Filament deployment backed by the PostgreSQL datastore, with the CLI
+  pointed at it through `filament context add` and `filament context use`
+
+<Note>
+  CDC needs a datastore that can durably track replication streams. The local
+  CLI context stores state in SQLite and rejects CDC pipelines with
+  `cannot durably admit replication streams`. Deploy Filament on
+  [Kubernetes](/pages/guides/deployment/kubernetes),
+  [Railway](/pages/guides/deployment/railway), or
+  [Render](/pages/guides/deployment/render), or run the PostgreSQL-backed stack
+  from [Local development](/pages/guides/contributing/local-development) to try
+  it on a laptop.
+</Note>
+
+## 1. Prepare PostgreSQL
+
+Enable logical replication and restart PostgreSQL. On RDS, Cloud SQL, or Azure,
+set the equivalent parameter on the instance instead.
+
+```sql
+ALTER SYSTEM SET wal_level = logical;
+```
+
+Create a replication user and grant read access:
+
+```sql
+CREATE ROLE filament WITH LOGIN REPLICATION PASSWORD 'change-me';
+GRANT USAGE ON SCHEMA public TO filament;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO filament;
+```
+
+Create the publication as a table owner or superuser:
+
+```sql
+CREATE PUBLICATION filament FOR TABLE public.customers, public.orders;
+```
+
+Filament can create and maintain the publication itself, but only when its
+user has permission to create publications on those tables. A plain
+replication user does not, and the first run fails with
+`create publication "filament": ERROR: permission denied`. Creating the
+publication yourself and setting `manage_publication` to `false` (step 3)
+avoids granting Filament ownership of your tables.
+
+For tables with large `text`, `jsonb`, or `bytea` values that change without
+being rewritten, set full replica identity:
+
+```sql
+ALTER TABLE public.orders REPLICA IDENTITY FULL;
+```
+
+## 2. Prepare Snowflake
+
+Generate a key pair for the service user:
+
+```sh
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out filament_key.p8 -nocrypt
+openssl rsa -in filament_key.p8 -pubout -out filament_key.pub
+grep -v '^-----' filament_key.pub | tr -d '\n'
+```
+
+Then, as an account administrator, create the role, warehouse, database, and
+user, and assign the public key printed above:
+
+```sql
+USE ROLE SECURITYADMIN;
+CREATE ROLE IF NOT EXISTS FILAMENT_ROLE;
+GRANT ROLE FILAMENT_ROLE TO ROLE SYSADMIN;
+
+USE ROLE SYSADMIN;
+CREATE WAREHOUSE IF NOT EXISTS FILAMENT_WAREHOUSE
+  WAREHOUSE_SIZE = XSMALL AUTO_SUSPEND = 60 AUTO_RESUME = TRUE INITIALLY_SUSPENDED = TRUE;
+CREATE DATABASE IF NOT EXISTS FILAMENT_DATABASE;
+GRANT USAGE ON WAREHOUSE FILAMENT_WAREHOUSE TO ROLE FILAMENT_ROLE;
+GRANT USAGE, CREATE SCHEMA ON DATABASE FILAMENT_DATABASE TO ROLE FILAMENT_ROLE;
+
+USE ROLE SECURITYADMIN;
+CREATE USER IF NOT EXISTS FILAMENT_USER
+  TYPE = SERVICE DEFAULT_ROLE = FILAMENT_ROLE DEFAULT_WAREHOUSE = FILAMENT_WAREHOUSE;
+GRANT ROLE FILAMENT_ROLE TO USER FILAMENT_USER;
+ALTER USER FILAMENT_USER SET BINARY_INPUT_FORMAT = 'BASE64';
+ALTER USER FILAMENT_USER SET TIMESTAMP_INPUT_FORMAT = 'AUTO';
+ALTER USER FILAMENT_USER SET RSA_PUBLIC_KEY = '<PUBLIC_KEY_BODY>';
+```
+
+Filament creates the destination schema, so `FILAMENT_ROLE` owns it and can
+create and evolve tables there. The full grant reference is on the
+[Snowflake sink](/pages/connectors/sinks/snowflake#snowflake-setup) page.
+
+## 3. Create the source and sink
+
+```sh
+filament source create app-db \
+  --source-connector postgres \
+  --source-connection-method url \
+  --source-dsn "postgres://filament:change-me@db.internal:5432/shop?sslmode=require" \
+  --source-replication cdc \
+  --source-manage-publication=false
+
+filament sink create snowflake \
+  --sink-connector snowflake \
+  --sink-account myorg-myaccount \
+  --sink-username FILAMENT_USER \
+  --sink-warehouse FILAMENT_WAREHOUSE \
+  --sink-database-name FILAMENT_DATABASE \
+  --sink-role FILAMENT_ROLE \
+  --sink-auth "$(jq -n --rawfile k filament_key.p8 '{type: "key_pair", private_key: $k}')"
+```
+
+`--sink-account` takes the `organization-account` identifier. On a deployed
+server, secret values such as the DSN and private key are stored by the
+deployment's secret provider.
+
+## 4. Create the pipeline and run the snapshot
+
+```sh
+filament source discover app-db
+
+filament pipeline create app-db-to-snowflake \
+  --source app-db \
+  --sink snowflake \
+  --resources customers,orders \
+  --sync-mode cdc \
+  --write-mode merge \
+  --sink-schema SHOP
+
+filament run app-db-to-snowflake
+```
+
+Pass `--sync-mode cdc` explicitly. Without it the CLI fills in the default read
+mode, and a CDC source rejects it with
+`pipeline graph is invalid: CDC connections do not accept a read mode`.
+
+The first run snapshots every selected table. In the test database, that was
+1,100,500 rows across `customers` and `orders`.
+
+## 5. Catch up on changes
+
+Make changes in PostgreSQL:
+
+```sql
+UPDATE orders SET status = 'shipped', updated_at = now() WHERE id BETWEEN 2001 AND 3000;
+DELETE FROM orders WHERE id BETWEEN 5001 AND 5200;
+INSERT INTO orders SELECT 1000500 + g, 1 + g, 1 + g, 2, 19.99, 'placed', now(), now()
+FROM generate_series(1, 300) g;
+UPDATE customers SET country = 'CA', updated_at = now() WHERE id = 42;
+```
+
+Run the pipeline again:
+
+```sh
+filament run app-db-to-snowflake
+```
+
+The run reads only the 1,501 changes. Updated rows are replaced, the 200
+deleted orders are removed, and the 300 new orders are inserted.
+
+## 6. Verify
+
+```sql
+-- PostgreSQL
+SELECT count(*) FROM orders;
+
+-- Snowflake
+SELECT count(*) FROM FILAMENT_DATABASE.SHOP.ORDERS;
+SELECT count(*) FROM FILAMENT_DATABASE.SHOP.ORDERS WHERE id BETWEEN 5001 AND 5200;  -- 0
+```
+
+Each replicated row carries Filament metadata columns: `_filament_run_id`,
+`_filament_run_started_at`, `_filament_operation`,
+`_filament_source_position`, and `_filament_sequence`.
+
+On the source, check replication slot lag:
+
+```sql
+SELECT slot_name, active,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS lag
+FROM pg_replication_slots;
+```
+
+## 7. Schedule it
+
+Add a cron schedule to the pipeline in the [web app](/pages/guides/usage/web) or
+with the [Pipelines API](/pages/api-reference/service/pipelines). Every 5 to 15
+minutes is common. The Snowflake warehouse resumes for each load and suspends
+after `AUTO_SUSPEND`, so the schedule drives most of the Snowflake compute cost.
+
+## Going to production
+
+- **Slot lag:** an unread slot keeps WAL on the source disk. Keep the schedule
+  running, and drop slots for pipelines you delete. Filament stores each
+  generated slot name in the control database's
+  `replication_streams.consumer_name` column.
+- **Start without a snapshot:** `--source-snapshot-mode none` on the pipeline
+  streams from the current position, and the destination fills in as rows
+  change.
+- **History instead of a mirror:** `--write-mode append` keeps every change as a
+  row, with deletes as events.
+- **Schema changes:** new columns are added to Snowflake tables. Renames, type
+  changes, and dropped columns are not applied automatically.
+
+## Troubleshooting
+
+### `create publication "filament": ERROR: permission denied`
+
+The replication user cannot create publications. Create the publication as a
+table owner and set `--source-manage-publication=false`.
+
+### `CDC connections do not accept a read mode`
+
+Add `--sync-mode cdc` to `filament pipeline create`.
+
+### `261004 (08004): failed to auth for unknown reason. HTTP: 404`
+
+The Snowflake account identifier is wrong. Use the `organization-account` form
+shown in Snowsight under your account details.
+
+### `slot is active`
+
+Another client holds the pipeline's replication slot. Stop that consumer or
+wait for the previous run to finish.
+
+More errors are in [Troubleshooting](/pages/how-to/troubleshooting).
+
+## FAQ
+
+### Does Filament replicate deletes from PostgreSQL to Snowflake?
+
+Yes. CDC captures deletes from the WAL, and `merge` removes those rows in
+Snowflake.
+
+### Is the replication continuous?
+
+Each run catches up to the WAL position at the moment it starts and then stops.
+Scheduling runs every few minutes gives near-continuous replication without a
+warehouse that stays running.
+
+### Can I replicate tables without a primary key?
+
+Not with CDC. Copy keyless tables with a separate full replace pipeline.
+
+### Does Filament need superuser access to PostgreSQL?
+
+No. It needs a role with `REPLICATION` and `SELECT` on the tables, plus a
+publication created by a table owner.
+
+## Related
+
+- [Snowflake sink reference](/pages/connectors/sinks/snowflake)
+- [PostgreSQL source reference](/pages/connectors/sources/postgres)
+- [Replicate MySQL to Snowflake with CDC](/pages/how-to/mysql-to-snowflake)
+- [Postgres to Snowflake replication guide](https://www.getgalaxy.io/articles/postgres-to-snowflake-the-complete-replication-guide)

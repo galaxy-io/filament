@@ -58,7 +58,7 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 	}
 
 	jobs, err := cluster.Clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "filament.galaxy.io/run-id=" + string(spec.Run),
+		LabelSelector: "filament.getgalaxy.io/run-id=" + string(spec.Run),
 	})
 	if err != nil {
 		t.Fatalf("list jobs: %v", err)
@@ -68,7 +68,7 @@ func TestK8sDispatchCreatesWorkerJob(t *testing.T) {
 	}
 	job := jobs.Items[0]
 
-	if got := job.Labels["filament.galaxy.io/tenant"]; got != string(spec.Tenant) {
+	if got := job.Labels["filament.getgalaxy.io/tenant"]; got != string(spec.Tenant) {
 		t.Errorf("tenant label = %q, want %q", got, spec.Tenant)
 	}
 	if len(job.Spec.Template.Spec.Containers) != 1 {
@@ -132,7 +132,7 @@ func TestK8sDispatchIsIdempotent(t *testing.T) {
 	}
 
 	jobs, err := cluster.Clientset.BatchV1().Jobs("default").List(ctx, metav1.ListOptions{
-		LabelSelector: "filament.galaxy.io/run-id=" + string(spec.Run),
+		LabelSelector: "filament.getgalaxy.io/run-id=" + string(spec.Run),
 	})
 	if err != nil {
 		t.Fatalf("list jobs: %v", err)

@@ -13,3 +13,8 @@ SELECT ciphertext, nonce, metadata FROM secrets WHERE ref = @ref;
 
 -- name: DeleteSecret :exec
 DELETE FROM secrets WHERE ref = @ref;
+
+-- name: RotateSecret :execrows
+UPDATE secrets SET ciphertext = @ciphertext, nonce = @nonce, key_id = @key_id,
+    metadata = @metadata, updated_at = @updated_at
+WHERE tenant_id = @tenant_id AND ref = @ref;

@@ -41,6 +41,11 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 		return nil, fmt.Errorf("response: body is not valid JSON")
 	}
 
+	for _, path := range e.spec.RequiredObjects {
+		if !gjson.GetBytes(raw, path).IsObject() {
+			return nil, fmt.Errorf("response: required object %q missing or invalid", path)
+		}
+	}
 	var arr gjson.Result
 	if e.spec.Cardinality == "one" {
 		item := gjson.ParseBytes(raw)
@@ -48,6 +53,9 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 			item = gjson.GetBytes(raw, e.spec.RecordsPath)
 		}
 		if !item.Exists() || item.Type == gjson.Null {
+			if e.spec.StrictRecords {
+				return nil, fmt.Errorf("response: missing singleton %q", e.spec.RecordsPath)
+			}
 			return nil, nil
 		}
 		record, err := resultToMap(item)
@@ -56,6 +64,12 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 		}
 		if record == nil {
 			return nil, fmt.Errorf("response: records_path %q does not resolve to an object", e.spec.RecordsPath)
+		}
+		if e.spec.Unwrap != nil {
+			record, err = unwrapRecord(record, *e.spec.Unwrap)
+			if err != nil {
+				return nil, err
+			}
 		}
 		return []map[string]any{record}, nil
 	}
@@ -70,6 +84,12 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 
 	// A missing or explicitly null records path is an empty page
 	if !arr.Exists() || arr.Type == gjson.Null {
+		if e.spec.StrictRecords {
+			envelope := gjson.GetBytes(raw, e.spec.EmptyObject)
+			if arr.Exists() || !envelope.IsObject() || len(envelope.Map()) != 0 {
+				return nil, fmt.Errorf("response: missing or null records %q", e.spec.RecordsPath)
+			}
+		}
 		return nil, nil
 	}
 	if !arr.IsArray() {
@@ -83,7 +103,17 @@ func (e *Extractor) Records(raw []byte) ([]map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if m == nil && e.spec.StrictRecords {
+			return nil, fmt.Errorf("response: record is not an object")
+		}
 		if m != nil {
+			if e.spec.Unwrap != nil {
+				var err error
+				m, err = unwrapRecord(m, *e.spec.Unwrap)
+				if err != nil {
+					return nil, err
+				}
+			}
 			out = append(out, m)
 		}
 	}
@@ -179,4 +209,39 @@ func isEmpty(v gjson.Result) bool {
 		return true
 	}
 	return false
+}
+
+func unwrapRecord(wrapper map[string]any, spec manifest.UnwrapSpec) (map[string]any, error) {
+	var chosen string
+	var record map[string]any
+	for _, variant := range spec.Variants {
+		value, exists := wrapper[variant]
+		if !exists {
+			continue
+		}
+		if chosen != "" {
+			return nil, fmt.Errorf("response: multiple union variants")
+		}
+		var ok bool
+		record, ok = value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("response: union variant is not an object")
+		}
+		chosen = variant
+	}
+	if chosen == "" {
+		return nil, fmt.Errorf("response: no supported union variant")
+	}
+	if _, exists := record[spec.Tag]; exists {
+		return nil, fmt.Errorf("response: union tag conflicts with record")
+	}
+	if _, exists := record[spec.Remainder]; exists {
+		return nil, fmt.Errorf("response: union remainder conflicts with record")
+	}
+	record[spec.Tag] = chosen
+	delete(wrapper, chosen)
+	if len(wrapper) > 0 {
+		record[spec.Remainder] = wrapper
+	}
+	return record, nil
 }

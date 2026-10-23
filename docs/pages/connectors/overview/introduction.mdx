@@ -1,6 +1,7 @@
 ---
-title: "Overview"
-description: "The sources and sinks that plug into Filament, and how mature each one is"
+title: "Connectors and maturity"
+sidebarTitle: "Overview"
+description: "Every source and sink that plugs into Filament, with its maturity level (alpha, beta, stable) and supported replication modes."
 ---
 
 A connector is a source, a sink, or both. Sources read data from an upstream
@@ -53,6 +54,7 @@ Every connector is registered with one of three maturity levels.
 | [Novada](/pages/connectors/sources/novada) | `novada` | alpha | Full |
 | [Pipedrive](/pages/connectors/sources/pipedrive) | `pipedrive` | alpha | Full, incremental |
 | [PostHog](/pages/connectors/sources/posthog) | `posthog` | beta | Full, incremental |
+| [QuickBooks Online](/pages/connectors/sources/qbo) | `qbo` | alpha | Full, incremental (transactions) |
 | [Resend](/pages/connectors/sources/resend) | `resend` | beta | Full |
 | [ServiceTitan](/pages/connectors/sources/servicetitan) | `servicetitan` | alpha | Full, Incremental |
 | [Slack](/pages/connectors/sources/slack) | `slack` | alpha | Full, incremental |
@@ -82,7 +84,9 @@ documented in
 | [Amazon Redshift](/pages/connectors/sinks/redshift) | `redshift` | alpha | Typed tables loaded from S3-staged Parquet manifests |
 | [Meilisearch](/pages/connectors/sinks/meilisearch) | `meilisearch` | alpha | Search documents, one index per resource. Add or replace by primary key |
 | [Iceberg](/pages/connectors/sinks/iceberg) | `iceberg` | alpha | Parquet tables; data commits per resource at run end |
+| [Google BigQuery](/pages/connectors/sinks/bigquery) | `bigquery` | alpha | Typed tables through the Storage Write API. Snapshot, incremental, and CDC |
 | [Amazon S3](/pages/connectors/sinks/aws-s3) | `s3` | alpha | NDJSON objects, one per resource per run |
+| [Google Cloud Storage](/pages/connectors/sinks/gcs) | `gcs` | alpha | NDJSON, JSON, or Parquet objects, one per resource per run |
 | [stdout](/pages/connectors/sinks/standard-output) | `stdout` | stable | NDJSON to standard output, the reference sink |
 
 ## Where to go next

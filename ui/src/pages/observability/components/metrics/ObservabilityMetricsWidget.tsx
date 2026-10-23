@@ -21,6 +21,7 @@ import {
   OBSERVABILITY_METRICS_OTHER_STATUSES,
 } from "@/pages/observability/components/metrics/constants";
 import { OBSERVABILITY_RUNS_SCHEDULED_INPUT } from "@/pages/observability/components/runs/constants";
+import { OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP } from "@/pages/observability/constants";
 import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import { createTimeframeSince } from "@/pages/observability/utils";
 
@@ -32,7 +33,7 @@ import { useListRunsQuery } from "@/api/queries/runs";
 import { mapOptionIdToEnum } from "@/utils/select";
 
 const ObservabilityMetricsWidget: FC = () => {
-  const { timeframe } = useObservabilitySearch();
+  const { timeframe, refreshInterval } = useObservabilitySearch();
 
   const bucketStartMs = useObservabilityBucketStart(timeframe);
 
@@ -53,9 +54,11 @@ const ObservabilityMetricsWidget: FC = () => {
 
   const { data: totalsData, isLoading: isTotalsLoading } = useQueryAggregateQuery({
     input: totalsInput,
+    options: { refetchInterval: OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP[refreshInterval] },
   });
   const { data: statusCountsData, isLoading: isStatusCountsLoading } = useQueryAggregateQuery({
     input: statusCountsInput,
+    options: { refetchInterval: OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP[refreshInterval] },
   });
   const { data: scheduledData, isLoading: isScheduledLoading } = useListRunsQuery({
     input: OBSERVABILITY_RUNS_SCHEDULED_INPUT,

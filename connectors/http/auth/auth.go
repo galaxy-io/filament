@@ -108,6 +108,41 @@ func build(kind string, params map[string]any, creds, env map[string]string) (Au
 		child, _ := choice["params"].(map[string]any)
 		return build(strParam(choice, "type"), child, creds, env)
 	}
+	if kind == "oauth2_cc" && strParam(params, "fallback_token") != "" && creds != nil {
+		scope := template.Scope{Config: creds, Env: env}
+		refresh, err := template.Render(strParam(params, "refresh_token"), scope)
+		if err != nil {
+			return nil, err
+		}
+		if refresh == "" {
+			for _, key := range []string{"client_id", "client_secret"} {
+				value, err := template.Render(strParam(params, key), scope)
+				if err != nil {
+					return nil, err
+				}
+				if value != "" {
+					return nil, fmt.Errorf("oauth: refresh credentials must be supplied together")
+				}
+			}
+			token, err := template.Render(strParam(params, "fallback_token"), scope)
+			if err != nil {
+				return nil, err
+			}
+			if strings.TrimSpace(token) == "" {
+				return nil, fmt.Errorf("oauth: access token or refresh credentials are required")
+			}
+			return build("bearer", map[string]any{"token": strParam(params, "fallback_token")}, creds, env)
+		}
+		for _, key := range []string{"client_id", "client_secret"} {
+			value, err := template.Render(strParam(params, key), scope)
+			if err != nil {
+				return nil, err
+			}
+			if strings.TrimSpace(value) == "" {
+				return nil, fmt.Errorf("oauth: %s is required for refresh", key)
+			}
+		}
+	}
 	if err := validateParamTemplates(kind, params, creds, env); err != nil {
 		return nil, err
 	}

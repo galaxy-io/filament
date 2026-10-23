@@ -6,6 +6,51 @@ import (
 	"testing"
 )
 
+func TestOAuthClientAuthentication(t *testing.T) {
+	const base = `
+version: 1
+name: oauth-test
+display_name: OAuth Test
+description: OAuth client authentication fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+  auth:
+    oauth2:
+      token_url: https://example.com/token
+      client_id: config.client_id
+      client_secret: config.client_secret
+      grant_type: refresh_token
+      refresh_token: config.refresh_token
+      %s
+resources:
+  - name: items
+    path: /items
+`
+	for _, style := range []string{"", "client_secret_post", "client_secret_basic", "guess"} {
+		t.Run(style, func(t *testing.T) {
+			field := ""
+			if style != "" {
+				field = "client_auth: " + style
+			}
+			m, err := Parse([]byte(fmt.Sprintf(base, field)))
+			if style == "guess" {
+				if err == nil {
+					t.Fatal("unsupported client authentication accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m.Connection.Auth.Params["client_auth"] != style {
+				t.Fatal("client authentication method lost during normalization")
+			}
+		})
+	}
+}
+
 func TestEmptyResponseValidation(t *testing.T) {
 	const base = `
 version: 1

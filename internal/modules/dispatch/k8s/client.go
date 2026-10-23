@@ -45,7 +45,7 @@ func (c *client) createJob(ctx context.Context, namespace string, j *batchv1.Job
 		if getErr != nil {
 			return fmt.Errorf("k8sdispatch: inspect existing job %q in %q: %w", j.Name, namespace, getErr)
 		}
-		for _, key := range []string{"filament.galaxy.io/run-id", "filament.galaxy.io/execution-id"} {
+		for _, key := range []string{"filament.getgalaxy.io/run-id", "filament.getgalaxy.io/execution-id"} {
 			if existing.Labels[key] != j.Labels[key] {
 				return fmt.Errorf("k8sdispatch: job name collision %q in %q: label %q is %q, want %q", j.Name, namespace, key, existing.Labels[key], j.Labels[key])
 			}

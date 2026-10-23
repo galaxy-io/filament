@@ -105,6 +105,7 @@ func (c *compiler) step(path string, st Step) {
 // by position and never sees a name. A primary key column keeps its name so
 // an existing destination stays keyed the same way.
 func (c *compiler) rename(path string, m map[string]string) {
+	renamed := make(map[string]int, len(m))
 	for _, from := range slices.Sorted(maps.Keys(m)) {
 		to := m[from]
 		i, ok := c.index(from)
@@ -120,10 +121,15 @@ func (c *compiler) rename(path string, m map[string]string) {
 			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "column %q is reserved", to)
 			continue
 		}
-		if _, taken := c.index(to); taken {
+		_, taken := c.index(to)
+		_, assigned := renamed[to]
+		if taken || assigned {
 			c.errs.addf(fmt.Sprintf("%s[%q]", path, from), "column %q already exists", to)
 			continue
 		}
+		renamed[to] = i
+	}
+	for to, i := range renamed {
 		c.layout.Fields[i].Name = to
 	}
 }

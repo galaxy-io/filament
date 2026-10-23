@@ -1,6 +1,6 @@
 ---
 title: "HTTP manifests"
-description: "Declarative YAML manifests that drive the generic HTTP API source"
+description: "Declarative YAML manifests that drive the generic HTTP API source in Filament, the open-source data movement engine."
 ---
 
 Use an HTTP manifest when an API can be described through endpoints,
@@ -197,9 +197,14 @@ resources:
 
 ### Config
 
-`config` maps field names to `{type, required, default, enum, help, scope}`.
+`config` maps field names to `{type, required, default, enum, help, scope, order}`.
 Secrets (`type: secret`) render masked and are stored as refs. Config values
 are referenced elsewhere in the manifest as `config.<name>`.
+
+Set a positive `order` to control the configuration form's field order. Lower
+values appear first, followed by fields with no order or an order of zero.
+Ties and unordered fields sort alphabetically. Visibility selectors still
+appear before dependent fields.
 
 ### Configure requests
 
@@ -208,11 +213,27 @@ are referenced elsewhere in the manifest as `config.<name>`.
   request.
 - `auth` supports no auth, bearer tokens, a custom header, basic auth, and
   OAuth 2 client credentials or a supplied refresh token. OAuth tokens are
-  cached. Token URLs must resolve to HTTPS without userinfo or a fragment;
-  token requests never follow redirects. Replacement refresh tokens are kept
-  as opaque credentials for the authenticator's lifetime. They are not written
-  back to connection secrets, so providers that revoke old refresh tokens
-  require an updated configured secret before a new authenticator is created.
+  cached through the shared `oauth` package. Token URLs must resolve to HTTPS
+  without userinfo or a fragment. Token requests never follow redirects.
+  Set `client_auth` to `client_secret_basic` for HTTP Basic client authentication.
+  The default `client_secret_post` sends client credentials in the form body.
+  Replacement refresh tokens stay opaque. By default they live only for the
+  authenticator's lifetime. Go callers can bind an `oauth.Store` with
+  `Source.SetOAuthStore` before configuration or connection testing to persist
+  rotations. The bound store is authoritative and must already contain the
+  refresh token. Set `managed_refresh: true` to bind saved connections to their
+  configured secret manager automatically. This requires a refresh-token grant,
+  a direct config secret reference for `refresh_token`, and a `binding` list of
+  literal or config-template components identifying the authorization. Include
+  the provider, account, environment, and OAuth client settings. Exclude the
+  rotating refresh token. Changing bound settings requires a fresh secret.
+  Without a bound store, managed connection testing validates configuration only
+  and extraction fails before exchanging tokens. An HTTP 401 triggers one
+  coordinated refresh and replay. A second 401 fails the request.
+  Optional `fallback_token: config.access_token` permits manual access-token
+  connections when all refresh credentials are absent. Partial refresh
+  credentials are rejected. Browser authorization remains external to Filament.
+  See [OAuth tokens in Go sources](/pages/connectors/building-a-connector/writing-a-source#oauth-tokens).
   Query, HMAC, and chained
   authentication exist in the Go runtime but cannot currently be declared in
   YAML.
@@ -694,3 +715,7 @@ Manifest-driven integrations start at `alpha`. Their behavior is derived from
 API documentation, and schema validation plus mocked HTTP tests prove internal
 consistency, not fidelity to the live API. They graduate to `beta` once run
 end-to-end against the real service.
+
+## Related guides
+
+- [Sync any REST API to Postgres with a YAML manifest](https://www.getgalaxy.io/articles/rest-api-to-postgres-sync-any-api-with-a-yaml-manifest)

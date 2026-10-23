@@ -168,22 +168,11 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		if len(schema.PrimaryKey) == 1 {
 			primaryKey = schema.PrimaryKey[0]
 		} else {
-			// Check if any field is named "id" or "ID"
-			for _, f := range schema.Fields {
-				if strings.EqualFold(f.Name, "id") {
-					primaryKey = f.Name
-					break
-				}
+			names := make([]string, len(schema.Fields))
+			for i, f := range schema.Fields {
+				names[i] = f.Name
 			}
-			// If still empty, check for field ending in _id or Id
-			if primaryKey == "" {
-				for _, f := range schema.Fields {
-					if strings.HasSuffix(strings.ToLower(f.Name), "_id") || strings.HasSuffix(f.Name, "Id") {
-						primaryKey = f.Name
-						break
-					}
-				}
-			}
+			primaryKey = guessPrimaryKey(names)
 			// Fallback to first field
 			if primaryKey == "" && len(schema.Fields) > 0 {
 				primaryKey = schema.Fields[0].Name
@@ -247,6 +236,25 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	return nil
 }
 
+// guessPrimaryKey picks a field named "id", else the first non-reserved
+// field ending in _id or Id. It returns "" when nothing matches.
+func guessPrimaryKey(names []string) string {
+	for _, n := range names {
+		if strings.EqualFold(n, "id") {
+			return n
+		}
+	}
+	for _, n := range names {
+		if rowmodel.IsReservedColumn(n) {
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(n), "_id") || strings.HasSuffix(n, "Id") {
+			return n
+		}
+	}
+	return ""
+}
+
 // Apply encodes an Arrow batch into NDJSON and sends it to Meilisearch.
 func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if s.client == nil {
@@ -283,20 +291,11 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 		// 3. Fallback to schema field name heuristics ("id", *_id, *Id).
 		fields := b.Rows().Schema().Fields()
 		if primaryKey == "" {
-			for _, f := range fields {
-				if strings.EqualFold(f.Name, "id") {
-					primaryKey = f.Name
-					break
-				}
+			names := make([]string, len(fields))
+			for i, f := range fields {
+				names[i] = f.Name
 			}
-			if primaryKey == "" {
-				for _, f := range fields {
-					if strings.HasSuffix(strings.ToLower(f.Name), "_id") || strings.HasSuffix(f.Name, "Id") {
-						primaryKey = f.Name
-						break
-					}
-				}
-			}
+			primaryKey = guessPrimaryKey(names)
 		}
 
 		pkIdx := -1

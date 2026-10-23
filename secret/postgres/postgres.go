@@ -64,6 +64,18 @@ func New(pool *pgxpool.Pool, keyID string, key []byte) (*Provider, error) {
 func (p *Provider) Name() string { return "postgres" }
 
 func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret) error {
+	return p.write(ctx, ref, secret, false)
+}
+
+// RotateSecret updates an existing tenant-owned secret without inserting a row.
+func (p *Provider) RotateSecret(ctx context.Context, ref string, secret filament.Secret) error {
+	if err := filament.ValidateConnectionSecretRef(ref, secret.Tenant); err != nil {
+		return err
+	}
+	return p.write(ctx, ref, secret, true)
+}
+
+func (p *Provider) write(ctx context.Context, ref string, secret filament.Secret, rotate bool) error {
 	if secret.Tenant == "" {
 		return fmt.Errorf("secret/postgres: tenant is required")
 	}
@@ -75,7 +87,16 @@ func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret
 	if err != nil {
 		return fmt.Errorf("secret/postgres: marshal metadata: %w", err)
 	}
-	err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: meta})
+	if rotate {
+		var count int64
+		count, err = p.q.RotateSecret(ctx, sqlcgen.RotateSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: meta})
+		if err == nil && count == 0 {
+			return filament.ErrNotFound
+		}
+	} else {
+		err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: meta})
+	}
+
 	if err != nil {
 		return fmt.Errorf("secret/postgres: write: %w", err)
 	}
@@ -90,13 +111,17 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 		}
 		return filament.Secret{}, fmt.Errorf("secret/postgres: read: %w", err)
 	}
-	value, err := p.gcm.Open(nil, row.Nonce, row.Ciphertext, nil)
+	return p.decodeSecret(ref, row.Ciphertext, row.Nonce, row.Metadata)
+}
+
+func (p *Provider) decodeSecret(ref string, ciphertext, nonce, metadata []byte) (filament.Secret, error) {
+	value, err := p.gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return filament.Secret{}, fmt.Errorf("secret/postgres: decrypt %q: %w", ref, err)
 	}
 	var meta map[string]string
-	if len(row.Metadata) > 0 {
-		if err := json.Unmarshal(row.Metadata, &meta); err != nil {
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &meta); err != nil {
 			return filament.Secret{}, fmt.Errorf("secret/postgres: unmarshal metadata: %w", err)
 		}
 	}

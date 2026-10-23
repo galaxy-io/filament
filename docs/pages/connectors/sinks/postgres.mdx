@@ -1,6 +1,7 @@
 ---
-title: "PostgreSQL"
-description: "Write typed tables to PostgreSQL"
+title: "PostgreSQL sink connector"
+sidebarTitle: "PostgreSQL"
+description: "Write typed tables to PostgreSQL with Filament, the open-source data movement engine."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
 
@@ -152,3 +153,8 @@ On a failed run, `Abort` truncates replace tables. Append tables retain rows
 already written, so retrying a non-checkpointed append as a new run can produce
 duplicates. Upsert and merge tables are preserved because retries converge
 through the primary key; resumable extraction failures skip `Abort` entirely.
+
+## Related guides
+
+- [MySQL to Postgres migration and replication](https://www.getgalaxy.io/articles/mysql-to-postgres-migration-and-replication-guide)
+- [Zero-downtime Postgres migration, step by step](https://www.getgalaxy.io/articles/zero-downtime-postgres-migration-step-by-step)

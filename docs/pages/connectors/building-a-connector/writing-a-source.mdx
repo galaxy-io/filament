@@ -1,6 +1,6 @@
 ---
 title: "Writing a source"
-description: "Build a Go source that writes typed rows into Filament"
+description: "Build a Go source that writes typed rows into Filament in Filament, the open-source data movement engine."
 ---
 
 A source owns the read from an upstream system. Filament owns what happens
@@ -142,3 +142,83 @@ for those capability sets.
 The repository's [`connectors/sample`](https://github.com/galaxy-io/filament/tree/main/connectors/sample)
 package is the smallest complete source. It demonstrates the same builder flow
 without an external dependency.
+
+
+## OAuth tokens
+
+The root `oauth` package handles client credentials and refresh-token grants.
+It refreshes on demand and exposes `Token(ctx)` to Go drivers. HTTP manifests
+use the same implementation. Browser authorization and callback handlers are
+outside this package.
+
+Bind a run-scoped store to an existing connection refresh-token secret. The
+provider must implement `filament.SecretRotator`. PostgreSQL, SQLite, AWS and
+GCP providers support it.
+
+```go
+import (
+    "github.com/galaxy-io/filament/oauth"
+    oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
+)
+
+store, err := oauthsecrets.FromRefreshToken(secretProvider, tenant, refreshSecretRef, binding)
+if err != nil {
+    return err
+}
+
+tokens, err := oauth.NewSource(oauth.Config{
+    TokenURL:     tokenURL,
+    ClientID:     clientID,
+    ClientSecret: clientSecret,
+    ClientAuth:   oauth.ClientSecretBasic,
+    GrantType:    oauth.RefreshToken,
+}, store)
+if err != nil {
+    return err
+}
+
+// Call before an API request. The source reuses unexpired tokens.
+token, err := tokens.Token(ctx)
+if err != nil {
+    return err
+}
+token.SetAuthHeader(req)
+```
+
+A driver can depend on the small `oauth.TokenSource` interface. For an HTTP
+source, call `source.SetOAuthStore(store)` before `Configure` or `TestConnection`.
+This is an explicit Go integration hook.
+
+A driver can implement `oauth/secrets.Configurable` to identify its saved
+refresh-token field and authorization settings. The runner binds that secret
+through `oauth/secrets.Bind` before source configuration. Binding performs no
+secret reads or exchanges. Unsaved connection validation must not exchange
+rotating tokens.
+
+The store loads the refresh token on first use and keeps access tokens and
+expiry in memory for that run. Only a changed refresh token is written back.
+PostgreSQL and SQLite use an encrypted update of the existing secret row. AWS
+uses `PutSecretValue`. GCP uses `AddSecretVersion` and destroys the previous
+version. Rotation never creates a secret or updates the connection row.
+
+Refreshes serialize within the store. Separate runs have independent token
+state. No database transaction spans a token request and no coordination table
+is required. Token requests default to a 30-second timeout.
+
+Use `oauth.NewMemoryStore` for temporary credentials or tests. The environment
+provider is read-only and cannot persist rotating tokens. Other integrations can
+implement `oauth.Store` or use `oauth.StoreFunc`.
+
+A returned token is available only after any refresh-token write succeeds. A
+failed save retains the exchange in memory for another save attempt without
+exchanging the consumed token again. A process exit between upstream rotation
+and persistence can require fresh authorization.
+
+Check `errors.Is(err, oauth.ErrReauthorizationRequired)` for an expired or revoked
+refresh grant. Endpoint errors expose HTTP status and an allowlisted OAuth code,
+without provider descriptions or raw responses. Token requests do not retry
+automatically. The HTTP adapter's optional retry policy accepts explicit
+temporary rejections and avoids retrying ambiguous transport failures.
+
+Use the connection’s existing secret lifecycle when removing an authorization. Provider-side revocation remains a separate operation. Token values
+must never appear in logs, events, ordinary connection config or API responses.

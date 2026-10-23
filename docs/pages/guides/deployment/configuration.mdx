@@ -1,6 +1,7 @@
 ---
-title: "Configuration"
-description: "Configure the server, control plane, and workers"
+title: "Server and worker configuration"
+sidebarTitle: "Configuration"
+description: "Configure the Filament server, control plane, and workers for a local, single-process, or Kubernetes deployment."
 ---
 
 The server, control plane, and worker read configuration from environment
@@ -100,6 +101,27 @@ GCP-safe IDs and retained in secret annotations. Grant workloads access through
 their attached service account or Workload Identity. Deleting a connection
 permanently deletes its managed GCP secrets.
 
+Managed OAuth refresh is supported with all four providers. Access tokens and
+expiry stay in memory for one run. Only a changed refresh token is written back
+to its existing secret. Rotation never creates a secret or updates a connection
+row. PostgreSQL and SQLite update the encrypted value in place. AWS uses
+[PutSecretValue](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_PutSecretValue.html).
+GCP adds a version and then
+[destroys the previous version](https://docs.cloud.google.com/secret-manager/regional-secrets/destroy-regional-secret-version).
+Grant GCP workloads the `secretmanager.versions.destroy` permission as well as
+read and write access. Cloud providers do not require `ENCRYPTION_KEY`.
+
+Refreshes are serialized within each run. Separate runs have independent token
+state and do not acquire datastore leases. Avoid overlapping runs that share an
+authorization when the upstream provider invalidates refresh tokens on use.
+The datastore no longer tracks cloud secret versions or refresh ownership.
+
+A failed save stops the read. The run retains a successful exchange in memory
+for another save attempt. A process exit between upstream rotation and persistence
+can require fresh authorization. If GCP version cleanup fails, rotation reports
+an error even though the new version is already available. The previous version
+may need cleanup.
+
 ### Logs and OpenTelemetry
 
 | Variable | Default | Description |
@@ -189,6 +211,7 @@ sets them from its `worker` values.
 | `K8S_KUBECONFIG` | in-cluster configuration | Kubeconfig path. Falls back to `KUBECONFIG` |
 | `K8S_WORKER_SERVICE_ACCOUNT` | namespace default | ServiceAccount assigned to worker pods |
 | `K8S_WORKER_APP_NAME` | `filament` | Value of the worker's `app.kubernetes.io/name` label |
+| `K8S_WORKER_INSTANCE` | unset | Value of the worker's `app.kubernetes.io/instance` label |
 | `K8S_WORKER_IMAGE_PULL_POLICY` | `IfNotPresent` | Worker image pull policy |
 | `K8S_WORKER_RESTART_POLICY` | `Never` | Worker pod restart policy |
 | `K8S_WORKER_TERMINATION_GRACE_SECONDS` | Kubernetes default | Worker termination grace period |

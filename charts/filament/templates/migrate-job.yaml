@@ -19,6 +19,7 @@ spec:
       labels:
         {{- include "filament.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: migrate
+        {{- include "filament.podLabels" . | nindent 8 }}
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
@@ -42,6 +43,10 @@ spec:
             capabilities:
               drop: ["ALL"]
           args: ["-migrate"]
+          {{- with .Values.persistence.migrateResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             - name: PERSISTENCE_PROVIDER
               value: {{ .Values.persistence.type | quote }}
