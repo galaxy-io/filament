@@ -356,8 +356,8 @@ func parseDatetime(w arrowbatch.RowWriter, text []byte) error {
 	return nil
 }
 
-// parseTime reads "[-]HH:MM:SS[.ffffff]" (hours may exceed 23) as microseconds;
-// a negative or over-a-day value has no time-of-day form and is rejected.
+// parseTime reads "[-]HH:MM:SS[.ffffff]" as microseconds; a negative value
+// has no time-of-day form and is rejected, as is a value past a day.
 func parseTime(w arrowbatch.RowWriter, text []byte) error {
 	us, rest, err := arrowtext.ReadTimeOfDay(text)
 	if err != nil || len(rest) != 0 || us >= arrowtext.MicrosPerDay {
