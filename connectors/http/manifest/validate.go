@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -133,6 +134,9 @@ func (m *Manifest) validateSemantics() error {
 	}
 
 	for name, spec := range m.Config {
+		if spec.Order < 0 {
+			_ = agg.Addf("config."+name+".order", "must be nonnegative")
+		}
 		for value := range spec.EnumLabels {
 			if (spec.Type != "enum" && spec.Type != "list") || !slices.Contains(spec.Enum, value) {
 				_ = agg.Addf("config."+name+".enum_labels", "label references unknown enum option %q", value)
@@ -173,6 +177,31 @@ func (m *Manifest) validateSemantics() error {
 	validateTemplateScopes(&agg, "connection.base_url", m.Connection.BaseURL, template.AuthScopes)
 	validateVersionHeaders(&agg, m)
 	validateAuthParams(&agg, "connection.auth", m.Connection.Auth.Params)
+	validateManagedAuth(&agg, m, m.Connection.Auth)
+	for name, spec := range m.Config {
+		if spec.Pattern != "" {
+			if _, err := regexp.Compile(spec.Pattern); err != nil {
+				_ = agg.Addf("config."+name+".pattern", "invalid regular expression")
+			}
+		}
+		if spec.Minimum != nil && spec.Maximum != nil && *spec.Minimum > *spec.Maximum {
+			_ = agg.Addf("config."+name, "minimum exceeds maximum")
+		}
+		for _, key := range spec.Requires {
+			if _, ok := m.Config[key]; !ok {
+				_ = agg.Addf("config."+name+".requires", "unknown config field %s", key)
+			}
+		}
+		if spec.Before != "" && (spec.Format != "date" || m.Config[spec.Before].Format != "date") {
+			_ = agg.Addf("config."+name+".before", "requires date fields")
+		}
+	}
+	if (m.Connection.BaseURLField == "") != (len(m.Connection.BaseURLs) == 0) {
+		_ = agg.Addf("connection.base_urls", "base_url_field and base_urls must be supplied together")
+	}
+	for key, value := range m.Connection.BaseURLs {
+		validateTemplateScopes(&agg, "connection.base_urls."+key, value, template.AuthScopes)
+	}
 
 	names := make(map[string]struct{}, len(m.Resources))
 	byName := make(map[string]*Resource, len(m.Resources))
@@ -216,6 +245,31 @@ func (m *Manifest) validateSemantics() error {
 		validateTemplate(&agg, path+".emit_as", r.EmitAs)
 		validateTemplate(&agg, path+".path", r.Path)
 		validateExport(&agg, path, *r)
+		if r.Response.Unwrap != nil && r.Response.Unwrap.Tag == r.Response.Unwrap.Remainder {
+			_ = agg.Addf(path+".response.unwrap", "tag and remainder must name distinct fields")
+		}
+		for field, expected := range r.Response.Match {
+			validateTemplateScopes(&agg, path+".response.match."+field, expected, []string{"config", "parent"})
+		}
+		for _, key := range r.RequiredConfig {
+			if _, ok := m.Config[key]; !ok {
+				_ = agg.Addf(path+".required_config", "unknown config field %s", key)
+			}
+		}
+		if r.ForEachConfig != "" {
+			if _, ok := m.Config[r.ForEachConfig]; !ok {
+				_ = agg.Addf(path+".for_each_config", "unknown config field")
+			}
+			if r.Parent != nil || r.Incremental != nil || r.Mode != "paginated" {
+				_ = agg.Addf(path+".for_each_config", "requires a top-level full-read paginated resource")
+			}
+		}
+		if r.Incremental != nil && r.Incremental.CommitOnComplete && (r.Parent != nil || r.Mode != "paginated" || r.Incremental.ResponseCursor != "") {
+			_ = agg.Addf(path+".incremental.commit_on_complete", "requires a top-level paginated row cursor")
+		}
+		if r.Pagination.PageSizeFrom != "" && m.Config[r.Pagination.PageSizeFrom].Type != "int" {
+			_ = agg.Addf(path+".pagination", "page_size_from must name an integer config field")
+		}
 		fieldNames := make(map[string]struct{}, len(r.Fields))
 		for j, f := range r.Fields {
 			fieldPath := fmt.Sprintf("%s.fields[%d]", path, j)
@@ -226,6 +280,20 @@ func (m *Manifest) validateSemantics() error {
 				_ = agg.Addf(fieldPath+".name", "duplicate field name %q", f.Name)
 			}
 			fieldNames[f.Name] = struct{}{}
+			if f.Precision != 0 || f.Scale != 0 {
+				if f.Type != "decimal" || f.Precision < 1 || f.Precision > 38 || f.Scale < 0 || f.Scale > f.Precision {
+					_ = agg.Addf(fieldPath, "precision and scale require a valid decimal128 declaration")
+				}
+			}
+			if f.Value != nil {
+				validateTemplateScopes(&agg, fieldPath+".value", *f.Value, []string{"config", "parent"})
+				if len(f.Tuple) > 0 || len(f.Shape) > 0 || f.Mode != "" || f.MaxString != "" {
+					_ = agg.Addf(fieldPath, "value cannot be combined with another projection")
+				}
+			}
+			if len(f.Tuple) > 0 && (f.Type != "string" || len(f.Shape) > 0 || f.Mode != "" || f.MaxString != "") {
+				_ = agg.Addf(fieldPath, "tuple requires a string field without another projection")
+			}
 			if f.Type == "" {
 				_ = agg.Addf(fieldPath+".type", "is required")
 			}
@@ -246,6 +314,11 @@ func (m *Manifest) validateSemantics() error {
 			}
 			if len(f.Shape) > 0 && f.Mode == "remainder" {
 				_ = agg.Addf(fieldPath+".shape", "shape cannot be combined with remainder mode")
+			}
+		}
+		for _, override := range r.FieldOverrides {
+			if _, ok := fieldNames[override.Name]; !ok {
+				_ = agg.Addf(path+".field_overrides", "unknown field %q", override.Name)
 			}
 		}
 		for _, pk := range r.PrimaryKey {
@@ -778,6 +851,14 @@ func (m *Manifest) normalizeResourceFields(r *Resource) {
 		}
 		r.Fields = append(inherited, r.Fields...)
 	}
+	for _, override := range r.FieldOverrides {
+		for i, field := range r.Fields {
+			if field.Name == override.Name {
+				r.Fields[i] = override
+				break
+			}
+		}
+	}
 	if len(r.ExcludeFields) > 0 {
 		excluded := make(map[string]struct{}, len(r.ExcludeFields))
 		for _, name := range r.ExcludeFields {
@@ -790,5 +871,33 @@ func (m *Manifest) normalizeResourceFields(r *Resource) {
 			}
 		}
 		r.Fields = fields
+	}
+}
+
+func validateManagedAuth(agg *errs.ManifestErrors, m *Manifest, spec AuthSpec) {
+	if spec.Type == "select" {
+		cases, _ := spec.Params["cases"].(map[string]any)
+		for _, value := range cases {
+			choice, _ := value.(map[string]any)
+			kind, _ := choice["type"].(string)
+			params, _ := choice["params"].(map[string]any)
+			validateManagedAuth(agg, m, AuthSpec{Type: kind, Params: params})
+		}
+	}
+	if spec.Params["managed_refresh"] != true {
+		return
+	}
+	ref, _ := spec.Params["refresh_token"].(string)
+	field := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(ref, "{{"), "}}"))
+	name := strings.TrimPrefix(field, "config.")
+	if spec.Params["grant_type"] != "refresh_token" || !strings.HasPrefix(field, "config.") || m.Config[name].Type != "secret" {
+		_ = agg.Addf("connection.auth.oauth2", "managed_refresh requires a refresh_token grant and direct config secret reference")
+	}
+	binding, _ := spec.Params["binding"].([]string)
+	if len(binding) == 0 {
+		_ = agg.Addf("connection.auth.oauth2.binding", "managed_refresh requires authorization binding components")
+	}
+	for _, value := range binding {
+		validateTemplateScopes(agg, "connection.auth.oauth2.binding", value, []string{"config"})
 	}
 }

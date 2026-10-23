@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/oauth"
 )
 
 // RetryPolicy decides whether an auth refresh attempt that errored should be
@@ -28,9 +29,8 @@ func (NoRetry) ShouldRetry(_ error, _ int) (time.Duration, bool) {
 }
 
 // ExponentialBackoff retries up to MaxAttempts times with `Base * 2^(attempt-1)`
-// delay, capped at MaxDelay. Only retries errors that wrap
-// errs.ErrAuthRefresh (i.e. transient refresh failures); other errors are
-// surfaced immediately.
+// delay, capped at MaxDelay. Only explicit temporary endpoint rejections are
+// retried. Invalid grants, transport failures, and storage errors are surfaced.
 //
 // A typical config for a flaky token endpoint:
 //
@@ -45,6 +45,10 @@ type ExponentialBackoff struct {
 // hit or the error isn't a refresh-class failure.
 func (e ExponentialBackoff) ShouldRetry(err error, attempt int) (time.Duration, bool) {
 	if !errors.Is(err, errs.ErrAuthRefresh) {
+		return 0, false
+	}
+	var endpoint *oauth.EndpointError
+	if !errors.As(err, &endpoint) || !endpoint.Retryable() {
 		return 0, false
 	}
 	if attempt < 1 || attempt >= e.MaxAttempts {

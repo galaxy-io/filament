@@ -1,5 +1,6 @@
 ---
-title: "GitHub"
+title: "GitHub source connector"
+sidebarTitle: "GitHub"
 description: "Read repository, community, and collaboration data from a GitHub organization"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-github-dark.svg"
 ---
@@ -79,3 +80,7 @@ keyless `issue_timeline` rows. Use full upsert for `traffic_views` and
   JSON shape. GitHub's endpoint-specific history and size limits still apply.
 - Every resource carries a `raw` remainder column preserving fields the
   manifest does not project.
+
+## Related guides
+
+- [Sync GitHub to Postgres](https://www.getgalaxy.io/articles/best-way-to-sync-github-to-postgres-2026)

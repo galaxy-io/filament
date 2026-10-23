@@ -117,6 +117,9 @@ func firstWarning(ctx context.Context, x execer) error {
 // write loads the whole batch; replace makes duplicate keys overwrite, the
 // idempotent upsert an at-least-once resume relies on.
 func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch, replace bool) (filament.WriteReceipt, error) {
+	if t.evolution != "" {
+		return t.writeChecked(ctx, tbl, b, replace)
+	}
 	conn, err := t.db.Conn(ctx)
 	if err != nil {
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: write %s: %w", b.Resource, err)
@@ -150,6 +153,9 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) 
 		return filament.WriteReceipt{}, fmt.Errorf("mysql sink: begin merge %s: %w", b.Resource, err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := t.validateTable(ctx, tx, tbl, b); err != nil {
+		return filament.WriteReceipt{}, err
+	}
 
 	var nbytes int64
 	rows := 0
@@ -217,4 +223,25 @@ func (t *Sink) receipt(b *arrowbatch.Batch, rows int, nbytes int64, integrity wr
 		WriteCRC:   integrity.arrow,
 		EncodedCRC: &integrity.encoded,
 	}
+}
+
+func (t *Sink) writeChecked(ctx context.Context, tbl *table, b *arrowbatch.Batch, replace bool) (filament.WriteReceipt, error) {
+	tx, err := t.db.BeginTx(ctx, nil)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := t.validateTable(ctx, tx, tbl, b); err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	var integrity writeIntegrity
+	rows, nbytes, err := tbl.load(ctx, tx, b, 0, b.NumRows(), replace, false, &integrity)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	t.written.Add(int64(rows))
+	return t.receipt(b, rows, nbytes, integrity), nil
 }

@@ -89,7 +89,7 @@ encryption to protect resolved connection credentials in transit.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 {{- range .Values }}
-  {{- if or (eq .Key "commonLabels") (eq .Key "existingSecret") }}
+  {{- if or (eq .Key "commonLabels") (eq .Key "podLabels") (eq .Key "existingSecret") }}
 | {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
   {{- end }}
 {{- end }}

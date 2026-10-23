@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
   "name": "Filament",
-  "description": "Change data capture and replication, as a single binary or an embeddable Go library.",
+  "description": "Open-source (Apache 2.0) data movement engine by Galaxy. Replication, ingestion, and change data capture as a single binary or an embeddable Go library.",
   "colors": {
     "primary": "#005EFF",
     "light": "#005EFF",
@@ -86,7 +86,7 @@
     "socials": {
       "github": "https://github.com/galaxy-io/filament",
       "slack": "https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ",
-      "website": "https://getgalaxy.io"
+      "website": "https://www.getgalaxy.io/filament"
     }
   },
   "seo": {
@@ -97,7 +97,7 @@
   },
   "errors": {
     "404": {
-      "redirect": true
+      "redirect": false
     }
   },
   "navigation": {
@@ -111,11 +111,23 @@
         ]
       },
       {
+        "group": "Guides",
+        "pages": [
+          "pages/how-to/first-pipeline",
+          "pages/how-to/postgres-to-snowflake",
+          "pages/how-to/postgres-to-clickhouse",
+          "pages/how-to/mysql-to-snowflake",
+          "pages/how-to/postgres-to-bigquery",
+          "pages/how-to/troubleshooting"
+        ]
+      },
+      {
         "group": "Concepts",
         "pages": [
           "pages/guides/concepts/overview",
           "pages/guides/concepts/architecture",
           "pages/guides/concepts/replication-modes",
+          "pages/guides/concepts/transformations",
           "pages/guides/concepts/streaming",
           "pages/guides/concepts/integrity-and-checkpoints",
           "pages/guides/concepts/runs-and-recovery"
@@ -165,6 +177,7 @@
               "pages/connectors/sources/novada",
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
+              "pages/connectors/sources/qbo",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",
@@ -181,6 +194,7 @@
               "pages/connectors/sinks/kafka",
               "pages/connectors/sinks/nats",
               "pages/connectors/sinks/clickhouse",
+              "pages/connectors/sinks/databricks-zerobus",
               "pages/connectors/sinks/motherduck",
               "pages/connectors/sinks/snowflake",
               "pages/connectors/sinks/bigquery",
@@ -223,6 +237,7 @@
           "pages/api-reference/service/connectors",
           "pages/api-reference/service/connections",
           "pages/api-reference/service/pipelines",
+          "pages/api-reference/service/transformations",
           "pages/api-reference/service/runs",
           "pages/api-reference/service/metrics"
         ]

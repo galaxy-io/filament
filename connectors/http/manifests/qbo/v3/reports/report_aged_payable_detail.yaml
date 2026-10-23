@@ -1,0 +1,21 @@
+resources:
+  - name: "report_aged_payable_detail"
+    path: "/v3/company/{{ config.realm_id }}/reports/AgedPayableDetail"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, report]
+    field_overrides:
+      id:
+        type: "string"
+        tuple: ["literal:AgedPayableDetail", "Header.StartPeriod", "Header.EndPeriod", "Header.ReportBasis", "Header.Currency", "query:report_date"]
+      header_report_name: {"path": "Header.ReportName", "type": "string", "nullable": false}
+    fields:
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"report_date": "{{ config.report_date }}"}
+    response:
+      records: "$"
+      cardinality: "one"
+      pagination: "none"
+      strict_records: true
+      required_objects: ["Header", "Columns", "Rows"]

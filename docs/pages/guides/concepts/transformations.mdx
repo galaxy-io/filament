@@ -1,0 +1,284 @@
+---
+title: "In-pipeline transformations"
+sidebarTitle: "Transformations"
+description: "Rename, drop, and compute columns as rows move from a source to a sink"
+---
+
+A transformation is a list of column steps attached to a pipeline edge.
+Filament applies it to every batch of a resource after the source has produced
+the batch and before the sink writes it. Steps work on whole columns. No step
+removes rows, joins resources, or aggregates.
+
+A transformation is checked twice. Saving a pipeline compiles it against the
+source's current schema, so an unknown column or a type mismatch fails the save
+rather than a run. A run compiles it again against the schema the source
+supplies, so a source that changed since the save fails before any row moves.
+
+## Where to define one
+
+- **Web.** Open a resource on the canvas. The Transformations section of the
+  panel builds steps from the same function catalog and shows issues as you
+  edit.
+- **API.** A `PipelineEdge` carries the definition in its `transform` field as
+  a JSON object. An edge for one resource may only define that resource. The
+  [Transformations](/pages/api-reference/service/transformations) reference
+  covers the catalog and validation RPCs.
+- **Go.** `pipeline.Config.Transform` takes a parsed `transform.Definition`
+  when Filament is embedded.
+
+The CLI's YAML file does not carry transformations.
+
+## The definition
+
+```yaml
+version: 1
+resources:
+  users:
+    steps:
+      - rename:
+          email_address: email
+      - drop: [internal_note, legacy_flag]
+      - compute:
+          email: {lower: {trim: {col: email}}}
+          full_name: {concat: [{col: first_name}, " ", {col: last_name}]}
+          email_hash: {sha256: {col: email}}
+      - compute:
+          tier: "vip"
+        where: {gte: [{col: lifetime_value}, 10000]}
+```
+
+`version` is always `1`. `resources` names each resource to transform and
+lists its steps. A resource the definition does not name passes through
+unchanged. JSON with the same shape is accepted anywhere YAML is, and the API
+carries it that way.
+
+A step is exactly one of `rename`, `drop`, or `compute`. `where` belongs to
+`compute` alone. Steps run in order, and each step sees the columns as the
+previous step left them.
+
+| Step | Shape | Effect |
+|---|---|---|
+| `rename` | Map of current name to new name | Changes names, keeps values and types |
+| `drop` | List of names | Removes the columns |
+| `compute` | Map of column name to expression | Sets each named column to its expression, adding the column when it does not exist |
+
+### Rename
+
+Every current name must exist and every new name must be free. A primary key
+column cannot be renamed, so an existing destination stays keyed the same way.
+A name starting with `_filament_` is reserved. Entries in one rename step are
+independent, so a name that another entry in the same step frees is not
+available to it. Use two steps for that.
+
+### Drop
+
+Every name must exist. A primary key column cannot be dropped.
+
+### Compute
+
+Every entry in a compute step is evaluated against the columns as they stood
+before the step, then all entries are assigned together. Entries in one step
+cannot refer to each other. Put a dependent computation in a later step.
+
+An entry on an existing column replaces it and may change its type. An entry
+on a new column appends it. New columns from one step land after the existing
+ones in name order. A computed column is always nullable. The name cannot be a
+primary key column or start with `_filament_`.
+
+### Where
+
+`where` limits a compute step to the rows its condition matches. The condition
+must produce a `bool`. A row where it is null is not matched. On an unmatched
+row an existing column keeps its value and a new column is null. Because
+unmatched rows keep their old values, a compute under `where` on an existing
+column must keep its type.
+
+## Expressions
+
+An expression is one of three things.
+
+| Form | Example | Meaning |
+|---|---|---|
+| Literal | `"vip"`, `10000`, `0.5`, `true` | A constant |
+| Column | `{col: email}` | The column's current value |
+| Call | `{lower: {col: email}}` or `{concat: [{col: a}, "-", {col: b}]}` | A catalog function over its arguments |
+
+A call with one argument may pass it directly. A call with several passes a
+list. Calls nest to any depth. The function names are a closed set, listed
+below. Anything else fails the grammar check.
+
+A YAML integer is an `int64` literal, a number with a fraction is a `float64`,
+a quoted value is a `string`, and `true` or `false` is a `bool`. There is no
+date or null literal.
+
+Where a function needs its arguments to share a type, a literal widens to the
+column it sits beside when the value fits. `{eq: [{col: quantity}, 1]}`
+compares an `int16` column with an `int16` literal. A literal that does not
+fit, such as `70000` beside an `int16` column, is an error. A `decimal` column
+takes an integer or fractional literal when the literal needs no more scale or
+precision than the column has. A decimal column with precision above 38 is
+carried as text, and no literal can stand beside it.
+
+## Functions
+
+Logical type names are the ones `GetResourceColumns` reports, such as `string`,
+`int64`, `float64`, `decimal`, `bool`, `date`, `timestamp`, and `timestamptz`.
+A column argument may itself be a call that produces the right type. A null
+input gives a null output unless noted. "Column" marks an argument that must be
+a column or a call, never a literal. "Literal" marks a constant parameter.
+"Input type" as a return means the result takes the shared type of the value
+arguments.
+
+### Strings
+
+| Function | Arguments | Returns | Notes |
+|---|---|---|---|
+| `lower` | value (string column) | `string` | Lowercases |
+| `upper` | value (string column) | `string` | Uppercases |
+| `trim` | value (string column) | `string` | Removes leading and trailing whitespace |
+| `length` | value (string column) | `int64` | Counts characters, not bytes |
+| `replace` | value (string column), find (literal), with (literal) | `string` | Replaces every occurrence. An empty `find` leaves the value unchanged |
+| `substring` | value (string column), start (literal), length (optional literal) | `string` | Counts characters from 1. Without a length runs to the end. `start` is 1 or more and `length` 0 or more |
+| `concat` | part... (string column or literal) | `string` | Joins parts in order. A null in any column part gives null. Needs at least one column |
+| `regex_match` | value (string column), pattern (literal) | `bool` | True where the pattern matches anywhere in the value |
+| `regex_extract` | value (string column), pattern (literal), group (optional literal) | `string` | The first match, or the given capture group of it. No match gives null. The group must exist in the pattern |
+| `regex_replace` | value (string column), pattern (literal), with (literal) | `string` | Replaces every match. `$1` in `with` refers to the first group |
+
+Patterns use Go regular expression syntax, which is RE2. An invalid pattern is
+reported when the definition is compiled.
+
+### Digests
+
+| Function | Arguments | Returns |
+|---|---|---|
+| `md5` | column... | `string` |
+| `sha1` | column... | `string` |
+| `sha256` | column... | `string` |
+| `sha512` | column... | `string` |
+
+Digests take one or more columns of type `string`, `uuid`, `int16`, `int32`,
+or `int64` and return the lowercase hex digest of their text joined with `-`.
+A string is hashed as its bytes and an integer as its decimal text, which
+matches a warehouse that casts before hashing. Other types are not accepted
+because no two systems agree on their text form.
+
+A null column contributes nothing between the separators, so a key built from
+several columns survives a missing value. A row where every column is null
+stays null, so a masked column keeps its nulls.
+
+### Numbers
+
+| Function | Arguments | Returns | Notes |
+|---|---|---|---|
+| `add` | left, right | Input type | |
+| `sub` | left, right | Input type | Subtracts the second from the first |
+| `mul` | left, right | Input type | |
+| `div` | left, right | Input type | Integer inputs divide as integers |
+| `abs` | value (column) | Input type | |
+| `floor` | value (float column) | Input type | Rounds down to a whole number |
+| `ceil` | value (float column) | Input type | Rounds up to a whole number |
+| `round` | value (float column), places (optional literal) | Input type | Rounds to `places` decimal places, halves to even. Default 0 |
+
+Arithmetic takes `int16`, `int32`, `int64`, `float32`, or `float64`. Both
+sides share one type, with a literal widening to the column's type, and the
+result has that type. Division by zero and integer overflow fail the batch.
+`floor`, `ceil`, and `round` take `float32` or `float64`.
+
+### Comparisons
+
+| Function | Arguments | Returns | Notes |
+|---|---|---|---|
+| `eq` | left, right | `bool` | Any type |
+| `neq` | left, right | `bool` | Any type |
+| `gt` | left, right | `bool` | Orderable types |
+| `gte` | left, right | `bool` | Orderable types |
+| `lt` | left, right | `bool` | Orderable types |
+| `lte` | left, right | `bool` | Orderable types |
+
+Both sides share one type, at least one is a column, and a literal widens to
+the column's type. Orderable types are the integer and float types, `decimal`,
+`date`, `time`, `timestamp`, and `timestamptz`. A null on either side compares
+to null.
+
+### Logic
+
+| Function | Arguments | Returns |
+|---|---|---|
+| `and` | left (bool), right (bool) | `bool` |
+| `or` | left (bool), right (bool) | `bool` |
+| `not` | value (bool column) | `bool` |
+
+`and` and `or` use three-valued logic as SQL does. False and null is false,
+true or null is true, and the rest is null.
+
+### Nulls
+
+| Function | Arguments | Returns | Notes |
+|---|---|---|---|
+| `is_null` | value (column of any type) | `bool` | True where the value is null. Never null itself |
+| `coalesce` | value... (any type) | Input type | The first value that is not null, left to right. All values share one type and at least one is a column. A literal may be last as the default |
+
+### Dates
+
+| Function | Arguments | Returns | Notes |
+|---|---|---|---|
+| `to_date` | value (string column) | `date` | Parses `YYYY-MM-DD`. A value that does not parse fails the batch |
+| `year` | value (date, timestamp, or timestamptz column) | `int64` | |
+| `month` | value (date, timestamp, or timestamptz column) | `int64` | 1 to 12 |
+| `day` | value (date, timestamp, or timestamptz column) | `int64` | 1 to 31 |
+
+A `timestamptz` is read in its own zone.
+
+## Validation
+
+Compiling a definition reports every issue at once, each with the path in the
+definition where it sits. `resources["users"].steps[2].compute["email"].lower[0]`
+is the first argument of the `lower` call that computes `email` in the third
+step. The web builder places issues by those paths, and the API returns them
+on the edge or from `ValidateTransform`.
+
+The checks run in this order.
+
+1. The document matches the grammar. `version` is 1, every step has exactly
+   one of its three keys, `where` sits only on a compute step, and every
+   function name is in the catalog. The grammar is a JSON schema that
+   `ListTransformFunctions` returns, so a client can check shape before
+   sending.
+2. Every column a step names exists in the layout the previous steps left, and
+   the primary key and reserved name rules above hold.
+3. Every call has the right number of arguments, each argument is a column or
+   a literal as the function requires, the types match, and literals fit the
+   column they widen to. Function rules such as a valid pattern or a positive
+   `substring` start run here too.
+4. A `where` condition is a `bool`, and a compute under it keeps an existing
+   column's type.
+
+Steps that compile still shape the output when another step fails, so
+`ValidateTransform` reports the resulting columns and the type of every
+expression that compiled alongside the issues.
+
+## At run time
+
+A plan is compiled once per resource when the source opens its first batch for
+that resource, against the schema the source supplies. It then applies to every
+batch as a fixed list of whole-column operations over Arrow arrays. Columns no
+step touches are shared with the source batch, not copied.
+
+The transform runs after the source's batch is built and before the integrity
+checksum, so the checksum and the `batch.written` fact describe the transformed
+batch. Filament's own `_filament_` lineage columns are appended after the
+transform and are never visible to it. Each transformed batch publishes
+`batch.transformed` with its record count, bytes, and the time the plan took.
+
+A batch the plan cannot transform fails the run. That covers a `to_date` value
+that does not parse, division by zero, and integer overflow.
+
+## Limits
+
+- Steps never remove rows. A `where` condition picks rows to rewrite, not rows
+  to keep.
+- A transformation sees one resource at a time. There are no joins, lookups, or
+  aggregations.
+- The catalog is closed. `to_date` is the only type conversion.
+- Entries in one compute step cannot see each other.
+- Literals are strings, integers, floats, and booleans only.

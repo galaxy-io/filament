@@ -1,6 +1,7 @@
 ---
-title: "Replication modes"
-description: "Choose how Filament reads a resource and how the destination changes"
+title: "Replication modes: full, incremental, and CDC"
+sidebarTitle: "Replication modes"
+description: "Choose how Filament reads a resource, with full loads, incremental watermarks, or change data capture, and how the destination table changes."
 ---
 
 Start with the change you need to observe, then choose how the destination
@@ -91,3 +92,8 @@ time to replicated rows. CDC also adds the operation, source position, and
 sequence needed to interpret the change stream. These fields are nullable so an
 existing destination can evolve without rewriting older rows. A source column
 using a reserved name is rejected rather than overwritten.
+
+## Related guides
+
+- [Full load vs incremental vs CDC, which to use](https://www.getgalaxy.io/articles/full-load-vs-incremental-vs-cdc-which-to-use)
+- [What is change data capture (CDC)?](https://www.getgalaxy.io/articles/what-is-change-data-capture-%28cdc%29-the-complete-guide)

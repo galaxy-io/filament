@@ -15,7 +15,9 @@ import {
   OBSERVABILITY_DAY_BUCKET_MIDPOINT_MS,
   OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_HOUR_MS,
+  OBSERVABILITY_SCROLL_END_TOLERANCE_PX,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+  OBSERVABILITY_WHEEL_LINE_PX,
 } from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
 
@@ -73,3 +75,13 @@ export const createObservabilityTimeseriesInput = (
     granularity: OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe].granularity,
     tzOffsetMinutes: -new Date(bucketStartMs).getTimezoneOffset(),
   });
+
+export const isObservabilityScrolledToEnd = (scroll: HTMLElement) =>
+  scroll.scrollTop + scroll.clientHeight >=
+  scroll.scrollHeight - OBSERVABILITY_SCROLL_END_TOLERANCE_PX;
+
+export const getObservabilityWheelDeltaPx = (event: WheelEvent, pageHeight: number) =>
+  match(event.deltaMode)
+    .with(WheelEvent.DOM_DELTA_LINE, () => event.deltaY * OBSERVABILITY_WHEEL_LINE_PX)
+    .with(WheelEvent.DOM_DELTA_PAGE, () => event.deltaY * pageHeight)
+    .otherwise(() => event.deltaY);

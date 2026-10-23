@@ -37,7 +37,7 @@ export const OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP: Record<ObservabilityRunsView,
 };
 
 export const OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP: Record<ObservabilityRunsView, string> = {
-  [ObservabilityRunsView.PAST]: "Recent runs",
+  [ObservabilityRunsView.PAST]: "History",
   [ObservabilityRunsView.UPCOMING]: "Upcoming runs",
 };
 
@@ -91,7 +91,6 @@ export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_RECORDS = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_CPU = 100;
 export const OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_MEMORY = 100;
-export const OBSERVABILITY_RUNS_TABLE_HEIGHT = 450;
 
 export const OBSERVABILITY_RUNS_CHART_HEIGHT = 240;
 export const OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH = 160;

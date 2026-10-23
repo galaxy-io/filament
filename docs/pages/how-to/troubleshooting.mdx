@@ -1,0 +1,223 @@
+---
+title: "Troubleshoot Filament pipelines"
+sidebarTitle: "Troubleshooting"
+description: "Exact error messages from Filament runs with their causes and fixes, covering PostgreSQL and MySQL CDC, Snowflake, BigQuery, ClickHouse, and pipeline setup."
+---
+
+Find the symptom below, then open its card for the exact message, the cause,
+and the fix. To look up a message you copied from a run, paste it into docs
+search (`⌘K` or `Ctrl K`). `filament run ls <pipeline>` shows recent runs, and
+the [web app](/pages/guides/usage/web) shows per-resource progress for each
+run.
+
+## Find your error
+
+| Symptom | Area |
+|---|---|
+| CDC pipeline rejects the read mode | [Pipeline setup](#pipeline-setup) |
+| CDC fails on the local CLI | [Pipeline setup](#pipeline-setup) |
+| Incremental mode rejects a table | [Pipeline setup](#pipeline-setup) |
+| CDC rejects a table without a primary key | [Pipeline setup](#pipeline-setup) |
+| Permission denied creating the publication | [PostgreSQL CDC](#postgresql-cdc) |
+| Replication slot is already in use | [PostgreSQL CDC](#postgresql-cdc) |
+| Checkpoint is older than the slot | [PostgreSQL CDC](#postgresql-cdc) |
+| Run fails after TRUNCATE | [PostgreSQL CDC](#postgresql-cdc) |
+| Update fails on a large unchanged column | [PostgreSQL CDC](#postgresql-cdc) |
+| WAL keeps growing on the source | [PostgreSQL CDC](#postgresql-cdc) |
+| Column-count mismatch after a schema change | [MySQL CDC](#mysql-cdc) |
+| Binlog position is no longer available | [MySQL CDC](#mysql-cdc) |
+| Unix socket connection rejected | [MySQL CDC](#mysql-cdc) |
+| Snowflake login returns 404 | [Snowflake](#snowflake) |
+| Snowflake key-pair authentication fails | [Snowflake](#snowflake) |
+| BigQuery cannot find credentials | [BigQuery](#bigquery) |
+| BigQuery permission denied | [BigQuery](#bigquery) |
+| Duplicate keys after an upsert | [ClickHouse](#clickhouse) |
+| Deleted rows remain in ClickHouse | [ClickHouse](#clickhouse) |
+| Existing ClickHouse table rejected | [ClickHouse](#clickhouse) |
+
+## Pipeline setup
+
+<AccordionGroup>
+  <Accordion title="CDC pipeline rejects the read mode">
+    ```text
+    pipeline graph is invalid: CDC connections do not accept a read mode
+    ```
+
+    **Cause.** The source was created with `--source-replication cdc`, and
+    `filament pipeline create` filled in its default read mode.
+
+    **Fix.** Add `--sync-mode cdc` to `filament pipeline create`.
+  </Accordion>
+  <Accordion title="CDC fails on the local CLI">
+    ```text
+    cannot durably admit replication streams
+    ```
+
+    **Cause.** A CDC pipeline is running on a datastore that cannot track
+    replication streams, such as the local SQLite CLI context.
+
+    **Fix.** Run CDC pipelines on a deployment backed by the PostgreSQL datastore.
+    See [Deployment options](/pages/guides/deployment/overview).
+  </Accordion>
+  <Accordion title="Incremental mode rejects a table">
+    **Cause.** Incremental reads need a primary key and a `NOT NULL` timestamp
+    cursor that advances on every insert and update.
+
+    **Fix.** Add a cursor column such as `updated_at`, choose an existing one for
+    the resource, or use a full read.
+  </Accordion>
+  <Accordion title="CDC rejects a table without a primary key">
+    **Cause.** CDC and incremental modes both require a primary key.
+
+    **Fix.** Add a primary key, or copy the table with a separate full replace
+    pipeline.
+  </Accordion>
+</AccordionGroup>
+
+## PostgreSQL CDC
+
+<AccordionGroup>
+  <Accordion title="Permission denied creating the publication">
+    ```text
+    postgres cdc: create publication "filament": ERROR: permission denied for database
+    ```
+
+    **Cause.** Filament tried to create its publication, and the replication user
+    lacks permission.
+
+    **Fix.** Create the publication as a table owner, then set
+    `--source-manage-publication=false` on the source:
+
+    ```sql
+    CREATE PUBLICATION filament FOR TABLE public.customers, public.orders;
+    ```
+  </Accordion>
+  <Accordion title="Replication slot is already in use">
+    ```text
+    slot is active
+    ```
+
+    **Cause.** Another client holds the pipeline route's replication slot.
+
+    **Fix.** Stop the other consumer or wait for the previous run to end.
+  </Accordion>
+  <Accordion title="Checkpoint is older than the slot">
+    **Cause.** Another client consumed WAL from the slot, so changes cannot be
+    replayed.
+
+    **Fix.** Re-snapshot the affected tables.
+  </Accordion>
+  <Accordion title="Run fails after TRUNCATE">
+    **Cause.** `TRUNCATE` on a tracked table fails the run.
+
+    **Fix.** Re-snapshot the table.
+  </Accordion>
+  <Accordion title="Update fails on a large unchanged column">
+    **Cause.** The update arrived without the large column's old value.
+
+    **Fix.** `ALTER TABLE <table> REPLICA IDENTITY FULL;`
+  </Accordion>
+  <Accordion title="WAL keeps growing on the source">
+    **Cause.** A replication slot is not being read, often from a deleted pipeline.
+
+    **Fix.** Check `pg_replication_slots` and drop slots you no longer use. Filament
+    stores each generated slot name in the control database's
+    `replication_streams.consumer_name` column.
+  </Accordion>
+</AccordionGroup>
+
+## MySQL CDC
+
+<AccordionGroup>
+  <Accordion title="Column-count mismatch after a schema change">
+    **Cause.** Incompatible DDL changed the table after Filament cached its columns.
+    Added nullable columns are handled automatically.
+
+    **Fix.** Re-snapshot the table.
+  </Accordion>
+  <Accordion title="Binlog position is no longer available">
+    **Cause.** Binlog retention expired before the run read it.
+
+    **Fix.** Keep retention longer than the gap between runs, then re-snapshot.
+  </Accordion>
+  <Accordion title="Unix socket connection rejected">
+    **Cause.** CDC needs a TCP connection.
+
+    **Fix.** Use a `user:pass@tcp(host:3306)/db` DSN.
+  </Accordion>
+</AccordionGroup>
+
+## Snowflake
+
+<AccordionGroup>
+  <Accordion title="Snowflake login returns 404">
+    ```text
+    261004 (08004): failed to auth for unknown reason. HTTP: 404
+    ```
+
+    **Cause.** The account identifier does not match a Snowflake account.
+
+    **Fix.** Set `--sink-account` to the `organization-account` identifier.
+  </Accordion>
+  <Accordion title="Snowflake key-pair authentication fails">
+    **Cause.** The public key on `FILAMENT_USER` does not match the private key, or
+    the private key is encrypted.
+
+    **Fix.** Set `RSA_PUBLIC_KEY` again from the `.pub` file, and pass an
+    unencrypted PKCS#8 or PKCS#1 private key. See the
+    [Snowflake sink](/pages/connectors/sinks/snowflake) page.
+  </Accordion>
+</AccordionGroup>
+
+## BigQuery
+
+<AccordionGroup>
+  <Accordion title="BigQuery cannot find credentials">
+    ```text
+    credentials: could not find default credentials
+    ```
+
+    **Cause.** The worker has no Application Default Credentials.
+
+    **Fix.** Use Workload Identity on GKE, set `GOOGLE_APPLICATION_CREDENTIALS` on
+    the worker, or run `gcloud auth application-default login` on a laptop, then
+    restart the worker.
+  </Accordion>
+  <Accordion title="BigQuery permission denied">
+    **Cause.** The service account lacks `roles/bigquery.dataEditor` or
+    `roles/bigquery.jobUser`.
+
+    **Fix.** Grant both roles as in
+    [Replicate PostgreSQL to BigQuery](/pages/how-to/postgres-to-bigquery#2-give-filament-access-to-bigquery).
+  </Accordion>
+</AccordionGroup>
+
+## ClickHouse
+
+<AccordionGroup>
+  <Accordion title="Duplicate keys after an upsert">
+    **Cause.** `ReplacingMergeTree` removes older versions during background
+    merges, not on insert.
+
+    **Fix.** Query with `FINAL`, or run `OPTIMIZE TABLE <table> FINAL`.
+  </Accordion>
+  <Accordion title="Deleted rows remain in ClickHouse">
+    **Cause.** The ClickHouse sink has no CDC, and incremental reads cannot see hard
+    deletes.
+
+    **Fix.** Schedule a full replace, or soft-delete with a column the incremental
+    read picks up.
+  </Accordion>
+  <Accordion title="Existing ClickHouse table rejected">
+    **Cause.** A pre-existing table's engine, version column, or sorting key does
+    not match what the write mode needs.
+
+    **Fix.** Let Filament create the table, or match the engine and `ORDER BY` key
+    described on the [ClickHouse sink](/pages/connectors/sinks/clickhouse) page.
+  </Accordion>
+</AccordionGroup>
+
+## Still stuck?
+
+Ask in the [Filament Slack community](https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ)
+or open an issue on [GitHub](https://github.com/galaxy-io/filament/issues).

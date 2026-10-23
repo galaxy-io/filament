@@ -71,6 +71,7 @@ data:
   K8S_WORKER_SECRET_NAME: {{ include "filament.secretName" . | quote }}
   K8S_WORKER_CONFIGMAP_NAME: {{ include "filament.worker.fullname" . | quote }}
   K8S_WORKER_APP_NAME: {{ include "filament.name" . | quote }}
+  K8S_WORKER_INSTANCE: {{ .Release.Name | quote }}
   {{- with .Values.worker.job.terminationGraceSeconds }}
   K8S_WORKER_TERMINATION_GRACE_SECONDS: {{ . | quote }}
   {{- end }}

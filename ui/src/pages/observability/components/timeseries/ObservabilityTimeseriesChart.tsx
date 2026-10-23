@@ -23,7 +23,10 @@ import {
   OBSERVABILITY_TIMESERIES_CHART_HEIGHT,
   OBSERVABILITY_TIMESERIES_PIVOT_PALETTE,
 } from "@/pages/observability/components/timeseries/constants";
-import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
+import {
+  OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/constants";
 import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
 import {
   createObservabilityTimeseriesInput,
@@ -57,7 +60,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
   isStacked,
   valueFormatter,
 }) => {
-  const { timeframe } = useObservabilitySearch();
+  const { timeframe, refreshInterval } = useObservabilitySearch();
 
   const pivotDimension = pivot ?? MetricDimension.UNSPECIFIED;
 
@@ -76,7 +79,10 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
     [timeframe, bucketStartMs, metric, pivotDimension],
   );
 
-  const { data, isLoading } = useQueryTimeseriesQuery({ input });
+  const { data, isFetching } = useQueryTimeseriesQuery({
+    input,
+    options: { refetchInterval: OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP[refreshInterval] },
+  });
 
   const pivotPipelineIds = useMemo(
     () =>
@@ -156,7 +162,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
           curve={curve}
           valueFormatter={valueFormatter}
           labelFormatter={bucketLabelFormatter}
-          isLoading={isLoading}
+          isLoading={isFetching}
           swatch={ChartSwatch.SQUARE}
           hasLegend
           isFilterable
@@ -169,7 +175,7 @@ const ObservabilityTimeseriesChart: FC<ObservabilityTimeseriesChartProps> = ({
           curve={curve}
           valueFormatter={valueFormatter}
           labelFormatter={bucketLabelFormatter}
-          isLoading={isLoading}
+          isLoading={isFetching}
           swatch={ChartSwatch.SQUARE}
           hasLegend
           isFilterable

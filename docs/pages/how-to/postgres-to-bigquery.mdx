@@ -1,0 +1,221 @@
+---
+title: "Replicate PostgreSQL to BigQuery with CDC"
+sidebarTitle: "PostgreSQL to BigQuery"
+description: "Replicate PostgreSQL to BigQuery with change data capture in Filament. Stream rows through the Storage Write API and MERGE inserts, updates, and deletes."
+---
+
+Filament replicates PostgreSQL to BigQuery with change data capture. It reads
+the PostgreSQL logical replication stream, snapshots each table through the same
+consistent point, and streams Arrow batches into BigQuery staging tables with
+the Storage Write API. At commit, one `MERGE` per table applies inserts,
+updates, and deletes by primary key. Each run catches up to the current WAL
+position and stops, so you schedule runs as often as you need fresh data.
+
+<Note>
+  The [PostgreSQL source](/pages/connectors/sources/postgres) is **beta** and
+  the [BigQuery sink](/pages/connectors/sinks/bigquery) is **alpha**.
+</Note>
+
+## Prerequisites
+
+- PostgreSQL with `wal_level=logical` and a primary key on every replicated
+  table
+- A Google Cloud project with the BigQuery API and the BigQuery Storage API
+  (`bigquerystorage.googleapis.com`) enabled
+- A Filament deployment backed by the PostgreSQL datastore, with the CLI
+  pointed at it. The local SQLite CLI context cannot run CDC. See the note in
+  [Replicate PostgreSQL to Snowflake](/pages/how-to/postgres-to-snowflake#prerequisites).
+
+## 1. Prepare PostgreSQL
+
+Enable logical replication, create a replication user, and create the
+publication as a table owner. These steps are identical to
+[step 1 of the PostgreSQL to Snowflake guide](/pages/how-to/postgres-to-snowflake#1-prepare-postgresql):
+
+```sql
+ALTER SYSTEM SET wal_level = logical;  -- then restart PostgreSQL
+
+CREATE ROLE filament WITH LOGIN REPLICATION PASSWORD 'change-me';
+GRANT USAGE ON SCHEMA public TO filament;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO filament;
+
+CREATE PUBLICATION filament FOR TABLE public.customers, public.orders;
+```
+
+## 2. Give Filament access to BigQuery
+
+The BigQuery sink authenticates with
+[Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials),
+so the connection has no credential fields. Credentials belong to the process
+that runs Filament's workers.
+
+Create a service account and grant it the two roles the sink needs:
+
+```sh
+gcloud iam service-accounts create filament --project my-project
+
+gcloud projects add-iam-policy-binding my-project \
+  --member "serviceAccount:filament@my-project.iam.gserviceaccount.com" \
+  --role roles/bigquery.jobUser
+
+gcloud projects add-iam-policy-binding my-project \
+  --member "serviceAccount:filament@my-project.iam.gserviceaccount.com" \
+  --role roles/bigquery.dataEditor
+```
+
+`dataEditor` at the project level lets Filament create the destination dataset.
+If you create the dataset yourself, you can grant `dataEditor` on that dataset
+only.
+
+Then make the credentials available to the workers:
+
+- **GKE:** bind the worker's Kubernetes service account to `filament@` with
+  Workload Identity.
+- **Other platforms:** mount a service account key and set
+  `GOOGLE_APPLICATION_CREDENTIALS` on the worker.
+- **A laptop:** run `gcloud auth application-default login` before starting
+  Filament.
+
+## 3. Create the source and sink
+
+```sh
+filament source create app-db \
+  --source-connector postgres \
+  --source-connection-method url \
+  --source-dsn "postgres://filament:change-me@db.internal:5432/shop?sslmode=require" \
+  --source-replication cdc \
+  --source-manage-publication=false
+
+filament sink create bigquery \
+  --sink-connector bigquery \
+  --sink-project-id my-project \
+  --sink-location US
+```
+
+`--sink-location` applies when Filament creates the dataset. After that, the
+dataset's own location wins.
+
+## 4. Create the pipeline and run the snapshot
+
+```sh
+filament pipeline create app-db-to-bigquery \
+  --source app-db \
+  --sink bigquery \
+  --resources customers,orders \
+  --sync-mode cdc \
+  --write-mode merge \
+  --sink-dataset shop
+
+filament run app-db-to-bigquery
+```
+
+The first run snapshots every selected table. Rows stream into per-table
+staging tables, and each table is published with one query at commit, so
+partial loads never show up in `shop`.
+
+## 5. Catch up on changes
+
+Make changes in PostgreSQL:
+
+```sql
+UPDATE orders SET status = 'shipped', updated_at = now() WHERE id BETWEEN 2001 AND 3000;
+DELETE FROM orders WHERE id BETWEEN 5001 AND 5200;
+INSERT INTO orders SELECT 1000500 + g, 1 + g, 1 + g, 2, 19.99, 'placed', now(), now()
+FROM generate_series(1, 300) g;
+```
+
+```sh
+filament run app-db-to-bigquery
+```
+
+The run reads only the changes from the replication slot. In a test with these
+statements on a 1.1M-row database, that was 1,500 records instead of a
+million-row reload. The `MERGE` folds repeated changes to the same key into its
+final state.
+
+## 6. Verify
+
+```sql
+SELECT COUNT(*) FROM `my-project.shop.orders`;
+SELECT COUNT(*) FROM `my-project.shop.orders` WHERE id BETWEEN 5001 AND 5200;  -- 0
+SELECT status, COUNT(*) FROM `my-project.shop.orders` GROUP BY status ORDER BY status;
+```
+
+PostgreSQL types map to native BigQuery types. `numeric(12,2)` becomes
+`NUMERIC(12, 2)`, `timestamptz` becomes `TIMESTAMP`, and `jsonb` becomes `JSON`.
+The full table is on the [BigQuery sink](/pages/connectors/sinks/bigquery#type-mapping)
+page.
+
+## 7. Schedule it
+
+Add a cron schedule in the [web app](/pages/guides/usage/web) or with the
+[Pipelines API](/pages/api-reference/service/pipelines). Each run issues one
+`MERGE` per changed table, so a 5 to 15 minute schedule keeps query costs
+predictable.
+
+## Without CDC
+
+If you cannot enable logical replication, use an incremental pipeline from a
+standard source, one created without `--source-replication cdc`. It needs a `NOT NULL` timestamp cursor such as
+`updated_at` and does not capture hard deletes:
+
+```sh
+filament pipeline create orders-to-bigquery \
+  --source app-db-standard \
+  --sink bigquery \
+  --resources orders \
+  --sync-mode incremental \
+  --write-mode upsert \
+  --sink-dataset shop
+```
+
+## Troubleshooting
+
+### `credentials: could not find default credentials`
+
+The worker process has no Application Default Credentials. Set up Workload
+Identity, `GOOGLE_APPLICATION_CREDENTIALS`, or
+`gcloud auth application-default login` as in step 2, then restart the worker.
+
+### Permission denied on `bigquery.tables.updateData`
+
+The service account is missing `roles/bigquery.dataEditor` on the project or
+the destination dataset.
+
+### `create publication "filament": ERROR: permission denied`
+
+Create the publication as a table owner and set
+`--source-manage-publication=false`.
+
+### `CDC connections do not accept a read mode`
+
+Add `--sync-mode cdc` to `filament pipeline create`.
+
+More errors are in [Troubleshooting](/pages/how-to/troubleshooting).
+
+## FAQ
+
+### Does Filament use the BigQuery Storage Write API?
+
+Yes. Rows stream as Arrow over gRPC into staging tables, then a query publishes
+each table at commit.
+
+### Does it replicate deletes?
+
+Yes, with CDC and `merge`. Incremental pipelines cannot see hard deletes.
+
+### Does Filament add primary key constraints in BigQuery?
+
+No. Filament uses the primary key columns for `MERGE` conditions without adding
+BigQuery key constraints.
+
+### Where do staging tables go?
+
+Each table gets an isolated staging table with a seven-day expiration, normally
+deleted as soon as the run publishes.
+
+## Related
+
+- [BigQuery sink reference](/pages/connectors/sinks/bigquery)
+- [PostgreSQL source reference](/pages/connectors/sources/postgres)
+- [Replicate PostgreSQL to Snowflake with CDC](/pages/how-to/postgres-to-snowflake)

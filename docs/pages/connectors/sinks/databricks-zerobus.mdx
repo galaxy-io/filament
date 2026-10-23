@@ -1,0 +1,246 @@
+---
+title: "Databricks Zerobus sink connector"
+sidebarTitle: "Databricks Zerobus"
+description: "Stream records into Databricks Delta tables via the Zerobus Ingest API"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-databricks-dark.svg"
+---
+
+Connector ID `databrickszerobus`
+
+The Databricks Zerobus sink (**alpha**) appends each resource to a Delta table in
+Unity Catalog through the [Zerobus Ingest API](https://docs.databricks.com/aws/en/ingestion/zerobus-overview)
+over Arrow Flight. With `create_table` on, the sink creates the destination schema
+and tables itself, so a first run needs one grant on the catalog.
+
+The sink is **append-only**. It advertises `full_append` and `incremental_append`
+and does not replace, upsert, merge or delete. Zerobus delivers **at-least-once**,
+so deduplicate by primary key downstream when you need exactly-once results.
+
+## Before you start
+
+Zerobus is in preview and is available only in some regions. Check the
+[Zerobus documentation](https://docs.databricks.com/aws/en/ingestion/zerobus-overview) for the
+regions your cloud supports. Service principals in Databricks Free Edition cannot
+authenticate to Zerobus, so use a workspace on a paid plan.
+
+## Databricks setup
+
+The steps below use `create_table`, which is the recommended path. To write into
+tables someone else manages, see [Use existing tables](#use-existing-tables).
+
+### 1. Find the endpoints
+
+- **Workspace URL** looks like `https://dbc-a1b2c3d4.cloud.databricks.com`. It
+  becomes `workspace_url`.
+- **Workspace ID** is the number after `o=` in the workspace URL.
+- **Region** does not appear in the URL. It is shown under the workspace name in
+  the workspace switcher and in the account console.
+- **Zerobus endpoint** is `<workspace-id>.zerobus.<region>.cloud.databricks.com` on
+  AWS or `<workspace-id>.zerobus.<region>.azuredatabricks.net` on Azure. It becomes
+  `zerobus_endpoint`.
+
+### 2. Create the service principal
+
+1. In **Settings → Identity and access**, add a service principal.
+2. Give it the **Workspace access** entitlement. Without it every token request
+   fails.
+3. Generate an OAuth secret with the **`all-apis`** scope. The scope picker
+   suggests narrower scopes, but none of them covers Zerobus. A secret without
+   `all-apis` fails at `/oidc/v1/token` with
+   `Scopes 'all-apis' are not assigned to the client`.
+4. Use the Application ID as `client_id` and the secret as `client_secret`. The
+   secret is shown only once.
+
+### 3. Grant the catalog
+
+```sql
+GRANT USE CATALOG, CREATE SCHEMA ON CATALOG main TO `<application-id>`;
+```
+
+That is the whole list for Unity Catalog. The principal also needs **Can use** on
+the SQL warehouse that runs the DDL, set in the warehouse's permissions.
+
+### 4. Configure the connection
+
+Set `catalog` and `warehouse_id` on the connection and turn on `create_table` in
+the pipeline. Leave `schema` empty to write into a schema named after the
+normalized source connection name, or set it to pick one.
+
+Before each resource's stream opens, the sink does the following through the
+warehouse.
+
+1. Runs `CREATE SCHEMA IF NOT EXISTS`, once per run.
+2. Grants itself `USE SCHEMA` on the schema.
+3. Runs `CREATE TABLE IF NOT EXISTS` from the resource's schema, including
+   Filament's lineage columns.
+4. Grants itself `SELECT, MODIFY` on the table.
+
+Zerobus authorizes each stream against explicit grants and does not count
+ownership, which is why the sink grants itself on objects it just created. All
+the statements are idempotent, so later runs repeat them safely.
+
+## Use existing tables
+
+With `create_table` off, the sink writes into tables you create and grant.
+
+The table must be a managed Delta table in Unity Catalog, in the workspace's
+region, without Change Data Feed or column mapping. Column names may use ASCII
+letters, digits and underscores. The columns must match the source resource (see
+[Type mapping](#type-mapping)) and must include Filament's lineage columns after
+the source fields.
+
+```sql
+CREATE TABLE main.sales.customers (
+  id     BIGINT NOT NULL,
+  name   STRING,
+  email  STRING,
+  -- Filament lineage columns, nullable, appended to every destination table
+  _filament_run_id         STRING,
+  _filament_run_started_at TIMESTAMP
+) USING DELTA;
+
+GRANT USE CATALOG ON CATALOG main TO `<application-id>`;
+GRANT USE SCHEMA ON SCHEMA main.sales TO `<application-id>`;
+GRANT SELECT, MODIFY ON TABLE main.sales.customers TO `<application-id>`;
+```
+
+Nullability must match the source. A non-nullable source column such as a primary
+key must be `NOT NULL` in Delta, and nullable source columns must be nullable.
+
+> **Grant before you run.** Zerobus binds the table name into the stream's
+> authorization when the stream opens. The table must exist and the principal must
+> hold `SELECT, MODIFY` on it before the run starts. A grant added later surfaces
+> as a `401`.
+
+With `create_table` on and a schema or table that already exists under another
+owner, the sink cannot grant itself on it. It keeps going, because the grants may
+already be in place. If the stream then fails to open, the error lists the grants
+that failed.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+| --- | --- | --- | --- |
+| `workspace_url` | Connection | — | Databricks workspace URL. Required. Must be an absolute `https://` URL, because the service principal's secret is sent to its OAuth token endpoint. |
+| `zerobus_endpoint` | Connection | — | Zerobus ingest gRPC endpoint. Required. |
+| `client_id` | Connection | — | Service principal application ID. Required. |
+| `client_secret` | Connection | — | Service principal OAuth secret with the `all-apis` scope. Required. Secret. |
+| `catalog` | Connection | — | Unity Catalog catalog for the destination schemas and tables. Required. |
+| `warehouse_id` | Connection | — | SQL warehouse that runs the DDL and grants when `create_table` is on. |
+| `schema` | Pipeline | — | Destination schema. Empty defaults to the normalized source connection name. |
+| `create_table` | Pipeline | `false` | Create the schema and tables if they do not exist and grant the principal on them. Requires `warehouse_id`. |
+| `ipc_compression` | Pipeline | `none` | Arrow IPC compression on the ingest stream, one of `none`, `lz4` or `zstd`. |
+
+The sink prefers batches no larger than 50,000 rows or approximately 32 MiB.
+
+Testing the connection exchanges the service principal's credentials for an
+OAuth token, makes one authenticated call to the workspace and checks the
+principal can see the catalog. When `warehouse_id` is set it also checks the
+principal can see that warehouse. Zerobus authorizes each stream for one table,
+so ingest permissions on a table are checked when the run opens its stream.
+
+## How it works
+
+The sink wraps the official [Zerobus Go SDK](https://github.com/databricks/zerobus-sdk),
+a cgo wrapper over a Rust core. For each selected resource it opens one Arrow
+Flight stream, ingests every batch and flushes to durability on commit.
+
+1. **Open** constructs the Zerobus SDK handle from the workspace URL and gRPC
+   endpoint.
+2. **EnsureSchema** builds the resource's Arrow schema, runs the `create_table`
+   steps when enabled, then opens the stream.
+3. **Apply** serializes the Arrow batch to IPC bytes and calls `IngestBatch`.
+4. **Commit** calls `Flush` on every stream, which blocks until the data is
+   durable, then closes it.
+
+## Supported write modes
+
+The sink advertises `full_append` and `incremental_append`. See
+[replication modes](/pages/guides/concepts/replication-modes).
+
+- Append streams every accepted row into the Delta table as an ingest event.
+- Replace, upsert, delete and CDC merge are **not supported**, because Zerobus is
+  an append ingest service. Reconstruct current state downstream by deduplicating
+  on the key, or use a batch sink for keyed modes.
+
+## Table management
+
+The sink never drops, renames or alters existing columns. Zerobus only permits
+adding nullable columns to a table, so incompatible schema changes must be
+handled manually.
+
+### Type mapping
+
+Column types are the Arrow storage types Zerobus validates against, with their
+Delta equivalents.
+
+| Logical type | Arrow | Delta |
+| --- | --- | --- |
+| `bool` | Boolean | `BOOLEAN` |
+| `int16` | Int16 | `SMALLINT` |
+| `int32` | Int32 | `INT` |
+| `int64` | Int64 | `BIGINT` |
+| `float32` | Float32 | `FLOAT` |
+| `float64` | Float64 | `DOUBLE` |
+| `decimal` (p ≤ 38) | Decimal128(p,s) | `DECIMAL(p,s)` |
+| `decimal` (unbounded), `string`, `json`, `uuid`, `array` | Utf8 | `STRING` |
+| `bytes` | Binary | `BINARY` |
+| `date` | Date32 | `DATE` |
+| `timestamp` | Timestamp(µs) | `TIMESTAMP_NTZ` |
+| `timestamptz` | Timestamp(µs, UTC) | `TIMESTAMP` |
+
+`time` has no Delta equivalent on the Arrow ingest path and is not supported.
+`create_table` rejects it. Model such a column manually, for example as `BIGINT`
+microseconds with a source-side transform.
+
+## Write mechanics
+
+Each Arrow batch is serialized to an Arrow IPC stream and handed to `IngestBatch`.
+The SDK applies `ipc_compression` on the Arrow Flight wire and the connector always
+produces uncompressed IPC bytes, so switching codecs never changes how batches are
+built. Ingestion is asynchronous and pipelined. `Commit` calls `Flush` once per
+stream, which blocks until every batch is durably stored.
+
+The sink returns the batch row count and encoded size in each write receipt and
+recomputes the batch integrity CRC at the write boundary. It does not read the
+committed table back.
+
+## Observability
+
+Row and byte counts flow into the engine's run metrics through the write receipt.
+
+## Runtime requirements
+
+The sink links the Zerobus Rust core through cgo, so it is available only in
+the worker's `-libc` image tag. The standalone binary and the CLI do not
+include it.
+
+## Failure behavior
+
+Zerobus delivers at-least-once. A run that fails after some batches were
+acknowledged leaves those rows in the table, and retries can append them again,
+so deduplicate by primary key downstream. `Abort` closes streams without a final
+flush.
+
+## Troubleshooting
+
+- **`Scopes 'all-apis' are not assigned to the client`** means the OAuth secret
+  was generated without the `all-apis` scope. Generate a new secret with it.
+- **Every token request fails** when the service principal lacks the **Workspace
+  access** entitlement. Add it in the principal's settings.
+- **`401` or `invalid_authorization_details`** means the principal lacks
+  `USE SCHEMA` on the schema or `SELECT, MODIFY` on the table, or the grant was
+  added after the run started. With `create_table` on, the error also lists any
+  grant the sink could not make.
+- **`create_table requires warehouse_id`** means `create_table` is on without a
+  warehouse. Set `warehouse_id` on the connection, or create the tables yourself
+  and turn `create_table` off.
+- **`Schema comparison failed`** or **`field ... does not exist in Delta schema`**
+  means the table is missing Filament's lineage columns (`_filament_run_id`,
+  `_filament_run_started_at`) or a column's type or nullability does not match.
+  Align the table with [Type mapping](#type-mapping), or enable `create_table`.
+- **`logical type "time" has no Delta equivalent`** needs the column remodeled, see
+  [Type mapping](#type-mapping).
+- **Connector `databrickszerobus` not found** means the binary was built without
+  cgo. Run the worker's `-libc` image, see
+  [Runtime requirements](#runtime-requirements).

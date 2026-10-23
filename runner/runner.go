@@ -18,6 +18,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/transform"
 )
@@ -87,7 +88,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	em.span = span
-	extractCtx, control, err := prepareRunExecution(ctx, deps, spec, em)
+	extractCtx, control, err := prepareRunExecution(observeSchemaEvents(ctx, em), deps, spec, em)
 	if err != nil {
 		em.failed(err, nil, false)
 		return nil
@@ -109,6 +110,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
+		return nil
+	}
+	if err := oauthsecrets.Bind(src, filament.NewConfig(spec.Source.Config), deps.Secrets, spec.Tenant, spec.Source.SecretRefs); err != nil {
+		em.failed(err, nil, false)
 		return nil
 	}
 	if err := bindReplicationStream(extractCtx, deps.DataStore, src, &spec); err != nil {

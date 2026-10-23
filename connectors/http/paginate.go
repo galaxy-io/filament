@@ -13,6 +13,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/http/auth"
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/incremental"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
@@ -20,6 +21,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/connectors/http/request"
 	"github.com/galaxy-io/filament/connectors/http/response"
+	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
 // paginate drives the request → response → records → next-state loop.
@@ -96,7 +98,7 @@ func (c *Connector) paginate(
 		}
 
 		checkpointValue := ""
-		if pag != nil && !tokenMode {
+		if pag != nil && !tokenMode && !res.RestartOnResume {
 			checkpointValue = state.Checkpoint()
 		}
 		n, captured, err := c.sendRecords(res, records, sink, parent, checkpointValue, extractor, tracker)
@@ -212,6 +214,13 @@ func (c *Connector) fetchPage(
 ) (*http.Response, []byte, error) {
 	build := func(ctx context.Context) (*http.Request, error) {
 		scope := c.scopeFor(parent, state.Cursor, tracker)
+		if res.Pagination.OffsetInjectInto == "state" {
+			if scope.State == nil {
+				scope.State = map[string]string{}
+			}
+			scope.State[res.Pagination.OffsetParam] = strconv.Itoa(state.Offset)
+			scope.State[res.Pagination.LimitParam] = strconv.Itoa(res.Pagination.PageSize)
+		}
 
 		// Render once so body-merge sees the templated body (parent.*,
 		// config.*, state.* placeholders already substituted).
@@ -289,6 +298,7 @@ func (c *Connector) doRequest(
 ) (*http.Response, []byte, error) {
 	resourceName := res.Name
 	var serverRetries int
+	refreshed := false
 	for attempt := range maxRetries {
 		if err := c.limiter.Wait(ctx); err != nil {
 			return nil, nil, err
@@ -314,6 +324,19 @@ func (c *Connector) doRequest(
 			return resp, nil, fmt.Errorf("response exceeds %d bytes", maxResponseSize)
 		}
 
+		if resp.StatusCode == http.StatusUnauthorized && !refreshed {
+			rejected := req.Header.Get("Authorization")
+			if _, token, ok := strings.Cut(rejected, " "); ok {
+				handled, err := auth.RefreshRejected(ctx, c.builder.Auth, token)
+				if err != nil {
+					return nil, nil, fmt.Errorf("oauth refresh: %w", err)
+				}
+				if handled {
+					refreshed = true
+					continue
+				}
+			}
+		}
 		c.limiter.Observe(resp)
 		delay, limited := rateLimitDelay(resp, body, attempt, c.manifest.Connection.RateLimit)
 
@@ -515,6 +538,23 @@ func (c *Connector) sendRecords(
 		_, emitResource = c.enabledResources[res.Name]
 	}
 	for _, rec := range records {
+		if err := c.matchResponse(res, rec, parent, tracker); err != nil {
+			return n, captured, err
+		}
+		if tracker != nil && res.Incremental.CommitOnComplete {
+			field, _ := manifest.IncrementalCursorField(res)
+			value, _, err := paths.AsString(rec, field.Path)
+			if err != nil {
+				return n, captured, err
+			}
+			below, err := tracker.Below(value)
+			if err != nil {
+				return n, captured, err
+			}
+			if below {
+				return n, captured, fmt.Errorf("resource %s returned a record before the incremental lower bound", res.Name)
+			}
+		}
 		if fields := extractor.Capture(rec, res.Capture); fields != nil {
 			// A grandchild often needs both a value from this record and scope
 			// inherited from its parent. Preserve that ancestry without making
@@ -529,7 +569,7 @@ func (c *Connector) sendRecords(
 		if !emitResource {
 			continue
 		}
-		data, projected, err := projectRecord(res, rec, parent)
+		data, projected, err := projectRecord(res, rec, parent, c.creds)
 		if err != nil {
 			return n, captured, err
 		}
@@ -564,6 +604,20 @@ func (c *Connector) sendRecords(
 
 	}
 	return n, captured, nil
+}
+
+func (c *Connector) matchResponse(res manifest.Resource, rec map[string]any, parent Capture, tracker *incremental.Tracker) error {
+	for path, expected := range res.Response.Match {
+		want, err := template.Render(expected, c.scopeFor(parent, "", tracker))
+		if err != nil {
+			return err
+		}
+		got, _, err := paths.AsString(rec, path)
+		if err != nil || got != want {
+			return fmt.Errorf("resource %s response field %s does not match the requested value", res.Name, path)
+		}
+	}
+	return nil
 }
 
 func extractKey(record map[string]any, primaryKey []string) map[string]any {

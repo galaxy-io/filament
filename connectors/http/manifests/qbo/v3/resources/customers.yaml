@@ -1,0 +1,141 @@
+resources:
+  - name: "customers"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, name]
+    fields:
+      taxable: {"path": "Taxable", "type": "bool", "nullable": true}
+      bill_addr_id: {"path": "BillAddr.Id", "type": "string", "nullable": true}
+      bill_addr_line1: {"path": "BillAddr.Line1", "type": "string", "nullable": true}
+      bill_addr_line2: {"path": "BillAddr.Line2", "type": "string", "nullable": true}
+      bill_addr_line3: {"path": "BillAddr.Line3", "type": "string", "nullable": true}
+      bill_addr_line4: {"path": "BillAddr.Line4", "type": "string", "nullable": true}
+      bill_addr_line5: {"path": "BillAddr.Line5", "type": "string", "nullable": true}
+      bill_addr_city: {"path": "BillAddr.City", "type": "string", "nullable": true}
+      bill_addr_country: {"path": "BillAddr.Country", "type": "string", "nullable": true}
+      bill_addr_country_code: {"path": "BillAddr.CountryCode", "type": "string", "nullable": true}
+      bill_addr_county: {"path": "BillAddr.County", "type": "string", "nullable": true}
+      bill_addr_country_sub_division_code: {"path": "BillAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      bill_addr_postal_code: {"path": "BillAddr.PostalCode", "type": "string", "nullable": true}
+      bill_addr_postal_code_suffix: {"path": "BillAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      bill_addr_lat: {"path": "BillAddr.Lat", "type": "string", "nullable": true}
+      bill_addr_long: {"path": "BillAddr.Long", "type": "string", "nullable": true}
+      bill_addr_tag: {"path": "BillAddr.Tag", "type": "string", "nullable": true}
+      bill_addr_note: {"path": "BillAddr.Note", "type": "string", "nullable": true}
+      ship_addr_id: {"path": "ShipAddr.Id", "type": "string", "nullable": true}
+      ship_addr_line1: {"path": "ShipAddr.Line1", "type": "string", "nullable": true}
+      ship_addr_line2: {"path": "ShipAddr.Line2", "type": "string", "nullable": true}
+      ship_addr_line3: {"path": "ShipAddr.Line3", "type": "string", "nullable": true}
+      ship_addr_line4: {"path": "ShipAddr.Line4", "type": "string", "nullable": true}
+      ship_addr_line5: {"path": "ShipAddr.Line5", "type": "string", "nullable": true}
+      ship_addr_city: {"path": "ShipAddr.City", "type": "string", "nullable": true}
+      ship_addr_country: {"path": "ShipAddr.Country", "type": "string", "nullable": true}
+      ship_addr_country_code: {"path": "ShipAddr.CountryCode", "type": "string", "nullable": true}
+      ship_addr_county: {"path": "ShipAddr.County", "type": "string", "nullable": true}
+      ship_addr_country_sub_division_code: {"path": "ShipAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      ship_addr_postal_code: {"path": "ShipAddr.PostalCode", "type": "string", "nullable": true}
+      ship_addr_postal_code_suffix: {"path": "ShipAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      ship_addr_lat: {"path": "ShipAddr.Lat", "type": "string", "nullable": true}
+      ship_addr_long: {"path": "ShipAddr.Long", "type": "string", "nullable": true}
+      ship_addr_tag: {"path": "ShipAddr.Tag", "type": "string", "nullable": true}
+      ship_addr_note: {"path": "ShipAddr.Note", "type": "string", "nullable": true}
+      other_addr: {"path": "OtherAddr", "type": "json", "nullable": true}
+      contact_name: {"path": "ContactName", "type": "string", "nullable": true}
+      alt_contact_name: {"path": "AltContactName", "type": "string", "nullable": true}
+      notes: {"path": "Notes", "type": "string", "nullable": true}
+      job: {"path": "Job", "type": "bool", "nullable": true}
+      bill_with_parent: {"path": "BillWithParent", "type": "bool", "nullable": true}
+      root_customer_id: {"path": "RootCustomerRef.value", "type": "string", "nullable": true}
+      root_customer_name: {"path": "RootCustomerRef.name", "type": "string", "nullable": true}
+      parent_id: {"path": "ParentRef.value", "type": "string", "nullable": true}
+      parent_name: {"path": "ParentRef.name", "type": "string", "nullable": true}
+      level: {"path": "Level", "type": "int64", "nullable": true}
+      customer_type_id: {"path": "CustomerTypeRef.value", "type": "string", "nullable": true}
+      customer_type_name: {"path": "CustomerTypeRef.name", "type": "string", "nullable": true}
+      sales_term_id: {"path": "SalesTermRef.value", "type": "string", "nullable": true}
+      sales_term_name: {"path": "SalesTermRef.name", "type": "string", "nullable": true}
+      sales_rep_id: {"path": "SalesRepRef.value", "type": "string", "nullable": true}
+      sales_rep_name: {"path": "SalesRepRef.name", "type": "string", "nullable": true}
+      tax_group_code_id: {"path": "TaxGroupCodeRef.value", "type": "string", "nullable": true}
+      tax_group_code_name: {"path": "TaxGroupCodeRef.name", "type": "string", "nullable": true}
+      tax_rate_id: {"path": "TaxRateRef.value", "type": "string", "nullable": true}
+      tax_rate_name: {"path": "TaxRateRef.name", "type": "string", "nullable": true}
+      payment_method_id: {"path": "PaymentMethodRef.value", "type": "string", "nullable": true}
+      payment_method_name: {"path": "PaymentMethodRef.name", "type": "string", "nullable": true}
+      cc_detail: {"path": "CCDetail", "type": "json", "nullable": true}
+      price_level_id: {"path": "PriceLevelRef.value", "type": "string", "nullable": true}
+      price_level_name: {"path": "PriceLevelRef.name", "type": "string", "nullable": true}
+      balance:
+        path: "Balance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      open_balance_date: {"path": "OpenBalanceDate", "type": "date", "nullable": true}
+      balance_with_jobs:
+        path: "BalanceWithJobs"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      credit_limit:
+        path: "CreditLimit"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      acct_num: {"path": "AcctNum", "type": "string", "nullable": true}
+      currency_id: {"path": "CurrencyRef.value", "type": "string", "nullable": true}
+      currency_name: {"path": "CurrencyRef.name", "type": "string", "nullable": true}
+      over_due_balance:
+        path: "OverDueBalance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      total_revenue:
+        path: "TotalRevenue"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      total_expense:
+        path: "TotalExpense"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      preferred_delivery_method: {"path": "PreferredDeliveryMethod", "type": "string", "nullable": true}
+      resale_num: {"path": "ResaleNum", "type": "string", "nullable": true}
+      job_info: {"path": "JobInfo", "type": "json", "nullable": true}
+      tds_enabled: {"path": "TDSEnabled", "type": "bool", "nullable": true}
+      secondary_tax_identifier: {"path": "SecondaryTaxIdentifier", "type": "string", "nullable": true}
+      ar_account_id: {"path": "ARAccountRef.value", "type": "string", "nullable": true}
+      ar_account_name: {"path": "ARAccountRef.name", "type": "string", "nullable": true}
+      primary_tax_identifier: {"path": "PrimaryTaxIdentifier", "type": "string", "nullable": true}
+      tax_exemption_reason_id: {"path": "TaxExemptionReasonId", "type": "string", "nullable": true}
+      is_project: {"path": "IsProject", "type": "bool", "nullable": true}
+      business_number: {"path": "BusinessNumber", "type": "string", "nullable": true}
+      gstin: {"path": "GSTIN", "type": "string", "nullable": true}
+      gst_registration_type: {"path": "GSTRegistrationType", "type": "string", "nullable": true}
+      is_cis_contractor: {"path": "IsCISContractor", "type": "bool", "nullable": true}
+      client_company_id: {"path": "ClientCompanyId", "type": "string", "nullable": true}
+      client_entity_id: {"path": "ClientEntityId", "type": "string", "nullable": true}
+      source: {"path": "Source", "type": "string", "nullable": true}
+      tax_regime: {"path": "TaxRegime", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Customer WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Customer"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

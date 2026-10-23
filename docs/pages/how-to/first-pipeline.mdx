@@ -1,0 +1,245 @@
+---
+title: "Run your first Filament pipeline"
+sidebarTitle: "Your first pipeline"
+description: "Install the Filament CLI and run a pipeline end to end in five minutes with the built-in Sample source and stdout sink. No database, Docker, or account needed."
+---
+
+This guide runs Filament on your machine with nothing but the `filament` CLI.
+You move generated rows from the [Sample](/pages/connectors/sources/sample)
+source to the [stdout](/pages/connectors/sinks/standard-output) sink, which
+prints every record as JSON. Then you save the same route as a pipeline, run it
+again with history, define it in YAML, and open it in the web app.
+
+The local CLI keeps its state in SQLite and runs an in-process event bus, so it
+needs no Postgres, NATS, Docker, or cloud account.
+
+## 1. Install the CLI
+
+```sh
+curl -fsSL https://getgalaxy.io/filament/install | sh
+```
+
+On macOS you can use Homebrew instead:
+
+```sh
+brew install galaxy-io/tap/filament
+```
+
+Check the install and the active context:
+
+```sh
+filament version
+filament status
+```
+
+```text
+Context     local
+Kind        local
+Config      ~/.config/filament/filament.yaml
+State       ~/.config/filament/filament.db
+Deployment  per command; keep one running with filament up
+```
+
+## 2. Move data with one command
+
+An inline run moves data without saving anything:
+
+```sh
+filament run \
+  --source-connector sample \
+  --sink-connector stdout \
+  --resources users,orders \
+  --write-mode replace
+```
+
+```text
+{"i":0,"resource":"users","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+{"i":1,"resource":"users","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+{"i":2,"resource":"users","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+{"i":0,"resource":"orders","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+{"i":1,"resource":"orders","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+{"i":2,"resource":"orders","_filament_run_id":"cli-dm98fwgzpe32","_filament_run_started_at":"2026-10-20T00:18:10.284676Z"}
+# {"sink":"stdout","run":"cli-dm98fwgzpe32","resources":[{"name":"orders","uri":"stdout://cli-dm98fwgzpe32/orders","records":3,"bytes":369},{"name":"users","uri":"stdout://cli-dm98fwgzpe32/users","records":3,"bytes":366}]}
+Run cli-dm98fwgzpe32 completed: 6 records, 735 bytes.
+```
+
+What you are looking at:
+
+- **One JSON line per record.** The Sample source emits three rows per
+  resource by default.
+- **`_filament_run_id` and `_filament_run_started_at`.** Filament adds these to
+  every row it writes, in every sink, so you can trace a row back to its run.
+- **The `#` receipt line.** The sink reports what it wrote for each resource,
+  with record and byte counts.
+
+<Note>
+  stdout supports only `replace` and `append` writes. Without
+  `--write-mode replace`, the run uses the default `upsert` and fails with
+  `sink "stdout" does not support write policy "upsert"`.
+</Note>
+
+## 3. Save a source, a sink, and a pipeline
+
+Saved connections and pipelines keep run history, checkpoints, and settings in
+local state.
+
+```sh
+filament source create demo --source-connector sample
+filament sink create console --sink-connector stdout
+```
+
+See what the source offers:
+
+```sh
+filament source discover demo
+```
+
+```text
+  Resource     Display name     Selectable     Primary key     Est. rows
+  users        –                ✓              id              –
+  orders       –                ✓              id              –
+```
+
+Create a pipeline. `--source-rows` is a pipeline-level setting, so you can run
+the same source with different settings in different pipelines:
+
+```sh
+filament pipeline create demo-to-console \
+  --source demo \
+  --sink console \
+  --resources users,orders \
+  --sync-mode full \
+  --write-mode replace \
+  --source-rows 5
+```
+
+## 4. Run it and check history
+
+```sh
+filament run demo-to-console
+```
+
+```text
+...
+Run e8fb7036-ea00-56f4-8448-2fed93ff48b8 completed: 10 records, 1425 bytes.
+```
+
+```sh
+filament run ls demo-to-console
+```
+
+```text
+  Run                                      Pipeline            Version     Status          Records     Volume     Started              Duration
+  e8fb7036-ea00-56f4-8448-2fed93ff48b8     demo-to-console     v1          ● Completed     10          1.4 KB     2026-10-19 20:18     2ms
+```
+
+```sh
+filament pipeline ls
+```
+
+```text
+  Name                Source     Sink        Resources     Sync     Write       Schedule     Status          Last run
+  demo-to-console     demo       console     2             Full     Replace     –            ● Completed     just now
+```
+
+## 5. Define pipelines in YAML
+
+The local context also reads pipelines from `~/.config/filament/filament.yaml`
+(`filament config path` prints the exact path). Settings that belong to the
+pipeline, like `rows`, go on the pipeline's source node:
+
+```yaml
+version: 1
+
+sources:
+  demo-yaml:
+    type: sample
+
+sinks:
+  console-yaml:
+    type: stdout
+
+pipelines:
+  demo-from-yaml:
+    source:
+      ref: demo-yaml
+      config:
+        rows: 2
+    sink:
+      ref: console-yaml
+    resources:
+      - users
+    sync_mode: full
+    write_mode: replace
+```
+
+```sh
+filament config validate
+filament run demo-from-yaml
+```
+
+```text
+filament.yaml is structurally valid.
+...
+Run 7c8e3ab0-38d0-5e08-bb99-f4ef03d54360 completed: 2 records, 282 bytes.
+```
+
+The CLI applies the file when it changes. Removing an entry from the file does
+not delete it from local state.
+
+## 6. Open the web app
+
+```sh
+filament up --detach
+filament status
+```
+
+```text
+Deployment  running (pid 13350)
+UI          http://127.0.0.1:8080
+```
+
+Open `http://127.0.0.1:8080` to see your pipelines on the canvas, run them, add
+a schedule, and inspect each run. Stop it with `filament down`.
+
+## Next steps
+
+Swap the Sample source and stdout sink for real systems. The commands stay the
+same; only the connector and its fields change.
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL to ClickHouse" icon="bolt" href="/pages/how-to/postgres-to-clickhouse">
+    Runs on the local CLI. Snapshot, then incremental upserts.
+  </Card>
+  <Card title="PostgreSQL to Snowflake" icon="snowflake" href="/pages/how-to/postgres-to-snowflake">
+    Change data capture with merged inserts, updates, and deletes.
+  </Card>
+  <Card title="Replication modes" icon="arrows-rotate" href="/pages/guides/concepts/replication-modes">
+    How full, incremental, and CDC reads pair with write policies.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/pages/guides/usage/cli">
+    Every command, flag, context, and output option.
+  </Card>
+</CardGroup>
+
+## FAQ
+
+### Do I need Docker or a database to try Filament?
+
+No. The local context runs Filament in process with SQLite and an in-process
+event bus. You need a datastore and an event bus only when you deploy Filament
+as a shared service.
+
+### Can I run change data capture on the local CLI?
+
+No. CDC pipelines need the PostgreSQL datastore, so they run on a deployed
+Filament server. Full and incremental pipelines run locally.
+
+### Is Filament free?
+
+Yes. Filament is open source under the Apache 2.0 license. The engine and every
+connector are on [GitHub](https://github.com/galaxy-io/filament).
+
+### Where does the local CLI keep its state?
+
+In `filament.db` next to `filament.yaml`. `filament status` prints both paths.

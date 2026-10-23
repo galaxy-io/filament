@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -19,6 +21,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
+	"github.com/galaxy-io/filament/oauth"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -35,6 +38,7 @@ type selectorToken struct {
 
 // Source adapts the manifest-driven HTTP connector to ingestion's source API.
 type Source struct {
+	oauthStore           oauth.Store
 	connector            *Connector
 	name                 string
 	displayName          string
@@ -193,9 +197,48 @@ func (s *Source) Validate(cfg filament.Config) error {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
 	}
-	if s.embeddedManifest != nil && s.embeddedManifest.Connection.Auth.Type == "select" {
+	if s.embeddedManifest != nil {
+		creds := credentialsFromConfig(cfg, s.embeddedManifest.Config)
+		if err := s.validateConfigConstraints(creds); err != nil {
+			return err
+		}
 		_, err := buildAuth(s.embeddedManifest.Connection.Auth, credentialsFromConfig(cfg, s.embeddedManifest.Config), processEnvironment())
 		return err
+	}
+	return nil
+}
+
+func (s *Source) validateConfigConstraints(creds map[string]string) error {
+	for name, spec := range s.embeddedManifest.Config {
+		value := creds[name]
+		if value == "" {
+			continue
+		}
+		if spec.Pattern != "" {
+			match, err := regexp.MatchString(spec.Pattern, value)
+			if err != nil || !match {
+				return fmt.Errorf("%s source: invalid %s", s.name, name)
+			}
+		}
+		if spec.Format == "date" {
+			if _, err := time.Parse(time.DateOnly, value); err != nil {
+				return fmt.Errorf("%s must be YYYY-MM-DD", name)
+			}
+		}
+		if spec.Minimum != nil || spec.Maximum != nil {
+			n, err := strconv.Atoi(value)
+			if err != nil || (spec.Minimum != nil && n < *spec.Minimum) || (spec.Maximum != nil && n > *spec.Maximum) {
+				return fmt.Errorf("%s is outside its allowed range", name)
+			}
+		}
+		for _, required := range spec.Requires {
+			if creds[required] == "" {
+				return fmt.Errorf("%s requires %s", name, required)
+			}
+		}
+		if spec.Before != "" && creds[spec.Before] != "" && value >= creds[spec.Before] {
+			return fmt.Errorf("%s must precede %s", name, spec.Before)
+		}
 	}
 	return nil
 }
@@ -225,6 +268,13 @@ func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	sort.SliceStable(names, func(i, j int) bool {
+		left, right := m.Config[names[i]].Order, m.Config[names[j]].Order
+		if left == 0 || right == 0 {
+			return left != 0 && right == 0
+		}
+		return left < right
+	})
 	controllers := map[string]bool{}
 	for _, spec := range m.Config {
 		if spec.VisibleWhen != nil {
@@ -311,6 +361,9 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 		return fmt.Errorf("%s source: configure connection probe: %w", s.name, err)
 	}
 	defer func() { _ = c.Teardown(ctx) }()
+	if field, _ := s.OAuthRefreshConfig(cfg); field != "" && s.oauthStore == nil {
+		return nil
+	}
 	if err := c.TestConnection(ctx); err != nil {
 		return fmt.Errorf("%s source: %w", s.name, err)
 	}
@@ -318,7 +371,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 }
 
 func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
-	c := &Connector{}
+	c := &Connector{oauthStore: s.oauthStore}
 	if s.manifestErr != nil {
 		return nil, fmt.Errorf("%s source: parse manifest: %w", s.name, s.manifestErr)
 	}
@@ -451,7 +504,45 @@ func (s *Source) PlanResources(_ context.Context, resources, selectors []string)
 	if s.connector == nil || s.connector.manifest == nil {
 		return nil, fmt.Errorf("httpapi source: plan resources before configure")
 	}
-	return s.planResources(resources, selectors)
+	if s.connector.manifest.Discovery.Mode == "static" {
+		selected := append(slices.Clone(resources), selectors...)
+		if len(selected) == 0 {
+			selected = slices.Clone(s.connector.manifest.Discovery.DefaultResources)
+		}
+		if selected != nil {
+			slices.Sort(selected)
+			selected = slices.Compact(selected)
+			for _, name := range selected {
+				res, ok := s.manifestResource(name)
+				if !ok || res.CaptureOnly {
+					return nil, fmt.Errorf("unknown resource %q", name)
+				}
+				for _, field := range res.RequiredConfig {
+					if strings.TrimSpace(s.connector.creds[field]) == "" {
+						return nil, fmt.Errorf("%s requires %s", name, field)
+					}
+				}
+			}
+			return selected, nil
+		}
+	}
+	planned, err := s.planResources(resources, selectors)
+	if err != nil {
+		return nil, err
+	}
+	if len(resources) == 0 && len(selectors) == 0 && s.connector.manifest.Discovery.DefaultResources != nil {
+		planned = slices.Clone(s.connector.manifest.Discovery.DefaultResources)
+	}
+	for _, name := range planned {
+		if res, ok := s.manifestResource(s.baseResourceName(name)); ok {
+			for _, field := range res.RequiredConfig {
+				if strings.TrimSpace(s.connector.creds[field]) == "" {
+					return nil, fmt.Errorf("%s requires %s", name, field)
+				}
+			}
+		}
+	}
+	return planned, nil
 }
 
 // PlanResume builds per-resource pagination checkpoints for a full read.
@@ -466,6 +557,9 @@ func (s *Source) PlanResume(_ context.Context, resources []string, prev map[stri
 	}
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, resource := range resources {
+		if res, ok := s.manifestResource(resource); ok && res.RestartOnResume {
+			continue
+		}
 		if res, ok := s.manifestResource(resource); ok && export.Scoped(res) {
 			state, err := s.exportPlanState(res, prev[resource], false)
 			if err != nil {
@@ -544,11 +638,22 @@ func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		return fmt.Errorf("httpapi source: extract before configure")
 	}
 
+	if s.connector.manifest.Discovery.Mode == "static" {
+		planned, err := s.PlanResources(ctx, opts.Resources, opts.Selectors)
+		if err != nil {
+			return err
+		}
+		opts.Resources, opts.Selectors = planned, nil
+		if len(planned) == 0 {
+			return nil
+		}
+	}
 	reducingSink := &incrementalRecordSink{
 		sink:    newRowSink(ctx, s, sink),
 		reducer: newIncrementalRecordReducer(s, resumeWatermarks),
 	}
 	return s.connector.Extract(ctx, reducingSink, extractOptions{
+		Limit:                opts.Limit,
 		Observe:              opts.Observe,
 		Resources:            s.connectorResources(opts.Resources),
 		EnabledResources:     enabledResources(opts.Selectors),
@@ -1077,7 +1182,7 @@ func (r *incrementalRecordReducer) record(rec record) (record, error) {
 		base := r.source.baseResourceName(rec.Resource)
 		spec, ok = r.source.incrementalResources[base]
 	}
-	if !ok || spec.ResponseCursor != "" {
+	if !ok || spec.ResponseCursor != "" || spec.CommitOnComplete {
 		return rec, nil
 	}
 	checkpointKey := spec.DurableCheckpointKey()
@@ -1201,3 +1306,7 @@ func (s *Source) planResponseCursor(resource string, res manifest.Resource, prev
 	}
 	return cp.ToCheckpoint(resource), nil
 }
+
+// SetOAuthStore binds token storage for one authorization before configuration.
+// Both extraction and connection testing use it. Nil keeps in-memory tokens.
+func (s *Source) SetOAuthStore(store oauth.Store) { s.oauthStore = store }

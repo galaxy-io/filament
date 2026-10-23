@@ -168,22 +168,11 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		if len(schema.PrimaryKey) == 1 {
 			primaryKey = schema.PrimaryKey[0]
 		} else {
-			// Check if any field is named "id" or "ID"
-			for _, f := range schema.Fields {
-				if strings.EqualFold(f.Name, "id") {
-					primaryKey = f.Name
-					break
-				}
+			names := make([]string, len(schema.Fields))
+			for i, f := range schema.Fields {
+				names[i] = f.Name
 			}
-			// If still empty, check for field ending in _id or Id
-			if primaryKey == "" {
-				for _, f := range schema.Fields {
-					if strings.HasSuffix(strings.ToLower(f.Name), "_id") || strings.HasSuffix(f.Name, "Id") {
-						primaryKey = f.Name
-						break
-					}
-				}
-			}
+			primaryKey = guessPrimaryKey(names)
 			// Fallback to first field
 			if primaryKey == "" && len(schema.Fields) > 0 {
 				primaryKey = schema.Fields[0].Name
@@ -247,6 +236,25 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	return nil
 }
 
+// guessPrimaryKey picks a field named "id", else the first non-reserved
+// field ending in _id or Id. It returns "" when nothing matches.
+func guessPrimaryKey(names []string) string {
+	for _, n := range names {
+		if strings.EqualFold(n, "id") {
+			return n
+		}
+	}
+	for _, n := range names {
+		if rowmodel.IsReservedColumn(n) {
+			continue
+		}
+		if strings.HasSuffix(strings.ToLower(n), "_id") || strings.HasSuffix(n, "Id") {
+			return n
+		}
+	}
+	return ""
+}
+
 // Apply encodes an Arrow batch into NDJSON and sends it to Meilisearch.
 func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	if s.client == nil {
@@ -255,20 +263,64 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 
 	s.mu.Lock()
 	meta := s.indexes[b.Resource]
+	s.mu.Unlock()
+
 	if meta == nil {
-		// Auto-derive index if EnsureSchema was not invoked
+		// Auto-derive index metadata if EnsureSchema was not invoked.
 		uid := s.cfg.Index
 		if uid == "" {
 			uid = sanitizeIndexUID(s.cfg.IndexPrefix, b.Resource)
 		}
-		meta = &indexMeta{
-			UID:           uid,
-			PrimaryKey:    s.cfg.PrimaryKey,
-			PrimaryKeyIdx: -1,
+
+		primaryKey := s.cfg.PrimaryKey
+
+		// 1. Resolve from existing destination index in Meilisearch if present.
+		existing, err := s.client.GetIndex(ctx, uid)
+		if err != nil && !errorsIs(err, ErrIndexNotFound) {
+			return filament.WriteReceipt{}, fmt.Errorf("meilisearch sink: check index %q: %w", uid, err)
 		}
-		s.indexes[b.Resource] = meta
+		if existing != nil && existing.PrimaryKey != "" {
+			primaryKey = existing.PrimaryKey
+		}
+
+		// 2. Use declared write policy key if configured.
+		if primaryKey == "" && len(opts.Policy.Keys) == 1 {
+			primaryKey = opts.Policy.Keys[0]
+		}
+
+		// 3. Fallback to schema field name heuristics ("id", *_id, *Id).
+		fields := b.Rows().Schema().Fields()
+		if primaryKey == "" {
+			names := make([]string, len(fields))
+			for i, f := range fields {
+				names[i] = f.Name
+			}
+			primaryKey = guessPrimaryKey(names)
+		}
+
+		pkIdx := -1
+		if primaryKey != "" {
+			for i, f := range fields {
+				if f.Name == primaryKey {
+					pkIdx = i
+					break
+				}
+			}
+		}
+
+		s.mu.Lock()
+		if existingMeta, ok := s.indexes[b.Resource]; ok {
+			meta = existingMeta
+		} else {
+			meta = &indexMeta{
+				UID:           uid,
+				PrimaryKey:    primaryKey,
+				PrimaryKeyIdx: pkIdx,
+			}
+			s.indexes[b.Resource] = meta
+		}
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	switch opts.Policy.Capability.Mode {
 	case filament.WriteReplace:
@@ -342,14 +394,27 @@ func (s *Sink) writeBatch(ctx context.Context, meta *indexMeta, b *arrowbatch.Ba
 // writeMerge walks the batch as ordered runs of deletes and upserts. Tasks run
 // in queue order, so a key deleted and re-inserted in one batch settles correctly.
 func (s *Sink) writeMerge(ctx context.Context, meta *indexMeta, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	rows := b.Rows()
+	if meta.PrimaryKey != "" && (meta.PrimaryKeyIdx < 0 || meta.PrimaryKeyIdx >= int(rows.NumCols()) || rows.Schema().Field(meta.PrimaryKeyIdx).Name != meta.PrimaryKey) {
+		meta.PrimaryKeyIdx = -1
+		for i, f := range rows.Schema().Fields() {
+			if f.Name == meta.PrimaryKey {
+				meta.PrimaryKeyIdx = i
+				break
+			}
+		}
+	}
+
 	if meta.PrimaryKeyIdx < 0 || meta.PrimaryKeyIdx >= int(rows.NumCols()) {
+		if meta.PrimaryKey == "" {
+			return filament.WriteReceipt{}, fmt.Errorf("meilisearch sink: merge on %q: no primary key configured or detected in schema", b.Resource)
+		}
 		return filament.WriteReceipt{}, fmt.Errorf("meilisearch sink: merge on %q: primary key %q is not in the schema", b.Resource, meta.PrimaryKey)
 	}
 	pkCol := rows.Column(meta.PrimaryKeyIdx)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	enc := s.enc[rows.Schema()]
 	if enc == nil {

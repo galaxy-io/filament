@@ -26,6 +26,9 @@ type Config struct {
 	// WorkerAppName is the chart's app name for the Job's
 	// app.kubernetes.io/name label; empty means "filament".
 	WorkerAppName string
+	// WorkerInstance is the Job's app.kubernetes.io/instance label, the
+	// release that owns the control plane; empty leaves it off.
+	WorkerInstance string
 }
 
 // ConfigFromEnv builds a Config for in-cluster use, with optional overrides.
@@ -47,6 +50,7 @@ func ConfigFromEnv() Config {
 		WorkerSecretName:    os.Getenv("K8S_WORKER_SECRET_NAME"),
 		WorkerConfigMapName: os.Getenv("K8S_WORKER_CONFIGMAP_NAME"),
 		WorkerAppName:       os.Getenv("K8S_WORKER_APP_NAME"),
+		WorkerInstance:      os.Getenv("K8S_WORKER_INSTANCE"),
 	}
 	if v := os.Getenv("K8S_JOB_TTL_SECONDS_AFTER_FINISHED"); v != "" {
 		n := int32Env("K8S_JOB_TTL_SECONDS_AFTER_FINISHED", 0)

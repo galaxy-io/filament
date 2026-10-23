@@ -1,0 +1,74 @@
+resources:
+  - name: "invoices"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction, sales_transaction]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      deposit:
+        path: "Deposit"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      allow_ipn_payment: {"path": "AllowIPNPayment", "type": "bool", "nullable": true}
+      allow_online_payment: {"path": "AllowOnlinePayment", "type": "bool", "nullable": true}
+      allow_online_credit_card_payment: {"path": "AllowOnlineCreditCardPayment", "type": "bool", "nullable": true}
+      allow_online_ach_payment: {"path": "AllowOnlineACHPayment", "type": "bool", "nullable": true}
+      allow_online_pay_pal_payment: {"path": "AllowOnlinePayPalPayment", "type": "bool", "nullable": true}
+      allow_online_affirm_payment: {"path": "AllowOnlineAffirmPayment", "type": "bool", "nullable": true}
+      e_invoice_status: {"path": "EInvoiceStatus", "type": "string", "nullable": true}
+      e_cloud_status_time_stamp: {"path": "ECloudStatusTimeStamp", "type": "timestamptz", "nullable": true}
+      cfdi_use: {"path": "CfdiUse", "type": "int64", "nullable": true}
+      exportation: {"path": "Exportation", "type": "string", "nullable": true}
+      global_info: {"path": "GlobalInfo", "type": "json", "nullable": true}
+      invoice_status: {"path": "invoiceStatus", "type": "string", "nullable": true}
+      call_to_action: {"path": "callToAction", "type": "string", "nullable": true}
+      invoice_status_log: {"path": "invoiceStatusLog", "type": "json", "nullable": true}
+      less_cis:
+        path: "LessCIS"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      invoice_link: {"path": "InvoiceLink", "type": "string", "nullable": true}
+      payment_details_message: {"path": "PaymentDetailsMessage", "type": "string", "nullable": true}
+      convenience_fee_detail: {"path": "ConvenienceFeeDetail", "type": "json", "nullable": true}
+      enabled_surcharge_info: {"path": "EnabledSurchargeInfo", "type": "json", "nullable": true}
+      invoice_link_security_code: {"path": "InvoiceLinkSecurityCode", "type": "string", "nullable": true}
+      invoice_link_expiry_date: {"path": "InvoiceLinkExpiryDate", "type": "date", "nullable": true}
+      auto_pay_eligible: {"path": "AutoPayEligible", "type": "bool", "nullable": true}
+      schedule_pay_eligible: {"path": "SchedulePayEligible", "type": "bool", "nullable": true}
+      scheduled_payment_id: {"path": "ScheduledPaymentId", "type": "string", "nullable": true}
+      gratuity_enabled: {"path": "GratuityEnabled", "type": "bool", "nullable": true}
+      financing_product_type: {"path": "FinancingProductType", "type": "string", "nullable": true}
+      subscription_payments_setting: {"path": "SubscriptionPaymentsSetting", "type": "string", "nullable": true}
+      txn_retainage_detail: {"path": "TxnRetainageDetail", "type": "json", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Invoice{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Invoice"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "invoices.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

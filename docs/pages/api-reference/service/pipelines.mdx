@@ -1,6 +1,7 @@
 ---
-title: "Pipelines"
-description: "Define data routes, save versioned changes, and schedule runs"
+title: "Pipelines API"
+sidebarTitle: "Pipelines"
+description: "Define data routes, save versioned changes, and schedule runs in Filament, the open-source data movement engine."
 ---
 
 A pipeline connects sources to destinations. Its name, description, worker
@@ -31,6 +32,15 @@ per-resource route. On standard (query-based) connections an edge carries:
 Standard edges default to full reads and upsert writes. Upsert uses append for
 resources without a primary key, while keyed resources still use upsert. The
 sink must support append for this fallback. Repeated keyless rows are retained.
+
+Any edge may carry a `transform`, a JSON object keyed by resource that renames,
+drops, and computes columns before the sink writes them. An all-resource edge
+may define several resources. A resource-specific edge may define only its own.
+Validation compiles the definition against each named resource's current
+source schema and reports issues by their path in the definition. See
+[Transformations](/pages/guides/concepts/transformations) for the format and
+[the transform RPCs](/pages/api-reference/service/transformations) for the
+catalog.
 
 Two invariants:
 

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // The catalog: every fact filament emits, with its typed payload. Wire
@@ -11,6 +12,13 @@ import (
 // configuration, and hook rules survive the cutover unchanged.
 
 type (
+	// SchemaDetectedEvent reports observed drift before migration or certification.
+	SchemaDetectedEvent schema.Detection
+	// SchemaBlockedEvent reports drift that requires intervention. It carries no rows.
+	SchemaBlockedEvent struct {
+		Reasons []string `json:"reasons"`
+	}
+
 	// ExportJobCreatedEvent reports successful creation and validated captures.
 	ExportJobCreatedEvent filament.ExportJobProgress
 	// ExportJobPolledEvent samples completed status checks; Polls is cumulative.
@@ -184,6 +192,8 @@ var (
 	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
 	FanOutStarted     = define[FanOutStartedEvent]("resource.fan_out_started")
 	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
+	SchemaDetected    = define[SchemaDetectedEvent]("schema.detected")
+	SchemaBlocked     = define[SchemaBlockedEvent]("schema.blocked")
 	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
 
 	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
