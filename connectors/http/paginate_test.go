@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/http/internal/paths"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
+	"github.com/galaxy-io/filament/connectors/http/pagination"
 )
 
 const throttleTestManifest = `
@@ -357,5 +359,63 @@ func TestHTTPLinkHeaderWalksRepeatedLinkFields(t *testing.T) {
 	}
 	if strings.Join(ids, ",") != "1,2" {
 		t.Fatalf("ids=%v, want [1 2] — the rel=\"next\" field after the first was not followed", ids)
+	}
+}
+
+// TestPaginationBodyMapPreservesLargeNumbers covers issue #586: a numeric
+// cursor above 2^53 (snowflake-style IDs) must keep its exact digits through
+// the paginator's view of the response body. A plain json.Unmarshal turns
+// every number into a float64, which cannot represent 9007199254740993 and
+// rounds it to 9007199254740992 — the corrupted cursor would go out on the
+// next request and into the checkpoint.
+func TestPaginationBodyMapPreservesLargeNumbers(t *testing.T) {
+	raw := []byte(`{"items":[{"id":"a"}],"next_cursor":9007199254740993,"small":12345,"has_more":true}`)
+	body := paginationBodyMap(raw)
+
+	cur, present, err := paths.AsStringStrict(body, "next_cursor")
+	if err != nil || !present {
+		t.Fatalf("next_cursor not extracted: present=%v err=%v", present, err)
+	}
+	if cur != "9007199254740993" {
+		t.Fatalf("next_cursor=%q, want %q (digits lost in decode)", cur, "9007199254740993")
+	}
+
+	// Ordinary values must be unaffected: small numbers, booleans, strings.
+	small, _, err := paths.AsStringStrict(body, "small")
+	if err != nil || small != "12345" {
+		t.Fatalf("small=%q err=%v, want %q", small, err, "12345")
+	}
+
+	// Root-array bodies still decode as nil (pagers that need the body don't
+	// consume root arrays).
+	if body := paginationBodyMap([]byte(`[{"id":"a"}]`)); body != nil {
+		t.Fatalf("root-array body decoded as %v, want nil", body)
+	}
+}
+
+// TestCursorPaginatorPreservesLargeNumericCursor is the paginator-level
+// regression for issue #586: the cursor paginator must advance with the
+// exact cursor digits the API returned.
+func TestCursorPaginatorPreservesLargeNumericCursor(t *testing.T) {
+	p, err := pagination.New(manifest.PaginationSpec{
+		Type:        "cursor",
+		CursorPath:  "next_cursor",
+		CursorParam: "start_cursor",
+		HasMorePath: "has_more",
+		InjectInto:  "query",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := paginationBodyMap([]byte(`{"items":[{"id":"a"}],"next_cursor":9007199254740993,"has_more":true}`))
+	state, err := p.Next(nil, body, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Done {
+		t.Fatal("paginator terminated, want to continue with the next cursor")
+	}
+	if state.Cursor != "9007199254740993" {
+		t.Fatalf("cursor=%q, want %q", state.Cursor, "9007199254740993")
 	}
 }

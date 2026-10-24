@@ -133,8 +133,7 @@ func (c *Connector) paginate(
 
 		// Decode body for paginators that consume response paths (cursor, next_url).
 		// Root-array bodies decode as nil — ok, those pagers don't use body.
-		var bodyMap map[string]any
-		_ = json.Unmarshal(raw, &bodyMap)
+		bodyMap := paginationBodyMap(raw)
 
 		state, err = pag.Next(resp, bodyMap, len(records))
 		if err != nil {
@@ -145,6 +144,24 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, nil
 		}
 	}
+}
+
+// paginationBodyMap decodes a response body for paginators that consume
+// response paths (cursor, next_url). Root-array bodies decode as nil — ok,
+// those pagers don't use body.
+//
+// Numbers decode as json.Number (UseNumber), not float64, so numeric cursors
+// above 2^53 keep their exact digits: a plain json.Unmarshal would round
+// them (e.g. 9007199254740993 → 9007199254740992), and the corrupted cursor
+// would go out on the next request and into the checkpoint. Mirrors
+// response/resultToMap, which already decodes records this way for the same
+// reason (IDs may exceed float64's exact integer range).
+func paginationBodyMap(raw []byte) map[string]any {
+	var bodyMap map[string]any
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.UseNumber()
+	_ = decoder.Decode(&bodyMap)
+	return bodyMap
 }
 
 func (c *Connector) initialPaginationState(
