@@ -260,9 +260,13 @@ acknowledged leaves those rows in the table, and retries can append them again,
 so deduplicate by primary key downstream. A `cdc_append` table repeats keys by
 design, so deduplicate it on the key plus `_filament_source_position` and
 `_filament_sequence` instead, and leave out the `_filament_run_*` columns, which
-differ on a retry. Snapshot rows have no position or sequence, and a retried
-snapshot reads the table again, so for those keep the row from the latest run.
-`Abort` closes streams without a final flush.
+differ on a retry. A failed initial snapshot is different. Its rows stay in
+the table, and the retry takes a fresh snapshot with no delete rows for keys
+removed in between, so deduplicating cannot remove them. For each table, treat
+the most recent completed run that wrote snapshot rows (null position and
+sequence) as the start of its history and ignore rows from earlier runs. Failed runs are also listed
+by run ID in the runs API, so you can drop rows whose `_filament_run_id`
+belongs to one. `Abort` closes streams without a final flush.
 
 ## Troubleshooting
 
