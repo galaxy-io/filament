@@ -12,9 +12,10 @@ Unity Catalog through the [Zerobus Ingest API](https://docs.databricks.com/aws/e
 over Arrow Flight. With `create_table` on, the sink creates the destination schema
 and tables itself, so a first run needs one grant on the catalog.
 
-The sink is **append-only**. It advertises `full_append` and `incremental_append`
-and does not replace, upsert, merge or delete. Zerobus delivers **at-least-once**,
-so deduplicate by primary key downstream when you need exactly-once results.
+The sink is **append-only**. It advertises `full_append`, `incremental_append`
+and `cdc_append`, and does not replace, upsert, merge or delete. Zerobus delivers
+**at-least-once**, so deduplicate downstream when you need exactly-once results,
+see [Failure behavior](#failure-behavior).
 
 ## Before you start
 
@@ -104,8 +105,32 @@ GRANT USE SCHEMA ON SCHEMA main.sales TO `<application-id>`;
 GRANT SELECT, MODIFY ON TABLE main.sales.customers TO `<application-id>`;
 ```
 
-Nullability must match the source. A non-nullable source column such as a primary
-key must be `NOT NULL` in Delta, and nullable source columns must be nullable.
+For append tables, nullability must match the source. A non-nullable source
+column such as a primary key must be `NOT NULL` in Delta, and nullable source
+columns must be nullable.
+
+A `cdc_append` table holds change history, so every column is nullable, the key
+included, and three CDC columns follow the lineage columns. A table made for
+plain append does not fit, and `create_table` does not alter an existing table.
+The table always takes the resource's name, so point a `cdc_append` pipeline at
+its own `schema`.
+
+```sql
+CREATE TABLE main.sales_history.customers (
+  id     BIGINT,
+  name   STRING,
+  email  STRING,
+  _filament_run_id          STRING,
+  _filament_run_started_at  TIMESTAMP,
+  -- CDC columns, added for cdc_append
+  _filament_operation       STRING,
+  _filament_source_position STRING,
+  _filament_sequence        BIGINT
+) USING DELTA;
+
+GRANT USE SCHEMA ON SCHEMA main.sales_history TO `<application-id>`;
+GRANT SELECT, MODIFY ON TABLE main.sales_history.customers TO `<application-id>`;
+```
 
 > **Grant before you run.** Zerobus binds the table name into the stream's
 > authorization when the stream opens. The table must exist and the principal must
@@ -155,13 +180,26 @@ Flight stream, ingests every batch and flushes to durability on commit.
 
 ## Supported write modes
 
-The sink advertises `full_append` and `incremental_append`. See
+The sink advertises `full_append`, `incremental_append` and `cdc_append`. See
 [replication modes](/pages/guides/concepts/replication-modes).
 
 - Append streams every accepted row into the Delta table as an ingest event.
+- `cdc_append` retains every change from a CDC source as a history row. Inserts,
+  updates and deletes are all appended, and `_filament_operation` holds
+  `insert`, `update` or `delete`. The source table needs a primary key. A delete
+  row may carry only the key, with the other source columns null. A change to
+  the primary key arrives as a delete of the old key and an insert of the new
+  one.
+- `_filament_source_position` is the source's log position as text, so it does
+  not sort in log order. `_filament_sequence` orders the changes within a run.
+  To order a key's history, sort by `_filament_run_started_at` and then
+  `_filament_sequence`. Rows from the initial snapshot have a null position and
+  sequence, so in an ascending sort they come before the changes from the same
+  run.
 - Replace, upsert, delete and CDC merge are **not supported**, because Zerobus is
   an append ingest service. Reconstruct current state downstream by deduplicating
-  on the key, or use a batch sink for keyed modes.
+  on the key, or use a batch sink for keyed modes. For a history table, keep the
+  latest row per key and drop it when that row is a delete.
 
 ## Table management
 
@@ -219,8 +257,16 @@ include it.
 
 Zerobus delivers at-least-once. A run that fails after some batches were
 acknowledged leaves those rows in the table, and retries can append them again,
-so deduplicate by primary key downstream. `Abort` closes streams without a final
-flush.
+so deduplicate by primary key downstream. A `cdc_append` table repeats keys by
+design, so deduplicate it on the key plus `_filament_source_position` and
+`_filament_sequence` instead, and leave out the `_filament_run_*` columns, which
+differ on a retry. A failed initial snapshot is different. Its rows stay in
+the table, and the retry takes a fresh snapshot with no delete rows for keys
+removed in between, so deduplicating cannot remove them. For each table, treat
+the most recent completed run that wrote snapshot rows (null position and
+sequence) as the start of its history and ignore rows from earlier runs. Failed runs are also listed
+by run ID in the runs API, so you can drop rows whose `_filament_run_id`
+belongs to one. `Abort` closes streams without a final flush.
 
 ## Troubleshooting
 
@@ -237,7 +283,8 @@ flush.
   and turn `create_table` off.
 - **`Schema comparison failed`** or **`field ... does not exist in Delta schema`**
   means the table is missing Filament's lineage columns (`_filament_run_id`,
-  `_filament_run_started_at`) or a column's type or nullability does not match.
+  `_filament_run_started_at`, plus the three CDC columns for `cdc_append`) or a
+  column's type or nullability does not match.
   Align the table with [Type mapping](#type-mapping), or enable `create_table`.
 - **`logical type "time" has no Delta equivalent`** needs the column remodeled, see
   [Type mapping](#type-mapping).
