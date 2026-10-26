@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -191,14 +192,16 @@ func (t *Sink) abortSnapshot(ctx context.Context) error {
 	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	cleanup := context.WithoutCancel(ctx)
-	for _, tbl := range t.tables {
-		if tbl.resumable {
+	var cleanupErr error
+	for resource, tbl := range t.tables {
+		if t.modeFor(resource) != filament.WriteReplace || tbl.resumable {
 			continue
 		}
-		_, _ = t.pool.Exec(cleanup, "TRUNCATE "+tbl.qualified)
+		if _, err := t.pool.Exec(ctx, "TRUNCATE "+tbl.qualified); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("truncate %s: %w", resource, err))
+		}
 	}
-	return nil
+	return cleanupErr
 }
 
 func (t *Sink) release() {
