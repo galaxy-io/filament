@@ -99,7 +99,6 @@ message StreamingSinkCapabilities {
 
 message SinkCapabilities {
   StreamingSinkCapabilities stream = 1;
-  bool transactional = 2;
   bool schematized = 3;
   bool encoded_integrity = 4;
   repeated WritePolicyCapability write_policies = 5;

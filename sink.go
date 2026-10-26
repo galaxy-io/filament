@@ -36,13 +36,6 @@ type ApplyOptions struct {
 	Policy WritePolicy
 }
 
-// Transactional is the optional sink contract for staged, atomic runs: write
-// into a stage, promote on success.
-type Transactional interface {
-	Stage(ctx context.Context) (StageID, error)
-	Promote(ctx context.Context, id StageID) error
-}
-
 // Schematized is the optional sink contract for typed DDL: materialize a
 // resource's schema before its records arrive. The runner supplies destination
 // resource names consistently to Open, EnsureSchema, and Apply.
@@ -73,9 +66,8 @@ type SinkSpec struct {
 // SinkCapabilities advertises the optional contracts and write modes a sink
 // supports, so the engine can match it to an ingestion type.
 type SinkCapabilities struct {
-	Stream        *StreamingSinkCapabilities
-	Transactional bool
-	Schematized   bool
+	Stream      *StreamingSinkCapabilities
+	Schematized bool
 	// EncodedIntegrity requires Apply to verify the final serialized bytes at
 	// its write boundary and return the resulting EncodedCRC as evidence.
 	EncodedIntegrity bool

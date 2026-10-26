@@ -784,7 +784,6 @@ func (x *StreamingSinkCapabilities) GetInFlightBound() *durationpb.Duration {
 type SinkCapabilities struct {
 	state                  protoimpl.MessageState     `protogen:"open.v1"`
 	Stream                 *StreamingSinkCapabilities `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	Transactional          bool                       `protobuf:"varint,2,opt,name=transactional,proto3" json:"transactional,omitempty"`
 	Schematized            bool                       `protobuf:"varint,3,opt,name=schematized,proto3" json:"schematized,omitempty"`
 	EncodedIntegrity       bool                       `protobuf:"varint,4,opt,name=encoded_integrity,json=encodedIntegrity,proto3" json:"encoded_integrity,omitempty"`
 	WritePolicies          []*WritePolicyCapability   `protobuf:"bytes,5,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
@@ -830,13 +829,6 @@ func (x *SinkCapabilities) GetStream() *StreamingSinkCapabilities {
 		return x.Stream
 	}
 	return nil
-}
-
-func (x *SinkCapabilities) GetTransactional() bool {
-	if x != nil {
-		return x.Transactional
-	}
-	return false
 }
 
 func (x *SinkCapabilities) GetSchematized() bool {
@@ -1316,10 +1308,9 @@ const file_worker_v1_connectors_proto_rawDesc = "" +
 	"\rowner_fencing\x18\x02 \x01(\bR\fownerFencing\x12'\n" +
 	"\x0fisolated_epochs\x18\x03 \x01(\bR\x0eisolatedEpochs\x12F\n" +
 	"\x0fin_flight_bound\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x00R\rinFlightBound\x88\x01\x01B\x12\n" +
-	"\x10_in_flight_bound\"\xc9\x03\n" +
+	"\x10_in_flight_bound\"\xa3\x03\n" +
 	"\x10SinkCapabilities\x12<\n" +
-	"\x06stream\x18\x01 \x01(\v2$.worker.v1.StreamingSinkCapabilitiesR\x06stream\x12$\n" +
-	"\rtransactional\x18\x02 \x01(\bR\rtransactional\x12 \n" +
+	"\x06stream\x18\x01 \x01(\v2$.worker.v1.StreamingSinkCapabilitiesR\x06stream\x12 \n" +
 	"\vschematized\x18\x03 \x01(\bR\vschematized\x12+\n" +
 	"\x11encoded_integrity\x18\x04 \x01(\bR\x10encodedIntegrity\x12G\n" +
 	"\x0ewrite_policies\x18\x05 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x120\n" +

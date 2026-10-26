@@ -127,7 +127,6 @@ func SinkToProto(spec filament.SinkSpec) *workerv1.Sink {
 	out := &workerv1.Sink{
 		Spec: SinkSpecToProto(spec),
 		Capabilities: &workerv1.SinkCapabilities{
-			Transactional:       caps.Transactional,
 			Schematized:         caps.Schematized,
 			EncodedIntegrity:    caps.EncodedIntegrity,
 			WritePolicies:       writePoliciesToProto(caps.WritePolicies),
@@ -160,7 +159,6 @@ func SinkFromProto(sink *workerv1.Sink) (filament.SinkSpec, error) {
 	}
 	caps := sink.GetCapabilities()
 	spec.Capabilities = filament.SinkCapabilities{
-		Transactional:       caps.GetTransactional(),
 		Schematized:         caps.GetSchematized(),
 		EncodedIntegrity:    caps.GetEncodedIntegrity(),
 		PreferredBatchRows:  int(caps.GetPreferredBatchRows()),
