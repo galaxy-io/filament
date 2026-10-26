@@ -21,6 +21,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	bigqueryconnection "github.com/galaxy-io/filament/connectors/bigquery/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const (
@@ -34,6 +35,7 @@ const (
 // Sink streams Arrow batches into isolated pending streams. Only Commit makes
 // rows visible in destination tables; its per-table jobs run concurrently.
 type Sink struct {
+	sinkstate.SingleWrite
 	client                     *bigquery.Client
 	storage                    *storage.BigQueryWriteClient
 	run                        filament.RunID
@@ -173,7 +175,6 @@ func (s *Sink) Commit(ctx context.Context) error {
 		return err
 	}
 	s.cleanup()
-	s.release()
 	return nil
 }
 
@@ -186,7 +187,6 @@ func (s *Sink) Abort(context.Context) error {
 	s.seal()
 	s.workers.Wait()
 	s.cleanup()
-	s.release()
 	return nil
 }
 
@@ -242,7 +242,14 @@ func (s *Sink) cleanup() {
 		if !state.stageCreated || (state.publishing && !state.published) {
 			continue
 		}
-		group.Go(func() error { return s.client.DatasetInProject(s.project, s.dataset).Table(state.stage).Delete(ctx) })
+		group.Go(func() error {
+			err := s.client.DatasetInProject(s.project, s.dataset).Table(state.stage).Delete(ctx)
+			if err == nil || isHTTPCode(err, 404) {
+				state.stageCreated = false
+				return nil
+			}
+			return err
+		})
 	}
 	_ = group.Wait()
 }
@@ -279,3 +286,6 @@ func (s *Sink) logTiming(phase, resource string, started time.Time, attrs ...any
 	fields = append(fields, attrs...)
 	slog.Log(context.Background(), level, "BigQuery write timing", fields...)
 }
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { err := s.Abort(ctx); s.release(); return err }

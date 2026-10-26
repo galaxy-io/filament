@@ -156,29 +156,26 @@ func (*continuousTestSink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
 }
 func (*continuousTestSink) Open(context.Context, filament.RunSpec) error { return nil }
-func (s *continuousTestSink) BeginEpoch(_ context.Context, r filament.EpochRef) error {
-	s.ref = r
+func (s *continuousTestSink) Begin(_ context.Context) error {
+	s.ref.Epoch++
 	s.rows = 0
 	return nil
 }
 
 func (s *continuousTestSink) Apply(_ context.Context, b *arrowbatch.Batch, o filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if o.Epoch == nil || *o.Epoch != s.ref {
-		return filament.WriteReceipt{}, filament.ErrEpochMismatch
-	}
 	s.rows += int64(b.NumRows())
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
 
-func (s *continuousTestSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
+func (s *continuousTestSink) Commit(context.Context) error {
 	if s.fail {
-		return nil, errors.New("sink failed")
+		return errors.New("sink failed")
 	}
 	s.commits++
-	return []filament.EpochReceipt{{Resource: "events", Rows: s.rows}}, nil
+	return nil
 }
-func (*continuousTestSink) AbortEpoch(context.Context, filament.EpochRef) error { return nil }
-func (*continuousTestSink) CloseSession(context.Context) error                  { return nil }
+func (*continuousTestSink) Abort(context.Context) error { return nil }
+func (*continuousTestSink) Close(context.Context) error { return nil }
 
 func continuousFixture(t *testing.T) (ContinuousConfig, *continuousTestStore, *continuousTestSource, *continuousTestSink) {
 	t.Helper()
@@ -319,7 +316,7 @@ type keyedContinuousSink struct {
 }
 
 func (*keyedContinuousSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}
 }
 
 func (s *keyedContinuousSink) Open(_ context.Context, spec filament.RunSpec) error {
@@ -454,7 +451,7 @@ type orderedContinuousSink struct {
 }
 
 func (*orderedContinuousSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}, WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}
 }
 
 func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
@@ -468,8 +465,8 @@ func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, 
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
 
-func (*orderedContinuousSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
-	return []filament.EpochReceipt{{Resource: "events", Rows: 2}, {Resource: "other", Rows: 1}}, nil
+func (*orderedContinuousSink) Commit(context.Context) error {
+	return nil
 }
 
 func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {

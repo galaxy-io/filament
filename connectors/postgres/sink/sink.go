@@ -13,7 +13,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
-	"github.com/galaxy-io/filament/internal/stream"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/schema"
 )
@@ -25,9 +24,10 @@ import (
 // implements filament.Schematized; the engine only runs schema discovery for sinks
 // that do.
 type Sink struct {
-	evolution  schema.Policy
-	continuous bool
-	stream     streamSession
+	evolution           schema.Policy
+	transactionalWrites bool
+	writeMu             sync.Mutex
+	session             writeSession
 
 	pool     *pgxpool.Pool
 	run      filament.RunID
@@ -121,26 +121,15 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
-	if run.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		if err := run.ValidateStreamAttempt(); err != nil {
-			return err
-		}
-		for _, resource := range run.Resources {
-			p, ok := run.WritePolicies[resource]
-			if !ok {
-				p = run.WritePolicies[""]
-			}
-			if p.Capability.Mode != filament.WriteAppend {
-				return fmt.Errorf("postgres stream: only append is supported")
-			}
-		}
-		t.continuous = true
-		lifecycle, err := stream.NewSinkLifecycle(*run.StreamAttempt)
-		if err != nil {
-			return err
-		}
-		t.stream = streamSession{lifecycle: lifecycle}
+	t.transactionalWrites = run.Options.Execution.Normalize() == filament.ExecutionContinuous
+	if err := t.open(ctx, run); err != nil {
+		return err
 	}
+	t.session.lifecycle.Open()
+	return nil
+}
+
+func (t *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
 	policy, err := schemaPolicy(cfg.String("schema_evolution"))
 	if err != nil {
@@ -179,23 +168,9 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit releases the pool; the COPYs are already durable.
-func (t *Sink) Commit(context.Context) error {
-	if t.continuous {
-		return filament.ErrEpochMismatch
-	}
-	t.release()
-	return nil
-}
-
-// Abort empties every ensured table (the run failed, so leave a clean-empty state
-// rather than a half-load) and releases the pool. Best-effort on a cancel-free
-// context so cleanup runs even when the failure cancelled ctx.
-func (t *Sink) Abort(ctx context.Context) error {
-	if t.continuous {
-		return filament.ErrEpochMismatch
-	}
-	defer t.release()
+// abortSnapshot clears only non-resumable replacement tables.
+// Transactional writes instead roll back only their active transaction.
+func (t *Sink) abortSnapshot(ctx context.Context) error {
 	if t.pool == nil {
 		return nil
 	}

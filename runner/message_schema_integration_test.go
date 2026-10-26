@@ -51,7 +51,7 @@ func (s *layoutMemoryStore) CommitEpoch(_ context.Context, commit filament.Epoch
 type layoutMemoryDestination struct {
 	model     rowmodel.Schema
 	emails    []*string
-	committed filament.EpochRef
+	committed int64
 }
 
 type layoutMemorySink struct {
@@ -64,10 +64,10 @@ type layoutMemorySink struct {
 }
 
 func (s *layoutMemorySink) SchemaPolicy() schema.Policy { return s.policy }
-func (s *layoutMemorySink) BeginEpoch(ctx context.Context, ref filament.EpochRef) error {
+func (s *layoutMemorySink) Begin(ctx context.Context) error {
 	s.model = s.destination.model.Clone()
 	s.emails = nil
-	return s.continuousTestSink.BeginEpoch(ctx, ref)
+	return s.continuousTestSink.Begin(ctx)
 }
 
 func (s *layoutMemorySink) EnsureSchema(ctx context.Context, _ string, model rowmodel.Schema) error {
@@ -106,18 +106,18 @@ func (s *layoutMemorySink) Apply(ctx context.Context, b *arrowbatch.Batch, opts 
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
 
-func (s *layoutMemorySink) CommitEpoch(ctx context.Context, ref filament.EpochRef) ([]filament.EpochReceipt, error) {
-	receipts, err := s.continuousTestSink.CommitEpoch(ctx, ref)
+func (s *layoutMemorySink) Commit(ctx context.Context) error {
+	err := s.continuousTestSink.Commit(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	s.destination.model = s.model.Clone()
 	s.destination.emails = append(s.destination.emails, s.emails...)
-	s.destination.committed = ref
-	return receipts, nil
+	s.destination.committed++
+	return nil
 }
 
-func (s *layoutMemorySink) AbortEpoch(context.Context, filament.EpochRef) error {
+func (s *layoutMemorySink) Abort(context.Context) error {
 	s.model = rowmodel.Schema{}
 	s.emails = nil
 	return nil
@@ -198,7 +198,7 @@ func (s *layoutMemorySource) Read(ctx context.Context, out filament.StreamRecord
 func (s *layoutMemorySource) Acknowledge(_ context.Context, coverage filament.Coverage) error {
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
-	if s.store.cert == nil || s.destination.committed != s.store.cert.Certificate.Ref || !reflect.DeepEqual(coverage.Positions, s.store.cert.Certificate.Coverage.Positions) {
+	if s.store.cert == nil || s.destination.committed != s.store.cert.Certificate.Ref.Epoch || !reflect.DeepEqual(coverage.Positions, s.store.cert.Certificate.Coverage.Positions) {
 		return errors.New("acknowledgement before destination and checkpoint commit")
 	}
 	s.ack++

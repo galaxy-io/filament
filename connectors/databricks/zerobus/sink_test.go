@@ -223,6 +223,12 @@ func TestApplyIngestsBatch(t *testing.T) {
 	if st.flushed != 1 || st.closed != 1 {
 		t.Fatalf("stream flushed=%d closed=%d, want 1/1", st.flushed, st.closed)
 	}
+	if fc.closed != 0 {
+		t.Fatal("commit closed session")
+	}
+	if err := s.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if fc.closed != 1 {
 		t.Fatalf("client closed=%d, want 1", fc.closed)
 	}

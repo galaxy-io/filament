@@ -7,24 +7,32 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 )
 
-// Sink is the connector contract for writing data: open for a run, apply
-// batches under a write policy, then commit or abort. Apply borrows b for the
-// duration of the call; a sink that keeps it afterward must Retain it and
-// eventually Release that reference.
+// Sink owns a destination session independently of source execution mode.
+// Open acquires session resources. Begin starts a finite write. Apply borrows
+// its batch only for the call. Commit establishes the advertised durability for
+// every successful Apply. Abort cleans up unfinished writes according to the
+// write policy; it does not promise rollback of already durable effects. Close
+// releases session resources and pending in-memory work, including after a
+// failed Open.
+//
+// The runner serializes lifecycle calls and joins all Apply calls before Commit,
+// Abort, or Close. It never retries Apply or an ambiguous Commit in the same
+// session. Only connectors advertising Stream capabilities admit repeated
+// Begin/Commit boundaries. A bounded run uses one boundary. Source progress
+// and ownership belong to the runner and are never passed to the sink.
 type Sink interface {
 	Spec() SinkSpec // identity + config schema + capabilities (powers the catalog)
 	Open(ctx context.Context, run RunSpec) error
+	Begin(ctx context.Context) error
 	Apply(ctx context.Context, b *arrowbatch.Batch, opts ApplyOptions) (WriteReceipt, error)
 	Commit(ctx context.Context) error
 	Abort(ctx context.Context) error
+	Close(ctx context.Context) error
 	Name() string
 }
 
 // ApplyOptions carries the per-resource write policy governing one Apply.
 type ApplyOptions struct {
-	// Epoch is nil for bounded writes. Native sinks reject writes that do not
-	// match the currently open epoch; this is not destination fencing.
-	Epoch  *EpochRef
 	Policy WritePolicy
 }
 

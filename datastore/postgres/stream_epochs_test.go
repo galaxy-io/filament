@@ -25,10 +25,7 @@ func (*epochTestSink) Commit(context.Context) error                 { return err
 func (*epochTestSink) Abort(context.Context) error { return errors.New("not called") }
 
 func (s *epochTestSink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if err := s.bound.ValidateApply(opts); err != nil {
-		return filament.WriteReceipt{}, err
-	}
-	return filament.WriteReceipt{WriteCRC: b.IntegrityCRC()}, nil
+	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
 
 // Real pipeline completion, not fabricated exported evidence, backs certificates.
@@ -455,3 +452,6 @@ func TestRuntimeRetainsStoppedRun(t *testing.T) {
 		t.Fatalf("lost stopped state: %+v %v", state, err)
 	}
 }
+
+func (*epochTestSink) Begin(context.Context) error { return nil }
+func (*epochTestSink) Close(context.Context) error { return nil }

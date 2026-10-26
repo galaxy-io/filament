@@ -55,7 +55,6 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	spec := cfg.Spec
 	finishEvents := startContinuousEvents(ctx, &cfg)
 	defer func() { finishEvents(result) }()
-	dst := cfg.Sink.(filament.StreamingSink)
 	lease := filament.LeaseToken{Tenant: spec.Tenant, Attempt: *spec.StreamAttempt}
 	cleanupInstalled := false
 	defer func() {
@@ -89,25 +88,25 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		}
 		var closeErr error
 		if activeEpoch != nil {
-			closeErr = dst.AbortEpoch(c, *activeEpoch)
+			closeErr = cfg.Sink.Abort(c)
 		}
 		if session != nil {
 			closeErr = errors.Join(closeErr, session.Close(c))
 		}
 		if opened {
-			closeErr = errors.Join(closeErr, dst.CloseSession(c))
+			closeErr = errors.Join(closeErr, cfg.Sink.Close(c))
 		}
 		closeErr = errors.Join(closeErr, cfg.Source.Teardown(c))
 		result = finishContinuousAttempt(c, cfg, lease, result, errors.Join(closeErr, hb.Stop(c)))
 	}()
 	cleanupInstalled = true
 	emitContinuousStarted(cfg)
+	opened = true // Close must also clean up a partially successful Open.
 	plan, err := prepareContinuousConnectors(runCtx, &cfg)
 	if err != nil {
 		return err
 	}
 	spec = cfg.Spec
-	opened = true
 	if err := prepareContinuousSchemas(runCtx, &cfg, state); err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 		return err
 	}
 	p.Start(runCtx)
-	return runEpochs(runCtx, cfg, p, session, dst, state, lease, &stopping, &activeEpoch)
+	return runEpochs(runCtx, cfg, p, session, cfg.Sink, state, lease, &stopping, &activeEpoch)
 }
 
 func loadContinuousAttemptState(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken) (filament.StreamState, error) {
@@ -169,6 +168,9 @@ func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease f
 }
 
 func validateContinuous(cfg ContinuousConfig) error {
+	if cfg.Sink == nil || cfg.Source == nil {
+		return errors.New("continuous runner requires source and sink")
+	}
 	if !cfg.Enabled {
 		return filament.ErrContinuousDisabled
 	}
@@ -203,7 +205,7 @@ func validateContinuous(cfg ContinuousConfig) error {
 	return nil
 }
 
-func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipeline, session filament.StreamSession, dst filament.StreamingSink, state filament.StreamState, lease filament.LeaseToken, stopping *atomic.Bool, activeEpoch **filament.EpochRef) error {
+func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipeline, session filament.StreamSession, dst filament.Sink, state filament.StreamState, lease filament.LeaseToken, stopping *atomic.Bool, activeEpoch **filament.EpochRef) error {
 	spec := cfg.Spec
 	var err error
 	records := p.Records().(filament.StreamRecordSink)
@@ -222,7 +224,7 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		if err := p.BindEpoch(ref); err != nil {
 			return err
 		}
-		if err := dst.BeginEpoch(runCtx, ref); err != nil {
+		if err := dst.Begin(runCtx); err != nil {
 			return err
 		}
 		*activeEpoch = &ref
@@ -245,21 +247,19 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		}
 		commit := messageEpochCommit(cfg, ref, coverage, proof)
 		// Check source coverage before making destination effects durable.
+		// SealEpoch has verified every Apply receipt. Commit confirms durability
+		// for those exact writes; source epoch identity stays inside the runner.
 		for resource, total := range proof.Resources() {
 			commit.Certificate.Receipts = append(commit.Certificate.Receipts, filament.EpochReceipt{Resource: resource, Rows: total.Rows, Bytes: total.Bytes})
 		}
 		if err := commit.ValidateCompletion(cfg.Codecs); err != nil {
 			return err
 		}
-		receipts, err := dst.CommitEpoch(runCtx, ref)
+		err = dst.Commit(runCtx)
 		if err != nil {
 			return err
 		}
 		*activeEpoch = nil
-		commit.Certificate.Receipts = sourceEpochReceipts(spec, receipts)
-		if err := commit.ValidateCompletion(cfg.Codecs); err != nil {
-			return err
-		}
 		if _, err = cfg.Store.CommitEpoch(runCtx, commit); err != nil {
 			historical, lookupErr := cfg.Store.GetEpoch(runCtx, filament.EpochLookup{Tenant: spec.Tenant, Key: ref.Key()})
 			if lookupErr != nil {

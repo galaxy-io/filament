@@ -16,6 +16,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	icebergcatalog "github.com/galaxy-io/filament/connectors/iceberg/internal/catalog"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const (
@@ -36,6 +37,7 @@ const (
 // Sink writes to Iceberg tables via any catalog backend registered with
 // iceberg-go (selected by the "type" property in catalog config).
 type Sink struct {
+	sinkstate.SingleWrite
 	tableLocationRoot  string
 	namespace          string
 	stageBufLimitBytes int64
@@ -327,3 +329,6 @@ func writeModeForPolicy(policy filament.WritePolicy) writeMode {
 		return writeModeReplace
 	}
 }
+
+// Close discards remaining buffers after commit or abort.
+func (s *Sink) Close(ctx context.Context) error { return s.Abort(ctx) }

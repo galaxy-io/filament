@@ -54,6 +54,10 @@ func TestPhysicalSchema(t *testing.T) {
 }
 
 func driftSink(t *testing.T, policy string, ingestion filament.IngestionType, continuous bool) (context.Context, *Sink, filament.RunSpec) {
+	return driftSinkLifecycle(t, policy, ingestion, continuous, false)
+}
+
+func driftSinkLifecycle(t *testing.T, policy string, ingestion filament.IngestionType, continuous, explicit bool) (context.Context, *Sink, filament.RunSpec) {
 	t.Helper()
 	dsn := os.Getenv("FILAMENT_TEST_POSTGRES_DSN")
 	if dsn == "" {
@@ -68,12 +72,19 @@ func driftSink(t *testing.T, policy string, ingestion filament.IngestionType, co
 		spec.StreamAttempt = &filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
 	}
 	s := New()
-	if err := s.Open(ctx, spec); err != nil {
+	var openErr error
+	if explicit {
+		spec.ExecutionID = "bounded-session"
+		openErr = s.Open(ctx, spec)
+	} else {
+		openErr = s.Open(ctx, spec)
+	}
+	if err := openErr; err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if s.stream.active != nil {
-			_ = s.AbortEpoch(ctx, s.stream.active.ref)
+		if s.session.active != nil {
+			_ = s.Abort(ctx)
 		}
 		_, err := s.pool.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{namespace}.Sanitize()+" CASCADE")
 		if err != nil {
@@ -189,11 +200,26 @@ func TestSchemaChecksBeforeWrites(t *testing.T) {
 			batch := col.chunks[0]
 			defer batch.Release()
 			batch.Resource = "items"
+			if err := s.Begin(ctx); err != nil {
+				t.Fatal(err)
+			}
 			if _, err := s.Apply(ctx, batch, filament.ApplyOptions{Policy: spec.WritePolicies["items"]}); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Commit(ctx); err != nil {
 				t.Fatal(err)
 			}
 			qualified := pgx.Identifier{s.schema, "items"}.Sanitize()
 			if _, err := s.pool.Exec(ctx, "ALTER TABLE "+qualified+" ALTER COLUMN name SET NOT NULL"); err != nil {
+				t.Fatal(err)
+			}
+			if s.transactionalWrites {
+				if err := s.Begin(ctx); !errors.Is(err, schema.ErrBlocked) {
+					t.Fatalf("drift admitted: %v", err)
+				}
+				return
+			}
+			if err := s.Begin(ctx); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := s.Apply(ctx, batch, filament.ApplyOptions{Policy: spec.WritePolicies["items"]}); !errors.Is(err, schema.ErrBlocked) {
@@ -209,15 +235,15 @@ func TestEpochSchemaChangeRollsBack(t *testing.T) {
 	if err := s.EnsureSchema(ctx, "items", model); err != nil {
 		t.Fatal(err)
 	}
-	ref := filament.EpochRef{Attempt: *spec.StreamAttempt, Epoch: 1, MembershipRevision: 1}
-	if err := s.BeginEpoch(ctx, ref); err != nil {
+	ref := filament.EpochRef{Attempt: *spec.StreamAttempt, MembershipRevision: 1}
+	if err := s.Begin(ctx); err != nil {
 		t.Fatal(err)
 	}
 	model.Fields = append(model.Fields, rowmodel.Field{Name: "extra", Logical: rowmodel.LogicalString, Nullable: true})
 	if err := s.EnsureSchema(ctx, "items", model); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.AbortEpoch(ctx, ref); err != nil {
+	if err := s.Abort(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if len(s.tables["items"].model.Fields) != 2 {
@@ -231,7 +257,7 @@ func TestEpochSchemaChangeRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref.Epoch++
-	if err := s.BeginEpoch(ctx, ref); !errors.Is(err, schema.ErrBlocked) {
+	if err := s.Begin(ctx); !errors.Is(err, schema.ErrBlocked) {
 		t.Fatalf("epoch admitted after external drift: %v", err)
 	}
 }
