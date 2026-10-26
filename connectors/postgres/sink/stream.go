@@ -19,6 +19,7 @@ type writeSession struct {
 	active    *transactionWrite
 	// cleanupErr conservatively retains uncertainty from failed rollback attempts.
 	cleanupErr error
+	commitErr  error
 }
 
 type transactionWrite struct {
@@ -78,7 +79,7 @@ func (t *Sink) applyWrite(ctx context.Context, b *arrowbatch.Batch, opts filamen
 		return filament.WriteReceipt{}, err
 	}
 
-	if opts.Policy.Capability.Mode == filament.WriteMerge {
+	if opts.Policy.Capability.Mode == filament.WriteMerge || opts.Policy.Capability.Mode == filament.WriteUpsert {
 		r, err := t.mergeInTransaction(ctx, e.tx, tbl, b)
 		if err != nil {
 			t.session.lifecycle.Fail(err)
@@ -126,6 +127,7 @@ func (t *Sink) Commit(ctx context.Context) error {
 	}
 	e := t.session.active
 	if err := e.tx.Commit(ctx); err != nil {
+		t.session.commitErr = err
 		t.session.lifecycle.Fail(err)
 		return err
 	}
@@ -181,9 +183,9 @@ func (t *Sink) Close(ctx context.Context) error {
 		err = t.Abort(ctx)
 	}
 	t.release()
-	// Retain Postgres's conservative policy for failed sessions; the shared
-	// lifecycle does not infer quiescence from a failure.
-	if failure := t.session.lifecycle.Failure(); failure != nil {
+	// A confirmed rollback proves the failed transaction has ended. A lost
+	// commit response or rollback failure still leaves its outcome uncertain.
+	if failure := t.session.lifecycle.Failure(); failure != nil && (!t.transactionalWrites || t.session.commitErr != nil || t.session.cleanupErr != nil) {
 		err = errors.Join(err, errors.New("postgres stream: failed epoch; destination quiescence is unproven"), failure)
 	}
 	err = errors.Join(err, t.session.cleanupErr, ctx.Err())

@@ -88,3 +88,46 @@ func testEpochMerge(t *testing.T, bounded bool) {
 	}
 	count(0)
 }
+
+func TestCommitDurableUpsert(t *testing.T) {
+	ctx, s, spec := driftSinkLifecycle(t, "strict", filament.IngestionFullUpsert, false, true)
+	if err := s.EnsureSchema(ctx, "items", driftModel()); err != nil {
+		t.Fatal(err)
+	}
+	out := &collect{}
+	b := arrowbatch.NewBuilder(arrowbatch.Schema(driftModel()), nil, arrowbatch.Options{MaxRows: 1}, out)
+	b.Int64(1)
+	b.String("one")
+	if err := b.EndRow(rowmodel.Meta{}); err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	batch := out.chunks[0]
+	defer batch.Release()
+	batch.Resource = "items"
+	for _, commit := range []bool{false, true} {
+		if err := s.Begin(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Apply(ctx, batch, filament.ApplyOptions{Policy: spec.WritePolicies["items"]}); err != nil {
+			t.Fatal(err)
+		}
+		var n int
+		if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM "+s.tables["items"].qualified).Scan(&n); err != nil || n != 0 {
+			t.Fatalf("uncommitted rows visible: %d %v", n, err)
+		}
+		if commit {
+			if err := s.Commit(ctx); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			if err := s.Abort(ctx); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	var n int
+	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM "+s.tables["items"].qualified).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("committed row missing: %d %v", n, err)
+	}
+}

@@ -59,7 +59,7 @@ func (a *Server) sinkExecutionModes(spec filament.SinkSpec) []ingestionv1.Execut
 	if len(spec.Capabilities.WritePolicies) > 0 {
 		modes = append(modes, ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED)
 	}
-	if a.continuousSupported() && spec.Capabilities.Stream != nil {
+	if a.continuousSupported() && filament.SupportsContinuousWrites(spec) {
 		modes = append(modes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
 	}
 	return modes

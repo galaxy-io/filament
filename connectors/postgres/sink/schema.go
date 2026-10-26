@@ -23,7 +23,7 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 		t.writeMu.Lock()
 		defer t.writeMu.Unlock()
 	}
-	if t.transactionalWrites && t.modeFor(resource) != filament.WriteAppend && t.modeFor(resource) != filament.WriteMerge {
+	if t.transactionalWrites && t.modeFor(resource) != filament.WriteAppend && t.modeFor(resource) != filament.WriteMerge && t.modeFor(resource) != filament.WriteUpsert {
 		return filament.ErrEpochMismatch
 	}
 	if t.pool == nil {

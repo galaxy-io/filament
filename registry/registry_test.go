@@ -221,7 +221,7 @@ type streamSource struct {
 type streamSpecSink struct{ filament.Sink }
 
 func (streamSpecSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}}}
+	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{ReusableSession: true}}
 }
 
 type streamSink struct {

@@ -26,17 +26,19 @@ const DefaultDrainTimeout = 30 * time.Second
 // ContinuousConfig configures an admitted serial attempt. RunOne handles only
 // bounded runs. Write intent is resolved by the shared stream planner. Schemas default to the configured source.
 type ContinuousConfig struct {
-	messagePolicy          schema.Policy
-	messageSchemas         map[string]schema.MessageLayout
-	Bus                    eventbus.Bus
-	Log                    filament.Logger
-	events                 *emitter
-	pipelineEvents         *continuousPipelineEvents
-	Enabled                bool
-	Spec                   filament.RunSpec
-	Store                  filament.StreamRuntimeStore
-	Source                 filament.Source
-	Sink                   filament.Sink
+	messagePolicy  schema.Policy
+	messageSchemas map[string]schema.MessageLayout
+	Bus            eventbus.Bus
+	Log            filament.Logger
+	events         *emitter
+	pipelineEvents *continuousPipelineEvents
+	Enabled        bool
+	Spec           filament.RunSpec
+	Store          filament.StreamRuntimeStore
+	Source         filament.Source
+	Sink           filament.Sink
+	// NewSink supplies fresh instances for sinks without reusable sessions.
+	NewSink                func() (filament.Sink, error)
 	Codecs                 filament.CodecResolver
 	Schemas                map[string]rowmodel.Schema
 	Boundary               filament.Boundary
@@ -170,6 +172,9 @@ func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease f
 func validateContinuous(cfg ContinuousConfig) error {
 	if cfg.Sink == nil || cfg.Source == nil {
 		return errors.New("continuous runner requires source and sink")
+	}
+	if !cfg.Sink.Spec().Capabilities.ReusableSession && cfg.NewSink == nil {
+		return errors.New("continuous runner requires a factory for single-write sinks")
 	}
 	if !cfg.Enabled {
 		return filament.ErrContinuousDisabled
@@ -330,6 +335,7 @@ func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (fi
 		return filament.IngestionPlan{}, err
 	}
 	cfg.Schemas = schemas
+	cfg.Sink = newBoundarySink(cfg.Sink, cfg.NewSink)
 	if err := cfg.Sink.Open(ctx, sinkSpec); err != nil {
 		return filament.IngestionPlan{}, err
 	}

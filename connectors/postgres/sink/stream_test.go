@@ -37,8 +37,14 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 		_, _ = conn.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
 	}()
 	attempt := filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
-	appendPolicy := filament.WritePolicy{Capability: filament.WriteCapabilities(filament.IngestionFullAppend)[0]}
-	appendPolicy.Capability.Durability = filament.DurabilityAfterCommit
+	plan, err := filament.PlanContinuousWrite(filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputRows, Delivery: filament.DeliveryReplayableAtLeastOnce}}, New().Spec(), filament.WriteAppend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendPolicy := plan.Policy
+	if appendPolicy.Capability.Durability != filament.DurabilityAfterCommit {
+		t.Fatal("continuous append lost transaction durability")
+	}
 	spec := filament.RunSpec{Run: "run", StreamAttempt: &attempt, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}, Resources: []string{"events"}, Sink: filament.Ref{Config: map[string]any{"dsn": dsn, "schema": schema}}, WritePolicies: map[string]filament.WritePolicy{"events": appendPolicy}}
 	sink := New()
 	if err := sink.Open(ctx, spec); err != nil {
@@ -106,8 +112,8 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 			}
 			expectFailure = true
 			count(1)
-			if err := sink.Close(ctx); err == nil {
-				t.Fatal("failed epoch reported clean closure")
+			if err := sink.Close(ctx); err != nil {
+				t.Fatalf("confirmed rollback reported unproven closure: %v", err)
 			}
 			count(1)
 			return

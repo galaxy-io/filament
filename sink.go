@@ -19,9 +19,9 @@ import (
 //
 // The runner serializes lifecycle calls and joins all Apply calls before Commit,
 // Abort, or Close. It never retries Apply or an ambiguous Commit in the same
-// session. Only connectors advertising Stream capabilities admit repeated
-// Begin/Commit boundaries. A bounded run uses one boundary. Source progress
-// and ownership belong to the runner and are never passed to the sink.
+// session. ReusableSession admits repeated Begin/Commit boundaries. A bounded
+// run uses one boundary. Source progress and ownership belong to the runner
+// and are never passed to the sink.
 type Sink interface {
 	Spec() SinkSpec // identity + config schema + capabilities (powers the catalog)
 	Open(ctx context.Context, run RunSpec) error
@@ -69,8 +69,8 @@ type SinkSpec struct {
 // supports, so the engine can match it to an ingestion type.
 type SinkCapabilities struct {
 	// ReusableSession permits repeated Begin/Commit boundaries on one open sink.
+	// Otherwise the runner opens a fresh instance for each finite write.
 	ReusableSession bool
-	Stream          *StreamingSinkCapabilities
 	Schematized     bool
 	// EncodedIntegrity requires Apply to verify the final serialized bytes at
 	// its write boundary and return the resulting EncodedCRC as evidence.
