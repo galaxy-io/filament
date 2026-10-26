@@ -35,7 +35,7 @@ func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
-	tbl := t.tables[b.Resource]
+	tbl := t.tableFor(b.Resource)
 	if tbl == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
 	}

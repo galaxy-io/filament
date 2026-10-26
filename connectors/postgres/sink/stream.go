@@ -71,7 +71,7 @@ func (t *Sink) applyWrite(ctx context.Context, b *arrowbatch.Batch, opts filamen
 		t.session.lifecycle.Fail(err)
 		return filament.WriteReceipt{}, err
 	}
-	tbl := t.tables[b.Resource]
+	tbl := t.tableFor(b.Resource)
 	if tbl == nil {
 		err := errors.New("postgres stream: schema not ensured")
 		t.session.lifecycle.Fail(err)

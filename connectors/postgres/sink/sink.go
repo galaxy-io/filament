@@ -38,7 +38,8 @@ type Sink struct {
 
 	// Bounded runs prepare tables before extraction. Continuous runs may also
 	// prepare inferred schemas on their single writer inside the active epoch.
-	tables map[string]*table
+	tablesMu sync.RWMutex
+	tables   map[string]*table
 }
 
 // table is one resource's ensured destination: its identifiers, column types, the
@@ -121,7 +122,20 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
-	t.transactionalWrites = run.Options.Execution.Normalize() == filament.ExecutionContinuous
+	t.transactionalWrites = false
+	for _, policy := range run.WritePolicies {
+		if policy.Capability.Durability == filament.DurabilityAfterCommit {
+			t.transactionalWrites = true
+		}
+	}
+
+	if t.transactionalWrites {
+		for _, policy := range run.WritePolicies {
+			if policy.Capability.Durability != filament.DurabilityAfterCommit || (policy.Capability.Mode != filament.WriteAppend && policy.Capability.Mode != filament.WriteMerge) {
+				return fmt.Errorf("postgres sink: commit-durable sessions require append or merge policies for every resource")
+			}
+		}
+	}
 	if err := t.open(ctx, run); err != nil {
 		return err
 	}
@@ -192,4 +206,10 @@ func (t *Sink) release() {
 		t.pool.Close()
 		t.pool = nil
 	}
+}
+
+func (t *Sink) tableFor(resource string) *table {
+	t.tablesMu.RLock()
+	defer t.tablesMu.RUnlock()
+	return t.tables[resource]
 }

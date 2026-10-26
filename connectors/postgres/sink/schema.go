@@ -19,8 +19,10 @@ import (
 // (ADD COLUMN IF NOT EXISTS) in legacy mode. With a schema policy enabled, the
 // entire diff is checked before transactional DDL or replace-mode truncation.
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
-	t.writeMu.Lock()
-	defer t.writeMu.Unlock()
+	if t.transactionalWrites {
+		t.writeMu.Lock()
+		defer t.writeMu.Unlock()
+	}
 	if t.transactionalWrites && t.modeFor(resource) != filament.WriteAppend && t.modeFor(resource) != filament.WriteMerge {
 		return filament.ErrEpochMismatch
 	}
@@ -133,7 +135,11 @@ func (t *Sink) builtinTypes(ctx context.Context, schema rowmodel.Schema) (map[st
 	}
 	const q = `SELECT t, coalesce((SELECT typnamespace = 'pg_catalog'::regnamespace FROM pg_type WHERE oid = to_regtype(t)), false)
 FROM unnest($1::text[]) AS t`
-	rows, err := t.pool.Query(ctx, q, natives)
+	query := t.pool.Query
+	if t.session.active != nil {
+		query = t.session.active.tx.Query
+	}
+	rows, err := query(ctx, q, natives)
 	if err != nil {
 		return nil, fmt.Errorf("resolve types: %w", err)
 	}
@@ -252,6 +258,8 @@ func pick[T any](all []T, idx []int) []T {
 }
 
 func (t *Sink) installTable(resource string, tbl *table, model rowmodel.Schema) {
+	t.tablesMu.Lock()
+	defer t.tablesMu.Unlock()
 	if t.evolution != "" {
 		tbl.input = arrowbatch.Schema(model)
 	}
