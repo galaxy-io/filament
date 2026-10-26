@@ -50,7 +50,7 @@ func (s *Sink) Abort(ctx context.Context) error {
 // Close never treats a lost acknowledgment or client closure as proof
 // that the destination cannot produce later effects. An epoch still active at
 // closure is dropped like Abort: acknowledged messages stay visible and
-// local accounting is cleared. Any session failure is retained conservatively.
+// local accounting is cleared. Unknown publication outcomes are retained conservatively.
 func (s *Sink) Close(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -64,8 +64,6 @@ func (s *Sink) Close(ctx context.Context) error {
 	var err error
 	if s.uncertain != nil {
 		err = errors.Join(errors.New("kafka sink: destination quiescence is unproven"), s.uncertain)
-	} else if failure := s.lifecycle.Failure(); failure != nil {
-		err = errors.Join(errors.New("kafka sink: failed session"), failure)
 	}
 	err = errors.Join(err, cleanupErr, ctx.Err())
 	s.lifecycle.MarkClosed(err)

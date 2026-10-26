@@ -13,7 +13,9 @@ import (
 // every successful Apply. Abort cleans up unfinished writes according to the
 // write policy; it does not promise rollback of already durable effects. Close
 // releases session resources and pending in-memory work, including after a
-// failed Open.
+// failed Open. Close reports an error when cleanup cannot establish that
+// destination work has stopped. An Apply or Commit error alone is not proof
+// of failed cleanup.
 //
 // The runner serializes lifecycle calls and joins all Apply calls before Commit,
 // Abort, or Close. It never retries Apply or an ambiguous Commit in the same
@@ -66,8 +68,10 @@ type SinkSpec struct {
 // SinkCapabilities advertises the optional contracts and write modes a sink
 // supports, so the engine can match it to an ingestion type.
 type SinkCapabilities struct {
-	Stream      *StreamingSinkCapabilities
-	Schematized bool
+	// ReusableSession permits repeated Begin/Commit boundaries on one open sink.
+	ReusableSession bool
+	Stream          *StreamingSinkCapabilities
+	Schematized     bool
 	// EncodedIntegrity requires Apply to verify the final serialized bytes at
 	// its write boundary and return the resulting EncodedCRC as evidence.
 	EncodedIntegrity bool

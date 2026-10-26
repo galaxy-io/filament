@@ -120,7 +120,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 
 	s.conn = conn
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.written.Store(0)
 	s.policies = run.WritePolicies
 	s.tables = map[string]*table{}

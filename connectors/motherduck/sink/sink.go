@@ -142,7 +142,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.connections = connections
 	s.database = database
 	s.schema = schema
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.policies = run.WritePolicies
 	s.written.Store(0)
 	s.tablesMu.Lock()

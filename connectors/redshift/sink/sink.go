@@ -122,7 +122,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 	s.pool = pool
 	s.staging = stage
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.database = poolCfg.ConnConfig.Database
 	s.schema = schema
 	s.iamRole = resolved.AssociatedIAMRole

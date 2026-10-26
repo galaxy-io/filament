@@ -90,7 +90,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 
 	s.db = db
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.database = database
 	s.schema = schema
 	s.policies = run.WritePolicies

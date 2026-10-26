@@ -896,3 +896,15 @@ func TestCleanupDoesNotRepeatDeletes(t *testing.T) {
 		})
 	}
 }
+
+func TestCloseRetainsUncertainPublication(t *testing.T) {
+	sink, fake := newFixture(t, filament.IngestionFullAppend, "items")
+	applyBatch(t, sink, "items", 1)
+	fake.failPublish = true
+	if err := sink.Commit(context.Background()); err == nil {
+		t.Fatal("expected publication failure")
+	}
+	if err := sink.Close(context.Background()); err == nil {
+		t.Fatal("unknown publication reported clean")
+	}
+}
