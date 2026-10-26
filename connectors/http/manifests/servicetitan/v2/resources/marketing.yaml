@@ -1,0 +1,68 @@
+resources:
+  - name: campaigns
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/campaigns
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      modifiedOn: string?
+      createdOn: string?
+      active: bool?
+      isDefaultCampaign: bool?
+      category: json?
+      source: string?
+      otherSource: string?
+      businessUnit: string?
+      medium: string?
+      otherMedium: string?
+      campaignPhoneNumbers: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: campaign_costs
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/costs
+    primary_key: [id]
+    fields:
+      id: int64
+      year: int64?
+      month: int64?
+      dailyCost: decimal?
+      campaignId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore
+  - name: campaign_categories
+    path: /marketing/v2/tenant/{{ config.tenant_id }}/categories
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      type: string?
+      createdOn: string?
+      modifiedOn: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore

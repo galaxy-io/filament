@@ -1,0 +1,246 @@
+resources:
+  - name: job_timesheets
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/jobs/timesheets
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      active: bool?
+      doneOn: string?
+      arrivedOn: string?
+      createdOn: string?
+      canceledOn: string?
+      modifiedOn: string?
+      dispatchedOn: string?
+      technicianId: int64?
+      appointmentId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_timesheets_export_token
+  - name: job_splits
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/jobs/splits
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      split: decimal?
+      active: bool?
+      createdOn: string?
+      modifiedOn: string?
+      technicianId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_splits_export_token
+  - name: payroll_adjustments
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/payroll-adjustments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      rate: decimal?
+      hours: decimal?
+      active: bool?
+      amount: decimal?
+      postedOn: string?
+      quantity: decimal?
+      createdOn: string?
+      invoiceId: int64?
+      employeeId: int64?
+      modifiedOn: string?
+      employeeType: string?
+      activityCodeId: int64?
+      businessUnitId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: payroll_adjustments_export_token
+  - name: gross_pay_items
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/gross-pay-items
+    primary_key: [id]
+    fields:
+      id: int64?
+      date: string?
+      active: bool?
+      amount: decimal?
+      activity: string?
+      createdOn: string?
+      payrollId: int64
+      employeeId: int64?
+      modifiedOn: string?
+      activityCode: string?
+      employeeType: string?
+      activityCodeId: int64?
+      amountAdjustment: decimal?
+      businessUnitName: string?
+      employeePayrollId: string?
+      budgetCodeId: int64?
+      customerId: int64?
+      customerName: string?
+      endedOn: string?
+      grossPayItemType: string?
+      invoiceId: int64?
+      invoiceItemId: int64?
+      invoiceNumber: string?
+      isPrevailingWageJob: bool?
+      jobId: int64?
+      jobNumber: string?
+      jobTypeName: string?
+      laborTypeCode: string?
+      laborTypeId: int64?
+      locationAddress: string?
+      locationId: int64?
+      locationName: string?
+      locationZip: string?
+      memo: string?
+      paidDurationHours: decimal?
+      paidTimeType: string?
+      payoutBusinessUnitName: string?
+      projectId: int64?
+      projectNumber: string?
+      sourceEntityId: int64?
+      startedOn: string?
+      taxZoneName: string?
+      zoneName: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: gross_pay_items_export_token
+  - name: timesheet_codes
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/timesheet-codes
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      description: string?
+      type: string?
+      applicableEmployeeType: string?
+      rateInfo: json?
+      createdOn: string?
+      modifiedOn: string?
+      active: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_codes_export_token
+  - name: non_job_timesheets
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/non-job-timesheets
+    primary_key: [id]
+    fields:
+      id: int64
+      employeeId: int64?
+      employeeType: string?
+      timesheetCodeId: int64?
+      startedOn: string?
+      endedOn: string?
+      createdOn: string?
+      modifiedOn: string
+      active: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+      sort: "+ModifiedOn"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+    incremental:
+      cursor_field: modifiedOn
+      start_param: modifiedOnOrAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: non_job_timesheets_modified_on
+  - name: payrolls
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/payrolls
+    primary_key: [id]
+    fields:
+      id: int64
+      startedOn: string?
+      endedOn: string?
+      employeeId: int64?
+      employeeType: string?
+      status: string?
+      burdenRate: string?
+      managerApprovedOn: string?
+      createdOn: string?
+      modifiedOn: string
+      active: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+      sort: "+ModifiedOn"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+    incremental:
+      cursor_field: modifiedOn
+      start_param: modifiedOnOrAfter
+      inject_into: query
+      comparator: time
+      checkpoint_key: payrolls_modified_on
