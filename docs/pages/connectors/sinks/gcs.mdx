@@ -8,7 +8,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-gcs-dark.svg"
 Connector ID `gcs`
 
 The Google Cloud Storage sink (**alpha**) writes each resource as one NDJSON,
-JSON, or Parquet object per run. It uses the same run-versioned layout and
+JSON, or Parquet object per finite write. It uses the same versioned layout and
 success-manifest contract as the S3 sink.
 
 ## Configuration
@@ -35,8 +35,8 @@ objects in the configured bucket.
 
 ## Object layout
 
-With prefix `local_pg`, resource `accounts`, and the default partition, a run
-writes:
+With prefix `local_pg`, resource `accounts`, and the default partition, a bounded run
+writes the following objects.
 
 ```text
 local_pg/accounts/dt=2026-09-10/<run>.parquet
@@ -44,12 +44,24 @@ local_pg/_runs/<run>/_SUCCESS.json
 ```
 
 The partition template supports `{{.Date}}`, `{{.StartedAt}}`,
-`{{.Resource}}`, and `{{.Run}}`. Values use the run's UTC start time. Leave the
-partition empty to write objects directly under the resource directory.
+`{{.Resource}}`, and `{{.Run}}`. Bounded date values use the run's UTC start
+time. Continuous date values use each finite write's UTC start time, while
+`{{.Run}}` retains the logical run ID. Leave the partition empty to write
+objects directly under the resource directory.
+
+Continuous append creates a fresh sink per boundary and uses this layout.
+
+```text
+local_pg/accounts/dt=2026-09-10/<write-id>.parquet
+local_pg/_runs/<run-id>/<write-id>/_SUCCESS.json
+```
+
+Each boundary has its own objects and manifest. The manifest retains the logical
+run ID. Continuous replace is not supported.
 
 The success manifest lists every resource's key, `gs://` URI, row count, byte
 count, and CRC32C. Consumers should treat `_SUCCESS.json` as the visibility
-boundary and ignore runs without it.
+boundary and ignore writes without it.
 
 ## Write mechanics and failure behavior
 
@@ -61,6 +73,10 @@ after all resource writers close successfully.
 `Abort` cancels unfinished resumable writers. If `Commit` fails after some
 resource objects have finalized, those objects can remain without a success
 manifest, matching the S3 sink's resource-level atomicity.
+
+See [Continuous streaming runs](/pages/guides/concepts/streaming) for boundary
+defaults, setup costs, and checkpoint recovery. A replay after publication can
+produce another append object with the same rows under a new write identity.
 
 ## Related guides
 

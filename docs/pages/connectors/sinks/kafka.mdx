@@ -86,9 +86,14 @@ The producer requires `acks=all` with idempotence enabled. `Apply` waits for eve
 record acknowledgment. Broker replication, minimum in-sync replicas, and retention
 settings determine the durability of acknowledged data.
 
-`Commit` closes a bounded run. `CommitEpoch` certifies already acknowledged
-continuous writes and returns per-resource totals. Neither operation makes the
-batch or epoch atomic. Aborting cannot retract accepted records.
+`Commit` confirms already acknowledged writes in either execution mode.
+`Close` releases the producer. The producer remains open across continuous
+write boundaries. Commit does not make a batch or epoch atomic. Aborting cannot
+retract accepted records.
+
+Continuous append accepts insert, update, and delete events without requiring
+a primary key or global source ordering. Tombstone output still requires a
+nonnull message key.
 
 Delivery is **at least once**. Producer idempotence protects transport retries;
 it does not deduplicate a replayed Filament batch or epoch. Event-ID headers are
@@ -98,8 +103,8 @@ A publish error poisons the session. Partial publication may remain visible. A
 lost acknowledgment or timeout conservatively leaves destination effects
 uncertain, and continuous closure reports an error. Closing a client does not
 prove that an already submitted broker request cannot take effect later.
-The sink advertises no owner fencing, isolated epochs, or server-enforced bound
-on residual effects.
+Local validation failures before publication can close cleanly. The sink does
+not provide owner fencing or a server-enforced bound on residual effects.
 
 The complete batch is encoded and locally validated before publication.
 Outstanding byte limits include key, value, headers, topic, and a framing
