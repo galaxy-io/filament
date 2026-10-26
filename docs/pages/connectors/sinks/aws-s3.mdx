@@ -8,9 +8,9 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-s3-dark.svg"
 Connector ID `s3`
 
 The Amazon S3 sink (**alpha**) writes each resource as one NDJSON, JSON, or
-Parquet object per run in an S3-compatible bucket, laid out so an external
+Parquet object per finite write in an S3-compatible bucket, laid out so an external
 table per resource can read it directly. It is not a lakehouse format with
-table-level atomic commits; see the Iceberg sink for that.
+table-level atomic commits. See the Iceberg sink for that.
 
 ## Configuration
 
@@ -56,9 +56,9 @@ read history.
 
 ## Object layout
 
-Each successful run writes one object per resource and a success manifest.
+Each successful bounded run writes one object per resource and a success manifest.
 With prefix `local_pg`, resources `accounts` and `orders`, and the default
-partition, a run looks like:
+partition, a bounded run has this layout.
 
 ```
 local_pg/accounts/dt=2026-09-10/cc7332f3-7abc-5f37-984d-9815634f1d7f.parquet
@@ -66,25 +66,33 @@ local_pg/orders/dt=2026-09-10/cc7332f3-7abc-5f37-984d-9815634f1d7f.parquet
 local_pg/_runs/cc7332f3-7abc-5f37-984d-9815634f1d7f/_SUCCESS.json
 ```
 
-The path is prefix, resource, partition folders, then the run identifier as
-the filename. Objects are resource-major so one external table per resource
-can point at `local_pg/accounts/`. The resource folder, the run identifier
-filename, and the manifest location are fixed. Only the partition folders are
-yours to choose. Manifests live under `_runs`, which query engines skip
-because of the leading underscore. Object files carry the run identifier so
-runs on the same day never collide.
+The bounded path contains the prefix, resource, partition folders, and run ID.
+Continuous append uses a fresh write identity for every boundary while retaining
+the logical run ID in the manifest. A continuous boundary has this layout.
+
+```text
+local_pg/accounts/dt=2026-09-10/<write-id>.parquet
+local_pg/orders/dt=2026-09-10/<write-id>.parquet
+local_pg/_runs/<run-id>/<write-id>/_SUCCESS.json
+```
+
+Resource objects remain grouped by resource, so an external table can point at
+`local_pg/accounts/`. Manifests live under `_runs`, which query engines usually
+skip. Continuous replace is not supported. Each append boundary reopens the
+sink and produces independent objects and a manifest.
 
 ### Partition template
 
 `partition` sets the folders between each resource and its files. Write it as
-a path with placeholders in double braces. Every placeholder is filled from
-the run's start time in UTC, so every object of one run lands in the same
-partition.
+a path with placeholders in double braces. Time placeholders use
+the bounded run's start time or the continuous write's start time in UTC.
+Every object in that finite write uses the same time. The logical run ID in
+`{{.Run}}` stays unchanged across continuous boundaries.
 
 | Placeholder | Value |
 | --- | --- |
-| `{{.Date}}` | Run start date as `YYYY-MM-DD` |
-| `{{.StartedAt}}` | Run start as a UTC time; append `.Format "layout"` to shape it |
+| `{{.Date}}` | Run or continuous write start date as `YYYY-MM-DD` |
+| `{{.StartedAt}}` | Run or continuous write start as a UTC time. Append `.Format "layout"` to shape it |
 | `{{.Resource}}` | Resource name |
 | `{{.Run}}` | Run identifier |
 
@@ -136,8 +144,8 @@ The `compression` field shows only the options valid for the selected format.
 
 The success manifest lists every resource's key, URI, rows, bytes, and object
 CRC32C. Programmatic consumers should treat `_SUCCESS.json` as the visibility
-boundary and ignore runs without it. Query engines cannot apply that rule and
-read every object under the table location; see failure behavior below.
+boundary and ignore writes without it. Query engines cannot apply that rule and
+read every object under the table location. See failure behavior below.
 
 ## Write mechanics and atomicity
 
@@ -152,15 +160,20 @@ from unfinished multipart buffers, in-flight uploads, and the current encoded
 batch. Objects smaller than one part remain in memory until commit.
 
 Each resource object is atomic, but a group of S3 objects cannot be committed
-atomically. Resource objects may be visible while `Commit` is still running;
-the run becomes valid only when `_SUCCESS.json` is uploaded last.
+atomically. Resource objects may be visible while `Commit` is still running.
+The write becomes valid only when `_SUCCESS.json` is uploaded last.
 
 ## Failure behavior
 
 `Abort` cancels in-flight work and abandons incomplete multipart uploads. If
 `Commit` fails after some resources complete, those objects remain in their
-resource partitions, but no `_SUCCESS.json` is published, so the run is not
-valid. Query engines still read those objects, so remove them by run
-identifier before rerunning if partial data matters. Configure an S3 lifecycle
+resource partitions, but no `_SUCCESS.json` is published, so the write is not
+valid. Query engines still read those objects. If partial data matters, remove
+them by their run ID for bounded output or write ID for continuous output
+before retrying. Configure an S3 lifecycle
 rule to expire incomplete multipart uploads. Multipart uploads do not resume across worker
-attempts; resource progress is saved only after commit succeeds.
+attempts. Resource progress is saved only after commit succeeds.
+
+See [Continuous streaming runs](/pages/guides/concepts/streaming) for boundary
+defaults, setup costs, and checkpoint recovery. A replay after publication can
+produce another append object with the same rows under a new write identity.

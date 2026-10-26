@@ -373,9 +373,9 @@ func (r *Sinks) Specs() []filament.SinkSpec {
 }
 
 func sinkContracts(s filament.Sink) error {
-	if s.Spec().Capabilities.Stream != nil {
+	if s.Spec().Capabilities.ReusableSession {
 		if _, single := s.(interface{ SingleWriteOnly() }); single {
-			return fmt.Errorf("stream capability requires repeatable write boundaries")
+			return fmt.Errorf("reusable session capability requires repeatable write boundaries")
 		}
 	}
 	return nil

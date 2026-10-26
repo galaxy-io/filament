@@ -33,3 +33,22 @@ func TestLifecycleOwnsRepeatedWritesAndFailure(t *testing.T) {
 		t.Fatalf("reused failed session: %v", err)
 	}
 }
+
+func TestCloseDistinguishesLocalFailureFromUnknownPublication(t *testing.T) {
+	for _, uncertain := range []bool{false, true} {
+		s := New()
+		s.lifecycle.Open()
+		failure := errors.New("write rejected")
+		s.fail(failure)
+		if uncertain {
+			s.uncertain = failure
+		}
+		err := s.Close(context.Background())
+		if uncertain && !errors.Is(err, failure) {
+			t.Fatalf("unknown publication reported clean: %v", err)
+		}
+		if !uncertain && err != nil {
+			t.Fatalf("local failure blocked clean shutdown: %v", err)
+		}
+	}
+}

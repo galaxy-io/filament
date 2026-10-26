@@ -63,7 +63,7 @@ func TestKafkaConnector(t *testing.T) {
 			if err := s.Begin(ctx); err != nil {
 				t.Fatal(err)
 			}
-			opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.Stream.WritePolicies[0]}}
+			opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.WritePolicies[0]}}
 			receipt, err := s.Apply(ctx, input(t), opts)
 			if err != nil || receipt.Rows != 3 || receipt.EncodedCRC == nil {
 				t.Fatalf("Apply: %+v %v", receipt, err)
@@ -116,7 +116,7 @@ func TestKafkaConnector(t *testing.T) {
 			t.Fatal(err)
 		}
 		b := input(t)
-		opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.Stream.WritePolicies[0]}}
+		opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.WritePolicies[0]}}
 		// Refill a single client slot repeatedly, including across Apply calls.
 		// Callback delivery can precede the client's release of that slot.
 		const batches = 1000

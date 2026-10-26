@@ -90,15 +90,8 @@ message WritePolicyCapability {
   WriteDurability durability = 6;
 }
 
-message StreamingSinkCapabilities {
-  repeated WritePolicyCapability write_policies = 1;
-  bool owner_fencing = 2;
-  bool isolated_epochs = 3;
-  optional google.protobuf.Duration in_flight_bound = 4;
-}
-
 message SinkCapabilities {
-  StreamingSinkCapabilities stream = 1;
+  bool reusable_session = 9;
   bool schematized = 3;
   bool encoded_integrity = 4;
   repeated WritePolicyCapability write_policies = 5;

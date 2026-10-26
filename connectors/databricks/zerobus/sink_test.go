@@ -152,7 +152,7 @@ func TestSpecAppendOnly(t *testing.T) {
 	if !spec.Capabilities.Schematized {
 		t.Fatal("expected Schematized capability")
 	}
-	if spec.Capabilities.Stream != nil {
+	if spec.Capabilities.ReusableSession {
 		t.Fatal("Zerobus sink must not advertise streaming capabilities")
 	}
 	if spec.SchemaField != "schema" {

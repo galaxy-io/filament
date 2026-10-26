@@ -132,6 +132,9 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 func (s *Sink) initialize(ctx context.Context, run filament.RunSpec) {
 	s.run, s.policies = run.Run, run.WritePolicies
 	s.execution = run.ExecutionID
+	if run.SinkWriteID != "" {
+		s.execution = string(run.SinkWriteID)
+	}
 	s.attempt = uuid.NewString()
 	s.tables = make(map[string]*tableState)
 	s.memory = semaphore.NewWeighted(queuedBytes)
@@ -288,4 +291,14 @@ func (s *Sink) logTiming(phase, resource string, started time.Time, attrs ...any
 }
 
 // Close releases session resources without reverting durable writes.
-func (s *Sink) Close(ctx context.Context) error { err := s.Abort(ctx); s.release(); return err }
+func (s *Sink) Close(ctx context.Context) error {
+	err := s.Abort(ctx)
+	for _, state := range s.tables {
+		if state.publishing && !state.published {
+			err = errors.Join(err, errors.New("bigquery sink: publication outcome is unproven"))
+			break
+		}
+	}
+	s.release()
+	return err
+}

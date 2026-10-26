@@ -127,18 +127,12 @@ type StreamSource interface {
 	OpenStream(context.Context, StreamOpenOpts) (StreamSession, error)
 }
 
-// ValidateContinuous checks that both specs declare streaming support and that
-// at least one declared streaming write policy is compatible with the source.
-// Registration guarantees a declaring connector implements the native contracts.
+// ValidateContinuous checks replayable input against the sink write policies.
 func ValidateContinuous(source ConnectorSpec, sink SinkSpec) error {
 	if source.Stream == nil {
 		return errors.New("source does not advertise streaming support")
 	}
-	caps := sink.Capabilities.Stream
-	if caps == nil {
-		return errors.New("sink does not advertise streaming support")
-	}
-	for _, policy := range caps.WritePolicies {
+	for _, policy := range sink.Capabilities.WritePolicies {
 		if _, err := PlanContinuousWrite(source, sink, policy.Mode); err == nil {
 			return nil
 		}
@@ -211,18 +205,6 @@ type MessageSchemaRecordSink interface {
 type SchemaPolicySink interface {
 	Schematized
 	SchemaPolicy() schema.Policy
-}
-
-// StreamingSinkCapabilities are claims requiring connector-specific evidence.
-// OwnerFencing checks authority across generations atomically with effects.
-// IsolatedEpochs additionally requires independent contexts (a later contract).
-// InFlightBound is nil when unknown; when set it must be positive and enforced
-// server-side over all residual effects after a proven end to submissions.
-type StreamingSinkCapabilities struct {
-	// WritePolicies explicitly describes epoch writes; bounded policies are never inferred.
-	WritePolicies                []WritePolicyCapability
-	OwnerFencing, IsolatedEpochs bool
-	InFlightBound                *time.Duration
 }
 
 // ValidateStreamAttempt checks admitted continuous ownership against duplicated

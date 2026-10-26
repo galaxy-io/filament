@@ -132,8 +132,8 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 
 	if t.transactionalWrites {
 		for _, policy := range run.WritePolicies {
-			if policy.Capability.Durability != filament.DurabilityAfterCommit || (policy.Capability.Mode != filament.WriteAppend && policy.Capability.Mode != filament.WriteMerge) {
-				return fmt.Errorf("postgres sink: commit-durable sessions require append or merge policies for every resource")
+			if policy.Capability.Durability != filament.DurabilityAfterCommit || (policy.Capability.Mode != filament.WriteAppend && policy.Capability.Mode != filament.WriteMerge && policy.Capability.Mode != filament.WriteUpsert) {
+				return fmt.Errorf("postgres sink: commit-durable sessions require append, upsert, or merge policies for every resource")
 			}
 		}
 	}
