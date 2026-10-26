@@ -14,6 +14,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "2",
+		Stream:       &filament.StreamCapabilities{Input: filament.InputChanges, EmitsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Ordering: []filament.Ordering{filament.OrderingGlobalStrict, filament.OrderingTransaction}, Delivery: filament.DeliveryReplayableAtLeastOnce},
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
@@ -55,7 +56,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 					{Value: string(filament.SnapshotNone), Label: "None"},
 				}, Scope: filament.ScopePipeline,
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Initial reads a table in full before streaming its changes; None streams from the current position only",
+				Help:        "Initial reads a table in full before streaming its changes; None streams from the current position only. Continuous execution currently requires None",
 			},
 		}...)},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
