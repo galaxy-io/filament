@@ -114,7 +114,7 @@ func PlanContinuousSource(ctx context.Context, w filament.Worker, ref filament.R
 }
 
 func planContinuousSource(ctx context.Context, w filament.Worker, ref filament.Ref, resources []string, streamID, sourceConnectionID string) (filament.ReplicationStreamPlan, error) {
-	plan, err := w.PlanReplicationStream(ctx, ref.Connector, filament.ReplicationStreamPlanningRequest{ReplicationStreamID: streamID, SourceConnectionID: sourceConnectionID, Config: filament.NewConfig(ref.Config), Resources: resources})
+	plan, err := w.PlanReplicationStream(ctx, ref.Connector, filament.ReplicationStreamPlanningRequest{Execution: filament.ExecutionContinuous, ReplicationStreamID: streamID, SourceConnectionID: sourceConnectionID, Config: filament.NewConfig(ref.Config), Resources: resources})
 	if errors.Is(err, filament.ErrUnsupported) {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("%w: source cannot plan durable stream admission", ErrPrecondition)
 	}

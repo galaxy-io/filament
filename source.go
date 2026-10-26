@@ -214,6 +214,8 @@ const (
 // ReplicationStreamPlanningRequest is the connector-owned input for planning
 // an independently advancing source consumer.
 type ReplicationStreamPlanningRequest struct {
+	// Execution selects bounded catch-up or continuous admission constraints.
+	Execution ExecutionMode
 	// SourceConnectionID is the stable Filament connection identity, independent of runs.
 	SourceConnectionID  string
 	ReplicationStreamID string
