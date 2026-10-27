@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/galaxy-io/filament"
@@ -84,9 +83,7 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 		if pag == nil {
 			break
 		}
-		var bodyMap map[string]any
-		_ = json.Unmarshal(raw, &bodyMap)
-		state, err = pag.Next(resp, bodyMap, len(records))
+		state, err = pag.Next(resp, decodeBody(raw), len(records))
 		if err != nil {
 			return nil, fmt.Errorf("discovery paginate %s: %w", disc.From, err)
 		}
