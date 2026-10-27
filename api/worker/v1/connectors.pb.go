@@ -715,13 +715,13 @@ func (x *WritePolicyCapability) GetDurability() WriteDurability {
 
 type SinkCapabilities struct {
 	state                  protoimpl.MessageState   `protogen:"open.v1"`
-	ReusableSession        bool                     `protobuf:"varint,9,opt,name=reusable_session,json=reusableSession,proto3" json:"reusable_session,omitempty"`
-	Schematized            bool                     `protobuf:"varint,3,opt,name=schematized,proto3" json:"schematized,omitempty"`
-	EncodedIntegrity       bool                     `protobuf:"varint,4,opt,name=encoded_integrity,json=encodedIntegrity,proto3" json:"encoded_integrity,omitempty"`
-	WritePolicies          []*WritePolicyCapability `protobuf:"bytes,5,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
-	PreferredBatchRows     int64                    `protobuf:"varint,6,opt,name=preferred_batch_rows,json=preferredBatchRows,proto3" json:"preferred_batch_rows,omitempty"`
-	PreferredBatchBytes    int64                    `protobuf:"varint,7,opt,name=preferred_batch_bytes,json=preferredBatchBytes,proto3" json:"preferred_batch_bytes,omitempty"`
-	PreferredFlushInterval *durationpb.Duration     `protobuf:"bytes,8,opt,name=preferred_flush_interval,json=preferredFlushInterval,proto3" json:"preferred_flush_interval,omitempty"`
+	ReusableSession        bool                     `protobuf:"varint,1,opt,name=reusable_session,json=reusableSession,proto3" json:"reusable_session,omitempty"`
+	Schematized            bool                     `protobuf:"varint,2,opt,name=schematized,proto3" json:"schematized,omitempty"`
+	EncodedIntegrity       bool                     `protobuf:"varint,3,opt,name=encoded_integrity,json=encodedIntegrity,proto3" json:"encoded_integrity,omitempty"`
+	WritePolicies          []*WritePolicyCapability `protobuf:"bytes,4,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
+	PreferredBatchRows     int64                    `protobuf:"varint,5,opt,name=preferred_batch_rows,json=preferredBatchRows,proto3" json:"preferred_batch_rows,omitempty"`
+	PreferredBatchBytes    int64                    `protobuf:"varint,6,opt,name=preferred_batch_bytes,json=preferredBatchBytes,proto3" json:"preferred_batch_bytes,omitempty"`
+	PreferredFlushInterval *durationpb.Duration     `protobuf:"bytes,7,opt,name=preferred_flush_interval,json=preferredFlushInterval,proto3" json:"preferred_flush_interval,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -1236,13 +1236,13 @@ const file_worker_v1_connectors_proto_rawDesc = "" +
 	"durability\x18\x06 \x01(\x0e2\x1a.worker.v1.WriteDurabilityR\n" +
 	"durability\"\x90\x03\n" +
 	"\x10SinkCapabilities\x12)\n" +
-	"\x10reusable_session\x18\t \x01(\bR\x0freusableSession\x12 \n" +
-	"\vschematized\x18\x03 \x01(\bR\vschematized\x12+\n" +
-	"\x11encoded_integrity\x18\x04 \x01(\bR\x10encodedIntegrity\x12G\n" +
-	"\x0ewrite_policies\x18\x05 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x120\n" +
-	"\x14preferred_batch_rows\x18\x06 \x01(\x03R\x12preferredBatchRows\x122\n" +
-	"\x15preferred_batch_bytes\x18\a \x01(\x03R\x13preferredBatchBytes\x12S\n" +
-	"\x18preferred_flush_interval\x18\b \x01(\v2\x19.google.protobuf.DurationR\x16preferredFlushInterval\"\x9b\x02\n" +
+	"\x10reusable_session\x18\x01 \x01(\bR\x0freusableSession\x12 \n" +
+	"\vschematized\x18\x02 \x01(\bR\vschematized\x12+\n" +
+	"\x11encoded_integrity\x18\x03 \x01(\bR\x10encodedIntegrity\x12G\n" +
+	"\x0ewrite_policies\x18\x04 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x120\n" +
+	"\x14preferred_batch_rows\x18\x05 \x01(\x03R\x12preferredBatchRows\x122\n" +
+	"\x15preferred_batch_bytes\x18\x06 \x01(\x03R\x13preferredBatchBytes\x12S\n" +
+	"\x18preferred_flush_interval\x18\a \x01(\v2\x19.google.protobuf.DurationR\x16preferredFlushInterval\"\x9b\x02\n" +
 	"\x06Source\x12/\n" +
 	"\x04spec\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\x04spec\x125\n" +
 	"\n" +
