@@ -152,7 +152,7 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 }
 
 // normalizeEdgeModes makes defaults explicit, validates the available levers,
-// and enforces one write mode per destination route. CDC defaults to append.
+// and enforces one write mode per CDC route. CDC defaults to append.
 func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantID, nodes []*ingestionv1.PipelineNode, edges []*ingestionv1.PipelineEdge) error {
 	byID := make(map[string]*ingestionv1.PipelineNode, len(nodes))
 	for _, node := range nodes {
@@ -202,7 +202,7 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 			}
 			route := edge.GetFromNode() + "\x00" + edge.GetToNode()
 			if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
+				return fmt.Errorf("edge %s -> %s: all resources on a CDC route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
 			}
 			routeWriteModes[route] = writeMode
 			edge.WriteMode = convert.WriteModeToProto(writeMode)
@@ -215,11 +215,6 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
-			route := edge.GetFromNode() + "\x00" + edge.GetToNode()
-			if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-				return fmt.Errorf("edge %s -> %s: all resources on a route must use the same write mode", edge.GetFromNode(), edge.GetToNode())
-			}
-			routeWriteModes[route] = writeMode
 			edge.ReadMode = convert.ReadModeToProto(readMode)
 			edge.WriteMode = convert.WriteModeToProto(writeMode)
 			ingestionType, err = filament.IngestionFor(readMode, writeMode)
