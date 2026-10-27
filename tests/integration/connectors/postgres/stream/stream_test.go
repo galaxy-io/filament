@@ -1,6 +1,6 @@
 //go:build integration
 
-package evolution_test
+package stream_test
 
 import (
 	"context"
