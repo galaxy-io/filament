@@ -129,9 +129,11 @@ func (s *walSession) receiveWAL(ctx context.Context, raw pgproto3.BackendMessage
 				return nil, err
 			}
 			if keepalive.ReplyRequested {
-				return nil, pglogrepl.SendStandbyStatusUpdate(ctx, s.conn, pglogrepl.StandbyStatusUpdate{WALWritePosition: s.acknowledged, WALFlushPosition: s.acknowledged, WALApplyPosition: s.acknowledged})
+				if err := pglogrepl.SendStandbyStatusUpdate(ctx, s.conn, pglogrepl.StandbyStatusUpdate{WALWritePosition: s.acknowledged, WALFlushPosition: s.acknowledged, WALApplyPosition: s.acknowledged}); err != nil {
+					return nil, err
+				}
 			}
-			return nil, nil
+			return &walEvent{progress: keepalive.ServerWALEnd}, nil
 		case pglogrepl.XLogDataByteID:
 			data, err := pglogrepl.ParseXLogData(m.Data[1:])
 			if err != nil {

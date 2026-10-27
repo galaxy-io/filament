@@ -183,7 +183,7 @@ func normalizePlan(t *testing.T, plan filament.ReplicationStreamPlan) filament.R
 	return normalized
 }
 
-func TestRemoteRejectsPostgresContinuousInitialSnapshot(t *testing.T) {
+func TestRemoteAcceptsPostgresContinuousInitialSnapshot(t *testing.T) {
 	local := worker.Local(registry.DefaultSources, registry.DefaultSinks)
 	mux := http.NewServeMux()
 	mux.Handle(worker.Handler(local))
@@ -191,8 +191,8 @@ func TestRemoteRejectsPostgresContinuousInitialSnapshot(t *testing.T) {
 	defer srv.Close()
 	req := filament.ReplicationStreamPlanningRequest{Execution: filament.ExecutionContinuous, ReplicationStreamID: "stream", Resources: []string{"orders"}, Config: filament.NewConfig(map[string]any{"replication": "cdc", "snapshot_mode": "initial"})}
 	for _, w := range []filament.Worker{local, worker.Remote(srv.URL)} {
-		if _, err := w.PlanReplicationStream(t.Context(), "postgres", req); err == nil {
-			t.Fatal("continuous initial snapshot admitted")
+		if _, err := w.PlanReplicationStream(t.Context(), "postgres", req); err != nil {
+			t.Fatal(err)
 		}
 	}
 }

@@ -14,7 +14,7 @@ import (
 )
 
 type continuousCollector struct {
-	testutil.CollectSink
+	duplicateRejectingSink
 	controls []filament.Control
 }
 
@@ -48,7 +48,10 @@ func TestPostgresContinuousTransactionsAndResume(t *testing.T) {
 		Attempt:        filament.AttemptRef{RunID: "run", ExecutionID: "execution", StreamID: "continuous-test", Generation: 1, Token: 1},
 		CheckAuthority: func(context.Context) error { return nil },
 	}
+	var out *continuousCollector
 	open := func() filament.StreamSession {
+		out = &continuousCollector{}
+		t.Cleanup(out.Release)
 		t.Helper()
 		session, err := src.OpenStream(ctx, opts)
 		if err != nil {
@@ -59,16 +62,16 @@ func TestPostgresContinuousTransactionsAndResume(t *testing.T) {
 	}
 	read := func(session filament.StreamSession, want int) filament.Coverage {
 		t.Helper()
-		out := &continuousCollector{}
-		defer out.Release()
+		before := len(out.Records)
+		out.controls = nil
 		coverage, err := session.Read(ctx, out, filament.Boundary{MaxRecords: 1, MaxWait: time.Second})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if records := testutil.DataRecords(out.Records); len(records) != want {
+		if records := testutil.DataRecords(out.Records[before:]); len(records) != want {
 			t.Fatalf("got %d rows, want %d: %#v", len(records), want, records)
 		}
-		if want > 0 && (len(out.controls) != 2 || out.controls[0].Kind != filament.TxnBegin || out.controls[1].Kind != filament.TxnEnd) {
+		if want > 0 && (len(out.controls) != 3 || out.controls[0].Kind != filament.TxnBegin || out.controls[1].Kind != filament.TxnEnd) {
 			t.Fatalf("incomplete transaction controls: %#v", out.controls)
 		}
 		return coverage

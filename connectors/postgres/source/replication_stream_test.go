@@ -56,8 +56,8 @@ func TestContinuousAdmission(t *testing.T) {
 		valid                       bool
 	}{
 		{"changes", "cdc", "none", []string{"orders", "customers"}, true},
-		{"initial", "cdc", "initial", []string{"orders"}, false},
-		{"default snapshot", "cdc", "", []string{"orders"}, false},
+		{"initial", "cdc", "initial", []string{"orders"}, true},
+		{"default snapshot", "cdc", "", []string{"orders"}, true},
 		{"standard", "standard", "none", []string{"orders"}, false},
 		{"missing tables", "cdc", "none", nil, false},
 		{"duplicate table", "cdc", "none", []string{"orders", "orders"}, false},

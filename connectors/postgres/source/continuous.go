@@ -13,12 +13,13 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/internal/stream"
+	"github.com/galaxy-io/filament/streamkit"
 )
 
 var _ filament.StreamSource = (*Source)(nil)
 
-// OpenStream opens one persistent pgoutput session. Continuous CDC supports
-// changes-only bootstrap. SnapshotInitial is rejected before slot mutation.
+// OpenStream opens one persistent pgoutput session. An uncertified initial
+// snapshot completes before the session returns its first candidate coverage.
 func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (_ filament.StreamSession, result error) {
 	lifecycle, err := stream.NewSourceLifecycle(opts.Attempt, opts.CheckAuthority)
 	if err != nil {
@@ -39,8 +40,8 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if s.pool == nil || len(opts.Resources) == 0 {
 		return nil, errors.New("postgres continuous: configured source and resources required")
 	}
-	if s.snapshotMode != filament.SnapshotNone {
-		return nil, errors.New("postgres continuous requires snapshot_mode=none; initial snapshot is not implemented")
+	if s.snapshotMode != filament.SnapshotNone && s.snapshotMode != filament.SnapshotInitial {
+		return nil, errors.New("postgres continuous: unsupported snapshot mode")
 	}
 	if err := lifecycle.CheckAuthority(ctx); err != nil {
 		return nil, err
@@ -62,6 +63,10 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err := s.ensurePublication(ctx, opts.Resources); err != nil {
 		return nil, err
 	}
+	bootstrap, err := s.planContinuousSnapshot(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
 	conn, err := s.replicationConn(ctx)
 	if err != nil {
 		return nil, err
@@ -70,6 +75,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		if result != nil {
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
+			bootstrap.close(cleanup)
 			_ = conn.Close(cleanup)
 		}
 	}()
@@ -78,9 +84,14 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 		return nil, err
 	}
 	domain := filament.DomainKey{Domain: "postgres:" + s.slotName, Incarnation: fmt.Sprintf("%s/%d/%s", system.SystemID, system.Timeline, system.DBName)}
-	start, acknowledged, err := s.resumeStream(ctx, conn, domain, opts.CommittedPositions)
+	start, slot, err := s.resumeStream(ctx, conn, domain, opts.CommittedPositions)
 	if err != nil {
 		return nil, err
+	}
+	if bootstrap != nil {
+		if err := bootstrap.open(ctx, slot); err != nil {
+			return nil, err
+		}
 	}
 	if err := lifecycle.CheckAuthority(ctx); err != nil {
 		return nil, err
@@ -90,7 +101,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	}
 	pumpCtx, cancel := context.WithCancel(ctx)
 	session := &walSession{
-		conn: conn, domain: domain, lifecycle: lifecycle, start: start, acknowledged: acknowledged, cancel: cancel, events: make(chan walEvent, 64), acks: make(chan walAck), done: make(chan struct{}), checkAuthority: opts.CheckAuthority,
+		conn: conn, domain: domain, lifecycle: lifecycle, start: start, acknowledged: slot.start, bootstrap: bootstrap, cancel: cancel, events: make(chan walEvent, 64), acks: make(chan walAck), done: make(chan struct{}), checkAuthority: opts.CheckAuthority,
 		decoder: &pgCDCRun{schema: s.schema, resources: append([]string(nil), opts.Resources...), tracked: tracked, relations: map[uint32]*cdcRelation{}},
 	}
 	go session.pump(pumpCtx)
@@ -98,8 +109,9 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 }
 
 type walEvent struct {
-	data  []byte
-	start pglogrepl.LSN
+	data     []byte
+	start    pglogrepl.LSN
+	progress pglogrepl.LSN
 }
 type walAck struct {
 	ctx    context.Context
@@ -119,6 +131,7 @@ type walSession struct {
 	acks           chan walAck
 	done           chan struct{}
 	pumpErr        error // read only after done closes
+	bootstrap      *continuousSnapshot
 	txn            string
 	skip           bool
 }
@@ -138,56 +151,59 @@ func (s *walSession) Read(ctx context.Context, out filament.StreamRecordSink, b 
 		}
 	}()
 	s.decoder.sink = out
-	// Each boundary has its own pipeline inlet and builders.
-	for _, table := range s.decoder.tracked {
-		table.writer = nil
+	// Snapshot and WAL use the same session-long inlet and writer cache.
+	tracker, err := streamkit.NewBoundaryTracker(b)
+	if err != nil {
+		return coverage, err
 	}
-	s.decoder.emitted = 0
-	started, last := time.Now(), time.Now()
-	var end pglogrepl.LSN
-	var nbytes int64
-	expired := false
+	defer tracker.Close()
+	var end, bootstrapTarget pglogrepl.LSN
+	if s.bootstrap != nil {
+		bootstrapTarget = s.bootstrap.target
+		if err := s.readSnapshot(ctx, out); err != nil {
+			return coverage, err
+		}
+		end = s.start
+	}
 	finish := func() (filament.Coverage, error) {
 		if end == 0 {
 			return filament.Coverage{}, nil
+		}
+		if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: s.domain, Position: walPosition(end)}); err != nil {
+			return filament.Coverage{}, err
 		}
 		c := filament.Coverage{Positions: filament.DomainPositions{s.domain: walPosition(end)}}
 		return c, s.lifecycle.MarkRead(c)
 	}
 	for {
-		wait := time.Until(last.Add(b.MaxWait))
-		if b.MaxAge > 0 {
-			wait = min(wait, time.Until(started.Add(b.MaxAge)))
+		if s.txn == "" && (bootstrapTarget != 0 && end >= bootstrapTarget || bootstrapTarget == 0 && tracker.Requested()) {
+			return finish()
 		}
-		if expired {
-			wait = time.Hour
-		}
-		timer := time.NewTimer(max(wait, 0))
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			return coverage, ctx.Err()
-		case <-timer.C:
-			if s.txn == "" {
-				return finish()
-			}
-			expired = true
+		case <-tracker.Wake():
+			// A snapshot retry must catch up to its consistent point even after a
+			// soft deadline. Otherwise old WAL could overwrite the new baseline.
 		case <-s.done:
-			timer.Stop()
 			return coverage, s.pumpFailure()
 		case event := <-s.events:
-			timer.Stop()
+			if len(event.data) == 0 {
+				if bootstrapTarget != 0 && s.txn == "" {
+					end = max(end, event.progress)
+				}
+				continue
+			}
+			before := s.decoder.emitted
 			completed, err := s.decodeEvent(ctx, out, event)
 			if err != nil {
 				return coverage, err
 			}
-			if completed != 0 {
-				end = completed
-			}
-			nbytes += int64(len(event.data))
-			last = time.Now()
-			if s.txn == "" && end != 0 && (expired || s.decoder.emitted >= b.MaxRecords || b.MaxBytes > 0 && nbytes >= b.MaxBytes || b.MaxAge > 0 && time.Since(started) >= b.MaxAge) {
-				return finish()
+			end = max(end, completed)
+			if rows := s.decoder.emitted - before; rows > 0 {
+				if err := tracker.Add(rows, int64(len(event.data))); err != nil {
+					return coverage, err
+				}
 			}
 		}
 	}
@@ -268,6 +284,7 @@ func (s *walSession) Close(ctx context.Context) error {
 		return err
 	}
 	s.cancel()
+	s.bootstrap.close(ctx)
 	select {
 	case <-s.done:
 		err := s.pumpErr
@@ -279,50 +296,50 @@ func (s *walSession) Close(ctx context.Context) error {
 }
 
 // resumeStream checks certified progress against retained WAL before starting I/O.
-func (s *Source) resumeStream(ctx context.Context, conn *pgconn.PgConn, domain filament.DomainKey, positions filament.DomainPositions) (pglogrepl.LSN, pglogrepl.LSN, error) {
+func (s *Source) resumeStream(ctx context.Context, conn *pgconn.PgConn, domain filament.DomainKey, positions filament.DomainPositions) (pglogrepl.LSN, replicationSlotState, error) {
 	var resume pglogrepl.LSN
 	var err error
 	for d, p := range positions {
 		if d != domain {
-			return 0, 0, filament.ErrPositionIncomparable
+			return 0, replicationSlotState{}, filament.ErrPositionIncomparable
 		}
 		if err := (LSNCodec{}).Validate(p); err != nil {
-			return 0, 0, err
+			return 0, replicationSlotState{}, err
 		}
 		resume, err = pglogrepl.ParseLSN(string(p.Value))
 		if err != nil {
-			return 0, 0, err
+			return 0, replicationSlotState{}, err
 		}
 	}
 	if len(positions) > 0 {
 		var exists bool
 		if err := s.pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM pg_replication_slots WHERE slot_name=$1)", s.slotName).Scan(&exists); err != nil {
-			return 0, 0, err
+			return 0, replicationSlotState{}, err
 		}
 		if !exists {
-			return 0, 0, errors.New("postgres continuous: certified slot is missing; refusing to skip retained WAL")
+			return 0, replicationSlotState{}, errors.New("postgres continuous: certified slot is missing; refusing to skip retained WAL")
 		}
 	}
 	slot, err := s.ensureReplicationSlot(ctx, conn)
 	if err != nil {
-		return 0, 0, err
+		return 0, replicationSlotState{}, err
 	}
 	start := slot.start
 	if len(positions) > 0 {
 		if resume < slot.start {
-			return 0, 0, fmt.Errorf("postgres continuous: certified position %s is behind slot %s", resume, slot.start)
+			return 0, replicationSlotState{}, fmt.Errorf("postgres continuous: certified position %s is behind slot %s", resume, slot.start)
 		}
 		start = resume
 	}
 	current, err := s.currentLSN(ctx)
 	if err != nil {
-		return 0, 0, err
+		return 0, replicationSlotState{}, err
 	}
 	if start > current {
-		return 0, 0, errors.New("postgres continuous: resume position is ahead of server WAL")
+		return 0, replicationSlotState{}, errors.New("postgres continuous: resume position is ahead of server WAL")
 	}
 
-	return start, slot.start, nil
+	return start, slot, nil
 }
 
 // decodeEvent preserves transaction controls and validates layouts before rows.
@@ -373,8 +390,10 @@ func validateContinuousConfig(cfg filament.Config, resources []string) error {
 	if cfg.String("replication") != replicationCDC {
 		return errors.New("postgres continuous requires replication=cdc")
 	}
-	if cfg.String("snapshot_mode") != string(filament.SnapshotNone) {
-		return errors.New("postgres continuous requires snapshot_mode=none; use bounded CDC for an initial snapshot")
+	switch filament.SnapshotMode(cfg.String("snapshot_mode")) {
+	case "", filament.SnapshotNone, filament.SnapshotInitial:
+	default:
+		return errors.New("postgres continuous: unsupported snapshot mode")
 	}
 	if len(resources) == 0 {
 		return errors.New("postgres continuous requires explicit table selection")
