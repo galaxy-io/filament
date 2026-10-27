@@ -84,9 +84,9 @@ func LoadContinuousAttempt(ctx context.Context, store filament.StreamRuntimeStor
 // continuousBoundary uses the persisted run override when present. Defaults
 // amortize certification and, for finite-session sinks, connection and DDL setup.
 func continuousBoundary(options filament.RunOptions, sink filament.SinkSpec) filament.Boundary {
-	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second}
+	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second, MaxAge: time.Second}
 	if !sink.Capabilities.ReusableSession {
-		b = filament.Boundary{MaxRecords: 100_000, MaxWait: 30 * time.Second}
+		b = filament.Boundary{MaxRecords: 100_000, MaxWait: 30 * time.Second, MaxAge: 30 * time.Second}
 	}
 	if options.EpochBoundary != nil {
 		b = *options.EpochBoundary

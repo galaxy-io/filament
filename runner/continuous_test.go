@@ -611,10 +611,10 @@ func TestContinuousUsesFreshFiniteSinks(t *testing.T) {
 func TestContinuousBoundaryAmortizesFreshSessions(t *testing.T) {
 	single := filament.SinkSpec{}
 	reusable := filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}
-	if got := continuousBoundary(filament.RunOptions{}, single); got.MaxWait != 30*time.Second || got.MaxRecords != 100_000 {
+	if got := continuousBoundary(filament.RunOptions{}, single); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
 		t.Fatal(got)
 	}
-	if got := continuousBoundary(filament.RunOptions{}, reusable); got.MaxWait != time.Second || got.MaxRecords != 1000 {
+	if got := continuousBoundary(filament.RunOptions{}, reusable); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
 		t.Fatal(got)
 	}
 	custom := filament.Boundary{MaxRecords: 10, MaxWait: 2 * time.Second}
