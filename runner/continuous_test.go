@@ -527,6 +527,35 @@ func (s *inferredSchemaSink) Apply(ctx context.Context, b *arrowbatch.Batch, opt
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
 
+// A stream materializes the same lineage columns as a bounded run.
+func TestContinuousMaterializesAuditColumns(t *testing.T) {
+	lineage := []string{rowmodel.AuditRunIDField, rowmodel.AuditRunStartedAtField}
+	change := append(slices.Clone(lineage), rowmodel.AuditOperationField, rowmodel.AuditSourcePositionField, rowmodel.AuditSequenceField)
+	for _, tc := range []struct {
+		ingestion filament.IngestionType
+		want      []string
+	}{
+		{filament.IngestionFullAppend, lineage},
+		{filament.IngestionCDCMerge, change},
+		{filament.IngestionCDCAppend, change},
+	} {
+		cfg, _, _, sink := continuousFixture(t)
+		cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": tc.ingestion}
+		typed := &inferredSchemaSink{continuousTestSink: sink}
+		cfg.Sink = typed
+		if err := RunContinuous(t.Context(), cfg); err != nil {
+			t.Fatalf("%s: %v", tc.ingestion, err)
+		}
+		got := []string{}
+		for _, f := range typed.ensured.Fields {
+			got = append(got, f.Name)
+		}
+		if want := append([]string{"value"}, tc.want...); !slices.Equal(got, want) {
+			t.Fatalf("%s: ensured columns %v, want %v", tc.ingestion, got, want)
+		}
+	}
+}
+
 func TestContinuousEnsuresInferredSchemaBeforeApply(t *testing.T) {
 	for _, reject := range []bool{false, true} {
 		cfg, store, src, sink := continuousFixture(t)

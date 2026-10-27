@@ -301,8 +301,13 @@ func ensureContinuousSchemas(runCtx context.Context, cfg *ContinuousConfig) erro
 		return nil
 	} // Message schemas are complete only after the epoch probe.
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
+		audit := continuousAudit(cfg.Spec)
 		for _, resource := range cfg.Spec.Resources {
-			destination, model := destinationSchema(resource, cfg.Schemas[resource], cfg.Spec.WritePolicies)
+			shaped, err := auditSchema(cfg.Schemas[resource], audit.CDC, audit.CDCAppend)
+			if err != nil {
+				return err
+			}
+			destination, model := destinationSchema(resource, shaped, cfg.Spec.WritePolicies)
 			if err := schemaSink.EnsureSchema(runCtx, destination, model); err != nil {
 				return err
 			}
@@ -362,13 +367,28 @@ func continuousResourceErrorReporter(cfg ContinuousConfig, lease filament.LeaseT
 	return reportResourceError
 }
 
+// continuousAudit gives a stream the same lineage as a bounded run, so its
+// rows carry the run, and for CDC the operation, position and sequence.
+func continuousAudit(spec filament.RunSpec) pipeline.AuditConfig {
+	return pipeline.AuditConfig{RunStartedAt: startedAtFor(spec), CDC: filament.IsCDC(spec.IngestionTypes), CDCAppend: filament.IsCDCAppend(spec.IngestionTypes)}
+}
+
 func newContinuousPipeline(cfg *ContinuousConfig, ordering filament.Ordering) (*pipeline.Pipeline, error) {
 	spec := cfg.Spec
-	pipelineConfig := pipeline.Config{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: cfg.messageSchemas, Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log}
+	audit := continuousAudit(spec)
+	pipelineConfig := pipeline.Config{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: cfg.messageSchemas, Tenant: spec.Tenant, Run: spec.Run, Sink: cfg.Sink, WritePolicies: spec.WritePolicies, Options: spec.Options, Log: cfg.Log, Audit: &audit}
 	if schemaSink, ok := cfg.Sink.(filament.Schematized); ok {
+		// The pipeline hands over the shaped layout, so compare against the
+		// planned schema shaped the same way.
 		pipelineConfig.PrepareSchema = func(ctx context.Context, resource string, schema rowmodel.Schema) error {
-			if planned, ok := cfg.Schemas[resource]; cfg.messagePolicy == "" && ok && planned.Equal(schema) {
-				return nil
+			if planned, ok := cfg.Schemas[resource]; cfg.messagePolicy == "" && ok {
+				shaped, err := auditSchema(planned, audit.CDC, audit.CDCAppend)
+				if err != nil {
+					return err
+				}
+				if shaped.Equal(schema) {
+					return nil
+				}
 			}
 			destination, actual := destinationSchema(resource, schema, spec.WritePolicies)
 			return schemaSink.EnsureSchema(ctx, destination, actual)

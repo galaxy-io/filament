@@ -407,6 +407,27 @@ func TestRuntimeEpochWithAppliedRows(t *testing.T) {
 	if saved.Certificate.Records != 2 || len(saved.Certificate.Receipts) != 1 || saved.Certificate.Receipts[0].Resource != "events" {
 		t.Fatalf("lost receipt: %+v", saved.Certificate)
 	}
+	// Receipts accumulate into the run's resource rows, once per epoch.
+	resources := func() []filament.ResourceState {
+		state, err := f.store.LoadRun(context.Background(), tenantA, a.Lease.Attempt.RunID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return state.Resources
+	}
+	if rs := resources(); len(rs) != 1 || rs[0].Resource != "events" || rs[0].Records != 2 {
+		t.Fatalf("resources after first epoch: %+v", rs)
+	}
+	next := f.epochPosition(t, a, 2, rowmodel.Position{Codec: "counter", Value: []byte("5")}, "source", 3)
+	if _, err := f.store.CommitEpoch(context.Background(), next); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.CommitEpoch(context.Background(), next); err != nil {
+		t.Fatal(err)
+	}
+	if rs := resources(); len(rs) != 1 || rs[0].Records != 5 {
+		t.Fatalf("resources after retried second epoch: %+v", rs)
+	}
 }
 
 func TestRuntimeFrozenExecutionIgnoresRunVersionUpdates(t *testing.T) {

@@ -31,6 +31,13 @@ streaming support. The [Kafka](/pages/connectors/sources/kafka) and
 [NATS](/pages/connectors/sources/nats) source pages describe their current
 continuous behavior and limitations.
 
+Rows written by a continuous run carry the same `_filament_` lineage columns as
+a bounded run. CDC sources add the operation, the source position in the form
+the source uses, such as a WAL LSN for Postgres or a GTID set for MySQL, and the
+sequence within the stream. The
+[replication modes](/pages/guides/concepts/replication-modes#columns-filament-adds)
+guide lists them.
+
 ## Sink sessions and boundary defaults
 
 A reusable sink keeps its connection open across finite writes. Other sinks
