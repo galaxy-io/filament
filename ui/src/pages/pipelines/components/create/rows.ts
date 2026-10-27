@@ -1,4 +1,4 @@
-import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { type ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { GetResourceColumnsResponse, Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
