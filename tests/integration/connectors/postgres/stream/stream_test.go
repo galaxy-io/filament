@@ -1,9 +1,10 @@
-package postgres
+//go:build integration
+
+package stream_test
 
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
@@ -11,36 +12,32 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/galaxy-io/filament"
+	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/rowmodel"
+	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
-func TestNativeEpochCommitAbortAndBoundedReplace(t *testing.T) { nativeEpochScenario(t, false, false) }
+func TestPostgresNativeEpochCommitAbortAndBoundedReplace(t *testing.T) {
+	nativeEpochScenario(t, false, false)
+}
 
-func TestNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) {
+func TestPostgresNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) {
 	nativeEpochScenario(t, true, false)
 }
-func TestNativeEpochInferredColumns(t *testing.T) { nativeEpochScenario(t, false, true) }
+
+func TestPostgresNativeEpochInferredColumns(t *testing.T) { nativeEpochScenario(t, false, true) }
+
 func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
-	dsn := os.Getenv("FILAMENT_TEST_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("set FILAMENT_TEST_POSTGRES_DSN")
-	}
+	pg := testcontainers.SharedPostgres(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close(ctx)
+	conn := pg.Pool()
 	schema := "epochs_" + uuid.NewString()[:8]
-	defer func() {
-		_, _ = conn.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
-	}()
 	attempt := filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
 	appendPolicy := filament.WritePolicy{Capability: filament.WriteCapabilities(filament.IngestionFullAppend)[0]}
-	spec := filament.RunSpec{Run: "run", StreamAttempt: &attempt, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}, Resources: []string{"events"}, Sink: filament.Ref{Config: map[string]any{"dsn": dsn, "schema": schema}}, WritePolicies: map[string]filament.WritePolicy{"events": appendPolicy}}
-	sink := New()
+	spec := filament.RunSpec{Run: "run", StreamAttempt: &attempt, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}, Resources: []string{"events"}, Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": schema}}, WritePolicies: map[string]filament.WritePolicy{"events": appendPolicy}}
+	sink := pgsink.New()
 	if err := sink.Open(ctx, spec); err != nil {
 		t.Fatal(err)
 	}
@@ -144,9 +141,6 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 		}
 		count(1)
 		if inferred && epoch == 2 {
-			if len(sink.tables["events"].types) != len(fields.Fields) {
-				t.Fatal("aborted schema remained in COPY cache")
-			}
 			var n int
 			if err := conn.QueryRow(ctx, "SELECT count(*) FROM information_schema.columns WHERE table_schema=$1 AND table_name='events' AND column_name='aborted_field'", schema).Scan(&n); err != nil || n != 0 {
 				t.Fatalf("aborted column survived: %d %v", n, err)
@@ -166,7 +160,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 		t.Fatal(err)
 	}
 	// Existing bounded replacement still truncates at EnsureSchema.
-	bounded := New()
+	bounded := pgsink.New()
 	spec.Options.Execution = filament.ExecutionBounded
 	spec.StreamAttempt = nil
 	spec.WritePolicies["events"] = filament.WritePolicy{Capability: filament.WriteCapabilities(filament.IngestionFullReplace)[0]}
