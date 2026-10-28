@@ -4,6 +4,7 @@ import { create } from "@bufbuild/protobuf";
 
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable, { InfiniteTableSize } from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
@@ -131,7 +132,12 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       return (
         <>
           <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
-          {!isEmpty && table}
+          {!isEmpty && (
+            <>
+              <Divider />
+              {table}
+            </>
+          )}
         </>
       );
     }
