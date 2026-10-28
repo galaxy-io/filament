@@ -3,6 +3,7 @@ package compile
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -24,7 +25,8 @@ type routeGroup struct {
 	resources     map[string]bool
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
-	transforms    map[string]any // resource → steps, merged across the route's edges
+	columns       map[string][]string // resource → selected source columns
+	transforms    map[string]any      // resource → steps, merged across the route's edges
 	destinations  map[string]string
 }
 
@@ -66,6 +68,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				columns:       map[string][]string{},
 				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
@@ -78,6 +81,13 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				return nil, fmt.Errorf("%w: conflicting cursor configuration for resource %q", ErrInvalid, cursor.GetResource())
 			}
 			group.cursorConfigs[cursor.GetResource()] = config
+		}
+		for _, selection := range edge.GetColumns() {
+			columns := slices.Clone(selection.GetColumns())
+			if previous, exists := group.columns[selection.GetResource()]; exists && !slices.Equal(previous, columns) {
+				return nil, fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
+			}
+			group.columns[selection.GetResource()] = columns
 		}
 		resource := edge.GetResource()
 		if err := mergeTransform(group, edge); err != nil {

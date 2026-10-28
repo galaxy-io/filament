@@ -9,6 +9,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -62,7 +63,31 @@ ORDER  BY a.attnum`
 	if len(cols) == 0 {
 		return nil, fmt.Errorf("resource %q has no columns (missing table?)", table)
 	}
+	if selected, ok := s.selected[table]; ok {
+		return selectColumns(table, cols, selected)
+	}
 	return cols, nil
+}
+
+// selectColumns keeps the selected columns in attribute order. A selected
+// column the catalog no longer has fails the read rather than narrowing it.
+func selectColumns(table string, cols []column, selected []string) ([]column, error) {
+	keep := make(map[string]bool, len(selected))
+	for _, name := range selected {
+		keep[name] = true
+	}
+	out := make([]column, 0, len(selected))
+	for _, c := range cols {
+		if keep[c.name] {
+			out = append(out, c)
+			delete(keep, c.name)
+		}
+	}
+	if len(keep) > 0 {
+		missing := slices.Sorted(maps.Keys(keep))
+		return nil, fmt.Errorf("resource %q: selected columns missing: %s", table, strings.Join(missing, ", "))
+	}
+	return out, nil
 }
 
 // field maps a catalog column to its schema field and type behaviour. Logical

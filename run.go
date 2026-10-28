@@ -36,10 +36,13 @@ type RunSpec struct {
 	CheckpointRoute    string
 	ReplicationStream  *StreamRef
 	CursorConfigs      map[string]ResourceCursorConfig
-	Source             Ref
-	Sink               Ref
-	Resources          []string
-	Selectors          []string
+	// Columns narrows each resource to the listed source columns; an absent
+	// resource reads every column.
+	Columns   map[string][]string
+	Source    Ref
+	Sink      Ref
+	Resources []string
+	Selectors []string
 	// IngestionTypes maps each resource to its ingestion type; the "" entry is
 	// the route default for resources not explicitly listed.
 	IngestionTypes map[string]IngestionType
@@ -86,8 +89,10 @@ type RunRequest struct {
 	// the immutable pipeline version. Generation fences stale route versions.
 	ReplicationStream *StreamRef `json:",omitempty"`
 	CursorConfigs     map[string]ResourceCursorConfig
-	Options           RunOptions
-	ScheduleID        ScheduleID
+	// Columns narrows each resource to the listed source columns.
+	Columns    map[string][]string `json:",omitempty"`
+	Options    RunOptions
+	ScheduleID ScheduleID
 	// ScheduledFor is the occurrence this request represents; zero when manual.
 	ScheduledFor time.Time
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
@@ -862,6 +867,7 @@ func (s RunState) ExecutionSpec() RunSpec {
 		CheckpointRoute:   r.CheckpointRoute,
 		ReplicationStream: r.ReplicationStream,
 		CursorConfigs:     r.CursorConfigs,
+		Columns:           r.Columns,
 		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,

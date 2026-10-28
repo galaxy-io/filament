@@ -159,3 +159,17 @@ func TestRowDecoder(t *testing.T) {
 		t.Errorf("raw = %x", got)
 	}
 }
+
+func TestSelectColumns(t *testing.T) {
+	cols := testColumns()
+	kept, err := selectColumns("t", cols, []string{"s", "id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(kept) != 2 || kept[0].name != "id" || kept[1].name != "s" {
+		t.Fatalf("selection must follow attribute order: %v", kept)
+	}
+	if _, err := selectColumns("t", cols, []string{"id", "gone"}); err == nil {
+		t.Fatal("a vanished column must fail the read")
+	}
+}

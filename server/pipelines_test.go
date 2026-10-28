@@ -378,3 +378,31 @@ func TestCreatePipelineVersionAcceptsPerResourceWriteModes(t *testing.T) {
 		t.Fatalf("mixed write modes on a CDC route: got %v, want invalid argument", err)
 	}
 }
+
+func TestValidateColumnSelections(t *testing.T) {
+	valid := []*ingestionv1.PipelineEdge{{
+		Resource: "users",
+		Columns:  []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", "email"}}},
+	}}
+	if err := validateColumnSelections(valid); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		edge *ingestionv1.PipelineEdge
+	}{
+		{"missing resource", &ingestionv1.PipelineEdge{Columns: []*ingestionv1.ResourceColumnSelection{{Columns: []string{"id"}}}}},
+		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: []string{"id"}}}}},
+		{"duplicate resource", &ingestionv1.PipelineEdge{Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id"}}, {Resource: "users", Columns: []string{"id"}}}}},
+		{"no columns", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users"}}}},
+		{"empty column", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", ""}}}}},
+		{"repeated column", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", "id"}}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateColumnSelections([]*ingestionv1.PipelineEdge{tt.edge}); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}

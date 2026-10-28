@@ -13,6 +13,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/convert"
+	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -256,8 +257,76 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, probes, ev)
 	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeColumns checks each column selection against the live schema:
+// the source must support selection, every column must exist, and the primary
+// key and any configured cursor must stay selected.
+func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if len(edge.GetColumns()) == 0 {
+		return
+	}
+	if !srcSpec.Resources.SelectableColumns {
+		edgeError(ev, "columns", fmt.Sprintf("connector %q does not support column selection", srcConn.Connector))
+		return
+	}
+	cursors := map[string]string{}
+	for _, cursor := range edge.GetCursors() {
+		cursors[cursor.GetResource()] = cursor.GetField()
+	}
+	for _, selection := range edge.GetColumns() {
+		resource := selection.GetResource()
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		switch {
+		case inspection.Status == filament.InspectFailed:
+			edgeError(ev, "columns", inspection.Message)
+			continue
+		case inspection.Schema == nil:
+			edgeError(ev, "columns", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
+			return
+		}
+		selected := map[string]bool{}
+		for _, name := range selection.GetColumns() {
+			selected[name] = true
+			if !slices.ContainsFunc(inspection.Schema.Fields, func(f rowmodel.Field) bool { return f.Name == name }) {
+				edgeError(ev, "columns", fmt.Sprintf("resource %q has no column %q", resource, name))
+			}
+		}
+		for _, key := range inspection.PrimaryKey {
+			if !selected[key] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep primary key column %q", resource, key))
+			}
+		}
+		if field := cursors[resource]; field != "" && !selected[field] {
+			edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep cursor column %q", resource, field))
+		}
+	}
+}
+
+// selectedSchema narrows a resource schema to an edge's column selection, so
+// transforms are checked against the columns the run will read.
+func selectedSchema(edge *ingestionv1.PipelineEdge, resource string, schema filament.RecordSchema) filament.RecordSchema {
+	for _, selection := range edge.GetColumns() {
+		if selection.GetResource() != resource {
+			continue
+		}
+		out := schema.Clone()
+		out.Fields = out.Fields[:0]
+		for _, field := range schema.Fields {
+			if slices.Contains(selection.GetColumns(), field.Name) {
+				out.Fields = append(out.Fields, field)
+			}
+		}
+		return out
+	}
+	return schema
 }
 
 // validateEdgeTransform compiles the edge's transform against the schema of
@@ -300,7 +369,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
 			return
 		}
-		if _, _, err := transform.Analyze(def, *inspection.Schema); err != nil {
+		if _, _, err := transform.Analyze(def, selectedSchema(edge, resource, *inspection.Schema)); err != nil {
 			transformErrors(ev, err)
 		}
 	}
@@ -733,6 +802,7 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 	if compile.HasTransform(edge) {
 		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, probes, ev)
 	var resources []string
 	if edge.Resource != "" {
 		resources = []string{edge.Resource}

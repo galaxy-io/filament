@@ -113,6 +113,14 @@ default the connector creates the publication and keeps its table list
 current with `publish = 'insert, update, delete'`. Set
 `manage_publication=false` when an administrator provisions it.
 
+A resource with a column selection reads only those columns in every mode.
+The selection must keep the primary key and any cursor column. On PostgreSQL
+15 and later a managed publication carries the selection as a column list,
+so the write-ahead log skips the unselected columns. A table with `REPLICA
+IDENTITY FULL` cannot take a column list, so its publication stays whole and
+the connector drops the unselected columns as it decodes. An unmanaged
+publication must publish every selected column.
+
 CDC pipeline runs also require a datastore with durable replication-stream
 admission. The PostgreSQL datastore provides it; the in-memory datastore does
 not, and compilation fails with a precondition error instead of sharing an

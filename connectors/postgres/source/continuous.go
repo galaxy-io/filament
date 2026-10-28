@@ -219,9 +219,6 @@ func (s *walSession) checkRelation(m *pglogrepl.RelationMessage) error {
 	if previous := s.decoder.relations[m.RelationID]; previous != nil && !reflect.DeepEqual(previous.message, m) {
 		return errors.New("postgres continuous: relation changed during session")
 	}
-	if len(m.Columns) != len(table.schema.Fields) {
-		return errors.New("postgres continuous: relation column count changed")
-	}
 	for _, f := range table.schema.Fields {
 		found := false
 		for _, c := range m.Columns {

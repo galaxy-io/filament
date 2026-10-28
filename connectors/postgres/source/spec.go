@@ -59,6 +59,6 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				Help:        "Initial reads a table in full before streaming its changes; None streams from the current position only",
 			},
 		}...)},
-		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true, SelectableColumns: true},
 	}
 }

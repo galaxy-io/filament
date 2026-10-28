@@ -128,6 +128,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	defer teardownSource(ctx, deps.Log, src)
+	if err := SelectColumns(src, spec.Columns); err != nil {
+		em.failed(err, nil, false)
+		return nil
+	}
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {

@@ -478,3 +478,66 @@ func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
 
 func (leverSink) Begin(context.Context) error { return nil }
 func (leverSink) Close(context.Context) error { return nil }
+
+// columnLeverSource advertises column selection over the lever fixture.
+type columnLeverSource struct{ leverSource }
+
+func (columnLeverSource) Spec() filament.ConnectorSpec {
+	spec := leverSource{}.Spec()
+	spec.Resources.SelectableColumns = true
+	return spec
+}
+
+func TestValidateEdgeColumnsChecksSchemaKeysAndCursor(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("leversource", func() filament.Source { return leverSource{} })
+	sources.Register("columnlever", func() filament.Source { return columnLeverSource{} })
+	server := &Server{worker: worker.Local(sources, registry.NewSinks())}
+	from := &ingestionv1.PipelineNode{Id: "src"}
+	validate := func(connector string, edge *ingestionv1.PipelineEdge) []string {
+		t.Helper()
+		spec, err := server.worker.SourceSpec(context.Background(), connector)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ev := &ingestionv1.EdgeValidation{}
+		validateEdgeColumns(context.Background(), edge, from, filament.Connection{Connector: connector}, spec, newNodeInspections(server, []*ingestionv1.PipelineEdge{edge}), ev)
+		var messages []string
+		for _, e := range ev.Errors {
+			messages = append(messages, e.GetField()+": "+e.GetMessage())
+		}
+		return messages
+	}
+	selection := func(columns ...string) []*ingestionv1.ResourceColumnSelection {
+		return []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: columns}}
+	}
+
+	if errs := validate("columnlever", &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id", "email")}); len(errs) != 0 {
+		t.Fatalf("valid selection: %v", errs)
+	}
+	if errs := validate("leversource", &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id")}); len(errs) != 1 {
+		t.Fatalf("unsupported source: %v", errs)
+	}
+	if errs := validate("columnlever", &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id", "nope")}); len(errs) != 1 {
+		t.Fatalf("unknown column: %v", errs)
+	}
+	if errs := validate("columnlever", &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("email")}); len(errs) != 1 {
+		t.Fatalf("dropped primary key: %v", errs)
+	}
+	withCursor := &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id"), Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "created_at"}}}
+	if errs := validate("columnlever", withCursor); len(errs) != 1 {
+		t.Fatalf("dropped cursor: %v", errs)
+	}
+}
+
+func TestSelectedSchemaNarrowsTransformAnalysis(t *testing.T) {
+	schema, _ := leverSource{}.Schema(context.Background(), "orders")
+	edge := &ingestionv1.PipelineEdge{Resource: "orders", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: []string{"id"}}}}
+	narrowed := selectedSchema(edge, "orders", schema)
+	if len(narrowed.Fields) != 1 || narrowed.Fields[0].Name != "id" || len(schema.Fields) != 3 {
+		t.Fatalf("narrowed = %v, original = %v", narrowed.Fields, schema.Fields)
+	}
+	if same := selectedSchema(edge, "audit", schema); len(same.Fields) != 3 {
+		t.Fatalf("unselected resource must keep its schema: %v", same.Fields)
+	}
+}

@@ -55,6 +55,15 @@ type ResourcePlanner interface {
 	PlanResources(ctx context.Context, resources, selectors []string) ([]string, error)
 }
 
+// ColumnSelector lets a source narrow each resource to the columns a run
+// selects, keyed by source resource name. The engine calls it once after
+// Configure and before any schema or plan request, so every later read,
+// schema, and change stream carries only the selected columns. A resource
+// absent from the map reads every column.
+type ColumnSelector interface {
+	SelectColumns(columns map[string][]string) error
+}
+
 // ResumePlanner builds the initial per-resource checkpoint plan for a resumable run:
 // the shard layout (PK split) plus any cursor carried over from prev. The engine
 // persists the returned plan before extraction so a later resume sees a complete,
@@ -378,7 +387,7 @@ const (
 )
 
 // ResourceCapabilities advertises what a source can do per resource.
-type ResourceCapabilities struct{ Discoverable, PerResourceCursor bool }
+type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns bool }
 
 // ExtractOpts scopes one extraction: which resources, how fast. Read behavior
 // per resource is carried by the checkpoint plan handed to ExtractFrom, not by

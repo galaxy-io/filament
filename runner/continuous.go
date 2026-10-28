@@ -330,6 +330,9 @@ func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (fi
 	if err := cfg.Source.Configure(ctx, filament.NewConfig(cfg.Spec.Source.Config)); err != nil {
 		return filament.IngestionPlan{}, err
 	}
+	if err := SelectColumns(cfg.Source, cfg.Spec.Columns); err != nil {
+		return filament.IngestionPlan{}, err
+	}
 	plan, err := filament.ResolveIngestionPlan(ctx, cfg.Source, cfg.Sink, cfg.Spec)
 	if err != nil {
 		return filament.IngestionPlan{}, err

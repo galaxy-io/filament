@@ -84,6 +84,7 @@ type Source struct {
 	slotName          string
 	managePublication bool
 	snapshotMode      filament.SnapshotMode
+	selected          map[string][]string // table → selected columns; absent reads every column
 }
 
 // New returns an unconfigured source.
@@ -108,7 +109,22 @@ var (
 	_ filament.ChangeAcknowledger       = (*Source)(nil)
 	_ filament.ReplicationStreamPlanner = (*Source)(nil)
 	_ filament.ReplicationStreamCleaner = (*Source)(nil)
+	_ filament.ColumnSelector           = (*Source)(nil)
 )
+
+// SelectColumns narrows each table to the listed columns. Every catalog
+// lookup, select list, schema, and publication table clause follows it.
+func (s *Source) SelectColumns(columns map[string][]string) error {
+	selected := make(map[string][]string, len(columns))
+	for table, names := range columns {
+		if len(names) == 0 {
+			return fmt.Errorf("postgres source: column selection for %q is empty", table)
+		}
+		selected[table] = append([]string(nil), names...)
+	}
+	s.selected = selected
+	return nil
+}
 
 // PlanReplicationStream gives one pipeline route its own logical replication
 // slot while keeping the publication shared at the connection level.

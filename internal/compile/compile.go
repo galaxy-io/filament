@@ -142,6 +142,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
+				Columns:             routeColumns(group),
 				Options:             options,
 				ScheduleID:          scheduleID,
 				WorkerConfiguration: worker,
@@ -151,6 +152,15 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		}})
 	}
 	return compiled, nil
+}
+
+// routeColumns returns the route's column selections, or nil when every
+// resource reads every column, so requests without a selection stay unchanged.
+func routeColumns(group *routeGroup) map[string][]string {
+	if len(group.columns) == 0 {
+		return nil
+	}
+	return group.columns
 }
 
 func routeResources(group *routeGroup) (resources, selectors []string) {
