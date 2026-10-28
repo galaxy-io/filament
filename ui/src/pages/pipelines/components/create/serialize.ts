@@ -95,7 +95,7 @@ const createSinkEdges = ({
         resource: row.name,
         toNode: sink.connection.id,
         readMode,
-        writeMode: sink.writeMode,
+        writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
         cursors: hasReadLevers ? createCursors([row], readMode) : [],
       });
     });

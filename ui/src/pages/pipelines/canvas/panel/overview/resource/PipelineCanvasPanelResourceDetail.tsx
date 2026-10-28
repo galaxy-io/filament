@@ -96,6 +96,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     effectiveWriteMode,
     resource,
     defaultCursor,
+    hasReadLevers,
   });
   const destinationResource = edge.data?.destinationResource ?? "";
   const status = getEdgeResourceStatus(options, { verdict, readMode, writeMode, cursor });

@@ -50,7 +50,7 @@ import {
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoutesDraftState } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesDraft";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { getEdgeResourceStatus, hasSiblingIncrementalRead } from "@/pages/pipelines/canvas/utils";
+import { getEdgeResourceStatus } from "@/pages/pipelines/canvas/utils";
 import {
   getCompatibleWriteModes,
   getCursorSelectOptions,
@@ -185,16 +185,15 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
     fallback: effectiveReadMode,
   });
   const readMode = draft.readMode ?? defaultReadMode;
-  const routeHasIncremental =
-    readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, draftEdge);
   const compatibleWriteModes = getCompatibleWriteModes(
     writeModeOptions,
-    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+    readMode === ReadMode.INCREMENTAL ? [ReadMode.INCREMENTAL] : [],
   );
   const siblingWriteMode = siblingEdges.find(
     (edge) => edge.data?.writeMode !== undefined && edge.data.writeMode !== WriteMode.UNSPECIFIED,
   )?.data?.writeMode;
-  const preferredWriteMode = draft.writeMode ?? siblingWriteMode ?? effectiveWriteMode;
+  const preferredWriteMode =
+    draft.writeMode ?? (hasReadLevers ? undefined : siblingWriteMode) ?? effectiveWriteMode;
   const writeMode = compatibleWriteModes.includes(preferredWriteMode)
     ? preferredWriteMode
     : (compatibleWriteModes[0] ?? WriteMode.UNSPECIFIED);
@@ -215,14 +214,17 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const cursorSelectOptions = getCursorSelectOptions(cursorOptions);
 
   const handleAdd = () =>
-    draftState.add({
-      readMode,
-      writeMode,
-      cursors:
-        hasCursorSelect && cursor !== ""
-          ? [create(ResourceCursorConfigSchema, { resource, field: cursor, lookbackSeconds: 0n })]
-          : [],
-    });
+    draftState.add(
+      {
+        readMode,
+        writeMode,
+        cursors:
+          hasCursorSelect && cursor !== ""
+            ? [create(ResourceCursorConfigSchema, { resource, field: cursor, lookbackSeconds: 0n })]
+            : [],
+      },
+      hasReadLevers,
+    );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;

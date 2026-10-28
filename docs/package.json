@@ -8,7 +8,7 @@
     "check": "mint broken-links"
   },
   "devDependencies": {
-    "mint": "^4.2.940"
+    "mint": "^4.2.1157"
   },
   "engines": {
     "node": ">=20.17.0"

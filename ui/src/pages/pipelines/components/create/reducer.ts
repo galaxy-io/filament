@@ -16,6 +16,7 @@ import {
   type SetResourceCursorAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
+  type SetResourceWriteModeAction,
   type SetScheduleAction,
   type SetSinkWriteModeAction,
   type SetSubmittingAction,
@@ -42,6 +43,7 @@ function applyExecutionMode(
     resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
+    resourceWriteModes: {},
     sinkWriteModes: {},
   };
 }
@@ -63,6 +65,7 @@ function selectSource(
     resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
+    resourceWriteModes: {},
   });
 }
 
@@ -136,6 +139,20 @@ function setResourceReadMode(
     resourceReadModes: {
       ...state.resourceReadModes,
       [sinkId]: { ...state.resourceReadModes[sinkId], [resource]: readMode },
+    },
+  };
+}
+
+function setResourceWriteMode(
+  state: CreatePipelineModalState,
+  action: SetResourceWriteModeAction,
+): CreatePipelineModalState {
+  const { sinkId, resource, writeMode } = action.payload;
+  return {
+    ...state,
+    resourceWriteModes: {
+      ...state.resourceWriteModes,
+      [sinkId]: { ...state.resourceWriteModes[sinkId], [resource]: writeMode },
     },
   };
 }
@@ -273,6 +290,8 @@ const createPipelineModalReducer = (
       return setResourceReadMode(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_CURSOR:
       return setResourceCursor(state, action);
+    case CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE:
+      return setResourceWriteMode(state, action);
     case CreatePipelineModalActionType.SET_SINK_WRITE_MODE:
       return setSinkWriteMode(state, action);
     case CreatePipelineModalActionType.SET_NODE_CONFIG:

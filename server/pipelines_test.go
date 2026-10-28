@@ -1,6 +1,7 @@
 package server
 
 import (
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -319,5 +320,61 @@ func TestCreatePipelineVersionRequiresPipelineScopedFields(t *testing.T) {
 	// A required field with a default is filled at run time and never blocks.
 	if err := version(map[string]any{"stream": "EVENTS"}); err != nil {
 		t.Fatalf("declared required field rejected: %v", err)
+	}
+}
+
+func TestCreatePipelineVersionAcceptsPerResourceWriteModes(t *testing.T) {
+	ctx := testCtx()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "mixed"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	version := func(source string, edges ...*ingestionv1.PipelineEdge) error {
+		_, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+			PipelineId: pipelineID,
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids[source]},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+				},
+				Edges: edges,
+			},
+		}))
+		return err
+	}
+
+	err = version("standard",
+		&ingestionv1.PipelineEdge{
+			FromNode: "src", ToNode: "snk", Resource: "orders",
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			Cursors:   []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}},
+		},
+		&ingestionv1.PipelineEdge{
+			FromNode: "src", ToNode: "snk", Resource: "audit",
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_FULL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_REPLACE,
+		},
+	)
+	if err != nil {
+		t.Fatalf("mixed write modes on a standard route: %v", err)
+	}
+	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]filament.IngestionType{"orders": filament.IngestionIncrementalUpsert, "audit": filament.IngestionFullReplace}
+	if len(runs) != 1 || !maps.Equal(runs[0].Submission.Request.IngestionTypes, want) {
+		t.Fatalf("compiled runs = %+v, want one run with %v", runs, want)
+	}
+
+	err = version("cdc",
+		&ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk", Resource: "orders", WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+		&ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk", Resource: "audit", WriteMode: ingestionv1.WriteMode_WRITE_MODE_MERGE},
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "same write mode") {
+		t.Fatalf("mixed write modes on a CDC route: got %v, want invalid argument", err)
 	}
 }
