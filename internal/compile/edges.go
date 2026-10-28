@@ -83,7 +83,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		for _, selection := range edge.GetColumns() {
-			columns := slices.Clone(selection.GetColumns())
+			columns := slices.Sorted(slices.Values(selection.GetColumns()))
 			if previous, exists := group.columns[selection.GetResource()]; exists && !slices.Equal(previous, columns) {
 				return nil, fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
 			}

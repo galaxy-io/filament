@@ -415,16 +415,31 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 	if !s.managePublication {
 		return fmt.Errorf("postgres cdc: publication %q is missing selected tables: %s", s.publication, strings.Join(missing, ", "))
 	}
+	return s.applyPublicationTables(ctx, replace, missing, columnLists)
+}
+
+// applyPublicationTables rewrites the listed tables' column lists and adds the
+// missing clauses in one transaction, so a commit between the drop and the
+// add is never decoded against a publication that lacks the table.
+func (s *Source) applyPublicationTables(ctx context.Context, replace, missing []string, columnLists map[string][]string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres cdc: update publication: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	for _, resource := range replace {
 		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " DROP TABLE " + pgx.Identifier{s.schema, resource}.Sanitize()
-		if _, err := s.pool.Exec(ctx, stmt); err != nil {
+		if _, err := tx.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("postgres cdc: reset publication columns for %s: %w", resource, err)
 		}
 		missing = append(missing, s.publicationTableClause(resource, columnLists[resource]))
 	}
 	stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " ADD TABLE " + strings.Join(missing, ", ")
-	if _, err := s.pool.Exec(ctx, stmt); err != nil {
+	if _, err := tx.Exec(ctx, stmt); err != nil {
 		return fmt.Errorf("postgres cdc: add publication tables: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres cdc: update publication: %w", err)
 	}
 	return nil
 }

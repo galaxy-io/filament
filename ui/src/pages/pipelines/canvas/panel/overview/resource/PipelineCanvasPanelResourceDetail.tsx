@@ -41,6 +41,7 @@ import {
   getDefaultDestinationResource,
   getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
+import { getEffectiveColumnSelection } from "@/pages/pipelines/components/create/rows";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
@@ -119,13 +120,27 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
 
   const allColumnNames = useMemo(() => (columns ?? []).map((column) => column.name), [columns]);
   const selection = edge.data?.columns?.find((candidate) => candidate.resource === resource);
-  const selectedColumnNames = selection?.columns ?? allColumnNames;
+  const effectiveCursor = cursor || defaultCursor;
   const lockedColumnNames = useMemo(
     () => [
       ...(columns ?? []).filter((column) => column.isPrimaryKey).map((column) => column.name),
-      ...(hasReadLevers && readMode === ReadMode.INCREMENTAL && cursor ? [cursor] : []),
+      ...(hasReadLevers &&
+      readMode === ReadMode.INCREMENTAL &&
+      !isManagedIncremental &&
+      effectiveCursor
+        ? [effectiveCursor]
+        : []),
     ],
-    [columns, hasReadLevers, readMode, cursor],
+    [columns, hasReadLevers, readMode, isManagedIncremental, effectiveCursor],
+  );
+  const selectedColumnNames = useMemo(
+    () =>
+      getEffectiveColumnSelection({
+        stored: selection?.columns,
+        columns,
+        locked: lockedColumnNames,
+      }),
+    [selection, columns, lockedColumnNames],
   );
   const selectedColumns = useMemo(
     () => (columns ?? NO_COLUMNS).filter((column) => selectedColumnNames.includes(column.name)),

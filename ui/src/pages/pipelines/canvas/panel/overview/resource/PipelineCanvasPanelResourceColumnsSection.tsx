@@ -37,6 +37,7 @@ const PipelineCanvasPanelResourceColumnsSection: FC<
       trailing={
         <Chip
           label={`${selected.length} of ${columns.length}`}
+          tooltip="Selected columns"
           size={ChipSize.SMALL}
           variant={selected.length === columns.length ? ChipVariant.SECONDARY : ChipVariant.PRIMARY}
         />

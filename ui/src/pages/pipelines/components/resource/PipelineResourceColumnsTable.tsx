@@ -41,7 +41,12 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
               {row.name}
             </Text>
             {row.isPrimaryKey && (
-              <Chip label="key" size={ChipSize.SMALL} variant={ChipVariant.SECONDARY} />
+              <Chip
+                label="key"
+                tooltip="Primary key column"
+                size={ChipSize.SMALL}
+                variant={ChipVariant.SECONDARY}
+              />
             )}
           </Flex>
         ),
@@ -68,12 +73,12 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
     [],
   );
 
-  const handleChange = (next: ResourceColumn["name"][]) =>
-    onChange(
-      columns
-        .map((column) => column.name)
-        .filter((name) => next.includes(name) || locked.includes(name)),
-    );
+  const handleChange = (next: ResourceColumn["name"][]) => {
+    const kept = columns
+      .map((column) => column.name)
+      .filter((name) => next.includes(name) || locked.includes(name));
+    if (kept.length > 0) onChange(kept);
+  };
 
   return (
     <InfiniteTable<ResourceColumn>

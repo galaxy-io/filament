@@ -22,8 +22,16 @@ func TestGroupEdgesCollectsColumnSelections(t *testing.T) {
 	if len(groups) != 1 || len(groups[0].columns["orders"]) != 2 || groups[0].columns["items"] != nil {
 		t.Fatalf("columns = %v", groups[0].columns)
 	}
-	if routeColumns(groups[0])["orders"][1] != "email" {
-		t.Fatalf("route columns = %v", routeColumns(groups[0]))
+	if got := routeColumns(groups[0])["orders"]; got[0] != "email" || got[1] != "id" {
+		t.Fatalf("route columns must be sorted so order never changes a fingerprint: %v", got)
+	}
+
+	reordered, err := groupEdges([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", Columns: selection("email", "id")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", Columns: selection("id", "email")},
+	}, nodes)
+	if err != nil || len(reordered[0].columns["orders"]) != 2 {
+		t.Fatalf("same columns in another order must not conflict: %v", err)
 	}
 
 	plain, err := groupEdges([]*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders"}}, nodes)

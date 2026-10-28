@@ -78,7 +78,9 @@ const createCursors = (
 };
 
 const createColumns = (row: CreatePipelineModalResourceRow): ResourceColumnSelection[] =>
-  row.isColumnSelectable && row.selectedColumns.length !== row.columns.length
+  row.isColumnSelectable &&
+  row.selectedColumns.length > 0 &&
+  (row.columns.length === 0 || row.selectedColumns.length !== row.columns.length)
     ? [create(ResourceColumnSelectionSchema, { resource: row.name, columns: row.selectedColumns })]
     : [];
 

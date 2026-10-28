@@ -44,10 +44,11 @@ const getEdgeConfigKey = ({
   `${JSON.stringify(destinationResource ?? "")}|${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
-    .join(";")}|${(columns ?? [])
-    .map((selection) => `${selection.resource}:${selection.columns.join(",")}`)
-    .sort()
-    .join(";")}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
+    .join(";")}|${JSON.stringify(
+    (columns ?? [])
+      .map((selection) => [selection.resource, [...selection.columns].sort()])
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  )}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },

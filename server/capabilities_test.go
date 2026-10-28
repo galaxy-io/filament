@@ -494,14 +494,14 @@ func TestValidateEdgeColumnsChecksSchemaKeysAndCursor(t *testing.T) {
 	sources.Register("columnlever", func() filament.Source { return columnLeverSource{} })
 	server := &Server{worker: worker.Local(sources, registry.NewSinks())}
 	from := &ingestionv1.PipelineNode{Id: "src"}
-	validate := func(connector string, edge *ingestionv1.PipelineEdge) []string {
+	validate := func(connector string, edge *ingestionv1.PipelineEdge, needsCursor ...bool) []string {
 		t.Helper()
 		spec, err := server.worker.SourceSpec(context.Background(), connector)
 		if err != nil {
 			t.Fatal(err)
 		}
 		ev := &ingestionv1.EdgeValidation{}
-		validateEdgeColumns(context.Background(), edge, from, filament.Connection{Connector: connector}, spec, newNodeInspections(server, []*ingestionv1.PipelineEdge{edge}), ev)
+		validateEdgeColumns(context.Background(), edge, from, filament.Connection{Connector: connector}, spec, len(needsCursor) > 0 && needsCursor[0], newNodeInspections(server, []*ingestionv1.PipelineEdge{edge}), ev)
 		var messages []string
 		for _, e := range ev.Errors {
 			messages = append(messages, e.GetField()+": "+e.GetMessage())
@@ -527,6 +527,13 @@ func TestValidateEdgeColumnsChecksSchemaKeysAndCursor(t *testing.T) {
 	withCursor := &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id"), Cursors: []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "created_at"}}}
 	if errs := validate("columnlever", withCursor); len(errs) != 1 {
 		t.Fatalf("dropped cursor: %v", errs)
+	}
+	autoCursor := &ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Columns: selection("id")}
+	if errs := validate("columnlever", autoCursor, true); len(errs) != 1 {
+		t.Fatalf("incremental read must keep the auto-detected cursor: %v", errs)
+	}
+	if errs := validate("columnlever", autoCursor, false); len(errs) != 0 {
+		t.Fatalf("a full read needs no cursor: %v", errs)
 	}
 }
 

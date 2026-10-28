@@ -257,15 +257,16 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
-	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, probes, ev)
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental, probes, ev)
 	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
 }
 
 // validateEdgeColumns checks each column selection against the live schema:
 // the source must support selection, every column must exist, and the primary
-// key and any configured cursor must stay selected.
-func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+// key and the cursor an incremental read will use, configured or
+// auto-detected, must stay selected.
+func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, needsCursor bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
 	if len(edge.GetColumns()) == 0 {
 		return
 	}
@@ -304,8 +305,20 @@ func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, fr
 				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep primary key column %q", resource, key))
 			}
 		}
-		if field := cursors[resource]; field != "" && !selected[field] {
-			edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep cursor column %q", resource, field))
+		if field := cursors[resource]; field != "" {
+			if !selected[field] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep cursor column %q", resource, field))
+			}
+			continue
+		}
+		if !needsCursor || inspection.ManagedIncremental {
+			continue
+		}
+		for _, column := range inspection.Columns {
+			if column.Recommended && !selected[column.Name] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep auto-detected cursor column %q", resource, column.Name))
+				break
+			}
 		}
 	}
 }
@@ -802,7 +815,7 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 	if compile.HasTransform(edge) {
 		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
-	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, probes, ev)
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, false, probes, ev)
 	var resources []string
 	if edge.Resource != "" {
 		resources = []string{edge.Resource}
