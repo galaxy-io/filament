@@ -97,6 +97,17 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
   const resources = data?.snapshot?.resources ?? [];
   const isEmpty = resources.length === 0;
 
+  const table = (
+    <InfiniteTable<RunResourceState>
+      ariaLabel="Run resources"
+      columns={columns}
+      data={resources}
+      getRowId={(resource) => resource.resourceName}
+      size={InfiniteTableSize.SMALL}
+      inset={PIPELINE_HISTORY_RUN_INFO_TABLE_INSET}
+    />
+  );
+
   const renderBody = () => {
     if (isError) {
       return (
@@ -117,7 +128,12 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
     }
 
     if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS) {
-      return <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />;
+      return (
+        <>
+          <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
+          {!isEmpty && table}
+        </>
+      );
     }
 
     if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
@@ -141,16 +157,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
       );
     }
 
-    return (
-      <InfiniteTable<RunResourceState>
-        ariaLabel="Run resources"
-        columns={columns}
-        data={resources}
-        getRowId={(resource) => resource.resourceName}
-        size={InfiniteTableSize.SMALL}
-        inset={PIPELINE_HISTORY_RUN_INFO_TABLE_INSET}
-      />
-    );
+    return table;
   };
 
   return (

@@ -9,6 +9,37 @@ import (
 	"context"
 )
 
+const addResourceProgress = `-- name: AddResourceProgress :exec
+INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, now())
+ON CONFLICT (run_id, resource_name) DO UPDATE SET
+    records = run_resource_states.records + EXCLUDED.records,
+    bytes = run_resource_states.bytes + EXCLUDED.bytes,
+    updated_at = now()
+WHERE run_resource_states.tenant_id = EXCLUDED.tenant_id
+`
+
+type AddResourceProgressParams struct {
+	RunID        string
+	ResourceName string
+	TenantID     string
+	Status       int16
+	Records      int64
+	Bytes        int64
+}
+
+func (q *Queries) AddResourceProgress(ctx context.Context, arg AddResourceProgressParams) error {
+	_, err := q.db.Exec(ctx, addResourceProgress,
+		arg.RunID,
+		arg.ResourceName,
+		arg.TenantID,
+		arg.Status,
+		arg.Records,
+		arg.Bytes,
+	)
+	return err
+}
+
 const listResources = `-- name: ListResources :many
 SELECT run_id, resource_name, tenant_id, status, records, bytes, coalesce(error, '')::text AS error
 FROM run_resource_states WHERE tenant_id = $1 AND run_id = $2 ORDER BY resource_name
