@@ -8,7 +8,7 @@ description: "Read ServiceTitan exports and supporting operational resources wit
 Connector ID `servicetitan`
 
 The ServiceTitan source uses the v2 REST APIs and is **alpha**. It covers
-53 resources. Shared pagination, projection, and checkpoint behavior have
+55 resources. Shared pagination, projection, and checkpoint behavior have
 regression coverage. Live tenant reads have not been validated.
 
 The source is backed by an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
@@ -62,6 +62,8 @@ credentials and tenant. Related resources can share a scope.
 | Inventory | [`purchase_orders`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_PurchaseOrders) | `tn.inv.purchaseorders:r` |
 | Inventory | [`inventory_returns`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Returns) | `tn.inv.returns:r` |
 | Inventory | [`inventory_transfers`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Transfers) | `tn.inv.transfers:r` |
+| Equipment Systems | [`installed_equipment`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportInstalledEquipment) | `tn.eqs.installedequipment:r` |
+| Equipment Systems | [`equipment_systems`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportEquipmentSystems) | `tn.eqs.equipmentsystems:r` |
 | Pricebook | [`pricebook_categories`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Categories) | `tn.pb.categories:r` |
 | Pricebook | [`pricebook_services`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Services) | `tn.pb.services:r` |
 | Pricebook | [`pricebook_equipment`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Equipment) | `tn.pb.equipment:r` |
@@ -95,8 +97,14 @@ credentials and tenant. Related resources can share a scope.
 | Estimates | [`estimates`](https://developer.servicetitan.io/docs/apis/tenant-salestech-v2/endpoints/EstimatesExport_Estimates) | `tn.sal.estimates:r` |
 
 Select the resources your application can access. Other ServiceTitan resources,
-including reporting, forms, equipment systems, and newer export feeds, are outside
+including reporting, forms, and newer export feeds, are outside
 the current resource set.
+
+`installed_equipment` contains one installed item at a location, including its
+`systemId` and `invoiceItemId`. `equipment_systems` contains one named group of
+installed equipment at a location. Both are Equipment Systems exports with
+ServiceTitan IDs as primary keys. The application needs the matching Equipment
+Systems read scopes listed above; without them these streams return 403.
 
 `appointment_assignments` contains one technician assignment to an appointment.
 `non_job_appointments` contains one technician non-job appointment.
@@ -110,8 +118,9 @@ remain JSON. Application-specific vendor external data requires an
 
 ## Modes
 
-All resources support full reads. Incremental reads are available for 43.
-41 export resources use ServiceTitan's opaque `continueFrom` token.
+All resources support full reads. Incremental reads are available for 45.
+44 export resources paginate with ServiceTitan's opaque `continueFrom` token;
+43 also save that token as an incremental checkpoint.
 `non_job_timesheets` and `payrolls` use `modifiedOnOrAfter` with a fixed lower
 bound throughout pagination and `sort=+ModifiedOn`.
 
@@ -140,6 +149,9 @@ items without IDs. See the [official payroll schema](https://developer.serviceti
 
 For existing pipelines, select incremental read and upsert write explicitly.
 The first incremental run establishes the export checkpoint with a complete read.
+Enable the two Equipment Systems streams and run a full backfill before relying
+on their incremental checkpoints. Existing streams do not need a re-sync for
+this addition.
 Changing the key does not repair rows already overwritten by payroll-level
 upserts or remove duplicate rows left by previous append runs; rebuild affected
 destination data from a complete export before relying on incremental updates.
@@ -179,7 +191,7 @@ and the two timestamp streams use 1,000-row pages. Other paginated full reads
 use 5,000-row pages. `includeTotal=true` is sent on each transactional page.
 Exports do not send `pageSize`. Requests share a 45-per-second limiter across
 all resource readers in a run, with a burst of one. There is one reader per selected resource (up to
-53). Adding readers does not multiply the request budget. Separate runs and
+55). Adding readers does not multiply the request budget. Separate runs and
 pipelines have independent limiters. Requests use the HTTP engine's retry
 handling for throttling and server errors.
 
