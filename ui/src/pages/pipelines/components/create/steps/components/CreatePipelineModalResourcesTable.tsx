@@ -8,7 +8,7 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
 import {
@@ -20,6 +20,7 @@ import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
 } from "@/pages/pipelines/components/create/constants";
+import CreatePipelineModalResourcesColumnsRow from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsRow";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
@@ -32,11 +33,18 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   canSort: true,
   isRowHeader: true,
   cell: ({ row }) => (
-    <FlexItem minWidth={0} overflow="hidden">
-      <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
-        {row.displayName}
-      </Text>
-    </FlexItem>
+    <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+      <FlexItem minWidth={0} overflow="hidden">
+        <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
+          {row.displayName}
+        </Text>
+      </FlexItem>
+      {row.isColumnSelectable && row.selectedColumns.length !== row.columns.length && (
+        <Text size={TextSize.BODY_SM} family={FontFamily.MONO} variant={TextVariant.TERTIARY}>
+          {row.selectedColumns.length} of {row.columns.length}
+        </Text>
+      )}
+    </Flex>
   ),
 };
 
@@ -90,6 +98,7 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
     });
 
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+  const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
@@ -102,6 +111,14 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
           isLoading={isLoading}
           value={selectedNames}
           onChange={handleSelectionChange}
+          renderExpandedRow={
+            hasColumnSelection
+              ? (row) =>
+                  row.isColumnSelectable && row.isSelected ? (
+                    <CreatePipelineModalResourcesColumnsRow row={row} />
+                  ) : null
+              : undefined
+          }
           emptyState={
             <Flex
               direction={FlexDirection.COLUMN}

@@ -57,6 +57,11 @@ const createResourceRows = ({
   const columnsByResource = new Map(
     (columns?.resources ?? []).map((entry) => [entry.resource, entry.columns]),
   );
+  const selectableResources = new Set(
+    (columns?.resources ?? [])
+      .filter((entry) => entry.selectableColumns)
+      .map((entry) => entry.resource),
+  );
 
   const managedResources = new Set(
     (columns?.resources ?? [])
@@ -88,6 +93,11 @@ const createResourceRows = ({
     const cursorField = managedIncremental
       ? ""
       : (state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []));
+    const allColumnNames = (resourceColumns ?? []).map((column) => column.name);
+    const selectedColumns =
+      state.resourceColumns[sinkId]?.[resource.name]?.filter((name) =>
+        allColumnNames.includes(name),
+      ) ?? allColumnNames;
 
     return {
       name: resource.name,
@@ -101,6 +111,9 @@ const createResourceRows = ({
       cursorField,
       cursorOptions,
       managedIncremental,
+      columns: resourceColumns ?? [],
+      selectedColumns,
+      isColumnSelectable: selectableResources.has(resource.name),
       status:
         !hasReadLevers || !isSelected
           ? undefined

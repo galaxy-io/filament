@@ -21,6 +21,8 @@ import {
   PipelineEdgeSchema,
   type PipelineNode,
   PipelineNodeSchema,
+  type ResourceColumnSelection,
+  ResourceColumnSelectionSchema,
   type ResourceCursorConfig,
   ResourceCursorConfigSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
@@ -75,6 +77,11 @@ const createCursors = (
     );
 };
 
+const createColumns = (row: CreatePipelineModalResourceRow): ResourceColumnSelection[] =>
+  row.isColumnSelectable && row.selectedColumns.length !== row.columns.length
+    ? [create(ResourceColumnSelectionSchema, { resource: row.name, columns: row.selectedColumns })]
+    : [];
+
 const createSinkEdges = ({
   sourceId,
   rows,
@@ -97,6 +104,7 @@ const createSinkEdges = ({
         readMode,
         writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
         cursors: hasReadLevers ? createCursors([row], readMode) : [],
+        columns: createColumns(row),
       });
     });
 

@@ -37,11 +37,15 @@ const getEdgeConfigKey = ({
   readMode,
   writeMode,
   cursors,
+  columns,
   transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
   `${JSON.stringify(destinationResource ?? "")}|${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
+    .sort()
+    .join(";")}|${(columns ?? [])
+    .map((selection) => `${selection.resource}:${selection.columns.join(",")}`)
     .sort()
     .join(";")}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
 

@@ -1,5 +1,6 @@
-import { type FC, Suspense } from "react";
+import { type FC, Suspense, useMemo } from "react";
 
+import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
 
@@ -15,6 +16,7 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import { ResourceColumnSelectionSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
@@ -22,6 +24,7 @@ import KeyValueListRow from "@/components/KeyValueListRow";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import PipelineCanvasPanelResourceColumnsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceColumnsSection";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
@@ -75,6 +78,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     cursorOptions,
     defaultCursor,
     isManagedIncremental,
+    isColumnSelectable,
   } = options;
 
   const {
@@ -112,6 +116,32 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     });
   const handleDestinationChange = (value: string) =>
     setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value });
+
+  const allColumnNames = useMemo(() => (columns ?? []).map((column) => column.name), [columns]);
+  const selection = edge.data?.columns?.find((candidate) => candidate.resource === resource);
+  const selectedColumnNames = selection?.columns ?? allColumnNames;
+  const lockedColumnNames = useMemo(
+    () => [
+      ...(columns ?? []).filter((column) => column.isPrimaryKey).map((column) => column.name),
+      ...(hasReadLevers && readMode === ReadMode.INCREMENTAL && cursor ? [cursor] : []),
+    ],
+    [columns, hasReadLevers, readMode, cursor],
+  );
+  const selectedColumns = useMemo(
+    () => (columns ?? NO_COLUMNS).filter((column) => selectedColumnNames.includes(column.name)),
+    [columns, selectedColumnNames],
+  );
+  const columnsError = verdict?.errors.find((error) => error.field === "columns")?.message;
+  const handleColumnsChange = (next: ResourceColumn["name"][]) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      columns:
+        next.length === allColumnNames.length
+          ? []
+          : [create(ResourceColumnSelectionSchema, { resource, columns: next })],
+    });
 
   return (
     <>
@@ -228,6 +258,16 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   ))}
               </Flex>
             </PipelineCanvasPanelSection>
+            {isColumnSelectable && (
+              <PipelineCanvasPanelResourceColumnsSection
+                columns={columns ?? NO_COLUMNS}
+                selected={selectedColumnNames}
+                locked={lockedColumnNames}
+                isDisabled={isReadOnly || isLoading}
+                error={columnsError}
+                onChange={handleColumnsChange}
+              />
+            )}
             {isTransformable &&
               (isLoadingColumns ? (
                 <PipelineCanvasPanelResourceTransformSectionPending />
@@ -241,7 +281,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       definition={edge.data?.transform}
                       onChange={handleTransformChange}
                       resource={resource}
-                      columns={columns ?? NO_COLUMNS}
+                      columns={selectedColumns}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >
