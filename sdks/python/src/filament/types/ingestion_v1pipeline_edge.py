@@ -6,6 +6,7 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .google_protobuf_struct import GoogleProtobufStruct
 from .ingestion_v1read_mode import IngestionV1ReadMode
 from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
 from .ingestion_v1write_mode import IngestionV1WriteMode
@@ -52,6 +53,13 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
     ] = None
     """
     Optional destination name for this resource in any execution mode; source identity is unchanged.
+    """
+
+    transform: typing.Optional[GoogleProtobufStruct] = pydantic.Field(default=None)
+    """
+    transform is the edge's transform definition as a JSON object matching
+     the transform grammar, keyed by resource. A resource-specific edge may
+     only define its own resource. Empty means rows pass through unchanged.
     """
 
     if IS_PYDANTIC_V2:

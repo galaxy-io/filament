@@ -1,0 +1,223 @@
+resources:
+  - name: customers
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/customers
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      name: string?
+      active: bool?
+      address: json?
+      balance: decimal?
+      createdOn: string?
+      doNotMail: bool?
+      taxExempt: bool?
+      mergedToId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      creditLimit: decimal?
+      customFields: json?
+      doNotService: bool?
+      externalData: json?
+      paymentTermId: int64?
+      nationalAccount: bool?
+      creditLimitBalance: decimal?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: customers_export_token
+  - name: locations
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/locations
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      zoneId: int64?
+      address: json?
+      createdOn: string?
+      taxExempt: bool?
+      taxZoneId: int64?
+      customerId: int64?
+      mergedToId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: locations_export_token
+  - name: leads
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/leads
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool?
+      callId: int64?
+      status: string?
+      leadUrl: string?
+      summary: string?
+      priority: string?
+      bookingId: int64?
+      createdOn: string?
+      jobTypeId: int64?
+      leadEmail: string?
+      leadPhone: string?
+      campaignId: int64?
+      customerId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      createdById: int64?
+      callReasonId: int64?
+      followUpDate: string?
+      captureSource: string?
+      businessUnitId: int64?
+      leadCustomerName: string?
+      dismissingReasonId: int64?
+      leadCity: string?
+      leadCountry: string?
+      leadState: string?
+      leadStreet: string?
+      leadUnit: string?
+      leadZip: string?
+      manualCallId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: leads_export_token
+  - name: bookings
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/bookings
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      jobId: int64?
+      start: string?
+      active: bool?
+      source: string?
+      status: string?
+      address: json?
+      summary: string?
+      priority: string?
+      createdOn: string?
+      jobTypeId: int64?
+      campaignId: int64?
+      externalId: string?
+      modifiedOn: string?
+      customerType: string?
+      businessUnitId: int64?
+      bookingProviderId: int64?
+      isFirstTimeClient: bool?
+      dismissingReasonId: int64?
+      isSendConfirmationEmail: bool?
+      uploadedImages: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: bookings_export_token
+  - name: customer_contacts
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/customers/contacts
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      value: string?
+      active: bool?
+      createdOn: string?
+      customerId: int64?
+      modifiedOn: string?
+      preferences: json?
+      phoneSettings: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: customer_contacts_export_token
+  - name: location_contacts
+    path: /crm/v2/tenant/{{ config.tenant_id }}/export/locations/contacts
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      memo: string?
+      value: string?
+      active: bool?
+      createdOn: string?
+      locationId: int64?
+      modifiedOn: string?
+      preferences: json?
+      phoneSettings: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: location_contacts_export_token

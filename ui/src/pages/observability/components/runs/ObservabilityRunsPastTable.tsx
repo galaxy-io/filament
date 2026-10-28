@@ -136,7 +136,7 @@ const ObservabilityRunsPastTable: FC = () => {
       onEndReached={() => {
         if (hasNextPage) fetchNextPage();
       }}
-      ariaLabel="Recent runs"
+      ariaLabel="History"
       emptyState={
         <EmptyLayout
           size={EmptyLayoutSize.SMALL}

@@ -1,0 +1,187 @@
+resources:
+  - name: employees
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/employees
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      role: string?
+      email: string?
+      active: bool?
+      userId: int64?
+      roleIds: json?
+      lastName: string?
+      createdOn: string?
+      firstName: string?
+      loginName: string?
+      managerId: int64?
+      startDate: string?
+      hourlyRate: decimal?
+      modifiedOn: string?
+      phoneNumber: string?
+      customFields: json?
+      businessUnitId: int64?
+      terminationDate: string?
+      overtimeProfileId: int64?
+      aadUserId: string?
+      accountLocked: bool?
+      agentId: int64?
+      businessUnitAccessIds: json?
+      home: json?
+      permissions: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: employees_export_token
+  - name: technicians
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/technicians
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      team: string?
+      email: string?
+      active: bool?
+      status: string?
+      userId: int64?
+      roleIds: json?
+      zoneIds: json?
+      createdOn: string?
+      dailyGoal: decimal?
+      loginName: string?
+      burdenRate: decimal?
+      hourlyRate: decimal?
+      mainZoneId: int64?
+      modifiedOn: string?
+      soldByRate: decimal?
+      licenseType: string?
+      phoneNumber: string?
+      customFields: json?
+      isManagedTech: bool?
+      businessUnitId: int64?
+      commissionRate: decimal?
+      aadUserId: string?
+      accountLocked: bool?
+      appoitmentId: int64?
+      bio: string?
+      currentValue: string?
+      firstName: string?
+      home: json?
+      jobFilter: string?
+      jobId: int64?
+      lastName: string?
+      location: json?
+      memo: string?
+      mobilePhone: string?
+      outboundCallerId: decimal?
+      payrollId: decimal?
+      payrollProfileId: int64?
+      permissions: json?
+      positions: json?
+      projectLabelIds: json?
+      shiftEnd: string?
+      shiftStart: string?
+      skills: json?
+      startDate: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: technicians_export_token
+  - name: business_units
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/business-units
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      trade: json?
+      active: bool?
+      address: json?
+      currency: string?
+      division: json?
+      createdOn: string?
+      modifiedOn: string?
+      tagTypeIds: json?
+      accountCode: string?
+      conceptCode: string?
+      franchiseId: string?
+      phoneNumber: string?
+      officialName: string?
+      defaultTaxRate: decimal?
+      quickbooksClass: string?
+      acknowledgementParagraph: string?
+      authorizationParagraph: string?
+      certifiedSentriconSpecialistCode: string?
+      corporateContractNumber: string?
+      externalData: json?
+      invoiceHeader: string?
+      invoiceMessage: string?
+      materialSku: string?
+      tenant: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: business_units_export_token
+  - name: tag_types
+    path: /settings/v2/tenant/{{ config.tenant_id }}/export/tag-types
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string?
+      name: string?
+      color: string?
+      active: bool?
+      createdOn: string?
+      importance: string?
+      modifiedOn: string?
+      isConversionOpportunity: bool?
+      allowToUseOnTimesheetActivity: bool?
+      isVisibleOnDispatchBoard: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: tag_types_export_token

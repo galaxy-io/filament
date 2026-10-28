@@ -1,0 +1,222 @@
+resources:
+  - name: jobs
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/jobs
+    primary_key: [id]
+    fields:
+      id: int64
+      total: decimal?
+      active: bool?
+      summary: string?
+      noCharge: bool?
+      priority: string?
+      soldById: int64?
+      bookingId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      jobNumber: string?
+      jobStatus: string?
+      jobTypeId: int64?
+      projectId: int64?
+      campaignId: int64?
+      customerId: int64?
+      customerPo: string?
+      leadCallId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      tagTypeIds: json?
+      warrantyId: int64?
+      completedOn: string?
+      createdById: int64?
+      estimateIds: json?
+      recallForId: int64?
+      customFields: json?
+      businessUnitId: int64?
+      appointmentCount: int64?
+      lastAppointmentId: int64?
+      firstAppointmentId: int64?
+      notificationsEnabled: bool?
+      createdFromEstimateId: int64?
+      jobGeneratedLeadSource: json?
+      equipmentIds: json?
+      externalData: json?
+      isAutoDispatched: bool?
+      membershipId: int64?
+      partnerLeadCallId: int64?
+      summaryOfWork: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: jobs_export_token
+  - name: appointments
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/appointments
+    primary_key: [id]
+    fields:
+      id: int64
+      end: string?
+      jobId: int64?
+      start: string?
+      active: bool?
+      status: string?
+      unused: bool?
+      createdOn: string?
+      customerId: int64?
+      modifiedOn: string?
+      createdById: int64?
+      isConfirmed: bool?
+      arrivalWindowEnd: string?
+      appointmentNumber: string?
+      arrivalWindowStart: string?
+      specialInstructions: string?
+      appointmentSummaries: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: appointments_export_token
+  - name: projects
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/projects
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      jobIds: json?
+      number: string?
+      status: string?
+      summary: string?
+      statusId: int64?
+      createdOn: string?
+      startDate: string?
+      subStatus: string?
+      customerId: int64?
+      locationId: int64?
+      modifiedOn: string?
+      subStatusId: int64?
+      customFields: json?
+      externalData: json?
+      projectTypeId: int64?
+      businessUnitIds: json?
+      projectManagerIds: json?
+      actualCompletionDate: string?
+      targetCompletionDate: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: projects_export_token
+  - name: job_notes
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/job-notes
+    primary_key: [id]
+    fields:
+      id: int64
+      text: string?
+      jobId: int64?
+      active: bool?
+      isPinned: bool?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_notes_export_token
+  - name: job_history
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/job-history
+    primary_key: [jobId]
+    fields:
+      jobId: int64
+      history: json?
+      lastEventDate: {path: history, type: string, nullable: true, max_string: date}
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_history_export_token
+  - name: job_types
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/job-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      businessUnitIds: json?
+      skills: json?
+      tagTypeIds: json?
+      priority: string?
+      duration: int64?
+      soldThreshold: decimal?
+      class: string?
+      summary: string?
+      noCharge: bool?
+      enforceRecurringServiceEventSelection: bool?
+      invoiceSignaturesRequired: bool?
+      active: bool?
+      externalData: json?
+      createdOn: string?
+      modifiedOn: string?
+      customFieldTypeIds: json?
+      defaultEstimateSoldAction: string?
+      isSmartDispatched: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore

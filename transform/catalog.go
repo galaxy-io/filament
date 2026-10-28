@@ -7,8 +7,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/compute"
 
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform/kernel"
 )
@@ -81,6 +83,9 @@ type function struct {
 	spec     FunctionSpec
 	validate func(args []argType) error
 	exec     func(ctx context.Context, args []compute.Datum) (compute.Datum, error)
+	// bind, when set, chooses exec from the checked argument types, for a
+	// function whose kernel depends on how a type is stored.
+	bind func(args []argType) func(ctx context.Context, args []compute.Datum) (compute.Datum, error)
 }
 
 var (
@@ -324,14 +329,31 @@ func arithmetic(name, display, symbol, desc string, exec func(context.Context, [
 
 // comparison builds a two-value predicate over a shared type. A nil types
 // admits every type; ordering comparisons pass the types that order.
-func comparison(name, display, symbol, desc string, types []rowmodel.LogicalType, exec func(context.Context, []compute.Datum) (compute.Datum, error)) function {
+// comparison compares two values of one type. A decimal arrowbatch carries
+// as text is compared as a number, not as the text.
+func comparison(name, display, symbol, desc string, types []rowmodel.LogicalType, op kernel.Op) function {
 	return function{
 		spec: FunctionSpec{
 			Name: name, DisplayName: display, Description: desc, OperatorSymbol: symbol, ConditionOperator: true,
 			Args: []ArgSpec{{Name: "left", DisplayName: "Left", Types: types}, {Name: "right", DisplayName: "Compare with", Types: types}}, Returns: rowmodel.LogicalBool, SameType: true,
 		},
-		exec: exec,
+		bind: func(args []argType) func(context.Context, []compute.Datum) (compute.Datum, error) {
+			if textDecimal(args[0].valueType) {
+				return kernel.CompareDecimalText(op)
+			}
+			return kernel.Compare(op)
+		},
 	}
+}
+
+// textDecimal reports whether arrowbatch carries t as utf8 rather than
+// decimal128: a decimal with no precision, or one above 38.
+func textDecimal(t valueType) bool {
+	if t.logical != rowmodel.LogicalDecimal {
+		return false
+	}
+	_, ok := arrowbatch.Type(rowmodel.Field{Logical: t.logical, Precision: t.precision, Scale: t.scale}).(*arrow.Decimal128Type)
+	return !ok
 }
 
 // argSpec returns the spec for argument i, repeating a variadic last spec.

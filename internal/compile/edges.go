@@ -10,9 +10,8 @@ import (
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own read mode while
-// the write mode is shared by the route; the "" read entry is the route default
-// set by an all-resources edge.
+// so collapse into a single run. Each resource carries its own read and write
+// mode; the "" entries are the route default set by an all-resources edge.
 type routeGroup struct {
 	key           string
 	source        *ingestionv1.PipelineNode
@@ -20,7 +19,7 @@ type routeGroup struct {
 	from          string
 	to            string
 	readModes     map[string]filament.ReadMode
-	writeMode     filament.WriteMode
+	writeModes    map[string]filament.WriteMode
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
@@ -31,8 +30,8 @@ type routeGroup struct {
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
 // An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different read modes
-// conflict. All edges in a route must carry the same write mode.
+// the same resource (or two all-resources edges) with different read or write
+// modes conflict.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
 	if err := ValidateDestinations(edges); err != nil {
 		return nil, err
@@ -63,7 +62,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				from:          edge.GetFromNode(),
 				to:            edge.GetToNode(),
 				readModes:     map[string]filament.ReadMode{},
-				writeMode:     writeMode,
+				writeModes:    map[string]filament.WriteMode{},
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
@@ -72,8 +71,6 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
-		} else if group.writeMode != writeMode {
-			return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 		}
 		for _, cursor := range edge.GetCursors() {
 			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
@@ -96,6 +93,13 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			return nil, fmt.Errorf("%w: conflicting read modes for resource %q", ErrInvalid, resource)
 		}
 		group.readModes[resource] = readMode
+		if previous, exists := group.writeModes[resource]; exists && previous != writeMode {
+			if resource == "" {
+				return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
+			}
+			return nil, fmt.Errorf("%w: conflicting write modes for resource %q", ErrInvalid, resource)
+		}
+		group.writeModes[resource] = writeMode
 		if resource == "" {
 			group.all = true
 			continue
@@ -108,6 +112,19 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		}
 	}
 	return ordered, nil
+}
+
+// routeWriteMode returns the one write mode every resource on the route uses.
+// CDC and continuous routes plan a single write for the whole stream.
+func (g *routeGroup) routeWriteMode() (filament.WriteMode, error) {
+	var mode filament.WriteMode
+	for _, candidate := range g.writeModes {
+		if mode != "" && candidate != mode {
+			return "", fmt.Errorf("%w: all resources on route %s -> %s must use the same write mode", ErrInvalid, g.from, g.to)
+		}
+		mode = candidate
+	}
+	return mode, nil
 }
 
 // mergeTransform folds an edge's transform into its route. The definition is

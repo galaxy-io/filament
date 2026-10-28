@@ -37,7 +37,7 @@ export const OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP: Record<ObservabilityRunsView,
 };
 
 export const OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP: Record<ObservabilityRunsView, string> = {
-  [ObservabilityRunsView.PAST]: "Recent runs",
+  [ObservabilityRunsView.PAST]: "History",
   [ObservabilityRunsView.UPCOMING]: "Upcoming runs",
 };
 

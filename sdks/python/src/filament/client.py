@@ -15,6 +15,10 @@ if typing.TYPE_CHECKING:
     from .auth.client import AsyncAuthClient, AuthClient
     from .connection.client import AsyncConnectionClient, ConnectionClient
     from .connector.client import AsyncConnectorClient, ConnectorClient
+    from .ingestion_v1ingestionservice.client import (
+        AsyncIngestionV1IngestionserviceClient,
+        IngestionV1IngestionserviceClient,
+    )
     from .member.client import AsyncMemberClient, MemberClient
     from .metrics.client import AsyncMetricsClient, MetricsClient
     from .pipeline.client import AsyncPipelineClient, PipelineClient
@@ -209,6 +213,7 @@ class Filament:
         self._pipeline: typing.Optional[PipelineClient] = None
         self._connector: typing.Optional[ConnectorClient] = None
         self._run: typing.Optional[RunClient] = None
+        self._ingestion_v1ingestionservice: typing.Optional[IngestionV1IngestionserviceClient] = None
         self._metrics: typing.Optional[MetricsClient] = None
 
     @property
@@ -266,6 +271,14 @@ class Filament:
 
             self._run = RunClient(client_wrapper=self._client_wrapper)
         return self._run
+
+    @property
+    def ingestion_v1ingestionservice(self):
+        if self._ingestion_v1ingestionservice is None:
+            from .ingestion_v1ingestionservice.client import IngestionV1IngestionserviceClient  # noqa: E402
+
+            self._ingestion_v1ingestionservice = IngestionV1IngestionserviceClient(client_wrapper=self._client_wrapper)
+        return self._ingestion_v1ingestionservice
 
     @property
     def metrics(self):
@@ -478,6 +491,7 @@ class AsyncFilament:
         self._pipeline: typing.Optional[AsyncPipelineClient] = None
         self._connector: typing.Optional[AsyncConnectorClient] = None
         self._run: typing.Optional[AsyncRunClient] = None
+        self._ingestion_v1ingestionservice: typing.Optional[AsyncIngestionV1IngestionserviceClient] = None
         self._metrics: typing.Optional[AsyncMetricsClient] = None
 
     @property
@@ -535,6 +549,16 @@ class AsyncFilament:
 
             self._run = AsyncRunClient(client_wrapper=self._client_wrapper)
         return self._run
+
+    @property
+    def ingestion_v1ingestionservice(self):
+        if self._ingestion_v1ingestionservice is None:
+            from .ingestion_v1ingestionservice.client import AsyncIngestionV1IngestionserviceClient  # noqa: E402
+
+            self._ingestion_v1ingestionservice = AsyncIngestionV1IngestionserviceClient(
+                client_wrapper=self._client_wrapper
+            )
+        return self._ingestion_v1ingestionservice
 
     @property
     def metrics(self):

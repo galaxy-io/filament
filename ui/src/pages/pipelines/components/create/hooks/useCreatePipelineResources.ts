@@ -179,14 +179,23 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
             resources,
             columns,
             supportedReadModesBySink,
+            supportedWriteModesBySink,
             hasReadLevers,
           }),
-    [isLoading, state, resources, columns, supportedReadModesBySink, hasReadLevers],
+    [
+      isLoading,
+      state,
+      resources,
+      columns,
+      supportedReadModesBySink,
+      supportedWriteModesBySink,
+      hasReadLevers,
+    ],
   );
 
   const sinks = useMemo(
-    () => createSinkRows({ state, rowsBySink, hasReadLevers, supportedWriteModesBySink }),
-    [state, rowsBySink, hasReadLevers, supportedWriteModesBySink],
+    () => createSinkRows({ state, supportedWriteModesBySink }),
+    [state, supportedWriteModesBySink],
   );
 
   const issuesBySink = useMemo(() => {
