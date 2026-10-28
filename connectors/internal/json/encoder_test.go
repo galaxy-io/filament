@@ -17,6 +17,33 @@ type collect struct{ chunks []*arrowbatch.Batch }
 func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
 func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
+func TestEncodeNegativeDecimalScale(t *testing.T) {
+	schema := arrowbatch.Schema(rowmodel.Schema{Fields: []rowmodel.Field{
+		{Name: "amount", Logical: rowmodel.LogicalDecimal, Precision: 6, Scale: -2},
+	}})
+	c := &collect{}
+	b := arrowbatch.NewBuilder(schema, nil, arrowbatch.Options{MaxRows: 10}, c)
+	for _, value := range []int64{1234, -5, 0} {
+		b.Decimal(decimal128.FromI64(value))
+		if err := b.EndRow(rowmodel.Meta{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := b.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	defer c.chunks[0].Release()
+
+	encoded, _, err := NewEncoder(schema).EncodeBatch(nil, c.chunks[0].Rows())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "{\"amount\":123400}\n{\"amount\":-500}\n{\"amount\":0}\n"
+	if string(encoded) != want {
+		t.Errorf("got %q want %q", encoded, want)
+	}
+}
+
 func TestAppendRow(t *testing.T) {
 	rs := rowmodel.Schema{Fields: []rowmodel.Field{
 		{Name: "id", Logical: rowmodel.LogicalInt64},

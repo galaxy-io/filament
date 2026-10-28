@@ -15,6 +15,16 @@ func AppendDecimal(dst []byte, v decimal128.Num, scale int) []byte {
 	}
 	var buf [40]byte
 	digits := DecimalDigits(buf[:], uint64(v.HighBits()), v.LowBits()) //nolint:gosec // magnitude, sign handled above
+	if scale < 0 {
+		if len(digits) == 0 {
+			return append(dst, '0')
+		}
+		dst = append(dst, digits...)
+		for ; scale < 0; scale++ {
+			dst = append(dst, '0')
+		}
+		return dst
+	}
 	if len(digits) <= scale {
 		dst = append(dst, '0')
 		if scale > 0 {
