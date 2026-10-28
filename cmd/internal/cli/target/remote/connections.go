@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -45,7 +46,7 @@ func (t *Target) CreateConnection(ctx context.Context, kind, name string, connec
 	if err != nil {
 		return model.Connection{}, err
 	}
-	config, err := configStruct(connection.Config)
+	config, err := configStruct(cliapp.ConfigForConnectionWire(connection.Config, connection.SecretRefs))
 	if err != nil {
 		return model.Connection{}, err
 	}
@@ -74,7 +75,7 @@ func (t *Target) UpdateConnection(ctx context.Context, kind, name string, connec
 	if err != nil {
 		return model.Connection{}, fmt.Errorf("%s %q carries no read revision", kind, name)
 	}
-	config, err := configStruct(connection.Config)
+	config, err := configStruct(cliapp.ConfigForConnectionWire(connection.Config, connection.SecretRefs))
 	if err != nil {
 		return model.Connection{}, err
 	}

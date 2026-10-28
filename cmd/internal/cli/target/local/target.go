@@ -56,6 +56,24 @@ func WithSources(sources filament.SourceRegistry) Option {
 	return func(target *Target) { target.sources = sources }
 }
 
+// Discover resolves inline and scoped environment references in the local
+// process. Saved connection refs are resolved by the embedded deployment.
+func (t *Target) Discover(ctx context.Context, request model.DiscoverRequest) (model.ResourceList, error) {
+	catalog, err := t.Catalog(ctx)
+	if err != nil {
+		return model.ResourceList{}, err
+	}
+	schema, err := catalog.ConnectionSchema("source", request.Connector)
+	if err != nil {
+		return model.ResourceList{}, err
+	}
+	request.Config, err = cliapp.ResolveConfigSecrets(schema, request.Config, os.LookupEnv)
+	if err != nil {
+		return model.ResourceList{}, err
+	}
+	return t.Target.Discover(ctx, request)
+}
+
 // SubmitRun sends saved pipelines to the deployment and everything else,
 // inline specs and override flags, to the direct runner.
 func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) (model.RunGroup, error) {
