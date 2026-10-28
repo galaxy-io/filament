@@ -17,6 +17,7 @@ type collect struct{ chunks []*arrowbatch.Batch }
 func (c *collect) Chunk(ch *arrowbatch.Batch) error { c.chunks = append(c.chunks, ch); return nil }
 func (c *collect) Drained(rowmodel.Meta, int) error { return nil }
 
+// Exercise the full schema-to-batch path so negative scales cannot panic during encoding.
 func TestEncodeNegativeDecimalScale(t *testing.T) {
 	schema := arrowbatch.Schema(rowmodel.Schema{Fields: []rowmodel.Field{
 		{Name: "amount", Logical: rowmodel.LogicalDecimal, Precision: 6, Scale: -2},
@@ -41,6 +42,40 @@ func TestEncodeNegativeDecimalScale(t *testing.T) {
 	const want = "{\"amount\":123400}\n{\"amount\":-500}\n{\"amount\":0}\n"
 	if string(encoded) != want {
 		t.Errorf("got %q want %q", encoded, want)
+	}
+}
+
+// Extreme Arrow scales still encode exact JSON numbers with bounded output.
+func TestEncodeExtremeDecimalScale(t *testing.T) {
+	for _, test := range []struct {
+		scale int
+		want  string
+	}{
+		{math.MinInt32, "{\"amount\":1234e2147483648}\n{\"amount\":-5e2147483648}\n{\"amount\":0}\n"},
+		{math.MaxInt32, "{\"amount\":1234e-2147483647}\n{\"amount\":-5e-2147483647}\n{\"amount\":0}\n"},
+	} {
+		schema := arrowbatch.Schema(rowmodel.Schema{Fields: []rowmodel.Field{
+			{Name: "amount", Logical: rowmodel.LogicalDecimal, Precision: 6, Scale: test.scale},
+		}})
+		c := &collect{}
+		b := arrowbatch.NewBuilder(schema, nil, arrowbatch.Options{MaxRows: 10}, c)
+		for _, value := range []int64{1234, -5, 0} {
+			b.Decimal(decimal128.FromI64(value))
+			if err := b.EndRow(rowmodel.Meta{}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := b.Flush(); err != nil {
+			t.Fatal(err)
+		}
+		defer c.chunks[0].Release()
+		encoded, _, err := NewEncoder(schema).EncodeBatch(nil, c.chunks[0].Rows())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(encoded) != test.want {
+			t.Errorf("scale %d: got %q want %q", test.scale, encoded, test.want)
+		}
 	}
 }
 

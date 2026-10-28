@@ -2,12 +2,14 @@ package arrowtext
 
 import (
 	"math/bits"
+	"strconv"
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 )
 
-// AppendDecimal appends the plain decimal text of v at scale ("-12.30"), without
-// going through strings or big.Int.
+// AppendDecimal appends the decimal text of v at scale ("-12.30"), without
+// going through strings or big.Int. Scales outside [-MaxScale, MaxScale] use
+// exact exponent notation to keep the output bounded.
 func AppendDecimal(dst []byte, v decimal128.Num, scale int) []byte {
 	if v.Sign() < 0 {
 		dst = append(dst, '-')
@@ -15,6 +17,21 @@ func AppendDecimal(dst []byte, v decimal128.Num, scale int) []byte {
 	}
 	var buf [40]byte
 	digits := DecimalDigits(buf[:], uint64(v.HighBits()), v.LowBits()) //nolint:gosec // magnitude, sign handled above
+	if scale < -decimal128.MaxScale || scale > decimal128.MaxScale {
+		if len(digits) == 0 {
+			return append(dst, '0')
+		}
+		dst = append(dst, digits...)
+		dst = append(dst, 'e')
+		if scale > 0 {
+			dst = append(dst, '-')
+			return strconv.AppendInt(dst, int64(scale), 10)
+		}
+		// Drop the formatted sign instead of negating the minimum int.
+		var exponent [21]byte
+		text := strconv.AppendInt(exponent[:0], int64(scale), 10)
+		return append(dst, text[1:]...)
+	}
 	if scale < 0 {
 		if len(digits) == 0 {
 			return append(dst, '0')
