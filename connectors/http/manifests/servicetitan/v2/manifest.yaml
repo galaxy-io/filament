@@ -52,6 +52,7 @@ includes:
   - resources/crm.yaml
   - resources/accounting.yaml
   - resources/inventory.yaml
+  - resources/equipmentsystems.yaml
   - resources/pricebook.yaml
   - resources/settings.yaml
   - resources/marketing.yaml

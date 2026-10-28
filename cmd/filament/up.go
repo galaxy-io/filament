@@ -83,13 +83,11 @@ func (a *cliApp) up(ctx context.Context, addr string) error {
 	)
 	if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
 		stop()
-		<-done
-		return fmt.Errorf("apply %s: %w", a.configPath, err)
+		return errors.Join(fmt.Errorf("apply %s: %w", a.configPath, err), <-done)
 	}
 	if _, err := fmt.Fprintf(a.stdout, "filament up\n  ui:     %s\n  api:    %s\n  config: %s\n  state:  %s\nCtrl-C to stop.\n", endpoint, endpoint, a.configPath, a.dbPath()); err != nil {
 		stop()
-		<-done
-		return err
+		return errors.Join(err, <-done)
 	}
 	return <-done
 }

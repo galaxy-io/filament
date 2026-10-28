@@ -305,17 +305,17 @@ func TestValidatePipelineLevers(t *testing.T) {
 	})
 }
 
-func TestValidatePipelineRejectsMixedRouteWriteModes(t *testing.T) {
+func TestValidatePipelineRejectsMixedCDCWriteModes(t *testing.T) {
 	api, ids := leverAPI(t)
 	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
 		Graph: &ingestionv1.PipelineGraph{
 			Nodes: []*ingestionv1.PipelineNode{
-				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["cdc"]},
 				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
 			},
 			Edges: []*ingestionv1.PipelineEdge{
-				{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
-				{FromNode: "src", ToNode: "snk", Resource: "orders", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT},
+				{FromNode: "src", ToNode: "snk", Resource: "orders", WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+				{FromNode: "src", ToNode: "snk", Resource: "audit", WriteMode: ingestionv1.WriteMode_WRITE_MODE_MERGE},
 			},
 		},
 	}))
@@ -328,6 +328,32 @@ func TestValidatePipelineRejectsMixedRouteWriteModes(t *testing.T) {
 	last := resp.Msg.GetEdges()[1]
 	if len(last.GetErrors()) == 0 || last.GetErrors()[len(last.GetErrors())-1].GetField() != "write_mode" {
 		t.Fatalf("route conflict error = %v", last.GetErrors())
+	}
+}
+
+func TestValidatePipelineRejectsConflictingAllResourcesWriteModes(t *testing.T) {
+	api, ids := leverAPI(t)
+	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: []*ingestionv1.PipelineNode{
+				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+			},
+			Edges: []*ingestionv1.PipelineEdge{
+				{FromNode: "src", ToNode: "snk", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+				{FromNode: "src", ToNode: "snk", ReadMode: ingestionv1.ReadMode_READ_MODE_FULL, WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT},
+			},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetValid() {
+		t.Fatal("valid = true, want conflicting all-resources write modes rejected")
+	}
+	last := resp.Msg.GetEdges()[1]
+	if len(last.GetErrors()) == 0 || last.GetErrors()[len(last.GetErrors())-1].GetField() != "write_mode" {
+		t.Fatalf("write mode conflict error = %v", last.GetErrors())
 	}
 }
 

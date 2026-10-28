@@ -47,7 +47,7 @@ export interface PipelineCanvasRoutesDraftState {
   setResource: (resource: Resource["name"]) => void;
   setSinkId: (sinkId: CanvasNode["id"]) => void;
   setConfig: (config: Partial<PipelineCanvasRoutesDraftConfig>) => void;
-  add: (config: PipelineCanvasEdgeData) => void;
+  add: (config: PipelineCanvasEdgeData, hasReadLevers: boolean) => void;
 }
 
 export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState => {
@@ -150,13 +150,13 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
 
   const canAdd = draft !== undefined && canRoute(resource, draft.sinkId);
   const add = useCallback(
-    (config: PipelineCanvasEdgeData) => {
+    (config: PipelineCanvasEdgeData, hasReadLevers: boolean) => {
       if (!draft || !canAdd) return;
       const connection = getConnection(resource, draft.sinkId);
       const [edge] = addEdge({ ...connection, type: PIPELINE_CANVAS_EDGE_TYPE }, []);
       connect([connection]);
       setEdgeConfig(edge.id, config);
-      if (config.writeMode !== WriteMode.UNSPECIFIED)
+      if (!hasReadLevers && config.writeMode !== WriteMode.UNSPECIFIED)
         setRouteWriteMode(connection.source, connection.target, config.writeMode);
       setDraft(undefined);
       selectResource(edge.id);

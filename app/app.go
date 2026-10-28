@@ -23,6 +23,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -220,7 +221,9 @@ func serve(ctx context.Context, ln net.Listener, mux *http.ServeMux) error {
 		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		err := srv.Shutdown(shutdownCtx)
-		<-errc
+		if serveErr := <-errc; !errors.Is(serveErr, http.ErrServerClosed) {
+			err = errors.Join(err, serveErr)
+		}
 		return err
 	}
 }

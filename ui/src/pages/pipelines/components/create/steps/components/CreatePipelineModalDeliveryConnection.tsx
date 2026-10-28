@@ -42,7 +42,7 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
   kind,
   sink,
 }) => {
-  const { nodeConfigs, sourceConnection } = useCreatePipelineModalState();
+  const { nodeConfigs, sourceConnection, hasReadLevers } = useCreatePipelineModalState();
   const { setNodeConfig, setSinkWriteMode } = useCreatePipelineModalActions();
 
   const config = nodeConfigs[connection.id] ?? {};
@@ -69,8 +69,9 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
   );
 
   const kindChip = <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />;
+  const routeSink = hasReadLevers ? undefined : sink;
 
-  if (!sink && nodeConfig.fields.length === 0) {
+  if (!routeSink && nodeConfig.fields.length === 0) {
     return (
       <Widget isFlush>
         <Flex
@@ -92,11 +93,11 @@ const CreatePipelineModalDeliveryConnection: FC<CreatePipelineModalDeliveryConne
 
   return (
     <Widget isCollapsible header={title} actions={kindChip} defaultIsOpen>
-      {sink && (
+      {routeSink && (
         <SelectInput
           label="Write mode"
-          options={getWriteModeSelectOptions(sink.writeModeOptions, sink.writeMode)}
-          value={getEnumSelectValue(WriteMode, sink.writeMode)}
+          options={getWriteModeSelectOptions(routeSink.writeModeOptions, routeSink.writeMode)}
+          value={getEnumSelectValue(WriteMode, routeSink.writeMode)}
           onChange={handleWriteModeChange}
           fillWidth
         />
