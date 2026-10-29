@@ -85,7 +85,7 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
       isOpen={isOpen}
       isFullscreen
       header="New pipeline"
-      sidebar={<CreatePipelineModalSidebar />}
+      sidebar={activeRow ? null : <CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
       aside={
         activeRow ? (
