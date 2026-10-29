@@ -5,17 +5,25 @@ import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 interface PipelineResourceColumnsChipProps {
   selectedCount: number;
   totalCount: number;
+  isRaised?: boolean;
 }
 
 const PipelineResourceColumnsChip: FC<PipelineResourceColumnsChipProps> = ({
   selectedCount,
   totalCount,
+  isRaised = false,
 }) => (
   <Chip
     label={`${selectedCount} of ${totalCount}`}
     tooltip="Selected columns"
     size={ChipSize.SMALL}
-    variant={selectedCount === totalCount ? ChipVariant.SECONDARY : ChipVariant.PRIMARY}
+    variant={
+      selectedCount !== totalCount
+        ? ChipVariant.PRIMARY
+        : isRaised
+          ? ChipVariant.TERTIARY
+          : ChipVariant.SECONDARY
+    }
   />
 );
 

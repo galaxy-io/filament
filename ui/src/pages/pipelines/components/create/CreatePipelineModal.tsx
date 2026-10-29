@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import { type FC, useState } from "react";
 
 import { match } from "ts-pattern";
 
@@ -17,7 +17,11 @@ import CreatePipelineModalConnections from "@/pages/pipelines/components/create/
 import CreatePipelineModalDelivery from "@/pages/pipelines/components/create/steps/CreatePipelineModalDelivery";
 import CreatePipelineModalDetails from "@/pages/pipelines/components/create/steps/CreatePipelineModalDetails";
 import CreatePipelineModalResources from "@/pages/pipelines/components/create/steps/CreatePipelineModalResources";
-import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
+import CreatePipelineModalResourcesColumnsPane from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsPane";
+import {
+  type CreatePipelineModalResourceRow,
+  CreatePipelineModalStep,
+} from "@/pages/pipelines/components/create/types";
 
 import { useOverlaySession } from "@/hooks/useOverlaySession";
 
@@ -26,13 +30,34 @@ interface CreatePipelineModalProps {
   onClose: () => void;
 }
 
+interface CreatePipelineModalContentState {
+  activeResource?: CreatePipelineModalResourceRow["name"];
+}
+
 const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
-  const { step } = useCreatePipelineModalState();
+  const { step, rowsBySink, activeSinkId } = useCreatePipelineModalState();
+  const [localState, setLocalState] = useState<CreatePipelineModalContentState>({});
+
+  const activeRow =
+    step === CreatePipelineModalStep.RESOURCES
+      ? rowsBySink[activeSinkId]?.find(
+          (row) => row.name === localState.activeResource && row.isColumnSelectable,
+        )
+      : undefined;
+
+  const handleActiveResourceChange = (activeResource?: CreatePipelineModalResourceRow["name"]) => {
+    setLocalState((prev) => ({ ...prev, activeResource }));
+  };
 
   const renderBody = () => {
     const body = match(step)
       .with(CreatePipelineModalStep.CONNECTIONS, () => <CreatePipelineModalConnections />)
-      .with(CreatePipelineModalStep.RESOURCES, () => <CreatePipelineModalResources />)
+      .with(CreatePipelineModalStep.RESOURCES, () => (
+        <CreatePipelineModalResources
+          activeRow={activeRow}
+          onActiveRowChange={handleActiveResourceChange}
+        />
+      ))
       .with(CreatePipelineModalStep.DELIVERY, () => <CreatePipelineModalDelivery />)
       .with(CreatePipelineModalStep.DETAILS, () => <CreatePipelineModalDetails />)
       .exhaustive();
@@ -59,6 +84,15 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
       header="Create a new pipeline"
       sidebar={<CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
+      aside={
+        activeRow ? (
+          <CreatePipelineModalResourcesColumnsPane
+            key={activeRow.name}
+            row={activeRow}
+            onClose={() => handleActiveResourceChange(undefined)}
+          />
+        ) : null
+      }
       hasDividers
       isFlush
       onOpenChange={(isOpen) => {

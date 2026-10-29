@@ -54,7 +54,7 @@ const CreatePipelineModalResourcesCursorCell: FC<CreatePipelineModalResourcesCur
         onChange={handleCursorChange}
         placeholder="Select a column..."
         ariaLabel={`Cursor for ${row.displayName}`}
-        variant={SelectInputVariant.TERTIARY}
+        variant={SelectInputVariant.BASE}
         fillWidth
       />
     </Box>

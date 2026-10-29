@@ -35,7 +35,11 @@ const PipelineCanvasPanelResourceColumnsSection: FC<
       isOpen={isOpen}
       onToggle={() => setIsOpen((prev) => !prev)}
       trailing={
-        <PipelineResourceColumnsChip selectedCount={selected.length} totalCount={columns.length} />
+        <PipelineResourceColumnsChip
+          selectedCount={selected.length}
+          totalCount={columns.length}
+          isRaised
+        />
       }
     >
       {error && (

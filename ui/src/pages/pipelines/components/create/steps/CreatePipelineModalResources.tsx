@@ -25,10 +25,14 @@ import type { PipelineResourceCreateState } from "@/pages/pipelines/components/r
 
 import { IS_DEBUG } from "@/constants";
 
+interface CreatePipelineModalResourcesProps {
+  activeRow?: CreatePipelineModalResourceRow;
+  onActiveRowChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
+}
+
 interface CreatePipelineModalResourcesState {
   search: string;
   isCreating: boolean;
-  activeResource?: CreatePipelineModalResourceRow["name"];
 }
 
 const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
@@ -36,7 +40,10 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   isCreating: false,
 };
 
-const CreatePipelineModalResources: FC = () => {
+const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
+  activeRow,
+  onActiveRowChange,
+}) => {
   const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
   const { addResource } = useCreatePipelineModalActions();
@@ -52,16 +59,9 @@ const CreatePipelineModalResources: FC = () => {
   );
 
   const activeSink = sinks.find((sink) => sink.connection.id === activeSinkId);
-  const activeRow = rows.find(
-    (row) => row.name === localState.activeResource && row.isColumnSelectable,
-  );
 
   const handleSearchChange = (search: string) => {
     setLocalState((prev) => ({ ...prev, search }));
-  };
-
-  const handleActiveResourceChange = (activeResource?: CreatePipelineModalResourceRow["name"]) => {
-    setLocalState((prev) => ({ ...prev, activeResource }));
   };
 
   const setCreating = (isCreating: boolean) => {
@@ -127,7 +127,7 @@ const CreatePipelineModalResources: FC = () => {
       <CreatePipelineModalResourcesTable
         rows={filteredRows}
         activeRow={activeRow}
-        onActiveRowChange={handleActiveResourceChange}
+        onActiveRowChange={onActiveRowChange}
       />
     </Flex>
   );

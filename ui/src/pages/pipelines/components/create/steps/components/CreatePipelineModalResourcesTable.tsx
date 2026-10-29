@@ -20,7 +20,6 @@ import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
 } from "@/pages/pipelines/components/create/constants";
-import CreatePipelineModalResourcesColumnsPane from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsPane";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
@@ -115,7 +114,7 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
-      <Box variant={BoxVariant.PRIMARY} position="relative" height="100%">
+      <Box variant={BoxVariant.PRIMARY} height="100%">
         <InfiniteTable<CreatePipelineModalResourceRow>
           ariaLabel="Resources"
           columns={columns}
@@ -138,13 +137,6 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
           }
           isSelectable
         />
-        {activeRow && (
-          <CreatePipelineModalResourcesColumnsPane
-            key={activeRow.name}
-            row={activeRow}
-            onClose={() => onActiveRowChange(undefined)}
-          />
-        )}
       </Box>
     </FlexItem>
   );
