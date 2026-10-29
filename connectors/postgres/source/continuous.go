@@ -34,9 +34,7 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if s.slotName != defaultSlotName && s.slotName != plan.ConsumerName {
 		return nil, errors.New("postgres continuous: configured slot does not match admitted stream")
 	}
-	bound := *s
-	bound.slotName = plan.ConsumerName
-	s = &bound
+	s = s.boundTo(plan.ConsumerName)
 	if s.pool == nil || len(opts.Resources) == 0 {
 		return nil, errors.New("postgres continuous: configured source and resources required")
 	}
@@ -106,6 +104,17 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	}
 	go session.pump(pumpCtx)
 	return session, nil
+}
+
+// boundTo copies the source onto an admitted stream's slot and, when managed,
+// the publication that takes its name.
+func (s *Source) boundTo(consumer string) *Source {
+	bound := *s
+	bound.slotName = consumer
+	if bound.managePublication {
+		bound.publication = consumer
+	}
+	return &bound
 }
 
 type walEvent struct {

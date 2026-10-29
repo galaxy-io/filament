@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -360,6 +361,9 @@ func fieldIsVisible(field filament.ConfigField, cfg filament.Config) bool {
 		return true
 	}
 	actual := cfg.String(field.VisibleWhen.Field)
+	if b, ok := cfg.Raw()[field.VisibleWhen.Field].(bool); ok {
+		actual = strconv.FormatBool(b)
+	}
 	for _, value := range field.VisibleWhen.Values {
 		if actual == value {
 			return true

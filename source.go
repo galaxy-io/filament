@@ -335,7 +335,7 @@ type EnumOption struct {
 }
 
 // FieldCondition controls whether a config field applies based on a sibling's
-// string value.
+// value. A string sibling matches as is, a bool sibling as "true" or "false".
 type FieldCondition struct {
 	Field  string
 	Values []string

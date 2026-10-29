@@ -28,6 +28,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
@@ -60,8 +61,7 @@ const (
 	// cannot make one window pull an unbounded number of rows into memory.
 	maxWindowBlocks = 256
 
-	defaultPublication = "filament"
-	defaultSlotName    = "filament"
+	defaultSlotName = "filament"
 
 	// The replication config values: query-based reads or the WAL stream.
 	replicationStandard = "standard"
@@ -91,7 +91,7 @@ type Source struct {
 func New() *Source {
 	return &Source{
 		schema: defaultSchema, pageSize: defaultPageSize, shardPages: defaultShardPages,
-		publication: defaultPublication, slotName: defaultSlotName, managePublication: true,
+		publication: defaultSlotName, slotName: defaultSlotName, managePublication: true,
 		snapshotMode: filament.SnapshotInitial,
 	}
 }
@@ -127,7 +127,8 @@ func (s *Source) SelectColumns(columns map[string][]string) error {
 }
 
 // PlanReplicationStream gives one pipeline route its own logical replication
-// slot while keeping the publication shared at the connection level.
+// slot. A managed publication takes the slot's name, so each route owns the
+// publication it decodes from.
 func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
 	if err := request.Execution.Validate(); err != nil {
 		return filament.ReplicationStreamPlan{}, err
@@ -147,24 +148,42 @@ func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlannin
 	if !validReplicationName(consumerName) {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("postgres source: generated slot name %q is invalid", consumerName)
 	}
-	publication := request.Config.String("publication")
-	if publication == "" {
-		publication = defaultPublication
+	publication, managed, err := publicationFor(request.Config, consumerName)
+	if err != nil {
+		return filament.ReplicationStreamPlan{}, err
 	}
 	schema := request.Config.String("schema")
 	if schema == "" {
 		schema = defaultSchema
 	}
+	continuity := map[string]any{"schema": schema}
+	if !managed {
+		continuity["publication"] = publication
+	}
 	return filament.ReplicationStreamPlan{
 		Resources:    append([]string(nil), request.Resources...),
 		ConsumerName: consumerName,
 		ConsumerConfig: map[string]any{
-			"kind": "postgres_lsn", "publication": publication,
+			"kind": "postgres_lsn", "publication": publication, "manage_publication": managed,
 		},
-		ContinuityConfig: map[string]any{
-			"schema": schema, "publication": publication,
-		},
+		ContinuityConfig: continuity,
 	}, nil
+}
+
+// publicationFor names the publication a stream decodes from: the slot's name
+// when the connector manages it, else the one an administrator provisioned.
+func publicationFor(cfg filament.Config, slot string) (publication string, managed bool, err error) {
+	managed = !cfg.Has("manage_publication") || cfg.Bool("manage_publication")
+	configured := cfg.String("publication")
+	switch {
+	case managed && configured != "":
+		return "", false, fmt.Errorf("postgres source: publication applies only when manage_publication is false")
+	case managed:
+		return slot, true, nil
+	case configured == "":
+		return "", false, fmt.Errorf("postgres source: publication is required when manage_publication is false")
+	}
+	return configured, false, nil
 }
 
 // BindReplicationStream injects the resolved generation's slot into a run
@@ -181,8 +200,11 @@ func (s *Source) BindReplicationStream(config map[string]any, stream filament.Re
 	return out, nil
 }
 
-// CleanupReplicationStream drops a retired logical slot after its successor
-// has committed. Missing slots are already clean and therefore succeed.
+// CleanupReplicationStream drops a retired logical slot, and the publication
+// it owned, after its successor has committed. Ownership is read from the
+// stream's own plan, so a connection moved between managed and unmanaged since
+// neither strands a managed publication nor drops an administrator's. Missing
+// objects are already clean and therefore succeed.
 func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.ReplicationStream) error {
 	if s.pool == nil {
 		return fmt.Errorf("postgres source: cleanup replication stream before configure")
@@ -195,6 +217,12 @@ func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.R
 		WHERE slot_name=$1`, stream.ConsumerName); err != nil {
 		return fmt.Errorf("postgres cdc: drop retired slot %q: %w", stream.ConsumerName, err)
 	}
+	if managed, _ := stream.ConsumerConfig["manage_publication"].(bool); !managed {
+		return nil
+	}
+	if _, err := s.pool.Exec(ctx, "DROP PUBLICATION IF EXISTS "+pgx.Identifier{stream.ConsumerName}.Sanitize()); err != nil {
+		return fmt.Errorf("postgres cdc: drop retired publication %q: %w", stream.ConsumerName, err)
+	}
 	return nil
 }
 
@@ -203,11 +231,15 @@ func (s *Source) Validate(cfg filament.Config) error {
 	if _, err := pgconnection.Resolve(cfg); err != nil {
 		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
-	for field, fallback := range map[string]string{"publication": defaultPublication, "slot_name": defaultSlotName} {
-		value := cfg.String(field)
-		if value == "" {
-			value = fallback
-		}
+	slot := cfg.String("slot_name")
+	if slot == "" {
+		slot = defaultSlotName
+	}
+	publication, _, err := publicationFor(cfg, slot)
+	if err != nil {
+		return err
+	}
+	for field, value := range map[string]string{"publication": publication, "slot_name": slot} {
 		if !validReplicationName(value) {
 			return fmt.Errorf("postgres source: %s %q must be a lowercase PostgreSQL identifier", field, value)
 		}
@@ -253,9 +285,6 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if v := cfg.String("scan_strategy"); v != "" {
 		s.readMode = v
 	}
-	if v := cfg.String("publication"); v != "" {
-		s.publication = v
-	}
 	// slot_name is runtime-only. ReplicationStreamPlanner binds the durable
 	// stream's generated slot after user-facing connection/pipeline validation.
 	if v := cfg.String("slot_name"); v != "" {
@@ -264,6 +293,8 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if cfg.Has("manage_publication") {
 		s.managePublication = cfg.Bool("manage_publication")
 	}
+	// Validate accepted the pair above, so this cannot fail.
+	s.publication, _, _ = publicationFor(cfg, s.slotName)
 	if v := cfg.String("snapshot_mode"); v != "" {
 		s.snapshotMode = filament.SnapshotMode(v)
 	}
