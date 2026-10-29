@@ -361,7 +361,7 @@ func TestCreatePipelineVersionAcceptsPerResourceWriteModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mixed write modes on a standard route: %v", err)
 	}
-	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{})
+	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

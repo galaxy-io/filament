@@ -6183,6 +6183,14 @@
             ],
             "title": "worker_configuration",
             "description": "worker_configuration overrides the pipeline's own for this call only, field\n by field: an empty field inherits the pipeline's value. The resolved result\n is stamped onto each run, so editing the pipeline afterwards cannot change\n a run already requested."
+          },
+          "resyncResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resync_resources",
+            "description": "resync_resources names resources read from the beginning again by the\n runs this call produces. A bounded run forgets their checkpoints first. A\n live continuous run drains and hands over to a successor that snapshots\n them again on the same stream."
           }
         },
         "title": "RunPipelineRequest",

@@ -100,6 +100,11 @@ message RunPipelineRequest {
   // is stamped onto each run, so editing the pipeline afterwards cannot change
   // a run already requested.
   WorkerConfiguration worker_configuration = 4;
+  // resync_resources names resources read from the beginning again by the
+  // runs this call produces. A bounded run forgets their checkpoints first. A
+  // live continuous run drains and hands over to a successor that snapshots
+  // them again on the same stream.
+  repeated string resync_resources = 5;
 }
 
 // PipelineEdgeRun ties one compiled pipeline edge to the run it produced.

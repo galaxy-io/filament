@@ -394,7 +394,7 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 	if err != nil {
 		return err
 	}
-	var missing, replace []string
+	var missing, replace, retired []string
 	for _, resource := range resources {
 		entry, ok := published[resource]
 		if !ok {
@@ -409,19 +409,25 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 			replace = append(replace, resource)
 		}
 	}
-	if len(missing) == 0 && len(replace) == 0 {
+	for table := range published {
+		if !slices.Contains(resources, table) {
+			retired = append(retired, table)
+		}
+	}
+	if len(missing) == 0 && len(replace) == 0 && (len(retired) == 0 || !s.managePublication) {
 		return nil
 	}
 	if !s.managePublication {
 		return fmt.Errorf("postgres cdc: publication %q is missing selected tables: %s", s.publication, strings.Join(missing, ", "))
 	}
-	return s.applyPublicationTables(ctx, replace, missing, columnLists)
+	return s.applyPublicationTables(ctx, replace, retired, missing, columnLists)
 }
 
-// applyPublicationTables rewrites the listed tables' column lists and adds the
-// missing clauses in one transaction, so a commit between the drop and the
-// add is never decoded against a publication that lacks the table.
-func (s *Source) applyPublicationTables(ctx context.Context, replace, missing []string, columnLists map[string][]string) error {
+// applyPublicationTables rewrites the listed tables' column lists, drops the
+// tables the stream no longer selects and adds the missing clauses in one
+// transaction, so a commit between the drop and the add is never decoded
+// against a publication that lacks the table.
+func (s *Source) applyPublicationTables(ctx context.Context, replace, retired, missing []string, columnLists map[string][]string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("postgres cdc: update publication: %w", err)
@@ -434,9 +440,17 @@ func (s *Source) applyPublicationTables(ctx context.Context, replace, missing []
 		}
 		missing = append(missing, s.publicationTableClause(resource, columnLists[resource]))
 	}
-	stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " ADD TABLE " + strings.Join(missing, ", ")
-	if _, err := tx.Exec(ctx, stmt); err != nil {
-		return fmt.Errorf("postgres cdc: add publication tables: %w", err)
+	for _, resource := range retired {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " DROP TABLE " + pgx.Identifier{s.schema, resource}.Sanitize()
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: drop retired publication table %s: %w", resource, err)
+		}
+	}
+	if len(missing) > 0 {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " ADD TABLE " + strings.Join(missing, ", ")
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: add publication tables: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("postgres cdc: update publication: %w", err)

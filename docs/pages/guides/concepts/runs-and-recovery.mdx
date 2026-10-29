@@ -79,6 +79,14 @@ position.
 Signals are state-aware and idempotent where repeating the same intent is safe.
 Invalid transitions, such as resuming a completed non-CDC run, are rejected.
 
+## Resync
+
+A run request can name resources to resync. The run forgets their checkpoints
+before it reads, so each one starts from its normal beginning: a full read for
+an incremental resource, a new snapshot for a CDC table. Other resources keep
+their progress. Continuous pipelines handle resync through a handover on the
+live stream, described in [Streaming](/pages/guides/concepts/streaming).
+
 ## Failure containment
 
 A source panic is converted to a run error. When a sink error causes extraction

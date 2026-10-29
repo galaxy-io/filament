@@ -515,8 +515,13 @@ type RunPipelineRequest struct {
 	// is stamped onto each run, so editing the pipeline afterwards cannot change
 	// a run already requested.
 	WorkerConfiguration *WorkerConfiguration `protobuf:"bytes,4,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// resync_resources names resources read from the beginning again by the
+	// runs this call produces. A bounded run forgets their checkpoints first. A
+	// live continuous run drains and hands over to a successor that snapshots
+	// them again on the same stream.
+	ResyncResources []string `protobuf:"bytes,5,rep,name=resync_resources,json=resyncResources,proto3" json:"resync_resources,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunPipelineRequest) Reset() {
@@ -573,6 +578,13 @@ func (x *RunPipelineRequest) GetOptions() *RunOptions {
 func (x *RunPipelineRequest) GetWorkerConfiguration() *WorkerConfiguration {
 	if x != nil {
 		return x.WorkerConfiguration
+	}
+	return nil
+}
+
+func (x *RunPipelineRequest) GetResyncResources() []string {
+	if x != nil {
+		return x.ResyncResources
 	}
 	return nil
 }
@@ -1693,13 +1705,14 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
 	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x12B\n" +
-	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xe2\x01\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\x8d\x02\n" +
 	"\x12RunPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
 	"\fclient_token\x18\x02 \x01(\tR\vclientToken\x122\n" +
 	"\aoptions\x18\x03 \x01(\v2\x18.ingestion.v1.RunOptionsR\aoptions\x12T\n" +
-	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\"f\n" +
+	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\x12)\n" +
+	"\x10resync_resources\x18\x05 \x03(\tR\x0fresyncResources\"f\n" +
 	"\x0fPipelineEdgeRun\x12*\n" +
 	"\x11pipeline_edge_key\x18\x01 \x01(\tR\x0fpipelineEdgeKey\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\"Q\n" +

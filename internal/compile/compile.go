@@ -54,35 +54,17 @@ type durableReplicationStreamStore interface {
 // overrides the pipeline's own worker configuration field by field for this
 // call only; the resolved result is stamped onto every request, so a later edit
 // to the pipeline cannot reshape a run already requested.
-func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
-	pipeline, err := c.Store.LoadPipeline(ctx, tenant, pipelineID)
-	if err != nil {
-		return nil, fmt.Errorf("load pipeline %q: %w", pipelineID, err)
-	}
-	if pipeline.GetDeletedAt() != 0 {
-		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
-	}
-	options.Execution, err = resolveExecution(pipeline.GetExecutionMode(), options.Execution)
+func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resync []string) ([]CompiledRun, error) {
+	pipeline, version, execution, err := c.loadRunnable(ctx, tenant, pipelineID, options.Execution)
 	if err != nil {
 		return nil, err
 	}
-	if options.Execution == filament.ExecutionContinuous {
-		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
-			return nil, fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
-		}
-	}
-	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
-	}
-	if err != nil {
-		return nil, fmt.Errorf("load pipeline version: %w", err)
-	}
+	options.Execution = execution
 	if options.Execution == filament.ExecutionContinuous {
 		if scheduleID != "" {
 			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
 		}
-		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg)
+		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg, resync)
 	}
 	nodes, connections, err := c.loadGraphConnections(ctx, tenant, version.GetGraph())
 	if err != nil {
@@ -91,6 +73,9 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 
 	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateResync(groups, resync); err != nil {
 		return nil, err
 	}
 	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
@@ -143,6 +128,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
 				Columns:             routeColumns(group),
+				Resync:              routeResync(group, resync),
 				Options:             options,
 				ScheduleID:          scheduleID,
 				WorkerConfiguration: worker,
@@ -152,6 +138,65 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		}})
 	}
 	return compiled, nil
+}
+
+// loadRunnable loads a pipeline that can run and its current version, and
+// resolves the execution mode the run will use.
+func (c *Compiler) loadRunnable(ctx context.Context, tenant filament.TenantID, pipelineID string, execution filament.ExecutionMode) (*ingestionv1.Pipeline, *ingestionv1.PipelineVersion, filament.ExecutionMode, error) {
+	pipeline, err := c.Store.LoadPipeline(ctx, tenant, pipelineID)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("load pipeline %q: %w", pipelineID, err)
+	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, nil, "", fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
+	}
+	execution, err = resolveExecution(pipeline.GetExecutionMode(), execution)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if execution == filament.ExecutionContinuous {
+		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
+			return nil, nil, "", fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
+		}
+	}
+	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, nil, "", fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
+	}
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("load pipeline version: %w", err)
+	}
+	return pipeline, version, execution, nil
+}
+
+// validateResync rejects a resync of a resource no route selects.
+func validateResync(groups []*routeGroup, resync []string) error {
+	for _, resource := range resync {
+		known := false
+		for _, group := range groups {
+			resources, _ := routeResources(group)
+			if slices.Contains(resources, resource) {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return fmt.Errorf("%w: resync names %q, which no route selects", ErrInvalid, resource)
+		}
+	}
+	return nil
+}
+
+// routeResync returns the resync names this route selects, or nil.
+func routeResync(group *routeGroup, resync []string) []string {
+	resources, _ := routeResources(group)
+	var out []string
+	for _, resource := range resync {
+		if slices.Contains(resources, resource) {
+			out = append(out, resource)
+		}
+	}
+	return out
 }
 
 // routeColumns returns the route's column selections, or nil when every
