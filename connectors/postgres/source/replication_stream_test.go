@@ -38,7 +38,7 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 	if !reflect.DeepEqual(first.ContinuityConfig, second.ContinuityConfig) {
 		t.Fatalf("read tuning changed continuity: %#v != %#v", first.ContinuityConfig, second.ContinuityConfig)
 	}
-	if first.ContinuityConfig["publication"] != "shared" || first.ConsumerConfig["publication"] != "shared" {
+	if first.ContinuityConfig["publication"] != "shared" || first.ConsumerConfig["publication"] != "shared" || first.ConsumerConfig["manage_publication"] != false {
 		t.Fatalf("unmanaged publication lost: %#v", first)
 	}
 	managed, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
@@ -48,7 +48,7 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, named := managed.ContinuityConfig["publication"]; named || managed.ConsumerConfig["publication"] != managed.ConsumerName {
+	if _, named := managed.ContinuityConfig["publication"]; named || managed.ConsumerConfig["publication"] != managed.ConsumerName || managed.ConsumerConfig["manage_publication"] != true {
 		t.Fatalf("a managed publication must take the slot's name and stay out of continuity: %#v", managed)
 	}
 	if _, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{

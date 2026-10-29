@@ -47,8 +47,8 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			},
 			{
 				Name: "publication", Type: filament.FieldString, Scope: filament.ScopeConnection,
-				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Publication an administrator provisioned for CDC, when manage_publication is false",
+				VisibleWhen: &filament.FieldCondition{Field: "manage_publication", Values: []string{"false"}},
+				Help:        "Publication an administrator provisioned for CDC",
 			},
 			{
 				Name: "snapshot_mode", Type: filament.FieldEnum, Default: string(filament.SnapshotInitial), Enum: []filament.EnumOption{

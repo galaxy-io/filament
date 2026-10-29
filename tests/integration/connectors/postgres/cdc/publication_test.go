@@ -39,6 +39,13 @@ func TestPostgresCDCManagedPublicationFollowsSlot(t *testing.T) {
 	if err := src.CleanupReplicationStream(ctx, filament.ReplicationStream{ConsumerName: "filament_test_owned"}); err != nil {
 		t.Fatal(err)
 	}
+	if slots, publications := count(); slots != 0 || publications != 1 {
+		t.Fatalf("a stream that did not record ownership must keep its publication: slot=%d publication=%d", slots, publications)
+	}
+	owned := filament.ReplicationStream{ConsumerName: "filament_test_owned", ConsumerConfig: map[string]any{"manage_publication": true}}
+	if err := src.CleanupReplicationStream(ctx, owned); err != nil {
+		t.Fatal(err)
+	}
 	if slots, publications := count(); slots != 0 || publications != 0 {
 		t.Fatalf("retired stream left slot=%d publication=%d", slots, publications)
 	}

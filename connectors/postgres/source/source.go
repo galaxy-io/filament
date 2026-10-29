@@ -132,7 +132,7 @@ func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlannin
 	if !validReplicationName(consumerName) {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("postgres source: generated slot name %q is invalid", consumerName)
 	}
-	publication, err := publicationFor(request.Config, consumerName)
+	publication, managed, err := publicationFor(request.Config, consumerName)
 	if err != nil {
 		return filament.ReplicationStreamPlan{}, err
 	}
@@ -141,14 +141,14 @@ func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlannin
 		schema = defaultSchema
 	}
 	continuity := map[string]any{"schema": schema}
-	if publication != consumerName {
+	if !managed {
 		continuity["publication"] = publication
 	}
 	return filament.ReplicationStreamPlan{
 		Resources:    append([]string(nil), request.Resources...),
 		ConsumerName: consumerName,
 		ConsumerConfig: map[string]any{
-			"kind": "postgres_lsn", "publication": publication,
+			"kind": "postgres_lsn", "publication": publication, "manage_publication": managed,
 		},
 		ContinuityConfig: continuity,
 	}, nil
@@ -156,18 +156,18 @@ func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlannin
 
 // publicationFor names the publication a stream decodes from: the slot's name
 // when the connector manages it, else the one an administrator provisioned.
-func publicationFor(cfg filament.Config, slot string) (string, error) {
-	managed := !cfg.Has("manage_publication") || cfg.Bool("manage_publication")
+func publicationFor(cfg filament.Config, slot string) (publication string, managed bool, err error) {
+	managed = !cfg.Has("manage_publication") || cfg.Bool("manage_publication")
 	configured := cfg.String("publication")
 	switch {
 	case managed && configured != "":
-		return "", fmt.Errorf("postgres source: publication applies only when manage_publication is false")
+		return "", false, fmt.Errorf("postgres source: publication applies only when manage_publication is false")
 	case managed:
-		return slot, nil
+		return slot, true, nil
 	case configured == "":
-		return "", fmt.Errorf("postgres source: publication is required when manage_publication is false")
+		return "", false, fmt.Errorf("postgres source: publication is required when manage_publication is false")
 	}
-	return configured, nil
+	return configured, false, nil
 }
 
 // BindReplicationStream injects the resolved generation's slot into a run
@@ -185,8 +185,10 @@ func (s *Source) BindReplicationStream(config map[string]any, stream filament.Re
 }
 
 // CleanupReplicationStream drops a retired logical slot, and the publication
-// it owned, after its successor has committed. Missing objects are already
-// clean and therefore succeed.
+// it owned, after its successor has committed. Ownership is read from the
+// stream's own plan, so a connection moved between managed and unmanaged since
+// neither strands a managed publication nor drops an administrator's. Missing
+// objects are already clean and therefore succeed.
 func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.ReplicationStream) error {
 	if s.pool == nil {
 		return fmt.Errorf("postgres source: cleanup replication stream before configure")
@@ -199,7 +201,7 @@ func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.R
 		WHERE slot_name=$1`, stream.ConsumerName); err != nil {
 		return fmt.Errorf("postgres cdc: drop retired slot %q: %w", stream.ConsumerName, err)
 	}
-	if !s.managePublication {
+	if managed, _ := stream.ConsumerConfig["manage_publication"].(bool); !managed {
 		return nil
 	}
 	if _, err := s.pool.Exec(ctx, "DROP PUBLICATION IF EXISTS "+pgx.Identifier{stream.ConsumerName}.Sanitize()); err != nil {
@@ -217,7 +219,7 @@ func (s *Source) Validate(cfg filament.Config) error {
 	if slot == "" {
 		slot = defaultSlotName
 	}
-	publication, err := publicationFor(cfg, slot)
+	publication, _, err := publicationFor(cfg, slot)
 	if err != nil {
 		return err
 	}
@@ -276,7 +278,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		s.managePublication = cfg.Bool("manage_publication")
 	}
 	// Validate accepted the pair above, so this cannot fail.
-	s.publication, _ = publicationFor(cfg, s.slotName)
+	s.publication, _, _ = publicationFor(cfg, s.slotName)
 	if v := cfg.String("snapshot_mode"); v != "" {
 		s.snapshotMode = filament.SnapshotMode(v)
 	}
