@@ -276,3 +276,6 @@ func TestSearchRejectsUnsafeOrderingAndTimestamps(t *testing.T) {
 		}
 	}
 }
+
+func (*captureSink) Begin(context.Context) error { return nil }
+func (*captureSink) Close(context.Context) error { return nil }

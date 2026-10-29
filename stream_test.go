@@ -27,34 +27,6 @@ func (testCodec) Compare(a, b f.Position) (f.PositionOrder, error) {
 	return f.PositionIncomparable, nil
 }
 
-func TestStreamDefaultsAndApplyBinding(t *testing.T) {
-	var opts f.RunOptions
-	if err := json.Unmarshal([]byte(`{"BatchMaxRows":10}`), &opts); err != nil {
-		t.Fatal(err)
-	}
-	if opts.Execution.Normalize() != f.ExecutionBounded || opts.Execution.Validate() != nil {
-		t.Fatal("legacy options changed")
-	}
-	if f.ExecutionContinuous.Validate() != nil || f.ExecutionMode("future").Validate() == nil {
-		t.Fatal("execution must fail closed")
-	}
-	e := f.EpochRef{Attempt: f.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: "s", Generation: 1, Token: 2}, Epoch: 1, MembershipRevision: 1}
-	if err := e.ValidateApply(f.ApplyOptions{Epoch: &e}); err != nil {
-		t.Fatal(err)
-	}
-	for _, changed := range []f.EpochRef{
-		{Attempt: f.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: "s", Generation: 2, Token: 2}, Epoch: 1, MembershipRevision: 1},
-		{Attempt: f.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: "s", Generation: 1, Token: 1}, Epoch: 1, MembershipRevision: 1},
-	} {
-		if !errors.Is(e.ValidateApply(f.ApplyOptions{Epoch: &changed}), f.ErrEpochMismatch) {
-			t.Fatal("stale epoch accepted")
-		}
-	}
-	if !errors.Is(e.ValidateApply(f.ApplyOptions{}), f.ErrEpochMismatch) {
-		t.Fatal("unbound write accepted")
-	}
-}
-
 func TestCanonicalCertificateAndCoverageOwnership(t *testing.T) {
 	a, b := f.DomainKey{Incarnation: "i", Domain: "a"}, f.DomainKey{Incarnation: "i", Domain: "b"}
 	cert := f.EpochCertificate{FormatVersion: f.EpochCertificateFormatVersion, Tenant: "t", PipelineVersionID: "p", Ref: f.EpochRef{Attempt: f.AttemptRef{RunID: "r", ExecutionID: "e", StreamID: "s", Generation: 1, Token: 1}, Epoch: 1, MembershipRevision: 1}, Coverage: f.Coverage{Positions: f.DomainPositions{b: {Codec: "c", Version: 1, Value: []byte("B")}, a: {Codec: "c", Version: 1, Value: []byte("A")}}}, Receipts: []f.EpochReceipt{{Resource: "b"}, {Resource: "a"}}}

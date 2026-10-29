@@ -3570,7 +3570,7 @@
         "enum": [
           "NULL_VALUE"
         ],
-        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
+        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a Value with a `null_value` set\n as a JSON `null` regardless of the integer value, and so will round trip to\n a `0` value."
       },
       "google.protobuf.Struct": {
         "type": "object",

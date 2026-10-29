@@ -4,15 +4,9 @@ import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
-import {
-  usePipelineCanvasActions,
-  usePipelineCanvasState,
-} from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
+import { usePipelineCanvasActions } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import {
-  hasSiblingIncrementalRead,
-  type PipelineCanvasEdgeModeOptions,
-} from "@/pages/pipelines/canvas/utils";
+import type { PipelineCanvasEdgeModeOptions } from "@/pages/pipelines/canvas/utils";
 import {
   getCompatibleWriteModes,
   getReadModeSelectOptions,
@@ -22,6 +16,7 @@ import {
 interface PipelineCanvasEdgeConfigOptions extends PipelineCanvasEdgeModeOptions {
   resource: Resource["name"];
   defaultCursor: ResourceColumn["name"];
+  hasReadLevers: boolean;
 }
 
 export const usePipelineCanvasEdgeConfig = (
@@ -33,9 +28,9 @@ export const usePipelineCanvasEdgeConfig = (
     effectiveWriteMode,
     resource,
     defaultCursor,
+    hasReadLevers,
   }: PipelineCanvasEdgeConfigOptions,
 ) => {
-  const { edges } = usePipelineCanvasState();
   const { setEdgeConfig, setRouteWriteMode } = usePipelineCanvasActions();
 
   const configuredReadMode = edge.data?.readMode ?? ReadMode.UNSPECIFIED;
@@ -59,11 +54,9 @@ export const usePipelineCanvasEdgeConfig = (
           }),
         ];
 
-  const routeHasIncremental =
-    readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, edge, edge.id);
   const compatibleWriteModes = getCompatibleWriteModes(
     writeModeOptions,
-    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+    readMode === ReadMode.INCREMENTAL ? [ReadMode.INCREMENTAL] : [],
   );
 
   const handleReadModeChange = (mode: ReadMode) => {
@@ -79,11 +72,17 @@ export const usePipelineCanvasEdgeConfig = (
       cursors: mode === ReadMode.INCREMENTAL ? createDefaultCursors() : [],
       transform: edge.data?.transform,
     });
-    if (nextWriteMode !== writeMode) setRouteWriteMode(edge.source, edge.target, nextWriteMode);
   };
 
   const handleWriteModeChange = (mode: WriteMode) =>
-    setRouteWriteMode(edge.source, edge.target, mode);
+    hasReadLevers
+      ? setEdgeConfig(edge.id, {
+          readMode,
+          writeMode: mode,
+          cursors,
+          transform: edge.data?.transform,
+        })
+      : setRouteWriteMode(edge.source, edge.target, mode);
 
   const handleCursorChange = (field: ResourceColumn["name"]) =>
     setEdgeConfig(edge.id, {

@@ -17,6 +17,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -28,6 +29,7 @@ type indexMeta struct {
 
 // Sink writes Arrow record batches into Meilisearch indexes.
 type Sink struct {
+	sinkstate.SingleWrite
 	mu       sync.Mutex
 	cfg      Config
 	client   *Client
@@ -538,3 +540,6 @@ func sanitizeIndexUID(prefix, resource string) string {
 func errorsIs(err, target error) bool {
 	return err == target || (err != nil && target != nil && err.Error() == target.Error())
 }
+
+// Close releases local session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { return nil }

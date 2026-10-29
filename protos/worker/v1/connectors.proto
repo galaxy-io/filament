@@ -90,22 +90,14 @@ message WritePolicyCapability {
   WriteDurability durability = 6;
 }
 
-message StreamingSinkCapabilities {
-  repeated WritePolicyCapability write_policies = 1;
-  bool owner_fencing = 2;
-  bool isolated_epochs = 3;
-  optional google.protobuf.Duration in_flight_bound = 4;
-}
-
 message SinkCapabilities {
-  StreamingSinkCapabilities stream = 1;
-  bool transactional = 2;
-  bool schematized = 3;
-  bool encoded_integrity = 4;
-  repeated WritePolicyCapability write_policies = 5;
-  int64 preferred_batch_rows = 6;
-  int64 preferred_batch_bytes = 7;
-  google.protobuf.Duration preferred_flush_interval = 8;
+  bool reusable_session = 1;
+  bool schematized = 2;
+  bool encoded_integrity = 3;
+  repeated WritePolicyCapability write_policies = 4;
+  int64 preferred_batch_rows = 5;
+  int64 preferred_batch_bytes = 6;
+  google.protobuf.Duration preferred_flush_interval = 7;
 }
 
 // Source is a source spec: the public projection plus the facts the engine

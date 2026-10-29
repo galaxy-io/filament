@@ -33,7 +33,7 @@ read starts that table again. The connector is beta.
 | `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
 | `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
-| `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it, `none` streams from the current position only. |
+| `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it. Applies to bounded and continuous execution. |
 
 ## Read strategies
 
@@ -118,7 +118,7 @@ admission. The PostgreSQL datastore provides it; the in-memory datastore does
 not, and compilation fails with a precondition error instead of sharing an
 unsafe process-local slot.
 
-When a selected table has no CDC checkpoint, the slot is created with an
+In bounded execution, when a selected table has no CDC checkpoint, the slot is created with an
 exported snapshot and the table is read in full through that snapshot, so the
 baseline and the change stream share one consistent point. Run row limits do
 not apply to this bootstrap read.
@@ -129,13 +129,47 @@ already exists), so the sink starts empty and fills in as rows change. With
 `REPLICA IDENTITY FULL` updates carry the full row, so a merge sink upserts
 rows it has never seen; deletes of unseen rows are no-ops.
 
-Steady-state runs are bounded catch-up cycles. Each replays from the oldest
-resource LSN to `pg_current_wal_lsn()` at cycle start, then returns.
-Continuous CDC is a re-request loop, so it can run on a schedule.
+Bounded runs are catch-up cycles. Each replays from the oldest resource LSN
+to `pg_current_wal_lsn()` at cycle start, then returns. Schedule these runs
+when periodic catch-up is sufficient.
 Zero-change runs still persist the final LSN per resource. A
 primary-key-changing update is emitted as a delete of the old row plus an
 insert of the new one. Standby status is reported every 10 seconds, and only
 the previously durable cursor is acknowledged.
+
+### Continuous execution
+
+Continuous CDC keeps one logical replication session open and commits finite
+write boundaries as changes arrive. It does not repeatedly launch bounded runs.
+
+To enable it, set the source connection's `replication` to `cdc`, choose
+**Continuous** execution for the pipeline, and select the tables explicitly. Use merge for current table state
+or append for change history when the sink accepts CDC operations.
+
+The control datastore must support continuous runs. The PostgreSQL datastore
+provides that capability. Each selected table needs a primary key, and the
+source database needs logical replication enabled. No streaming-specific sink
+implementation is required.
+
+The default `snapshot_mode=initial` copies existing rows from a consistent
+snapshot, then streams changes retained from that snapshot's WAL position.
+The entire snapshot completes as one write boundary, even if it exceeds the
+configured boundary limits. A restart before its first checkpoint repeats the
+snapshot and catches up from retained WAL before certifying progress.
+
+Set `snapshot_mode=none` to start with changes only. After a checkpoint is
+certified, restarts resume from that position without repeating the snapshot.
+A missing slot or unavailable resume position stops the worker.
+
+Write boundaries end only after complete source transactions. A transaction
+larger than the configured row or byte target stays in one boundary. Source
+acknowledgments follow destination durability and checkpoint certification.
+Pause drains the current boundary. Resume uses the saved position. Stop ends
+the execution. Continuous pipelines do not use cron schedules.
+
+Schema changes block the worker when its cached layout no longer matches the
+replication relation. Review the schema before restarting. Append writes can
+repeat after a failure between destination success and checkpoint persistence.
 
 <Warning>
   CDC has operational sharp edges:

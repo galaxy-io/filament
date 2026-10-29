@@ -76,9 +76,11 @@ strict stream-sequence gap detection and stop when continuity cannot be proven.
 
 ## Epoch batching
 
-Workers default to a soft bound of 1,000 records and a one-second read budget.
-Embedded callers can override these values through `RunOptions.EpochBoundary`;
-provide positive `MaxRecords` and `MaxWait`. `MaxBytes` and `MaxAge` can further
+With a reusable sink, workers default to 1,000 records and a one-second read
+budget. Sinks that reopen per boundary default to 100,000 records and 30 seconds.
+These are soft targets. Consumer credit can produce smaller batches.
+Embedded callers can override these values through `RunOptions.EpochBoundary`.
+Provide positive `MaxRecords` and `MaxWait`. `MaxBytes` and `MaxAge` can further
 limit NATS reads. These settings are persisted in the admitted run specification.
 
 Managed consumers allow up to 1,000 pending messages and older single-credit

@@ -695,8 +695,6 @@ type (
 	RunID string
 	// ScheduleID identifies a schedule.
 	ScheduleID string
-	// StageID identifies a Transactional sink's staging area.
-	StageID string
 )
 
 // DefaultTenantID identifies the built-in tenant used when callers omit one.

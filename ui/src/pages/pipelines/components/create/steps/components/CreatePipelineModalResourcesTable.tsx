@@ -18,9 +18,11 @@ import {
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
+  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
+import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
@@ -55,6 +57,13 @@ const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[
     width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
     pin: Side.RIGHT,
     cell: ({ row }) => <CreatePipelineModalResourcesCursorCell row={row} />,
+  },
+  {
+    id: "writeMode",
+    header: "Write mode",
+    width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
+    pin: Side.RIGHT,
+    cell: ({ row }) => <CreatePipelineModalResourcesWriteModeCell row={row} />,
   },
 ];
 

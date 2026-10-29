@@ -16,9 +16,9 @@ import (
 	"github.com/galaxy-io/filament/transform"
 )
 
-// ValidatePipeline checks every edge of a graph: the per-resource read modes
-// and route-wide write modes the connector pair supports, their selected
-// combination, and any cursor or primary-key requirements.
+// ValidatePipeline checks every edge of a graph: the per-resource read and
+// write modes the connector pair supports, their selected combination, and any
+// cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
@@ -96,10 +96,16 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		if err != nil {
 			continue
 		}
-		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-			edgeError(ev, "write_mode", "all resources on a source-to-destination route must use the same write mode")
+		// Standard bounded routes take a write mode per resource. CDC and
+		// continuous routes plan one write for the whole stream.
+		key, message := route, "all resources on a CDC or continuous route must use the same write mode"
+		if mode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+			key, message = route+"\x00"+edge.GetResource(), "edges for the same resource must use the same write mode"
+		}
+		if previous, ok := routeWriteModes[key]; ok && previous != writeMode {
+			edgeError(ev, "write_mode", message)
 		} else {
-			routeWriteModes[route] = writeMode
+			routeWriteModes[key] = writeMode
 		}
 	}
 
@@ -697,13 +703,11 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
 	}
 	ev.EffectiveWriteMode = selected
-	if caps := snkSpec.Capabilities.Stream; caps != nil {
-		seen := map[filament.WriteMode]bool{}
-		for _, candidate := range caps.WritePolicies {
-			if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
-				seen[candidate.Mode] = true
-			}
+	seen := map[filament.WriteMode]bool{}
+	for _, candidate := range snkSpec.Capabilities.WritePolicies {
+		if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
+			seen[candidate.Mode] = true
 		}
 	}
 	if !runtimeSupported {

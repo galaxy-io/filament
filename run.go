@@ -21,6 +21,10 @@ type RunSpec struct {
 	// StartedAt is the logical run's first start time. A zero value is stamped by
 	// the runner; resumed executions retain the original value.
 	StartedAt time.Time
+	// SinkWriteID identifies a finite destination write without changing the logical run.
+	// It is set locally by the runner when opening a continuous sink session.
+	SinkWriteID        RunID     `json:"-"`
+	SinkWriteStartedAt time.Time `json:"-"`
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
@@ -47,6 +51,15 @@ type RunSpec struct {
 	// Transform is the yaml transform definition applied between source and
 	// sink; empty when the route has no transform node.
 	Transform string
+}
+
+// SinkWriteIdentity returns the artifact namespace for this destination write.
+// Bounded runs retain their existing run-based artifact names.
+func (s RunSpec) SinkWriteIdentity() RunID {
+	if s.SinkWriteID != "" {
+		return s.SinkWriteID
+	}
+	return s.Run
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
