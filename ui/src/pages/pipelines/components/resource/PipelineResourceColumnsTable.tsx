@@ -30,10 +30,10 @@ const RESOURCE_COLUMN_TABLE_COLUMNS: TableColumn<ResourceColumn>[] = [
         </Text>
         {row.isPrimaryKey && (
           <Chip
-            label="key"
-            tooltip="Primary key column"
+            label="primary key"
+            tooltip="Part of the primary key"
             size={ChipSize.SMALL}
-            variant={ChipVariant.SECONDARY}
+            variant={ChipVariant.TERTIARY}
           />
         )}
       </Flex>

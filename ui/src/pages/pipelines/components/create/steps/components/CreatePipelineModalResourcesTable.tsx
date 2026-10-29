@@ -1,7 +1,8 @@
 import { type FC, useMemo } from "react";
 
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { CaretRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -17,8 +18,10 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
+  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
+  CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
@@ -49,6 +52,26 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
       )}
     </Flex>
   ),
+};
+
+const OPEN_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
+  id: "open",
+  header: "",
+  width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN,
+  align: "right",
+  cell: ({ row }) =>
+    row.isColumnSelectable ? (
+      <Icon
+        component={CaretRightIcon}
+        size={CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE}
+        variant={IconVariant.TERTIARY}
+      />
+    ) : null,
+};
+
+const OPEN_COLUMN_PINNED: TableColumn<CreatePipelineModalResourceRow> = {
+  ...OPEN_COLUMN,
+  pin: Side.RIGHT,
 };
 
 const RESOURCE_COLUMNS_BASE: TableColumn<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
@@ -109,8 +132,15 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
     onActiveResourceChange(row.name === activeRow?.name ? undefined : row.name);
   };
 
-  const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
   const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
+  const columns = useMemo(() => {
+    if (!hasColumnSelection) {
+      return hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+    }
+    return hasReadLevers
+      ? [...RESOURCE_COLUMNS_WITH_LEVERS, OPEN_COLUMN_PINNED]
+      : [...RESOURCE_COLUMNS_BASE, OPEN_COLUMN];
+  }, [hasReadLevers, hasColumnSelection]);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
