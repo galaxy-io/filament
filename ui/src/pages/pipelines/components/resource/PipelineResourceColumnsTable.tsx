@@ -18,6 +18,47 @@ import {
   PIPELINE_RESOURCE_COLUMNS_TABLE_WIDTH_TYPE,
 } from "@/pages/pipelines/components/resource/constants";
 
+const RESOURCE_COLUMN_TABLE_COLUMNS: TableColumn<ResourceColumn>[] = [
+  {
+    id: "name",
+    header: "Column",
+    isRowHeader: true,
+    cell: ({ row }) => (
+      <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+        <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
+          {row.name}
+        </Text>
+        {row.isPrimaryKey && (
+          <Chip
+            label="key"
+            tooltip="Primary key column"
+            size={ChipSize.SMALL}
+            variant={ChipVariant.SECONDARY}
+          />
+        )}
+      </Flex>
+    ),
+  },
+  {
+    id: "type",
+    header: "Type",
+    width: PIPELINE_RESOURCE_COLUMNS_TABLE_WIDTH_TYPE,
+    align: "right",
+    cell: ({ row }) => (
+      <Flex justifyContent={JustifyContent.END} fillWidth>
+        <Text
+          size={TextSize.BODY_SM}
+          family={FontFamily.MONO}
+          variant={TextVariant.TERTIARY}
+          lineClamp={1}
+        >
+          {row.nativeType || row.logicalType}
+        </Text>
+      </Flex>
+    ),
+  },
+];
+
 interface PipelineResourceColumnsTableProps {
   columns: ResourceColumn[];
   selected: ResourceColumn["name"][];
@@ -35,50 +76,6 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
   search = "",
   onChange,
 }) => {
-  const tableColumns = useMemo<TableColumn<ResourceColumn>[]>(
-    () => [
-      {
-        id: "name",
-        header: "Column",
-        isRowHeader: true,
-        cell: ({ row }) => (
-          <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
-            <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
-              {row.name}
-            </Text>
-            {row.isPrimaryKey && (
-              <Chip
-                label="key"
-                tooltip="Primary key column"
-                size={ChipSize.SMALL}
-                variant={ChipVariant.SECONDARY}
-              />
-            )}
-          </Flex>
-        ),
-      },
-      {
-        id: "type",
-        header: "Type",
-        width: PIPELINE_RESOURCE_COLUMNS_TABLE_WIDTH_TYPE,
-        align: "right",
-        cell: ({ row }) => (
-          <Flex justifyContent={JustifyContent.END} fillWidth>
-            <Text
-              size={TextSize.BODY_SM}
-              family={FontFamily.MONO}
-              variant={TextVariant.TERTIARY}
-              lineClamp={1}
-            >
-              {row.nativeType || row.logicalType}
-            </Text>
-          </Flex>
-        ),
-      },
-    ],
-    [],
-  );
-
   const visibleColumns = useMemo(
     () => columns.filter((column) => isSearchMatch(search, column.name)),
     [columns, search],
@@ -100,7 +97,7 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
   return (
     <InfiniteTable<ResourceColumn>
       ariaLabel="Columns"
-      columns={tableColumns}
+      columns={RESOURCE_COLUMN_TABLE_COLUMNS}
       data={visibleColumns}
       getRowId={(row) => row.name}
       size={InfiniteTableSize.SMALL}

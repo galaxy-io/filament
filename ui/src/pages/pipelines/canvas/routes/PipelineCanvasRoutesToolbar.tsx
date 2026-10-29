@@ -29,6 +29,7 @@ import {
   PIPELINE_CANVAS_ROUTES_SEARCH_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_MIN_WIDTH,
+  PIPELINE_CANVAS_ROUTES_SINK_FILTER_SHRINK,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH,
   PIPELINE_CANVAS_ROUTES_TOOLBAR_COMPACT_WIDTH,
   PIPELINE_CANVAS_ROUTES_TOOLBAR_ICON_ONLY_WIDTH,
@@ -114,7 +115,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
       </FlexItem>
       {hasSinkFilter && (
         <FlexItem
-          shrink={3}
+          shrink={PIPELINE_CANVAS_ROUTES_SINK_FILTER_SHRINK}
           basis={PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH}
           minWidth={PIPELINE_CANVAS_ROUTES_SINK_FILTER_MIN_WIDTH}
         >
@@ -133,25 +134,17 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
         </FlexItem>
       )}
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={12} grow={1}>
-        {canAddRoute &&
-          (isCompact ? (
-            <Button
-              icon={PlusIcon}
-              ariaLabel="Add route"
-              tooltip="Add route"
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
-              onClick={onAddRoute}
-            />
-          ) : (
-            <Button
-              label="Add route"
-              icon={PlusIcon}
-              variant={ButtonVariant.SECONDARY}
-              size={ButtonSize.MEDIUM}
-              onClick={onAddRoute}
-            />
-          ))}
+        {canAddRoute && (
+          <Button
+            icon={PlusIcon}
+            variant={ButtonVariant.SECONDARY}
+            size={ButtonSize.MEDIUM}
+            onClick={onAddRoute}
+            {...(isCompact
+              ? { ariaLabel: "Add route", tooltip: "Add route" }
+              : { label: "Add route" })}
+          />
+        )}
         <PipelineCanvasPanelOpenButton />
       </Flex>
     </Flex>

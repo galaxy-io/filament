@@ -34,9 +34,12 @@ interface CreatePipelineModalContentState {
   activeResource?: CreatePipelineModalResourceRow["name"];
 }
 
+const DEFAULT_CONTENT_STATE: CreatePipelineModalContentState = {};
+
 const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
   const { step, rowsBySink, activeSinkId } = useCreatePipelineModalState();
-  const [localState, setLocalState] = useState<CreatePipelineModalContentState>({});
+  const [localState, setLocalState] =
+    useState<CreatePipelineModalContentState>(DEFAULT_CONTENT_STATE);
 
   const activeRow =
     step === CreatePipelineModalStep.RESOURCES
@@ -55,7 +58,7 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
       .with(CreatePipelineModalStep.RESOURCES, () => (
         <CreatePipelineModalResources
           activeRow={activeRow}
-          onActiveRowChange={handleActiveResourceChange}
+          onActiveResourceChange={handleActiveResourceChange}
         />
       ))
       .with(CreatePipelineModalStep.DELIVERY, () => <CreatePipelineModalDelivery />)
@@ -81,7 +84,7 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
     <Modal
       isOpen={isOpen}
       isFullscreen
-      header="Create a new pipeline"
+      header="New pipeline"
       sidebar={<CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
       aside={

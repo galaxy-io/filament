@@ -46,8 +46,11 @@ const getEdgeConfigKey = ({
     .sort()
     .join(";")}|${JSON.stringify(
     (columns ?? [])
-      .map((selection) => [selection.resource, [...selection.columns].sort()])
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      .map((selection) => ({
+        resource: selection.resource,
+        columns: [...selection.columns].sort(),
+      }))
+      .sort((left, right) => left.resource.localeCompare(right.resource)),
   )}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (

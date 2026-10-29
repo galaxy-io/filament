@@ -1,4 +1,4 @@
-import { type FC, useState } from "react";
+import type { FC } from "react";
 
 import { ColumnsIcon } from "@phosphor-icons/react";
 
@@ -22,42 +22,37 @@ interface PipelineCanvasPanelResourceColumnsSectionProps {
 
 const PipelineCanvasPanelResourceColumnsSection: FC<
   PipelineCanvasPanelResourceColumnsSectionProps
-> = ({ columns, selected, locked, isDisabled, error, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <PipelineCanvasPanelSection
-      icon={ColumnsIcon}
-      header="Columns"
-      isEmpty={columns.length === 0}
-      emptyHeader="No columns"
-      emptyMessage="The source reported no columns for this resource."
-      isOpen={isOpen}
-      onToggle={() => setIsOpen((prev) => !prev)}
-      trailing={
-        <PipelineResourceColumnsChip
-          selectedCount={selected.length}
-          totalCount={columns.length}
-          isRaised
-        />
-      }
-    >
-      {error && (
-        <Box padding={12}>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-            {error}
-          </Text>
-        </Box>
-      )}
-      <PipelineResourceColumnsTable
-        columns={columns}
-        selected={selected}
-        locked={locked}
-        isDisabled={isDisabled}
-        onChange={onChange}
+> = ({ columns, selected, locked, isDisabled, error, onChange }) => (
+  <PipelineCanvasPanelSection
+    icon={ColumnsIcon}
+    header="Columns"
+    isEmpty={columns.length === 0}
+    emptyHeader="No columns"
+    emptyMessage="The source reported no columns for this resource."
+    isOpenInitial={false}
+    trailing={
+      <PipelineResourceColumnsChip
+        selectedCount={selected.length}
+        totalCount={columns.length}
+        isRaised
       />
-    </PipelineCanvasPanelSection>
-  );
-};
+    }
+  >
+    {error && (
+      <Box padding={12}>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+          {error}
+        </Text>
+      </Box>
+    )}
+    <PipelineResourceColumnsTable
+      columns={columns}
+      selected={selected}
+      locked={locked}
+      isDisabled={isDisabled}
+      onChange={onChange}
+    />
+  </PipelineCanvasPanelSection>
+);
 
 export default PipelineCanvasPanelResourceColumnsSection;

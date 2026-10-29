@@ -1,10 +1,6 @@
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type {
-  GetResourceColumnsResponse,
-  Resource,
-  ResourceColumn,
-} from "@/gen/ingestion/v1/connectors_pb";
+import type { GetResourceColumnsResponse, Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
@@ -21,6 +17,8 @@ import {
   getCursorOptions,
   getDefaultCursor,
   getDefaultReadMode,
+  getEffectiveColumnSelection,
+  getLockedColumnNames,
   getPipelineResourceStatus,
 } from "@/pages/pipelines/components/resource/utils";
 
@@ -40,25 +38,6 @@ export const isResourceSelected = (
 ): boolean =>
   resource.isSelectable &&
   (selection?.[resource.name] ?? resource.metadata.default_resources !== "false");
-
-// getEffectiveColumnSelection is what a run will read: the stored selection,
-// or every column when there is none, with the key and cursor always kept. A
-// stored selection survives missing column metadata rather than widening.
-export const getEffectiveColumnSelection = ({
-  stored,
-  columns,
-  locked,
-}: {
-  stored: ResourceColumn["name"][] | undefined;
-  columns: ResourceColumn[] | undefined;
-  locked: ResourceColumn["name"][];
-}): ResourceColumn["name"][] => {
-  const known = columns?.map((column) => column.name);
-  if (stored === undefined) return known ?? [];
-  const kept = known ? stored.filter((name) => known.includes(name)) : stored;
-  const order = known ?? [...kept, ...locked];
-  return order.filter((name) => kept.includes(name) || locked.includes(name));
-};
 
 const createResourceRows = ({
   state,
@@ -117,13 +96,15 @@ const createResourceRows = ({
       ? ""
       : (state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []));
     const storedColumns = state.resourceColumns[sinkId]?.[resource.name];
+    const lockedColumns = getLockedColumnNames({
+      primaryKey: resource.primaryKey,
+      cursor: cursorField,
+      isCursorLocked: hasReadLevers && readMode === ReadMode.INCREMENTAL,
+    });
     const selectedColumns = getEffectiveColumnSelection({
       stored: storedColumns,
       columns: resourceColumns,
-      locked: [
-        ...resource.primaryKey,
-        ...(hasReadLevers && readMode === ReadMode.INCREMENTAL && cursorField ? [cursorField] : []),
-      ],
+      locked: lockedColumns,
     });
 
     return {
@@ -140,6 +121,7 @@ const createResourceRows = ({
       managedIncremental,
       columns: resourceColumns ?? [],
       selectedColumns,
+      lockedColumns,
       isColumnSelectable: selectableResources.has(resource.name) || storedColumns !== undefined,
       status:
         !hasReadLevers || !isSelected

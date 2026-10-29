@@ -27,7 +27,7 @@ import { IS_DEBUG } from "@/constants";
 
 interface CreatePipelineModalResourcesProps {
   activeRow?: CreatePipelineModalResourceRow;
-  onActiveRowChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
+  onActiveResourceChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
 }
 
 interface CreatePipelineModalResourcesState {
@@ -42,7 +42,7 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
 
 const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
   activeRow,
-  onActiveRowChange,
+  onActiveResourceChange,
 }) => {
   const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
@@ -127,7 +127,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
       <CreatePipelineModalResourcesTable
         rows={filteredRows}
         activeRow={activeRow}
-        onActiveRowChange={onActiveRowChange}
+        onActiveResourceChange={onActiveResourceChange}
       />
     </Flex>
   );

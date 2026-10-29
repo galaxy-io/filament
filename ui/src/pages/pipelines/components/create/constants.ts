@@ -12,9 +12,9 @@ export const CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH = 12;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE = 160;
-export const CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_WIDTH = 440;
-export const CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_FIELD_HEIGHT = 32;
-export const CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_LABEL_WIDTH = 96;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_WIDTH = 440;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT = 32;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH = 96;
 
 export const CREATE_PIPELINE_MODAL_STEP_ORDER: CreatePipelineModalStep[] = [
   CreatePipelineModalStep.CONNECTIONS,
@@ -72,8 +72,8 @@ export const EXECUTION_MODE_TO_LABEL_MAP: Record<ExecutionMode, string> = {
 
 export const EXECUTION_MODE_TO_DESCRIPTION_MAP: Record<ExecutionMode, string> = {
   [ExecutionMode.UNSPECIFIED]: "",
-  [ExecutionMode.BOUNDED]: "Reads available data then stops.",
-  [ExecutionMode.CONTINUOUS]: "Streams new data until stopped.",
+  [ExecutionMode.BOUNDED]: "Reads available data then stops",
+  [ExecutionMode.CONTINUOUS]: "Streams new data until stopped",
 };
 
 export const EXECUTION_MODE_TO_DETAILS_MAP: Record<ExecutionMode, string> = {

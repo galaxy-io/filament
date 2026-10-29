@@ -23,18 +23,14 @@ const PipelineCanvasViewSwitcher: FC<PipelineCanvasViewSwitcherProps> = ({
   const { view, setView } = usePipelineCanvasSelection();
 
   const items: ToggleOption<PipelineCanvasView>[] = Object.values(PipelineCanvasView).map(
-    (candidate) =>
-      isIconOnly
-        ? {
-            id: candidate,
-            ariaLabel: PIPELINE_CANVAS_VIEW_TO_LABEL_MAP[candidate],
-            icon: PIPELINE_CANVAS_VIEW_TO_ICON_MAP[candidate],
-          }
-        : {
-            id: candidate,
-            label: PIPELINE_CANVAS_VIEW_TO_LABEL_MAP[candidate],
-            icon: PIPELINE_CANVAS_VIEW_TO_ICON_MAP[candidate],
-          },
+    (candidate) => {
+      const label = PIPELINE_CANVAS_VIEW_TO_LABEL_MAP[candidate];
+      return {
+        id: candidate,
+        icon: PIPELINE_CANVAS_VIEW_TO_ICON_MAP[candidate],
+        ...(isIconOnly ? { ariaLabel: label } : { label }),
+      };
+    },
   );
 
   return (

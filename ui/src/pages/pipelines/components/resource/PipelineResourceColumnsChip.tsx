@@ -12,19 +12,17 @@ const PipelineResourceColumnsChip: FC<PipelineResourceColumnsChipProps> = ({
   selectedCount,
   totalCount,
   isRaised = false,
-}) => (
-  <Chip
-    label={`${selectedCount} of ${totalCount}`}
-    tooltip="Selected columns"
-    size={ChipSize.SMALL}
-    variant={
-      selectedCount !== totalCount
-        ? ChipVariant.PRIMARY
-        : isRaised
-          ? ChipVariant.TERTIARY
-          : ChipVariant.SECONDARY
-    }
-  />
-);
+}) => {
+  const fullVariant = isRaised ? ChipVariant.TERTIARY : ChipVariant.SECONDARY;
+
+  return (
+    <Chip
+      label={`${selectedCount} of ${totalCount}`}
+      tooltip="Selected columns"
+      size={ChipSize.SMALL}
+      variant={selectedCount === totalCount ? fullVariant : ChipVariant.PRIMARY}
+    />
+  );
+};
 
 export default PipelineResourceColumnsChip;

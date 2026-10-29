@@ -6,6 +6,7 @@ export enum PipelineResourceStatusField {
   READ_MODE = "readMode",
   CURSOR = "cursor",
   WRITE_MODE = "writeMode",
+  COLUMNS = "columns",
 }
 
 export interface PipelineResourceStatus {

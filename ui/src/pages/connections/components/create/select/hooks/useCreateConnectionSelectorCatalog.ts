@@ -23,7 +23,7 @@ export const useCreateConnectionSelectorCatalog = (
   connectorSearch: string,
   shelf: CreateConnectionSelectorShelf,
 ) => {
-  const { data, error, isError, isLoading } = useListConnectorsQuery();
+  const { data, error, isLoading } = useListConnectorsQuery();
 
   const families = useMemo(() => {
     const catalog = data?.connectors ?? [];
@@ -63,5 +63,5 @@ export const useCreateConnectionSelectorCatalog = (
     isConnectorOnShelf(connector, shelf),
   );
 
-  return { familyCount: families.length, shelfItems, shelfFamilies, error, isError, isLoading };
+  return { familyCount: families.length, shelfItems, shelfFamilies, error, isLoading };
 };

@@ -81,13 +81,13 @@ const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
   activeRow?: CreatePipelineModalResourceRow;
-  onActiveRowChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
+  onActiveResourceChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
 }
 
 const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTableProps> = ({
   rows,
   activeRow,
-  onActiveRowChange,
+  onActiveResourceChange,
 }) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const { setResourceSelection } = useCreatePipelineModalActions();
@@ -106,7 +106,7 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
 
   const handleRowClick = (row: CreatePipelineModalResourceRow) => {
     if (!row.isColumnSelectable) return;
-    onActiveRowChange(row.name === activeRow?.name ? undefined : row.name);
+    onActiveResourceChange(row.name === activeRow?.name ? undefined : row.name);
   };
 
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;

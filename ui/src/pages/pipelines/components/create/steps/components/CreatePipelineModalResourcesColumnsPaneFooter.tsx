@@ -5,8 +5,8 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
 
 import {
-  CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_FIELD_HEIGHT,
-  CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_LABEL_WIDTH,
+  CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT,
+  CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
@@ -30,9 +30,9 @@ const CreatePipelineModalResourcesColumnsPaneFooter: FC<
         key={label}
         alignItems={AlignItems.CENTER}
         gap={12}
-        minHeight={CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_FIELD_HEIGHT}
+        minHeight={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT}
       >
-        <FlexItem shrink={0} basis={CREATE_PIPELINE_MODAL_COLUMNS_ASIDE_LABEL_WIDTH}>
+        <FlexItem shrink={0} basis={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH}>
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} variant={TextVariant.SECONDARY}>
             {label}
           </Text>
