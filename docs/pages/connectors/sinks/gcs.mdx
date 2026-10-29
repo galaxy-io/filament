@@ -70,6 +70,11 @@ one configured chunk per active resource and retries transient chunk failures.
 Objects are finalized during `Commit`; the success manifest is uploaded only
 after all resource writers close successfully.
 
+Parquet combines source batches into row groups of up to 65,536 rows instead
+of creating a group for every source transaction. It buffers one row group
+per active resource and flushes the last group at commit. This row limit does
+not set a fixed byte limit for variable-width values.
+
 `Abort` cancels unfinished resumable writers. If `Commit` fails after some
 resource objects have finalized, those objects can remain without a success
 manifest, matching the S3 sink's resource-level atomicity.
