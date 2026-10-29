@@ -2,13 +2,13 @@ import { type FC, useState } from "react";
 
 import { ColumnsIcon } from "@phosphor-icons/react";
 
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Box from "@galaxy-io/dls/layout/Box";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import PipelineCanvasPanelSection from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelSection";
+import PipelineResourceColumnsChip from "@/pages/pipelines/components/resource/PipelineResourceColumnsChip";
 import PipelineResourceColumnsTable from "@/pages/pipelines/components/resource/PipelineResourceColumnsTable";
 
 interface PipelineCanvasPanelResourceColumnsSectionProps {
@@ -35,12 +35,7 @@ const PipelineCanvasPanelResourceColumnsSection: FC<
       isOpen={isOpen}
       onToggle={() => setIsOpen((prev) => !prev)}
       trailing={
-        <Chip
-          label={`${selected.length} of ${columns.length}`}
-          tooltip="Selected columns"
-          size={ChipSize.SMALL}
-          variant={selected.length === columns.length ? ChipVariant.SECONDARY : ChipVariant.PRIMARY}
-        />
+        <PipelineResourceColumnsChip selectedCount={selected.length} totalCount={columns.length} />
       }
     >
       {error && (

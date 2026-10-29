@@ -17,6 +17,7 @@ const PipelineCanvasPanelResourceTransformSectionPending: FC = () => (
     isEmpty={false}
     emptyHeader={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_HEADER}
     emptyMessage={PIPELINE_CANVAS_PANEL_RESOURCE_TRANSFORM_EMPTY_MESSAGE}
+    isOpenInitial={false}
   >
     <PipelineTransformFieldsPending />
   </PipelineCanvasPanelSection>

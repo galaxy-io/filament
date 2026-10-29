@@ -1,11 +1,15 @@
 import { type FC, useMemo } from "react";
 
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import InfiniteTable, { InfiniteTableSize } from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { isSearchMatch } from "@galaxy-io/dls/utils/search";
 
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -19,6 +23,7 @@ interface PipelineResourceColumnsTableProps {
   selected: ResourceColumn["name"][];
   locked: ResourceColumn["name"][];
   isDisabled: boolean;
+  search?: string;
   onChange: (selected: ResourceColumn["name"][]) => void;
 }
 
@@ -27,6 +32,7 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
   selected,
   locked,
   isDisabled,
+  search = "",
   onChange,
 }) => {
   const tableColumns = useMemo<TableColumn<ResourceColumn>[]>(
@@ -73,10 +79,21 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
     [],
   );
 
+  const visibleColumns = useMemo(
+    () => columns.filter((column) => isSearchMatch(search, column.name)),
+    [columns, search],
+  );
+
   const handleChange = (next: ResourceColumn["name"][]) => {
+    const visibleNames = new Set(visibleColumns.map((column) => column.name));
     const kept = columns
       .map((column) => column.name)
-      .filter((name) => next.includes(name) || locked.includes(name));
+      .filter(
+        (name) =>
+          next.includes(name) ||
+          locked.includes(name) ||
+          (!visibleNames.has(name) && selected.includes(name)),
+      );
     if (kept.length > 0) onChange(kept);
   };
 
@@ -84,12 +101,20 @@ const PipelineResourceColumnsTable: FC<PipelineResourceColumnsTableProps> = ({
     <InfiniteTable<ResourceColumn>
       ariaLabel="Columns"
       columns={tableColumns}
-      data={columns}
+      data={visibleColumns}
       getRowId={(row) => row.name}
       size={InfiniteTableSize.SMALL}
       inset={PIPELINE_RESOURCE_COLUMNS_TABLE_INSET}
       value={selected}
       onChange={isDisabled ? undefined : handleChange}
+      canSelectRow={(column) => !locked.includes(column.name)}
+      emptyState={
+        <EmptyLayout
+          size={EmptyLayoutSize.SMALL}
+          icon={MagnifyingGlassIcon}
+          header="No columns match your search"
+        />
+      }
       isSelectable
     />
   );

@@ -5,6 +5,7 @@ import { styled } from "@linaria/react";
 import {
   PIPELINE_CANVAS_ROUTES_LIST_PADDING_X,
   PIPELINE_CANVAS_ROUTES_ROW_HEIGHT,
+  PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import PipelineCanvasRoutesRowEdge from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesRowEdge";
@@ -22,8 +23,10 @@ const RowWrapper = styled.div`
 `;
 
 const SourceSlot = styled.div`
-  width: ${PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}px;
-  flex-shrink: 0;
+  flex: 0 1 ${PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}px;
+  min-width: ${PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH}px;
+
+  display: flex;
 `;
 
 interface PipelineCanvasRoutesRowProps {

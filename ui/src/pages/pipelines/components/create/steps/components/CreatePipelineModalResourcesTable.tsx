@@ -8,7 +8,7 @@ import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
-import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
 import {
@@ -20,11 +20,12 @@ import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
 } from "@/pages/pipelines/components/create/constants";
-import CreatePipelineModalResourcesColumnsRow from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsRow";
+import CreatePipelineModalResourcesColumnsPane from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsPane";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import PipelineResourceColumnsChip from "@/pages/pipelines/components/resource/PipelineResourceColumnsChip";
 
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   id: "name",
@@ -40,9 +41,12 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
         </Text>
       </FlexItem>
       {row.isColumnSelectable && row.selectedColumns.length !== row.columns.length && (
-        <Text size={TextSize.BODY_SM} family={FontFamily.MONO} variant={TextVariant.TERTIARY}>
-          {row.selectedColumns.length} of {row.columns.length}
-        </Text>
+        <FlexItem shrink={0}>
+          <PipelineResourceColumnsChip
+            selectedCount={row.selectedColumns.length}
+            totalCount={row.columns.length}
+          />
+        </FlexItem>
       )}
     </Flex>
   ),
@@ -77,10 +81,14 @@ const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[
 
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
+  activeRow?: CreatePipelineModalResourceRow;
+  onActiveRowChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
 }
 
 const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTableProps> = ({
   rows,
+  activeRow,
+  onActiveRowChange,
 }) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const { setResourceSelection } = useCreatePipelineModalActions();
@@ -97,12 +105,17 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
       selection: Object.fromEntries(names.map((name) => [name, true])),
     });
 
+  const handleRowClick = (row: CreatePipelineModalResourceRow) => {
+    if (!row.isColumnSelectable) return;
+    onActiveRowChange(row.name === activeRow?.name ? undefined : row.name);
+  };
+
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
   const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
-      <Box variant={BoxVariant.PRIMARY} height="100%">
+      <Box variant={BoxVariant.PRIMARY} position="relative" height="100%">
         <InfiniteTable<CreatePipelineModalResourceRow>
           ariaLabel="Resources"
           columns={columns}
@@ -111,14 +124,8 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
           isLoading={isLoading}
           value={selectedNames}
           onChange={handleSelectionChange}
-          renderExpandedRow={
-            hasColumnSelection
-              ? (row) =>
-                  row.isColumnSelectable && row.isSelected ? (
-                    <CreatePipelineModalResourcesColumnsRow row={row} />
-                  ) : null
-              : undefined
-          }
+          onRowClick={hasColumnSelection ? handleRowClick : undefined}
+          activeRowId={activeRow?.name ?? null}
           emptyState={
             <Flex
               direction={FlexDirection.COLUMN}
@@ -131,6 +138,13 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
           }
           isSelectable
         />
+        {activeRow && (
+          <CreatePipelineModalResourcesColumnsPane
+            key={activeRow.name}
+            row={activeRow}
+            onClose={() => onActiveRowChange(undefined)}
+          />
+        )}
       </Box>
     </FlexItem>
   );

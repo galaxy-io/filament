@@ -234,6 +234,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
+                {hasReadLevers &&
+                  readMode === ReadMode.INCREMENTAL &&
+                  (isManagedIncremental ? (
+                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
+                  ) : (
+                    <PipelineCanvasPanelResourceCursorField
+                      value={cursor ?? ""}
+                      options={cursorOptions}
+                      isDisabled={isReadOnly || isLoading}
+                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
+                      onChange={handleCursorChange}
+                    />
+                  ))}
                 <SelectInput
                   label="Write mode"
                   options={writeModeSelectOptions}
@@ -258,19 +271,6 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
-                {hasReadLevers &&
-                  readMode === ReadMode.INCREMENTAL &&
-                  (isManagedIncremental ? (
-                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
-                  ) : (
-                    <PipelineCanvasPanelResourceCursorField
-                      value={cursor ?? ""}
-                      options={cursorOptions}
-                      isDisabled={isReadOnly || isLoading}
-                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
-                      onChange={handleCursorChange}
-                    />
-                  ))}
               </Flex>
             </PipelineCanvasPanelSection>
             {isColumnSelectable && (

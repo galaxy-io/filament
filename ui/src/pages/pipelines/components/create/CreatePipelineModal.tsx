@@ -3,12 +3,9 @@ import type { FC } from "react";
 import { match } from "ts-pattern";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
-import Divider from "@galaxy-io/dls/layout/Divider";
-import Flex, { FlexDirection, FlexVariant } from "@galaxy-io/dls/layout/Flex";
-import FlexItem from "@galaxy-io/dls/layout/FlexItem";
+import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
-import Modal, { ModalSize } from "@galaxy-io/dls/modal/Modal";
-import { Orientation, Radius } from "@galaxy-io/dls/theme/enums";
+import Modal from "@galaxy-io/dls/modal/Modal";
 
 import CreatePipelineModalProvider, {
   useCreatePipelineModalState,
@@ -58,28 +55,19 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
   return (
     <Modal
       isOpen={isOpen}
-      size={ModalSize.X_LARGE}
+      isFullscreen
       header="Create a new pipeline"
+      sidebar={<CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
+      hasDividers
+      isFlush
       onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}
     >
-      <Flex
-        height="100%"
-        variant={FlexVariant.PRIMARY}
-        hasBorder
-        radius={Radius.LG}
-        overflow="hidden"
-      >
-        <CreatePipelineModalSidebar />
-        <Divider orientation={Orientation.VERTICAL} />
-        <FlexItem grow={1} basis={0} minWidth={0}>
-          <Box variant={BoxVariant.BASE} height="100%">
-            {renderBody()}
-          </Box>
-        </FlexItem>
-      </Flex>
+      <Box variant={BoxVariant.BASE} height="100%">
+        {renderBody()}
+      </Box>
     </Modal>
   );
 };
