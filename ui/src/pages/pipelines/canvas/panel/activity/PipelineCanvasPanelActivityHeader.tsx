@@ -1,10 +1,11 @@
 import type { FC } from "react";
 
 import { styled } from "@linaria/react";
-import { PulseIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon, PulseIcon } from "@phosphor-icons/react";
 
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { SquareSize } from "@galaxy-io/dls/shapes/Square";
 import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
@@ -15,6 +16,7 @@ import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
 import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
+import { PIPELINE_CANVAS_PANEL_ACTIVITY_CARET_SIZE } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 
 const ActivityHeaderToggle = styled.button`
@@ -69,6 +71,20 @@ const PipelineCanvasPanelActivityHeader: FC<PipelineCanvasPanelActivityHeaderPro
                 </Text>
               </Flex>
             ),
+            <Flex
+              key="caret"
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.CENTER}
+              width={t.size.control.small}
+              height={t.size.control.small}
+              shrink={0}
+            >
+              <Icon
+                component={isOpen ? CaretDownIcon : CaretUpIcon}
+                size={PIPELINE_CANVAS_PANEL_ACTIVITY_CARET_SIZE}
+                variant={IconVariant.SECONDARY}
+              />
+            </Flex>,
           ]}
         />
       </ActivityHeaderContent>
