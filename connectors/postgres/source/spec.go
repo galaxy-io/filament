@@ -43,7 +43,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			{
 				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Create one publication per pipeline route with its selected tables",
+				Help:        "Create one publication per pipeline route with its selected tables and columns",
 			},
 			{
 				Name: "publication", Type: filament.FieldString, Scope: filament.ScopeConnection,

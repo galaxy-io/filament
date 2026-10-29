@@ -444,39 +444,43 @@ func (s *Source) applyPublicationTables(ctx context.Context, replace, missing []
 	return nil
 }
 
-// reconcilePublishedColumns compares a published table's column list with the
-// one the selection wants. A managed publication is rewritten on any
-// difference; an unmanaged one must already publish every selected column.
+// reconcilePublishedColumns reports whether a published table's column list
+// must be rewritten to the one this run wants. A managed publication belongs
+// to this stream alone, so its lists are exactly the selection. An unmanaged
+// one is never rewritten and must already publish every column the run reads.
 func (s *Source) reconcilePublishedColumns(resource string, desired []string, entry publishedTable) (bool, error) {
-	switch {
-	case desired == nil && !entry.filtered:
-		return false, nil
-	case desired == nil:
-		if !s.managePublication {
-			return false, fmt.Errorf("postgres cdc: publication %q limits the columns of %s; select the published columns or publish every column", s.publication, resource)
-		}
-		return true, nil
-	case !entry.filtered:
-		return s.managePublication, nil
-	case sameColumnSet(entry.columns, desired):
-		return false, nil
-	case !s.managePublication:
-		if !subsetOf(desired, entry.columns) {
-			return false, fmt.Errorf("postgres cdc: publication %q does not publish every selected column of %s", s.publication, resource)
-		}
-		return false, nil
-	default:
-		return true, nil
+	if !s.managePublication {
+		return false, s.checkPublishedColumns(resource, entry)
 	}
+	return entry.filtered != (desired != nil) || !sameColumnSet(entry.columns, desired), nil
+}
+
+// checkPublishedColumns rejects a publication column list that would hide a
+// column this run reads. The decoder would otherwise null the unpublished
+// columns.
+func (s *Source) checkPublishedColumns(resource string, entry publishedTable) error {
+	if !entry.filtered {
+		return nil
+	}
+	selected, ok := s.selected[resource]
+	if !ok {
+		return fmt.Errorf("postgres cdc: publication %q limits the columns of %s; select the published columns or publish every column", s.publication, resource)
+	}
+	if !subsetOf(selected, entry.columns) {
+		return fmt.Errorf("postgres cdc: publication %q does not publish every selected column of %s", s.publication, resource)
+	}
+	return nil
 }
 
 // publicationColumnLists returns the column list each selected table publishes
-// with, or nil for every column. A publication column list needs Postgres 15,
-// and a table with REPLICA IDENTITY FULL cannot carry one, so WAL for those
-// tables carries every column and the decoder drops the unselected ones.
+// with, or nil for every column. A publication column list needs Postgres 15
+// and must cover the table's replica identity, or Postgres rejects the
+// application's own updates and deletes. A table with REPLICA IDENTITY FULL,
+// or an identity index the selection does not cover, publishes every column
+// and the decoder drops the unselected ones.
 func (s *Source) publicationColumnLists(ctx context.Context, resources []string) (map[string][]string, error) {
 	lists := make(map[string][]string, len(s.selected))
-	if len(s.selected) == 0 {
+	if len(s.selected) == 0 || !s.managePublication {
 		return lists, nil
 	}
 	version, err := s.serverVersion(ctx)
@@ -492,10 +496,17 @@ func (s *Source) publicationColumnLists(ctx context.Context, resources []string)
 			continue
 		}
 		var identity string
-		if err := s.pool.QueryRow(ctx, `SELECT c.relreplident FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2`, s.schema, resource).Scan(&identity); err != nil {
+		var identityColumns []string
+		if err := s.pool.QueryRow(ctx, `SELECT c.relreplident, COALESCE((
+			SELECT array_agg(a.attname ORDER BY k.ord)
+			FROM pg_index i
+			JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+			JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+			WHERE i.indrelid = c.oid AND i.indisreplident), '{}')::text[]
+			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2`, s.schema, resource).Scan(&identity, &identityColumns); err != nil {
 			return nil, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
 		}
-		if identity == "f" {
+		if identity == "f" || (identity == "i" && !subsetOf(identityColumns, selected)) {
 			continue
 		}
 		lists[resource] = selected

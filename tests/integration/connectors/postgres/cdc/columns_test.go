@@ -52,7 +52,7 @@ func TestPostgresCDCColumnSelection(t *testing.T) {
 	}
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_test_columns", "publication": "filament_test_columns",
+		"dsn": pg.DSN(), "slot_name": "filament_test_columns",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestPostgresCDCColumnSelection(t *testing.T) {
 	}
 	second := testutil.StreamCheckpoint(t, changes.Records, "cdc_columns")
 
-	// Clearing the selection restores every column on the managed publication.
+	// Clearing the selection restores every column on the stream's publication.
 	if err := src.SelectColumns(nil); err != nil {
 		t.Fatal(err)
 	}
@@ -109,6 +109,25 @@ func TestPostgresCDCColumnSelection(t *testing.T) {
 	if got := batchColumns(t, widened, "cdc_columns"); strings.Join(got, ",") != "id,name,secret" {
 		t.Fatalf("widened columns = %v", got)
 	}
+	third := testutil.StreamCheckpoint(t, widened.Records, "cdc_columns")
+
+	// The publication is this stream's own, so a narrower selection narrows it.
+	if err := src.SelectColumns(map[string][]string{"cdc_columns": {"id"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pg.Pool().Exec(ctx, `INSERT INTO cdc_columns VALUES (4, 'Barbara', 'shown')`); err != nil {
+		t.Fatal(err)
+	}
+	narrowed := &testutil.CollectSink{}
+	if err := src.ExtractChanges(ctx, narrowed, filament.ChangeExtractOpts{Resources: []string{"cdc_columns"}, Checkpoints: map[string]filament.Checkpoint{"cdc_columns": third}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := publishedColumns(t, pg, "filament_test_columns", "cdc_columns"); strings.Join(got, ",") != "id" {
+		t.Fatalf("publication columns after narrowing = %v, want id", got)
+	}
+	if got := batchColumns(t, narrowed, "cdc_columns"); strings.Join(got, ",") != "id" {
+		t.Fatalf("narrowed columns = %v", got)
+	}
 }
 
 func TestPostgresCDCColumnSelectionWithReplicaIdentityFull(t *testing.T) {
@@ -123,7 +142,7 @@ func TestPostgresCDCColumnSelectionWithReplicaIdentityFull(t *testing.T) {
 	}
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_test_full_columns", "publication": "filament_test_full_columns",
+		"dsn": pg.DSN(), "slot_name": "filament_test_full_columns",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +172,7 @@ func TestPostgresCDCColumnSelectionWithReplicaIdentityFull(t *testing.T) {
 	}
 }
 
-func TestPostgresCDCUnmanagedPublicationMustCoverSelection(t *testing.T) {
+func TestPostgresCDCPublicationMustCoverSelection(t *testing.T) {
 	ctx := context.Background()
 	pg := testcontainers.SharedPostgresCDC(t)
 	if _, err := pg.Pool().Exec(ctx, `
@@ -178,7 +197,7 @@ func TestPostgresCDCUnmanagedPublicationMustCoverSelection(t *testing.T) {
 		t.Fatalf("narrower publication must be refused, got %v", err)
 	}
 	if got := publishedColumns(t, pg, "filament_test_narrow", "cdc_narrow"); strings.Join(got, ",") != "id" {
-		t.Fatalf("an unmanaged publication must stay untouched, got %v", got)
+		t.Fatalf("the publication must stay untouched, got %v", got)
 	}
 }
 
@@ -219,5 +238,48 @@ func TestPostgresSnapshotColumnSelection(t *testing.T) {
 	}
 	if _, err := src.Schema(ctx, "snap_columns"); err == nil || !strings.Contains(err.Error(), "primary key") {
 		t.Fatalf("dropping the key must fail the schema, got %v", err)
+	}
+}
+
+func TestPostgresCDCColumnSelectionKeepsIndexIdentityWritable(t *testing.T) {
+	ctx := context.Background()
+	pg := testcontainers.SharedPostgresCDC(t)
+	if _, err := pg.Pool().Exec(ctx, `
+		CREATE TABLE cdc_index_identity (id bigint PRIMARY KEY, code text NOT NULL, secret text);
+		CREATE UNIQUE INDEX cdc_index_identity_code ON cdc_index_identity (id, code);
+		ALTER TABLE cdc_index_identity REPLICA IDENTITY USING INDEX cdc_index_identity_code;
+		INSERT INTO cdc_index_identity VALUES (1, 'a', 'hidden');
+	`); err != nil {
+		t.Fatal(err)
+	}
+	src := pgsource.New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"dsn": pg.DSN(), "slot_name": "filament_test_index_identity",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = src.Teardown(ctx) }()
+	// The selection keeps the primary key but not the whole identity index.
+	if err := src.SelectColumns(map[string][]string{"cdc_index_identity": {"id", "secret"}}); err != nil {
+		t.Fatal(err)
+	}
+	initial := &testutil.CollectSink{}
+	if err := src.ExtractChanges(ctx, initial, filament.ChangeExtractOpts{Resources: []string{"cdc_index_identity"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := publishedColumns(t, pg, "filament_test_index_identity", "cdc_index_identity"); strings.Join(got, ",") != "id,code,secret" {
+		t.Fatalf("publication must stay whole when the selection misses an identity column, got %v", got)
+	}
+	// Postgres would reject this write under a column list missing "code".
+	if _, err := pg.Pool().Exec(ctx, `UPDATE cdc_index_identity SET secret = 'changed' WHERE id = 1`); err != nil {
+		t.Fatalf("application write blocked by the publication: %v", err)
+	}
+	first := testutil.StreamCheckpoint(t, initial.Records, "cdc_index_identity")
+	changes := &testutil.CollectSink{}
+	if err := src.ExtractChanges(ctx, changes, filament.ChangeExtractOpts{Resources: []string{"cdc_index_identity"}, Checkpoints: map[string]filament.Checkpoint{"cdc_index_identity": first}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := batchColumns(t, changes, "cdc_index_identity"); strings.Join(got, ",") != "id,secret" {
+		t.Fatalf("WAL columns = %v, want id,secret", got)
 	}
 }

@@ -128,7 +128,7 @@ func (s *Source) SelectColumns(columns map[string][]string) error {
 
 // PlanReplicationStream gives one pipeline route its own logical replication
 // slot. A managed publication takes the slot's name, so each route owns the
-// publication it decodes from.
+// publication it decodes from and its column lists are exactly its selection.
 func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
 	if err := request.Execution.Validate(); err != nil {
 		return filament.ReplicationStreamPlan{}, err
