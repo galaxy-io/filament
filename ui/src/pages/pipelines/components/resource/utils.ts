@@ -110,6 +110,22 @@ export const createResourceColumnSelections = ({
     ? []
     : [create(ResourceColumnSelectionSchema, { resource, columns: selected })];
 
+export const addColumnToSelections = (
+  selections: ResourceColumnSelection[],
+  resource: Resource["name"],
+  column: ResourceColumn["name"],
+): ResourceColumnSelection[] =>
+  column === ""
+    ? selections
+    : selections.map((selection) =>
+        selection.resource === resource && !selection.columns.includes(column)
+          ? create(ResourceColumnSelectionSchema, {
+              resource,
+              columns: [...selection.columns, column],
+            })
+          : selection,
+      );
+
 export const getDefaultReadMode = ({
   columns,
   readModeOptions,
