@@ -41,14 +41,14 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: "ctid", Label: "CTID + xmin"},
 			}, Scope: filament.ScopePipeline, Help: "Read strategy"},
 			{
-				Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopeConnection,
-				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Logical replication publication used by CDC",
-			},
-			{
 				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Create the CDC publication and add selected tables when needed",
+				Help:        "Create one publication per pipeline route with its selected tables",
+			},
+			{
+				Name: "publication", Type: filament.FieldString, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
+				Help:        "Publication an administrator provisioned for CDC, when manage_publication is false",
 			},
 			{
 				Name: "snapshot_mode", Type: filament.FieldEnum, Default: string(filament.SnapshotInitial), Enum: []filament.EnumOption{

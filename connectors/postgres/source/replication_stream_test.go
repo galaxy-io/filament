@@ -17,7 +17,7 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 	first, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
 		ReplicationStreamID: "60000000-0000-4000-8000-000000000001",
 		Config: filament.NewConfig(map[string]any{
-			"schema": "public", "publication": "shared", "page_size": 1000,
+			"schema": "public", "manage_publication": false, "publication": "shared", "page_size": 1000,
 		}),
 	})
 	if err != nil {
@@ -26,7 +26,7 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 	second, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
 		ReplicationStreamID: "60000000-0000-4000-8000-000000000001",
 		Config: filament.NewConfig(map[string]any{
-			"schema": "public", "publication": "shared", "page_size": 5000,
+			"schema": "public", "manage_publication": false, "publication": "shared", "page_size": 5000,
 		}),
 	})
 	if err != nil {
@@ -37,6 +37,25 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 	}
 	if !reflect.DeepEqual(first.ContinuityConfig, second.ContinuityConfig) {
 		t.Fatalf("read tuning changed continuity: %#v != %#v", first.ContinuityConfig, second.ContinuityConfig)
+	}
+	if first.ContinuityConfig["publication"] != "shared" || first.ConsumerConfig["publication"] != "shared" {
+		t.Fatalf("unmanaged publication lost: %#v", first)
+	}
+	managed, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
+		ReplicationStreamID: "60000000-0000-4000-8000-000000000001",
+		Config:              filament.NewConfig(map[string]any{"schema": "public"}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, named := managed.ContinuityConfig["publication"]; named || managed.ConsumerConfig["publication"] != managed.ConsumerName {
+		t.Fatalf("a managed publication must take the slot's name and stay out of continuity: %#v", managed)
+	}
+	if _, err := source.PlanReplicationStream(filament.ReplicationStreamPlanningRequest{
+		ReplicationStreamID: "60000000-0000-4000-8000-000000000001",
+		Config:              filament.NewConfig(map[string]any{"publication": "shared"}),
+	}); err == nil {
+		t.Fatal("naming a managed publication must be rejected")
 	}
 
 	config := map[string]any{"schema": "public"}
