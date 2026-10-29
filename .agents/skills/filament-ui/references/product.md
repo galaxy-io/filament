@@ -147,7 +147,7 @@ The calls an engineer would otherwise guess at. Each follows from the flows abov
 | Bulk actions or row selection? | **Ask first.** No table has selection today. Propose the design and wait for a yes. |
 | Category color? | From the **one registry map** of domain concept to `RoleColor`. Transforms are blue, schedules are yellow. A new concept gets an entry there, never a hue picked in a feature. |
 | Status color? | Only for status, through `variant` or the run hue map. A healthy screen is monochrome. |
-| Tooltips on the canvas panel chrome? | **None** (decided 2026-10-12). The open panel, Back, Delete, Close and activity caret buttons use standard icons and sit under the cursor all the time, so tooltips there fired on every pass. Each keeps its `ariaLabel`. The exception covers that chrome only, every other icon-only control keeps its tooltip. |
+| Tooltips on the canvas panel chrome? | **None** (decided 2026-10-12). The open panel, Back, Delete and Close buttons and the activity header use standard icons and sit under the cursor all the time, so tooltips there fired on every pass. Each keeps its `ariaLabel`. The exception covers that chrome only, every other icon-only control keeps its tooltip. |
 | Something the DLS lacks? | **Compose, then request.** Build it from DLS parts with as little local `styled` as possible, then open a GitHub issue on `galaxy-io/dls` with the file path, a screenshot and the API you wish existed. |
 
 ## Keyboard
