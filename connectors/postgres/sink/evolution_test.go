@@ -53,6 +53,10 @@ func TestPhysicalSchema(t *testing.T) {
 }
 
 func driftSink(t *testing.T, policy string, ingestion filament.IngestionType, continuous bool) (context.Context, *Sink, filament.RunSpec) {
+	return driftSinkLifecycle(t, policy, ingestion, continuous, false)
+}
+
+func driftSinkLifecycle(t *testing.T, policy string, ingestion filament.IngestionType, continuous, explicit bool) (context.Context, *Sink, filament.RunSpec) {
 	t.Helper()
 	dsn := os.Getenv("FILAMENT_TEST_POSTGRES_DSN")
 	if dsn == "" {
@@ -62,17 +66,29 @@ func driftSink(t *testing.T, policy string, ingestion filament.IngestionType, co
 	t.Cleanup(cancel)
 	namespace := "drift_" + uuid.NewString()[:8]
 	spec := filament.RunSpec{Run: "run", Resources: []string{"items"}, Sink: filament.Ref{Config: map[string]any{"dsn": dsn, "schema": namespace, "schema_evolution": policy}}, WritePolicies: map[string]filament.WritePolicy{"items": {Capability: filament.WriteCapabilities(ingestion)[0]}}}
+	if continuous || explicit {
+		p := spec.WritePolicies["items"]
+		p.Capability.Durability = filament.DurabilityAfterCommit
+		spec.WritePolicies["items"] = p
+	}
 	if continuous {
 		spec.Options.Execution = filament.ExecutionContinuous
 		spec.StreamAttempt = &filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
 	}
 	s := New()
-	if err := s.Open(ctx, spec); err != nil {
+	var openErr error
+	if explicit {
+		spec.ExecutionID = "bounded-session"
+		openErr = s.Open(ctx, spec)
+	} else {
+		openErr = s.Open(ctx, spec)
+	}
+	if err := openErr; err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if s.stream.active != nil {
-			_ = s.AbortEpoch(ctx, s.stream.active.ref)
+		if s.session.active != nil {
+			_ = s.Abort(ctx)
 		}
 		_, err := s.pool.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{namespace}.Sanitize()+" CASCADE")
 		if err != nil {

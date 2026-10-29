@@ -7,32 +7,35 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 )
 
-// Sink is the connector contract for writing data: open for a run, apply
-// batches under a write policy, then commit or abort. Apply borrows b for the
-// duration of the call; a sink that keeps it afterward must Retain it and
-// eventually Release that reference.
+// Sink owns a destination session independently of source execution mode.
+// Open acquires session resources. Begin starts a finite write. Apply borrows
+// its batch only for the call. Commit establishes the advertised durability for
+// every successful Apply. Abort cleans up unfinished writes according to the
+// write policy; it does not promise rollback of already durable effects. Close
+// releases session resources and pending in-memory work, including after a
+// failed Open. Close reports an error when cleanup cannot establish that
+// destination work has stopped. An Apply or Commit error alone is not proof
+// of failed cleanup.
+//
+// The runner serializes lifecycle calls and joins all Apply calls before Commit,
+// Abort, or Close. It never retries Apply or an ambiguous Commit in the same
+// session. ReusableSession admits repeated Begin/Commit boundaries. A bounded
+// run uses one boundary. Source progress and ownership belong to the runner
+// and are never passed to the sink.
 type Sink interface {
 	Spec() SinkSpec // identity + config schema + capabilities (powers the catalog)
 	Open(ctx context.Context, run RunSpec) error
+	Begin(ctx context.Context) error
 	Apply(ctx context.Context, b *arrowbatch.Batch, opts ApplyOptions) (WriteReceipt, error)
 	Commit(ctx context.Context) error
 	Abort(ctx context.Context) error
+	Close(ctx context.Context) error
 	Name() string
 }
 
 // ApplyOptions carries the per-resource write policy governing one Apply.
 type ApplyOptions struct {
-	// Epoch is nil for bounded writes. Native sinks reject writes that do not
-	// match the currently open epoch; this is not destination fencing.
-	Epoch  *EpochRef
 	Policy WritePolicy
-}
-
-// Transactional is the optional sink contract for staged, atomic runs: write
-// into a stage, promote on success.
-type Transactional interface {
-	Stage(ctx context.Context) (StageID, error)
-	Promote(ctx context.Context, id StageID) error
 }
 
 // Schematized is the optional sink contract for typed DDL: materialize a
@@ -65,9 +68,10 @@ type SinkSpec struct {
 // SinkCapabilities advertises the optional contracts and write modes a sink
 // supports, so the engine can match it to an ingestion type.
 type SinkCapabilities struct {
-	Stream        *StreamingSinkCapabilities
-	Transactional bool
-	Schematized   bool
+	// ReusableSession permits repeated Begin/Commit boundaries on one open sink.
+	// Otherwise the runner opens a fresh instance for each finite write.
+	ReusableSession bool
+	Schematized     bool
 	// EncodedIntegrity requires Apply to verify the final serialized bytes at
 	// its write boundary and return the resulting EncodedCRC as evidence.
 	EncodedIntegrity bool

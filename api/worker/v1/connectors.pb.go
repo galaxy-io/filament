@@ -713,91 +713,22 @@ func (x *WritePolicyCapability) GetDurability() WriteDurability {
 	return WriteDurability_WRITE_DURABILITY_UNSPECIFIED
 }
 
-type StreamingSinkCapabilities struct {
-	state          protoimpl.MessageState   `protogen:"open.v1"`
-	WritePolicies  []*WritePolicyCapability `protobuf:"bytes,1,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
-	OwnerFencing   bool                     `protobuf:"varint,2,opt,name=owner_fencing,json=ownerFencing,proto3" json:"owner_fencing,omitempty"`
-	IsolatedEpochs bool                     `protobuf:"varint,3,opt,name=isolated_epochs,json=isolatedEpochs,proto3" json:"isolated_epochs,omitempty"`
-	InFlightBound  *durationpb.Duration     `protobuf:"bytes,4,opt,name=in_flight_bound,json=inFlightBound,proto3,oneof" json:"in_flight_bound,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *StreamingSinkCapabilities) Reset() {
-	*x = StreamingSinkCapabilities{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamingSinkCapabilities) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamingSinkCapabilities) ProtoMessage() {}
-
-func (x *StreamingSinkCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamingSinkCapabilities.ProtoReflect.Descriptor instead.
-func (*StreamingSinkCapabilities) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *StreamingSinkCapabilities) GetWritePolicies() []*WritePolicyCapability {
-	if x != nil {
-		return x.WritePolicies
-	}
-	return nil
-}
-
-func (x *StreamingSinkCapabilities) GetOwnerFencing() bool {
-	if x != nil {
-		return x.OwnerFencing
-	}
-	return false
-}
-
-func (x *StreamingSinkCapabilities) GetIsolatedEpochs() bool {
-	if x != nil {
-		return x.IsolatedEpochs
-	}
-	return false
-}
-
-func (x *StreamingSinkCapabilities) GetInFlightBound() *durationpb.Duration {
-	if x != nil {
-		return x.InFlightBound
-	}
-	return nil
-}
-
 type SinkCapabilities struct {
-	state                  protoimpl.MessageState     `protogen:"open.v1"`
-	Stream                 *StreamingSinkCapabilities `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
-	Transactional          bool                       `protobuf:"varint,2,opt,name=transactional,proto3" json:"transactional,omitempty"`
-	Schematized            bool                       `protobuf:"varint,3,opt,name=schematized,proto3" json:"schematized,omitempty"`
-	EncodedIntegrity       bool                       `protobuf:"varint,4,opt,name=encoded_integrity,json=encodedIntegrity,proto3" json:"encoded_integrity,omitempty"`
-	WritePolicies          []*WritePolicyCapability   `protobuf:"bytes,5,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
-	PreferredBatchRows     int64                      `protobuf:"varint,6,opt,name=preferred_batch_rows,json=preferredBatchRows,proto3" json:"preferred_batch_rows,omitempty"`
-	PreferredBatchBytes    int64                      `protobuf:"varint,7,opt,name=preferred_batch_bytes,json=preferredBatchBytes,proto3" json:"preferred_batch_bytes,omitempty"`
-	PreferredFlushInterval *durationpb.Duration       `protobuf:"bytes,8,opt,name=preferred_flush_interval,json=preferredFlushInterval,proto3" json:"preferred_flush_interval,omitempty"`
+	state                  protoimpl.MessageState   `protogen:"open.v1"`
+	ReusableSession        bool                     `protobuf:"varint,1,opt,name=reusable_session,json=reusableSession,proto3" json:"reusable_session,omitempty"`
+	Schematized            bool                     `protobuf:"varint,2,opt,name=schematized,proto3" json:"schematized,omitempty"`
+	EncodedIntegrity       bool                     `protobuf:"varint,3,opt,name=encoded_integrity,json=encodedIntegrity,proto3" json:"encoded_integrity,omitempty"`
+	WritePolicies          []*WritePolicyCapability `protobuf:"bytes,4,rep,name=write_policies,json=writePolicies,proto3" json:"write_policies,omitempty"`
+	PreferredBatchRows     int64                    `protobuf:"varint,5,opt,name=preferred_batch_rows,json=preferredBatchRows,proto3" json:"preferred_batch_rows,omitempty"`
+	PreferredBatchBytes    int64                    `protobuf:"varint,6,opt,name=preferred_batch_bytes,json=preferredBatchBytes,proto3" json:"preferred_batch_bytes,omitempty"`
+	PreferredFlushInterval *durationpb.Duration     `protobuf:"bytes,7,opt,name=preferred_flush_interval,json=preferredFlushInterval,proto3" json:"preferred_flush_interval,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *SinkCapabilities) Reset() {
 	*x = SinkCapabilities{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[6]
+	mi := &file_worker_v1_connectors_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +740,7 @@ func (x *SinkCapabilities) String() string {
 func (*SinkCapabilities) ProtoMessage() {}
 
 func (x *SinkCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[6]
+	mi := &file_worker_v1_connectors_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,19 +753,12 @@ func (x *SinkCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SinkCapabilities.ProtoReflect.Descriptor instead.
 func (*SinkCapabilities) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{6}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SinkCapabilities) GetStream() *StreamingSinkCapabilities {
+func (x *SinkCapabilities) GetReusableSession() bool {
 	if x != nil {
-		return x.Stream
-	}
-	return nil
-}
-
-func (x *SinkCapabilities) GetTransactional() bool {
-	if x != nil {
-		return x.Transactional
+		return x.ReusableSession
 	}
 	return false
 }
@@ -897,7 +821,7 @@ type Source struct {
 
 func (x *Source) Reset() {
 	*x = Source{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[7]
+	mi := &file_worker_v1_connectors_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -909,7 +833,7 @@ func (x *Source) String() string {
 func (*Source) ProtoMessage() {}
 
 func (x *Source) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[7]
+	mi := &file_worker_v1_connectors_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -922,7 +846,7 @@ func (x *Source) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Source.ProtoReflect.Descriptor instead.
 func (*Source) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{7}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Source) GetSpec() *v1.ConnectorSpec {
@@ -971,7 +895,7 @@ type Sink struct {
 
 func (x *Sink) Reset() {
 	*x = Sink{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[8]
+	mi := &file_worker_v1_connectors_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +907,7 @@ func (x *Sink) String() string {
 func (*Sink) ProtoMessage() {}
 
 func (x *Sink) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[8]
+	mi := &file_worker_v1_connectors_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +920,7 @@ func (x *Sink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Sink.ProtoReflect.Descriptor instead.
 func (*Sink) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{8}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Sink) GetSpec() *v1.ConnectorSpec {
@@ -1021,7 +945,7 @@ type DescribeRequest struct {
 
 func (x *DescribeRequest) Reset() {
 	*x = DescribeRequest{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[9]
+	mi := &file_worker_v1_connectors_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +957,7 @@ func (x *DescribeRequest) String() string {
 func (*DescribeRequest) ProtoMessage() {}
 
 func (x *DescribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[9]
+	mi := &file_worker_v1_connectors_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +970,7 @@ func (x *DescribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeRequest.ProtoReflect.Descriptor instead.
 func (*DescribeRequest) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{9}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{8}
 }
 
 // DescribeResponse lists sources as registered: alias entries keep their
@@ -1061,7 +985,7 @@ type DescribeResponse struct {
 
 func (x *DescribeResponse) Reset() {
 	*x = DescribeResponse{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[10]
+	mi := &file_worker_v1_connectors_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1073,7 +997,7 @@ func (x *DescribeResponse) String() string {
 func (*DescribeResponse) ProtoMessage() {}
 
 func (x *DescribeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[10]
+	mi := &file_worker_v1_connectors_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +1010,7 @@ func (x *DescribeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeResponse.ProtoReflect.Descriptor instead.
 func (*DescribeResponse) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{10}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DescribeResponse) GetSources() []*Source {
@@ -1113,7 +1037,7 @@ type ValidateRequest struct {
 
 func (x *ValidateRequest) Reset() {
 	*x = ValidateRequest{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[11]
+	mi := &file_worker_v1_connectors_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1125,7 +1049,7 @@ func (x *ValidateRequest) String() string {
 func (*ValidateRequest) ProtoMessage() {}
 
 func (x *ValidateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[11]
+	mi := &file_worker_v1_connectors_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1138,7 +1062,7 @@ func (x *ValidateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateRequest.ProtoReflect.Descriptor instead.
 func (*ValidateRequest) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{11}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ValidateRequest) GetConnector() *Ref {
@@ -1163,7 +1087,7 @@ type ValidateResponse struct {
 
 func (x *ValidateResponse) Reset() {
 	*x = ValidateResponse{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[12]
+	mi := &file_worker_v1_connectors_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1175,7 +1099,7 @@ func (x *ValidateResponse) String() string {
 func (*ValidateResponse) ProtoMessage() {}
 
 func (x *ValidateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[12]
+	mi := &file_worker_v1_connectors_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1188,7 +1112,7 @@ func (x *ValidateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateResponse.ProtoReflect.Descriptor instead.
 func (*ValidateResponse) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{12}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{11}
 }
 
 type TestConnectionRequest struct {
@@ -1201,7 +1125,7 @@ type TestConnectionRequest struct {
 
 func (x *TestConnectionRequest) Reset() {
 	*x = TestConnectionRequest{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[13]
+	mi := &file_worker_v1_connectors_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +1137,7 @@ func (x *TestConnectionRequest) String() string {
 func (*TestConnectionRequest) ProtoMessage() {}
 
 func (x *TestConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[13]
+	mi := &file_worker_v1_connectors_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1150,7 @@ func (x *TestConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestConnectionRequest.ProtoReflect.Descriptor instead.
 func (*TestConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{13}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TestConnectionRequest) GetConnector() *Ref {
@@ -1251,7 +1175,7 @@ type TestConnectionResponse struct {
 
 func (x *TestConnectionResponse) Reset() {
 	*x = TestConnectionResponse{}
-	mi := &file_worker_v1_connectors_proto_msgTypes[14]
+	mi := &file_worker_v1_connectors_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1187,7 @@ func (x *TestConnectionResponse) String() string {
 func (*TestConnectionResponse) ProtoMessage() {}
 
 func (x *TestConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_worker_v1_connectors_proto_msgTypes[14]
+	mi := &file_worker_v1_connectors_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1200,7 @@ func (x *TestConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestConnectionResponse.ProtoReflect.Descriptor instead.
 func (*TestConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{14}
+	return file_worker_v1_connectors_proto_rawDescGZIP(), []int{13}
 }
 
 var File_worker_v1_connectors_proto protoreflect.FileDescriptor
@@ -1310,22 +1234,15 @@ const file_worker_v1_connectors_proto_rawDesc = "" +
 	"\tatomicity\x18\x05 \x01(\x0e2\x19.worker.v1.WriteAtomicityR\tatomicity\x12:\n" +
 	"\n" +
 	"durability\x18\x06 \x01(\x0e2\x1a.worker.v1.WriteDurabilityR\n" +
-	"durability\"\x8e\x02\n" +
-	"\x19StreamingSinkCapabilities\x12G\n" +
-	"\x0ewrite_policies\x18\x01 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x12#\n" +
-	"\rowner_fencing\x18\x02 \x01(\bR\fownerFencing\x12'\n" +
-	"\x0fisolated_epochs\x18\x03 \x01(\bR\x0eisolatedEpochs\x12F\n" +
-	"\x0fin_flight_bound\x18\x04 \x01(\v2\x19.google.protobuf.DurationH\x00R\rinFlightBound\x88\x01\x01B\x12\n" +
-	"\x10_in_flight_bound\"\xc9\x03\n" +
-	"\x10SinkCapabilities\x12<\n" +
-	"\x06stream\x18\x01 \x01(\v2$.worker.v1.StreamingSinkCapabilitiesR\x06stream\x12$\n" +
-	"\rtransactional\x18\x02 \x01(\bR\rtransactional\x12 \n" +
-	"\vschematized\x18\x03 \x01(\bR\vschematized\x12+\n" +
-	"\x11encoded_integrity\x18\x04 \x01(\bR\x10encodedIntegrity\x12G\n" +
-	"\x0ewrite_policies\x18\x05 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x120\n" +
-	"\x14preferred_batch_rows\x18\x06 \x01(\x03R\x12preferredBatchRows\x122\n" +
-	"\x15preferred_batch_bytes\x18\a \x01(\x03R\x13preferredBatchBytes\x12S\n" +
-	"\x18preferred_flush_interval\x18\b \x01(\v2\x19.google.protobuf.DurationR\x16preferredFlushInterval\"\x9b\x02\n" +
+	"durability\"\x90\x03\n" +
+	"\x10SinkCapabilities\x12)\n" +
+	"\x10reusable_session\x18\x01 \x01(\bR\x0freusableSession\x12 \n" +
+	"\vschematized\x18\x02 \x01(\bR\vschematized\x12+\n" +
+	"\x11encoded_integrity\x18\x03 \x01(\bR\x10encodedIntegrity\x12G\n" +
+	"\x0ewrite_policies\x18\x04 \x03(\v2 .worker.v1.WritePolicyCapabilityR\rwritePolicies\x120\n" +
+	"\x14preferred_batch_rows\x18\x05 \x01(\x03R\x12preferredBatchRows\x122\n" +
+	"\x15preferred_batch_bytes\x18\x06 \x01(\x03R\x13preferredBatchBytes\x12S\n" +
+	"\x18preferred_flush_interval\x18\a \x01(\v2\x19.google.protobuf.DurationR\x16preferredFlushInterval\"\x9b\x02\n" +
 	"\x06Source\x12/\n" +
 	"\x04spec\x18\x01 \x01(\v2\x1b.ingestion.v1.ConnectorSpecR\x04spec\x125\n" +
 	"\n" +
@@ -1399,73 +1316,69 @@ func file_worker_v1_connectors_proto_rawDescGZIP() []byte {
 }
 
 var file_worker_v1_connectors_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_worker_v1_connectors_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_worker_v1_connectors_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_worker_v1_connectors_proto_goTypes = []any{
-	(Operation)(0),                    // 0: worker.v1.Operation
-	(CheckpointPolicy)(0),             // 1: worker.v1.CheckpointPolicy
-	(InputSemantics)(0),               // 2: worker.v1.InputSemantics
-	(Ordering)(0),                     // 3: worker.v1.Ordering
-	(DeliveryGuarantee)(0),            // 4: worker.v1.DeliveryGuarantee
-	(WriteAtomicity)(0),               // 5: worker.v1.WriteAtomicity
-	(WriteDurability)(0),              // 6: worker.v1.WriteDurability
-	(*Ref)(nil),                       // 7: worker.v1.Ref
-	(*SourcePolicy)(nil),              // 8: worker.v1.SourcePolicy
-	(*StreamCapabilities)(nil),        // 9: worker.v1.StreamCapabilities
-	(*ResourceCapabilities)(nil),      // 10: worker.v1.ResourceCapabilities
-	(*WritePolicyCapability)(nil),     // 11: worker.v1.WritePolicyCapability
-	(*StreamingSinkCapabilities)(nil), // 12: worker.v1.StreamingSinkCapabilities
-	(*SinkCapabilities)(nil),          // 13: worker.v1.SinkCapabilities
-	(*Source)(nil),                    // 14: worker.v1.Source
-	(*Sink)(nil),                      // 15: worker.v1.Sink
-	(*DescribeRequest)(nil),           // 16: worker.v1.DescribeRequest
-	(*DescribeResponse)(nil),          // 17: worker.v1.DescribeResponse
-	(*ValidateRequest)(nil),           // 18: worker.v1.ValidateRequest
-	(*ValidateResponse)(nil),          // 19: worker.v1.ValidateResponse
-	(*TestConnectionRequest)(nil),     // 20: worker.v1.TestConnectionRequest
-	(*TestConnectionResponse)(nil),    // 21: worker.v1.TestConnectionResponse
-	(v1.ConnectorKind)(0),             // 22: ingestion.v1.ConnectorKind
-	(v1.ReadMode)(0),                  // 23: ingestion.v1.ReadMode
-	(v1.WriteMode)(0),                 // 24: ingestion.v1.WriteMode
-	(*durationpb.Duration)(nil),       // 25: google.protobuf.Duration
-	(*v1.ConnectorSpec)(nil),          // 26: ingestion.v1.ConnectorSpec
-	(*structpb.Struct)(nil),           // 27: google.protobuf.Struct
+	(Operation)(0),                 // 0: worker.v1.Operation
+	(CheckpointPolicy)(0),          // 1: worker.v1.CheckpointPolicy
+	(InputSemantics)(0),            // 2: worker.v1.InputSemantics
+	(Ordering)(0),                  // 3: worker.v1.Ordering
+	(DeliveryGuarantee)(0),         // 4: worker.v1.DeliveryGuarantee
+	(WriteAtomicity)(0),            // 5: worker.v1.WriteAtomicity
+	(WriteDurability)(0),           // 6: worker.v1.WriteDurability
+	(*Ref)(nil),                    // 7: worker.v1.Ref
+	(*SourcePolicy)(nil),           // 8: worker.v1.SourcePolicy
+	(*StreamCapabilities)(nil),     // 9: worker.v1.StreamCapabilities
+	(*ResourceCapabilities)(nil),   // 10: worker.v1.ResourceCapabilities
+	(*WritePolicyCapability)(nil),  // 11: worker.v1.WritePolicyCapability
+	(*SinkCapabilities)(nil),       // 12: worker.v1.SinkCapabilities
+	(*Source)(nil),                 // 13: worker.v1.Source
+	(*Sink)(nil),                   // 14: worker.v1.Sink
+	(*DescribeRequest)(nil),        // 15: worker.v1.DescribeRequest
+	(*DescribeResponse)(nil),       // 16: worker.v1.DescribeResponse
+	(*ValidateRequest)(nil),        // 17: worker.v1.ValidateRequest
+	(*ValidateResponse)(nil),       // 18: worker.v1.ValidateResponse
+	(*TestConnectionRequest)(nil),  // 19: worker.v1.TestConnectionRequest
+	(*TestConnectionResponse)(nil), // 20: worker.v1.TestConnectionResponse
+	(v1.ConnectorKind)(0),          // 21: ingestion.v1.ConnectorKind
+	(v1.ReadMode)(0),               // 22: ingestion.v1.ReadMode
+	(v1.WriteMode)(0),              // 23: ingestion.v1.WriteMode
+	(*durationpb.Duration)(nil),    // 24: google.protobuf.Duration
+	(*v1.ConnectorSpec)(nil),       // 25: ingestion.v1.ConnectorSpec
+	(*structpb.Struct)(nil),        // 26: google.protobuf.Struct
 }
 var file_worker_v1_connectors_proto_depIdxs = []int32{
-	22, // 0: worker.v1.Ref.kind:type_name -> ingestion.v1.ConnectorKind
-	23, // 1: worker.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReadMode
+	21, // 0: worker.v1.Ref.kind:type_name -> ingestion.v1.ConnectorKind
+	22, // 1: worker.v1.SourcePolicy.mode:type_name -> ingestion.v1.ReadMode
 	0,  // 2: worker.v1.SourcePolicy.emits_ops:type_name -> worker.v1.Operation
 	1,  // 3: worker.v1.SourcePolicy.checkpointing:type_name -> worker.v1.CheckpointPolicy
 	0,  // 4: worker.v1.StreamCapabilities.emits_ops:type_name -> worker.v1.Operation
 	2,  // 5: worker.v1.StreamCapabilities.input:type_name -> worker.v1.InputSemantics
 	3,  // 6: worker.v1.StreamCapabilities.ordering:type_name -> worker.v1.Ordering
 	4,  // 7: worker.v1.StreamCapabilities.delivery:type_name -> worker.v1.DeliveryGuarantee
-	24, // 8: worker.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
+	23, // 8: worker.v1.WritePolicyCapability.mode:type_name -> ingestion.v1.WriteMode
 	0,  // 9: worker.v1.WritePolicyCapability.accepts_ops:type_name -> worker.v1.Operation
 	5,  // 10: worker.v1.WritePolicyCapability.atomicity:type_name -> worker.v1.WriteAtomicity
 	6,  // 11: worker.v1.WritePolicyCapability.durability:type_name -> worker.v1.WriteDurability
-	11, // 12: worker.v1.StreamingSinkCapabilities.write_policies:type_name -> worker.v1.WritePolicyCapability
-	25, // 13: worker.v1.StreamingSinkCapabilities.in_flight_bound:type_name -> google.protobuf.Duration
-	12, // 14: worker.v1.SinkCapabilities.stream:type_name -> worker.v1.StreamingSinkCapabilities
-	11, // 15: worker.v1.SinkCapabilities.write_policies:type_name -> worker.v1.WritePolicyCapability
-	25, // 16: worker.v1.SinkCapabilities.preferred_flush_interval:type_name -> google.protobuf.Duration
-	26, // 17: worker.v1.Source.spec:type_name -> ingestion.v1.ConnectorSpec
-	23, // 18: worker.v1.Source.read_modes:type_name -> ingestion.v1.ReadMode
-	8,  // 19: worker.v1.Source.policies:type_name -> worker.v1.SourcePolicy
-	10, // 20: worker.v1.Source.resources:type_name -> worker.v1.ResourceCapabilities
-	9,  // 21: worker.v1.Source.stream:type_name -> worker.v1.StreamCapabilities
-	26, // 22: worker.v1.Sink.spec:type_name -> ingestion.v1.ConnectorSpec
-	13, // 23: worker.v1.Sink.capabilities:type_name -> worker.v1.SinkCapabilities
-	14, // 24: worker.v1.DescribeResponse.sources:type_name -> worker.v1.Source
-	15, // 25: worker.v1.DescribeResponse.sinks:type_name -> worker.v1.Sink
-	7,  // 26: worker.v1.ValidateRequest.connector:type_name -> worker.v1.Ref
-	27, // 27: worker.v1.ValidateRequest.config:type_name -> google.protobuf.Struct
-	7,  // 28: worker.v1.TestConnectionRequest.connector:type_name -> worker.v1.Ref
-	27, // 29: worker.v1.TestConnectionRequest.config:type_name -> google.protobuf.Struct
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	11, // 12: worker.v1.SinkCapabilities.write_policies:type_name -> worker.v1.WritePolicyCapability
+	24, // 13: worker.v1.SinkCapabilities.preferred_flush_interval:type_name -> google.protobuf.Duration
+	25, // 14: worker.v1.Source.spec:type_name -> ingestion.v1.ConnectorSpec
+	22, // 15: worker.v1.Source.read_modes:type_name -> ingestion.v1.ReadMode
+	8,  // 16: worker.v1.Source.policies:type_name -> worker.v1.SourcePolicy
+	10, // 17: worker.v1.Source.resources:type_name -> worker.v1.ResourceCapabilities
+	9,  // 18: worker.v1.Source.stream:type_name -> worker.v1.StreamCapabilities
+	25, // 19: worker.v1.Sink.spec:type_name -> ingestion.v1.ConnectorSpec
+	12, // 20: worker.v1.Sink.capabilities:type_name -> worker.v1.SinkCapabilities
+	13, // 21: worker.v1.DescribeResponse.sources:type_name -> worker.v1.Source
+	14, // 22: worker.v1.DescribeResponse.sinks:type_name -> worker.v1.Sink
+	7,  // 23: worker.v1.ValidateRequest.connector:type_name -> worker.v1.Ref
+	26, // 24: worker.v1.ValidateRequest.config:type_name -> google.protobuf.Struct
+	7,  // 25: worker.v1.TestConnectionRequest.connector:type_name -> worker.v1.Ref
+	26, // 26: worker.v1.TestConnectionRequest.config:type_name -> google.protobuf.Struct
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_worker_v1_connectors_proto_init() }
@@ -1473,14 +1386,13 @@ func file_worker_v1_connectors_proto_init() {
 	if File_worker_v1_connectors_proto != nil {
 		return
 	}
-	file_worker_v1_connectors_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worker_v1_connectors_proto_rawDesc), len(file_worker_v1_connectors_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   15,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

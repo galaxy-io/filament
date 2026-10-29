@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	redshiftconnection "github.com/galaxy-io/filament/connectors/redshift/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const sinkName = "redshift"
@@ -20,6 +21,7 @@ const sinkName = "redshift"
 // a run. Both provisioned clusters and Serverless workgroups expose the same
 // PostgreSQL-compatible endpoint consumed here.
 type Sink struct {
+	sinkstate.SingleWrite
 	pool     *pgxpool.Pool
 	staging  *stagingStore
 	run      filament.RunID
@@ -120,7 +122,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 	s.pool = pool
 	s.staging = stage
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.database = poolCfg.ConnConfig.Database
 	s.schema = schema
 	s.iamRole = resolved.AssociatedIAMRole
@@ -159,7 +161,6 @@ func (s *Sink) Commit(ctx context.Context) error {
 			return fmt.Errorf("redshift sink: promote replacement for %q: %w", resource, err)
 		}
 	}
-	s.release()
 	return nil
 }
 
@@ -169,7 +170,6 @@ func (s *Sink) Abort(ctx context.Context) error {
 	if s.pool == nil {
 		return nil
 	}
-	defer s.release()
 	cleanup := context.WithoutCancel(ctx)
 	for _, table := range s.tables {
 		if table.replacement == "" {
@@ -249,3 +249,6 @@ func columnIdentifiers(columns []columnDefinition) []string {
 	}
 	return idents
 }
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { s.release(); return nil }

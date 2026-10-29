@@ -127,7 +127,7 @@ func SinkToProto(spec filament.SinkSpec) *workerv1.Sink {
 	out := &workerv1.Sink{
 		Spec: SinkSpecToProto(spec),
 		Capabilities: &workerv1.SinkCapabilities{
-			Transactional:       caps.Transactional,
+			ReusableSession:     caps.ReusableSession,
 			Schematized:         caps.Schematized,
 			EncodedIntegrity:    caps.EncodedIntegrity,
 			WritePolicies:       writePoliciesToProto(caps.WritePolicies),
@@ -138,17 +138,7 @@ func SinkToProto(spec filament.SinkSpec) *workerv1.Sink {
 	if caps.PreferredFlushInterval != 0 {
 		out.Capabilities.PreferredFlushInterval = durationpb.New(caps.PreferredFlushInterval)
 	}
-	if caps.Stream != nil {
-		stream := &workerv1.StreamingSinkCapabilities{
-			WritePolicies:  writePoliciesToProto(caps.Stream.WritePolicies),
-			OwnerFencing:   caps.Stream.OwnerFencing,
-			IsolatedEpochs: caps.Stream.IsolatedEpochs,
-		}
-		if caps.Stream.InFlightBound != nil {
-			stream.InFlightBound = durationpb.New(*caps.Stream.InFlightBound)
-		}
-		out.Capabilities.Stream = stream
-	}
+
 	return out
 }
 
@@ -160,7 +150,7 @@ func SinkFromProto(sink *workerv1.Sink) (filament.SinkSpec, error) {
 	}
 	caps := sink.GetCapabilities()
 	spec.Capabilities = filament.SinkCapabilities{
-		Transactional:       caps.GetTransactional(),
+		ReusableSession:     caps.GetReusableSession(),
 		Schematized:         caps.GetSchematized(),
 		EncodedIntegrity:    caps.GetEncodedIntegrity(),
 		PreferredBatchRows:  int(caps.GetPreferredBatchRows()),
@@ -172,17 +162,7 @@ func SinkFromProto(sink *workerv1.Sink) (filament.SinkSpec, error) {
 	if spec.Capabilities.WritePolicies, err = writePoliciesFromProto(caps.GetWritePolicies()); err != nil {
 		return filament.SinkSpec{}, fmt.Errorf("sink %q: %w", spec.Name, err)
 	}
-	if stream := caps.GetStream(); stream != nil {
-		decoded := &filament.StreamingSinkCapabilities{OwnerFencing: stream.GetOwnerFencing(), IsolatedEpochs: stream.GetIsolatedEpochs()}
-		if decoded.WritePolicies, err = writePoliciesFromProto(stream.GetWritePolicies()); err != nil {
-			return filament.SinkSpec{}, fmt.Errorf("sink %q: %w", spec.Name, err)
-		}
-		if stream.InFlightBound != nil {
-			bound := stream.GetInFlightBound().AsDuration()
-			decoded.InFlightBound = &bound
-		}
-		spec.Capabilities.Stream = decoded
-	}
+
 	return spec, nil
 }
 

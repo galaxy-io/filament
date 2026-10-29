@@ -2,7 +2,6 @@ package filament
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -43,17 +42,6 @@ func (e EpochRef) Validate() error {
 	}
 	if e.Epoch <= 0 || e.MembershipRevision <= 0 {
 		return errors.New("epoch: invalid epoch or membership revision")
-	}
-	return nil
-}
-
-// ValidateApply checks explicit session binding, not destination-side fencing.
-func (e EpochRef) ValidateApply(opts ApplyOptions) error {
-	if err := e.Validate(); err != nil {
-		return err
-	}
-	if opts.Epoch == nil || *opts.Epoch != e {
-		return ErrEpochMismatch
 	}
 	return nil
 }
@@ -143,18 +131,6 @@ func NewClaimCoverage(claims []InboxClaimRef) (Coverage, error) {
 		return Coverage{}, err
 	}
 	return c.Clone(), nil
-}
-
-// StreamingSink extends an opened Sink with a native reusable epoch lifecycle.
-// CommitEpoch waits for negotiated durability. AbortEpoch discards only tentative
-// effects. CloseSession succeeds only when no later destination effects remain
-// possible; a timeout or mere client resource release must return an error.
-// Calls are serialized initially. No legacy Commit/Abort adaptation is implied.
-type StreamingSink interface {
-	BeginEpoch(context.Context, EpochRef) error
-	CommitEpoch(context.Context, EpochRef) ([]EpochReceipt, error)
-	AbortEpoch(context.Context, EpochRef) error
-	CloseSession(context.Context) error
 }
 
 // ReceiptEvidence is destination-owned evidence, not comparable source progress.

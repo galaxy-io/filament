@@ -19,33 +19,26 @@ import (
 // (ADD COLUMN IF NOT EXISTS) in legacy mode. With a schema policy enabled, the
 // entire diff is checked before transactional DDL or replace-mode truncation.
 func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
-	if t.continuous && t.modeFor(resource) != filament.WriteAppend {
+	if t.transactionalWrites {
+		t.writeMu.Lock()
+		defer t.writeMu.Unlock()
+	}
+	if t.transactionalWrites && t.modeFor(resource) != filament.WriteAppend && t.modeFor(resource) != filament.WriteMerge && t.modeFor(resource) != filament.WriteUpsert {
 		return filament.ErrEpochMismatch
 	}
 	if t.pool == nil {
 		return fmt.Errorf("postgres sink: ensure schema before open")
 	}
-	// In continuous runs, inferred columns must be installed atomically with
+	// Within write epochs, inferred columns must be installed atomically with
 	// the first batch, using the active epoch transaction (and its connection).
 	exec := t.pool.Exec
-	if t.continuous && t.stream.active != nil {
-		exec = t.stream.active.tx.Exec
+	if t.transactionalWrites && t.session.active != nil {
+		exec = t.session.active.tx.Exec
 	}
 	qualified := pgx.Identifier{t.schema, resource}.Sanitize()
-	var checked rowmodel.Schema
-	if t.evolution != "" {
-		var err error
-		checked, err = physicalSchema(resource, schema)
-		if err != nil {
-			return err
-		}
-	}
-	var builtin map[string]bool
-	if t.evolution == "" && schema.Engine == engine {
-		var err error
-		if builtin, err = t.builtinTypes(ctx, schema); err != nil {
-			return err
-		}
+	checked, builtin, err := t.prepareColumnTypes(ctx, resource, schema)
+	if err != nil {
+		return err
 	}
 
 	cols := make([]string, len(schema.Fields)) // "name" type [NOT NULL] for DDL
@@ -142,7 +135,11 @@ func (t *Sink) builtinTypes(ctx context.Context, schema rowmodel.Schema) (map[st
 	}
 	const q = `SELECT t, coalesce((SELECT typnamespace = 'pg_catalog'::regnamespace FROM pg_type WHERE oid = to_regtype(t)), false)
 FROM unnest($1::text[]) AS t`
-	rows, err := t.pool.Query(ctx, q, natives)
+	query := t.pool.Query
+	if t.session.active != nil {
+		query = t.session.active.tx.Query
+	}
+	rows, err := query(ctx, q, natives)
 	if err != nil {
 		return nil, fmt.Errorf("resolve types: %w", err)
 	}
@@ -261,11 +258,13 @@ func pick[T any](all []T, idx []int) []T {
 }
 
 func (t *Sink) installTable(resource string, tbl *table, model rowmodel.Schema) {
+	t.tablesMu.Lock()
+	defer t.tablesMu.Unlock()
 	if t.evolution != "" {
 		tbl.input = arrowbatch.Schema(model)
 	}
-	if t.continuous && t.stream.active != nil {
-		epoch := t.stream.active
+	if t.transactionalWrites && t.session.active != nil {
+		epoch := t.session.active
 		if epoch.previousTables == nil {
 			epoch.previousTables = map[string]*table{}
 		}
@@ -274,4 +273,16 @@ func (t *Sink) installTable(resource string, tbl *table, model rowmodel.Schema) 
 		}
 	}
 	t.tables[resource] = tbl
+}
+
+func (t *Sink) prepareColumnTypes(ctx context.Context, resource string, model rowmodel.Schema) (rowmodel.Schema, map[string]bool, error) {
+	if t.evolution != "" {
+		checked, err := physicalSchema(resource, model)
+		return checked, nil, err
+	}
+	if model.Engine == engine {
+		builtin, err := t.builtinTypes(ctx, model)
+		return rowmodel.Schema{}, builtin, err
+	}
+	return rowmodel.Schema{}, nil, nil
 }

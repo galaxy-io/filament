@@ -143,7 +143,7 @@ func openTestSink(t *testing.T, fc *fakeClient, extra map[string]any) *Sink {
 // --- tests -------------------------------------------------------------------
 
 // TestSpecAppendOnly checks the spec advertises schematized, append-only,
-// non-transactional, non-streaming capabilities.
+// non-streaming capabilities.
 func TestSpecAppendOnly(t *testing.T) {
 	spec := New().Spec()
 	if spec.Name != sinkName {
@@ -152,10 +152,7 @@ func TestSpecAppendOnly(t *testing.T) {
 	if !spec.Capabilities.Schematized {
 		t.Fatal("expected Schematized capability")
 	}
-	if spec.Capabilities.Transactional {
-		t.Fatal("Zerobus sink must not advertise transactional")
-	}
-	if spec.Capabilities.Stream != nil {
+	if spec.Capabilities.ReusableSession {
 		t.Fatal("Zerobus sink must not advertise streaming capabilities")
 	}
 	if spec.SchemaField != "schema" {
@@ -222,6 +219,12 @@ func TestApplyIngestsBatch(t *testing.T) {
 	}
 	if st.flushed != 1 || st.closed != 1 {
 		t.Fatalf("stream flushed=%d closed=%d, want 1/1", st.flushed, st.closed)
+	}
+	if fc.closed != 0 {
+		t.Fatal("commit closed session")
+	}
+	if err := s.Close(ctx); err != nil {
+		t.Fatal(err)
 	}
 	if fc.closed != 1 {
 		t.Fatalf("client closed=%d, want 1", fc.closed)

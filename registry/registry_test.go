@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type specSource struct {
@@ -220,12 +221,11 @@ type streamSource struct {
 type streamSpecSink struct{ filament.Sink }
 
 func (streamSpecSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}}}
+	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{ReusableSession: true}}
 }
 
 type streamSink struct {
 	streamSpecSink
-	filament.StreamingSink
 }
 
 func TestRegisterRequiresDeclaredContracts(t *testing.T) {
@@ -254,11 +254,6 @@ func TestRegisterRequiresDeclaredContracts(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("sink without stream contract", func(t *testing.T) {
-		mustPanic(t, "filament.StreamingSink", func() {
-			NewSinks().Register("stream", func() filament.Sink { return streamSpecSink{} })
-		})
-	})
 	t.Run("sink with stream contract", func(t *testing.T) {
 		sinks := NewSinks()
 		sinks.Register("stream", func() filament.Sink { return streamSink{} })
@@ -266,4 +261,18 @@ func TestRegisterRequiresDeclaredContracts(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+type singleStreamSink struct {
+	streamSpecSink
+	sinkstate.SingleWrite
+}
+
+func TestRejectSingleWriteStreamSink(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("single-write stream sink registered")
+		}
+	}()
+	NewSinks().Register("invalid", func() filament.Sink { return &singleStreamSink{} })
 }

@@ -20,10 +20,12 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	jsonencoder "github.com/galaxy-io/filament/connectors/internal/json"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 // Sink writes batches as NDJSON to an io.Writer (os.Stdout by default).
 type Sink struct {
+	sinkstate.SingleWrite
 	mu      sync.Mutex
 	w       io.Writer
 	run     filament.RunID
@@ -200,3 +202,6 @@ type manifestResource struct {
 	Records int64  `json:"records"`
 	Bytes   int64  `json:"bytes"`
 }
+
+// Close releases local session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { return nil }

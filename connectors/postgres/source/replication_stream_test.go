@@ -48,3 +48,35 @@ func TestReplicationStreamPlannerOwnsPostgresSlotConfiguration(t *testing.T) {
 		t.Fatalf("binding mutated input or missed slot: input=%#v bound=%#v", config, bound)
 	}
 }
+
+func TestContinuousAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name, replication, snapshot string
+		resources                   []string
+		valid                       bool
+	}{
+		{"changes", "cdc", "none", []string{"orders", "customers"}, true},
+		{"initial", "cdc", "initial", []string{"orders"}, true},
+		{"default snapshot", "cdc", "", []string{"orders"}, true},
+		{"standard", "standard", "none", []string{"orders"}, false},
+		{"missing tables", "cdc", "none", nil, false},
+		{"duplicate table", "cdc", "none", []string{"orders", "orders"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := filament.ReplicationStreamPlanningRequest{Execution: filament.ExecutionContinuous, ReplicationStreamID: "stream", Resources: tc.resources, Config: filament.NewConfig(map[string]any{"replication": tc.replication, "snapshot_mode": tc.snapshot})}
+			plan, err := New().PlanReplicationStream(req)
+			if (err == nil) != tc.valid {
+				t.Fatalf("plan=%+v err=%v", plan, err)
+			}
+			if tc.valid {
+				if !reflect.DeepEqual(plan.Resources, tc.resources) {
+					t.Fatal("membership lost")
+				}
+				plan.Resources[0] = "changed"
+				if tc.resources[0] == "changed" {
+					t.Fatal("membership aliases caller slice")
+				}
+			}
+		})
+	}
+}

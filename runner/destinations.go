@@ -84,23 +84,3 @@ func destinationSchema(resource string, schema rowmodel.Schema, policies map[str
 	schema.DestinationResource = ""
 	return destination, schema
 }
-
-// Epoch receipts refer to destination resources at the sink boundary. Durable
-// certificates refer to the source membership; retain all destination evidence.
-func sourceEpochReceipts(spec filament.RunSpec, receipts []filament.EpochReceipt) []filament.EpochReceipt {
-	sources := make(map[string]string, len(spec.Resources))
-	for _, resource := range spec.Resources {
-		destination := spec.WritePolicies[resource].DestinationResource
-		if destination == "" {
-			destination = resource
-		}
-		sources[destination] = resource
-	}
-	out := append([]filament.EpochReceipt(nil), receipts...)
-	for i := range out {
-		if source, ok := sources[out[i].Resource]; ok {
-			out[i].Resource = source
-		}
-	}
-	return out
-}

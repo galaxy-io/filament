@@ -130,10 +130,12 @@ func TestRemotePlansMatchLocal(t *testing.T) {
 			},
 			resources: []string{"ORDERS"},
 		},
+		{name: "Postgres continuous tables", source: "postgres", config: map[string]any{"replication": "cdc", "snapshot_mode": "none"}, resources: []string{"orders", "customers"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := filament.ReplicationStreamPlanningRequest{
+				Execution:           filament.ExecutionContinuous,
 				SourceConnectionID:  "source",
 				ReplicationStreamID: "stream",
 				Config:              filament.NewConfig(tt.config),
@@ -179,4 +181,18 @@ func normalizePlan(t *testing.T, plan filament.ReplicationStreamPlan) filament.R
 		t.Fatal(err)
 	}
 	return normalized
+}
+
+func TestRemoteAcceptsPostgresContinuousInitialSnapshot(t *testing.T) {
+	local := worker.Local(registry.DefaultSources, registry.DefaultSinks)
+	mux := http.NewServeMux()
+	mux.Handle(worker.Handler(local))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	req := filament.ReplicationStreamPlanningRequest{Execution: filament.ExecutionContinuous, ReplicationStreamID: "stream", Resources: []string{"orders"}, Config: filament.NewConfig(map[string]any{"replication": "cdc", "snapshot_mode": "initial"})}
+	for _, w := range []filament.Worker{local, worker.Remote(srv.URL)} {
+		if _, err := w.PlanReplicationStream(t.Context(), "postgres", req); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

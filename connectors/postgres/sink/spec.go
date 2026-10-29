@@ -21,25 +21,25 @@ func (t *Sink) Spec() filament.SinkSpec {
 		}...)},
 		SchemaField: "schema",
 		Capabilities: filament.SinkCapabilities{
-			Schematized: true,
-			Stream: &filament.StreamingSinkCapabilities{
-				WritePolicies: []filament.WritePolicyCapability{{
-					Mode:       filament.WriteAppend,
-					AcceptsOps: []filament.Operation{filament.OpInsert},
-					Atomicity:  filament.AtomicityBatch,
-					Durability: filament.DurabilityAfterCommit,
-				}},
-			},
+			Schematized:         true,
+			ReusableSession:     true,
 			EncodedIntegrity:    true,
 			PreferredBatchBytes: 16 << 20,
-			WritePolicies: filament.WriteCapabilities(
-				filament.IngestionFullReplace,
-				filament.IngestionFullAppend,
-				filament.IngestionFullUpsert,
-				filament.IngestionIncrementalUpsert,
-				filament.IngestionCDCMerge,
-				filament.IngestionCDCAppend,
-			),
+			WritePolicies:       postgresWriteCapabilities(),
 		},
 	}
+}
+
+func postgresWriteCapabilities() []filament.WritePolicyCapability {
+	policies := filament.WriteCapabilities(filament.IngestionFullReplace, filament.IngestionFullAppend, filament.IngestionFullUpsert, filament.IngestionIncrementalUpsert, filament.IngestionCDCMerge, filament.IngestionCDCAppend)
+	// Batch-durable policies stay first for bounded planning. Continuous planning
+	// prefers these transaction-durable alternatives and also accepts saved policies.
+	for _, p := range policies {
+		if p.Mode == filament.WriteReplace {
+			continue
+		}
+		p.Durability = filament.DurabilityAfterCommit
+		policies = append(policies, p)
+	}
+	return policies
 }

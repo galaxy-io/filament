@@ -135,8 +135,12 @@ asynchronous publication and are not implemented.
 
 `Apply` succeeds only after JetStream acknowledges every message. Durability
 therefore follows successful `Apply`, using the destination stream's configured
-storage, replication, and retention settings. `Commit` finalizes a bounded run;
-`CommitEpoch` returns per-resource totals for an already acknowledged epoch.
+storage, replication, and retention settings. `Commit` confirms acknowledged
+writes in either execution mode. Continuous writes reuse the open session.
+`Close` releases it.
+
+Continuous append accepts insert, update, and delete events without requiring
+a primary key or global source ordering.
 Continuous source progress advances through Filament's normal epoch certification
 flow, after destination success.
 
@@ -158,10 +162,11 @@ for different content can suppress the later publication.
 
 A lost acknowledgment leaves the write outcome uncertain. The sink stops
 publishing, rejects the epoch commit, and reports unproven destination quiescence
-on session closure. Any other session failure is also retained and returned by
-`CloseSession`; an epoch still active at closure is dropped like an abort.
-A bounded `Abort` does not repeat a failure that `Apply` already returned. On failure or cancellation, it stops submissions, closes the connection,
-detaches completion tracking, and cleans up SDK publications before returning.
+on session closure. Local failures before publication can close cleanly.
+An epoch still active at closure is dropped like an abort.
+`Abort` does not retract acknowledged messages. `Close` stops submissions,
+closes the connection, detaches completion tracking, and cleans up SDK
+publications before returning.
 Late callbacks cannot complete or fail a subsequent batch.
 It does not reconnect or retry publishes in the background.
 It advertises no destination owner fencing, isolated epochs, or server-enforced

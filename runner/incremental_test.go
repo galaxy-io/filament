@@ -254,3 +254,6 @@ func TestIncrementalAttemptRestoreDoesNotPromoteJobs(t *testing.T) {
 		t.Fatal("accepted replay state without resume contract")
 	}
 }
+
+func (*incrementalTestSink) Begin(context.Context) error { return nil }
+func (*incrementalTestSink) Close(context.Context) error { return nil }

@@ -113,6 +113,17 @@ var (
 // PlanReplicationStream gives one pipeline route its own logical replication
 // slot while keeping the publication shared at the connection level.
 func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
+	if err := request.Execution.Validate(); err != nil {
+		return filament.ReplicationStreamPlan{}, err
+	}
+	if request.Config == nil {
+		request.Config = filament.NewConfig(nil)
+	}
+	if request.Execution == filament.ExecutionContinuous {
+		if err := validateContinuousConfig(request.Config, request.Resources); err != nil {
+			return filament.ReplicationStreamPlan{}, err
+		}
+	}
 	if request.ReplicationStreamID == "" {
 		return filament.ReplicationStreamPlan{}, fmt.Errorf("postgres source: replication stream ID is required")
 	}
@@ -129,6 +140,7 @@ func (s *Source) PlanReplicationStream(request filament.ReplicationStreamPlannin
 		schema = defaultSchema
 	}
 	return filament.ReplicationStreamPlan{
+		Resources:    append([]string(nil), request.Resources...),
 		ConsumerName: consumerName,
 		ConsumerConfig: map[string]any{
 			"kind": "postgres_lsn", "publication": publication,

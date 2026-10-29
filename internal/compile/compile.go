@@ -27,7 +27,7 @@ import (
 var ErrPrecondition = errors.New("pipeline not runnable")
 
 // ErrInvalid marks a pipeline definition the compiler rejects: edges with
-// conflicting read modes, route write modes, or cursors; references to missing
+// conflicting read modes, write modes, or cursors; references to missing
 // nodes or connections; or a node overlay that violates field scopes.
 var ErrInvalid = errors.New("invalid pipeline")
 
@@ -232,6 +232,10 @@ func (c *Compiler) planReplicationStream(
 // continuity. Adding a table can therefore reuse the stream, while changing
 // its source identity, sink target, or write semantics forks it.
 func replicationStreamContinuityFingerprint(group *routeGroup, connections map[string]filament.Connection, sourceConnector string, sourceContinuity map[string]any, sinkRef filament.Ref) (string, error) {
+	writeMode, err := group.routeWriteMode()
+	if err != nil {
+		return "", err
+	}
 	sourceConnection := connections[group.source.GetConnectionId()]
 	sinkConnection := connections[group.sink.GetConnectionId()]
 	identity := struct {
@@ -251,7 +255,7 @@ func replicationStreamContinuityFingerprint(group *routeGroup, connections map[s
 		SourceContinuity:        sourceContinuity,
 		SinkConnector:           sinkRef.Connector, SinkConnectionID: sinkConnection.ID,
 		SinkConnectionVersion: sinkConnection.Version, SinkConfig: sinkRef.Config,
-		WriteMode:            fmt.Sprint(group.writeMode),
+		WriteMode:            fmt.Sprint(writeMode),
 		DestinationResources: group.destinations,
 	}
 	raw, err := json.Marshal(identity)
@@ -271,12 +275,18 @@ func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {
 
 func compileIngestionTypes(group *routeGroup, cdc bool) (map[string]filament.IngestionType, error) {
 	types := make(map[string]filament.IngestionType, len(group.readModes))
-	for resource, readMode := range group.readModes {
-		if cdc {
-			types[resource] = cdcIngestionFor(group.writeMode)
-			continue
+	if cdc {
+		writeMode, err := group.routeWriteMode()
+		if err != nil {
+			return nil, err
 		}
-		ingestionType, err := filament.IngestionFor(readMode, group.writeMode)
+		for resource := range group.readModes {
+			types[resource] = cdcIngestionFor(writeMode)
+		}
+		return types, nil
+	}
+	for resource, readMode := range group.readModes {
+		ingestionType, err := filament.IngestionFor(readMode, group.writeModes[resource])
 		if err != nil {
 			return nil, err
 		}

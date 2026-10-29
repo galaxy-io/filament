@@ -224,6 +224,10 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	defer func() { _ = dst.Close(context.Background()) }()
+	if err := dst.Begin(ctx); err != nil {
+		t.Fatal(err)
+	}
 	schema, err := src.Schema(ctx, "cdc_users")
 	if err != nil {
 		t.Fatal(err)

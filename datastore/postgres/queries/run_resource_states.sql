@@ -21,3 +21,12 @@ UPDATE run_resource_states SET
     error = NULL,
     updated_at = now()
 WHERE tenant_id = @tenant_id AND run_id = @run_id;
+
+-- name: AddResourceProgress :exec
+INSERT INTO run_resource_states (run_id, resource_name, tenant_id, status, records, bytes, updated_at)
+VALUES (@run_id, @resource_name, @tenant_id, @status, @records, @bytes, now())
+ON CONFLICT (run_id, resource_name) DO UPDATE SET
+    records = run_resource_states.records + EXCLUDED.records,
+    bytes = run_resource_states.bytes + EXCLUDED.bytes,
+    updated_at = now()
+WHERE run_resource_states.tenant_id = EXCLUDED.tenant_id;
