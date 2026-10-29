@@ -1,6 +1,5 @@
 import { type FC, Suspense, useMemo } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
 
@@ -16,7 +15,6 @@ import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
-import { ResourceColumnSelectionSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
@@ -41,8 +39,12 @@ import {
   getDefaultDestinationResource,
   getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
-import { getEffectiveColumnSelection } from "@/pages/pipelines/components/create/rows";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
+import {
+  createResourceColumnSelections,
+  getEffectiveColumnSelection,
+  getLockedColumnNames,
+} from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
@@ -118,20 +120,17 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const handleDestinationChange = (value: string) =>
     setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value });
 
-  const allColumnNames = useMemo(() => (columns ?? []).map((column) => column.name), [columns]);
   const selection = edge.data?.columns?.find((candidate) => candidate.resource === resource);
-  const effectiveCursor = cursor || defaultCursor;
   const lockedColumnNames = useMemo(
-    () => [
-      ...(columns ?? []).filter((column) => column.isPrimaryKey).map((column) => column.name),
-      ...(hasReadLevers &&
-      readMode === ReadMode.INCREMENTAL &&
-      !isManagedIncremental &&
-      effectiveCursor
-        ? [effectiveCursor]
-        : []),
-    ],
-    [columns, hasReadLevers, readMode, isManagedIncremental, effectiveCursor],
+    () =>
+      getLockedColumnNames({
+        primaryKey: (columns ?? NO_COLUMNS)
+          .filter((column) => column.isPrimaryKey)
+          .map((column) => column.name),
+        cursor: cursor || defaultCursor,
+        isCursorLocked: hasReadLevers && readMode === ReadMode.INCREMENTAL && !isManagedIncremental,
+      }),
+    [columns, cursor, defaultCursor, hasReadLevers, readMode, isManagedIncremental],
   );
   const selectedColumnNames = useMemo(
     () =>
@@ -146,16 +145,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     () => (columns ?? NO_COLUMNS).filter((column) => selectedColumnNames.includes(column.name)),
     [columns, selectedColumnNames],
   );
-  const columnsError = verdict?.errors.find((error) => error.field === "columns")?.message;
+  const columnsError = verdict?.errors.find(
+    (error) => error.field === PipelineResourceStatusField.COLUMNS,
+  )?.message;
   const handleColumnsChange = (next: ResourceColumn["name"][]) =>
     setEdgeConfig(edge.id, {
       readMode: configuredReadMode,
       writeMode: configuredWriteMode,
       cursors,
-      columns:
-        next.length === allColumnNames.length
-          ? []
-          : [create(ResourceColumnSelectionSchema, { resource, columns: next })],
+      columns: createResourceColumnSelections({
+        resource,
+        selected: next,
+        columns: columns ?? NO_COLUMNS,
+      }),
     });
 
   return (
@@ -234,6 +236,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
+                {hasReadLevers &&
+                  readMode === ReadMode.INCREMENTAL &&
+                  (isManagedIncremental ? (
+                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
+                  ) : (
+                    <PipelineCanvasPanelResourceCursorField
+                      value={cursor ?? ""}
+                      options={cursorOptions}
+                      isDisabled={isReadOnly || isLoading}
+                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
+                      onChange={handleCursorChange}
+                    />
+                  ))}
                 <SelectInput
                   label="Write mode"
                   options={writeModeSelectOptions}
@@ -258,19 +273,6 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
-                {hasReadLevers &&
-                  readMode === ReadMode.INCREMENTAL &&
-                  (isManagedIncremental ? (
-                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
-                  ) : (
-                    <PipelineCanvasPanelResourceCursorField
-                      value={cursor ?? ""}
-                      options={cursorOptions}
-                      isDisabled={isReadOnly || isLoading}
-                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
-                      onChange={handleCursorChange}
-                    />
-                  ))}
               </Flex>
             </PipelineCanvasPanelSection>
             {isColumnSelectable && (

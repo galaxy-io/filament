@@ -1,7 +1,13 @@
+import { create } from "@bufbuild/protobuf";
+
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import {
+  type ResourceColumnSelection,
+  ResourceColumnSelectionSchema,
+} from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   READ_MODE_TO_LABEL_MAP,
@@ -64,6 +70,61 @@ export const getDefaultCursor = (columns: ResourceColumn[]): ResourceColumn["nam
   const eligible = getCursorOptions(columns);
   return eligible.length === 1 ? eligible[0].name : "";
 };
+
+export const getLockedColumnNames = ({
+  primaryKey,
+  cursor,
+  isCursorLocked,
+}: {
+  primaryKey: ResourceColumn["name"][];
+  cursor: ResourceColumn["name"];
+  isCursorLocked: boolean;
+}): ResourceColumn["name"][] => (isCursorLocked && cursor ? [...primaryKey, cursor] : primaryKey);
+
+export const getEffectiveColumnSelection = ({
+  stored,
+  columns,
+  locked,
+}: {
+  stored: ResourceColumn["name"][] | undefined;
+  columns: ResourceColumn[] | undefined;
+  locked: ResourceColumn["name"][];
+}): ResourceColumn["name"][] => {
+  const known = columns?.map((column) => column.name);
+  if (stored === undefined) return known ?? [];
+  const kept = known ? stored.filter((name) => known.includes(name)) : stored;
+  const order = known ?? [...kept, ...locked];
+  return order.filter((name) => kept.includes(name) || locked.includes(name));
+};
+
+export const createResourceColumnSelections = ({
+  resource,
+  selected,
+  columns,
+}: {
+  resource: Resource["name"];
+  selected: ResourceColumn["name"][];
+  columns: ResourceColumn[];
+}): ResourceColumnSelection[] =>
+  selected.length === 0 || selected.length === columns.length
+    ? []
+    : [create(ResourceColumnSelectionSchema, { resource, columns: selected })];
+
+export const addColumnToSelections = (
+  selections: ResourceColumnSelection[],
+  resource: Resource["name"],
+  column: ResourceColumn["name"],
+): ResourceColumnSelection[] =>
+  column === ""
+    ? selections
+    : selections.map((selection) =>
+        selection.resource === resource && !selection.columns.includes(column)
+          ? create(ResourceColumnSelectionSchema, {
+              resource,
+              columns: [...selection.columns, column],
+            })
+          : selection,
+      );
 
 export const getDefaultReadMode = ({
   columns,

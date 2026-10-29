@@ -33,6 +33,7 @@ import {
   isResourceSelected,
 } from "@/pages/pipelines/components/create/rows";
 import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
+import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import { getEdgeValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
@@ -224,7 +225,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
           const columnErrors = (validation?.edges ?? [])
             .filter((edge) => edge.toNode === sinkId)
             .flatMap((edge) => edge.errors)
-            .filter((error) => error.field === "columns")
+            .filter((error) => error.field === PipelineResourceStatusField.COLUMNS)
             .map((error) => error.message);
           return [sinkId, [...new Set([...(issues[sinkId] ?? []), ...columnErrors])]];
         }),

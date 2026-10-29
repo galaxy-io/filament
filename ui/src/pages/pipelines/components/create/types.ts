@@ -57,6 +57,7 @@ export interface CreatePipelineModalResourceRow {
   managedIncremental: boolean;
   columns: ResourceColumn[];
   selectedColumns: ResourceColumn["name"][];
+  lockedColumns: ResourceColumn["name"][];
   isColumnSelectable: boolean;
   status?: PipelineResourceStatus;
 }

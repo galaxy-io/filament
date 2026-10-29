@@ -22,7 +22,6 @@ import {
   type PipelineNode,
   PipelineNodeSchema,
   type ResourceColumnSelection,
-  ResourceColumnSelectionSchema,
   type ResourceCursorConfig,
   ResourceCursorConfigSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
@@ -35,6 +34,7 @@ import type {
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
+import { createResourceColumnSelections } from "@/pages/pipelines/components/resource/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
 const createNodes = (
@@ -78,10 +78,12 @@ const createCursors = (
 };
 
 const createColumns = (row: CreatePipelineModalResourceRow): ResourceColumnSelection[] =>
-  row.isColumnSelectable &&
-  row.selectedColumns.length > 0 &&
-  (row.columns.length === 0 || row.selectedColumns.length !== row.columns.length)
-    ? [create(ResourceColumnSelectionSchema, { resource: row.name, columns: row.selectedColumns })]
+  row.isColumnSelectable
+    ? createResourceColumnSelections({
+        resource: row.name,
+        selected: row.selectedColumns,
+        columns: row.columns,
+      })
     : [];
 
 const createSinkEdges = ({
