@@ -143,9 +143,10 @@ the format to choose when the bucket is queried by Athena, Spark, or DuckDB.
 The `compression` field shows only the options valid for the selected format.
 
 Parquet combines source batches into row groups of up to 65,536 rows instead
-of creating a group for every source transaction. The last group is flushed
-at commit. This row limit does not set a fixed byte limit for variable-width
-values.
+of creating a group for every source transaction. Groups also rotate at an
+8 MiB target for page data, checked between nonempty batches. A batch and
+pending page buffers can exceed this target. The last group is flushed at
+commit.
 
 The success manifest lists every resource's key, URI, rows, bytes, and object
 CRC32C. Programmatic consumers should treat `_SUCCESS.json` as the visibility

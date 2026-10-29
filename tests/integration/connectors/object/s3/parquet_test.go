@@ -24,6 +24,7 @@ import (
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
+// TestS3SinkParquetSmallBatches verifies buffered output and its committed manifest.
 func TestS3SinkParquetSmallBatches(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()

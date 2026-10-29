@@ -12,8 +12,11 @@ import (
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
 )
 
-// Limit buffered row groups independently of source transaction sizes.
-const maxRowGroupRows int64 = 64 * 1024
+// Row and byte targets keep buffering independent of source transaction sizes.
+const (
+	maxRowGroupRows     int64 = 64 * 1024
+	targetRowGroupBytes int64 = 8 * 1024 * 1024
+)
 
 // Encoder combines batches into bounded row groups. EncodeBatch returns any
 // bytes emitted so far; Finalize flushes the last group and Parquet footer.
@@ -59,6 +62,13 @@ func (e *Encoder) EncodeBatch(dst []byte, rows arrow.RecordBatch) ([]byte, uint3
 	}
 	if !rows.Schema().Equal(e.schema) {
 		return nil, 0, fmt.Errorf("parquet: record schema does not match encoder schema")
+	}
+	// Rotate before the next nonempty batch so Finalize cannot leave an empty
+	// trailing group. The byte target can be exceeded by a batch and page buffers.
+	if rows.NumRows() > 0 && e.writer.RowGroupTotalBytesWritten() >= targetRowGroupBytes {
+		if err := e.writer.NewBufferedRowGroupChecked(); err != nil {
+			return nil, 0, fmt.Errorf("parquet: flush row group: %w", err)
+		}
 	}
 	if err := e.writer.WriteBuffered(rows); err != nil {
 		return nil, 0, fmt.Errorf("parquet: encode batch: %w", err)
