@@ -10,7 +10,11 @@ import PipelinePageRunButton from "@/pages/pipelines/components/header/PipelineP
 import { formatWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
 import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
-import { getPipelineValidationErrors, isPipelineRunnable } from "@/pages/pipelines/utils";
+import {
+  getPipelineResources,
+  getPipelineValidationErrors,
+  isPipelineRunnable,
+} from "@/pages/pipelines/utils";
 
 import { usePipelineParams } from "@/module/hooks";
 
@@ -63,9 +67,10 @@ const PipelinePageRunActions: FC = () => {
     return <PipelinePageActiveRunActions run={activeRun} />;
   }
 
-  const handleRun = (workerConfiguration?: WorkerConfiguration) => {
+  const handleRun = (workerConfiguration?: WorkerConfiguration, resyncResources?: string[]) => {
     startRun(pipeline, {
       workerConfiguration,
+      resyncResources,
       onSuccess: () => navigateCanvas({}),
     });
   };
@@ -74,6 +79,7 @@ const PipelinePageRunActions: FC = () => {
     <PipelinePageRunButton
       key={formatWorkerConfiguration(pipeline.workerConfiguration)}
       workerConfiguration={pipeline.workerConfiguration}
+      resources={getPipelineResources(currentVersion)}
       runErrors={runErrors}
       isRunnable={isPipelineRunnable(currentVersion)}
       isRunning={isRunning}

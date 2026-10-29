@@ -5,6 +5,7 @@ import { PlayIcon, WarningIcon } from "@phosphor-icons/react";
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import { IconWeight } from "@galaxy-io/dls/icons/Icon";
+import CheckboxGroup, { CheckboxGroupSize } from "@galaxy-io/dls/inputs/CheckboxGroup";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -24,18 +25,21 @@ import {
 
 interface PipelinePageRunButtonProps {
   workerConfiguration?: WorkerConfiguration;
+  resources: string[];
   runErrors: string[];
   isRunnable: boolean;
   isRunning: boolean;
-  onRun: (workerConfiguration?: WorkerConfiguration) => void;
+  onRun: (workerConfiguration?: WorkerConfiguration, resyncResources?: string[]) => void;
 }
 
 interface PipelinePageRunButtonState {
   workerConfiguration: string;
+  resyncResources: string[];
 }
 
 const PipelinePageRunButton: FC<PipelinePageRunButtonProps> = ({
   workerConfiguration,
+  resources,
   runErrors,
   isRunnable,
   isRunning,
@@ -43,9 +47,11 @@ const PipelinePageRunButton: FC<PipelinePageRunButtonProps> = ({
 }) => {
   const [state, setState] = useState<PipelinePageRunButtonState>(() => ({
     workerConfiguration: formatWorkerConfiguration(workerConfiguration),
+    resyncResources: [],
   }));
 
   const parsed = parseWorkerConfiguration(state.workerConfiguration);
+  const resyncOptions = resources.map((resource) => ({ id: resource, label: resource }));
 
   return (
     <Button
@@ -78,6 +84,17 @@ const PipelinePageRunButton: FC<PipelinePageRunButtonProps> = ({
                 isPerRun
               />
             </Widget>
+            {resyncOptions.length > 0 && (
+              <Widget isCollapsible header="Resync resources">
+                <CheckboxGroup
+                  options={resyncOptions}
+                  value={state.resyncResources}
+                  onChange={(value) => setState((prev) => ({ ...prev, resyncResources: value }))}
+                  description="Each checked resource is read from the beginning again by this run."
+                  size={CheckboxGroupSize.SMALL}
+                />
+              </Widget>
+            )}
           </Flex>
           <Divider />
           <Flex
@@ -104,7 +121,7 @@ const PipelinePageRunButton: FC<PipelinePageRunButtonProps> = ({
               isLoading={isRunning}
               isDisabled={!!parsed.error}
               onClick={() => {
-                onRun(parsed.configuration);
+                onRun(parsed.configuration, state.resyncResources);
                 close();
               }}
             />

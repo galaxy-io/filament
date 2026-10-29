@@ -100,7 +100,13 @@ edge itself, so a table without a primary key blocks an upsert route before
 you save rather than failing at run time.
 
 Saving creates a new immutable pipeline version. In-flight runs keep executing
-against the version they started with.
+against the version they started with. Running a continuous pipeline again
+after a save hands the live stream over to the new version, so a table you
+added is read in full and joins the stream.
+
+The Run button's dropdown holds the custom run. It takes a per-run worker
+configuration and a list of resources to resync, each of which is read from the
+beginning again by that run.
 
 <Frame caption="The pipeline canvas">
   <img className="block dark:hidden" src="/assets/images/filament-pipeline-canvas-light.png" alt="Pipeline canvas in light mode" />
