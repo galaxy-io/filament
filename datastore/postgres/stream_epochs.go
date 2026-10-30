@@ -87,12 +87,7 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
-	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{
-		StreamID: stream.ID, TenantID: stream.TenantID,
-		Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token,
-		Certificate: data, Positions: positions,
-		RunID: string(cert.Ref.Attempt.RunID), Records: cert.Records, Bytes: cert.Bytes,
-	})
+	row, err := insertEpoch(ctx, q, stream, cert, data, positions)
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
@@ -107,6 +102,31 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 		return filament.CommittedEpoch{}, err
 	}
 	return filament.CommittedEpoch{Certificate: cert, CommittedAt: row.CommittedAt.Time}, nil
+}
+
+// insertEpoch records the certificate, adds its totals to the run, and folds
+// its per-resource receipts into the run's resource rows, all in one
+// transaction so the counts never disagree.
+func insertEpoch(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, cert filament.EpochCertificate, data, positions []byte) (*sqlcgen.CreateStreamEpochRow, error) {
+	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{
+		StreamID: stream.ID, TenantID: stream.TenantID,
+		Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token,
+		Certificate: data, Positions: positions,
+		RunID: string(cert.Ref.Attempt.RunID), Records: cert.Records, Bytes: cert.Bytes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, receipt := range cert.Receipts {
+		if err := q.AddResourceProgress(ctx, sqlcgen.AddResourceProgressParams{
+			RunID: string(cert.Ref.Attempt.RunID), ResourceName: receipt.Resource, TenantID: stream.TenantID,
+			Status:  int16(filament.RunRunning), //nolint:gosec // small enum
+			Records: receipt.Rows, Bytes: receipt.Bytes,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return row, nil
 }
 
 func validateEpochResources(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, cert filament.EpochCertificate) error {

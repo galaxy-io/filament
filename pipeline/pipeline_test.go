@@ -786,3 +786,6 @@ func TestSinkBatchingPreferences(t *testing.T) {
 		t.Fatalf("default flush interval changed: %s", p.flushIvl)
 	}
 }
+
+func (*fakeSink) Begin(context.Context) error { return nil }
+func (*fakeSink) Close(context.Context) error { return nil }

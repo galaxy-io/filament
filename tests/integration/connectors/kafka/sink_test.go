@@ -59,33 +59,19 @@ func TestKafkaConnector(t *testing.T) {
 			if err := s.Open(ctx, run); err != nil {
 				t.Fatal(err)
 			}
-			defer func() {
-				if continuous {
-					_ = s.CloseSession(context.Background())
-				} else {
-					_ = s.Abort(context.Background())
-				}
-			}()
-			opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.Stream.WritePolicies[0]}}
-			if continuous {
-				if err := s.BeginEpoch(ctx, ref); err != nil {
-					t.Fatal(err)
-				}
-				opts.Epoch = &ref
+			defer s.Close(context.Background())
+			if err := s.Begin(ctx); err != nil {
+				t.Fatal(err)
 			}
+			opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.WritePolicies[0]}}
 			receipt, err := s.Apply(ctx, input(t), opts)
 			if err != nil || receipt.Rows != 3 || receipt.EncodedCRC == nil {
 				t.Fatalf("Apply: %+v %v", receipt, err)
 			}
-			if continuous {
-				rs, err := s.CommitEpoch(ctx, ref)
-				if err != nil || len(rs) != 1 || rs[0].Rows != 3 {
-					t.Fatalf("epoch %+v %v", rs, err)
-				}
-				if err = s.CloseSession(ctx); err != nil {
-					t.Fatal(err)
-				}
-			} else if err = s.Commit(ctx); err != nil {
+			if err := s.Commit(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Close(ctx); err != nil {
 				t.Fatal(err)
 			}
 			reader, err := kgo.NewClient(kgo.SeedBrokers(brokers...), kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{topic: {1: kgo.NewOffset().AtStart()}}))
@@ -125,9 +111,12 @@ func TestKafkaConnector(t *testing.T) {
 		if err := s.Open(ctx, filament.RunSpec{Sink: filament.Ref{Config: cfg}}); err != nil {
 			t.Fatal(err)
 		}
-		defer func() { _ = s.Abort(ctx) }()
+		defer s.Close(ctx)
+		if err := s.Begin(ctx); err != nil {
+			t.Fatal(err)
+		}
 		b := input(t)
-		opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.Stream.WritePolicies[0]}}
+		opts := filament.ApplyOptions{Policy: filament.WritePolicy{Capability: s.Spec().Capabilities.WritePolicies[0]}}
 		// Refill a single client slot repeatedly, including across Apply calls.
 		// Callback delivery can precede the client's release of that slot.
 		const batches = 1000
@@ -160,7 +149,7 @@ func TestKafkaConnector(t *testing.T) {
 		s := kafkasink.New()
 		err := s.Open(ctx, filament.RunSpec{Sink: filament.Ref{Config: map[string]any{"brokers": brokers, "topic": "missing_" + uuid.NewString()}}})
 		if err == nil {
-			_ = s.Abort(ctx)
+			_ = s.Close(ctx)
 			t.Fatal("missing topic accepted")
 		}
 	})

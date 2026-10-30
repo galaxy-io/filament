@@ -23,12 +23,41 @@ changes, including inserts, updates, and deletes. A bounded CDC run can catch
 up to a log position and finish. A continuous message source can stay open
 without reading a database change log at all.
 
-Continuous execution requires native streaming support from both connectors
-and a datastore that supports the streaming runtime. Support for bounded CDC
-or incremental reads alone does not qualify a connector. The
-[Kafka](/pages/connectors/sources/kafka) and
+Continuous execution requires a source with a reusable stream session and a
+datastore that supports the streaming runtime. The sink needs compatible write
+policies with explicit durability. It does not need a streaming interface.
+Support for bounded CDC or incremental reads alone does not establish source
+streaming support. The [Kafka](/pages/connectors/sources/kafka) and
 [NATS](/pages/connectors/sources/nats) source pages describe their current
 continuous behavior and limitations.
+
+Rows written by a continuous run carry the same `_filament_` lineage columns as
+a bounded run. CDC sources add the operation, the source position in the form
+the source uses, such as a WAL LSN for Postgres or a GTID set for MySQL, and the
+sequence within the stream. The
+[replication modes](/pages/guides/concepts/replication-modes#columns-filament-adds)
+guide lists them.
+
+## Sink sessions and boundary defaults
+
+A reusable sink keeps its connection open across finite writes. Other sinks
+receive a fresh instance for each write, including client setup and schema
+preparation. The source session stays open in both cases.
+
+| Sink session | Default record target | Default read budget |
+| --- | --- | --- |
+| Reusable | 1,000 | 1 second |
+| Fresh instance per boundary | 100,000 | 30 seconds |
+
+An explicit `RunOptions.EpochBoundary` overrides these defaults. These are soft
+targets, not a guaranteed write frequency. Source transaction boundaries,
+consumer credit, and available input can change the size of an epoch. Larger
+boundaries amortize setup costs for sinks that reopen each time.
+
+The logical run ID stays unchanged. Each destination session gets a separate
+write identity for its artifacts. S3 and GCS preserve the logical run ID in
+manifests and `{{.Run}}` templates. Their continuous date partitions use the
+finite write's start time, so a long-running stream can move into a new day.
 
 ## Follow an order through an epoch
 
@@ -68,9 +97,10 @@ controls how much work is committed and recorded together. One epoch may
 contain several batches, and an epoch does not imply atomic visibility at
 every destination.
 
-For example, the PostgreSQL streaming sink uses a transaction for each epoch.
+For example, newly planned PostgreSQL continuous writes use a transaction for
+each epoch.
 The NATS sink publishes messages that become visible individually. Finishing
-the epoch confirms those publishes; it does not turn them into a transaction.
+the epoch confirms those publishes. It does not turn them into a transaction.
 
 Epoch boundaries use soft targets for record count, bytes, idle wait, and age.
 A source may need to finish a transaction before returning a safe boundary,
@@ -129,8 +159,10 @@ Lease expiry alone cannot prove that an old worker has stopped affecting the
 destination. If shutdown cannot be confirmed, the execution becomes `blocked`
 and automatic replacement is refused. This prevents a new worker from writing
 alongside an old worker whose requests may still be in flight. Cleanly ended
-attempts can retry with backoff; repeated failures without progress eventually
-pause the execution.
+attempts can retry with backoff. Repeated failures without progress eventually
+pause the execution. A write error alone does not make cleanup unproven. Local
+validation failures and confirmed rollbacks can end cleanly. Schema blocks and
+other admission errors still require their own corrective action.
 
 When inspecting a continuous run, look at its desired and observed execution
 states, reason, and last committed time alongside the logical run status.

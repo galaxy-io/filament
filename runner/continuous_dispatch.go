@@ -56,7 +56,7 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if !ok {
 		return errors.New("continuous source must resolve position codecs")
 	}
-	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, Codecs: codecs, Boundary: continuousBoundary(spec.Options), LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
+	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, NewSink: func() (filament.Sink, error) { return deps.Sinks.Resolve(spec.Sink.Connector) }, Codecs: codecs, Boundary: continuousBoundary(spec.Options, sink.Spec()), LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}
@@ -82,9 +82,12 @@ func LoadContinuousAttempt(ctx context.Context, store filament.StreamRuntimeStor
 }
 
 // continuousBoundary uses the persisted run override when present. Defaults
-// amortize certification while keeping a one-second read latency bound.
-func continuousBoundary(options filament.RunOptions) filament.Boundary {
-	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second}
+// amortize certification and, for finite-session sinks, connection and DDL setup.
+func continuousBoundary(options filament.RunOptions, sink filament.SinkSpec) filament.Boundary {
+	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second, MaxAge: time.Second}
+	if !sink.Capabilities.ReusableSession {
+		b = filament.Boundary{MaxRecords: 100_000, MaxWait: 30 * time.Second, MaxAge: 30 * time.Second}
+	}
 	if options.EpochBoundary != nil {
 		b = *options.EpochBoundary
 	}

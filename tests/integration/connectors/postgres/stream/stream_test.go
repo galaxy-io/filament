@@ -4,7 +4,6 @@ package stream_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -35,13 +34,20 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 	conn := pg.Pool()
 	schema := "epochs_" + uuid.NewString()[:8]
 	attempt := filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
-	appendPolicy := filament.WritePolicy{Capability: filament.WriteCapabilities(filament.IngestionFullAppend)[0]}
+	plan, err := filament.PlanContinuousWrite(filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputRows, Delivery: filament.DeliveryReplayableAtLeastOnce}}, pgsink.New().Spec(), filament.WriteAppend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendPolicy := plan.Policy
+	if appendPolicy.Capability.Durability != filament.DurabilityAfterCommit {
+		t.Fatal("continuous append lost transaction durability")
+	}
 	spec := filament.RunSpec{Run: "run", StreamAttempt: &attempt, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}, Resources: []string{"events"}, Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": schema}}, WritePolicies: map[string]filament.WritePolicy{"events": appendPolicy}}
 	sink := pgsink.New()
 	if err := sink.Open(ctx, spec); err != nil {
 		t.Fatal(err)
 	}
-	defer sink.CloseSession(ctx)
+	defer sink.Close(ctx)
 	fields := rowmodel.Schema{Resource: "events", Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}}}
 	if failSecond {
 		fields.PrimaryKey = []string{"value"}
@@ -86,7 +92,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 		if err := p.BindEpoch(ref); err != nil {
 			t.Fatal(err)
 		}
-		if err := sink.BeginEpoch(ctx, ref); err != nil {
+		if err := sink.Begin(ctx); err != nil {
 			t.Fatal(err)
 		}
 		writer.String("value")
@@ -103,8 +109,8 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 			}
 			expectFailure = true
 			count(1)
-			if err := sink.CloseSession(ctx); err == nil {
-				t.Fatal("failed epoch reported clean closure")
+			if err := sink.Close(ctx); err != nil {
+				t.Fatalf("confirmed rollback reported unproven closure: %v", err)
 			}
 			count(1)
 			return
@@ -119,11 +125,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 			if !inferred {
 				count(0)
 			}
-			r, err := sink.CommitEpoch(ctx, ref)
-			if err != nil || len(r) != 1 || r[0].Rows != 1 {
-				t.Fatalf("receipts %+v: %v", r, err)
-			}
-			if _, err := sink.CommitEpoch(ctx, ref); err != nil {
+			if err := sink.Commit(ctx); err != nil {
 				t.Fatal(err)
 			}
 		} else {
@@ -135,7 +137,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 					t.Fatal(err)
 				}
 			}
-			if err := sink.AbortEpoch(ctx, ref); err != nil {
+			if err := sink.Abort(ctx); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -153,10 +155,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 			}
 		}
 	}
-	if err := sink.Commit(ctx); !errors.Is(err, filament.ErrEpochMismatch) {
-		t.Fatal("bounded lifecycle accepted stream", err)
-	}
-	if err := sink.CloseSession(ctx); err != nil {
+	if err := sink.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
 	// Existing bounded replacement still truncates at EnsureSchema.
@@ -167,7 +166,7 @@ func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
 	if err := bounded.Open(ctx, spec); err != nil {
 		t.Fatal(err)
 	}
-	defer bounded.Commit(ctx)
+	defer bounded.Close(ctx)
 	if err := bounded.EnsureSchema(ctx, "events", fields); err != nil {
 		t.Fatal(err)
 	}

@@ -366,3 +366,6 @@ func TestResourceColumnsDistinguishesManagedIncrementalFromMissingCursor(t *test
 		t.Fatalf("full-only: %v", resources[2])
 	}
 }
+
+func (*liveProbeSink) Begin(context.Context) error { return nil }
+func (*liveProbeSink) Close(context.Context) error { return nil }

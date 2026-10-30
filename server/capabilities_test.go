@@ -475,3 +475,6 @@ func TestManagedIncrementalNeedsNoCursorColumn(t *testing.T) {
 		t.Fatalf("managed state validation = %v", resource)
 	}
 }
+
+func (leverSink) Begin(context.Context) error { return nil }
+func (leverSink) Close(context.Context) error { return nil }

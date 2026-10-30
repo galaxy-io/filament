@@ -99,7 +99,12 @@ func (h handler) Inspect(ctx context.Context, req *connect.Request[workerv1.Insp
 }
 
 func (h handler) PlanReplicationStream(ctx context.Context, req *connect.Request[workerv1.PlanReplicationStreamRequest]) (*connect.Response[workerv1.PlanReplicationStreamResponse], error) {
+	execution, err := convert.ExecutionModeFromProto(req.Msg.GetExecutionMode())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	plan, err := h.worker.PlanReplicationStream(ctx, req.Msg.GetSource(), filament.ReplicationStreamPlanningRequest{
+		Execution:           execution,
 		SourceConnectionID:  req.Msg.GetSourceConnectionId(),
 		ReplicationStreamID: req.Msg.GetReplicationStreamId(),
 		Config:              filament.NewConfig(convert.StructMap(req.Msg.GetConfig())),

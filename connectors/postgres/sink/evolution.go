@@ -173,7 +173,7 @@ func checkSchema(actual, desired rowmodel.Schema, policy schema.Policy) (schema.
 // There is no separately persisted migration phase that can disagree with DDL.
 func (t *Sink) reconcileSchema(ctx context.Context, desired rowmodel.Schema, createSQL string) error {
 	var tx pgx.Tx
-	own := t.stream.active == nil
+	own := t.session.active == nil
 	if own {
 		var err error
 		tx, err = t.pool.Begin(ctx)
@@ -182,7 +182,7 @@ func (t *Sink) reconcileSchema(ctx context.Context, desired rowmodel.Schema, cre
 		}
 		defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	} else {
-		tx = t.stream.active.tx
+		tx = t.session.active.tx
 	}
 	qualified := pgx.Identifier{t.schema, desired.Resource}.Sanitize()
 	// Serialize cooperating creators as PostgreSQL's IF NOT EXISTS alone does

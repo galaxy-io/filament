@@ -47,6 +47,7 @@ type fakeBigQuery struct {
 	ordinals                                        map[string][]int64
 	statements                                      []string
 	appends, finalizes, commits                     int
+	deletes                                         int
 	appendLogicalBytes, appendCompressedBytes       int64
 	loseAppend, badCount, rejectCommit, failPublish bool
 	holdAppend                                      <-chan struct{}
@@ -133,6 +134,7 @@ func (f *fakeBigQuery) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			f.tables[name] = encoded
 			_, _ = w.Write(encoded)
 		case "DELETE":
+			f.deletes++
 			delete(f.tables, name)
 			w.WriteHeader(204)
 		default:
@@ -857,5 +859,52 @@ func TestContinuationAndCheckpointRecovery(t *testing.T) {
 				t.Fatal("continuation skipped publication")
 			}
 		})
+	}
+}
+
+func TestCleanupDoesNotRepeatDeletes(t *testing.T) {
+	for _, abort := range []bool{false, true} {
+		t.Run(fmt.Sprint(abort), func(t *testing.T) {
+			s, f := newFixture(t, filament.IngestionFullReplace, "items")
+			applyBatch(t, s, "items", 1)
+			s.seal()
+			s.workers.Wait()
+			ctx := context.Background()
+			if abort {
+				if err := s.Abort(ctx); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := s.Commit(ctx); err != nil {
+					t.Fatal(err)
+				}
+			}
+			f.mu.Lock()
+			before := f.deletes
+			f.mu.Unlock()
+			if before == 0 {
+				t.Fatal("staging was not cleaned")
+			}
+			if err := s.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			if f.deletes != before {
+				t.Fatalf("Close repeated deletes: before=%d after=%d", before, f.deletes)
+			}
+		})
+	}
+}
+
+func TestCloseRetainsUncertainPublication(t *testing.T) {
+	sink, fake := newFixture(t, filament.IngestionFullAppend, "items")
+	applyBatch(t, sink, "items", 1)
+	fake.failPublish = true
+	if err := sink.Commit(context.Background()); err == nil {
+		t.Fatal("expected publication failure")
+	}
+	if err := sink.Close(context.Background()); err == nil {
+		t.Fatal("unknown publication reported clean")
 	}
 }

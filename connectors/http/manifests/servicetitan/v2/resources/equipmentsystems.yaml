@@ -1,0 +1,80 @@
+resources:
+  - name: installed_equipment
+    path: /equipmentsystems/v2/tenant/{{ config.tenant_id }}/export/installed-equipment
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool?
+      equipmentId: int64?
+      locationId: int64?
+      customerId: int64?
+      parent: json?
+      systemId: int64?
+      invoiceItemId: int64?
+      name: string?
+      type: json?
+      installedOn: string?
+      createdOn: string?
+      modifiedOn: string?
+      serialNumber: string?
+      barcodeId: string?
+      memo: string?
+      manufacturer: string?
+      model: string?
+      cost: decimal?
+      status: string?
+      manufacturerWarrantyStart: string?
+      manufacturerWarrantyEnd: string?
+      serviceProviderWarrantyStart: string?
+      serviceProviderWarrantyEnd: string?
+      tags: json?
+      customFields: json?
+      actualReplacementDate: string?
+      manufacturedOn: string?
+      predictedReplacementMonths: int64?
+      predictedReplacementDate: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: installed_equipment_export_token
+  - name: equipment_systems
+    path: /equipmentsystems/v2/tenant/{{ config.tenant_id }}/export/equipment-systems
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool?
+      name: string?
+      locationId: int64?
+      memo: string?
+      tags: json?
+      customFields: json?
+      createdOn: string?
+      createdBy: int64?
+      modifiedOn: string?
+      modifiedBy: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: equipment_systems_export_token

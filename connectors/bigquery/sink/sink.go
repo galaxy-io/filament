@@ -21,6 +21,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	bigqueryconnection "github.com/galaxy-io/filament/connectors/bigquery/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const (
@@ -34,6 +35,7 @@ const (
 // Sink streams Arrow batches into isolated pending streams. Only Commit makes
 // rows visible in destination tables; its per-table jobs run concurrently.
 type Sink struct {
+	sinkstate.SingleWrite
 	client                     *bigquery.Client
 	storage                    *storage.BigQueryWriteClient
 	run                        filament.RunID
@@ -130,6 +132,9 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 func (s *Sink) initialize(ctx context.Context, run filament.RunSpec) {
 	s.run, s.policies = run.Run, run.WritePolicies
 	s.execution = run.ExecutionID
+	if run.SinkWriteID != "" {
+		s.execution = string(run.SinkWriteID)
+	}
 	s.attempt = uuid.NewString()
 	s.tables = make(map[string]*tableState)
 	s.memory = semaphore.NewWeighted(queuedBytes)
@@ -173,7 +178,6 @@ func (s *Sink) Commit(ctx context.Context) error {
 		return err
 	}
 	s.cleanup()
-	s.release()
 	return nil
 }
 
@@ -186,7 +190,6 @@ func (s *Sink) Abort(context.Context) error {
 	s.seal()
 	s.workers.Wait()
 	s.cleanup()
-	s.release()
 	return nil
 }
 
@@ -242,7 +245,14 @@ func (s *Sink) cleanup() {
 		if !state.stageCreated || (state.publishing && !state.published) {
 			continue
 		}
-		group.Go(func() error { return s.client.DatasetInProject(s.project, s.dataset).Table(state.stage).Delete(ctx) })
+		group.Go(func() error {
+			err := s.client.DatasetInProject(s.project, s.dataset).Table(state.stage).Delete(ctx)
+			if err == nil || isHTTPCode(err, 404) {
+				state.stageCreated = false
+				return nil
+			}
+			return err
+		})
 	}
 	_ = group.Wait()
 }
@@ -278,4 +288,17 @@ func (s *Sink) logTiming(phase, resource string, started time.Time, attrs ...any
 	fields = append(fields, "component", "bigquery", "event.name", "bigquery.write.timing", "run_id", s.run, "resource", resource, "phase", phase, "duration_ms", elapsed.Milliseconds())
 	fields = append(fields, attrs...)
 	slog.Log(context.Background(), level, "BigQuery write timing", fields...)
+}
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error {
+	err := s.Abort(ctx)
+	for _, state := range s.tables {
+		if state.publishing && !state.published {
+			err = errors.Join(err, errors.New("bigquery sink: publication outcome is unproven"))
+			break
+		}
+	}
+	s.release()
+	return err
 }

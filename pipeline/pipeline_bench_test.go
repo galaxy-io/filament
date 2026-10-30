@@ -207,3 +207,6 @@ func appendPolicies(resources int) map[string]filament.WritePolicy {
 	}
 	return policies
 }
+
+func (nullSink) Begin(context.Context) error { return nil }
+func (nullSink) Close(context.Context) error { return nil }

@@ -62,6 +62,14 @@ func (a *cliApp) downCommand() *cobra.Command {
 func (a *cliApp) up(ctx context.Context, addr string) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	unlock, err := a.lockLocalRuns()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	if err := a.recoverLocalRuns(ctx); err != nil {
+		return err
+	}
 	options, secrets, err := a.embeddedOptions()
 	if err != nil {
 		return err

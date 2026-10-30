@@ -703,13 +703,11 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
 	}
 	ev.EffectiveWriteMode = selected
-	if caps := snkSpec.Capabilities.Stream; caps != nil {
-		seen := map[filament.WriteMode]bool{}
-		for _, candidate := range caps.WritePolicies {
-			if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
-				seen[candidate.Mode] = true
-			}
+	seen := map[filament.WriteMode]bool{}
+	for _, candidate := range snkSpec.Capabilities.WritePolicies {
+		if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
+			seen[candidate.Mode] = true
 		}
 	}
 	if !runtimeSupported {
