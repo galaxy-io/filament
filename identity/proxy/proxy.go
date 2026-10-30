@@ -12,78 +12,53 @@ import (
 
 	"connectrpc.com/connect"
 
-	authv1 "github.com/galaxy-io/filament/api/auth/v1"
 	"github.com/galaxy-io/filament/identity"
 )
 
-// Options name the headers to trust and the one tenant to serve.
-type Options struct {
+// Headers the gateway sets. The gateway strips any copy a client sent.
+const (
 	// UserHeader carries the gateway's stable user id.
-	UserHeader string
+	UserHeader = "X-Forwarded-User"
 	// TenantHeader carries the gateway's tenant id.
-	TenantHeader string
-	// RoleHeader carries one of filament's role keys: admin, creator or
-	// viewer. The gateway translates its own vocabulary before setting it.
-	// Optional; unset leaves callers without roles.
-	RoleHeader string
+	TenantHeader = "X-Forwarded-Tenant"
 	// ServiceHeader names a trusted service calling on its own behalf. A
-	// request carrying it needs no user header. Optional.
-	ServiceHeader string
-	// Tenant is the gateway's id for the one tenant this deployment serves.
-	// A request for any other tenant is refused.
-	Tenant string
-	// LoginURL is where the gateway signs people in, reported in the auth
-	// config document.
-	LoginURL string
-}
+	// request carrying it needs no user header.
+	ServiceHeader = "X-Forwarded-Service"
+)
 
-// Authenticator reads callers off trusted gateway headers.
+// Authenticator reads callers off trusted gateway headers for one tenant.
 type Authenticator struct {
-	opts Options
+	tenant string
 }
 
-// New returns an Authenticator for opts. The user header, tenant header,
-// tenant and login URL are required.
-func New(opts Options) (*Authenticator, error) {
-	if opts.UserHeader == "" || opts.TenantHeader == "" || opts.Tenant == "" || opts.LoginURL == "" {
-		return nil, errors.New("proxy: user header, tenant header, tenant and login url are required")
+// New returns an Authenticator serving tenant, the gateway's id for the one
+// tenant this deployment serves. A request for any other tenant is refused.
+func New(tenant string) (*Authenticator, error) {
+	if tenant == "" {
+		return nil, errors.New("proxy: tenant is required")
 	}
-	return &Authenticator{opts: opts}, nil
+	return &Authenticator{tenant: tenant}, nil
 }
 
-// Authenticate resolves the caller from the configured headers. A missing
+// Authenticate resolves the caller from the gateway headers. A missing
 // tenant or user is Unauthenticated; a tenant this deployment does not serve
 // is PermissionDenied.
 func (a *Authenticator) Authenticate(_ context.Context, header http.Header) (identity.Caller, error) {
-	tenant := header.Get(a.opts.TenantHeader)
+	tenant := header.Get(TenantHeader)
 	if tenant == "" {
 		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("no tenant header"))
 	}
-	if tenant != a.opts.Tenant {
+	if tenant != a.tenant {
 		return identity.Caller{}, connect.NewError(connect.CodePermissionDenied, errors.New("tenant is not served here"))
 	}
-	if a.opts.ServiceHeader != "" {
-		if service := header.Get(a.opts.ServiceHeader); service != "" {
-			return identity.Caller{TenantExternalID: tenant, Service: service}, nil
-		}
+	if service := header.Get(ServiceHeader); service != "" {
+		return identity.Caller{TenantExternalID: tenant, Service: service}, nil
 	}
-	user := header.Get(a.opts.UserHeader)
+	user := header.Get(UserHeader)
 	if user == "" {
 		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("no user header"))
 	}
-	caller := identity.Caller{UserID: user, TenantExternalID: tenant}
-	if a.opts.RoleHeader != "" {
-		if role := identity.RoleFromKey(header.Get(a.opts.RoleHeader)); role != authv1.Role_ROLE_UNSPECIFIED {
-			caller.Roles = []authv1.Role{role}
-		}
-	}
-	return caller, nil
+	return identity.Caller{UserID: user, TenantExternalID: tenant}, nil
 }
 
-// LoginURL reports where people sign in.
-func (a *Authenticator) LoginURL() string { return a.opts.LoginURL }
-
-var (
-	_ identity.Authenticator = (*Authenticator)(nil)
-	_ identity.ExternalLogin = (*Authenticator)(nil)
-)
+var _ identity.Authenticator = (*Authenticator)(nil)

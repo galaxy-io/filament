@@ -28,15 +28,14 @@ func (disabledAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.G
 
 // externalAuth answers AuthService when the authenticator has no login of
 // its own: requests are authenticated, but people sign in upstream. The
-// config document keeps an empty issuer and names the login URL, and every
-// other RPC stays unimplemented.
+// config document keeps an empty issuer, so the UI renders without a
+// session of its own, and every other RPC stays unimplemented.
 type externalAuth struct {
 	authv1connect.UnimplementedAuthServiceHandler
-	loginURL string
 }
 
-func (e externalAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
-	return connect.NewResponse(&authv1.GetAuthConfigResponse{LoginUrl: e.loginURL}), nil
+func (externalAuth) GetAuthConfig(_ context.Context, _ *connect.Request[authv1.GetAuthConfigRequest]) (*connect.Response[authv1.GetAuthConfigResponse], error) {
+	return connect.NewResponse(&authv1.GetAuthConfigResponse{}), nil
 }
 
 // publicProcedures are the AuthService RPCs a caller reaches before holding

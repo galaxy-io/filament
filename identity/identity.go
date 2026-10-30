@@ -35,13 +35,6 @@ type Provider interface {
 	authv1connect.AuthServiceHandler
 }
 
-// ExternalLogin is implemented by an Authenticator whose sign-in happens
-// upstream of filament. The server reports the URL in the auth config
-// document so clients send people there instead of to filament's own login.
-type ExternalLogin interface {
-	LoginURL() string
-}
-
 // Caller is the authenticated identity behind a request.
 type Caller struct {
 	// UserID is the provider's stable user identifier.

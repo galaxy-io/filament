@@ -26,27 +26,14 @@ func FromEnv(ctx context.Context) (identity.Authenticator, error) {
 	case "":
 		return nil, nil
 	// Trusts identity headers from a gateway that authenticated the caller.
-	// AUTH_PROXY_USER_HEADER and AUTH_PROXY_TENANT_HEADER name the headers;
-	// AUTH_PROXY_ROLE_HEADER carries admin, creator or viewer and
-	// AUTH_PROXY_SERVICE_HEADER names a trusted service caller, both
-	// optional. AUTH_PROXY_TENANT is the one gateway tenant this deployment
-	// serves; any other is refused. AUTH_PROXY_LOGIN_URL is where the
-	// gateway signs people in.
+	// AUTH_PROXY_TENANT is the one gateway tenant this deployment serves;
+	// any other is refused. Sign-in happens at the gateway.
 	case "proxy":
-		if os.Getenv("AUTH_PROXY_TENANT") == "" {
+		tenant := os.Getenv("AUTH_PROXY_TENANT")
+		if tenant == "" {
 			return nil, errors.New("identity: AUTH_PROXY_TENANT is required for AUTH_PROVIDER=proxy")
 		}
-		if os.Getenv("AUTH_PROXY_LOGIN_URL") == "" {
-			return nil, errors.New("identity: AUTH_PROXY_LOGIN_URL is required for AUTH_PROVIDER=proxy")
-		}
-		return proxy.New(proxy.Options{
-			UserHeader:    os.Getenv("AUTH_PROXY_USER_HEADER"),
-			TenantHeader:  os.Getenv("AUTH_PROXY_TENANT_HEADER"),
-			RoleHeader:    os.Getenv("AUTH_PROXY_ROLE_HEADER"),
-			ServiceHeader: os.Getenv("AUTH_PROXY_SERVICE_HEADER"),
-			Tenant:        os.Getenv("AUTH_PROXY_TENANT"),
-			LoginURL:      os.Getenv("AUTH_PROXY_LOGIN_URL"),
-		})
+		return proxy.New(tenant)
 	// The machine-user token in AUTH_PAT.
 	case "zitadel":
 		pat := os.Getenv("AUTH_PAT")

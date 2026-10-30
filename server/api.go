@@ -109,15 +109,13 @@ func (a *Server) Mount(mux *http.ServeMux) {
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
 	// A provider serves AuthService directly. Any other authenticator leaves
-	// sign-in upstream, so a stub reports where; without one, a stub keeps
-	// the config document answering so the UI can tell auth is off.
+	// sign-in upstream, so a stub answers only the config document; without
+	// one, a stub keeps the config document answering so the UI can tell
+	// auth is off.
 	var authHandler authv1connect.AuthServiceHandler = disabledAuth{}
-	switch p := a.identity.(type) {
-	case identity.Provider:
+	if p, ok := a.identity.(identity.Provider); ok {
 		authHandler = p
-	case identity.ExternalLogin:
-		authHandler = externalAuth{loginURL: p.LoginURL()}
-	case identity.Authenticator:
+	} else if a.identity != nil {
 		authHandler = externalAuth{}
 	}
 	path, handler = authv1connect.NewAuthServiceHandler(authHandler, opts...)
