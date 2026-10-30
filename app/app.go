@@ -46,6 +46,7 @@ import (
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/version"
 	"github.com/galaxy-io/filament/worker"
 )
 
@@ -198,6 +199,7 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	sched.Start(ctx)
 	mux = http.NewServeMux()
 	api.Mount(mux)
+	mux.Handle("/version", version.Handler())
 	if cfg.UI != nil {
 		mux.Handle("/", cfg.UI)
 	}

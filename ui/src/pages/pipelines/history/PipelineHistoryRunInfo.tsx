@@ -167,7 +167,7 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
   };
 
   return (
-    <Box variant={BoxVariant.PRIMARY} fillWidth height="100%">
+    <Box variant={BoxVariant.PRIMARY} fillWidth>
       {renderBody()}
     </Box>
   );
