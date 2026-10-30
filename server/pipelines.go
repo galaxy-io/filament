@@ -596,7 +596,7 @@ func (a *Server) submitPipeline(ctx context.Context, tenant filament.TenantID, r
 	if err := compile.ValidateWorkerConfiguration(workerCfg); err != nil {
 		return nil, compileError(err)
 	}
-	compiled, err := a.compiler.Compile(ctx, tenant, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg)
+	compiled, err := a.compiler.Compile(ctx, tenant, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg, req.GetResources(), req.GetResyncResources())
 	if err != nil {
 		return nil, compileError(err)
 	}

@@ -47,12 +47,13 @@ func (leverSource) Extract(context.Context, filament.RecordSink, filament.Extrac
 func (leverSource) Discover(context.Context, filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	return filament.DiscoverResult{Resources: []filament.Resource{
 		{Name: "orders", Selectable: true, PrimaryKey: []string{"id"}},
+		{Name: "customers", Selectable: true, PrimaryKey: []string{"id"}},
 		{Name: "audit", Selectable: true},
 	}}, nil
 }
 
 func (leverSource) Schema(_ context.Context, resource string) (filament.RecordSchema, error) {
-	if resource == "orders" {
+	if resource == "orders" || resource == "customers" {
 		return filament.RecordSchema{Resource: resource, PrimaryKey: []string{"id"}, Fields: []filament.SchemaField{
 			{Name: "id", Logical: filament.LogicalInt64},
 			{Name: "email", Logical: filament.LogicalString, Nullable: true},

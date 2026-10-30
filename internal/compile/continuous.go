@@ -16,7 +16,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
-func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.TenantID, p *ingestionv1.Pipeline, v *ingestionv1.PipelineVersion, token string, options filament.RunOptions, worker filament.WorkerConfiguration) ([]CompiledRun, error) {
+func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.TenantID, p *ingestionv1.Pipeline, v *ingestionv1.PipelineVersion, token string, options filament.RunOptions, worker filament.WorkerConfiguration, resync []string) ([]CompiledRun, error) {
 	if v.GetGraph() == nil {
 		return nil, fmt.Errorf("%w: continuous pipeline needs a graph", ErrInvalid)
 	}
@@ -34,6 +34,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 	}
 	if len(groups) == 0 {
 		return nil, fmt.Errorf("%w: continuous pipeline needs a route", ErrInvalid)
+	}
+	if err := validateResync(groups, resync); err != nil {
+		return nil, err
 	}
 	var out []CompiledRun
 	for _, group := range groups {
@@ -77,12 +80,12 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		applyContinuousDestinations(policies, graph.Edges, group)
 		ingestionTypes := continuousIngestionTypes(sourceSpec, sourceRef, resources, writePlan.Policy.Capability.Mode)
 		columns := routeColumns(group)
-		fingerprint, err := continuityFingerprint(sourceRef, sinkRef, resources, columns, writePlan, plan.ContinuityConfig, policies)
+		fingerprint, err := continuityFingerprint(sourceRef, sinkRef, writePlan, plan.ContinuityConfig)
 		if err != nil {
 			return nil, err
 		}
 		desired := &filament.ReplicationStream{ID: streamID, Tenant: tenant, PipelineID: p.Id, Route: group.key, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig, ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: v.Id}
-		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: columns, CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies, IngestionTypes: ingestionTypes}}})
+		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: columns, Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies, IngestionTypes: ingestionTypes}}})
 	}
 	return out, nil
 }
@@ -175,19 +178,18 @@ func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
 	return nil
 }
 
-// continuityFingerprint is conservative: no guessing that an edited endpoint
-// or config is compatible. A changed fingerprint requires a new generation
-// after stop.
-func continuityFingerprint(sourceRef, sinkRef filament.Ref, resources []string, columns map[string][]string, writePlan filament.ContinuousWritePlan, continuity map[string]any, policies map[string]filament.WritePolicy) (string, error) {
+// continuityFingerprint is conservative about the endpoints and the write
+// shape: no guessing that an edited connection or config is compatible, so a
+// change there forks the generation after stop. It leaves out the selected
+// resources, their columns and destinations on purpose. Those are membership,
+// which a successor run revises on the same generation.
+func continuityFingerprint(sourceRef, sinkRef filament.Ref, writePlan filament.ContinuousWritePlan, continuity map[string]any) (string, error) {
 	raw, err := json.Marshal(struct {
 		Source, Sink filament.Ref
-		Resources    []string
-		Columns      map[string][]string `json:",omitempty"`
 		Mode         string
 		Write        filament.ContinuousWritePlan
 		Continuity   map[string]any
-		Policies     map[string]filament.WritePolicy
-	}{sourceRef, sinkRef, resources, columns, "continuous", writePlan, continuity, policies})
+	}{sourceRef, sinkRef, "continuous", writePlan, continuity})
 	if err != nil {
 		return "", fmt.Errorf("%w: fingerprint stream: %v", ErrInvalid, err)
 	}

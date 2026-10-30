@@ -14,6 +14,11 @@ import {
   getAutoConnections,
 } from "@/pages/pipelines/canvas/graph/rules";
 import {
+  getCanvasEdgeConfig,
+  getCanvasEdgeKey,
+  getProtoEdgeKey,
+} from "@/pages/pipelines/canvas/graph/serialize";
+import {
   type AddNodeAction,
   type ApplyEdgeChangesAction,
   type ApplyNodeChangesAction,
@@ -27,6 +32,7 @@ import {
   type SetNodeConfigAction,
   type SetNodesAction,
   type SetRouteWriteModeAction,
+  type SettleGraphAction,
 } from "@/pages/pipelines/canvas/providers/canvas/actions";
 import type { PipelineCanvasState } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { type CanvasEdge, PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
@@ -107,6 +113,32 @@ function applyEdgeChanges(
   return {
     ...state,
     edges: xyflowApplyEdgeChanges(action.payload, state.edges),
+  };
+}
+
+function settleGraph(state: PipelineCanvasState, action: SettleGraphAction): PipelineCanvasState {
+  const { version, savedNodeConfigs, savedEdgeData } = action.payload;
+  const versionNodesById = new Map((version.graph?.nodes ?? []).map((node) => [node.id, node]));
+  const versionEdgesByKey = new Map(
+    (version.graph?.edges ?? []).map((edge) => [getProtoEdgeKey(edge), edge]),
+  );
+  return {
+    ...state,
+    nodes: state.nodes.map((node) => {
+      const savedNode = versionNodesById.get(node.id);
+      return isConnectionNode(node) &&
+        node.data.config &&
+        savedNodeConfigs.has(node.data.config) &&
+        savedNode
+        ? { ...node, data: { ...node.data, config: savedNode.config } }
+        : node;
+    }),
+    edges: state.edges.map((edge) => {
+      const savedEdge = versionEdgesByKey.get(getCanvasEdgeKey(edge));
+      return edge.data && savedEdgeData.has(edge.data) && savedEdge
+        ? { ...edge, data: getCanvasEdgeConfig({}, savedEdge) }
+        : edge;
+    }),
   };
 }
 
@@ -202,6 +234,8 @@ const pipelineCanvasReducer = (
       return setEdgeConfig(state, action);
     case PipelineCanvasActionType.SET_ROUTE_WRITE_MODE:
       return setRouteWriteMode(state, action);
+    case PipelineCanvasActionType.SETTLE_GRAPH:
+      return settleGraph(state, action);
   }
 };
 

@@ -24,6 +24,7 @@ import {
   type PipelineCanvasValidationIssue,
   PipelineCanvasValidationIssueKind,
 } from "@/pages/pipelines/canvas/types";
+import { isConnectionNode } from "@/pages/pipelines/canvas/utils";
 import PipelinePageSaveIssues from "@/pages/pipelines/components/header/PipelinePageSaveIssues";
 import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
 
@@ -38,7 +39,7 @@ const PipelinePageEditActions: FC = () => {
   const { toast } = useToast();
   const { id } = usePipelineParams();
   const state = usePipelineCanvasState();
-  const { loadGraph } = usePipelineCanvasActions();
+  const { loadGraph, settleGraph } = usePipelineCanvasActions();
   const navigateCanvas = usePipelineCanvasNavigate();
 
   const { data } = useSuspenseGetPipelineQuery({
@@ -78,10 +79,17 @@ const PipelinePageEditActions: FC = () => {
   };
 
   const handleSave = () => {
+    const savedNodeConfigs = new Set(
+      state.nodes
+        .filter(isConnectionNode)
+        .flatMap((node) => (node.data.config ? [node.data.config] : [])),
+    );
+    const savedEdgeData = new Set(state.edges.flatMap((edge) => (edge.data ? [edge.data] : [])));
     createPipelineVersion(
       mapCanvasStateToVersionRequest(state, id, currentVersion, pipeline.executionMode),
       {
-        onSuccess: () => {
+        onSuccess: ({ version }) => {
+          if (version) settleGraph(version, savedNodeConfigs, savedEdgeData);
           toast({
             header: "Pipeline saved",
             variant: ToastVariant.SUCCESS,

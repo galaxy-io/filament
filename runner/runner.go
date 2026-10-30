@@ -173,6 +173,18 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			return nil
 		}
 	}
+	// A resynced resource forgets its progress here, so the reads below start
+	// it from the beginning like a resource the route has never read.
+	for _, resource := range spec.Resync {
+		key, ok := spec.ResourceCheckpointKey(resource)
+		if !ok {
+			continue
+		}
+		if err := deps.DataStore.DeleteResourceCheckpoint(extractCtx, spec.Tenant, key); err != nil && !errors.Is(err, filament.ErrNotFound) {
+			em.failed(fmt.Errorf("resync %q: %w", resource, err), nil, false)
+			return nil
+		}
+	}
 	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
 	// cannot shard: parallel writers apply batches out of order, so a keyset
 	// cursor could persist behind rows already written.

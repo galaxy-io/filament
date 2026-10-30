@@ -50,3 +50,26 @@ func TestGroupEdgesCollectsColumnSelections(t *testing.T) {
 		t.Fatalf("conflicting selections: %v", err)
 	}
 }
+
+func TestSelectEdgesKeepsTheNamedResources(t *testing.T) {
+	nodes := map[string]*ingestionv1.PipelineNode{"src": {Id: "src"}, "snk": {Id: "snk"}, "other": {Id: "other"}}
+	edges := []*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", Resource: "orders"},
+		{FromNode: "src", ToNode: "snk", Resource: "items"},
+		{FromNode: "src", ToNode: "other", Resource: "customers"},
+		{FromNode: "src", ToNode: "other"},
+	}
+	groups, err := groupEdges(selectEdges(edges, []string{"orders"}), nodes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("a route with nothing selected must not run: %d groups", len(groups))
+	}
+	if resources, _ := routeResources(groups[0]); len(resources) != 1 || resources[0] != "orders" {
+		t.Fatalf("resources = %v", resources)
+	}
+	if len(edges) != 4 {
+		t.Fatal("selectEdges must not change its input")
+	}
+}

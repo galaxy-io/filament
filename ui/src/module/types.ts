@@ -2,6 +2,7 @@ export enum Flow {
   CREATE_CONNECTION = "CREATE_CONNECTION",
   EDIT_CONNECTION = "EDIT_CONNECTION",
   CREATE_PIPELINE = "CREATE_PIPELINE",
+  RUN_PIPELINE = "RUN_PIPELINE",
 }
 
 declare module "@tanstack/react-router" {
