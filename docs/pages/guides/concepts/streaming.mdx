@@ -189,6 +189,14 @@ pause the execution. A write error alone does not make cleanup unproven. Local
 validation failures and confirmed rollbacks can end cleanly. Schema blocks and
 other admission errors still require their own corrective action.
 
+An upgrade restarts running streams the same way. Each attempt records the
+release that dispatched it. When the control plane comes up on a newer
+release, it asks one stale attempt per reconcile pass to yield. That worker
+finishes its current epoch, ends with the reason `yielded for upgrade`, and
+exits. The stream stays enabled, so the next pass starts a fresh attempt on
+the current image from the last committed position, with no backoff. Streams
+move to the new release one at a time rather than all at once.
+
 When inspecting a continuous run, look at its desired and observed execution
 states, reason, and last committed time alongside the logical run status.
 Committed totals come from saved epochs. A quiet feed can remain running

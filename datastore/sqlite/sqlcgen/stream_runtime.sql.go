@@ -36,9 +36,9 @@ func (q *Queries) ChangeStreamDesiredState(ctx context.Context, arg ChangeStream
 }
 
 const createStreamAttempt = `-- name: CreateStreamAttempt :one
-INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec)
-SELECT ?1, ?2, ?3, ?4, ttl_us, CAST(unixepoch('subsec') * 1000 AS INTEGER) + (ttl_us + 999) / 1000, (SELECT run_spec FROM replication_streams WHERE id=?1 AND tenant_id=?2)
-FROM (SELECT CAST(?5 AS INTEGER) AS ttl_us) RETURNING token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason
+INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec,dispatch_version)
+SELECT ?1, ?2, ?3, ?4, ttl_us, CAST(unixepoch('subsec') * 1000 AS INTEGER) + (ttl_us + 999) / 1000, (SELECT run_spec FROM replication_streams WHERE id=?1 AND tenant_id=?2), ?5
+FROM (SELECT CAST(?6 AS INTEGER) AS ttl_us) RETURNING token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason, dispatch_version, yield_requested_at
 `
 
 type CreateStreamAttemptParams struct {
@@ -46,6 +46,7 @@ type CreateStreamAttemptParams struct {
 	TenantID        string
 	ExecutionID     string
 	DesiredRevision int64
+	DispatchVersion string
 	TtlUs           int64
 }
 
@@ -55,6 +56,7 @@ func (q *Queries) CreateStreamAttempt(ctx context.Context, arg CreateStreamAttem
 		arg.TenantID,
 		arg.ExecutionID,
 		arg.DesiredRevision,
+		arg.DispatchVersion,
 		arg.TtlUs,
 	)
 	var i StreamAttempt
@@ -72,6 +74,8 @@ func (q *Queries) CreateStreamAttempt(ctx context.Context, arg CreateStreamAttem
 		&i.EndedAt,
 		&i.Termination,
 		&i.Reason,
+		&i.DispatchVersion,
+		&i.YieldRequestedAt,
 	)
 	return &i, err
 }
@@ -104,7 +108,7 @@ func (q *Queries) EndStreamAttempt(ctx context.Context, arg EndStreamAttemptPara
 }
 
 const getLatestRouteAttempt = `-- name: GetLatestRouteAttempt :one
-SELECT a.token, a.stream_id, a.tenant_id, a.execution_id, a.desired_revision, a.request_ttl_us, a.started_at, a.claimed_at, a.run_spec, a.expires_at, a.ended_at, a.termination, a.reason FROM stream_attempts a JOIN replication_streams s ON s.id = a.stream_id
+SELECT a.token, a.stream_id, a.tenant_id, a.execution_id, a.desired_revision, a.request_ttl_us, a.started_at, a.claimed_at, a.run_spec, a.expires_at, a.ended_at, a.termination, a.reason, a.dispatch_version, a.yield_requested_at FROM stream_attempts a JOIN replication_streams s ON s.id = a.stream_id
 WHERE s.pipeline_id = ?1 AND s.route_key = ?2 AND s.tenant_id = ?3
 ORDER BY a.token DESC LIMIT 1
 `
@@ -132,12 +136,14 @@ func (q *Queries) GetLatestRouteAttempt(ctx context.Context, arg GetLatestRouteA
 		&i.EndedAt,
 		&i.Termination,
 		&i.Reason,
+		&i.DispatchVersion,
+		&i.YieldRequestedAt,
 	)
 	return &i, err
 }
 
 const getLatestStreamAttempt = `-- name: GetLatestStreamAttempt :one
-SELECT token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason FROM stream_attempts WHERE stream_id = ?1 AND tenant_id = ?2 ORDER BY token DESC LIMIT 1
+SELECT token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason, dispatch_version, yield_requested_at FROM stream_attempts WHERE stream_id = ?1 AND tenant_id = ?2 ORDER BY token DESC LIMIT 1
 `
 
 type GetLatestStreamAttemptParams struct {
@@ -162,6 +168,8 @@ func (q *Queries) GetLatestStreamAttempt(ctx context.Context, arg GetLatestStrea
 		&i.EndedAt,
 		&i.Termination,
 		&i.Reason,
+		&i.DispatchVersion,
+		&i.YieldRequestedAt,
 	)
 	return &i, err
 }
@@ -189,7 +197,7 @@ func (q *Queries) GetReplicationStreamPipelineID(ctx context.Context, arg GetRep
 }
 
 const getStreamAttemptByExecutionID = `-- name: GetStreamAttemptByExecutionID :one
-SELECT token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason FROM stream_attempts WHERE tenant_id = ?1 AND execution_id = ?2
+SELECT token, stream_id, tenant_id, execution_id, desired_revision, request_ttl_us, started_at, claimed_at, run_spec, expires_at, ended_at, termination, reason, dispatch_version, yield_requested_at FROM stream_attempts WHERE tenant_id = ?1 AND execution_id = ?2
 `
 
 type GetStreamAttemptByExecutionIDParams struct {
@@ -214,6 +222,8 @@ func (q *Queries) GetStreamAttemptByExecutionID(ctx context.Context, arg GetStre
 		&i.EndedAt,
 		&i.Termination,
 		&i.Reason,
+		&i.DispatchVersion,
+		&i.YieldRequestedAt,
 	)
 	return &i, err
 }
@@ -421,6 +431,24 @@ type RenewStreamAttemptParams struct {
 
 func (q *Queries) RenewStreamAttempt(ctx context.Context, arg RenewStreamAttemptParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, renewStreamAttempt, arg.TtlUs, arg.Token, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const yieldStreamAttempt = `-- name: YieldStreamAttempt :execrows
+UPDATE stream_attempts SET yield_requested_at = coalesce(yield_requested_at, CAST(unixepoch('subsec') * 1000 AS INTEGER))
+WHERE token = ?1 AND tenant_id = ?2 AND ended_at IS NULL
+`
+
+type YieldStreamAttemptParams struct {
+	Token    int64
+	TenantID string
+}
+
+func (q *Queries) YieldStreamAttempt(ctx context.Context, arg YieldStreamAttemptParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, yieldStreamAttempt, arg.Token, arg.TenantID)
 	if err != nil {
 		return 0, err
 	}

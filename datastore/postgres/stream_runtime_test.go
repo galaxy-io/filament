@@ -67,6 +67,39 @@ func (f runtimeFixture) start(t *testing.T) filament.Attempt {
 	return a
 }
 
+func TestRuntimeYieldMarksOnlyTheLiveAttempt(t *testing.T) {
+	f := newRuntimeFixture(t)
+	ctx := context.Background()
+	f.request.DispatchVersion = "v0.1.0"
+	attempt := f.start(t)
+	state, err := f.store.LoadStreamState(ctx, f.activation.StreamStateRequest)
+	if err != nil || state.Attempt.DispatchVersion != "v0.1.0" || state.Attempt.YieldRequested {
+		t.Fatalf("fresh attempt: %+v %v", state.Attempt, err)
+	}
+	for range 2 {
+		if err := f.store.YieldAttempt(ctx, attempt.Lease); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err = f.store.LoadStreamState(ctx, f.activation.StreamStateRequest)
+	if err != nil || !state.Attempt.YieldRequested || state.Desired != filament.StreamEnabled {
+		t.Fatalf("yielded attempt: %+v %v", state.Attempt, err)
+	}
+	if err := f.store.RenewLease(ctx, attempt.Lease, time.Minute); err != nil {
+		t.Fatalf("yield must not take the lease: %v", err)
+	}
+	if err := f.store.EndAttempt(ctx, filament.EndAttemptRequest{Lease: attempt.Lease, Termination: filament.AttemptClean, Reason: filament.AttemptReasonUpgrade}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.YieldAttempt(ctx, attempt.Lease); err != nil {
+		t.Fatalf("yield after end: %v", err)
+	}
+	state, err = f.store.LoadStreamState(ctx, f.activation.StreamStateRequest)
+	if err != nil || state.Attempt.Reason != filament.AttemptReasonUpgrade || state.Attempt.Termination != filament.AttemptClean {
+		t.Fatalf("upgrade end: %+v %v", state.Attempt, err)
+	}
+}
+
 func TestRuntimeAttemptAdmissionRaceAndRetry(t *testing.T) {
 	f := newRuntimeFixture(t)
 	ctx := context.Background()

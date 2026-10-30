@@ -28,8 +28,11 @@ ORDER BY a.token DESC LIMIT 1;
 -- name: GetLatestStreamAttempt :one
 SELECT * FROM stream_attempts WHERE stream_id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id) ORDER BY token DESC LIMIT 1;
 -- name: CreateStreamAttempt :one
-INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec)
-VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(execution_id),sqlc.arg(desired_revision),sqlc.arg(ttl_us),clock_timestamp() + sqlc.arg(ttl_us)::bigint * interval '1 microsecond', (SELECT run_spec FROM replication_streams WHERE id=sqlc.arg(stream_id))) RETURNING *;
+INSERT INTO stream_attempts(stream_id,tenant_id,execution_id,desired_revision,request_ttl_us,expires_at,run_spec,dispatch_version)
+VALUES(sqlc.arg(stream_id),sqlc.arg(tenant_id),sqlc.arg(execution_id),sqlc.arg(desired_revision),sqlc.arg(ttl_us),clock_timestamp() + sqlc.arg(ttl_us)::bigint * interval '1 microsecond', (SELECT run_spec FROM replication_streams WHERE id=sqlc.arg(stream_id)), sqlc.arg(dispatch_version)) RETURNING *;
+-- name: YieldStreamAttempt :execrows
+UPDATE stream_attempts SET yield_requested_at = coalesce(yield_requested_at, clock_timestamp())
+WHERE token = sqlc.arg(token) AND tenant_id = sqlc.arg(tenant_id) AND ended_at IS NULL;
 -- name: Now :one
 SELECT clock_timestamp()::timestamptz;
 -- name: RenewStreamAttempt :execrows
