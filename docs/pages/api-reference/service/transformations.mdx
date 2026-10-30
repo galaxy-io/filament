@@ -1,0 +1,77 @@
+---
+title: "Transformations API"
+sidebarTitle: "Transformations"
+description: "Read the function catalog and compile a transform against a resource in Filament, the open-source data movement engine."
+---
+
+Use these RPCs to build a transform editor. The catalog describes every
+function a definition may call, with the presentation metadata a builder
+needs. Validation compiles a definition against one resource exactly as a run
+would. The messages are defined in `protos/ingestion/v1/transformations.proto`.
+[Transformations](/pages/guides/concepts/transformations) explains the
+definition itself and every function.
+
+## RPCs
+
+| RPC | Description |
+|---|---|
+| `ListTransformFunctions` | Catalog the functions, the grammar version, and the grammar's JSON schema |
+| `ValidateTransform` | Compile a definition against one resource's live schema |
+
+`ValidateTransform` runs under the same 30-second timeout as
+`GetResourceColumns` because it reads the resource's columns from the source.
+
+## ListTransformFunctions
+
+Returns every function in catalog order. Pass `logical_type` to get only the
+functions that accept a column of that type in some argument. That is the same
+acceptance the compiler applies, so a builder that offers those never proposes
+a call the compiler rejects.
+
+Each `TransformFunction` carries:
+
+- `name`, what a definition calls, with `display_name` and `description` for a
+  builder to show
+- `args`, each with `name`, `display_name`, the accepted `logical_types`
+  (empty accepts any), and the `is_column`, `is_literal`, `is_optional`, and
+  `is_variadic` flags. A variadic last argument may repeat any number of times
+- `returns`, the logical type of the result, or `returns_input` when the
+  result takes the shared type of the value arguments
+- `same_type`, set when every value argument must share one type and a literal
+  widens to the column's type
+- presentation hints. `operator_symbol` marks a binary function that can
+  render infix, `condition_operator` marks one that fits a row condition
+  picker, `condition_join` is `and` or `or`, and `variadic_add_label` names
+  the action that appends another argument
+
+The response also carries `grammar_version`, which a definition must declare,
+and `grammar_schema`, the JSON schema a client can use to check a document's
+shape before sending it.
+
+## ValidateTransform
+
+Takes a `source_connection_id`, a `resource`, and the `transform` as a JSON
+object, the same object an edge carries. The server reads the resource's
+columns from the source connection and compiles the definition against them.
+A definition that names other resources is accepted, and only the named
+resource is compiled.
+
+The response carries `valid`, `issues`, `output_columns`, and
+`expression_types`. The last two come back on failure too.
+
+- `issues` lists every problem at once. Each `field` is a path into the
+  definition, such as `resources["users"].steps[1].compute["email"].lower[0]`,
+  and `message` says what is wrong.
+- `output_columns` are the resource's columns after the steps, in order, with
+  name, logical type, nullability, and primary key flag. Steps that failed are
+  skipped and the rest still apply, so a builder can offer the right columns
+  after a broken step. When the document fails the grammar, these are the
+  source columns.
+- `expression_types` give the logical type of every sub-expression that
+  compiled, keyed by the same paths. A literal that widened to a column's type
+  reports the widened type.
+
+Errors outside the definition come back as RPC errors. `invalid_argument` for
+a missing resource or transform, `not_found` for the connection,
+`failed_precondition` when its secrets cannot be resolved, and `unimplemented`
+when the connector does not provide resource schemas.

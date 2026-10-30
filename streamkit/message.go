@@ -9,14 +9,16 @@ import (
 
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // MessageColumns projects JSON object members into source-owned columns. Other
 // messages retain their bytes in a source-owned payload column. A resource keeps
 // the first message's schema; drift fails before any row values are appended.
 type MessageColumns struct {
-	fields []rowmodel.Field
-	raw    bool
+	resource string
+	fields   []rowmodel.Field
+	raw      bool
 }
 
 func decodeObject(payload []byte) (map[string]json.RawMessage, bool, error) {
@@ -71,7 +73,7 @@ func NewMessageColumns(base rowmodel.Schema, payload []byte) (*MessageColumns, r
 	if err != nil {
 		return nil, rowmodel.Schema{}, err
 	}
-	columns := &MessageColumns{raw: !object}
+	columns := &MessageColumns{resource: base.Resource, raw: !object}
 	occupied := map[string]bool{}
 	for _, field := range base.Fields {
 		occupied[strings.ToLower(field.Name)] = true
@@ -95,13 +97,21 @@ func NewMessageColumns(base rowmodel.Schema, payload []byte) (*MessageColumns, r
 	}
 	base = base.Clone()
 	base.Fields = append(base.Fields, columns.fields...)
-	schema, err := rowmodel.WithEventMetadataFields(base)
-	return columns, schema, err
+	model, err := rowmodel.WithEventMetadataFields(base)
+	return columns, model, err
 }
 
 // Prepare validates the entire message before the caller appends transport
 // fields. The returned closure writes only source-owned message columns.
 func (c *MessageColumns) Prepare(payload []byte) (func(arrowbatch.RowWriter), error) {
+	write, err := c.prepare(payload)
+	if err != nil {
+		return nil, &schema.BlockError{Resource: c.resource, Reasons: []string{err.Error()}}
+	}
+	return write, nil
+}
+
+func (c *MessageColumns) prepare(payload []byte) (func(arrowbatch.RowWriter), error) {
 	values, object, err := decodeObject(payload)
 	if err != nil {
 		return nil, err

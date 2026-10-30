@@ -1,0 +1,48 @@
+resources:
+  - name: estimates
+    path: /sales/v2/tenant/{{ config.tenant_id }}/export/estimates
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64?
+      projectId: int64?
+      locationId: int64?
+      customerId: int64?
+      name: string?
+      jobNumber: string?
+      status: json?
+      reviewStatus: string?
+      summary: string?
+      createdOn: string?
+      modifiedOn: string?
+      soldOn: string?
+      soldBy: int64?
+      active: bool?
+      items: json?
+      externalLinks: json?
+      subtotal: decimal?
+      tax: decimal?
+      businessUnitId: int64?
+      businessUnitName: string?
+      isRecommended: bool?
+      budgetCodeId: int64?
+      isChangeOrder: bool?
+      proposalTagName: string?
+      depositAmount: decimal?
+      depositPercent: decimal?
+      requireDepositOnSignature: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: estimates_export_token

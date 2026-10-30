@@ -66,19 +66,26 @@ func workerTolerations(in []filament.WorkerToleration) []corev1.Toleration {
 // lost the tenant label, so a selector that found the Job missed its pods.
 func (m *Module) jobLabels(spec filament.RunSpec) map[string]string {
 	labels := map[string]string{
-		"app.kubernetes.io/name":      m.appName(),
-		"app.kubernetes.io/component": "worker",
-		"filament.galaxy.io/run-id":   string(spec.Run),
-		"filament.galaxy.io/tenant":   string(spec.Tenant),
+		"app.kubernetes.io/name":       m.appName(),
+		"app.kubernetes.io/component":  "worker",
+		"app.kubernetes.io/part-of":    "filament",
+		"filament.getgalaxy.io/run-id": string(spec.Run),
+		"filament.getgalaxy.io/tenant": string(spec.Tenant),
+	}
+	if m.cfg.WorkerInstance != "" {
+		labels["app.kubernetes.io/instance"] = m.cfg.WorkerInstance
+	}
+	if spec.PipelineID != "" {
+		labels["filament.getgalaxy.io/pipeline-id"] = k8sLabelValue(spec.PipelineID)
 	}
 	if spec.ExecutionID != "" {
-		labels["filament.galaxy.io/execution-id"] = executionToken(spec.ExecutionID)
+		labels["filament.getgalaxy.io/execution-id"] = executionToken(spec.ExecutionID)
 	}
 	if spec.SourceConnectionID != "" {
-		labels["filament.galaxy.io/source-connection-id"] = k8sLabelValue(spec.SourceConnectionID)
+		labels["filament.getgalaxy.io/source-connection-id"] = k8sLabelValue(spec.SourceConnectionID)
 	}
 	if spec.SinkConnectionID != "" {
-		labels["filament.galaxy.io/sink-connection-id"] = k8sLabelValue(spec.SinkConnectionID)
+		labels["filament.getgalaxy.io/sink-connection-id"] = k8sLabelValue(spec.SinkConnectionID)
 	}
 	return labels
 }

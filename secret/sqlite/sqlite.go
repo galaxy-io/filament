@@ -65,6 +65,18 @@ func New(db *sql.DB, keyID string, key []byte) (*Provider, error) {
 func (p *Provider) Name() string { return "sqlite" }
 
 func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret) error {
+	return p.write(ctx, ref, secret, false)
+}
+
+// RotateSecret updates an existing tenant-owned secret without inserting a row.
+func (p *Provider) RotateSecret(ctx context.Context, ref string, secret filament.Secret) error {
+	if err := filament.ValidateConnectionSecretRef(ref, secret.Tenant); err != nil {
+		return err
+	}
+	return p.write(ctx, ref, secret, true)
+}
+
+func (p *Provider) write(ctx context.Context, ref string, secret filament.Secret, rotate bool) error {
 	if secret.Tenant == "" {
 		return fmt.Errorf("secret/sqlite: tenant is required")
 	}
@@ -77,11 +89,20 @@ func (p *Provider) Write(ctx context.Context, ref string, secret filament.Secret
 		return fmt.Errorf("secret/sqlite: marshal metadata: %w", err)
 	}
 	now := time.Now().UnixMilli()
-	err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{
-		TenantID: string(secret.Tenant), Ref: ref,
-		Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce,
-		KeyID: p.keyID, Metadata: string(meta), CreatedAt: now, UpdatedAt: now,
-	})
+	if rotate {
+		var count int64
+		count, err = p.q.RotateSecret(ctx, sqlcgen.RotateSecretParams{TenantID: string(secret.Tenant), Ref: ref, Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce, KeyID: p.keyID, Metadata: string(meta), UpdatedAt: now})
+		if err == nil && count == 0 {
+			return filament.ErrNotFound
+		}
+	} else {
+		err = p.q.WriteSecret(ctx, sqlcgen.WriteSecretParams{
+			TenantID: string(secret.Tenant), Ref: ref,
+			Ciphertext: p.gcm.Seal(nil, nonce, secret.Value, nil), Nonce: nonce,
+			KeyID: p.keyID, Metadata: string(meta), CreatedAt: now, UpdatedAt: now,
+		})
+	}
+
 	if err != nil {
 		return fmt.Errorf("secret/sqlite: write: %w", err)
 	}
@@ -96,13 +117,17 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 		}
 		return filament.Secret{}, fmt.Errorf("secret/sqlite: read: %w", err)
 	}
-	value, err := p.gcm.Open(nil, row.Nonce, row.Ciphertext, nil)
+	return p.decodeSecret(ref, row.Ciphertext, row.Nonce, []byte(row.Metadata))
+}
+
+func (p *Provider) decodeSecret(ref string, ciphertext, nonce, metadata []byte) (filament.Secret, error) {
+	value, err := p.gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
 		return filament.Secret{}, fmt.Errorf("secret/sqlite: decrypt %q: %w", ref, err)
 	}
 	var meta map[string]string
-	if row.Metadata != "" {
-		if err := json.Unmarshal([]byte(row.Metadata), &meta); err != nil {
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &meta); err != nil {
 			return filament.Secret{}, fmt.Errorf("secret/sqlite: unmarshal metadata: %w", err)
 		}
 	}

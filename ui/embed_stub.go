@@ -16,7 +16,7 @@ go build -tags embedui ./...</pre>
 </html>`
 
 // Handler returns a placeholder page. Compile with -tags embedui (after
-// building ui/dist) to serve the real web UI instead.
+// building ui/build) to serve the real web UI instead.
 func Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

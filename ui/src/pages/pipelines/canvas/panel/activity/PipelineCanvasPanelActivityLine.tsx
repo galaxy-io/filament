@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { type FC, memo } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -25,19 +25,19 @@ interface PipelineCanvasPanelActivityLineProps {
   event: RunEvent;
 }
 
-const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActivityLineProps) => {
+const PipelineCanvasPanelActivityLine: FC<PipelineCanvasPanelActivityLineProps> = ({ event }) => {
   const detail = formatRunEventDetail(event);
 
   return (
     <Flex alignItems={AlignItems.BASELINE} gap={8}>
       <FlexItem shrink={0}>
-        <Text size={TextSize.CAPTION} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
+        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} family={FontFamily.MONO}>
           {formatRunEventTime(event)}
         </Text>
       </FlexItem>
       <Detail>
         <Text
-          size={TextSize.CAPTION}
+          size={TextSize.BODY_SM}
           variant={getRunEventTextVariant(event)}
           family={FontFamily.MONO}
           isSelectable
@@ -48,6 +48,6 @@ const PipelineCanvasPanelActivityLine = memo(({ event }: PipelineCanvasPanelActi
       </Detail>
     </Flex>
   );
-});
+};
 
-export default PipelineCanvasPanelActivityLine;
+export default memo(PipelineCanvasPanelActivityLine);

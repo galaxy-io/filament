@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	"connectrpc.com/connect"
@@ -12,11 +13,12 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/convert"
+	"github.com/galaxy-io/filament/transform"
 )
 
-// ValidatePipeline checks every edge of a graph: the per-resource read modes
-// and route-wide write modes the connector pair supports, their selected
-// combination, and any cursor or primary-key requirements.
+// ValidatePipeline checks every edge of a graph: the per-resource read and
+// write modes the connector pair supports, their selected combination, and any
+// cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
@@ -49,6 +51,12 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 	}
 
 	resp := &ingestionv1.ValidatePipelineResponse{}
+	if !hasNodeOfKind(graphNodes, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE) ||
+		!hasNodeOfKind(graphNodes, ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK) ||
+		len(edges) == 0 {
+		resp.Errors = append(resp.Errors, graphError("Add a source, a sink, and at least one resource"))
+		return resp, nil
+	}
 	probes := newNodeInspections(a, edges)
 
 	if err := compile.ValidateDestinations(edges); err != nil {
@@ -60,20 +68,44 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		}
 	}
 	routeWriteModes := map[string]filament.WriteMode{}
+	routeTransforms := map[string]map[string]bool{}
 	for _, edge := range edges {
 		if err := a.validateEdge(ctx, edge, nodes, tenant, probes, resp, mode); err != nil {
 			return nil, err
 		}
 		ev := resp.Edges[len(resp.Edges)-1]
+		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
+		// Run compile merges a route's transforms and refuses a resource named
+		// twice; catch it here so the version is not saved only to fail at run.
+		if compile.HasTransform(edge) {
+			if resources, err := compile.TransformResources(edge); err == nil {
+				seen := routeTransforms[route]
+				if seen == nil {
+					seen = map[string]bool{}
+					routeTransforms[route] = seen
+				}
+				for _, resource := range slices.Sorted(maps.Keys(resources)) {
+					if seen[resource] {
+						edgeError(ev, "transform", fmt.Sprintf("resource %q is transformed by more than one edge", resource))
+					}
+					seen[resource] = true
+				}
+			}
+		}
 		writeMode, err := convert.WriteModeFromProto(ev.GetEffectiveWriteMode())
 		if err != nil {
 			continue
 		}
-		route := edge.GetFromNode() + "\x00" + edge.GetToNode()
-		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-			edgeError(resp.Edges[len(resp.Edges)-1], "write_mode", "all resources on a source-to-destination route must use the same write mode")
+		// Standard bounded routes take a write mode per resource. CDC and
+		// continuous routes plan one write for the whole stream.
+		key, message := route, "all resources on a CDC or continuous route must use the same write mode"
+		if mode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+			key, message = route+"\x00"+edge.GetResource(), "edges for the same resource must use the same write mode"
+		}
+		if previous, ok := routeWriteModes[key]; ok && previous != writeMode {
+			edgeError(ev, "write_mode", message)
 		} else {
-			routeWriteModes[route] = writeMode
+			routeWriteModes[key] = writeMode
 		}
 	}
 
@@ -224,7 +256,66 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
+	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeTransform compiles the edge's transform against the schema of
+// every resource it names, so a definition the source no longer satisfies
+// fails validation rather than the run. Issues carry the definition path the
+// builder uses to place them.
+func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if !compile.HasTransform(edge) {
+		return
+	}
+	raw, err := edge.GetTransform().MarshalJSON()
+	if err != nil {
+		edgeError(ev, "transform", err.Error())
+		return
+	}
+	def, err := transform.Parse(raw)
+	if err != nil {
+		transformErrors(ev, err)
+		return
+	}
+	if own := edge.GetResource(); own != "" {
+		for resource := range def.Resources {
+			if resource != own {
+				edgeError(ev, "transform", fmt.Sprintf("edge for %q defines resource %q", own, resource))
+				return
+			}
+		}
+	}
+	for _, resource := range slices.Sorted(maps.Keys(def.Resources)) {
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		switch {
+		case inspection.Status == filament.InspectFailed:
+			edgeError(ev, "transform", inspection.Message)
+			continue
+		case inspection.Schema == nil:
+			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
+			return
+		}
+		if _, _, err := transform.Analyze(def, *inspection.Schema); err != nil {
+			transformErrors(ev, err)
+		}
+	}
+}
+
+// transformErrors records each path-addressed transform issue on the edge.
+func transformErrors(ev *ingestionv1.EdgeValidation, err error) {
+	var errs *transform.Errors
+	if !errors.As(err, &errs) {
+		edgeError(ev, "transform", err.Error())
+		return
+	}
+	for _, issue := range errs.Issues {
+		edgeError(ev, issue.Path, issue.Message)
+	}
 }
 
 func supportedCDCWriteModesFor(sink filament.SinkSpec) []ingestionv1.WriteMode {
@@ -492,6 +583,15 @@ func edgeError(ev *ingestionv1.EdgeValidation, field, message string) {
 	ev.Errors = append(ev.Errors, &ingestionv1.ValidationError{Field: field, Message: message})
 }
 
+func hasNodeOfKind(nodes []*ingestionv1.PipelineNode, kind ingestionv1.ConnectorKind) bool {
+	for _, node := range nodes {
+		if node.GetKind() == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func graphError(message string) *ingestionv1.ValidationError {
 	return &ingestionv1.ValidationError{Message: message}
 }
@@ -603,13 +703,11 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
 	}
 	ev.EffectiveWriteMode = selected
-	if caps := snkSpec.Capabilities.Stream; caps != nil {
-		seen := map[filament.WriteMode]bool{}
-		for _, candidate := range caps.WritePolicies {
-			if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
-				seen[candidate.Mode] = true
-			}
+	seen := map[filament.WriteMode]bool{}
+	for _, candidate := range snkSpec.Capabilities.WritePolicies {
+		if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
+			seen[candidate.Mode] = true
 		}
 	}
 	if !runtimeSupported {
@@ -631,6 +729,9 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 	}
 	if edge.GetSelector() != "" && edge.GetSelector() != edge.GetResource() {
 		edgeError(ev, "resource", "continuous execution requires fixed resources, not selectors")
+	}
+	if compile.HasTransform(edge) {
+		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
 	var resources []string
 	if edge.Resource != "" {

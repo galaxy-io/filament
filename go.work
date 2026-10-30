@@ -4,6 +4,7 @@ use (
 	.
 	./cmd
 	./connectors/bigquery
+	./connectors/databricks
 	./connectors/iceberg
 	./connectors/motherduck
 	./connectors/object

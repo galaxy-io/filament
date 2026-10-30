@@ -141,7 +141,7 @@ func (m *Module) Workload(ctx context.Context, run filament.RunID) (filament.Wor
 	if m.client == nil {
 		return filament.WorkloadAbsent, errors.New("k8sdispatch: module is not mounted")
 	}
-	jobs, err := m.client.listJobs(ctx, m.cfg.Namespace, "filament.galaxy.io/run-id="+string(run))
+	jobs, err := m.client.listJobs(ctx, m.cfg.Namespace, "filament.getgalaxy.io/run-id="+string(run))
 	if err != nil {
 		return filament.WorkloadAbsent, err
 	}

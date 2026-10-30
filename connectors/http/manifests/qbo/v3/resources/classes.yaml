@@ -1,0 +1,27 @@
+resources:
+  - name: "classes"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      name: {"path": "Name", "type": "string", "nullable": true}
+      sub_class: {"path": "SubClass", "type": "bool", "nullable": true}
+      parent_id: {"path": "ParentRef.value", "type": "string", "nullable": true}
+      parent_name: {"path": "ParentRef.name", "type": "string", "nullable": true}
+      fully_qualified_name: {"path": "FullyQualifiedName", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Class WHERE Active IN (true, false) ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Class"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

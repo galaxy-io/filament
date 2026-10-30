@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
 	"github.com/galaxy-io/filament/connectors/http/template"
+	"github.com/galaxy-io/filament/oauth"
 )
 
 func TestOAuthGrantsCacheAndRenewal(t *testing.T) {
@@ -50,9 +52,10 @@ func TestOAuthGrantsCacheAndRenewal(t *testing.T) {
 				t.Fatal(err)
 			}
 			a.(*oauth2CC).httpClient = api.Client()
+			a.(*oauth2CC).store = oauth.NewMemoryStore(oauth.Token{RefreshToken: "refresh"})
 			for i, want := range []string{"token-1", "token-1", "token-2"} {
 				if i == 2 {
-					a.(*oauth2CC).cache.Store(&cachedToken{token: "expired", expiresAt: time.Now().Add(-time.Minute)})
+					expireOAuthStore(t, a.(*oauth2CC))
 				}
 				req := httptest.NewRequest("GET", "https://example.com/data", nil)
 				if err := a.Apply(t.Context(), req, template.Scope{Config: creds}); err != nil {
@@ -97,8 +100,11 @@ func TestOAuthRefreshTokenRotation(t *testing.T) {
 	}
 	oc := a.(*oauth2CC)
 	oc.httpClient = api.Client()
+	oc.store = oauth.NewMemoryStore(oauth.Token{RefreshToken: "original"})
 	for range tokens {
-		oc.cache.Store(nil)
+		if oc.source != nil {
+			expireOAuthStore(t, oc)
+		}
 		var wg sync.WaitGroup
 		for range 20 {
 			wg.Go(func() {
@@ -158,5 +164,88 @@ func TestOAuthRejectsRedirectsAndNonSuccess(t *testing.T) {
 	}
 	if forwarded.Load() != 0 {
 		t.Fatal("credentials forwarded to redirect target")
+	}
+}
+
+func expireOAuthStore(t *testing.T, a *oauth2CC) {
+	t.Helper()
+	_, err := a.store.Update(context.Background(), func(_ context.Context, token oauth.Token) (oauth.Token, error) {
+		token.ExpiresAt = time.Now().Add(-time.Minute)
+		return token, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOAuthBoundStoreAndBasicAuthentication(t *testing.T) {
+	var calls atomic.Int32
+	api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		id, secret, ok := r.BasicAuth()
+		if !ok || id != "id" || secret != "secret" {
+			t.Error("missing client Basic authentication")
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Error(err)
+		}
+		if r.Form.Get("client_id") != "" || r.Form.Get("refresh_token") != "stored-refresh" {
+			t.Error("configured seed replaced stored credentials")
+		}
+		fmt.Fprint(w, `{"access_token":"access","refresh_token":"rotated","expires_in":3600}`)
+	}))
+	defer api.Close()
+	store := oauth.NewMemoryStore(oauth.Token{RefreshToken: "stored-refresh"})
+	for range 2 {
+		a, err := Build("oauth2_cc", map[string]any{
+			"token_url": api.URL, "client_id": "id", "client_secret": "secret", "client_auth": oauth.ClientSecretBasic,
+			"grant_type": oauth.RefreshToken, "refresh_token": "old-configured-seed",
+		}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.(*oauth2CC).httpClient = api.Client()
+		if err := WithOAuthStore(a, store); err != nil {
+			t.Fatal(err)
+		}
+		if err := a.Apply(t.Context(), httptest.NewRequest("GET", "https://example.com", nil), template.Scope{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls.Load() != 1 {
+		t.Fatal("recreated authenticator ignored stored access token")
+	}
+}
+
+func TestOAuthRetryPolicyRejectsPermanentAndAmbiguousFailures(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		code   string
+		calls  int32
+	}{
+		{400, "invalid_grant", 1},
+		{401, "invalid_client", 1},
+		{500, "server_error", 1},
+		{429, "temporarily_unavailable", 3},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			var calls atomic.Int32
+			api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				w.WriteHeader(tc.status)
+				fmt.Fprintf(w, `{"error":%q}`, tc.code)
+			}))
+			defer api.Close()
+			a, err := newOAuth2CC(map[string]any{"token_url": api.URL, "client_id": "id", "client_secret": "secret"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			a.(*oauth2CC).httpClient = api.Client()
+			WithOAuth2RetryPolicy(a, ExponentialBackoff{MaxAttempts: 3})
+			err = a.Apply(t.Context(), httptest.NewRequest("GET", "https://example.com", nil), template.Scope{})
+			if err == nil || calls.Load() != tc.calls {
+				t.Fatalf("error=%v, calls=%d", err, calls.Load())
+			}
+		})
 	}
 }

@@ -1,0 +1,249 @@
+---
+title: "Replicate PostgreSQL to ClickHouse with Filament"
+sidebarTitle: "PostgreSQL to ClickHouse"
+description: "Load PostgreSQL tables into ClickHouse with Filament. Snapshot 1.1M rows in seconds, then keep them fresh with incremental upserts into ReplacingMergeTree."
+---
+
+Filament copies PostgreSQL tables into typed ClickHouse tables in two ways. A
+**full replace** snapshot builds each table in a staging table and swaps it in
+atomically. An **incremental upsert** reads only rows whose `updated_at` moved
+and writes them into a `ReplacingMergeTree` table keyed on the primary key. In
+the run below, Filament loaded 1,105,000 rows from PostgreSQL 16 into ClickHouse
+25.8 in about 5 seconds, then picked up 1,500 changed rows on the next run.
+
+<Note>
+  The [ClickHouse sink](/pages/connectors/sinks/clickhouse) is **alpha** and
+  the [PostgreSQL source](/pages/connectors/sources/postgres) is **beta**. The
+  ClickHouse sink does not support CDC, so deletes in PostgreSQL are not
+  removed from ClickHouse. Use a periodic full replace when deletes matter.
+</Note>
+
+## What you'll build
+
+An e-commerce database with `customers` (100,000 rows), `products` (5,000), and
+`orders` (1,000,000) replicated into ClickHouse:
+
+| Pipeline | Mode | Destination | Use it for |
+|---|---|---|---|
+| `pg-to-ch-snapshot` | full, replace | `shop` database, `MergeTree` | Small or slowly changing tables, nightly rebuilds |
+| `pg-to-ch-orders` | incremental, upsert | `shop_live` database, `ReplacingMergeTree(updated_at)` | Large tables that change all day |
+
+## Prerequisites
+
+- The `filament` CLI. See [Installation](/pages/guides/get-started/installation).
+- PostgreSQL, reachable from where Filament runs
+- ClickHouse, self-hosted or ClickHouse Cloud
+- For incremental tables, a primary key and a `NOT NULL` timestamp column that
+  your application updates on every insert and update, such as `updated_at`
+
+Full and incremental pipelines run on the local CLI context, so you can follow
+this guide on a laptop.
+
+## 1. Create a read-only PostgreSQL user
+
+```sql
+CREATE ROLE filament WITH LOGIN PASSWORD 'change-me';
+GRANT USAGE ON SCHEMA public TO filament;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO filament;
+```
+
+## 2. Create the source and sink
+
+```sh
+filament source create shop-pg \
+  --source-connector postgres \
+  --source-connection-method url \
+  --source-dsn "postgres://filament:change-me@db.internal:5432/shop?sslmode=require"
+
+filament sink create clickhouse \
+  --sink-connector clickhouse \
+  --sink-host abc123.us-east-1.aws.clickhouse.cloud \
+  --sink-password "$CLICKHOUSE_PASSWORD"
+```
+
+The sink defaults to the secure native port `9440` with TLS, which is what
+ClickHouse Cloud expects. For a local self-hosted server without TLS, add
+`--sink-port 9000 --sink-secure=false`. The ClickHouse user needs access to the
+`default` database, because Filament runs `CREATE DATABASE IF NOT EXISTS` from
+there.
+
+Check what Filament can read:
+
+```sh
+filament source discover shop-pg
+```
+
+```text
+  Resource      Selectable     Primary key
+  customers     ✓              id
+  orders        ✓              id
+  products      ✓              id
+```
+
+## 3. Snapshot the tables
+
+```sh
+filament pipeline create pg-to-ch-snapshot \
+  --source shop-pg \
+  --sink clickhouse \
+  --resources customers,products,orders \
+  --sync-mode full \
+  --write-mode replace \
+  --sink-database shop
+
+filament run pg-to-ch-snapshot
+```
+
+```text
+Run 106a899b-d1e3-5630-a671-c30390037bb6 completed: 1105000 records, 129873111 bytes.
+```
+
+`filament run ls pg-to-ch-snapshot` showed a duration of 5 seconds for the 1.1M
+rows. Each table is written to a staging table and swapped in with
+`EXCHANGE TABLES` at commit, so queries never see a half-loaded table.
+
+Filament maps PostgreSQL types to native ClickHouse types and orders the table
+by the primary key:
+
+```sql
+CREATE TABLE shop.orders
+(
+    `id` Int64,
+    `customer_id` Int64,
+    `product_id` Int32,
+    `quantity` Int32,
+    `amount` Decimal(12, 2),
+    `status` String,
+    `ordered_at` DateTime64(6, 'UTC'),
+    `updated_at` DateTime64(6, 'UTC'),
+    `_filament_run_id` Nullable(String),
+    `_filament_run_started_at` Nullable(DateTime64(6, 'UTC'))
+)
+ENGINE = MergeTree
+ORDER BY id
+```
+
+## 4. Keep large tables fresh with incremental upserts
+
+```sh
+filament pipeline create pg-to-ch-orders \
+  --source shop-pg \
+  --sink clickhouse \
+  --resources orders \
+  --sync-mode incremental \
+  --write-mode upsert \
+  --sink-database shop_live
+
+filament run pg-to-ch-orders
+```
+
+The first run backfills the whole table (1,000,000 rows in under 6 seconds in
+this test) and records a high watermark on `(updated_at, id)`. Filament picks
+`updated_at` automatically because it is a conventional cursor name.
+
+Now change data in PostgreSQL:
+
+```sql
+UPDATE orders SET status = 'refunded', updated_at = now() WHERE id BETWEEN 1 AND 1000;
+INSERT INTO orders SELECT 1000000 + g, 1 + g, 1 + g, 1, 49.99, 'placed', now(), now()
+FROM generate_series(1, 500) g;
+```
+
+Run the pipeline again:
+
+```text
+Run 28ab8805-ad4d-54ac-a46b-60af31eb1aa3 completed: 4237 records, 505506 bytes.
+```
+
+The run read the 1,500 changed rows plus rows inside the default 300-second
+lookback window, which re-reads recent rows to catch late commits. Upserts make
+the overlap harmless.
+
+## 5. Verify
+
+`ReplacingMergeTree` removes older versions of a row during background merges,
+so a plain `count()` can briefly include duplicates. Query with `FINAL` for
+exact results:
+
+```sql
+SELECT count() FROM shop_live.orders;
+-- 1004237 physical rows before merges
+
+SELECT count() AS current_rows,
+       countIf(status = 'refunded' AND id <= 1000) AS refunded_updates
+FROM shop_live.orders FINAL;
+-- current_rows 1000500, refunded_updates 1000
+```
+
+Compare totals with PostgreSQL:
+
+```sql
+-- PostgreSQL
+SELECT status, count(*), sum(amount) FROM orders GROUP BY 1 ORDER BY 1;
+-- ClickHouse
+SELECT status, count(), sum(amount) FROM shop.orders GROUP BY status ORDER BY status;
+```
+
+In this test both sides returned identical counts and sums for every status.
+
+## 6. Schedule it
+
+Add a cron schedule to each pipeline in the [web app](/pages/guides/usage/web)
+(`filament up` on a laptop, or your deployed server), or attach one through the
+[Pipelines API](/pages/api-reference/service/pipelines). A common setup is the
+incremental pipeline every 5 to 15 minutes and the snapshot pipeline nightly.
+
+## Going to production
+
+- **Deletes:** incremental reads cannot see hard deletes, and the ClickHouse
+  sink has no CDC. Schedule a full replace of the table, or soft-delete in
+  PostgreSQL with a `deleted_at` column that the incremental read picks up.
+- **Cursor index:** for large tables, an index on `(updated_at, id)` keeps
+  incremental reads fast.
+- **Visibility:** replace loads become visible at commit. Append and upsert
+  loads write to the live table, so rows appear while the run is in progress.
+- **Schema changes:** new PostgreSQL columns are added to ClickHouse tables.
+  Type changes and dropped columns are not applied.
+
+## Troubleshooting
+
+### A key has more than one row in ClickHouse
+
+Older versions are removed when parts merge. Query with `FINAL`, or run
+`OPTIMIZE TABLE shop_live.orders FINAL` to force a merge.
+
+### Incremental mode rejects a table
+
+The table needs a primary key and a `NOT NULL` timestamp cursor that advances on
+every write. Static IDs and random UUIDs are not valid cursors.
+
+### Rows deleted in PostgreSQL are still in ClickHouse
+
+Expected with incremental upserts. See **Deletes** above.
+
+More errors are in [Troubleshooting](/pages/how-to/troubleshooting).
+
+## FAQ
+
+### Can Filament stream PostgreSQL changes to ClickHouse with CDC?
+
+Not yet. The ClickHouse sink supports full replace, full append, full upsert,
+and incremental upsert. For change data capture with deletes, replicate to a
+sink that supports `cdc_merge`, such as PostgreSQL, Snowflake, or BigQuery.
+
+### How fast is it?
+
+In this guide's test, 1.1M rows from PostgreSQL 16 loaded into ClickHouse 25.8
+in about 5 seconds on one machine. For a controlled comparison with other
+tools, see [Benchmarking](/pages/benchmarks/overview).
+
+### Does it work with ClickHouse Cloud?
+
+Yes. ClickHouse Cloud uses the secure native port `9440` with TLS, which are the
+sink's defaults.
+
+## Related
+
+- [ClickHouse sink reference](/pages/connectors/sinks/clickhouse)
+- [PostgreSQL source reference](/pages/connectors/sources/postgres)
+- [Postgres to ClickHouse replication guide](https://www.getgalaxy.io/articles/postgres-to-clickhouse-the-complete-replication-guide)

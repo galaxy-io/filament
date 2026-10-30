@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -20,6 +21,10 @@ type RunSpec struct {
 	// StartedAt is the logical run's first start time. A zero value is stamped by
 	// the runner; resumed executions retain the original value.
 	StartedAt time.Time
+	// SinkWriteID identifies a finite destination write without changing the logical run.
+	// It is set locally by the runner when opening a continuous sink session.
+	SinkWriteID        RunID     `json:"-"`
+	SinkWriteStartedAt time.Time `json:"-"`
 	// ExecutionID identifies one dispatch attempt of a logical run. Dispatchers
 	// derive it from the run.requested fact so redelivery is idempotent while a
 	// later resume creates fresh worker infrastructure.
@@ -43,6 +48,18 @@ type RunSpec struct {
 	// WorkerConfiguration is the already-resolved worker shape for this run: the
 	// pipeline's configuration with the request's override folded in.
 	WorkerConfiguration WorkerConfiguration
+	// Transform is the yaml transform definition applied between source and
+	// sink; empty when the route has no transform node.
+	Transform string
+}
+
+// SinkWriteIdentity returns the artifact namespace for this destination write.
+// Bounded runs retain their existing run-based artifact names.
+func (s RunSpec) SinkWriteIdentity() RunID {
+	if s.SinkWriteID != "" {
+		return s.SinkWriteID
+	}
+	return s.Run
 }
 
 // RunRequest is the caller-facing ask for a run, deduplicated by
@@ -76,6 +93,8 @@ type RunRequest struct {
 	// WorkerConfiguration is resolved at compile time and stamped here, so a
 	// later edit to the pipeline cannot reshape a run already requested.
 	WorkerConfiguration WorkerConfiguration `json:",omitzero"`
+	// Transform is the route's yaml transform definition, empty when none.
+	Transform string `json:",omitempty"`
 }
 
 // StreamRef identifies one admitted generation of a durable replication stream.
@@ -639,7 +658,7 @@ func (p WritePolicy) ValidateOps(resource string, ops []Operation) error {
 	return nil
 }
 
-// ValidateBatch checks keyed writes have non-null identity and rejects operations
+// ValidateBatch checks keyed writes have non-null, non-empty identity and rejects operations
 // the policy does not accept. Nullable source IDs remain valid for unkeyed writes.
 func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) error {
 	if p.Capability.RequiresPK && batch.NumRows() > 0 {
@@ -648,8 +667,14 @@ func (p WritePolicy) ValidateBatch(resource string, batch *arrowbatch.Batch) err
 			if len(indices) != 1 {
 				return fmt.Errorf("write policy %q requires key %q in resource %q", p.Capability.Mode, key, resource)
 			}
-			if batch.Rows().Column(indices[0]).NullN() > 0 {
+			col := batch.Rows().Column(indices[0])
+			if col.NullN() > 0 {
 				return fmt.Errorf("write policy %q: resource %q contains null primary key %q; cannot safely reconcile these records", p.Capability.Mode, resource, key)
+			}
+			for i := range batch.NumRows() {
+				if strings.TrimSpace(col.ValueStr(i)) == "" {
+					return fmt.Errorf("write policy %q: resource %q contains empty primary key %q at row %d; cannot safely reconcile these records", p.Capability.Mode, resource, key, i)
+				}
 			}
 		}
 	}
@@ -841,5 +866,6 @@ func (s RunState) ExecutionSpec() RunSpec {
 		IngestionTypes: r.IngestionTypes, Options: r.Options,
 		WorkerConfiguration: r.WorkerConfiguration,
 		WritePolicies:       r.WritePolicies,
+		Transform:           r.Transform,
 	}
 }

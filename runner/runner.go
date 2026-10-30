@@ -18,7 +18,9 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // abortWait bounds sink cleanup after a failed run. Detached from run
@@ -86,7 +88,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	em := newEmitter(ctx, deps.Bus, deps.Log, spec.Tenant, spec.Run)
 	em.span = span
-	extractCtx, control, err := prepareRunExecution(ctx, deps, spec, em)
+	extractCtx, control, err := prepareRunExecution(observeSchemaEvents(ctx, em), deps, spec, em)
 	if err != nil {
 		em.failed(err, nil, false)
 		return nil
@@ -108,6 +110,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
 		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
+		return nil
+	}
+	if err := oauthsecrets.Bind(src, filament.NewConfig(spec.Source.Config), deps.Secrets, spec.Tenant, spec.Source.SecretRefs); err != nil {
+		em.failed(err, nil, false)
 		return nil
 	}
 	if err := bindReplicationStream(extractCtx, deps.DataStore, src, &spec); err != nil {
@@ -184,6 +190,13 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		em.failed(fmt.Errorf("prepare sink resources: %w", err), nil, false)
 		return nil
 	}
+	defer func() {
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), replicationCleanupWait)
+		defer cancel()
+		if err := snk.Close(c); err != nil && deps.Log != nil {
+			deps.Log.Warn("close sink", filament.Field{Key: "error", Value: err.Error()})
+		}
+	}()
 	if err := snk.Open(extractCtx, sinkSpec); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
@@ -192,12 +205,37 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 
+	if err := snk.Begin(extractCtx); err != nil {
+		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		em.failed(fmt.Errorf("begin sink: %w", err), nil, false)
+		return nil
+	}
+
+	// The transform definition is parsed once here and compiled per resource
+	// twice: against the discovered schema for sink DDL, and again inside the
+	// pipeline when each resource's first builder opens.
+	var transformDef *transform.Definition
+	if spec.Transform != "" {
+		if transformDef, err = transform.Parse([]byte(spec.Transform)); err != nil {
+			abortSink(ctx, deps, snk)
+			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			return nil
+		}
+	}
+
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
-	if err := ensureSchemas(extractCtx, snk, spec, schemas); err != nil {
+	if err := ensureSchemas(extractCtx, snk, spec, schemas, transformDef); err != nil {
 		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		var re *resourceError
+		if errors.As(err, &re) {
+			em.failedAt(fmt.Errorf("ensure schema: %w", err), re.resource, spec.Resources)
 			return nil
 		}
 		em.failed(fmt.Errorf("ensure schema: %w", err), spec.Resources, false)
@@ -227,6 +265,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		WritePolicies: spec.WritePolicies,
 		Options:       spec.Options,
 		Log:           deps.Log,
+		Transform:     transformDef,
 		Audit: &pipeline.AuditConfig{
 			RunStartedAt: runStartedAt,
 			CDC:          plan.RequiresCDC,

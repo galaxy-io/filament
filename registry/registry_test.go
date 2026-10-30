@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type specSource struct {
@@ -154,6 +155,57 @@ func TestSourcesWithOverridesRejectsConcreteOverAlias(t *testing.T) {
 	}
 }
 
+func TestSourcesOnly(t *testing.T) {
+	base := NewSources()
+	for _, name := range []string{"example@v1", "example@v2", "examples@v1", "other"} {
+		base.Register(name, func() filament.Source { return &specSource{name: name} })
+	}
+	base.RegisterAlias("example", "example@v2")
+	only, err := base.Only([]string{"example"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, spec := range only.Specs() {
+		names = append(names, spec.Name)
+	}
+	if got := strings.Join(names, ","); got != "example,example@v1,example@v2" {
+		t.Fatalf("kept %s", got)
+	}
+	spec, err := only.Spec("example")
+	if err != nil || spec.Name != "example@v2" {
+		t.Fatalf("alias spec=%+v err=%v", spec, err)
+	}
+	if _, err := base.Resolve("other"); err != nil {
+		t.Fatal("base mutated")
+	}
+	for _, names := range [][]string{{"missing"}, {"example@v1"}, {""}} {
+		if only, err := base.Only(names); err == nil || only != nil {
+			t.Fatalf("Only(%q) accepted", names)
+		}
+	}
+}
+
+func TestSinksOnly(t *testing.T) {
+	base := NewSinks()
+	for _, name := range []string{"kept", "dropped"} {
+		base.Register(name, func() filament.Sink { return streamSink{} })
+	}
+	only, err := base.Only([]string{"kept"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := only.Resolve("kept"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := only.Resolve("dropped"); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatalf("dropped sink resolved: %v", err)
+	}
+	if _, err := base.Only([]string{"missing"}); !errors.Is(err, ErrUnknownProvider) {
+		t.Fatalf("unknown sink accepted: %v", err)
+	}
+}
+
 type streamSpecSource struct{ filament.Source }
 
 func (streamSpecSource) Spec() filament.ConnectorSpec {
@@ -169,12 +221,11 @@ type streamSource struct {
 type streamSpecSink struct{ filament.Sink }
 
 func (streamSpecSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{}}}
+	return filament.SinkSpec{Name: "stream", Capabilities: filament.SinkCapabilities{ReusableSession: true}}
 }
 
 type streamSink struct {
 	streamSpecSink
-	filament.StreamingSink
 }
 
 func TestRegisterRequiresDeclaredContracts(t *testing.T) {
@@ -203,11 +254,6 @@ func TestRegisterRequiresDeclaredContracts(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("sink without stream contract", func(t *testing.T) {
-		mustPanic(t, "filament.StreamingSink", func() {
-			NewSinks().Register("stream", func() filament.Sink { return streamSpecSink{} })
-		})
-	})
 	t.Run("sink with stream contract", func(t *testing.T) {
 		sinks := NewSinks()
 		sinks.Register("stream", func() filament.Sink { return streamSink{} })
@@ -215,4 +261,18 @@ func TestRegisterRequiresDeclaredContracts(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+type singleStreamSink struct {
+	streamSpecSink
+	sinkstate.SingleWrite
+}
+
+func TestRejectSingleWriteStreamSink(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("single-write stream sink registered")
+		}
+	}()
+	NewSinks().Register("invalid", func() filament.Sink { return &singleStreamSink{} })
 }

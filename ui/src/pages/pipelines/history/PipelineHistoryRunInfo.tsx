@@ -1,14 +1,16 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
-import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
+import InfiniteTable, { InfiniteTableSize } from "@galaxy-io/dls/table/InfiniteTable";
 import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
+import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import {
@@ -21,6 +23,7 @@ import {
 import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
   PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH,
+  PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VERSION,
@@ -30,13 +33,13 @@ import PipelineHistoryRunContinuousSummary from "@/pages/pipelines/history/Pipel
 
 import { useGetRunQuery } from "@/api/queries/runs";
 
-import { formatBytes, formatCount, formatTimestamp } from "@/utils/format";
+import { formatTimestamp } from "@/utils/format";
 
 interface PipelineHistoryRunInfoProps {
   runId: RunInfo["id"];
 }
 
-const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
+const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
   const { data, isLoading, isError } = useGetRunQuery({
     input: create(GetRunRequestSchema, { runId }),
   });
@@ -48,6 +51,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       {
         id: "resource",
         header: "Resource",
+        isRowHeader: true,
         cell: ({ row }) => (
           <PipelineHistoryRunInfoConnectionColumn
             connectionId={sourceConnectionId}
@@ -66,17 +70,20 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       {
         id: "records",
         header: "Records",
-        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS,
+        width:
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_RECORDS - PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
+        align: "right",
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-            {formatCount(row.records)}
+            {formatNumber(row.records)}
           </Text>
         ),
       },
       {
         id: "volume",
         header: "Volume",
-        width: PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
+        width:
+          PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME - PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
         align: "right",
         cell: ({ row }) => (
           <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
@@ -90,6 +97,17 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
 
   const resources = data?.snapshot?.resources ?? [];
   const isEmpty = resources.length === 0;
+
+  const table = (
+    <InfiniteTable<RunResourceState>
+      ariaLabel="Run resources"
+      columns={columns}
+      data={resources}
+      getRowId={(resource) => resource.resourceName}
+      size={InfiniteTableSize.SMALL}
+      inset={PIPELINE_HISTORY_RUN_INFO_TABLE_INSET}
+    />
+  );
 
   const renderBody = () => {
     if (isError) {
@@ -111,24 +129,26 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
     }
 
     if (data?.snapshot?.run?.executionMode === ExecutionMode.CONTINUOUS) {
-      return <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />;
-    }
-
-    if (data?.snapshot?.run?.status === RunStatus.SCHEDULED) {
       return (
-        <Flex alignItems={AlignItems.START} padding={16} fillWidth>
-          <Text variant={TextVariant.TERTIARY}>The run is scheduled and has not started yet.</Text>
-        </Flex>
+        <>
+          <PipelineHistoryRunContinuousSummary run={data.snapshot.run} />
+          {!isEmpty && (
+            <>
+              <Divider />
+              {table}
+            </>
+          )}
+        </>
       );
     }
 
     if (data?.snapshot?.run?.status === RunStatus.CANCELED && !data.snapshot.run.startedAt) {
-      const cancelledAt = data.snapshot.run.endedAt;
+      const canceledAt = data.snapshot.run.endedAt;
       return (
         <Flex alignItems={AlignItems.START} padding={16} fillWidth>
           <Text variant={TextVariant.TERTIARY}>
-            {cancelledAt
-              ? `The run was cancelled at ${formatTimestamp(cancelledAt)}, before it started.`
+            {canceledAt
+              ? `The run was cancelled at ${formatTimestamp(canceledAt)}, before it started.`
               : "The run was cancelled before it started."}
           </Text>
         </Flex>
@@ -143,13 +163,7 @@ const PipelineHistoryRunInfo = ({ runId }: PipelineHistoryRunInfoProps) => {
       );
     }
 
-    return (
-      <InfiniteTable<RunResourceState>
-        columns={columns}
-        data={resources}
-        getRowId={(resource) => resource.resourceName}
-      />
-    );
+    return table;
   };
 
   return (

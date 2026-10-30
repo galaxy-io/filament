@@ -43,6 +43,10 @@ func (a *cliApp) embeddedOptions() ([]app.Option, filament.Secrets, error) {
 		return nil, nil, err
 	}
 	a.sources = sources
+	sinks, err := connectors.SinksFromEnv()
+	if err != nil {
+		return nil, nil, err
+	}
 	store, err := sqlite.Open(a.dbPath())
 	if err != nil {
 		return nil, nil, err
@@ -59,6 +63,7 @@ func (a *cliApp) embeddedOptions() ([]app.Option, filament.Secrets, error) {
 	return []app.Option{
 		app.WithNotifier(),
 		app.WithSources(sources),
+		app.WithSinks(sinks),
 		app.WithDataStore(store),
 		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithSecrets(secrets),
@@ -120,6 +125,11 @@ type layeredSecrets struct {
 }
 
 func (s layeredSecrets) Name() string { return "local" }
+
+// RotateSecret delegates refresh-token writes to the SQLite layer.
+func (s layeredSecrets) RotateSecret(ctx context.Context, ref string, secret filament.Secret) error {
+	return s.stored.RotateSecret(ctx, ref, secret)
+}
 
 func (s layeredSecrets) Read(ctx context.Context, ref string) (filament.Secret, error) {
 	secret, err := s.stored.Read(ctx, ref)

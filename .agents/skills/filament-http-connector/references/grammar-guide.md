@@ -304,8 +304,9 @@ Body injection changes the cursor field while preserving rendered filters and
 selectors. Offset targets must both be in query or both in body. Verify page
 number conventions and termination against the actual paginator before using it.
 The current page strategy starts at 1 and injects into query parameters. Offset
-starts at 0. By default, both stop on a short page. Page pagination can instead use
-`more: info.more_records` or `total_pages` when the endpoint documents that signal.
+starts at 0. By default, both stop on a short page. Offset and page pagination
+can instead use `more: info.more_records` when the endpoint documents that signal.
+Page pagination also supports `total_pages`.
 A configured `more` path takes precedence; missing or false stops the walk.
 Do not copy a has-more path from another endpoint that happens to look similar.
 

@@ -1,0 +1,200 @@
+---
+title: "Replicate MySQL to Snowflake with CDC"
+sidebarTitle: "MySQL to Snowflake"
+description: "Replicate MySQL 8.0+ to Snowflake with binlog change data capture in Filament. Snapshot each table, then merge inserts, updates, deletes, and new columns."
+---
+
+Filament replicates MySQL to Snowflake by connecting as a binlog replica. The
+first run snapshots each table at an exact binlog position, and later runs read
+row events from that position up to the server's current position, then stop.
+Inserts, updates, and deletes are merged into typed Snowflake tables by primary
+key. Schedule runs as often as you need fresh data.
+
+<Note>
+  The [MySQL source](/pages/connectors/sources/mysql) is **beta** and supports
+  MySQL 8.0 and later. The [Snowflake sink](/pages/connectors/sinks/snowflake)
+  is **alpha**.
+</Note>
+
+In a test against MySQL 8.4 with 1.1M rows, a catch-up run after 1,000 updates,
+200 deletes, 1 insert, an `ALTER TABLE ... ADD COLUMN`, and 10 updates to the
+new column moved exactly 1,211 records, and the new column appeared in the
+destination.
+
+## Prerequisites
+
+- MySQL 8.0+ with `binlog_format=ROW`, InnoDB tables, and primary keys
+- Binlog retention longer than the gap between runs
+- A Snowflake account where you can create a role, warehouse, database, and
+  user
+- A Filament deployment backed by the PostgreSQL datastore, with the CLI
+  pointed at it. The local SQLite CLI context cannot run CDC. See the note in
+  [Replicate PostgreSQL to Snowflake](/pages/how-to/postgres-to-snowflake#prerequisites).
+
+## 1. Prepare MySQL
+
+Check the binlog settings:
+
+```sql
+SHOW VARIABLES WHERE Variable_name IN
+  ('log_bin', 'binlog_format', 'gtid_mode', 'binlog_expire_logs_seconds');
+```
+
+`log_bin` must be `ON` and `binlog_format` must be `ROW`, both MySQL 8 defaults.
+`gtid_mode=ON` is preferred because GTID positions survive a replica promotion.
+On Amazon RDS and Aurora, binlog retention is controlled with
+`mysql.rds_set_configuration('binlog retention hours', 24)`.
+
+Create a replication user:
+
+```sql
+CREATE USER 'filament'@'%' IDENTIFIED BY 'change-me';
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'filament'@'%';
+GRANT SELECT, LOCK TABLES ON shop.* TO 'filament'@'%';
+```
+
+`LOCK TABLES` is held for a moment while each table is first bootstrapped, so
+the snapshot and the binlog position line up exactly. Writers wait for a couple
+of round trips and nothing else is blocked.
+
+## 2. Prepare Snowflake
+
+Create the key pair, role, warehouse, database, and service user exactly as in
+[step 2 of the PostgreSQL to Snowflake guide](/pages/how-to/postgres-to-snowflake#2-prepare-snowflake).
+One service user can serve every Filament pipeline.
+
+## 3. Create the source and sink
+
+```sh
+filament source create shop-mysql \
+  --source-connector mysql \
+  --source-connection-method url \
+  --source-dsn "filament:change-me@tcp(mysql.internal:3306)/shop?tls=true" \
+  --source-replication cdc
+
+filament sink create snowflake \
+  --sink-connector snowflake \
+  --sink-account myorg-myaccount \
+  --sink-username FILAMENT_USER \
+  --sink-warehouse FILAMENT_WAREHOUSE \
+  --sink-database-name FILAMENT_DATABASE \
+  --sink-role FILAMENT_ROLE \
+  --sink-auth "$(jq -n --rawfile k filament_key.p8 '{type: "key_pair", private_key: $k}')"
+```
+
+The DSN uses the Go MySQL driver format. `mysql://` URLs are accepted too. CDC
+needs a TCP connection, so Unix socket DSNs are rejected.
+
+## 4. Create the pipeline and run the snapshot
+
+```sh
+filament source discover shop-mysql
+
+filament pipeline create mysql-to-snowflake \
+  --source shop-mysql \
+  --sink snowflake \
+  --resources customers,orders \
+  --sync-mode cdc \
+  --write-mode merge \
+  --sink-schema SHOP
+
+filament run mysql-to-snowflake
+```
+
+Pass `--sync-mode cdc` explicitly, or the CLI's default read mode is rejected by
+the CDC source. If more than one replica reads the same MySQL server, give each
+pipeline a unique `--source-server-id`.
+
+## 5. Catch up on changes
+
+```sql
+UPDATE orders SET status = 'shipped', updated_at = NOW(6) WHERE id BETWEEN 1 AND 1000;
+DELETE FROM orders WHERE id BETWEEN 5001 AND 5200;
+INSERT INTO orders VALUES (2000001, 1, 1, 9.99, 'placed', NOW(6), NOW(6));
+ALTER TABLE customers ADD COLUMN loyalty_tier VARCHAR(16) NULL;
+UPDATE customers SET loyalty_tier = 'gold', updated_at = NOW(6) WHERE id <= 10;
+```
+
+```sh
+filament run mysql-to-snowflake
+```
+
+The run reads the 1,211 changed rows from the binlog. The added `loyalty_tier`
+column is created on the destination table and filled for the 10 updated
+customers.
+
+## 6. Verify
+
+```sql
+-- MySQL
+SELECT COUNT(*) FROM shop.orders;
+
+-- Snowflake
+SELECT COUNT(*) FROM FILAMENT_DATABASE.SHOP.ORDERS;
+SELECT COUNT(*) FROM FILAMENT_DATABASE.SHOP.CUSTOMERS WHERE LOYALTY_TIER = 'gold';  -- 10
+```
+
+## 7. Schedule it
+
+Add a cron schedule in the [web app](/pages/guides/usage/web) or with the
+[Pipelines API](/pages/api-reference/service/pipelines). Keep the interval well
+inside your binlog retention.
+
+## Going to production
+
+- **Use merge writes.** A crash during a transaction replays the whole
+  transaction, and `merge` converges by primary key.
+- **Incompatible DDL:** an added nullable column is handled. A change that
+  makes a binlog event no longer match the cached column list fails the run
+  instead of mis-mapping values. Re-snapshot that table.
+- **Start without a snapshot:** `--source-snapshot-mode none` streams from the
+  current binlog position and needs neither `LOCK TABLES` nor InnoDB.
+
+## Troubleshooting
+
+### `CDC connections do not accept a read mode`
+
+Add `--sync-mode cdc` to `filament pipeline create`.
+
+### Column-count mismatch between a binlog event and the table
+
+Incompatible DDL changed the table. Re-snapshot it.
+
+### Stream cannot start from the captured position
+
+Binlog retention expired before the run read it. Increase retention and
+re-snapshot.
+
+### Snowflake `failed to auth for unknown reason. HTTP: 404`
+
+The account identifier is wrong. Use the `organization-account` form.
+
+More errors are in [Troubleshooting](/pages/how-to/troubleshooting).
+
+## FAQ
+
+### Does Filament support MariaDB?
+
+The MySQL source accepts `mariadb://` URLs, but it is documented and tested for
+MySQL 8.0 and later.
+
+### Does Filament need GTIDs?
+
+No. With GTIDs off, Filament tracks binlog file and position.
+
+### Does the snapshot lock my tables?
+
+Only briefly. Filament takes read locks in a side session for the instant
+between capturing the binlog position and opening the snapshot.
+
+### Does it work with Amazon RDS and Aurora MySQL?
+
+It uses standard binlog replication, so it works where binlogs are enabled and
+retained. Set retention with `mysql.rds_set_configuration`.
+
+## Related
+
+- [Snowflake sink reference](/pages/connectors/sinks/snowflake)
+- [MySQL source reference](/pages/connectors/sources/mysql)
+- [MySQL binlog CDC explained](https://www.getgalaxy.io/articles/mysql-cdc-binlog-replication-explained)
+- [MySQL to Snowflake replication guide](https://www.getgalaxy.io/articles/mysql-to-snowflake-the-complete-replication-guide)

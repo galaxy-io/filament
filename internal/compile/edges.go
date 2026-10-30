@@ -1,16 +1,17 @@
 package compile
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own read mode while
-// the write mode is shared by the route; the "" read entry is the route default
-// set by an all-resources edge.
+// so collapse into a single run. Each resource carries its own read and write
+// mode; the "" entries are the route default set by an all-resources edge.
 type routeGroup struct {
 	key           string
 	source        *ingestionv1.PipelineNode
@@ -18,18 +19,19 @@ type routeGroup struct {
 	from          string
 	to            string
 	readModes     map[string]filament.ReadMode
-	writeMode     filament.WriteMode
+	writeModes    map[string]filament.WriteMode
 	all           bool
 	resources     map[string]bool
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
+	transforms    map[string]any // resource → steps, merged across the route's edges
 	destinations  map[string]string
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
 // An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different read modes
-// conflict. All edges in a route must carry the same write mode.
+// the same resource (or two all-resources edges) with different read or write
+// modes conflict.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
 	if err := ValidateDestinations(edges); err != nil {
 		return nil, err
@@ -60,16 +62,15 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				from:          edge.GetFromNode(),
 				to:            edge.GetToNode(),
 				readModes:     map[string]filament.ReadMode{},
-				writeMode:     writeMode,
+				writeModes:    map[string]filament.WriteMode{},
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
 			byKey[key] = group
 			ordered = append(ordered, group)
-		} else if group.writeMode != writeMode {
-			return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 		}
 		for _, cursor := range edge.GetCursors() {
 			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
@@ -79,6 +80,9 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			group.cursorConfigs[cursor.GetResource()] = config
 		}
 		resource := edge.GetResource()
+		if err := mergeTransform(group, edge); err != nil {
+			return nil, err
+		}
 		if label := edge.GetDestinationResource(); label != "" {
 			group.destinations[resource] = label
 		}
@@ -89,6 +93,13 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 			return nil, fmt.Errorf("%w: conflicting read modes for resource %q", ErrInvalid, resource)
 		}
 		group.readModes[resource] = readMode
+		if previous, exists := group.writeModes[resource]; exists && previous != writeMode {
+			if resource == "" {
+				return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
+			}
+			return nil, fmt.Errorf("%w: conflicting write modes for resource %q", ErrInvalid, resource)
+		}
+		group.writeModes[resource] = writeMode
 		if resource == "" {
 			group.all = true
 			continue
@@ -101,6 +112,81 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		}
 	}
 	return ordered, nil
+}
+
+// routeWriteMode returns the one write mode every resource on the route uses.
+// CDC and continuous routes plan a single write for the whole stream.
+func (g *routeGroup) routeWriteMode() (filament.WriteMode, error) {
+	var mode filament.WriteMode
+	for _, candidate := range g.writeModes {
+		if mode != "" && candidate != mode {
+			return "", fmt.Errorf("%w: all resources on route %s -> %s must use the same write mode", ErrInvalid, g.from, g.to)
+		}
+		mode = candidate
+	}
+	return mode, nil
+}
+
+// mergeTransform folds an edge's transform into its route. The definition is
+// checked against the grammar here so a bad one fails compilation, not the
+// run. A resource-specific edge may only define its own resource, and two
+// edges may not define the same one.
+func mergeTransform(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
+	if !HasTransform(edge) {
+		return nil
+	}
+	resources, err := TransformResources(edge)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	for resource, steps := range resources {
+		if _, exists := group.transforms[resource]; exists {
+			return fmt.Errorf("%w: resource %q is transformed by more than one edge", ErrInvalid, resource)
+		}
+		group.transforms[resource] = steps
+	}
+	return nil
+}
+
+// HasTransform reports whether the edge carries a transform definition. An
+// empty object is the same as none: rows pass through unchanged.
+func HasTransform(edge *ingestionv1.PipelineEdge) bool {
+	return len(edge.GetTransform().GetFields()) > 0
+}
+
+// TransformResources parses an edge's transform against the grammar and
+// returns its per-resource steps. An edge naming a resource may only define
+// that resource.
+func TransformResources(edge *ingestionv1.PipelineEdge) (map[string]any, error) {
+	raw, err := edge.GetTransform().MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("transform: %w", err)
+	}
+	if _, err := transform.Parse(raw); err != nil {
+		return nil, err
+	}
+	resources, _ := edge.GetTransform().AsMap()["resources"].(map[string]any)
+	if own := edge.GetResource(); own != "" {
+		for resource := range resources {
+			if resource != own {
+				return nil, fmt.Errorf("transform: edge for %q defines resource %q", own, resource)
+			}
+		}
+	}
+	return resources, nil
+}
+
+// transformDefinition renders a route's merged transforms as the JSON
+// definition a run request carries, or "" when the route has none.
+func transformDefinition(group *routeGroup) (string, error) {
+	if len(group.transforms) == 0 {
+		return "", nil
+	}
+	raw, err := json.Marshal(map[string]any{"version": transform.GrammarVersion(), "resources": group.transforms})
+	if err != nil {
+		return "", fmt.Errorf("transform: %w", err)
+	}
+	return string(raw), nil
 }
 
 func readModeFromProto(mode ingestionv1.ReadMode) (filament.ReadMode, error) {

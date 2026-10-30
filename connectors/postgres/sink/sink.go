@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -13,7 +14,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
-	"github.com/galaxy-io/filament/internal/stream"
+	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -23,8 +25,10 @@ import (
 // implements filament.Schematized; the engine only runs schema discovery for sinks
 // that do.
 type Sink struct {
-	continuous bool
-	stream     streamSession
+	evolution           schema.Policy
+	transactionalWrites bool
+	writeMu             sync.Mutex
+	session             writeSession
 
 	pool     *pgxpool.Pool
 	run      filament.RunID
@@ -35,7 +39,8 @@ type Sink struct {
 
 	// Bounded runs prepare tables before extraction. Continuous runs may also
 	// prepare inferred schemas on their single writer inside the active epoch.
-	tables map[string]*table
+	tablesMu sync.RWMutex
+	tables   map[string]*table
 }
 
 // table is one resource's ensured destination: its identifiers, column types, the
@@ -43,6 +48,8 @@ type Sink struct {
 // marks a table whose writes are idempotent by key, so a resume must preserve its
 // rows.
 type table struct {
+	input     *arrow.Schema
+	model     rowmodel.Schema
 	qualified string
 	idents    []string // sanitized column names, schema order
 	types     []string // Postgres column types, schema order
@@ -91,6 +98,9 @@ func (t *Sink) Name() string { return "postgres" }
 
 // Validate checks connection syntax without opening a network connection.
 func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
+		return err
+	}
 	if _, err := pgconnection.Resolve(cfg); err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
@@ -113,27 +123,37 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // Open reads dsn/schema and opens a pool sized for the run's write parallelism. It
 // does no DDL — tables are created per resource by EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
-	if run.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		if err := run.ValidateStreamAttempt(); err != nil {
-			return err
+	t.transactionalWrites = false
+	for _, policy := range run.WritePolicies {
+		if policy.Capability.Durability == filament.DurabilityAfterCommit {
+			t.transactionalWrites = true
 		}
-		for _, resource := range run.Resources {
-			p, ok := run.WritePolicies[resource]
-			if !ok {
-				p = run.WritePolicies[""]
-			}
-			if p.Capability.Mode != filament.WriteAppend {
-				return fmt.Errorf("postgres stream: only append is supported")
-			}
-		}
-		t.continuous = true
-		lifecycle, err := stream.NewSinkLifecycle(*run.StreamAttempt)
-		if err != nil {
-			return err
-		}
-		t.stream = streamSession{lifecycle: lifecycle}
 	}
+
+	if t.transactionalWrites {
+		for _, policy := range run.WritePolicies {
+			if policy.Capability.Durability != filament.DurabilityAfterCommit || (policy.Capability.Mode != filament.WriteAppend && policy.Capability.Mode != filament.WriteMerge && policy.Capability.Mode != filament.WriteUpsert) {
+				return fmt.Errorf("postgres sink: commit-durable sessions require append, upsert, or merge policies for every resource")
+			}
+		}
+	}
+	if err := t.open(ctx, run); err != nil {
+		return err
+	}
+	t.session.lifecycle.Open()
+	return nil
+}
+
+func (t *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
+	policy, err := schemaPolicy(cfg.String("schema_evolution"))
+	if err != nil {
+		return err
+	}
+	t.evolution = policy
+	if policy != "" && cfg.String("schema") != "" && !validIdentifier(cfg.String("schema")) {
+		return fmt.Errorf("invalid PostgreSQL schema name")
+	}
 	resolved, err := pgconnection.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
@@ -163,37 +183,25 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit releases the pool; the COPYs are already durable.
-func (t *Sink) Commit(context.Context) error {
-	if t.continuous {
-		return filament.ErrEpochMismatch
-	}
-	t.release()
-	return nil
-}
-
-// Abort empties every ensured table (the run failed, so leave a clean-empty state
-// rather than a half-load) and releases the pool. Best-effort on a cancel-free
-// context so cleanup runs even when the failure cancelled ctx.
-func (t *Sink) Abort(ctx context.Context) error {
-	if t.continuous {
-		return filament.ErrEpochMismatch
-	}
-	defer t.release()
+// abortSnapshot clears only non-resumable replacement tables.
+// Transactional writes instead roll back only their active transaction.
+func (t *Sink) abortSnapshot(ctx context.Context) error {
 	if t.pool == nil {
 		return nil
 	}
 	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	cleanup := context.WithoutCancel(ctx)
-	for _, tbl := range t.tables {
-		if tbl.resumable {
+	var cleanupErr error
+	for resource, tbl := range t.tables {
+		if t.modeFor(resource) != filament.WriteReplace || tbl.resumable {
 			continue
 		}
-		_, _ = t.pool.Exec(cleanup, "TRUNCATE "+tbl.qualified)
+		if _, err := t.pool.Exec(ctx, "TRUNCATE "+tbl.qualified); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("truncate %s: %w", resource, err))
+		}
 	}
-	return nil
+	return cleanupErr
 }
 
 func (t *Sink) release() {
@@ -201,4 +209,10 @@ func (t *Sink) release() {
 		t.pool.Close()
 		t.pool = nil
 	}
+}
+
+func (t *Sink) tableFor(resource string) *table {
+	t.tablesMu.RLock()
+	defer t.tablesMu.RUnlock()
+	return t.tables[resource]
 }

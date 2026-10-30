@@ -10,17 +10,15 @@ interface UseConfirmCallbacks {
   onError: (error: unknown) => void;
 }
 
-interface UseConfirmMessages<T> {
+interface UseConfirmMessages {
   successHeader: string;
-  successSubheader: (target: T) => string;
   errorHeader: string;
   errorFallback: string;
 }
 
 interface UseConfirmInput<T> {
   entityLabel: string;
-  entityName: (target: T) => string;
-  messages?: Partial<UseConfirmMessages<T>>;
+  messages?: Partial<UseConfirmMessages>;
   onConfirm: (target: T, callbacks: UseConfirmCallbacks) => void;
   onConfirmed?: (target: T) => void;
 }
@@ -35,7 +33,6 @@ const DEFAULT_STATE = {
 
 export const useConfirm = <T>({
   entityLabel,
-  entityName,
   messages,
   onConfirm,
   onConfirmed,
@@ -59,9 +56,6 @@ export const useConfirm = <T>({
         onSuccess: () => {
           toast({
             header: messages?.successHeader ?? `${entityLabel} deleted`,
-            description:
-              messages?.successSubheader?.(target) ??
-              `${entityName(target)} has been deleted successfully.`,
             variant: ToastVariant.SUCCESS,
           });
           handleClose();

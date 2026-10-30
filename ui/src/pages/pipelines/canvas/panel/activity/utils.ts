@@ -63,3 +63,9 @@ export const getRunEventTextVariant = (event: RunEvent): TextVariant => {
   }
   return TextVariant.SECONDARY;
 };
+
+export const appendUnseenRunEvents = (frozen: RunEvent[], live: RunEvent[]): RunEvent[] => {
+  const frozenKeys = new Set(frozen.map(getRunEventKey));
+  const unseen = live.filter((event) => !frozenKeys.has(getRunEventKey(event)));
+  return unseen.length > 0 ? [...frozen, ...unseen] : frozen;
+};

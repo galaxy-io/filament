@@ -1,9 +1,11 @@
+import type { FC } from "react";
+
 import SelectInput, { type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { INPUT_VARIANT_TO_SELECT_INPUT_VARIANT_MAP } from "@/components/fields/constants";
 import type { FieldComponentProps } from "@/components/fields/types";
 
-const FieldEnum = ({
+const FieldEnum: FC<FieldComponentProps> = ({
   field,
   value,
   onChange,
@@ -11,7 +13,7 @@ const FieldEnum = ({
   error,
   isDisabled = false,
   label,
-}: FieldComponentProps) => {
+}) => {
   const options: SelectOption[] = field.enum.map((enumOption) => ({
     id: enumOption.value,
     label: enumOption.label || enumOption.value,

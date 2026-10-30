@@ -20,6 +20,7 @@ spec:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "filament.controlPlane.selectorLabels" . | nindent 8 }}
+        {{- include "filament.podLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.controlPlane.serviceAccountName" . }}
       securityContext:

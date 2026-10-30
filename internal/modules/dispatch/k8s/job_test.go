@@ -69,9 +69,9 @@ func TestWorkerResources(t *testing.T) {
 }
 
 func TestJobAndPodLabelsMatch(t *testing.T) {
-	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament"}}
+	m := &Module{cfg: Config{WorkerImage: "worker:test", WorkerSecretName: "filament-secret", JobNamePrefix: "filament", WorkerInstance: "prod"}}
 	job, err := m.jobForSpec(filament.RunSpec{
-		Tenant: "acme", Run: "run-1", ExecutionID: "attempt-1",
+		Tenant: "acme", Run: "run-1", ExecutionID: "attempt-1", PipelineID: "pipeline-1",
 		SourceConnectionID: "source-connection", SinkConnectionID: "sink-connection",
 	})
 	if err != nil {
@@ -81,19 +81,28 @@ func TestJobAndPodLabelsMatch(t *testing.T) {
 	if !maps.Equal(job.Labels, pod) {
 		t.Fatalf("job labels %v != pod labels %v", job.Labels, pod)
 	}
-	if got := pod["filament.galaxy.io/tenant"]; got != "acme" {
+	if got := pod["filament.getgalaxy.io/tenant"]; got != "acme" {
 		t.Fatalf("pod tenant label = %q, want acme", got)
 	}
-	if got := pod["filament.galaxy.io/run-id"]; got != "run-1" {
+	if got := pod["filament.getgalaxy.io/run-id"]; got != "run-1" {
 		t.Fatalf("pod run-id label = %q, want run-1", got)
 	}
-	if got := pod["filament.galaxy.io/execution-id"]; got != executionToken("attempt-1") {
+	if got := pod["app.kubernetes.io/part-of"]; got != "filament" {
+		t.Fatalf("pod part-of label = %q, want filament", got)
+	}
+	if got := pod["app.kubernetes.io/instance"]; got != "prod" {
+		t.Fatalf("pod instance label = %q, want prod", got)
+	}
+	if got := pod["filament.getgalaxy.io/pipeline-id"]; got != "pipeline-1" {
+		t.Fatalf("pod pipeline-id label = %q, want pipeline-1", got)
+	}
+	if got := pod["filament.getgalaxy.io/execution-id"]; got != executionToken("attempt-1") {
 		t.Fatalf("pod execution-id label = %q", got)
 	}
-	if got := pod["filament.galaxy.io/source-connection-id"]; got != "source-connection" {
+	if got := pod["filament.getgalaxy.io/source-connection-id"]; got != "source-connection" {
 		t.Fatalf("pod source connection label = %q", got)
 	}
-	if got := pod["filament.galaxy.io/sink-connection-id"]; got != "sink-connection" {
+	if got := pod["filament.getgalaxy.io/sink-connection-id"]; got != "sink-connection" {
 		t.Fatalf("pod sink connection label = %q", got)
 	}
 }

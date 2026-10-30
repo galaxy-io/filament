@@ -120,7 +120,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	// The submitted config replaces the stored one entirely, so validate
 	// exactly what will be persisted by providing an empty map to populate
 	effective := map[string]any{}
-	if err := a.resolveConnectionSecrets(ctx, filament.Connection{ID: stored.ID, Tenant: stored.Tenant, SecretRefs: refs}, effective); err != nil {
+	if err := a.resolveConnectionSecrets(ctx, filament.Connection{ID: stored.ID, Tenant: stored.Tenant, SecretRefs: retainedSecretRefs(refs, cfg)}, effective); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	effective = overlayConfig(effective, cfg)
@@ -302,14 +302,16 @@ func (a *Server) storeSecretFields(ctx context.Context, schema filament.ConfigSc
 
 	written := make([]string, 0, len(fields))
 	for _, field := range fields {
-		ref := filament.ConnectionSecretRef(tenant, id, field.path, version)
+		// Concurrent saves and retries of the same connection version must not
+		// reuse a failed attempt's secret or delete another attempt's value.
+		ref := filament.ConnectionSecretRef(tenant, id, field.path, version) + "/" + uuid.NewString()
 		secret := filament.Secret{
 			Tenant: filament.TenantID(tenant),
 			Value:  []byte(field.value),
 			Meta:   map[string]string{"tenant": tenant, "connection": id, "field": field.path},
 		}
 		if err := a.secrets.Write(ctx, ref, secret); err != nil {
-			a.deleteSecretRefs(ctx, written)
+			a.deleteSecretRefs(ctx, append(written, ref))
 			return nil, fmt.Errorf("store secret field %q: %w", field.path, err)
 		}
 		refs[field.path] = ref
@@ -567,4 +569,25 @@ func mapValues(in map[string]string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+// A supplied replacement does not depend on reading the old credential. This
+// also permits recovery when a cloud OAuth update has an uncertain outcome.
+func retainedSecretRefs(refs map[string]string, cfg map[string]any) map[string]string {
+	retained := cloneStrings(refs)
+	for field := range refs {
+		var value any = cfg
+		for _, part := range strings.Split(field, ".") {
+			object, ok := value.(map[string]any)
+			if !ok {
+				value = nil
+				break
+			}
+			value = object[part]
+		}
+		if replacement, ok := value.(string); ok && replacement != "" {
+			delete(retained, field)
+		}
+	}
+	return retained
 }

@@ -1,0 +1,41 @@
+resources:
+  - name: "refund_receipts"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction, sales_transaction]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      remaining_credit:
+        path: "RemainingCredit"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM RefundReceipt{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.RefundReceipt"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "refund_receipts.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

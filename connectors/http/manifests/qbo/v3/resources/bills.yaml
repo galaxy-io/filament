@@ -1,0 +1,110 @@
+resources:
+  - name: "bills"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction, purchase_by_vendor]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      payer_id: {"path": "PayerRef.value", "type": "string", "nullable": true}
+      payer_name: {"path": "PayerRef.name", "type": "string", "nullable": true}
+      sales_term_id: {"path": "SalesTermRef.value", "type": "string", "nullable": true}
+      sales_term_name: {"path": "SalesTermRef.name", "type": "string", "nullable": true}
+      due_date: {"path": "DueDate", "type": "date", "nullable": true}
+      remit_to_addr_id: {"path": "RemitToAddr.Id", "type": "string", "nullable": true}
+      remit_to_addr_line1: {"path": "RemitToAddr.Line1", "type": "string", "nullable": true}
+      remit_to_addr_line2: {"path": "RemitToAddr.Line2", "type": "string", "nullable": true}
+      remit_to_addr_line3: {"path": "RemitToAddr.Line3", "type": "string", "nullable": true}
+      remit_to_addr_line4: {"path": "RemitToAddr.Line4", "type": "string", "nullable": true}
+      remit_to_addr_line5: {"path": "RemitToAddr.Line5", "type": "string", "nullable": true}
+      remit_to_addr_city: {"path": "RemitToAddr.City", "type": "string", "nullable": true}
+      remit_to_addr_country: {"path": "RemitToAddr.Country", "type": "string", "nullable": true}
+      remit_to_addr_country_code: {"path": "RemitToAddr.CountryCode", "type": "string", "nullable": true}
+      remit_to_addr_county: {"path": "RemitToAddr.County", "type": "string", "nullable": true}
+      remit_to_addr_country_sub_division_code: {"path": "RemitToAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      remit_to_addr_postal_code: {"path": "RemitToAddr.PostalCode", "type": "string", "nullable": true}
+      remit_to_addr_postal_code_suffix: {"path": "RemitToAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      remit_to_addr_lat: {"path": "RemitToAddr.Lat", "type": "string", "nullable": true}
+      remit_to_addr_long: {"path": "RemitToAddr.Long", "type": "string", "nullable": true}
+      remit_to_addr_tag: {"path": "RemitToAddr.Tag", "type": "string", "nullable": true}
+      remit_to_addr_note: {"path": "RemitToAddr.Note", "type": "string", "nullable": true}
+      ship_addr_id: {"path": "ShipAddr.Id", "type": "string", "nullable": true}
+      ship_addr_line1: {"path": "ShipAddr.Line1", "type": "string", "nullable": true}
+      ship_addr_line2: {"path": "ShipAddr.Line2", "type": "string", "nullable": true}
+      ship_addr_line3: {"path": "ShipAddr.Line3", "type": "string", "nullable": true}
+      ship_addr_line4: {"path": "ShipAddr.Line4", "type": "string", "nullable": true}
+      ship_addr_line5: {"path": "ShipAddr.Line5", "type": "string", "nullable": true}
+      ship_addr_city: {"path": "ShipAddr.City", "type": "string", "nullable": true}
+      ship_addr_country: {"path": "ShipAddr.Country", "type": "string", "nullable": true}
+      ship_addr_country_code: {"path": "ShipAddr.CountryCode", "type": "string", "nullable": true}
+      ship_addr_county: {"path": "ShipAddr.County", "type": "string", "nullable": true}
+      ship_addr_country_sub_division_code: {"path": "ShipAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      ship_addr_postal_code: {"path": "ShipAddr.PostalCode", "type": "string", "nullable": true}
+      ship_addr_postal_code_suffix: {"path": "ShipAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      ship_addr_lat: {"path": "ShipAddr.Lat", "type": "string", "nullable": true}
+      ship_addr_long: {"path": "ShipAddr.Long", "type": "string", "nullable": true}
+      ship_addr_tag: {"path": "ShipAddr.Tag", "type": "string", "nullable": true}
+      ship_addr_note: {"path": "ShipAddr.Note", "type": "string", "nullable": true}
+      vendor_addr_id: {"path": "VendorAddr.Id", "type": "string", "nullable": true}
+      vendor_addr_line1: {"path": "VendorAddr.Line1", "type": "string", "nullable": true}
+      vendor_addr_line2: {"path": "VendorAddr.Line2", "type": "string", "nullable": true}
+      vendor_addr_line3: {"path": "VendorAddr.Line3", "type": "string", "nullable": true}
+      vendor_addr_line4: {"path": "VendorAddr.Line4", "type": "string", "nullable": true}
+      vendor_addr_line5: {"path": "VendorAddr.Line5", "type": "string", "nullable": true}
+      vendor_addr_city: {"path": "VendorAddr.City", "type": "string", "nullable": true}
+      vendor_addr_country: {"path": "VendorAddr.Country", "type": "string", "nullable": true}
+      vendor_addr_country_code: {"path": "VendorAddr.CountryCode", "type": "string", "nullable": true}
+      vendor_addr_county: {"path": "VendorAddr.County", "type": "string", "nullable": true}
+      vendor_addr_country_sub_division_code: {"path": "VendorAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      vendor_addr_postal_code: {"path": "VendorAddr.PostalCode", "type": "string", "nullable": true}
+      vendor_addr_postal_code_suffix: {"path": "VendorAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      vendor_addr_lat: {"path": "VendorAddr.Lat", "type": "string", "nullable": true}
+      vendor_addr_long: {"path": "VendorAddr.Long", "type": "string", "nullable": true}
+      vendor_addr_tag: {"path": "VendorAddr.Tag", "type": "string", "nullable": true}
+      vendor_addr_note: {"path": "VendorAddr.Note", "type": "string", "nullable": true}
+      balance:
+        path: "Balance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      home_balance:
+        path: "HomeBalance"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      less_cis:
+        path: "LessCIS"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      include_in_annual_tpar: {"path": "IncludeInAnnualTPAR", "type": "bool", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Bill{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Bill"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "bills.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

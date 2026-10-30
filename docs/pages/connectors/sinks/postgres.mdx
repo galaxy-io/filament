@@ -1,8 +1,11 @@
 ---
-title: "PostgreSQL"
-description: "Write typed tables to PostgreSQL"
+title: "PostgreSQL sink connector"
+sidebarTitle: "PostgreSQL"
+description: "Write typed tables to PostgreSQL with Filament, the open-source data movement engine."
 icon: "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg"
 ---
+
+Connector ID `postgres`
 
 `connectors/postgres/sink` (registered as `postgres`, **beta**) loads each
 resource into its own typed PostgreSQL table. Native column types are derived
@@ -24,6 +27,7 @@ same destination tables.
 | `ssl_mode` | Connection | `prefer` | TLS verification: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
 | `schema` | Pipeline | `public` | Destination schema |
 | `mode` | Pipeline | `typed` | Destination table mode. `typed` is the only value. |
+| `schema_evolution` | Pipeline | `disabled` | Use `strict` to block schema differences or `nullable_add` to permit nullable column additions. |
 
 A `schema` left empty is defaulted by the server to the normalized source
 connection name. `Open` sizes a pgx pool to at least the run's snapshot
@@ -46,7 +50,7 @@ planner picks one. They bind to three write behaviors:
 
 ## Table management
 
-Before extraction starts, `EnsureSchema` runs per resource:
+With `schema_evolution` disabled, `EnsureSchema` runs per resource before extraction.
 
 1. `CREATE TABLE IF NOT EXISTS` with columns from the source schema, a primary
    key from the source's key fields, and `NOT NULL` from field nullability.
@@ -56,6 +60,52 @@ Before extraction starts, `EnsureSchema` runs per resource:
    existing tables. Evolution is add-only. Type changes, dropped columns, and
    nullability changes are not applied. An incompatible type change fails later
    when a write cannot cast the value.
+
+### Schema drift rules
+
+Enable `strict` or `nullable_add` to compare the complete requested schema with
+the actual destination table before writing. Both policies create missing tables.
+For existing tables, `strict` blocks differences and `nullable_add` permits only
+new nullable columns. Type, nullability, primary key, and removed field changes
+block with `schema_blocked`. Renames are treated as a removal and an addition.
+Column order may differ because writes name columns explicitly.
+
+The sink checks the entire diff before making changes. Permitted additions,
+verification, and any replace-mode truncation share one PostgreSQL transaction.
+A rejected diff leaves that table and its rows unchanged. Reconciliation is per
+table, so earlier tables in a multi-resource run may already have been prepared.
+A retry inspects the actual table again and skips additions already committed.
+
+Each bounded write transaction and continuous epoch rechecks the prepared schema
+under a table lock held through commit or rollback. A change made after startup
+therefore blocks before the affected write. These checks add catalog queries and
+can wait for concurrent DDL.
+
+Sources with complete schemas reconcile before extraction. NATS instead probes
+each buffered epoch before encoding rows. With `nullable_add`, newly observed
+payload fields become nullable columns. Missing fields remain in the accepted
+layout and produce nulls. With `strict`, the initial batch establishes the layout
+and subsequent additions block.
+
+For NATS, additions and that epoch's data writes share the same destination
+transaction. Accepted decoder layouts are saved with the epoch checkpoint before
+acknowledgement. Restarts restore those layouts instead of inferring them again.
+Older streams without saved layouts require a new stream generation to enable
+this feature. Other message sources retain their existing inference behavior.
+
+This does not make destination commits and checkpoint commits atomic together.
+The existing recovery rules for uncertain destination commits still apply.
+
+Checked schemas currently support the portable scalar mappings below, including
+decimal precision and scale. Unsupported native modifiers, arrays, custom types,
+identity or generated columns, custom collations, partitioning, inheritance,
+row security, and user triggers block. These restrictions apply only when a
+schema policy is enabled.
+
+A continuous schema block suppresses automatic retries using the persisted
+attempt reason. After resolving the issue, pause and resume to request another
+assessment. Existing ownership and clean-shutdown checks still apply. Bounded
+runs report the schema error through their normal failure path.
 
 ### Type mapping
 
@@ -81,7 +131,7 @@ columns. Replace and append batches copy into the destination table. Upserts
 copy into a per-connection temporary table and merge into the destination with
 `ON CONFLICT`, inside one transaction.
 
-CDC merge batches are split into consecutive delete and non-delete ranges and
+For bounded runs, CDC merge batches are split into consecutive delete and non-delete ranges and
 applied in arrival order inside **one transaction per batch**. Each range is
 copied to a temporary row or key table before its upsert or delete statement. A
 merge against a keyless resource is an error.
@@ -92,14 +142,33 @@ checksum, so the engine records both the in-memory handoff and PostgreSQL
 serialization boundaries. This is not a query that reads committed rows back
 from the table.
 
-Batches commit as they are applied (autocommit), so partial data is visible in
-the destination mid-run. Delivery is at-least-once, and upsert and merge modes
-are idempotent through the primary key. `Commit` closes the pool. There is no
-end-of-run atomic swap.
+Bounded runs commit batches as they are applied, so partial data can be visible
+mid-run. `Commit` confirms those durable writes and `Close` releases the pool.
+There is no end-of-run atomic swap.
+
+Continuous planning prefers the sink's commit-durable append, upsert, and merge
+policies. One `Begin` opens the write transaction, all batches use that
+transaction, and `Commit` makes them durable together. The pool stays open for
+the next boundary. The runner then saves the epoch certificate before
+acknowledging the source. Existing saved policies retain their declared
+durability when the sink still supports that exact policy.
 
 ## Failure behavior
 
-On a failed run, `Abort` truncates replace tables. Append tables retain rows
-already written, so retrying a non-checkpointed append as a new run can produce
-duplicates. Upsert and merge tables are preserved because retries converge
-through the primary key; resumable extraction failures skip `Abort` entirely.
+A failed transactional write rolls back its pending rows and transactional
+schema changes. Earlier committed boundaries remain visible. A confirmed
+rollback can establish clean shutdown. An uncertain commit response or failed
+rollback can block automatic restart.
+
+For bounded writes, `Abort` clears only non-resumable replace tables. Append,
+upsert, and merge tables retain durable rows. Cleanup attempts every eligible
+table and reports all failures.
+
+Delivery remains at least once. A crash after destination commit but before
+certificate persistence can cause replay. Append can duplicate rows in that
+case. Upsert and merge use primary keys to converge when replayed.
+
+## Related guides
+
+- [MySQL to Postgres migration and replication](https://www.getgalaxy.io/articles/mysql-to-postgres-migration-and-replication-guide)
+- [Zero-downtime Postgres migration, step by step](https://www.getgalaxy.io/articles/zero-downtime-postgres-migration-step-by-step)

@@ -24,6 +24,7 @@ spec:
         {{- end }}
       labels:
         {{- include "filament.server.selectorLabels" . | nindent 8 }}
+        {{- include "filament.podLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "filament.server.serviceAccountName" . }}
       automountServiceAccountToken: false

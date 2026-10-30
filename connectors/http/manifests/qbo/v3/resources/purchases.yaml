@@ -1,0 +1,79 @@
+resources:
+  - name: "purchases"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity, transaction]
+    field_overrides:
+      updated_at: {"path": "MetaData.LastUpdatedTime", "type": "timestamptz", "nullable": false}
+    fields:
+      account_id: {"path": "AccountRef.value", "type": "string", "nullable": true}
+      account_name: {"path": "AccountRef.name", "type": "string", "nullable": true}
+      payment_method_id: {"path": "PaymentMethodRef.value", "type": "string", "nullable": true}
+      payment_method_name: {"path": "PaymentMethodRef.name", "type": "string", "nullable": true}
+      payment_ref_num: {"path": "PaymentRefNum", "type": "string", "nullable": true}
+      payment_type: {"path": "PaymentType", "type": "string", "nullable": true}
+      check_payment: {"path": "CheckPayment", "type": "json", "nullable": true}
+      credit_card_payment: {"path": "CreditCardPayment", "type": "json", "nullable": true}
+      entity_id: {"path": "EntityRef.value", "type": "string", "nullable": true}
+      entity_name: {"path": "EntityRef.name", "type": "string", "nullable": true}
+      credit: {"path": "Credit", "type": "bool", "nullable": true}
+      remit_to_addr_id: {"path": "RemitToAddr.Id", "type": "string", "nullable": true}
+      remit_to_addr_line1: {"path": "RemitToAddr.Line1", "type": "string", "nullable": true}
+      remit_to_addr_line2: {"path": "RemitToAddr.Line2", "type": "string", "nullable": true}
+      remit_to_addr_line3: {"path": "RemitToAddr.Line3", "type": "string", "nullable": true}
+      remit_to_addr_line4: {"path": "RemitToAddr.Line4", "type": "string", "nullable": true}
+      remit_to_addr_line5: {"path": "RemitToAddr.Line5", "type": "string", "nullable": true}
+      remit_to_addr_city: {"path": "RemitToAddr.City", "type": "string", "nullable": true}
+      remit_to_addr_country: {"path": "RemitToAddr.Country", "type": "string", "nullable": true}
+      remit_to_addr_country_code: {"path": "RemitToAddr.CountryCode", "type": "string", "nullable": true}
+      remit_to_addr_county: {"path": "RemitToAddr.County", "type": "string", "nullable": true}
+      remit_to_addr_country_sub_division_code: {"path": "RemitToAddr.CountrySubDivisionCode", "type": "string", "nullable": true}
+      remit_to_addr_postal_code: {"path": "RemitToAddr.PostalCode", "type": "string", "nullable": true}
+      remit_to_addr_postal_code_suffix: {"path": "RemitToAddr.PostalCodeSuffix", "type": "string", "nullable": true}
+      remit_to_addr_lat: {"path": "RemitToAddr.Lat", "type": "string", "nullable": true}
+      remit_to_addr_long: {"path": "RemitToAddr.Long", "type": "string", "nullable": true}
+      remit_to_addr_tag: {"path": "RemitToAddr.Tag", "type": "string", "nullable": true}
+      remit_to_addr_note: {"path": "RemitToAddr.Note", "type": "string", "nullable": true}
+      total_amt:
+        path: "TotalAmt"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      memo: {"path": "Memo", "type": "string", "nullable": true}
+      print_status: {"path": "PrintStatus", "type": "string", "nullable": true}
+      global_tax_calculation: {"path": "GlobalTaxCalculation", "type": "string", "nullable": true}
+      less_cis:
+        path: "LessCIS"
+        type: "decimal"
+        nullable: true
+        precision: 38
+        scale: 18
+      include_in_annual_tpar: {"path": "IncludeInAnnualTPAR", "type": "bool", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Purchase{{ state.updated_since | default \"\" }} ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Purchase"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1
+    incremental:
+      cursor_field: "updated_at"
+      checkpoint_key: "purchases.updated_at"
+      start_param: "updated_since"
+      inject_into: "state"
+      initial: "1970-01-01T00:00:00Z"
+      comparator: "time"
+      overlap_seconds: 300
+      value_prefix: " WHERE MetaData.LastUpdatedTime >= '"
+      value_suffix: "'"
+      commit_on_complete: true

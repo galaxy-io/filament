@@ -83,6 +83,7 @@ encryption to protect resolved connection credentials in transit.
 |-----|------|---------|-------------|
 | commonLabels | object | `{}` | Labels added to all Filament resources. |
 | existingSecret | string | `""` | Existing runtime Secret with `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY`. Shared by the server, control plane, and workers. Provider credentials live in a separate Secret so workers never receive them. |
+| podLabels | object | `{}` | Labels added to the server, control plane, persistent worker and migration pods. |
 
 ## Server parameters
 
@@ -140,6 +141,8 @@ encryption to protect resolved connection credentials in transit.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| worker.connectors.sinks | list | `[]` | Sink connectors the worker offers. Empty offers every bundled sink. |
+| worker.connectors.sources | list | `[]` | Source connectors the worker offers, by unversioned name. Empty offers every bundled source. |
 | worker.heartbeatSeconds | int | `30` | Interval in seconds between run heartbeats, stored in the worker ConfigMap as `HEARTBEAT_SECONDS`. Empty uses the worker's own default. |
 | worker.image.pullPolicy | string | `"IfNotPresent"` | Worker image pull policy. |
 | worker.image.pullSecrets | list | `[]` | Image pull secrets for the worker Deployment and Jobs. |
@@ -171,6 +174,7 @@ encryption to protect resolved connection credentials in transit.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | persistence.migrate | bool | `true` | Run database migrations as a post-install/post-upgrade hook Job. |
+| persistence.migrateResources | object | `{}` | Migration Job resource requests and limits. |
 | persistence.postgresql.dsn | string | required | PostgreSQL connection string stored in the chart-created Secret as `PERSISTENCE_DSN`. Required unless `existingSecret` is set. |
 | persistence.type | string | `"postgres"` | Persistence provider. |
 

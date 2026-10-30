@@ -398,6 +398,13 @@ type Secret struct {
 	Meta   map[string]string
 }
 
+// SecretRotator replaces the value of an existing secret without creating a
+// secret or changing its reference. Rotation must not recreate a deleted secret.
+// Implementations preserve tenant isolation and encrypt values at rest.
+type SecretRotator interface {
+	RotateSecret(ctx context.Context, ref string, secret Secret) error
+}
+
 // ConnectionSecretPrefix namespaces the secret refs the connection API mints on
 // a tenant's behalf: connections/<tenant>/<connID>/<field>/v<version>.
 const ConnectionSecretPrefix = "filament/"
@@ -688,8 +695,6 @@ type (
 	RunID string
 	// ScheduleID identifies a schedule.
 	ScheduleID string
-	// StageID identifies a Transactional sink's staging area.
-	StageID string
 )
 
 // DefaultTenantID identifies the built-in tenant used when callers omit one.

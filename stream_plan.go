@@ -14,9 +14,13 @@ type ContinuousWritePlan struct {
 	Ordering Ordering
 }
 
-// PlanContinuousWrite selects a sink's explicit epoch policy. Runtime limits
+// PlanContinuousWrite selects a compatible finite write policy. Runtime limits
 // belong here rather than being inferred from connector names or bounded modes.
 func PlanContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode) (ContinuousWritePlan, error) {
+	return planContinuousWrite(source, sink, mode, nil)
+}
+
+func planContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode, submitted *WritePolicyCapability) (ContinuousWritePlan, error) {
 	fail := func(message string) (ContinuousWritePlan, error) {
 		return ContinuousWritePlan{}, fmt.Errorf("continuous planning: %s", message)
 	}
@@ -51,12 +55,9 @@ func PlanContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode) (C
 	default:
 		return fail("unknown streaming write mode")
 	}
-	caps := sink.Capabilities.Stream
-	if caps == nil {
-		return fail("sink does not advertise streaming support")
-	}
-	for _, candidate := range caps.WritePolicies {
-		if candidate.Mode != mode {
+	var selected *ContinuousWritePlan
+	for _, candidate := range sink.Capabilities.WritePolicies {
+		if candidate.Mode != mode || !continuousWriteCapability(candidate) || (submitted != nil && !sameStreamCapability(*submitted, candidate)) {
 			continue
 		}
 		compatible := true
@@ -75,17 +76,25 @@ func PlanContinuousWrite(source ConnectorSpec, sink SinkSpec, mode WriteMode) (C
 			}
 			ordering = OrderingGlobalStrict
 		}
-		if candidate.Durability != DurabilityAfterApply && candidate.Durability != DurabilityAfterCommit {
-			continue
-		}
 		candidate.AcceptsOps = slices.Clone(candidate.AcceptsOps)
 		policy := WritePolicy{Capability: candidate, Checkpoint: CheckpointAfterCommit}
 		if mode == WriteUpsert {
 			policy.Version.Strategy = VersionInsertOrder
 		}
-		return ContinuousWritePlan{Policy: policy, Ordering: ordering}, nil
+		plan := ContinuousWritePlan{Policy: policy, Ordering: ordering}
+		// Prefer a finite-write transaction when the sink supports one. Bounded
+		// planning retains its independent batch-durable choice.
+		if submitted != nil || candidate.Durability == DurabilityAfterCommit {
+			return plan, nil
+		}
+		if selected == nil {
+			selected = &plan
+		}
 	}
-	return fail(fmt.Sprintf("sink %q has no compatible streaming policy for %q (operations, ordering, or durability)", sink.Name, mode))
+	if selected != nil {
+		return *selected, nil
+	}
+	return fail(fmt.Sprintf("sink %q has no compatible write policy for %q (operations, ordering, or durability)", sink.Name, mode))
 }
 
 // PlanContinuousRun requires an explicit write policy for every resource, either
@@ -113,12 +122,9 @@ func PlanContinuousRun(source Source, sink Sink, spec RunSpec) (map[string]Write
 		if !ok {
 			return nil, "", fmt.Errorf("continuous planning: explicit write policy required for %q", resource)
 		}
-		plan, err := PlanContinuousWrite(source.Spec(), sink.Spec(), submitted.Capability.Mode)
+		plan, err := planContinuousWrite(source.Spec(), sink.Spec(), submitted.Capability.Mode, &submitted.Capability)
 		if err != nil {
 			return nil, "", fmt.Errorf("resource %q: %w", resource, err)
-		}
-		if !sameStreamCapability(submitted.Capability, plan.Policy.Capability) {
-			return nil, "", fmt.Errorf("continuous planning: submitted policy for %q differs from the sink declaration", resource)
 		}
 		if submitted.Version != (VersionPolicy{}) && submitted.Version != plan.Policy.Version {
 			return nil, "", fmt.Errorf("continuous planning: unsupported version policy for %q", resource)
@@ -172,4 +178,32 @@ func resolveContinuousIngestionPlan(ctx context.Context, source Source, sink Sin
 		policies[resource] = policy
 	}
 	return IngestionPlan{WritePolicies: policies, Ordering: ordering}, nil
+}
+
+// SupportsContinuousWrites reports whether any finite write policy can serve
+// continuous input. Source operations, ordering, and keys are checked per edge.
+func SupportsContinuousWrites(sink SinkSpec) bool {
+	for _, p := range sink.Capabilities.WritePolicies {
+		if continuousWriteCapability(p) {
+			return true
+		}
+	}
+	return false
+}
+
+func continuousWriteCapability(p WritePolicyCapability) bool {
+	switch p.Mode {
+	case WriteAppend, WriteMerge, WriteUpsert, WriteDelete:
+	default:
+		return false
+	}
+	if p.Durability != DurabilityAfterApply && p.Durability != DurabilityAfterCommit {
+		return false
+	}
+	for _, op := range p.AcceptsOps {
+		if op != OpInsert && op != OpUpdate && op != OpDelete {
+			return false
+		}
+	}
+	return true
 }

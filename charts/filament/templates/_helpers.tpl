@@ -24,7 +24,15 @@ helm.sh/chart: {{ include "filament.chart" . }}
 {{ include "filament.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: filament
 {{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end -}}
+
+{{- define "filament.podLabels" -}}
+app.kubernetes.io/part-of: filament
+{{- with .Values.podLabels }}
 {{ toYaml . }}
 {{- end }}
 {{- end -}}

@@ -6,6 +6,7 @@ import (
 	"maps"
 
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // ResourceTotals records completed Apply totals for one destination resource.
@@ -14,15 +15,28 @@ type ResourceTotals struct{ Rows, Bytes int64 }
 // Completion binds accepted native boundaries and applied totals to one epoch.
 // Its zero value is invalid; exported accessors return independently owned data.
 type Completion struct {
-	binding     string
-	positions   rowmodel.DomainPositions
-	rows, bytes int64
-	resources   map[string]ResourceTotals
+	messageSchemas map[string]schema.MessageLayout
+	binding        string
+	positions      rowmodel.DomainPositions
+	rows, bytes    int64
+	resources      map[string]ResourceTotals
 }
 
 // New is called by the pipeline only after all covered Apply calls complete.
 func New(binding string, positions rowmodel.DomainPositions, rows, nbytes int64, resources map[string]ResourceTotals) Completion {
 	return Completion{binding: binding, positions: positions.Clone(), rows: rows, bytes: nbytes, resources: maps.Clone(resources)}
+}
+
+// NewWithMessageSchemas binds decoder layouts to the same sealed completion.
+func NewWithMessageSchemas(binding string, positions rowmodel.DomainPositions, rows, nbytes int64, resources map[string]ResourceTotals, layouts map[string]schema.MessageLayout) Completion {
+	c := New(binding, positions, rows, nbytes, resources)
+	c.messageSchemas = schema.CloneMessageLayouts(layouts)
+	return c
+}
+
+// MessageSchemas returns independent copies of the accepted decoder layouts.
+func (c Completion) MessageSchemas() map[string]schema.MessageLayout {
+	return schema.CloneMessageLayouts(c.messageSchemas)
 }
 
 // Binding returns the immutable epoch identity.

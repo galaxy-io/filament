@@ -7,6 +7,7 @@
 package workerv1
 
 import (
+	v1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -29,6 +30,7 @@ type PlanReplicationStreamRequest struct {
 	ReplicationStreamId string                 `protobuf:"bytes,3,opt,name=replication_stream_id,json=replicationStreamId,proto3" json:"replication_stream_id,omitempty"`
 	Config              *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
 	Resources           []string               `protobuf:"bytes,5,rep,name=resources,proto3" json:"resources,omitempty"`
+	ExecutionMode       v1.ExecutionMode       `protobuf:"varint,6,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -96,6 +98,13 @@ func (x *PlanReplicationStreamRequest) GetResources() []string {
 		return x.Resources
 	}
 	return nil
+}
+
+func (x *PlanReplicationStreamRequest) GetExecutionMode() v1.ExecutionMode {
+	if x != nil {
+		return x.ExecutionMode
+	}
+	return v1.ExecutionMode(0)
 }
 
 type ReplicationStreamPlan struct {
@@ -214,13 +223,14 @@ var File_worker_v1_replication_proto protoreflect.FileDescriptor
 
 const file_worker_v1_replication_proto_rawDesc = "" +
 	"\n" +
-	"\x1bworker/v1/replication.proto\x12\tworker.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xeb\x01\n" +
+	"\x1bworker/v1/replication.proto\x12\tworker.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\"\xaf\x02\n" +
 	"\x1cPlanReplicationStreamRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x120\n" +
 	"\x14source_connection_id\x18\x02 \x01(\tR\x12sourceConnectionId\x122\n" +
 	"\x15replication_stream_id\x18\x03 \x01(\tR\x13replicationStreamId\x12/\n" +
 	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1c\n" +
-	"\tresources\x18\x05 \x03(\tR\tresources\"\xe2\x01\n" +
+	"\tresources\x18\x05 \x03(\tR\tresources\x12B\n" +
+	"\x0eexecution_mode\x18\x06 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xe2\x01\n" +
 	"\x15ReplicationStreamPlan\x12\x1c\n" +
 	"\tresources\x18\x01 \x03(\tR\tresources\x12#\n" +
 	"\rconsumer_name\x18\x02 \x01(\tR\fconsumerName\x12@\n" +
@@ -249,17 +259,19 @@ var file_worker_v1_replication_proto_goTypes = []any{
 	(*ReplicationStreamPlan)(nil),         // 1: worker.v1.ReplicationStreamPlan
 	(*PlanReplicationStreamResponse)(nil), // 2: worker.v1.PlanReplicationStreamResponse
 	(*structpb.Struct)(nil),               // 3: google.protobuf.Struct
+	(v1.ExecutionMode)(0),                 // 4: ingestion.v1.ExecutionMode
 }
 var file_worker_v1_replication_proto_depIdxs = []int32{
 	3, // 0: worker.v1.PlanReplicationStreamRequest.config:type_name -> google.protobuf.Struct
-	3, // 1: worker.v1.ReplicationStreamPlan.consumer_config:type_name -> google.protobuf.Struct
-	3, // 2: worker.v1.ReplicationStreamPlan.continuity_config:type_name -> google.protobuf.Struct
-	1, // 3: worker.v1.PlanReplicationStreamResponse.plan:type_name -> worker.v1.ReplicationStreamPlan
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 1: worker.v1.PlanReplicationStreamRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	3, // 2: worker.v1.ReplicationStreamPlan.consumer_config:type_name -> google.protobuf.Struct
+	3, // 3: worker.v1.ReplicationStreamPlan.continuity_config:type_name -> google.protobuf.Struct
+	1, // 4: worker.v1.PlanReplicationStreamResponse.plan:type_name -> worker.v1.ReplicationStreamPlan
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_worker_v1_replication_proto_init() }

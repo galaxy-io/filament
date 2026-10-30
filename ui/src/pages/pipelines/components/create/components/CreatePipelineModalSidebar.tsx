@@ -1,3 +1,5 @@
+import type { FC } from "react";
+
 import pluralize from "pluralize";
 import { match } from "ts-pattern";
 
@@ -13,9 +15,8 @@ import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import DocsLink from "@/components/DocsLink";
 
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
@@ -25,9 +26,10 @@ import {
   CREATE_PIPELINE_MODAL_STEP_TO_TITLE_MAP,
 } from "@/pages/pipelines/components/create/constants";
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-import { formatPipelineScheduleSummary } from "@/pages/pipelines/settings/utils";
+import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
+import { PIPELINES_DOCS_PATH } from "@/pages/pipelines/constants";
 
-const CreatePipelineModalSidebar = () => {
+const CreatePipelineModalSidebar: FC = () => {
   const {
     step,
     stepIndex,
@@ -39,7 +41,7 @@ const CreatePipelineModalSidebar = () => {
     selectedCountBySink,
     isSubmitting,
   } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { goToStep } = useCreatePipelineModalActions();
 
   const hasResourceIssues = Object.values(issuesBySink).some((issues) => issues.length > 0);
   const selectedCount = Object.values(selectedCountBySink).reduce((sum, count) => sum + count, 0);
@@ -69,10 +71,7 @@ const CreatePipelineModalSidebar = () => {
   }));
 
   const handleStepChange = (index: number) => {
-    dispatch({
-      type: CreatePipelineModalActionType.GO_TO_STEP,
-      payload: CREATE_PIPELINE_MODAL_STEP_ORDER[index],
-    });
+    goToStep(CREATE_PIPELINE_MODAL_STEP_ORDER[index]);
   };
 
   return (
@@ -119,7 +118,7 @@ const CreatePipelineModalSidebar = () => {
             <Text isProse weight={TextWeight.REGULAR} variant={TextVariant.TERTIARY}>
               {CREATE_PIPELINE_MODAL_STEP_TO_DESCRIPTION_MAP[step]}
             </Text>
-            <DocsLink label="Pipeline setup guide" path="/pages/guides/usage/web#pipelines" />
+            <DocsLink label="Pipeline setup guide" path={PIPELINES_DOCS_PATH} />
           </Flex>
         </Flex>
       </Box>

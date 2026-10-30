@@ -9,16 +9,19 @@ import (
 )
 
 // offsetPaginator increments a numeric offset by page_size. Stops when the
-// API returns fewer records than page_size (short page).
+// API returns fewer records than page_size (short page), unless has_more_path
+// supplies an explicit continuation signal.
 //
 // Single-threaded per resource extraction: lastOffset tracks the offset most
 // recently injected by Apply so that Next can advance it.
 type offsetPaginator struct {
+	start       int
 	offsetParam string
 	limitParam  string
 	pageSize    int
 	injectInto  string
 	lastOffset  int
+	hasMorePath string
 }
 
 func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
@@ -29,17 +32,22 @@ func newOffset(spec manifest.PaginationSpec) (*offsetPaginator, error) {
 		return nil, fmt.Errorf("offset pagination: page_size > 0 is required")
 	}
 	return &offsetPaginator{
+		start:       spec.Start,
 		offsetParam: spec.OffsetParam,
+		hasMorePath: spec.HasMorePath,
 		limitParam:  spec.LimitParam,
 		pageSize:    spec.PageSize,
 		injectInto:  spec.OffsetInjectInto,
 	}, nil
 }
 
-func (p *offsetPaginator) Initial() State { return State{Offset: 0} }
+func (p *offsetPaginator) Initial() State { return State{Offset: p.start} }
 
 func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, error) {
 	p.lastOffset = s.Offset
+	if p.injectInto == "state" {
+		return nil, nil
+	}
 	if p.injectInto == "body" {
 		out := map[string]any{p.offsetParam: s.Offset}
 		if p.limitParam != "" {
@@ -56,7 +64,20 @@ func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, err
 	return nil, nil
 }
 
-func (p *offsetPaginator) Next(_ *http.Response, _ map[string]any, recordCount int) (State, error) {
+func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
+	if p.lastOffset > int(^uint(0)>>1)-p.pageSize {
+		return State{}, fmt.Errorf("offset pagination overflow")
+	}
+	if p.hasMorePath != "" {
+		more, err := hasMore(body, p.hasMorePath)
+		if err != nil {
+			return State{}, fmt.Errorf("offset pagination: has_more_path %q: %w", p.hasMorePath, err)
+		}
+		if !more {
+			return State{Done: true}, nil
+		}
+		return State{Offset: p.lastOffset + p.pageSize}, nil
+	}
 	if recordCount < p.pageSize {
 		return State{Done: true}, nil
 	}

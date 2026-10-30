@@ -3,11 +3,17 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
+	"github.com/apache/arrow-go/v18/arrow"
+
 	"github.com/galaxy-io/filament"
 	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
+	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // Sink loads each resource into its own typed table with native columns. The engine
@@ -17,11 +23,13 @@ import (
 // deletes). The server must allow local_infile. It implements
 // filament.Schematized; the engine only runs schema discovery for sinks that do.
 type Sink struct {
-	db       *sql.DB
-	run      filament.RunID
-	database string
-	policies map[string]filament.WritePolicy
-	written  atomic.Int64
+	sinkstate.SingleWrite
+	evolution schema.Policy
+	db        *sql.DB
+	run       filament.RunID
+	database  string
+	policies  map[string]filament.WritePolicy
+	written   atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -32,6 +40,8 @@ type Sink struct {
 // renderers, and the merge path's key temp table and delete. resumable marks a
 // table whose writes are idempotent by key, so a resume must preserve its rows.
 type table struct {
+	model     rowmodel.Schema
+	input     *arrow.Schema
 	qualified string
 	idents    []string // quoted column names, schema order
 	keyIdx    []int    // primary-key positions in schema order
@@ -76,6 +86,9 @@ func (t *Sink) Name() string { return "mysql" }
 
 // Validate checks connection syntax without opening a network connection.
 func (t *Sink) Validate(cfg filament.Config) error {
+	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
+		return err
+	}
 	if _, err := mysqlconnection.Resolve(cfg); err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
@@ -102,6 +115,11 @@ func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 // EnsureSchema before extraction.
 func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	cfg := filament.NewConfig(run.Sink.Config)
+	policy, err := schemaPolicy(cfg.String("schema_evolution"))
+	if err != nil {
+		return err
+	}
+	t.evolution = policy
 	resolved, err := mysqlconnection.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
@@ -149,31 +167,30 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit releases the pool; the loads are already durable (autocommit).
+// Commit confirms batches that are already durable. Close releases the pool.
 func (t *Sink) Commit(context.Context) error {
-	t.release()
 	return nil
 }
 
-// Abort empties every ensured table (the run failed, so leave a clean-empty state
-// rather than a half-load) and releases the pool. Best-effort on a cancel-free
-// context so cleanup runs even when the failure cancelled ctx.
+// Abort clears only non-resumable replacement tables. Durable append, merge,
+// and upsert effects must survive cleanup of a later failed write.
 func (t *Sink) Abort(ctx context.Context) error {
-	defer t.release()
 	if t.db == nil {
 		return nil
 	}
 	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	cleanup := context.WithoutCancel(ctx)
-	for _, tbl := range t.tables {
-		if tbl.resumable {
+	var cleanupErr error
+	for resource, tbl := range t.tables {
+		if t.modeFor(resource) != filament.WriteReplace || tbl.resumable {
 			continue
 		}
-		_, _ = t.db.ExecContext(cleanup, "TRUNCATE "+tbl.qualified)
+		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+tbl.qualified); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("truncate %s: %w", resource, err))
+		}
 	}
-	return nil
+	return cleanupErr
 }
 
 func (t *Sink) release() {
@@ -182,3 +199,6 @@ func (t *Sink) release() {
 		t.db = nil
 	}
 }
+
+// Close releases session resources without reverting durable writes.
+func (t *Sink) Close(ctx context.Context) error { t.release(); return nil }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"math"
+	"reflect"
 
 	"github.com/galaxy-io/filament/internal/streamproof"
 )
@@ -28,6 +29,9 @@ func (e EpochRef) Binding() string { data, _ := json.Marshal(e); return string(d
 // No public constructor can manufacture nonzero pipeline completion evidence.
 func (c EpochCommit) ValidateCompletion(codecs CodecResolver) error {
 	cert := c.Certificate
+	if !reflect.DeepEqual(cert.MessageSchemas, c.Completion.MessageSchemas()) {
+		return ErrIncompleteCoverage
+	}
 	if err := cert.Ref.Validate(); err != nil {
 		return err
 	}

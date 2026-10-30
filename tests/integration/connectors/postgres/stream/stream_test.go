@@ -1,0 +1,174 @@
+//go:build integration
+
+package stream_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/galaxy-io/filament"
+	pgsink "github.com/galaxy-io/filament/connectors/postgres/sink"
+	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/rowmodel"
+	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
+)
+
+func TestPostgresNativeEpochCommitAbortAndBoundedReplace(t *testing.T) {
+	nativeEpochScenario(t, false, false)
+}
+
+func TestPostgresNativeEpochApplyFailurePreservesPriorCommit(t *testing.T) {
+	nativeEpochScenario(t, true, false)
+}
+
+func TestPostgresNativeEpochInferredColumns(t *testing.T) { nativeEpochScenario(t, false, true) }
+
+func nativeEpochScenario(t *testing.T, failSecond, inferred bool) {
+	pg := testcontainers.SharedPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn := pg.Pool()
+	schema := "epochs_" + uuid.NewString()[:8]
+	attempt := filament.AttemptRef{RunID: "run", ExecutionID: "worker", StreamID: "stream", Generation: 1, Token: 1}
+	plan, err := filament.PlanContinuousWrite(filament.ConnectorSpec{Stream: &filament.StreamCapabilities{Input: filament.InputRows, Delivery: filament.DeliveryReplayableAtLeastOnce}}, pgsink.New().Spec(), filament.WriteAppend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendPolicy := plan.Policy
+	if appendPolicy.Capability.Durability != filament.DurabilityAfterCommit {
+		t.Fatal("continuous append lost transaction durability")
+	}
+	spec := filament.RunSpec{Run: "run", StreamAttempt: &attempt, Options: filament.RunOptions{Execution: filament.ExecutionContinuous}, Resources: []string{"events"}, Sink: filament.Ref{Config: map[string]any{"dsn": pg.DSN(), "schema": schema}}, WritePolicies: map[string]filament.WritePolicy{"events": appendPolicy}}
+	sink := pgsink.New()
+	if err := sink.Open(ctx, spec); err != nil {
+		t.Fatal(err)
+	}
+	defer sink.Close(ctx)
+	fields := rowmodel.Schema{Resource: "events", Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}}}
+	if failSecond {
+		fields.PrimaryKey = []string{"value"}
+	}
+	if err := sink.EnsureSchema(ctx, "events", fields); err != nil {
+		t.Fatal(err)
+	}
+	if inferred {
+		fields.Fields = append(fields.Fields, rowmodel.Field{Name: "amount", Logical: rowmodel.LogicalJSON, Nullable: true})
+	}
+	p, err := pipeline.NewStream(pipeline.Config{Sink: sink, WritePolicies: spec.WritePolicies, PrepareSchema: func(ctx context.Context, resource string, actual rowmodel.Schema) error {
+		if !inferred {
+			return nil
+		}
+		return sink.EnsureSchema(ctx, resource, actual)
+	}}, filament.OrderingNone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Start(ctx)
+	expectFailure := false
+	defer func() {
+		p.CloseIngest(nil)
+		if err := p.Wait(); err != nil && !expectFailure {
+			t.Error(err)
+		}
+	}()
+	records := p.Records().(filament.StreamRecordSink)
+	writer, err := records.Builder("events", 0, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := func(want int) {
+		t.Helper()
+		var n int
+		if err := conn.QueryRow(ctx, "SELECT count(*) FROM "+pgx.Identifier{schema, "events"}.Sanitize()).Scan(&n); err != nil || n != want {
+			t.Fatalf("rows %d want %d: %v", n, want, err)
+		}
+	}
+	for epoch := int64(1); epoch <= 2; epoch++ {
+		ref := filament.EpochRef{Attempt: attempt, Epoch: epoch, MembershipRevision: 1}
+		if err := p.BindEpoch(ref); err != nil {
+			t.Fatal(err)
+		}
+		if err := sink.Begin(ctx); err != nil {
+			t.Fatal(err)
+		}
+		writer.String("value")
+		if inferred {
+			writer.String("9007199254740993")
+		}
+		if err := writer.EndRow(rowmodel.Meta{}); err != nil {
+			t.Fatal(err)
+		}
+		controlErr := records.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: filament.DomainKey{Domain: "log", Incarnation: "source"}, Position: filament.Position{Codec: "opaque", Value: []byte("x")}})
+		if failSecond && epoch == 2 {
+			if controlErr == nil {
+				t.Fatal("expected duplicate key Apply failure")
+			}
+			expectFailure = true
+			count(1)
+			if err := sink.Close(ctx); err != nil {
+				t.Fatalf("confirmed rollback reported unproven closure: %v", err)
+			}
+			count(1)
+			return
+		}
+		if controlErr != nil {
+			t.Fatal(controlErr)
+		}
+		if _, err := p.SealEpoch(); err != nil {
+			t.Fatal(err)
+		}
+		if epoch == 1 {
+			if !inferred {
+				count(0)
+			}
+			if err := sink.Commit(ctx); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			count(1)
+			if inferred {
+				changed := fields.Clone()
+				changed.Fields = append(changed.Fields, rowmodel.Field{Name: "aborted_field", Logical: rowmodel.LogicalString, Nullable: true})
+				if err := sink.EnsureSchema(ctx, "events", changed); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := sink.Abort(ctx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		count(1)
+		if inferred && epoch == 2 {
+			var n int
+			if err := conn.QueryRow(ctx, "SELECT count(*) FROM information_schema.columns WHERE table_schema=$1 AND table_name='events' AND column_name='aborted_field'", schema).Scan(&n); err != nil || n != 0 {
+				t.Fatalf("aborted column survived: %d %v", n, err)
+			}
+		}
+		if inferred {
+			var amount string
+			if err := conn.QueryRow(ctx, "SELECT amount::text FROM "+pgx.Identifier{schema, "events"}.Sanitize()).Scan(&amount); err != nil || amount != "9007199254740993" {
+				t.Fatalf("inferred amount %s: %v", amount, err)
+			}
+		}
+	}
+	if err := sink.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Existing bounded replacement still truncates at EnsureSchema.
+	bounded := pgsink.New()
+	spec.Options.Execution = filament.ExecutionBounded
+	spec.StreamAttempt = nil
+	spec.WritePolicies["events"] = filament.WritePolicy{Capability: filament.WriteCapabilities(filament.IngestionFullReplace)[0]}
+	if err := bounded.Open(ctx, spec); err != nil {
+		t.Fatal(err)
+	}
+	defer bounded.Close(ctx)
+	if err := bounded.EnsureSchema(ctx, "events", fields); err != nil {
+		t.Fatal(err)
+	}
+	count(0)
+}

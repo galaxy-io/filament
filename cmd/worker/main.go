@@ -15,7 +15,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
-	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
@@ -66,6 +65,9 @@ func run(ctx context.Context) error {
 	if deps.Sources, err = connectors.SourcesFromEnv(); err != nil {
 		return err
 	}
+	if deps.Sinks, err = connectors.SinksFromEnv(); err != nil {
+		return err
+	}
 	workerLog := deps.Log.With(
 		filament.Field{Key: "component", Value: "worker"},
 		filament.Field{Key: "run_id", Value: string(runID)},
@@ -90,7 +92,7 @@ func run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: registry.DefaultSinks, Log: deps.Log}, spec)
+		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: deps.Sinks, Log: deps.Log}, spec)
 	}
 	if !runner.ShouldRun(state) {
 		workerLog.Info("worker run skipped",
@@ -126,7 +128,7 @@ func run(ctx context.Context) error {
 		Log:       deps.Log,
 		Secrets:   deps.Secrets,
 		Sources:   deps.Sources,
-		Sinks:     registry.DefaultSinks,
+		Sinks:     deps.Sinks,
 		Tracer:    deps.Tracer,
 	}, runner.SpecFromState(state))
 	stopHeartbeat()

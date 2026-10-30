@@ -8,6 +8,7 @@ require (
 	github.com/atterpac/dado v0.2.13
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
+	github.com/galaxy-io/filament/connectors/databricks v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/motherduck v0.0.0
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
@@ -121,6 +122,7 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/creasty/defaults v1.8.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
+	github.com/databricks/zerobus-sdk/go v1.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/duckdb/duckdb-go-bindings v0.1.21 // indirect
 	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.21 // indirect
@@ -139,10 +141,10 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.7 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/geoarrow/geoarrow-go v0.0.0-20260403143023-f54751c3e3a1 // indirect
-	github.com/go-chi/chi/v5 v5.3.1 // indirect
+	github.com/go-chi/chi/v5 v5.4.0 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-mysql-org/go-mysql v1.15.0 // indirect
@@ -313,6 +315,8 @@ require (
 replace github.com/galaxy-io/filament => ..
 
 replace github.com/galaxy-io/filament/connectors/bigquery => ../connectors/bigquery
+
+replace github.com/galaxy-io/filament/connectors/databricks => ../connectors/databricks
 
 replace github.com/galaxy-io/filament/connectors/motherduck => ../connectors/motherduck
 

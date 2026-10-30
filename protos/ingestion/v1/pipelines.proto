@@ -40,6 +40,10 @@ message PipelineEdge {
   WriteMode write_mode = 7;
   // Optional destination name for this resource in any execution mode; source identity is unchanged.
   string destination_resource = 8;
+  // transform is the edge's transform definition as a JSON object matching
+  // the transform grammar, keyed by resource. A resource-specific edge may
+  // only define its own resource. Empty means rows pass through unchanged.
+  google.protobuf.Struct transform = 9;
 }
 
 message ResourceCursorConfig {

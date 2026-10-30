@@ -1,0 +1,36 @@
+resources:
+  - name: "attachments"
+    path: "/v3/company/{{ config.realm_id }}/query"
+    primary_key: ["realm_id", "id"]
+    restart_on_resume: true
+    omit_empty_query: true
+    use_fields: [identity, entity]
+    fields:
+      file_name: {"path": "FileName", "type": "string", "nullable": true}
+      file_access_uri: {"path": "FileAccessUri", "type": "string", "nullable": true}
+      temp_download_uri: {"path": "TempDownloadUri", "type": "string", "nullable": true}
+      size: {"path": "Size", "type": "int64", "nullable": true}
+      content_type: {"path": "ContentType", "type": "string", "nullable": true}
+      category: {"path": "Category", "type": "string", "nullable": true}
+      lat: {"path": "Lat", "type": "string", "nullable": true}
+      long: {"path": "Long", "type": "string", "nullable": true}
+      place_name: {"path": "PlaceName", "type": "string", "nullable": true}
+      note: {"path": "Note", "type": "string", "nullable": true}
+      tag: {"path": "Tag", "type": "string", "nullable": true}
+      thumbnail_file_access_uri: {"path": "ThumbnailFileAccessUri", "type": "string", "nullable": true}
+      thumbnail_temp_download_uri: {"path": "ThumbnailTempDownloadUri", "type": "string", "nullable": true}
+      document_id: {"path": "documentId", "type": "string", "nullable": true}
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    query: {"query": "SELECT * FROM Attachable ORDERBY Id ASC STARTPOSITION {{ state.offset }} MAXRESULTS {{ state.page_size }}"}
+    response:
+      records: "$.QueryResponse.Attachable"
+      required_objects: ["QueryResponse"]
+      strict_records: true
+      empty_object: "QueryResponse"
+      pagination:
+        offset:
+          offset: "state.offset"
+          limit: "state.page_size"
+          page_size: 500
+          page_size_from: "page_size"
+          start: 1

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -39,6 +40,12 @@ func (p *Pipeline) writer(ctx context.Context) {
 
 func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch *filament.EpochRef) (ok bool) {
 	defer b.Release()
+	// A sink that panics fails the run, not the worker.
+	defer func() {
+		if r := recover(); r != nil {
+			p.setErr(fmt.Errorf("write %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))
+		}
+	}()
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
 		p.setErr(err)
@@ -70,9 +77,13 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 		}
 	}
 	readCRC := b.IntegrityCRC()
-	receipt, err := p.writeBatch(ctx, b, policy, epoch)
+	receipt, err := p.writeBatch(ctx, b, policy)
 	if err != nil {
 		p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
+		return false
+	}
+	if epoch != nil && receipt.Rows != b.NumRows() {
+		p.setErr(fmt.Errorf("write %s seq %d: incomplete sink receipt: rows %d, expected %d", b.Resource, b.Seq, receipt.Rows, b.NumRows()))
 		return false
 	}
 	if p.encodedIntegrity && receipt.EncodedCRC == nil {
@@ -120,11 +131,11 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 	return false
 }
 
-func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy, epoch *filament.EpochRef) (filament.WriteReceipt, error) {
+func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy filament.WritePolicy) (filament.WriteReceipt, error) {
 	destination := policy.DestinationResource
 	policy.DestinationResource = ""
 	if destination == "" || destination == b.Resource {
-		return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy, Epoch: epoch})
+		return p.sink.Apply(ctx, b, filament.ApplyOptions{Policy: policy})
 	}
 	b.Rows().Retain()
 	output := arrowbatch.NewBatch(b.Rows(), b.Operations())
@@ -137,7 +148,7 @@ func (p *Pipeline) writeBatch(ctx context.Context, b *arrowbatch.Batch, policy f
 	}
 	defer output.Release()
 	policy.Resource = destination
-	receipt, err := p.sink.Apply(ctx, output, filament.ApplyOptions{Policy: policy, Epoch: epoch})
+	receipt, err := p.sink.Apply(ctx, output, filament.ApplyOptions{Policy: policy})
 	if receipt.Checkpoint != nil {
 		checkpoint := *receipt.Checkpoint
 		checkpoint.ResourceName = b.Resource

@@ -4,12 +4,12 @@ import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb"
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
-import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/PipelineNodeConfigFields";
+import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type {
   PipelineNotifier,
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
-import type { PipelineSettingsPageScheduleState } from "@/pages/pipelines/settings/types";
+import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export enum CreatePipelineModalActionType {
   SELECT_SOURCE = "SELECT_SOURCE",
@@ -20,6 +20,7 @@ export enum CreatePipelineModalActionType {
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
+  SET_RESOURCE_WRITE_MODE = "SET_RESOURCE_WRITE_MODE",
   SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_NAME = "SET_NAME",
@@ -83,6 +84,11 @@ export interface SetResourceCursorAction {
   };
 }
 
+export interface SetResourceWriteModeAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE;
+  payload: { sinkId: Connection["id"]; resource: Resource["name"]; writeMode: WriteMode };
+}
+
 export interface SetSinkWriteModeAction {
   type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE;
   payload: { sinkId: Connection["id"]; writeMode: WriteMode };
@@ -105,7 +111,7 @@ export interface SetDescriptionAction {
 
 export interface SetScheduleAction {
   type: CreatePipelineModalActionType.SET_SCHEDULE;
-  payload: Partial<PipelineSettingsPageScheduleState>;
+  payload: Partial<PipelineScheduleState>;
 }
 
 export interface AddNotifierAction {
@@ -133,11 +139,11 @@ export interface GoToStepAction {
   payload: CreatePipelineModalStep;
 }
 
-export interface GoBackAction {
+interface GoBackAction {
   type: CreatePipelineModalActionType.GO_BACK;
 }
 
-export interface GoNextAction {
+interface GoNextAction {
   type: CreatePipelineModalActionType.GO_NEXT;
 }
 
@@ -155,6 +161,7 @@ export type CreatePipelineModalAction =
   | SetResourceSelectionAction
   | SetResourceReadModeAction
   | SetResourceCursorAction
+  | SetResourceWriteModeAction
   | SetSinkWriteModeAction
   | SetNodeConfigAction
   | SetNameAction

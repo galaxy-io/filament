@@ -53,6 +53,23 @@ func createTopic(t *testing.T, c *kgo.Client, topic string) {
 			t.Fatalf("create topic: %+v", r)
 		}
 	}
+	// CreateTopics returns once the controller commits; brokers apply the
+	// metadata asynchronously. Wait until the topic is visible.
+	meta := kmsg.NewPtrMetadataRequest()
+	mt := kmsg.NewMetadataRequestTopic()
+	mt.Topic = kmsg.StringPtr(topic)
+	meta.Topics = []kmsg.MetadataRequestTopic{mt}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		m, err := meta.RequestWith(t.Context(), c)
+		if err == nil && len(m.Topics) == 1 && m.Topics[0].ErrorCode == 0 && len(m.Topics[0].Partitions) == 2 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("topic %s not visible: %v", topic, err)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 type collectSink struct {

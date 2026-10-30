@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -9,10 +10,10 @@ import (
 
 func TestReplicationStreamContinuityFingerprintIgnoresResources(t *testing.T) {
 	group := &routeGroup{
-		source:    &ingestionv1.PipelineNode{ConnectionId: "source"},
-		sink:      &ingestionv1.PipelineNode{ConnectionId: "sink"},
-		resources: map[string]bool{"customers": true},
-		writeMode: filament.WriteMerge,
+		source:     &ingestionv1.PipelineNode{ConnectionId: "source"},
+		sink:       &ingestionv1.PipelineNode{ConnectionId: "sink"},
+		resources:  map[string]bool{"customers": true},
+		writeModes: map[string]filament.WriteMode{"customers": filament.WriteMerge},
 	}
 	connections := map[string]filament.Connection{
 		"source": {ID: "source", Version: 3},
@@ -41,5 +42,23 @@ func TestReplicationStreamContinuityFingerprintIgnoresResources(t *testing.T) {
 	}
 	if incompatible == initial {
 		t.Fatal("publication change should fork replication continuity")
+	}
+}
+
+func TestCompileIngestionTypesPerResourceWriteModes(t *testing.T) {
+	group := &routeGroup{
+		from: "src", to: "snk",
+		readModes:  map[string]filament.ReadMode{"orders": filament.ModeIncremental, "audit": filament.ModeFull},
+		writeModes: map[string]filament.WriteMode{"orders": filament.WriteUpsert, "audit": filament.WriteReplace},
+	}
+	types, err := compileIngestionTypes(group, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if types["orders"] != filament.IngestionIncrementalUpsert || types["audit"] != filament.IngestionFullReplace {
+		t.Fatalf("ingestion types = %v", types)
+	}
+	if _, err := compileIngestionTypes(group, true); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("mixed CDC route: got %v, want ErrInvalid", err)
 	}
 }

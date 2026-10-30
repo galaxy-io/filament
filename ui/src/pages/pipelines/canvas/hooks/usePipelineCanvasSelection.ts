@@ -1,49 +1,42 @@
 import { useMemo } from "react";
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import {
+  type CanvasEdge,
+  type CanvasNode,
+  PipelineCanvasView,
+} from "@/pages/pipelines/canvas/types";
 
-import { PipelineCanvasPanelTab } from "@/pages/pipelines/canvas/panel/types";
-import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
-
-const PIPELINE_CANVAS_ROUTE = "/_app/pipelines/$id/canvas";
-
-interface PipelineCanvasSearch {
-  node?: CanvasNode["id"];
-  resource?: CanvasEdge["id"];
-  showPanel?: boolean;
-  tab?: PipelineCanvasPanelTab;
-}
+import { useFilamentSearchUpdate, usePipelineCanvasSearch } from "@/module/hooks";
+import type { PipelineCanvasSearch } from "@/module/schemas";
 
 export const usePipelineCanvasSelection = () => {
-  const navigate = useNavigate();
-  const { node, resource, showPanel, tab } = useSearch({ from: PIPELINE_CANVAS_ROUTE });
+  const { node, resource, showPanel, showActivity, view, sinks } = usePipelineCanvasSearch();
+  const updateSearch = useFilamentSearchUpdate<PipelineCanvasSearch>();
 
   return useMemo(() => {
-    const setSearch = (patch: PipelineCanvasSearch) =>
-      void navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, ...patch }),
-        replace: true,
-      });
+    const setSearch = (patch: PipelineCanvasSearch, replace = true) =>
+      void updateSearch((prev) => ({ ...prev, ...patch }), { replace });
 
     return {
       selectedNodeId: node,
       selectedResourceId: resource,
       showPanel: showPanel ?? false,
-      activeTab: tab ?? PipelineCanvasPanelTab.OVERVIEW,
+      showActivity: showActivity ?? false,
+      view: view ?? PipelineCanvasView.CANVAS,
+      sinkIds: sinks ?? [],
       selectNode: (nodeId: CanvasNode["id"]) =>
-        setSearch({ node: nodeId, resource: undefined, showPanel: true, tab: undefined }),
+        setSearch({ node: nodeId, resource: undefined, showPanel: true }),
       selectResource: (edgeId: CanvasEdge["id"]) =>
-        setSearch({ node: undefined, resource: edgeId, showPanel: true, tab: undefined }),
+        setSearch({ node: undefined, resource: edgeId, showPanel: true }),
       clearSelection: () => setSearch({ node: undefined, resource: undefined }),
       setShowPanel: (nextShowPanel: boolean) =>
         setSearch({ showPanel: nextShowPanel || undefined }),
-      setActiveTab: (nextTab: PipelineCanvasPanelTab) =>
-        setSearch({
-          tab: nextTab === PipelineCanvasPanelTab.OVERVIEW ? undefined : nextTab,
-          node: undefined,
-          resource: undefined,
-        }),
+      setShowActivity: (nextShowActivity: boolean) =>
+        setSearch({ showActivity: nextShowActivity || undefined }),
+      setView: (nextView: PipelineCanvasView) =>
+        setSearch({ view: nextView === PipelineCanvasView.CANVAS ? undefined : nextView }, false),
+      setSinkIds: (nextSinkIds: CanvasNode["id"][]) =>
+        setSearch({ sinks: nextSinkIds.length ? nextSinkIds : undefined }),
     };
-  }, [navigate, node, resource, showPanel, tab]);
+  }, [updateSearch, node, resource, showPanel, showActivity, view, sinks]);
 };

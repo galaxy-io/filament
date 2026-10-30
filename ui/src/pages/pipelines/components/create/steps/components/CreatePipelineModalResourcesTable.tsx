@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { type FC, useMemo } from "react";
 
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
+import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import InfiniteTable from "@galaxy-io/dls/table/InfiniteTable";
@@ -10,19 +11,18 @@ import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
-import EmptyLayout from "@/layouts/EmptyLayout";
-
-import { CreatePipelineModalActionType } from "@/pages/pipelines/components/create/actions";
 import {
-  useCreatePipelineModalDispatch,
+  useCreatePipelineModalActions,
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
+  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
+import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
@@ -58,15 +58,24 @@ const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[
     pin: Side.RIGHT,
     cell: ({ row }) => <CreatePipelineModalResourcesCursorCell row={row} />,
   },
+  {
+    id: "writeMode",
+    header: "Write mode",
+    width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
+    pin: Side.RIGHT,
+    cell: ({ row }) => <CreatePipelineModalResourcesWriteModeCell row={row} />,
+  },
 ];
 
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
 }
 
-const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResourcesTableProps) => {
+const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTableProps> = ({
+  rows,
+}) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
-  const dispatch = useCreatePipelineModalDispatch();
+  const { setResourceSelection } = useCreatePipelineModalActions();
 
   const selectedNames = useMemo(
     () => rows.filter((row) => row.isSelected).map((row) => row.name),
@@ -74,13 +83,10 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
   );
 
   const handleSelectionChange = (names: string[]) =>
-    dispatch({
-      type: CreatePipelineModalActionType.SET_RESOURCE_SELECTION,
-      payload: {
-        sinkId: activeSinkId,
-        visibleNames: rows.map((row) => row.name),
-        selection: Object.fromEntries(names.map((name) => [name, true])),
-      },
+    setResourceSelection({
+      sinkId: activeSinkId,
+      visibleNames: rows.map((row) => row.name),
+      selection: Object.fromEntries(names.map((name) => [name, true])),
     });
 
   const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
@@ -89,6 +95,7 @@ const CreatePipelineModalResourcesTable = ({ rows }: CreatePipelineModalResource
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
       <Box variant={BoxVariant.PRIMARY} height="100%">
         <InfiniteTable<CreatePipelineModalResourceRow>
+          ariaLabel="Resources"
           columns={columns}
           data={rows}
           getRowId={(row) => row.name}

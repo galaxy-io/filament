@@ -17,17 +17,25 @@ import (
 // Apply validates the batch against the run's write policy, then routes it: replace
 // and append COPY into the table, upsert folds through a temp table, merge applies
 // the change stream in order.
-func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if t.continuous {
-		return t.applyEpoch(ctx, b, opts)
+func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (receipt filament.WriteReceipt, result error) {
+	defer func() {
+		if result != nil {
+			t.session.lifecycle.Fail(result)
+		}
+	}()
+	if err := t.session.lifecycle.CheckApply(); err != nil {
+		return filament.WriteReceipt{}, err
 	}
-	if opts.Epoch != nil {
-		return filament.WriteReceipt{}, filament.ErrEpochMismatch
+	if t.transactionalWrites {
+		t.writeMu.Lock()
+		defer t.writeMu.Unlock()
+		return t.applyWrite(ctx, b, opts)
 	}
+
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
-	tbl := t.tables[b.Resource]
+	tbl := t.tableFor(b.Resource)
 	if tbl == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
 	}
@@ -64,6 +72,9 @@ func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 // destination column list is the same order.
 func (tbl *table) copierFor(rows arrow.RecordBatch, keysOnly bool) (*copier, error) {
 	schema := rows.Schema()
+	if tbl.input != nil && !tbl.input.Equal(schema) {
+		return nil, blocked(tbl.model.Resource, "batch schema differs from the schema prepared for writing")
+	}
 	if schema.NumFields() != len(tbl.idents) || len(tbl.idents) != len(tbl.types) {
 		return nil, fmt.Errorf("postgres sink: batch schema has %d columns but ensured COPY schema has %d", schema.NumFields(), len(tbl.types))
 	}
@@ -108,6 +119,17 @@ func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch) (fila
 		return filament.WriteReceipt{}, copyError("acquire", b.Resource, b.Seq, err)
 	}
 	defer conn.Release()
+	var tx pgx.Tx
+	if t.evolution != "" {
+		tx, err = conn.Begin(ctx)
+		if err != nil {
+			return filament.WriteReceipt{}, err
+		}
+		defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+		if err := t.validateTable(ctx, tx, tbl); err != nil {
+			return filament.WriteReceipt{}, err
+		}
+	}
 	integrity.encoded = crc32.Update(integrity.encoded, copyCRCTable, payload)
 	if err := verifyCopyChecksum(payload, expectedCRC); err != nil {
 		return filament.WriteReceipt{}, copyError("verify copy", b.Resource, b.Seq, err)
@@ -115,6 +137,11 @@ func (t *Sink) write(ctx context.Context, tbl *table, b *arrowbatch.Batch) (fila
 	tag, err := conn.Conn().PgConn().CopyFrom(ctx, bytes.NewReader(payload), c.sql(tbl.qualified, tbl.idents))
 	if err != nil {
 		return filament.WriteReceipt{}, copyError("copy", b.Resource, b.Seq, err)
+	}
+	if tx != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return filament.WriteReceipt{}, err
+		}
 	}
 	t.written.Add(tag.RowsAffected())
 	return t.receipt(b, int(tag.RowsAffected()), int64(len(payload)), integrity), nil
@@ -131,6 +158,9 @@ func (t *Sink) writeUpsert(ctx context.Context, tbl *table, b *arrowbatch.Batch)
 		return filament.WriteReceipt{}, copyError("begin", b.Resource, b.Seq, err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	if err := t.validateTable(ctx, tx, tbl); err != nil {
+		return filament.WriteReceipt{}, err
+	}
 	var integrity writeIntegrity
 	rows, nbytes, err := t.upsertRange(ctx, tx, tbl, b, 0, b.NumRows(), &integrity)
 	if err != nil {
@@ -209,6 +239,26 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) 
 		return filament.WriteReceipt{}, copyError("begin merge", b.Resource, b.Seq, err)
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	if err := t.validateTable(ctx, tx, tbl); err != nil {
+		return filament.WriteReceipt{}, err
+	}
+
+	r, err := t.mergeInTransaction(ctx, tx, tbl, b)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
+	}
+	t.written.Add(int64(r.Rows))
+	return r, nil
+}
+
+// mergeInTransaction shares ordered CDC application between batch and epoch commits.
+func (t *Sink) mergeInTransaction(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	if tbl.upsertSQL == "" {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge on keyless resource %q", b.Resource)
+	}
 
 	var nbytes int64
 	rows := 0
@@ -237,10 +287,6 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) 
 		nbytes += nb
 		lo = hi
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
-	}
-	t.written.Add(int64(rows))
 	return t.receipt(b, rows, nbytes, integrity), nil
 }
 

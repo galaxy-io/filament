@@ -1,13 +1,23 @@
 ---
-title: "Introduction"
-description: "What Filament is and how its pieces fit together"
+title: "What is Filament?"
+sidebarTitle: "Introduction"
+description: "Filament is an open-source (Apache 2.0) data movement engine by Galaxy for replication, ingestion, and change data capture, written in Go."
 ---
 
-Filament is a data replication engine written in Go. It supports full loads,
-incremental replication, and change data capture (CDC). As data moves through
+Filament is an open-source data movement engine built by
+[Galaxy](https://www.getgalaxy.io/filament). It replicates and ingests data from
+databases, HTTP APIs, event streams, and object storage into warehouses, lakes,
+and databases. It supports full loads, incremental replication, and change data
+capture (CDC). Filament is written in Go and licensed under Apache 2.0, and the
+full engine is developed in the open on
+[GitHub](https://github.com/galaxy-io/filament).
+
+As data moves through
 the engine, Filament verifies Arrow batches at the sink handoff and, where the
 sink supports it, checks the exact serialized payload. You can run Filament as
-a standalone binary or embed it in a Go application.
+a standalone binary, deploy it on Kubernetes, or embed it in a Go application.
+For published throughput, wall time, and memory results against other
+replication tools, see [Benchmarking](/pages/benchmarks/overview).
 
 Connectors, the data store, and the event bus are interfaces with
 swappable implementations.
@@ -72,6 +82,15 @@ through those components.
 ## Where to go next
 
 <CardGroup cols={2}>
+  <Card title="Your first pipeline" icon="rocket" href="/pages/how-to/first-pipeline">
+    Install the CLI and run a pipeline end to end in five minutes. No database needed.
+  </Card>
+  <Card title="PostgreSQL to Snowflake" icon="snowflake" href="/pages/how-to/postgres-to-snowflake">
+    Replicate inserts, updates, and deletes with change data capture.
+  </Card>
+  <Card title="PostgreSQL to ClickHouse" icon="bolt" href="/pages/how-to/postgres-to-clickhouse">
+    Snapshot 1.1M rows in seconds, then keep them fresh incrementally.
+  </Card>
   <Card title="Quickstart" icon="play" href="/pages/guides/get-started/quickstart">
     Get infra, the control plane, API server, and UI running locally.
   </Card>

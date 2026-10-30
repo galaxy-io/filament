@@ -1,0 +1,231 @@
+resources:
+  - name: vendors
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/vendors
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      isTruckReplenishment: bool?
+      isMobileCreationRestricted: bool?
+      memo: string?
+      deliveryOption: string?
+      defaultTaxRate: decimal?
+      contactInfo: json?
+      address: json?
+      createdOn: string?
+      modifiedOn: string?
+      externalData: json?
+      customFields: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+      sort: "+Id"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+  - name: inventory_templates
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/inventory-templates
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      type: string?
+      createdOn: string?
+      modifiedOn: string?
+      isConsignment: bool?
+      locationIds: json?
+      items: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+  - name: inventory_adjustments
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/adjustments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      date: string?
+      memo: string?
+      batch: json?
+      items: json?
+      active: bool?
+      number: string?
+      batchId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      projectId: int64?
+      modifiedOn: string?
+      syncStatus: json?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      businessUnitId: int64?
+      referenceNumber: string?
+      inventoryLocationId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_adjustments_export_token
+  - name: purchase_orders
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/purchase-orders
+    primary_key: [id]
+    fields:
+      id: int64
+      tax: decimal?
+      date: string?
+      items: json?
+      jobId: int64?
+      total: decimal?
+      number: string?
+      sentOn: string?
+      status: string?
+      typeId: int64?
+      summary: string?
+      shipping: decimal?
+      vendorId: int64?
+      createdOn: string?
+      invoiceId: int64?
+      projectId: int64?
+      modifiedOn: string?
+      receivedOn: string?
+      requiredOn: string?
+      createdById: int64?
+      customFields: json?
+      technicianId: int64?
+      businessUnitId: int64?
+      inventoryLocationId: int64?
+      vendorDocumentNumber: string?
+      batchId: int64?
+      budgetCodeId: int64?
+      shipTo: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: purchase_orders_export_token
+  - name: inventory_returns
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/returns
+    primary_key: [id]
+    fields:
+      id: int64
+      memo: string?
+      items: json?
+      jobId: int64?
+      active: bool?
+      number: string?
+      status: json?
+      vendorId: int64?
+      createdOn: string?
+      projectId: int64?
+      taxAmount: decimal?
+      modifiedOn: string?
+      returnDate: string?
+      returnedOn: string?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      returnAmount: decimal?
+      businessUnitId: int64?
+      shippingAmount: decimal?
+      purchaseOrderId: int64?
+      referenceNumber: string?
+      inventoryLocationId: int64?
+      batch: json?
+      batchId: int64?
+      budgetCodeId: int64?
+      canceledById: int64?
+      canceledReason: string?
+      creditReceivedOn: string?
+      dateCanceled: string?
+      returnTypeId: int64?
+      syncStatus: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_returns_export_token
+  - name: inventory_transfers
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/transfers
+    primary_key: [id]
+    fields:
+      id: int64
+      date: string?
+      memo: string?
+      items: json?
+      jobId: int64?
+      active: bool?
+      number: string?
+      status: string?
+      createdOn: string?
+      invoiceId: int64?
+      modifiedOn: string?
+      pickedDate: string?
+      createdById: int64?
+      customFields: json?
+      externalData: json?
+      receivedDate: string?
+      toLocationId: int64?
+      transferType: string?
+      fromLocationId: int64?
+      referenceNumber: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_transfers_export_token

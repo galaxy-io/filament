@@ -21,77 +21,9 @@
     <link rel="preload" href="https://cdn.getgalaxy.io/fonts/BerkeleyMono/BerkeleyMono-Bold.otf" as="font" type="font/otf" crossorigin>
     <!-- Title -->
     <title>Filament</title>
-    <!-- Critical inline script to prevent white flash - runs before any modules load -->
-    <!-- Keep THEME_KEY in sync with GalaxyProvider's storageKey, and the hexes with color.background.base in @galaxy-io/dls -->
-    <script>
-      (function () {
-        try {
-          const THEME_KEY = 'galaxy:theme';
-          const storedTheme = localStorage.getItem(THEME_KEY);
-          const selectedTheme =
-            storedTheme === 'SYSTEM' || storedTheme === 'LIGHT' || storedTheme === 'DARK'
-              ? storedTheme
-              : (localStorage.setItem(THEME_KEY, 'SYSTEM'), 'SYSTEM');
-
-          // Resolve to actual theme (DARK/LIGHT)
-          const resolvedTheme =
-            selectedTheme === 'SYSTEM'
-              ? window.matchMedia?.('(prefers-color-scheme: dark)').matches
-                ? 'DARK'
-                : 'LIGHT'
-              : selectedTheme;
-
-          // Apply background immediately to prevent white flash
-          const bg = resolvedTheme === 'DARK' ? '#141415' : '#ffffff';
-          document.documentElement.dataset.gxTheme = resolvedTheme === 'DARK' ? 'dark' : 'light';
-          document.documentElement.style.backgroundColor = bg;
-          document.body?.style.setProperty('background-color', bg);
-        } catch (_) {
-          // Fallback on error (e.g. localStorage blocked)
-          document.documentElement.dataset.gxTheme = 'dark';
-          document.documentElement.style.backgroundColor = '#141415';
-          document.body?.style.setProperty('background-color', '#141415');
-        }
-      })();
-    </script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        outline: none;
-        box-sizing: border-box;
-        border: 0;
-        font-size: 100%;
-        font: inherit;
-        vertical-align: baseline;
-      }
-
-      html {
-        line-height: 1;
-      }
-
-      html,
-      body {
-        overflow: hidden;
-        overscroll-behavior: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-      }
-
-      ::-webkit-scrollbar {
-        display: none;
-      }
-
-      * {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/host/main.tsx"></script>
   </body>
 </html>

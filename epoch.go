@@ -2,7 +2,6 @@ package filament
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -12,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/schema"
 )
 
 // AttemptRef identifies a stream worker and its admitted ownership token.
@@ -42,17 +42,6 @@ func (e EpochRef) Validate() error {
 	}
 	if e.Epoch <= 0 || e.MembershipRevision <= 0 {
 		return errors.New("epoch: invalid epoch or membership revision")
-	}
-	return nil
-}
-
-// ValidateApply checks explicit session binding, not destination-side fencing.
-func (e EpochRef) ValidateApply(opts ApplyOptions) error {
-	if err := e.Validate(); err != nil {
-		return err
-	}
-	if opts.Epoch == nil || *opts.Epoch != e {
-		return ErrEpochMismatch
 	}
 	return nil
 }
@@ -144,18 +133,6 @@ func NewClaimCoverage(claims []InboxClaimRef) (Coverage, error) {
 	return c.Clone(), nil
 }
 
-// StreamingSink extends an opened Sink with a native reusable epoch lifecycle.
-// CommitEpoch waits for negotiated durability. AbortEpoch discards only tentative
-// effects. CloseSession succeeds only when no later destination effects remain
-// possible; a timeout or mere client resource release must return an error.
-// Calls are serialized initially. No legacy Commit/Abort adaptation is implied.
-type StreamingSink interface {
-	BeginEpoch(context.Context, EpochRef) error
-	CommitEpoch(context.Context, EpochRef) ([]EpochReceipt, error)
-	AbortEpoch(context.Context, EpochRef) error
-	CloseSession(context.Context) error
-}
-
 // ReceiptEvidence is destination-owned evidence, not comparable source progress.
 // Nil evidence means absent. A present value must name its format and have a
 // nonnegative version selected by that destination format.
@@ -196,6 +173,9 @@ type EpochReceipt struct {
 // EpochCertificateFormatVersion identifies the canonical certificate format.
 const EpochCertificateFormatVersion = 1
 
+// EpochMessageSchemaFormatVersion binds accepted message layouts to progress.
+const EpochMessageSchemaFormatVersion = 2
+
 // EpochCertificate is immutable content for a fenced store transaction.
 // Structural canonicalization does not authorize a commit; EpochCommit binds
 // new certificates to private completed pipeline evidence.
@@ -207,10 +187,12 @@ type EpochCertificate struct {
 	Coverage          Coverage
 	Receipts          []EpochReceipt
 	Records, Bytes    int64
+	MessageSchemas    map[string]schema.MessageLayout `json:",omitempty"`
 }
 
 // Clone returns independently owned coverage and receipt evidence.
 func (c EpochCertificate) Clone() EpochCertificate {
+	c.MessageSchemas = schema.CloneMessageLayouts(c.MessageSchemas)
 	c.Coverage = c.Coverage.Clone()
 	c.Receipts = append([]EpochReceipt(nil), c.Receipts...)
 	for i := range c.Receipts {
@@ -219,13 +201,17 @@ func (c EpochCertificate) Clone() EpochCertificate {
 	return c
 }
 
-// CanonicalBytes v1 sorts semantically unordered domains, claims and receipts;
+// CanonicalBytes sorts semantically unordered domains, claims and receipts;
 // preserves nil versus empty opaque payloads; excludes datastore timestamps.
+// Version 2 also includes accepted message layouts.
 // Position canonicalization is codec-owned. Receipt evidence is already encoded
 // by the destination and is not interpreted as source progress.
 func (c EpochCertificate) CanonicalBytes(r CodecResolver) ([]byte, error) {
-	if c.FormatVersion != EpochCertificateFormatVersion || c.Tenant == "" || c.PipelineVersionID == "" || c.Records < 0 || c.Bytes < 0 || !utf8.ValidString(string(c.Tenant)) || !utf8.ValidString(c.PipelineVersionID) {
+	if c.Tenant == "" || c.PipelineVersionID == "" || c.Records < 0 || c.Bytes < 0 || !utf8.ValidString(string(c.Tenant)) || !utf8.ValidString(c.PipelineVersionID) {
 		return nil, errors.New("epoch: invalid certificate")
+	}
+	if err := c.ValidateMessageSchemas(); err != nil {
+		return nil, err
 	}
 	if err := c.Ref.Validate(); err != nil {
 		return nil, err
@@ -282,3 +268,29 @@ var (
 	ErrIncompleteCoverage   = errors.New("stream: incomplete or mixed coverage")
 	ErrMembershipChanged    = errors.New("stream: membership changed")
 )
+
+// ValidateMessageSchemas keeps v1 bytes unchanged and fails closed on missing or
+// unsupported v2 layouts. Every resource written under v2 needs an input layout.
+func (c EpochCertificate) ValidateMessageSchemas() error {
+	switch c.FormatVersion {
+	case EpochCertificateFormatVersion:
+		if c.MessageSchemas != nil {
+			return errors.New("epoch: v1 cannot carry message layouts")
+		}
+	case EpochMessageSchemaFormatVersion:
+		if len(c.MessageSchemas) == 0 {
+			return errors.New("epoch: v2 requires message layouts")
+		}
+		if err := schema.CheckMessageLayouts(nil, c.MessageSchemas); err != nil {
+			return err
+		}
+		for _, receipt := range c.Receipts {
+			if _, ok := c.MessageSchemas[receipt.Resource]; !ok {
+				return errors.New("epoch: receipt has no message layout")
+			}
+		}
+	default:
+		return errors.New("epoch: unsupported certificate format")
+	}
+	return nil
+}

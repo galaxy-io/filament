@@ -3,7 +3,10 @@
 // A Source opens one filament.RowWriter per (resource, part) on the inlet and
 // appends rows into it. The writer is an arrowbatch.Builder that flushes an
 // owned arrowbatch.Batch on a row or byte threshold, or at the next row once the flush
-// timer has asked. A pool of writer goroutines hands each batch to the Sink: the
+// timer has asked. A resource with transform steps routes its batches through a
+// pool of transformer goroutines first, which apply the compiled plan and hand
+// the result on; other resources go straight to the writer channel. A pool of
+// writer goroutines hands each batch to the Sink: the
 // writer computes the read-side CRC and compares it against the Sink's write-side
 // CRC, publishing facts (batch buffered/written, integrity verified, chunk
 // divergence) via an injected emit callback. The pipeline owns no bus, sink-format,
@@ -24,6 +27,8 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/rowmodel"
+	schemadrift "github.com/galaxy-io/filament/schema"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // defaultBatchRows is used when Config.Options.BatchMaxRows is unset.
@@ -37,7 +42,10 @@ const defaultFlushInterval = time.Second
 // Commit/Abort are the engine's responsibility, not the pipeline's — the pipeline
 // only calls Apply.
 type Config struct {
-	// PrepareSchema runs once per resource, on the writer, before its first Apply.
+	MessageSchemaPolicy schemadrift.Policy
+	MessageSchemas      map[string]schemadrift.MessageLayout
+	// PrepareSchema runs once per admitted resource layout, on the writer,
+	// before its first Apply. Live message layouts change only between epochs.
 	PrepareSchema func(context.Context, string, rowmodel.Schema) error
 	Tenant        filament.TenantID
 	Run           filament.RunID
@@ -50,6 +58,10 @@ type Config struct {
 	NextSeq       func() uint64
 	Allocator     memory.Allocator // optional; defaults to Arrow's allocator
 	Audit         *AuditConfig
+	// Transform is compiled per resource against the source's supplied schema
+	// when its first builder opens. A resource it names has every batch
+	// transformed before the read-side CRC; other resources pass through.
+	Transform *transform.Definition
 }
 
 // AuditConfig enables row-lineage materialization for a run. The run ID comes
@@ -64,6 +76,8 @@ type AuditConfig struct {
 // with Start, feed via Records, signal end-of-input with CloseIngest, and block
 // for completion with Wait.
 type Pipeline struct {
+	messagePolicy    schemadrift.Policy
+	messageSchemas   map[string]schemadrift.MessageLayout
 	prepareSchema    func(context.Context, string, rowmodel.Schema) error
 	tenant           filament.TenantID
 	run              filament.RunID
@@ -72,18 +86,20 @@ type Pipeline struct {
 	writePolicies    map[string]filament.WritePolicy
 	opts             arrowbatch.Options
 	flushIvl         time.Duration
-	writers          int // concurrent sink writers
+	writers          int // concurrent sink writers, and concurrent transformers
 	log              filament.Logger
 	encodedIntegrity bool
 
-	batchCh chan queuedBatch
-	stream  *streamInlet
+	batchCh     chan queuedBatch
+	transformCh chan queuedBatch
+	stream      *streamInlet
 
 	registryMu sync.Mutex
 	schemas    map[string]registeredSchema
 	builders   map[partKey]*arrowbatch.Builder
 	alloc      memory.Allocator
 	audit      *AuditConfig
+	transform  *transform.Definition
 
 	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
@@ -93,6 +109,7 @@ type Pipeline struct {
 	tickStop chan struct{}
 	tickDone chan struct{}
 	wg       sync.WaitGroup // writer pool; Wait blocks on these
+	twg      sync.WaitGroup // transformer pool; the writer channel closes after these
 	errVal   atomic.Pointer[error]
 }
 
@@ -122,7 +139,7 @@ func New(cfg Config) *Pipeline {
 	}
 	writers := cfg.Options.SnapshotParallelism
 	if writers <= 0 {
-		writers = 1 // a single writer preserves batch order
+		writers = 1 // a single writer (and transformer) preserves batch order
 	}
 	emit := cfg.Emit
 	if emit == nil {
@@ -134,6 +151,8 @@ func New(cfg Config) *Pipeline {
 		nextSeq = func() uint64 { return seq.Add(1) }
 	}
 	return &Pipeline{
+		messagePolicy:    cfg.MessageSchemaPolicy,
+		messageSchemas:   schemadrift.CloneMessageLayouts(cfg.MessageSchemas),
 		prepareSchema:    cfg.PrepareSchema,
 		tenant:           cfg.Tenant,
 		run:              cfg.Run,
@@ -146,10 +165,12 @@ func New(cfg Config) *Pipeline {
 		log:              cfg.Log,
 		encodedIntegrity: sinkCapabilities.EncodedIntegrity,
 		batchCh:          make(chan queuedBatch, 2*writers),
+		transformCh:      make(chan queuedBatch, 2*writers),
 		schemas:          make(map[string]registeredSchema),
 		builders:         make(map[partKey]*arrowbatch.Builder),
 		alloc:            cfg.Allocator,
 		audit:            cfg.Audit,
+		transform:        cfg.Transform,
 		nextSeq:          nextSeq,
 		done:             make(chan struct{}),
 		tickStop:         make(chan struct{}),
@@ -166,10 +187,10 @@ func (p *Pipeline) Records() arrowbatch.Inlet {
 	return &inlet{p: p}
 }
 
-// Start launches the flush timer and a pool of writer goroutines. The ctx governs
-// them; cancel it to stop the pipeline. With parallelism > 1 the Sink's Apply is
-// called concurrently (one batch per writer), so a parallel run requires a Sink
-// whose Apply is concurrent-safe.
+// Start launches the flush timer and the transformer and writer pools. The ctx
+// governs them; cancel it to stop the pipeline. With parallelism > 1 the Sink's
+// Apply is called concurrently (one batch per writer), so a parallel run requires
+// a Sink whose Apply is concurrent-safe.
 func (p *Pipeline) Start(ctx context.Context) {
 	ctx, p.cancel = context.WithCancel(ctx)
 	// Cancellation must also release the inlet, or a Source blocked on a full
@@ -179,6 +200,17 @@ func (p *Pipeline) Start(ctx context.Context) {
 		p.doneCh.Do(func() { close(p.done) })
 	}()
 	go p.ticker(ctx)
+	p.twg.Add(p.writers)
+	for range p.writers {
+		go p.transformer(ctx)
+	}
+	// Transformers and bypass slots both feed the writer channel; it closes once
+	// the transform channel has drained, which CloseIngest triggers after every
+	// bypass slot has flushed.
+	go func() {
+		p.twg.Wait()
+		close(p.batchCh)
+	}()
 	p.wg.Add(p.writers)
 	for range p.writers {
 		go p.writer(ctx)
@@ -249,7 +281,10 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 		_ = b.Close()
 	}
 	p.registryMu.Unlock()
-	close(p.batchCh)
+	close(p.transformCh)
+	if p.cancel == nil { // never started: no transformer will close the writer channel
+		close(p.batchCh)
+	}
 }
 
 // Wait blocks until the writer pool exits (which happens after CloseIngest closes
