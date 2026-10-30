@@ -16,7 +16,7 @@ resources:
       loginName: string?
       managerId: int64?
       startDate: string?
-      hourlyRate: {type: decimal, nullable: true, precision: 38, scale: 9}
+      hourlyRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       modifiedOn: string?
       phoneNumber: string?
       customFields: json?
@@ -58,19 +58,19 @@ resources:
       roleIds: json?
       zoneIds: json?
       createdOn: string?
-      dailyGoal: {type: decimal, nullable: true, precision: 38, scale: 9}
+      dailyGoal: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       loginName: string?
-      burdenRate: {type: decimal, nullable: true, precision: 38, scale: 9}
-      hourlyRate: {type: decimal, nullable: true, precision: 38, scale: 9}
+      burdenRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      hourlyRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       mainZoneId: int64?
       modifiedOn: string?
-      soldByRate: {type: decimal, nullable: true, precision: 38, scale: 9}
+      soldByRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       licenseType: string?
       phoneNumber: string?
       customFields: json?
       isManagedTech: bool?
       businessUnitId: int64?
-      commissionRate: {type: decimal, nullable: true, precision: 38, scale: 9}
+      commissionRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       aadUserId: string?
       accountLocked: bool?
       appoitmentId: int64?
@@ -84,8 +84,8 @@ resources:
       location: json?
       memo: string?
       mobilePhone: string?
-      outboundCallerId: {type: decimal, nullable: true, precision: 38, scale: 9}
-      payrollId: {type: decimal, nullable: true, precision: 38, scale: 9}
+      outboundCallerId: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      payrollId: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       payrollProfileId: int64?
       permissions: json?
       positions: json?
@@ -129,7 +129,7 @@ resources:
       franchiseId: string?
       phoneNumber: string?
       officialName: string?
-      defaultTaxRate: {type: decimal, nullable: true, precision: 38, scale: 9}
+      defaultTaxRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       quickbooksClass: string?
       acknowledgementParagraph: string?
       authorizationParagraph: string?

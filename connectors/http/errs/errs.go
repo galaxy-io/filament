@@ -26,7 +26,7 @@
 //   - ErrManifestValidate — wraps a *ManifestErrors aggregate; unwrap with
 //     errors.As to walk every issue, or use Error() for a multi-line summary
 //   - ErrTruncatedStream / ErrMalformedLine — stream reader failures
-//   - ErrAuthRefresh — OAuth/token refresh failed; existing creds are stale
+//   - ErrAuthRefresh — OAuth token acquisition or renewal failed
 //   - ErrRateLimitParse — could not interpret rate-limit response headers
 //
 // FormatTruncated caps long upstream-body fragments before they're embedded
@@ -75,9 +75,8 @@ var (
 	// line that failed to parse. Strategies may choose to count or fail.
 	ErrMalformedLine = errors.New("httpapi: malformed stream line")
 
-	// ErrAuthRefresh means an auth refresh attempt (OAuth token, etc.)
-	// failed and the existing credential can't be used.
-	ErrAuthRefresh = errors.New("httpapi: auth refresh failed")
+	// ErrAuthRefresh means obtaining or renewing an OAuth token failed.
+	ErrAuthRefresh = errors.New("httpapi: auth token request failed")
 
 	// ErrRateLimitParse means a rate-limit response header could not be
 	// interpreted (bad number, unrecognized reset format).

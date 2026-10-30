@@ -449,6 +449,7 @@
               "tuple": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
               "precision": { "type": "integer", "minimum": 1, "maximum": 38 },
               "scale": { "type": "integer", "minimum": 0, "maximum": 38 },
+              "rounding": { "type": "string", "enum": ["half_even"] },
               "max_string": { "type": "string", "minLength": 1 },
               "shape": { "type": "object", "additionalProperties": { "type": "string" } },
               "mode": { "type": "string", "enum": ["raw", "remainder", ""] },

@@ -34,7 +34,7 @@ resources:
       id: int64
       year: int64?
       month: int64?
-      dailyCost: {type: decimal, nullable: true, precision: 38, scale: 9}
+      dailyCost: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       campaignId: int64?
       raw: {path: $, type: json, mode: remainder}
     query:

@@ -20,16 +20,16 @@ resources:
       active: bool?
       items: json?
       externalLinks: json?
-      subtotal: {type: decimal, nullable: true, precision: 38, scale: 9}
-      tax: {type: decimal, nullable: true, precision: 38, scale: 9}
+      subtotal: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      tax: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       businessUnitId: int64?
       businessUnitName: string?
       isRecommended: bool?
       budgetCodeId: int64?
       isChangeOrder: bool?
       proposalTagName: string?
-      depositAmount: {type: decimal, nullable: true, precision: 38, scale: 9}
-      depositPercent: {type: decimal, nullable: true, precision: 38, scale: 9}
+      depositAmount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      depositPercent: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       requireDepositOnSignature: bool?
       raw: {path: $, type: json, mode: remainder}
     query:

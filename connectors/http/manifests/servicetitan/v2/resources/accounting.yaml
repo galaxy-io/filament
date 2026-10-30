@@ -134,7 +134,7 @@ resources:
       inventoryStatus: string?
       memberPrice: string?
       serviceDate: string?
-      soldHours: {type: decimal, nullable: true, precision: 38, scale: 9}
+      soldHours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       technicianId: int64?
       raw: {path: $, type: json, mode: remainder}
     query:

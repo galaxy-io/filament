@@ -980,8 +980,16 @@ func (r *rowSink) writer(resource string) (*resourceWriter, error) {
 		return nil, err
 	}
 	rw := &resourceWriter{w: w, fields: schema.Fields, parsers: make([]valueParser, len(schema.Fields))}
+	roundings := make(map[string]string)
+	if res, ok := r.source.manifestResource(r.source.baseResourceName(resource)); ok {
+		for _, field := range res.Fields {
+			if field.Rounding != "" {
+				roundings[field.Name] = field.Rounding
+			}
+		}
+	}
 	for i, f := range schema.Fields {
-		rw.parsers[i] = typeFor(f)
+		rw.parsers[i] = typeFor(f, roundings[f.Name])
 	}
 	r.writers[resource] = rw
 	return rw, nil
