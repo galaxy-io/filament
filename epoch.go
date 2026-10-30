@@ -67,6 +67,9 @@ type InboxClaimRef struct {
 type Coverage struct {
 	Positions DomainPositions
 	Claims    []InboxClaimRef
+	// Activated names pending members whose baseline this coverage completes.
+	// Certifying it makes them active members of the stream.
+	Activated []string `json:",omitempty"`
 }
 
 // ValidateRepresentation checks representation only; it cannot prove contiguous processing,
@@ -89,10 +92,13 @@ func (c Coverage) ValidateRepresentation() error {
 	return nil
 }
 
-// Clone returns independently owned positions and claims.
+// Clone returns independently owned positions, claims and activations.
 func (c Coverage) Clone() Coverage {
 	c.Positions = c.Positions.Clone()
 	c.Claims = append([]InboxClaimRef(nil), c.Claims...)
+	if c.Activated != nil {
+		c.Activated = append([]string(nil), c.Activated...)
+	}
 	return c
 }
 
@@ -110,6 +116,10 @@ func (c Coverage) Canonicalize(r CodecResolver) (Coverage, error) {
 		c.Positions[domain] = v
 	}
 	slices.SortFunc(c.Claims, func(a, b InboxClaimRef) int { return strings.Compare(a.RowID, b.RowID) })
+	if c.Activated != nil {
+		slices.Sort(c.Activated)
+		c.Activated = slices.Compact(c.Activated)
+	}
 	return c, nil
 }
 

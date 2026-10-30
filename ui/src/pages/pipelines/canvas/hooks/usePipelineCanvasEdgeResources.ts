@@ -35,6 +35,7 @@ export interface PipelineCanvasEdgeResources {
   cursorOptions: ResourceColumn[];
   defaultCursor: ResourceColumn["name"];
   isManagedIncremental: boolean;
+  isColumnSelectable: boolean;
   hasPrimaryKey: boolean;
 }
 
@@ -82,6 +83,7 @@ export const usePipelineCanvasEdgeResources = (
     cursorOptions,
     defaultCursor: isManagedIncremental ? "" : getDefaultCursor(columns ?? []),
     isManagedIncremental,
+    isColumnSelectable: entry?.selectableColumns ?? false,
     hasPrimaryKey:
       (discovered?.resources.find((candidate) => candidate.name === resource)?.primaryKey.length ??
         0) > 0,

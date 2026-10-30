@@ -26,6 +26,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
+	"github.com/galaxy-io/filament/version"
 )
 
 func main() {
@@ -67,6 +68,7 @@ func run(ctx context.Context) error {
 		},
 	)
 	healthState.Mount(healthMux)
+	healthMux.Handle("/version", version.Handler())
 	healthAddr := healthAddress()
 	healthSrv := &http.Server{Addr: healthAddr, Handler: healthMux, ReadHeaderTimeout: 10 * time.Second}
 	healthErr := make(chan error, 1)

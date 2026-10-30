@@ -1,7 +1,8 @@
 import { type FC, useMemo } from "react";
 
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { CaretRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 
+import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import EmptyLayout from "@galaxy-io/dls/layout/EmptyLayout";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
@@ -17,13 +18,16 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import {
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR,
+  CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE,
   CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE,
+  CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE,
 } from "@/pages/pipelines/components/create/constants";
 import CreatePipelineModalResourcesCursorCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesCursorCell";
 import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesReadModeCell";
 import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import PipelineResourceColumnsChip from "@/pages/pipelines/components/resource/PipelineResourceColumnsChip";
 
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   id: "name",
@@ -32,12 +36,42 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   canSort: true,
   isRowHeader: true,
   cell: ({ row }) => (
-    <FlexItem minWidth={0} overflow="hidden">
-      <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
-        {row.displayName}
-      </Text>
-    </FlexItem>
+    <Flex alignItems={AlignItems.CENTER} gap={8} minWidth={0}>
+      <FlexItem minWidth={0} overflow="hidden">
+        <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
+          {row.displayName}
+        </Text>
+      </FlexItem>
+      {row.isColumnSelectable && row.selectedColumns.length !== row.columns.length && (
+        <FlexItem shrink={0}>
+          <PipelineResourceColumnsChip
+            selectedCount={row.selectedColumns.length}
+            totalCount={row.columns.length}
+          />
+        </FlexItem>
+      )}
+    </Flex>
   ),
+};
+
+const OPEN_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
+  id: "open",
+  header: "",
+  width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN,
+  align: "right",
+  cell: ({ row }) =>
+    row.isColumnSelectable ? (
+      <Icon
+        component={CaretRightIcon}
+        size={CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE}
+        variant={IconVariant.TERTIARY}
+      />
+    ) : null,
+};
+
+const OPEN_COLUMN_PINNED: TableColumn<CreatePipelineModalResourceRow> = {
+  ...OPEN_COLUMN,
+  pin: Side.RIGHT,
 };
 
 const RESOURCE_COLUMNS_BASE: TableColumn<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
@@ -69,10 +103,14 @@ const RESOURCE_COLUMNS_WITH_LEVERS: TableColumn<CreatePipelineModalResourceRow>[
 
 interface CreatePipelineModalResourcesTableProps {
   rows: CreatePipelineModalResourceRow[];
+  activeRow?: CreatePipelineModalResourceRow;
+  onActiveResourceChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
 }
 
 const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTableProps> = ({
   rows,
+  activeRow,
+  onActiveResourceChange,
 }) => {
   const { activeSinkId, hasReadLevers, isLoading } = useCreatePipelineModalState();
   const { setResourceSelection } = useCreatePipelineModalActions();
@@ -89,7 +127,20 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
       selection: Object.fromEntries(names.map((name) => [name, true])),
     });
 
-  const columns = hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+  const handleRowClick = (row: CreatePipelineModalResourceRow) => {
+    if (!row.isColumnSelectable) return;
+    onActiveResourceChange(row.name === activeRow?.name ? undefined : row.name);
+  };
+
+  const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
+  const columns = useMemo(() => {
+    if (!hasColumnSelection) {
+      return hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
+    }
+    return hasReadLevers
+      ? [...RESOURCE_COLUMNS_WITH_LEVERS, OPEN_COLUMN_PINNED]
+      : [...RESOURCE_COLUMNS_BASE, OPEN_COLUMN];
+  }, [hasReadLevers, hasColumnSelection]);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>
@@ -102,6 +153,8 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
           isLoading={isLoading}
           value={selectedNames}
           onChange={handleSelectionChange}
+          onRowClick={hasColumnSelection ? handleRowClick : undefined}
+          activeRowId={activeRow?.name ?? null}
           emptyState={
             <Flex
               direction={FlexDirection.COLUMN}

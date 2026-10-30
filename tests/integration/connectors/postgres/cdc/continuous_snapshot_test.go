@@ -62,7 +62,7 @@ func TestPostgresContinuousSnapshotHandoffAndRecovery(t *testing.T) {
 			src := pgsource.New()
 			// Omit snapshot_mode to exercise the default. A single pool connection
 			// must work while the imported snapshot owns that connection.
-			if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": dsn.String(), "replication": "cdc", "publication": name + "_pub", "max_conns": 1})); err != nil {
+			if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": dsn.String(), "replication": "cdc", "max_conns": 1})); err != nil {
 				t.Fatal(err)
 			}
 			defer func() { _ = src.Teardown(context.Background()) }()
@@ -166,7 +166,7 @@ func TestPostgresContinuousEmptySnapshotAndCloseBeforeRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := pgsource.New()
-	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "replication": "cdc", "publication": "snapshot_empty_pub", "max_conns": 1})); err != nil {
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"dsn": pg.DSN(), "replication": "cdc", "max_conns": 1})); err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = src.Teardown(context.Background()) }()

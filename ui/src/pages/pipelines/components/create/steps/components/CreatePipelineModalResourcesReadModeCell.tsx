@@ -40,7 +40,7 @@ const CreatePipelineModalResourcesReadModeCell: FC<
         options={options}
         value={getEnumSelectValue(ReadMode, row.readMode)}
         onChange={handleReadModeChange}
-        variant={SelectInputVariant.TERTIARY}
+        variant={SelectInputVariant.BASE}
         isDisabled={!row.isSelected}
         ariaLabel={`Read mode for ${row.displayName}`}
         fillWidth

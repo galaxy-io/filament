@@ -96,7 +96,7 @@ func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_test_handoff", "publication": "filament_test_handoff",
+		"dsn": pg.DSN(), "slot_name": "filament_test_handoff",
 		"max_conns": 1,
 	})); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestPostgresCDCCatchupAndResume(t *testing.T) {
 
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_test_cdc", "publication": "filament_test_cdc",
+		"dsn": pg.DSN(), "slot_name": "filament_test_cdc",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestPostgresCDCSnapshotModeNone(t *testing.T) {
 
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_test_nosnap", "publication": "filament_test_nosnap",
+		"dsn": pg.DSN(), "slot_name": "filament_test_nosnap",
 		"snapshot_mode": "none",
 	})); err != nil {
 		t.Fatal(err)

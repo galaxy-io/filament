@@ -13,15 +13,24 @@ import {
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
-const PipelineCanvasViewSwitcher: FC = () => {
+interface PipelineCanvasViewSwitcherProps {
+  isIconOnly?: boolean;
+}
+
+const PipelineCanvasViewSwitcher: FC<PipelineCanvasViewSwitcherProps> = ({
+  isIconOnly = false,
+}) => {
   const { view, setView } = usePipelineCanvasSelection();
 
   const items: ToggleOption<PipelineCanvasView>[] = Object.values(PipelineCanvasView).map(
-    (candidate) => ({
-      id: candidate,
-      label: PIPELINE_CANVAS_VIEW_TO_LABEL_MAP[candidate],
-      icon: PIPELINE_CANVAS_VIEW_TO_ICON_MAP[candidate],
-    }),
+    (candidate) => {
+      const label = PIPELINE_CANVAS_VIEW_TO_LABEL_MAP[candidate];
+      return {
+        id: candidate,
+        icon: PIPELINE_CANVAS_VIEW_TO_ICON_MAP[candidate],
+        ...(isIconOnly ? { ariaLabel: label } : { label }),
+      };
+    },
   );
 
   return (

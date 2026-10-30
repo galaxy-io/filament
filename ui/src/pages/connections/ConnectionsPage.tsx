@@ -59,7 +59,7 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   const createTitle = CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind];
 
   const handleOpenCreateConnectorModal = () => {
-    openFlow(Flow.CREATE_CONNECTION, kind);
+    openFlow(Flow.CREATE_CONNECTION, { connectorKind: kind });
   };
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =

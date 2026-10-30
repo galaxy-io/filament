@@ -30,7 +30,7 @@ const CreatePipelineModalConnectionsState: FC<CreatePipelineModalConnectionsStat
   const openFlow = useFilamentFlowOpen();
 
   const handleCreateConnection = () => {
-    openFlow(Flow.CREATE_CONNECTION, connectorKind);
+    openFlow(Flow.CREATE_CONNECTION, { connectorKind });
   };
 
   const actions = (

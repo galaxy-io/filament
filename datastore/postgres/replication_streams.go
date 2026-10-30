@@ -171,6 +171,25 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 		}
 		return nil, fmt.Errorf("datastore/postgres: lock replication stream: %w", err)
 	}
+	rows, err := reconcileStreamMembership(ctx, q, streamID, tenant, names, bootstrapMode, nil)
+	if err != nil {
+		return nil, err
+	}
+	out, err := replicationStreamResourcesFromRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("datastore/postgres: commit replication resource reconciliation: %w", err)
+	}
+	return out, nil
+}
+
+// reconcileStreamMembership applies the desired membership under the caller's
+// stream lock: unknown and retired names become pending, names left out are
+// retired, and active names in reset go back to pending so they are read from
+// the beginning again. Any change moves the membership revision.
+func reconcileStreamMembership(ctx context.Context, q *sqlcgen.Queries, streamID string, tenant filament.TenantID, names []string, bootstrapMode string, reset []string) ([]*sqlcgen.ReplicationStreamResource, error) {
 	before, err := q.ListReplicationStreamResources(ctx, streamID)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list replication resources before reconciliation: %w", err)
@@ -188,6 +207,11 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 	}); err != nil {
 		return nil, fmt.Errorf("datastore/postgres: retire removed replication resources: %w", err)
 	}
+	if len(reset) > 0 {
+		if _, err := q.ResetStreamMembers(ctx, sqlcgen.ResetStreamMembersParams{StreamID: streamID, TenantID: string(tenant), ResourceNames: reset}); err != nil {
+			return nil, fmt.Errorf("datastore/postgres: reset replication resources: %w", err)
+		}
+	}
 	rows, err := q.ListReplicationStreamResources(ctx, streamID)
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: list reconciled replication resources: %w", err)
@@ -199,14 +223,7 @@ func (s *Store) ReconcileReplicationStreamResources(ctx context.Context, streamI
 			return nil, fmt.Errorf("datastore/postgres: bump replication membership revision: %w", err)
 		}
 	}
-	out, err := replicationStreamResourcesFromRows(rows)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("datastore/postgres: commit replication resource reconciliation: %w", err)
-	}
-	return out, nil
+	return rows, nil
 }
 
 func sameReplicationStreamMembership(a, b []*sqlcgen.ReplicationStreamResource) bool {
