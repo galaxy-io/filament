@@ -79,6 +79,7 @@ message StreamCapabilities {
 message ResourceCapabilities {
   bool discoverable = 1;
   bool per_resource_cursor = 2;
+  bool selectable_columns = 3;
 }
 
 message WritePolicyCapability {

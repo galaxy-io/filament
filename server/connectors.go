@@ -247,6 +247,10 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 	if err != nil {
 		return nil, connectorError(err)
 	}
+	spec, err := a.worker.SourceSpec(ctx, connector)
+	if err != nil {
+		return nil, connectorError(err)
+	}
 	response := &ingestionv1.GetResourceColumnsResponse{}
 	for _, inspection := range inspections {
 		switch inspection.Status {
@@ -259,6 +263,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			Resource:           inspection.Name,
 			Columns:            convert.CursorColumnsToProto(inspection.Columns),
 			ManagedIncremental: inspection.ManagedIncremental,
+			SelectableColumns:  spec.Resources.SelectableColumns,
 		})
 	}
 	return connect.NewResponse(response), nil

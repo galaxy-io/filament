@@ -66,6 +66,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
               readMode: edge.data?.readMode ?? ReadMode.UNSPECIFIED,
               writeMode: edge.data?.writeMode ?? WriteMode.UNSPECIFIED,
               cursors: edge.data?.cursors ?? [],
+              columns: edge.data?.columns ?? [],
             }),
           ],
         }),

@@ -8,6 +8,7 @@ import CreateConnectionModal from "@/pages/connections/components/create/CreateC
 import ConnectionDrawer from "@/pages/connections/components/drawer/ConnectionDrawer";
 import EditConnectionModal from "@/pages/connections/components/edit/EditConnectionModal";
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
+import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -19,7 +20,7 @@ export interface FilamentLayoutProps {
 
 const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
-  const { connectionId, flow, connector, connectorKind, connectorSearch } =
+  const { connectionId, pipelineId, flow, connector, connectorKind, connectorSearch } =
     useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
@@ -41,7 +42,14 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   const handleCloseFlow = useCallback(() => {
     void updateSearch(
       (prev) => {
-        const { flow: _, connector: __, connectorKind: ___, connectorSearch: ____, ...rest } = prev;
+        const {
+          flow: _,
+          connector: __,
+          connectorKind: ___,
+          connectorSearch: ____,
+          pipelineId: _____,
+          ...rest
+        } = prev;
         return rest;
       },
       { replace: true },
@@ -71,6 +79,11 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         onClose={handleCloseFlow}
       />
       <CreatePipelineModal isOpen={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow} />
+      <PipelineRunModal
+        isOpen={flow === Flow.RUN_PIPELINE && !!pipelineId}
+        pipelineId={pipelineId}
+        onClose={handleCloseFlow}
+      />
     </>
   );
 };

@@ -1,3 +1,5 @@
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+
 import { PipelineCanvasNodeType } from "@/pages/pipelines/canvas/types";
 
 export const PIPELINE_CANVAS_PANEL_MAIN_ID = "pipeline-canvas-main";
@@ -6,6 +8,7 @@ export const PIPELINE_CANVAS_PANEL_SIDEBAR_ID = "pipeline-canvas-sidebar";
 export const PIPELINE_CANVAS_PANEL_ACTIVITY_ID = "pipeline-canvas-activity";
 
 export const PIPELINE_CANVAS_PANEL_MAIN_MIN_SIZE = 240;
+export const PIPELINE_CANVAS_PANEL_HEADER_HEIGHT = `calc(${t.size.control.small} + 2 * ${t.space[8]})`;
 export const PIPELINE_CANVAS_PANEL_SIDEBAR_WIDTH = 420;
 export const PIPELINE_CANVAS_PANEL_SIDEBAR_MIN_WIDTH = 320;
 export const PIPELINE_CANVAS_PANEL_SIDEBAR_MAX_WIDTH = 760;

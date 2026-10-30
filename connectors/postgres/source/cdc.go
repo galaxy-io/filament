@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -358,15 +359,19 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 	if err != nil {
 		return fmt.Errorf("postgres cdc: inspect publication %q: %w", s.publication, err)
 	}
-	qualified := make([]string, len(resources))
-	for i, resource := range resources {
-		qualified[i] = pgx.Identifier{s.schema, resource}.Sanitize()
+	columnLists, err := s.publicationColumnLists(ctx, resources)
+	if err != nil {
+		return err
 	}
 	if !exists {
 		if !s.managePublication {
 			return fmt.Errorf("postgres cdc: publication %q does not exist", s.publication)
 		}
-		stmt := "CREATE PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " FOR TABLE " + strings.Join(qualified, ", ") + " WITH (publish = 'insert, update, delete')"
+		clauses := make([]string, len(resources))
+		for i, resource := range resources {
+			clauses[i] = s.publicationTableClause(resource, columnLists[resource])
+		}
+		stmt := "CREATE PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " FOR TABLE " + strings.Join(clauses, ", ") + " WITH (publish = 'insert, update, delete')"
 		if _, err := s.pool.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("postgres cdc: create publication %q: %w", s.publication, err)
 		}
@@ -385,41 +390,226 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 		return nil
 	}
 
-	rows, err := s.pool.Query(ctx, `SELECT tablename FROM pg_publication_tables WHERE pubname=$1 AND schemaname=$2`, s.publication, s.schema)
+	published, err := s.publishedTables(ctx)
 	if err != nil {
-		return fmt.Errorf("postgres cdc: publication tables: %w", err)
+		return err
 	}
-	published := map[string]bool{}
-	for rows.Next() {
-		var table string
-		if err := rows.Scan(&table); err != nil {
-			rows.Close()
+	var missing, replace, retired []string
+	for _, resource := range resources {
+		entry, ok := published[resource]
+		if !ok {
+			missing = append(missing, s.publicationTableClause(resource, columnLists[resource]))
+			continue
+		}
+		needsReplace, err := s.reconcilePublishedColumns(resource, columnLists[resource], entry)
+		if err != nil {
 			return err
 		}
-		published[table] = true
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return fmt.Errorf("postgres cdc: publication tables: %w", err)
-	}
-	var missing []string
-	for _, resource := range resources {
-		if !published[resource] {
-			missing = append(missing, pgx.Identifier{s.schema, resource}.Sanitize())
+		if needsReplace {
+			replace = append(replace, resource)
 		}
 	}
-	if len(missing) == 0 {
+	for table := range published {
+		if !slices.Contains(resources, table) {
+			retired = append(retired, table)
+		}
+	}
+	if len(missing) == 0 && len(replace) == 0 && (len(retired) == 0 || !s.managePublication) {
 		return nil
 	}
 	if !s.managePublication {
 		return fmt.Errorf("postgres cdc: publication %q is missing selected tables: %s", s.publication, strings.Join(missing, ", "))
 	}
-	stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " ADD TABLE " + strings.Join(missing, ", ")
-	if _, err := s.pool.Exec(ctx, stmt); err != nil {
-		return fmt.Errorf("postgres cdc: add publication tables: %w", err)
+	return s.applyPublicationTables(ctx, replace, retired, missing, columnLists)
+}
+
+// applyPublicationTables rewrites the listed tables' column lists, drops the
+// tables the stream no longer selects and adds the missing clauses in one
+// transaction, so a commit between the drop and the add is never decoded
+// against a publication that lacks the table.
+func (s *Source) applyPublicationTables(ctx context.Context, replace, retired, missing []string, columnLists map[string][]string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres cdc: update publication: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	for _, resource := range replace {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " DROP TABLE " + pgx.Identifier{s.schema, resource}.Sanitize()
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: reset publication columns for %s: %w", resource, err)
+		}
+		missing = append(missing, s.publicationTableClause(resource, columnLists[resource]))
+	}
+	for _, resource := range retired {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " DROP TABLE " + pgx.Identifier{s.schema, resource}.Sanitize()
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: drop retired publication table %s: %w", resource, err)
+		}
+	}
+	if len(missing) > 0 {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " ADD TABLE " + strings.Join(missing, ", ")
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: add publication tables: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres cdc: update publication: %w", err)
 	}
 	return nil
+}
+
+// reconcilePublishedColumns reports whether a published table's column list
+// must be rewritten to the one this run wants. A managed publication belongs
+// to this stream alone, so its lists are exactly the selection. An unmanaged
+// one is never rewritten and must already publish every column the run reads.
+func (s *Source) reconcilePublishedColumns(resource string, desired []string, entry publishedTable) (bool, error) {
+	if !s.managePublication {
+		return false, s.checkPublishedColumns(resource, entry)
+	}
+	return entry.filtered != (desired != nil) || !sameColumnSet(entry.columns, desired), nil
+}
+
+// checkPublishedColumns rejects a publication column list that would hide a
+// column this run reads. The decoder would otherwise null the unpublished
+// columns.
+func (s *Source) checkPublishedColumns(resource string, entry publishedTable) error {
+	if !entry.filtered {
+		return nil
+	}
+	selected, ok := s.selected[resource]
+	if !ok {
+		return fmt.Errorf("postgres cdc: publication %q limits the columns of %s; select the published columns or publish every column", s.publication, resource)
+	}
+	if !subsetOf(selected, entry.columns) {
+		return fmt.Errorf("postgres cdc: publication %q does not publish every selected column of %s", s.publication, resource)
+	}
+	return nil
+}
+
+// publicationColumnLists returns the column list each selected table publishes
+// with, or nil for every column. A publication column list needs Postgres 15
+// and must cover the table's replica identity, or Postgres rejects the
+// application's own updates and deletes. A table with REPLICA IDENTITY FULL,
+// or an identity index the selection does not cover, publishes every column
+// and the decoder drops the unselected ones.
+func (s *Source) publicationColumnLists(ctx context.Context, resources []string) (map[string][]string, error) {
+	lists := make(map[string][]string, len(s.selected))
+	if len(s.selected) == 0 || !s.managePublication {
+		return lists, nil
+	}
+	version, err := s.serverVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if version < 150000 {
+		return lists, nil
+	}
+	for _, resource := range resources {
+		selected, ok := s.selected[resource]
+		if !ok {
+			continue
+		}
+		var identity string
+		var identityColumns []string
+		if err := s.pool.QueryRow(ctx, `SELECT c.relreplident, COALESCE((
+			SELECT array_agg(a.attname ORDER BY k.ord)
+			FROM pg_index i
+			JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+			JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
+			WHERE i.indrelid = c.oid AND i.indisreplident), '{}')::text[]
+			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2`, s.schema, resource).Scan(&identity, &identityColumns); err != nil {
+			return nil, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
+		}
+		if identity == "f" || (identity == "i" && !subsetOf(identityColumns, selected)) {
+			continue
+		}
+		lists[resource] = selected
+	}
+	return lists, nil
+}
+
+func (s *Source) serverVersion(ctx context.Context) (int, error) {
+	var raw string
+	if err := s.pool.QueryRow(ctx, "SHOW server_version_num").Scan(&raw); err != nil {
+		return 0, fmt.Errorf("postgres cdc: read server version: %w", err)
+	}
+	version, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("postgres cdc: parse server version %q: %w", raw, err)
+	}
+	return version, nil
+}
+
+// publicationTableClause renders one table for CREATE or ALTER PUBLICATION,
+// with its column list when it publishes a subset.
+func (s *Source) publicationTableClause(resource string, columns []string) string {
+	clause := pgx.Identifier{s.schema, resource}.Sanitize()
+	if len(columns) == 0 {
+		return clause
+	}
+	names := make([]string, len(columns))
+	for i, name := range columns {
+		names[i] = pgx.Identifier{name}.Sanitize()
+	}
+	return clause + " (" + strings.Join(names, ", ") + ")"
+}
+
+// publishedTable is one table of the publication: whether it carries a column
+// list and, when it does, the published columns.
+type publishedTable struct {
+	filtered bool
+	columns  []string
+}
+
+func (s *Source) publishedTables(ctx context.Context) (map[string]publishedTable, error) {
+	version, err := s.serverVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT tablename, false, NULL::text[] FROM pg_publication_tables WHERE pubname=$1 AND schemaname=$2`
+	if version >= 150000 {
+		query = `SELECT pt.tablename, pr.prattrs IS NOT NULL, pt.attnames::text[]
+FROM pg_publication_tables pt
+JOIN pg_publication p ON p.pubname = pt.pubname
+JOIN pg_namespace n ON n.nspname = pt.schemaname
+JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = pt.tablename
+LEFT JOIN pg_publication_rel pr ON pr.prpubid = p.oid AND pr.prrelid = c.oid
+WHERE pt.pubname=$1 AND pt.schemaname=$2`
+	}
+	rows, err := s.pool.Query(ctx, query, s.publication, s.schema)
+	if err != nil {
+		return nil, fmt.Errorf("postgres cdc: publication tables: %w", err)
+	}
+	defer rows.Close()
+	published := map[string]publishedTable{}
+	for rows.Next() {
+		var table string
+		var entry publishedTable
+		if err := rows.Scan(&table, &entry.filtered, &entry.columns); err != nil {
+			return nil, err
+		}
+		if !entry.filtered {
+			entry.columns = nil
+		}
+		published[table] = entry
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres cdc: publication tables: %w", err)
+	}
+	return published, nil
+}
+
+func sameColumnSet(a, b []string) bool {
+	return len(a) == len(b) && subsetOf(a, b)
+}
+
+func subsetOf(inner, outer []string) bool {
+	for _, name := range inner {
+		if !slices.Contains(outer, name) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Source) replicationConn(ctx context.Context) (*pgconn.PgConn, error) {

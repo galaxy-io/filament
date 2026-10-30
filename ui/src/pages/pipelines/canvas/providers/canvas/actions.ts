@@ -2,7 +2,7 @@ import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
-import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineNode, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type {
   PipelineCanvasEditMode,
@@ -26,6 +26,7 @@ export enum PipelineCanvasActionType {
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_EDGE_CONFIG = "SET_EDGE_CONFIG",
   SET_ROUTE_WRITE_MODE = "SET_ROUTE_WRITE_MODE",
+  SETTLE_GRAPH = "SETTLE_GRAPH",
 }
 
 export interface LoadGraphAction {
@@ -73,6 +74,15 @@ export interface SetNodeConfigAction {
   payload: { nodeId: PipelineNode["id"]; config: NonNullable<PipelineNode["config"]> };
 }
 
+export interface SettleGraphAction {
+  type: PipelineCanvasActionType.SETTLE_GRAPH;
+  payload: {
+    version: PipelineVersion;
+    savedNodeConfigs: Set<NonNullable<PipelineNode["config"]>>;
+    savedEdgeData: Set<PipelineCanvasEdgeData>;
+  };
+}
+
 export interface SetEdgeConfigAction {
   type: PipelineCanvasActionType.SET_EDGE_CONFIG;
   payload: { edgeId: CanvasEdge["id"]; data: PipelineCanvasEdgeData };
@@ -94,4 +104,5 @@ export type PipelineCanvasAction =
   | SetActiveModeAction
   | SetNodeConfigAction
   | SetEdgeConfigAction
-  | SetRouteWriteModeAction;
+  | SetRouteWriteModeAction
+  | SettleGraphAction;

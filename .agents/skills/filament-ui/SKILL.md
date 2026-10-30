@@ -28,7 +28,7 @@ This skill lets an engineer who does not usually write frontend ship a Filament 
 | Comments | none that restate the code | zero comments. Only `biome-ignore` |
 | `styled` | two or three per file at most | no hard cap, but as few as possible. Props first, always |
 | Gates | typecheck, lint, format, build | `pnpm check`, the [workflow.md](./references/workflow.md) greps and the route-tree diff |
-| Icon-only tooltips | always | not on the canvas panel chrome (open panel, Back, Delete, Close, activity caret), `ariaLabel` only |
+| Icon-only tooltips | always | not on the canvas panel chrome (open panel, Back, Delete, Close, the activity header), `ariaLabel` only |
 
 ## The product in one glance
 

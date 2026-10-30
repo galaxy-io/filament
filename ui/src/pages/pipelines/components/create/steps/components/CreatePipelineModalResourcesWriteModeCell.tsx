@@ -40,7 +40,7 @@ const CreatePipelineModalResourcesWriteModeCell: FC<
         options={options}
         value={getEnumSelectValue(WriteMode, row.writeMode)}
         onChange={handleWriteModeChange}
-        variant={SelectInputVariant.TERTIARY}
+        variant={SelectInputVariant.BASE}
         isDisabled={!row.isSelected}
         ariaLabel={`Write mode for ${row.displayName}`}
         fillWidth

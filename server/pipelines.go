@@ -101,6 +101,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateCursorConfigs(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := validateColumnSelections(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -259,6 +262,39 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 				return fmt.Errorf("duplicate cursor configuration for resource %q", resource)
 			}
 			seen[resource] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		seen := make(map[string]struct{}, len(edge.GetColumns()))
+		for _, selection := range edge.GetColumns() {
+			resource := selection.GetResource()
+			if resource == "" {
+				return fmt.Errorf("column selection resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("column selection resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate column selection for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+			if len(selection.GetColumns()) == 0 {
+				return fmt.Errorf("column selection for resource %q must keep at least one column", resource)
+			}
+			names := make(map[string]struct{}, len(selection.GetColumns()))
+			for _, name := range selection.GetColumns() {
+				if name == "" {
+					return fmt.Errorf("column selection for resource %q names an empty column", resource)
+				}
+				if _, duplicate := names[name]; duplicate {
+					return fmt.Errorf("column selection for resource %q repeats column %q", resource, name)
+				}
+				names[name] = struct{}{}
+			}
 		}
 	}
 	return nil
@@ -560,7 +596,7 @@ func (a *Server) submitPipeline(ctx context.Context, tenant filament.TenantID, r
 	if err := compile.ValidateWorkerConfiguration(workerCfg); err != nil {
 		return nil, compileError(err)
 	}
-	compiled, err := a.compiler.Compile(ctx, tenant, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg)
+	compiled, err := a.compiler.Compile(ctx, tenant, req.GetPipelineId(), token, runOptionsFromProto(req.GetOptions()), "", workerCfg, req.GetResources(), req.GetResyncResources())
 	if err != nil {
 		return nil, compileError(err)
 	}

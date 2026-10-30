@@ -13,6 +13,7 @@ import {
   type SetExecutionModeAction,
   type SetNameAction,
   type SetNodeConfigAction,
+  type SetResourceColumnsAction,
   type SetResourceCursorAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
@@ -43,6 +44,7 @@ function applyExecutionMode(
     resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
+    resourceColumns: {},
     resourceWriteModes: {},
     sinkWriteModes: {},
   };
@@ -65,6 +67,7 @@ function selectSource(
     resourceSelection: {},
     resourceReadModes: {},
     resourceCursors: {},
+    resourceColumns: {},
     resourceWriteModes: {},
   });
 }
@@ -191,6 +194,20 @@ function setResourceCursor(
   };
 }
 
+function setResourceColumns(
+  state: CreatePipelineModalState,
+  action: SetResourceColumnsAction,
+): CreatePipelineModalState {
+  const { sinkId, resource, columns } = action.payload;
+  return {
+    ...state,
+    resourceColumns: {
+      ...state.resourceColumns,
+      [sinkId]: { ...state.resourceColumns[sinkId], [resource]: columns },
+    },
+  };
+}
+
 function setName(state: CreatePipelineModalState, action: SetNameAction): CreatePipelineModalState {
   return { ...state, name: action.payload, isNameTouched: true };
 }
@@ -290,6 +307,8 @@ const createPipelineModalReducer = (
       return setResourceReadMode(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_CURSOR:
       return setResourceCursor(state, action);
+    case CreatePipelineModalActionType.SET_RESOURCE_COLUMNS:
+      return setResourceColumns(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE:
       return setResourceWriteMode(state, action);
     case CreatePipelineModalActionType.SET_SINK_WRITE_MODE:

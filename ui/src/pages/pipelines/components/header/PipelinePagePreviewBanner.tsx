@@ -8,6 +8,8 @@ import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
 import { usePipelinePreviewVersion } from "@/pages/pipelines/hooks/usePipelinePreviewVersion";
 
+import { formatVersion } from "@/utils/format";
+
 const PipelinePagePreviewBanner: FC = () => {
   const previewed = usePipelinePreviewVersion();
   const navigateCanvas = usePipelineCanvasNavigate();
@@ -16,7 +18,7 @@ const PipelinePagePreviewBanner: FC = () => {
     <Alert
       isBanner
       variant={AlertVariant.WARNING}
-      header={`Viewing version ${previewed?.version}`}
+      header={formatVersion(previewed?.version)}
       actions={
         <Button
           label="Back to latest"
