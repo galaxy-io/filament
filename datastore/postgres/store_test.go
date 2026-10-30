@@ -168,6 +168,21 @@ func TestStore_RunLifecycle(t *testing.T) {
 	if !seenAfter {
 		t.Fatal("expected second DedupSeen call to report already seen")
 	}
+
+	hw, ok, err := store.DedupHighWater(ctx, tenantA, runOne)
+	if err != nil {
+		t.Fatalf("DedupHighWater: %v", err)
+	}
+	if !ok || hw != 42 {
+		t.Fatalf("DedupHighWater = (%d, %t), want (42, true)", hw, ok)
+	}
+	_, ok, err = store.DedupHighWater(ctx, tenantA, "20000000-0000-4000-8000-0000000000ff")
+	if err != nil {
+		t.Fatalf("DedupHighWater for unseen run: %v", err)
+	}
+	if ok {
+		t.Fatal("expected no high-water mark for a run with no dedup row")
+	}
 }
 
 // TestStore_DedupSeenHighWaterMark verifies the high-water-mark semantics:

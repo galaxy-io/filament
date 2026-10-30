@@ -51,6 +51,9 @@ type DataStore interface {
 	DeleteResourceCheckpoint(ctx context.Context, tenant TenantID, key ResourceCheckpointKey) error
 
 	DedupSeen(ctx context.Context, tenant string, run RunID, seq uint64) (bool, error)
+	// DedupHighWater reads the highest seq applied for (tenant, run) without
+	// advancing it. ok is false when no fact for the run has been recorded yet.
+	DedupHighWater(ctx context.Context, tenant string, run RunID) (seq uint64, ok bool, err error)
 
 	CreateConnection(ctx context.Context, c Connection) (Connection, error)
 	UpdateConnection(ctx context.Context, c Connection) (Connection, error)
