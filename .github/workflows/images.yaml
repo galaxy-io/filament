@@ -82,7 +82,7 @@ jobs:
           GOWORK: off
           CGO_ENABLED: ${{ matrix.cgo || '0' }}
           GOOS: linux
-        run: go build -C $(dirname ${{ matrix.dockerfile }}) ${{ matrix.buildtags }} -trimpath -ldflags="-s -w" -o "$GITHUB_WORKSPACE/bin/${{ matrix.image }}${{ matrix.suffix }}" .
+        run: go build -C $(dirname ${{ matrix.dockerfile }}) ${{ matrix.buildtags }} -trimpath -ldflags="-s -w -X github.com/galaxy-io/filament/version.Version=${{ inputs.tag }}" -o "$GITHUB_WORKSPACE/bin/${{ matrix.image }}${{ matrix.suffix }}" .
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
