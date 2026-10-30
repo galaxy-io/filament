@@ -9,21 +9,31 @@ import (
 
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/identity/keycloak"
+	"github.com/galaxy-io/filament/identity/proxy"
 	"github.com/galaxy-io/filament/identity/zitadel"
 )
 
-// FromEnv selects the provider per AUTH_PROVIDER. Unset leaves filament
-// unauthenticated: a nil provider is the disabled state, not an error.
+// FromEnv selects the authenticator per AUTH_PROVIDER. Unset leaves filament
+// unauthenticated: a nil authenticator is the disabled state, not an error.
 // Every provider takes AUTH_ISSUER and AUTH_UI_ORIGIN, the origin the UI is
 // served from; an https origin marks the session cookie Secure.
 //
 // AUTH_BOOTSTRAP_TENANT is converged on every boot. AUTH_BOOTSTRAP_ADMIN_EMAIL
 // and AUTH_BOOTSTRAP_ADMIN_PASSWORD administer it and close sign-up:
 // registration is refused.
-func FromEnv(ctx context.Context) (identity.Provider, error) {
+func FromEnv(ctx context.Context) (identity.Authenticator, error) {
 	switch provider := os.Getenv("AUTH_PROVIDER"); provider {
 	case "":
 		return nil, nil
+	// Trusts identity headers from a gateway that authenticated the caller.
+	// AUTH_PROXY_TENANT is the one gateway tenant this deployment serves;
+	// any other is refused. Sign-in happens at the gateway.
+	case "proxy":
+		tenant := os.Getenv("AUTH_PROXY_TENANT")
+		if tenant == "" {
+			return nil, errors.New("identity: AUTH_PROXY_TENANT is required for AUTH_PROVIDER=proxy")
+		}
+		return proxy.New(tenant)
 	// The machine-user token in AUTH_PAT.
 	case "zitadel":
 		pat := os.Getenv("AUTH_PAT")
@@ -66,7 +76,7 @@ func FromEnv(ctx context.Context) (identity.Provider, error) {
 			},
 		})
 	default:
-		return nil, fmt.Errorf("identity: unknown AUTH_PROVIDER %q (zitadel, keycloak)", provider)
+		return nil, fmt.Errorf("identity: unknown AUTH_PROVIDER %q (zitadel, keycloak, proxy)", provider)
 	}
 }
 

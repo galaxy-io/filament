@@ -80,8 +80,12 @@ spec:
             - secretRef:
                 name: {{ include "filament.keycloak.secretName" (dict "Values" .Values.keycloak "Release" .Release) }}
             {{- end }}
-          {{- if and .Values.auth.enabled (eq .Values.auth.type "zitadel") }}
+            {{- with .Values.server.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if or (and .Values.auth.enabled (eq .Values.auth.type "zitadel")) .Values.server.extraEnv }}
           env:
+            {{- if and .Values.auth.enabled (eq .Values.auth.type "zitadel") }}
             - name: AUTH_PAT
               valueFrom:
                 secretKeyRef:
@@ -93,6 +97,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.auth.zitadel.existingSecret | default (printf "%s-zitadel-auth" .Release.Name) }}
                   key: AUTH_BOOTSTRAP_ADMIN_PASSWORD
+            {{- end }}
+            {{- end }}
+            {{- with .Values.server.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
           resources:

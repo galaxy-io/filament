@@ -86,6 +86,14 @@ server:
   # @default -- `{}` (See [values.yaml])
   resources: {}
 
+  # -- Extra environment variables for the server container, as a list of
+  # EnvVar entries.
+  extraEnv: []
+
+  # -- Extra `envFrom` sources for the server container, as a list of
+  # `configMapRef` or `secretRef` entries.
+  extraEnvFrom: []
+
 controlPlane:
   # -- Deploy the Filament control plane.
   enabled: true
@@ -284,7 +292,7 @@ auth:
   # request scoped to the default tenant.
   enabled: false
 
-  # -- Identity provider. Valid values are `zitadel` and `keycloak`.
+  # -- Identity provider. Valid values are `zitadel`, `keycloak` and `proxy`.
   type: zitadel
 
   bootstrap:
