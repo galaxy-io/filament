@@ -295,6 +295,15 @@ func coerceValue(fieldType string, value any) (any, error) {
 	switch fieldType {
 	case "string", "date", "time", "timestamp", "timestamptz", "uuid", "decimal":
 		return scalarString(value)
+	case "json_string":
+		if text, ok := scalar.String(value); ok {
+			return text, nil
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("encode JSON string: %w", err)
+		}
+		return string(encoded), nil
 	case "bool":
 		if b, ok := value.(bool); ok {
 			return b, nil

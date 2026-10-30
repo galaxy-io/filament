@@ -366,6 +366,7 @@ type FieldSpec struct {
 	Tuple     []string `yaml:"tuple,omitempty"`
 	Precision int      `yaml:"precision,omitempty"`
 	Scale     int      `yaml:"scale,omitempty"`
+	Rounding  string   `yaml:"rounding,omitempty"`
 
 	MaxString string            `yaml:"max_string,omitempty"` // maximum nonempty string child of an array
 	Name      string            `yaml:"name"`
@@ -400,6 +401,7 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 				Tuple     []string `yaml:"tuple,omitempty"`
 				Precision int      `yaml:"precision,omitempty"`
 				Scale     int      `yaml:"scale,omitempty"`
+				Rounding  string   `yaml:"rounding,omitempty"`
 
 				MaxString string            `yaml:"max_string,omitempty"`
 				Path      string            `yaml:"path"`
@@ -412,7 +414,7 @@ func (fields *FieldList) UnmarshalYAML(node *yaml.Node) error {
 			if err := value.Decode(&spec); err != nil {
 				return fmt.Errorf("field %q: %w", name, err)
 			}
-			field.Value, field.Tuple, field.Precision, field.Scale = spec.Value, spec.Tuple, spec.Precision, spec.Scale
+			field.Value, field.Tuple, field.Precision, field.Scale, field.Rounding = spec.Value, spec.Tuple, spec.Precision, spec.Scale, spec.Rounding
 			field.MaxString = spec.MaxString
 			field.Path, field.Type, field.Shape, field.Mode, field.Nullable = spec.Path, spec.Type, spec.Shape, spec.Mode, spec.Nullable
 			if field.Path == "" && len(field.Shape) == 0 {

@@ -35,7 +35,7 @@ resources:
     fields:
       id: int64
       jobId: int64?
-      split: decimal?
+      split: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       active: bool?
       createdOn: string?
       modifiedOn: string?
@@ -62,12 +62,12 @@ resources:
       type: string?
       id: int64
       memo: string?
-      rate: decimal?
-      hours: decimal?
+      rate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      hours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       active: bool?
-      amount: decimal?
+      amount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       postedOn: string?
-      quantity: decimal?
+      quantity: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       createdOn: string?
       invoiceId: int64?
       employeeId: int64?
@@ -97,7 +97,7 @@ resources:
       id: int64?
       date: string?
       active: bool?
-      amount: decimal?
+      amount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       activity: string?
       createdOn: string?
       payrollId: int64
@@ -106,7 +106,7 @@ resources:
       activityCode: string?
       employeeType: string?
       activityCodeId: int64?
-      amountAdjustment: decimal?
+      amountAdjustment: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       businessUnitName: string?
       employeePayrollId: string?
       budgetCodeId: int64?
@@ -128,7 +128,7 @@ resources:
       locationName: string?
       locationZip: string?
       memo: string?
-      paidDurationHours: decimal?
+      paidDurationHours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       paidTimeType: string?
       payoutBusinessUnitName: string?
       projectId: int64?
@@ -161,7 +161,7 @@ resources:
       description: string?
       type: string?
       applicableEmployeeType: string?
-      rateInfo: json?
+      rateInfo: json_string?
       createdOn: string?
       modifiedOn: string?
       active: bool?
