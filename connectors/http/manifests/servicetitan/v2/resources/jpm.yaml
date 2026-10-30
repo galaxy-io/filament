@@ -4,7 +4,7 @@ resources:
     primary_key: [id]
     fields:
       id: int64
-      total: decimal?
+      total: {type: decimal, nullable: true, precision: 38, scale: 9}
       active: bool?
       summary: string?
       noCharge: bool?
@@ -196,7 +196,7 @@ resources:
       tagTypeIds: json?
       priority: string?
       duration: int64?
-      soldThreshold: decimal?
+      soldThreshold: {type: decimal, nullable: true, precision: 38, scale: 9}
       class: string?
       summary: string?
       noCharge: bool?

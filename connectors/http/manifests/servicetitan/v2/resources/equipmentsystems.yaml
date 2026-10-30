@@ -21,7 +21,7 @@ resources:
       memo: string?
       manufacturer: string?
       model: string?
-      cost: decimal?
+      cost: {type: decimal, nullable: true, precision: 38, scale: 9}
       status: string?
       manufacturerWarrantyStart: string?
       manufacturerWarrantyEnd: string?

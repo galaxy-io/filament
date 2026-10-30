@@ -45,13 +45,13 @@ resources:
       displayName: string?
       warranty: json?
       categories: json?
-      price: decimal?
-      memberPrice: decimal?
-      addOnPrice: decimal?
-      addOnMemberPrice: decimal?
+      price: {type: decimal, nullable: true, precision: 38, scale: 9}
+      memberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
+      addOnPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
+      addOnMemberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       taxable: bool?
       account: string?
-      hours: decimal?
+      hours: {type: decimal, nullable: true, precision: 38, scale: 9}
       isLabor: bool?
       recommendations: json?
       upgrades: json?
@@ -60,15 +60,15 @@ resources:
       serviceEquipment: json?
       active: bool?
       paysCommission: bool?
-      bonus: decimal?
-      commissionBonus: decimal?
+      bonus: {type: decimal, nullable: true, precision: 38, scale: 9}
+      commissionBonus: {type: decimal, nullable: true, precision: 38, scale: 9}
       modifiedOn: string?
       source: string?
       externalId: string?
       externalData: json?
-      cost: decimal?
+      cost: {type: decimal, nullable: true, precision: 38, scale: 9}
       createdOn: string?
-      soldByCommission: decimal?
+      soldByCommission: {type: decimal, nullable: true, precision: 38, scale: 9}
       defaultAssetUrl: string?
       budgetCostCode: string?
       budgetCostType: string?
@@ -98,30 +98,30 @@ resources:
       description: string?
       id: int64
       code: string?
-      cost: decimal?
-      bonus: decimal?
-      hours: decimal?
+      cost: {type: decimal, nullable: true, precision: 38, scale: 9}
+      bonus: {type: decimal, nullable: true, precision: 38, scale: 9}
+      hours: {type: decimal, nullable: true, precision: 38, scale: 9}
       model: string?
-      price: decimal?
+      price: {type: decimal, nullable: true, precision: 38, scale: 9}
       active: bool?
       source: string?
       typeId: int64?
       taxable: bool?
       createdOn: string?
-      addOnPrice: decimal?
+      addOnPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       categories: json?
       externalId: string?
       modifiedOn: string?
       displayName: string?
       isInventory: bool?
-      memberPrice: decimal?
+      memberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       externalData: json?
       manufacturer: string?
       primaryVendor: json?
       unitOfMeasure: string?
       paysCommission: bool?
-      commissionBonus: decimal?
-      addOnMemberPrice: decimal?
+      commissionBonus: {type: decimal, nullable: true, precision: 38, scale: 9}
+      addOnMemberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       account: string?
       assetAccount: string?
       assets: json?
@@ -165,30 +165,30 @@ resources:
       description: string?
       id: int64
       code: string?
-      cost: decimal?
-      bonus: decimal?
-      hours: decimal?
-      price: decimal?
+      cost: {type: decimal, nullable: true, precision: 38, scale: 9}
+      bonus: {type: decimal, nullable: true, precision: 38, scale: 9}
+      hours: {type: decimal, nullable: true, precision: 38, scale: 9}
+      price: {type: decimal, nullable: true, precision: 38, scale: 9}
       active: bool?
       source: string?
       account: string?
       taxable: bool?
       createdOn: string?
-      addOnPrice: decimal?
+      addOnPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       categories: json?
       externalId: string?
       modifiedOn: string?
       createdById: int64?
       displayName: string?
       isInventory: bool?
-      memberPrice: decimal?
+      memberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       externalData: json?
       primaryVendor: json?
       unitOfMeasure: string?
       businessUnitId: int64?
       paysCommission: bool?
-      commissionBonus: decimal?
-      addOnMemberPrice: decimal?
+      commissionBonus: {type: decimal, nullable: true, precision: 38, scale: 9}
+      addOnMemberPrice: {type: decimal, nullable: true, precision: 38, scale: 9}
       activeIngredients: json?
       assetAccount: string?
       assets: json?

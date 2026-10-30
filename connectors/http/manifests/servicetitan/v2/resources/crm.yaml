@@ -8,7 +8,7 @@ resources:
       name: string?
       active: bool?
       address: json?
-      balance: decimal?
+      balance: {type: decimal, nullable: true, precision: 38, scale: 9}
       createdOn: string?
       doNotMail: bool?
       taxExempt: bool?
@@ -16,13 +16,13 @@ resources:
       modifiedOn: string?
       tagTypeIds: json?
       createdById: int64?
-      creditLimit: decimal?
+      creditLimit: {type: decimal, nullable: true, precision: 38, scale: 9}
       customFields: json?
       doNotService: bool?
       externalData: json?
       paymentTermId: int64?
       nationalAccount: bool?
-      creditLimitBalance: decimal?
+      creditLimitBalance: {type: decimal, nullable: true, precision: 38, scale: 9}
       raw: {path: $, type: json, mode: remainder}
     query:
       includeRecentChanges: "false"

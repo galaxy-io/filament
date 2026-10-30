@@ -6,7 +6,7 @@ resources:
       id: int64
       name: string?
       active: bool?
-      discount: decimal?
+      discount: {type: decimal, nullable: true, precision: 38, scale: 9}
       importId: string?
       createdOn: string?
       modifiedOn: string?
@@ -107,7 +107,7 @@ resources:
       cancellationDate: string?
       nextScheduledBillDate: string?
       renewalDuration: int64?
-      initialDeferredRevenue: decimal?
+      initialDeferredRevenue: {type: decimal, nullable: true, precision: 38, scale: 9}
       cancellationBalanceInvoiceId: int64?
       cancellationInvoiceId: int64?
       followUpCustomStatusId: int64?
@@ -138,7 +138,7 @@ resources:
       id: int64
       name: string?
       active: bool?
-      total: decimal?
+      total: {type: decimal, nullable: true, precision: 38, scale: 9}
       importId: string?
       createdOn: string?
       modifiedOn: string?
@@ -183,7 +183,7 @@ resources:
       invoiceTemplateForFollowingYearsId: int64?
       firstVisitComplete: bool?
       activatedFromId: int64?
-      allocation: decimal?
+      allocation: {type: decimal, nullable: true, precision: 38, scale: 9}
       businessUnitId: int64?
       jobTypeId: int64?
       campaignId: int64?
@@ -197,7 +197,7 @@ resources:
       recurrenceDayOfNthWeek: string?
       recurrenceDaysOfMonth: json?
       jobStartTime: string?
-      estimatedPayrollCost: decimal?
+      estimatedPayrollCost: {type: decimal, nullable: true, precision: 38, scale: 9}
       preferredTechnicianIds: json?
       tagTypeIds: json?
       raw: {path: $, type: json, mode: remainder}
