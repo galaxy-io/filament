@@ -53,8 +53,9 @@ type durableReplicationStreamStore interface {
 // per-route run requests. token salts each route's idempotency key. workerCfg
 // overrides the pipeline's own worker configuration field by field for this
 // call only; the resolved result is stamped onto every request, so a later edit
-// to the pipeline cannot reshape a run already requested.
-func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resync []string) ([]CompiledRun, error) {
+// to the pipeline cannot reshape a run already requested. A non-empty resources
+// limits a bounded run to those resources; routes left with none do not run.
+func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resources, resync []string) ([]CompiledRun, error) {
 	pipeline, version, execution, err := c.loadRunnable(ctx, tenant, pipelineID, options.Execution)
 	if err != nil {
 		return nil, err
@@ -63,6 +64,9 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if options.Execution == filament.ExecutionContinuous {
 		if scheduleID != "" {
 			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
+		}
+		if len(resources) > 0 {
+			return nil, fmt.Errorf("%w: continuous runs read every routed resource", ErrInvalid)
 		}
 		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg, resync)
 	}
@@ -76,6 +80,10 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		return nil, err
 	}
 	if err := validateResync(groups, resync); err != nil {
+		return nil, err
+	}
+	groups, fullRoutes, err := subsetGroups(groups, version.GetGraph().GetEdges(), nodes, resources, resync)
+	if err != nil {
 		return nil, err
 	}
 	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
@@ -96,6 +104,9 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 			return nil, err
 		}
 		cdc := filament.ReplicationFor(sourceSpec, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
+		if cdc && fullRoutes != nil && isPartialRoute(group, fullRoutes[key]) {
+			return nil, fmt.Errorf("%w: route %s reads a change stream, so it runs all of its resources", ErrInvalid, key)
+		}
 		ingestionTypes, err := compileIngestionTypes(group, cdc)
 		if err != nil {
 			return nil, err
@@ -185,6 +196,55 @@ func validateResync(groups []*routeGroup, resync []string) error {
 		}
 	}
 	return nil
+}
+
+// validateResources rejects a subset that names a resource no route selects,
+// or that leaves out a resource it asks to resync.
+func validateResources(groups []*routeGroup, resources, resync []string) error {
+	for _, resource := range resources {
+		known := slices.ContainsFunc(groups, func(group *routeGroup) bool {
+			selected, _ := routeResources(group)
+			return slices.Contains(selected, resource)
+		})
+		if !known {
+			return fmt.Errorf("%w: resources names %q, which no route selects", ErrInvalid, resource)
+		}
+	}
+	for _, resource := range resync {
+		if !slices.Contains(resources, resource) {
+			return fmt.Errorf("%w: resync names %q, which this run does not include", ErrInvalid, resource)
+		}
+	}
+	return nil
+}
+
+// subsetGroups regroups a bounded run's edges around the named resources and
+// returns the full grouping by route key, so a partial change-stream route can
+// be rejected. With no resources it returns groups unchanged and a nil map.
+func subsetGroups(groups []*routeGroup, edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, resources, resync []string) ([]*routeGroup, map[string]*routeGroup, error) {
+	if len(resources) == 0 {
+		return groups, nil, nil
+	}
+	if err := validateResources(groups, resources, resync); err != nil {
+		return nil, nil, err
+	}
+	full := make(map[string]*routeGroup, len(groups))
+	for _, group := range groups {
+		full[group.key] = group
+	}
+	selected, err := groupEdges(selectEdges(edges, resources), nodes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return selected, full, nil
+}
+
+// isPartialRoute reports whether a subset run reads fewer of a route's
+// resources than the route selects.
+func isPartialRoute(subset, full *routeGroup) bool {
+	selected, _ := routeResources(subset)
+	all, _ := routeResources(full)
+	return full.all || !slices.Equal(selected, all)
 }
 
 // routeResync returns the resync names this route selects, or nil.

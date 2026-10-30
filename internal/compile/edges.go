@@ -30,6 +30,14 @@ type routeGroup struct {
 	destinations  map[string]string
 }
 
+// selectEdges keeps the edges that read one of resources. An edge with no
+// resource reads everything, so a subset run leaves it out.
+func selectEdges(edges []*ingestionv1.PipelineEdge, resources []string) []*ingestionv1.PipelineEdge {
+	return slices.DeleteFunc(slices.Clone(edges), func(edge *ingestionv1.PipelineEdge) bool {
+		return !slices.Contains(resources, edge.GetResource())
+	})
+}
+
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
 // An edge with no resource marks its group as "all resources". Two edges naming
 // the same resource (or two all-resources edges) with different read or write
