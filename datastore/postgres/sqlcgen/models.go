@@ -330,19 +330,21 @@ type Secret struct {
 }
 
 type StreamAttempt struct {
-	Token           int64
-	StreamID        string
-	TenantID        string
-	ExecutionID     string
-	DesiredRevision int64
-	RequestTtlUs    int64
-	StartedAt       pgtype.Timestamptz
-	ClaimedAt       pgtype.Timestamptz
-	RunSpec         []byte
-	ExpiresAt       pgtype.Timestamptz
-	EndedAt         pgtype.Timestamptz
-	Termination     pgtype.Text
-	Reason          string
+	Token            int64
+	StreamID         string
+	TenantID         string
+	ExecutionID      string
+	DesiredRevision  int64
+	RequestTtlUs     int64
+	StartedAt        pgtype.Timestamptz
+	ClaimedAt        pgtype.Timestamptz
+	RunSpec          []byte
+	ExpiresAt        pgtype.Timestamptz
+	EndedAt          pgtype.Timestamptz
+	Termination      pgtype.Text
+	Reason           string
+	DispatchVersion  string
+	YieldRequestedAt pgtype.Timestamptz
 }
 
 type StreamEpoch struct {

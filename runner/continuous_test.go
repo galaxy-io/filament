@@ -45,6 +45,7 @@ func (s *continuousTestStore) EndAttempt(_ context.Context, r filament.EndAttemp
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Attempt.Termination = r.Termination
+	s.state.Attempt.Reason = r.Reason
 	return nil
 }
 
@@ -291,6 +292,32 @@ func TestContinuousIdleStopAndLeaseLoss(t *testing.T) {
 				t.Fatalf("clean pause: %s", termination)
 			}
 		})
+	}
+}
+
+func TestContinuousYieldDrainsAndRecordsUpgrade(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.opened = make(chan struct{})
+	src.idle = true
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	store.mu.Lock()
+	store.state.Attempt.YieldRequested = true
+	store.mu.Unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Desired != filament.StreamEnabled {
+		t.Fatal("yield changed the stream's desired state")
+	}
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonUpgrade {
+		t.Fatalf("yield ended %s %q, want clean yielded for upgrade", store.state.Attempt.Termination, store.state.Attempt.Reason)
 	}
 }
 
