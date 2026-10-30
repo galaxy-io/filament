@@ -49,6 +49,10 @@ export const getPipelineValidationErrors = (
   ]),
 ];
 
+export const getPipelineResources = (version: PipelineVersion | undefined): string[] => [
+  ...new Set((version?.graph?.edges ?? []).map((edge) => edge.resource).filter(Boolean)),
+];
+
 export const isPipelineRunnable = (version: PipelineVersion | undefined): boolean =>
   (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SOURCE) &&
   (version?.graph?.nodes ?? []).some((node) => node.kind === ConnectorKind.SINK) &&

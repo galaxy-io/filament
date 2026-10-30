@@ -27,7 +27,7 @@ import {
 import PipelineCanvasNodeHandle from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeHandle";
 import PipelineCanvasNodeIsland from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeIsland";
 
-const NodeContainer = styled.div<{ $isSelected?: boolean; $width: number }>`
+const NodeContainer = styled.div<{ $isSelected?: boolean; $isRunning?: boolean; $width: number }>`
   width: ${({ $width }) => $width}px;
 
   display: flex;
@@ -35,8 +35,8 @@ const NodeContainer = styled.div<{ $isSelected?: boolean; $width: number }>`
   gap: ${PIPELINE_CANVAS_NODE_GAP}px;
 
   &:hover ${PipelineCanvasNodeIsland} {
-    border-color: ${({ $isSelected }) =>
-      $isSelected ? t.color.solid.primary.hovered : t.color.border.tertiary};
+    border-color: ${({ $isSelected, $isRunning }) =>
+      $isSelected || $isRunning ? t.color.solid.primary.hovered : t.color.border.tertiary};
   }
 `;
 
@@ -46,6 +46,7 @@ interface PipelineCanvasNodeProps extends PropsWithChildren {
   kind: ConnectorKind;
   isConnected?: boolean;
   isSelected?: boolean;
+  isRunning?: boolean;
   onRefresh?: () => void;
   onSettings?: () => void;
   onDelete?: () => void;
@@ -57,6 +58,7 @@ const PipelineCanvasNode: FC<PipelineCanvasNodeProps> = ({
   kind,
   isConnected = false,
   isSelected = false,
+  isRunning = false,
   onRefresh,
   onSettings,
   onDelete,
@@ -87,7 +89,11 @@ const PipelineCanvasNode: FC<PipelineCanvasNodeProps> = ({
   );
 
   return (
-    <NodeContainer $isSelected={isSelected} $width={PIPELINE_CANVAS_NODE_WIDTH}>
+    <NodeContainer
+      $isSelected={isSelected}
+      $isRunning={isRunning}
+      $width={PIPELINE_CANVAS_NODE_WIDTH}
+    >
       <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.SPACE_BETWEEN}>
         <ConnectionKindChip kind={kind} size={ChipSize.SMALL} />
         <Flex alignItems={AlignItems.CENTER} gap={4}>
@@ -126,7 +132,7 @@ const PipelineCanvasNode: FC<PipelineCanvasNodeProps> = ({
           )}
         </Flex>
       </Flex>
-      <PipelineCanvasNodeIsland $isSelected={isSelected}>
+      <PipelineCanvasNodeIsland $isSelected={isSelected} $isRunning={isRunning}>
         <Flex alignItems={AlignItems.CENTER} gap={4}>
           {kind === ConnectorKind.SINK && (
             <PipelineCanvasNodeHandle

@@ -90,3 +90,29 @@ func TestResyncMustNameARouteResource(t *testing.T) {
 		t.Fatalf("route resync = %v", got)
 	}
 }
+
+func TestResourcesMustNameARouteResource(t *testing.T) {
+	groups := []*routeGroup{{resources: map[string]bool{"orders": true, "customers": true}}}
+	if err := validateResources(groups, []string{"orders"}, []string{"orders"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateResources(groups, []string{"invoices"}, nil); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("unknown resource: %v", err)
+	}
+	if err := validateResources(groups, []string{"orders"}, []string{"customers"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("resync outside the subset: %v", err)
+	}
+}
+
+func TestPartialRouteComparesSelectedResources(t *testing.T) {
+	full := &routeGroup{resources: map[string]bool{"orders": true, "customers": true}}
+	if isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true, "customers": true}}, full) {
+		t.Fatal("every resource selected is not partial")
+	}
+	if !isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true}}, full) {
+		t.Fatal("one of two resources is partial")
+	}
+	if !isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true}}, &routeGroup{all: true}) {
+		t.Fatal("an all-resources route run by name is partial")
+	}
+}

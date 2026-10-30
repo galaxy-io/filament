@@ -3,16 +3,14 @@ import { type FC, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 
 import { ValidatePipelineRequestSchema } from "@/gen/ingestion/v1/capabilities_pb";
-import { ExecutionMode, type WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
+import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import PipelinePageActiveRunActions from "@/pages/pipelines/components/header/PipelinePageActiveRunActions";
 import PipelinePageRunButton from "@/pages/pipelines/components/header/PipelinePageRunButton";
-import { formatWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
-import { usePipelineCanvasNavigate } from "@/pages/pipelines/hooks/usePipelineCanvasNavigate";
-import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 import { getPipelineValidationErrors, isPipelineRunnable } from "@/pages/pipelines/utils";
 
-import { usePipelineParams } from "@/module/hooks";
+import { useFilamentFlowOpen, usePipelineParams } from "@/module/hooks";
+import { Flow } from "@/module/types";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
 import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queries/pipelines";
@@ -23,8 +21,7 @@ import { isContinuousRunActive } from "@/utils/runs";
 
 const PipelinePageRunActions: FC = () => {
   const { id } = usePipelineParams();
-  const navigateCanvas = usePipelineCanvasNavigate();
-  const { startRun, isRunning } = usePipelineRun();
+  const openFlow = useFilamentFlowOpen();
 
   const { data } = useSuspenseGetPipelineQuery({
     input: createGetPipelineInput(id),
@@ -63,21 +60,11 @@ const PipelinePageRunActions: FC = () => {
     return <PipelinePageActiveRunActions run={activeRun} />;
   }
 
-  const handleRun = (workerConfiguration?: WorkerConfiguration) => {
-    startRun(pipeline, {
-      workerConfiguration,
-      onSuccess: () => navigateCanvas({}),
-    });
-  };
-
   return (
     <PipelinePageRunButton
-      key={formatWorkerConfiguration(pipeline.workerConfiguration)}
-      workerConfiguration={pipeline.workerConfiguration}
       runErrors={runErrors}
       isRunnable={isPipelineRunnable(currentVersion)}
-      isRunning={isRunning}
-      onRun={handleRun}
+      onClick={() => openFlow(Flow.RUN_PIPELINE, { pipelineId: pipeline.id })}
     />
   );
 };
