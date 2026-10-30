@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 
 	"connectrpc.com/connect"
 
@@ -244,6 +245,9 @@ func graphFromProto(graph *ingestionv1.PipelineGraph, connections connectionInde
 				Resource: cursor.GetResource(), Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds(),
 			})
 		}
+		for _, selection := range edge.GetColumns() {
+			mapped.Columns = append(mapped.Columns, model.ResourceColumns{Resource: selection.GetResource(), Columns: slices.Clone(selection.GetColumns())})
+		}
 		out.Edges = append(out.Edges, mapped)
 	}
 	return out, replication
@@ -292,6 +296,9 @@ func (t *Target) graphToProto(ctx context.Context, pipeline model.Pipeline) (*in
 			mapped.Cursors = append(mapped.Cursors, &ingestionv1.ResourceCursorConfig{
 				Resource: cursor.Resource, Field: cursor.Field, LookbackSeconds: cursor.LookbackSeconds,
 			})
+		}
+		for _, selection := range edge.Columns {
+			mapped.Columns = append(mapped.Columns, &ingestionv1.ResourceColumnSelection{Resource: selection.Resource, Columns: slices.Clone(selection.Columns)})
 		}
 		out.Edges = append(out.Edges, mapped)
 	}

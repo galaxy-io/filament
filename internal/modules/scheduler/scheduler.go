@@ -234,7 +234,7 @@ func (m *Module) logTickCompleted(claimed, fired, skipped, failed int) {
 // one run per route, returning the first run id for the schedule.fired fact.
 // The occurrence token makes each cron tick idempotent.
 func (m *Module) fire(ctx context.Context, st filament.ScheduleState, occurrence time.Time) (filament.RunID, error) {
-	compiled, err := m.compiler.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
+	compiled, err := m.compiler.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, scheduledomain.OccurrenceToken(st.ID, occurrence), filament.RunOptions{}, st.ID, filament.WorkerConfiguration{}, nil, nil)
 	if err != nil {
 		return "", err
 	}

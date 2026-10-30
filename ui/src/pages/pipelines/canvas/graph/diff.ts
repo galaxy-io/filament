@@ -37,13 +37,21 @@ const getEdgeConfigKey = ({
   readMode,
   writeMode,
   cursors,
+  columns,
   transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
   `${JSON.stringify(destinationResource ?? "")}|${readMode}|${writeMode}|${cursors
     .map((cursor) => `${cursor.resource}:${cursor.field}:${cursor.lookbackSeconds}`)
     .sort()
-    .join(";")}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
+    .join(";")}|${JSON.stringify(
+    (columns ?? [])
+      .map((selection) => ({
+        resource: selection.resource,
+        columns: [...selection.columns].sort(),
+      }))
+      .sort((left, right) => left.resource.localeCompare(right.resource)),
+  )}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
 
 export const hasPipelineGraphChanges = (
   state: { nodes: CanvasNode[]; edges: CanvasEdge[] },
