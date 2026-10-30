@@ -8,6 +8,7 @@ import { usePipelineCanvasActions } from "@/pages/pipelines/canvas/providers/can
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import type { PipelineCanvasEdgeModeOptions } from "@/pages/pipelines/canvas/utils";
 import {
+  addColumnToSelections,
   getCompatibleWriteModes,
   getReadModeSelectOptions,
   getWriteModeSelectOptions,
@@ -40,6 +41,7 @@ export const usePipelineCanvasEdgeConfig = (
   const writeMode =
     configuredWriteMode === WriteMode.UNSPECIFIED ? effectiveWriteMode : configuredWriteMode;
   const cursors = edge.data?.cursors ?? [];
+  const columns = edge.data?.columns ?? [];
   const cursorConfig = cursors.find((candidate) => candidate.resource === resource);
   const cursor = cursorConfig?.field;
 
@@ -70,6 +72,10 @@ export const usePipelineCanvasEdgeConfig = (
       readMode: mode,
       writeMode: nextWriteMode,
       cursors: mode === ReadMode.INCREMENTAL ? createDefaultCursors() : [],
+      columns:
+        mode === ReadMode.INCREMENTAL
+          ? addColumnToSelections(columns, resource, defaultCursor)
+          : columns,
       transform: edge.data?.transform,
     });
   };
@@ -96,6 +102,7 @@ export const usePipelineCanvasEdgeConfig = (
           lookbackSeconds: cursorConfig?.lookbackSeconds ?? 0n,
         }),
       ],
+      columns: addColumnToSelections(columns, resource, field),
     });
 
   const readModeSelectOptions = getReadModeSelectOptions(readModeOptions, readMode);

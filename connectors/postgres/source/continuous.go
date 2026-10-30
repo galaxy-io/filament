@@ -86,10 +86,8 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	if err != nil {
 		return nil, err
 	}
-	if bootstrap != nil {
-		if err := bootstrap.open(ctx, slot); err != nil {
-			return nil, err
-		}
+	if err := bootstrap.open(ctx, slot); err != nil {
+		return nil, err
 	}
 	if err := lifecycle.CheckAuthority(ctx); err != nil {
 		return nil, err
@@ -100,10 +98,23 @@ func (s *Source) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (
 	pumpCtx, cancel := context.WithCancel(ctx)
 	session := &walSession{
 		conn: conn, domain: domain, lifecycle: lifecycle, start: start, acknowledged: slot.start, bootstrap: bootstrap, cancel: cancel, events: make(chan walEvent, 64), acks: make(chan walAck), done: make(chan struct{}), checkAuthority: opts.CheckAuthority,
-		decoder: &pgCDCRun{schema: s.schema, resources: append([]string(nil), opts.Resources...), tracked: tracked, relations: map[uint32]*cdcRelation{}},
+		decoder: s.walDecoder(opts, tracked, bootstrap), activated: pendingMembers(opts), membershipRevision: opts.MembershipRevision,
 	}
 	go session.pump(pumpCtx)
 	return session, nil
+}
+
+// walDecoder builds the session's decoder. A pending member's changes below
+// the point its baseline was exported at are already in that baseline, so the
+// decoder floors them there.
+func (s *Source) walDecoder(opts filament.StreamOpenOpts, tracked map[string]*cdcTable, bootstrap *continuousSnapshot) *pgCDCRun {
+	decoder := &pgCDCRun{schema: s.schema, resources: append([]string(nil), opts.Resources...), tracked: tracked, relations: map[uint32]*cdcRelation{}, floors: map[string]pglogrepl.LSN{}}
+	if bootstrap != nil {
+		for _, member := range bootstrap.members {
+			decoder.floors[member] = bootstrap.target
+		}
+	}
+	return decoder
 }
 
 // boundTo copies the source onto an admitted stream's slot and, when managed,
@@ -141,8 +152,12 @@ type walSession struct {
 	done           chan struct{}
 	pumpErr        error // read only after done closes
 	bootstrap      *continuousSnapshot
-	txn            string
-	skip           bool
+	// activated are the pending members this session admits. The first
+	// coverage that returns reports them, after any baseline they needed.
+	activated          []string
+	membershipRevision int64
+	txn                string
+	skip               bool
 }
 
 // Read cuts a batch only after a complete source transaction. Row/byte/age
@@ -181,7 +196,8 @@ func (s *walSession) Read(ctx context.Context, out filament.StreamRecordSink, b 
 		if err := out.Control(ctx, filament.Control{Kind: filament.ProgressBoundary, Domain: s.domain, Position: walPosition(end)}); err != nil {
 			return filament.Coverage{}, err
 		}
-		c := filament.Coverage{Positions: filament.DomainPositions{s.domain: walPosition(end)}}
+		c := filament.Coverage{Positions: filament.DomainPositions{s.domain: walPosition(end)}, Activated: s.activated}
+		s.activated = nil
 		return c, s.lifecycle.MarkRead(c)
 	}
 	for {
@@ -227,9 +243,6 @@ func (s *walSession) checkRelation(m *pglogrepl.RelationMessage) error {
 	}
 	if previous := s.decoder.relations[m.RelationID]; previous != nil && !reflect.DeepEqual(previous.message, m) {
 		return errors.New("postgres continuous: relation changed during session")
-	}
-	if len(m.Columns) != len(table.schema.Fields) {
-		return errors.New("postgres continuous: relation column count changed")
 	}
 	for _, f := range table.schema.Fields {
 		found := false

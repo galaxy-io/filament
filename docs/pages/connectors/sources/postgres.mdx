@@ -114,6 +114,15 @@ route, named after the route's slot, and keeps its table list current with
 when the route retires. Set `manage_publication=false` and name the
 `publication` when an administrator provisions one instead.
 
+A resource with a column selection reads only those columns in every mode.
+The selection must keep the primary key and any cursor column. On PostgreSQL
+15 and later a managed publication carries the selection as a column list,
+so the replication stream skips the unselected columns. A table with
+`REPLICA IDENTITY FULL`, or an identity index the selection does not fully
+cover, cannot take a column list, so its publication stays whole and the
+connector drops the unselected columns as it decodes. An administrator's
+publication must publish every column the pipeline reads.
+
 CDC pipeline runs also require a datastore with durable replication-stream
 admission. The PostgreSQL datastore provides it; the in-memory datastore does
 not, and compilation fails with a precondition error instead of sharing an

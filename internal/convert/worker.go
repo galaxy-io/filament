@@ -29,7 +29,7 @@ func SourceToProto(spec filament.ConnectorSpec) *workerv1.Source {
 	out := &workerv1.Source{
 		Spec:      SourceSpecToProto(spec),
 		Policies:  sourcePoliciesToProto(spec.SourcePolicies),
-		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor},
+		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor, SelectableColumns: spec.Resources.SelectableColumns},
 	}
 	for _, mode := range spec.Modes {
 		out.ReadModes = append(out.ReadModes, ReadModeToProto(mode))
@@ -64,6 +64,7 @@ func SourceFromProto(source *workerv1.Source) (filament.ConnectorSpec, error) {
 	spec.Resources = filament.ResourceCapabilities{
 		Discoverable:      source.GetResources().GetDiscoverable(),
 		PerResourceCursor: source.GetResources().GetPerResourceCursor(),
+		SelectableColumns: source.GetResources().GetSelectableColumns(),
 	}
 	if stream := source.GetStream(); stream != nil {
 		caps := &filament.StreamCapabilities{}

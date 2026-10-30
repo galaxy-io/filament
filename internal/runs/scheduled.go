@@ -23,7 +23,7 @@ func ReconcileScheduled(ctx context.Context, ds filament.DataStore, c *compile.C
 		return nil
 	}
 	token := scheduledomain.OccurrenceToken(st.ID, *st.NextFire)
-	compiled, err := c.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID, filament.WorkerConfiguration{})
+	compiled, err := c.Compile(ctx, st.Spec.Tenant, st.Spec.PipelineID, token, filament.RunOptions{}, st.ID, filament.WorkerConfiguration{}, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -91,3 +91,46 @@ UPDATE runs r SET status=CASE
  ELSE 0 END,updated_at=clock_timestamp()
 FROM replication_streams s WHERE s.current_run_id=r.id AND s.id=sqlc.arg(stream_id) AND s.tenant_id=sqlc.arg(tenant_id)
 AND r.ended_at IS NULL AND s.desired_state<>'stopped';
+
+-- name: StreamHasLiveRun :one
+SELECT EXISTS (SELECT 1 FROM replication_streams s JOIN runs r ON r.id = s.current_run_id AND r.tenant_id = s.tenant_id
+WHERE s.id = sqlc.arg(stream_id) AND s.tenant_id = sqlc.arg(tenant_id) AND r.ended_at IS NULL)::boolean;
+
+-- name: StreamSuccessor :one
+SELECT r.id, r.request FROM runs r
+WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.status = 7
+ AND r.request->'ReplicationStream'->>'ID' = sqlc.arg(stream_id)::text
+ AND r.request->'ReplicationStream'->>'Generation' = sqlc.arg(generation)::text
+ORDER BY r.created_at DESC LIMIT 1;
+
+-- name: StopStreamForSuccessor :execrows
+UPDATE replication_streams SET desired_state = 'stopped', desired_revision = desired_revision + 1, updated_at = clock_timestamp()
+WHERE id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id) AND current_run_id IS NOT NULL;
+
+-- name: StreamSettled :one
+SELECT (NOT EXISTS (SELECT 1 FROM runs c WHERE c.id = s.current_run_id AND c.tenant_id = s.tenant_id AND c.ended_at IS NULL)
+ AND NOT EXISTS (SELECT 1 FROM stream_attempts a WHERE a.stream_id = s.id AND a.ended_at IS NULL))::boolean
+FROM replication_streams s WHERE s.id = sqlc.arg(stream_id) AND s.tenant_id = sqlc.arg(tenant_id);
+
+-- name: PromoteStreamSuccessor :execrows
+UPDATE replication_streams SET current_run_id = sqlc.arg(run_id), run_spec = sqlc.arg(run_spec),
+ desired_state = 'enabled', desired_revision = desired_revision + 1, updated_at = clock_timestamp()
+WHERE id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id) AND current_run_id IS NOT NULL;
+
+-- name: RequestSuccessorRun :execrows
+UPDATE runs SET status = 0, requested_at = coalesce(requested_at, clock_timestamp()), updated_at = clock_timestamp()
+WHERE id = sqlc.arg(run_id) AND tenant_id = sqlc.arg(tenant_id) AND status = 7;
+
+-- name: CancelSuccessorRun :exec
+UPDATE runs SET status = 4, ended_at = coalesce(ended_at, clock_timestamp()), updated_at = clock_timestamp()
+WHERE id = sqlc.arg(run_id) AND tenant_id = sqlc.arg(tenant_id) AND status = 7;
+
+-- name: ActivateStreamMembers :execrows
+UPDATE replication_stream_resources SET status = 2, activated_at = coalesce(activated_at, now()), error = NULL, updated_at = now()
+WHERE replication_stream_id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id)
+ AND resource_name = ANY(sqlc.arg(resource_names)::text[]) AND status IN (0, 1, 4);
+
+-- name: ResetStreamMembers :execrows
+UPDATE replication_stream_resources SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
+WHERE replication_stream_id = sqlc.arg(stream_id) AND tenant_id = sqlc.arg(tenant_id)
+ AND resource_name = ANY(sqlc.arg(resource_names)::text[]) AND status = 2;

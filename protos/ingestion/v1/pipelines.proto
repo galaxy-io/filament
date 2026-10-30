@@ -44,6 +44,15 @@ message PipelineEdge {
   // the transform grammar, keyed by resource. A resource-specific edge may
   // only define its own resource. Empty means rows pass through unchanged.
   google.protobuf.Struct transform = 9;
+  // columns narrows the columns read from each resource. An all-resource edge
+  // may configure several resources; a resource-specific edge may configure
+  // only its own resource. An omitted resource reads every column.
+  repeated ResourceColumnSelection columns = 10;
+}
+
+message ResourceColumnSelection {
+  string resource = 1;
+  repeated string columns = 2;
 }
 
 message ResourceCursorConfig {
