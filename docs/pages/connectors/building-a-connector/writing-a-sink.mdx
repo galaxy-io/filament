@@ -1,6 +1,6 @@
 ---
 title: "Writing a sink"
-description: "Build a Go sink that applies Arrow batches under a write policy in Filament, the open-source data movement engine."
+description: "Build a Filament sink in Go that applies Arrow batches under a write policy, returns a write receipt with a checksum, and commits durably at the destination."
 ---
 
 A sink owns the destination boundary. Filament decides when a batch is ready,
