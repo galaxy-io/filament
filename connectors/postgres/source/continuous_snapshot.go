@@ -12,27 +12,60 @@ import (
 
 // continuousSnapshot keeps the baseline and its WAL handoff in one epoch. No
 // snapshot checkpoint is returned until every selected table has been read.
+// A stream's first baseline covers every table from the slot's own snapshot.
+// A later one covers only the pending members, exported at a fresh consistent
+// point that also floors their WAL, so the rows the baseline already holds
+// are not replayed.
 type continuousSnapshot struct {
 	source   *Source
 	snapshot *snapshot
 	shards   []shard
 	target   pglogrepl.LSN
+	// members are the pending tables this baseline admits; empty on a stream's
+	// first baseline, whose tables are already members.
+	members []string
 }
 
 func (s *Source) planContinuousSnapshot(ctx context.Context, opts filament.StreamOpenOpts) (*continuousSnapshot, error) {
-	if s.snapshotMode != filament.SnapshotInitial || len(opts.CommittedPositions) != 0 {
+	if s.snapshotMode != filament.SnapshotInitial {
 		return nil, nil
 	}
-	shards, err := s.planShards(ctx, opts.Resources, 1)
+	tables := opts.Resources
+	var members []string
+	if len(opts.CommittedPositions) != 0 {
+		members = pendingMembers(opts)
+		if len(members) == 0 {
+			return nil, nil
+		}
+		tables = members
+	}
+	shards, err := s.planShards(ctx, tables, 1)
 	if err != nil {
 		return nil, err
 	}
-	return &continuousSnapshot{source: s, shards: shards}, nil
+	return &continuousSnapshot{source: s, shards: shards, members: members}, nil
+}
+
+// pendingMembers lists the selected resources that have no baseline yet.
+func pendingMembers(opts filament.StreamOpenOpts) []string {
+	var pending []string
+	for _, resource := range opts.Resources {
+		if status, ok := opts.Membership[resource]; ok && status == filament.ReplicationStreamResourcePending {
+			pending = append(pending, resource)
+		}
+	}
+	return pending
 }
 
 func (b *continuousSnapshot) open(ctx context.Context, slot replicationSlotState) error {
+	if b == nil {
+		return nil
+	}
 	b.target = slot.start
 	snapshotID := slot.snapshotID
+	if len(b.members) > 0 {
+		snapshotID = ""
+	}
 	if snapshotID == "" {
 		// An interrupted bootstrap has a retained slot but its exported snapshot
 		// is gone. Export a new consistent snapshot without replacing that slot.
@@ -97,5 +130,13 @@ func (s *walSession) readSnapshot(ctx context.Context, out filament.StreamRecord
 		return err
 	}
 	control.Kind = filament.TxnEnd
-	return out.Control(ctx, control)
+	if err := out.Control(ctx, control); err != nil {
+		return err
+	}
+	for _, member := range b.members {
+		if err := out.Control(ctx, filament.Control{Kind: filament.MemberActivated, Domain: s.domain, Position: walPosition(b.target), Resource: member, MembershipRevision: s.membershipRevision}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

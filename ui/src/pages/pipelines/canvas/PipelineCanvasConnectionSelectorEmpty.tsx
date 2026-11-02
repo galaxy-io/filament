@@ -25,7 +25,7 @@ const PipelineCanvasConnectionSelectorEmpty: FC<PipelineCanvasConnectionSelector
   const openFlow = useFilamentFlowOpen();
 
   const handleCreateConnection = () => {
-    openFlow(Flow.CREATE_CONNECTION, connectorKind);
+    openFlow(Flow.CREATE_CONNECTION, { connectorKind });
   };
 
   return (

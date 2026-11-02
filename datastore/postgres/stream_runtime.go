@@ -216,10 +216,12 @@ func (s *Store) SetDesiredState(ctx context.Context, change filament.DesiredStat
 	if rows != 1 {
 		return filament.ErrVersionConflict
 	}
-	if err := q.SyncContinuousRunPhase(ctx, sqlcgen.SyncContinuousRunPhaseParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
-		return err
+	if change.Desired == filament.StreamStopped {
+		if err := cancelStreamSuccessor(ctx, q, stream, ""); err != nil {
+			return err
+		}
 	}
-	if err := q.FinishStoppedContinuousRun(ctx, sqlcgen.FinishStoppedContinuousRunParams{StreamID: stream.ID, TenantID: stream.TenantID}); err != nil {
+	if err := settleStoppedStream(ctx, q, stream.ID, stream.TenantID); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

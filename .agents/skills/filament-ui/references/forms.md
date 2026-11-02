@@ -349,9 +349,13 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
   return (
     <Modal
       isOpen={isOpen}
-      size={ModalSize.X_LARGE}
-      header="Create a new pipeline"
+      isFullscreen
+      header="New pipeline"
+      sidebar={<CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
+      aside={activeRow ? <CreatePipelineModalResourcesColumnsPane … /> : null}
+      hasDividers
+      isFlush
       onOpenChange={(isOpen) => {
         if (!isOpen) onClose();
       }}

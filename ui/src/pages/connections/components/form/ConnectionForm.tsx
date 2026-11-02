@@ -14,7 +14,6 @@ import Box from "@galaxy-io/dls/layout/Box";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
-import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -292,12 +291,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     const header = isNotFound ? "Connector not found" : "Failed to load connector";
 
     return (
-      <ConnectionFormWrapper
-        isOpen={isOpen}
-        size={ModalSize.MEDIUM}
-        header={header}
-        onClose={onClose}
-      >
+      <ConnectionFormWrapper isOpen={isOpen} header={header} onClose={onClose}>
         <ErrorLayout
           header={header}
           description={
@@ -322,7 +316,6 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     return (
       <ConnectionFormWrapper
         isOpen={isOpen}
-        size={ModalSize.MEDIUM}
         header={connectionId ? "Edit connection" : "New connection"}
         onClose={onClose}
       >
@@ -334,7 +327,6 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   return (
     <ConnectionFormWrapper
       isOpen={isOpen}
-      size={ModalSize.MEDIUM}
       header={
         <ConnectionFormHeader
           connectorName={connectorName}

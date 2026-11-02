@@ -17,6 +17,8 @@ import { getErrorMessage } from "@/utils/errors";
 
 interface PipelineRunOptions {
   workerConfiguration?: WorkerConfiguration;
+  resources?: string[];
+  resyncResources?: string[];
   onSuccess?: () => void;
 }
 
@@ -25,11 +27,16 @@ export const usePipelineRun = () => {
   const { mutateAsync: runPipeline, isPending: isRunning } = useRunPipelineMutation();
 
   const startRun = useCallback(
-    (pipeline: Pipeline, { workerConfiguration, onSuccess }: PipelineRunOptions = {}) => {
+    (
+      pipeline: Pipeline,
+      { workerConfiguration, resources, resyncResources, onSuccess }: PipelineRunOptions = {},
+    ) => {
       const run = runPipeline(
         create(RunPipelineRequestSchema, {
           pipelineId: pipeline.id,
           workerConfiguration,
+          resources,
+          resyncResources,
           options: { executionMode: pipeline.executionMode },
         }),
       );

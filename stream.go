@@ -161,7 +161,11 @@ type StreamOpenOpts struct {
 
 	Resources          []string
 	CommittedPositions DomainPositions
+	// Membership is each resource's standing in the stream. A pending resource
+	// has no baseline yet; the session reads one before streaming its changes
+	// and reports it in Coverage.Activated once that baseline is complete.
 	Membership         map[string]ReplicationStreamResourceStatus
+	MembershipRevision int64
 	Attempt            AttemptRef
 }
 

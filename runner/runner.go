@@ -128,6 +128,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	defer teardownSource(ctx, deps.Log, src)
+	if err := SelectColumns(src, spec.Columns); err != nil {
+		em.failed(err, nil, false)
+		return nil
+	}
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
@@ -166,6 +170,18 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 				return nil
 			}
 			em.failed(fmt.Errorf("reconcile replication stream resources: %w", err), nil, false)
+			return nil
+		}
+	}
+	// A resynced resource forgets its progress here, so the reads below start
+	// it from the beginning like a resource the route has never read.
+	for _, resource := range spec.Resync {
+		key, ok := spec.ResourceCheckpointKey(resource)
+		if !ok {
+			continue
+		}
+		if err := deps.DataStore.DeleteResourceCheckpoint(extractCtx, spec.Tenant, key); err != nil && !errors.Is(err, filament.ErrNotFound) {
+			em.failed(fmt.Errorf("resync %q: %w", resource, err), nil, false)
 			return nil
 		}
 	}

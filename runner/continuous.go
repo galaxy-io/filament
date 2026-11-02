@@ -112,7 +112,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := prepareContinuousSchemas(runCtx, &cfg, state); err != nil {
 		return err
 	}
-	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, Attempt: lease.Attempt})
+	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}
@@ -291,6 +291,14 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		if err := session.Acknowledge(runCtx, coverage); err != nil {
 			return err
 		}
+		// Certifying a baseline admits its members and moves the membership
+		// revision, which the next epoch must carry.
+		if len(coverage.Activated) > 0 {
+			state, err = cfg.Store.LoadStreamState(runCtx, filament.StreamStateRequest{Tenant: spec.Tenant, Stream: filament.StreamRef{ID: lease.Attempt.StreamID, Generation: lease.Attempt.Generation}})
+			if err != nil {
+				return err
+			}
+		}
 		epoch++
 	}
 	return nil
@@ -328,6 +336,9 @@ func continuousReason(err error) string {
 
 func prepareContinuousConnectors(ctx context.Context, cfg *ContinuousConfig) (filament.IngestionPlan, error) {
 	if err := cfg.Source.Configure(ctx, filament.NewConfig(cfg.Spec.Source.Config)); err != nil {
+		return filament.IngestionPlan{}, err
+	}
+	if err := SelectColumns(cfg.Source, cfg.Spec.Columns); err != nil {
 		return filament.IngestionPlan{}, err
 	}
 	plan, err := filament.ResolveIngestionPlan(ctx, cfg.Source, cfg.Sink, cfg.Spec)

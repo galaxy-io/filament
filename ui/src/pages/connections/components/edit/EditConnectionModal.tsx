@@ -6,7 +6,6 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
-import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -139,12 +138,7 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionI
     const isNotFound = isNotFoundError(error);
 
     return (
-      <ConnectionFormWrapper
-        isOpen={isOpen}
-        size={ModalSize.MEDIUM}
-        header="Edit connection"
-        onClose={onClose}
-      >
+      <ConnectionFormWrapper isOpen={isOpen} header="Edit connection" onClose={onClose}>
         <ErrorLayout
           header={isNotFound ? "Connection not found" : "Failed to load connection"}
           description={
@@ -161,12 +155,7 @@ const EditConnectionModal: FC<EditConnectionModalProps> = ({ isOpen, connectionI
 
   if (!connection) {
     return (
-      <ConnectionFormWrapper
-        isOpen={isOpen}
-        size={ModalSize.MEDIUM}
-        header="Edit connection"
-        onClose={onClose}
-      >
+      <ConnectionFormWrapper isOpen={isOpen} header="Edit connection" onClose={onClose}>
         <PendingLayout />
       </ConnectionFormWrapper>
     );

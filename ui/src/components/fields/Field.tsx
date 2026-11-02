@@ -3,6 +3,7 @@ import { type FC, useMemo } from "react";
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
+import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
@@ -64,35 +65,37 @@ const Field: FC<FieldProps> = ({
     const displayValue = { ...getFieldDefaults(field.fields), ...objectValue };
     const error = getError?.(path);
     return (
-      <Widget isCollapsible variant={WidgetVariant.PRIMARY} header={label} defaultIsOpen>
-        <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
-          {field.fields
-            .filter((child) => isFieldVisible(child, displayValue))
-            .map((child) => (
-              <Field
-                key={child.name}
-                field={child}
-                value={displayValue[child.name] ?? null}
-                onChange={(childValue) =>
-                  onChange({
-                    ...objectValue,
-                    [child.name]: childValue,
-                  })
-                }
-                variant={variant}
-                isDisabled={isDisabled}
-                path={`${path}.${child.name}`}
-                getError={getError}
-                storedSecretRefs={storedSecretRefs}
-              />
-            ))}
-          {error && (
-            <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
-              {error}
-            </Text>
-          )}
-        </Flex>
-      </Widget>
+      <Box fillWidth>
+        <Widget isCollapsible variant={WidgetVariant.PRIMARY} header={label} defaultIsOpen>
+          <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
+            {field.fields
+              .filter((child) => isFieldVisible(child, displayValue))
+              .map((child) => (
+                <Field
+                  key={child.name}
+                  field={child}
+                  value={displayValue[child.name] ?? null}
+                  onChange={(childValue) =>
+                    onChange({
+                      ...objectValue,
+                      [child.name]: childValue,
+                    })
+                  }
+                  variant={variant}
+                  isDisabled={isDisabled}
+                  path={`${path}.${child.name}`}
+                  getError={getError}
+                  storedSecretRefs={storedSecretRefs}
+                />
+              ))}
+            {error && (
+              <Text size={TextSize.BODY_SM} variant={TextVariant.ERROR}>
+                {error}
+              </Text>
+            )}
+          </Flex>
+        </Widget>
+      </Box>
     );
   }
 

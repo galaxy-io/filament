@@ -31,8 +31,8 @@ read starts that table again. The connector is beta.
 | `max_conns` | Pipeline | pgx default | Maximum source connections. Set to at least the run's parallelism + 1. |
 | `scan_strategy` | Pipeline | `keyset` | One of `auto`, `keyset`, `bitmap`, `ctid`. See below. |
 | `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
-| `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
+| `publication` | Connection | | CDC only. The publication an administrator provisioned. Applies when `manage_publication` is `false`. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it. Applies to bounded and continuous execution. |
 
 ## Read strategies
@@ -108,10 +108,20 @@ CDC when deletes must be replicated.
 CDC streams `pgoutput` over a persistent logical replication slot generated
 for each durable pipeline route. The slot name is managed by Filament and is
 not user configuration. CDC requires `wal_level=logical` and a primary key on
-every selected table. By
-default the connector creates the publication and keeps its table list
-current with `publish = 'insert, update, delete'`. Set
-`manage_publication=false` when an administrator provisions it.
+every selected table. By default the connector creates one publication per
+route, named after the route's slot, and keeps its table list current with
+`publish = 'insert, update, delete'`. The publication is dropped with the slot
+when the route retires. Set `manage_publication=false` and name the
+`publication` when an administrator provisions one instead.
+
+A resource with a column selection reads only those columns in every mode.
+The selection must keep the primary key and any cursor column. On PostgreSQL
+15 and later a managed publication carries the selection as a column list,
+so the replication stream skips the unselected columns. A table with
+`REPLICA IDENTITY FULL`, or an identity index the selection does not fully
+cover, cannot take a column list, so its publication stays whole and the
+connector drops the unselected columns as it decodes. An administrator's
+publication must publish every column the pipeline reads.
 
 CDC pipeline runs also require a datastore with durable replication-stream
 admission. The PostgreSQL datastore provides it; the in-memory datastore does

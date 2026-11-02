@@ -28,6 +28,7 @@ export type ListSearchParams = z.infer<typeof listSearchParamsSchema>;
 export const filamentLayoutSearchSchema = z.object({
   flow: z.enum(Flow).optional().catch(undefined),
   connectionId: z.string().optional().catch(undefined),
+  pipelineId: z.string().optional().catch(undefined),
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
   connectorSearch: z.string().optional().catch(undefined),

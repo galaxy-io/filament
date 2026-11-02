@@ -6,6 +6,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { CONNECTOR_KIND_TO_HANDLE_ID_MAP } from "@/pages/pipelines/canvas/constants";
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
+import { usePipelineCanvasIsConnectionRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsConnectionRunning";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { usePipelineCanvasSourceResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceResources";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
@@ -30,6 +31,7 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
     input: createGetConnectionInput(data.connectionId),
   });
   const connection = connectionData?.connection;
+  const isRunning = usePipelineCanvasIsConnectionRunning(data.connectionId);
   const {
     names: discoveredNames,
     error,
@@ -73,6 +75,7 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
       kind={ConnectorKind.SOURCE}
       isConnected={connectedHandleIds.has(CONNECTOR_KIND_TO_HANDLE_ID_MAP[ConnectorKind.SOURCE])}
       isSelected={selected}
+      isRunning={isRunning}
       onRefresh={isReadOnly ? undefined : refresh}
       onSettings={() => selectNode(id)}
       onDelete={isReadOnly ? undefined : () => removeNode(id)}
@@ -83,6 +86,7 @@ const PipelineCanvasNodeSource: FC<PipelineCanvasNodeSourceProps> = ({ id, data,
           error={error}
           isLoading={isLoading}
           isSelected={selected}
+          isRunning={isRunning}
         />
       )}
     </PipelineCanvasNode>

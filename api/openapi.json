@@ -3570,7 +3570,7 @@
         "enum": [
           "NULL_VALUE"
         ],
-        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a Value with a `null_value` set\n as a JSON `null` regardless of the integer value, and so will round trip to\n a `0` value."
+        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
       },
       "google.protobuf.Struct": {
         "type": "object",
@@ -5405,6 +5405,14 @@
             ],
             "title": "transform",
             "description": "transform is the edge's transform definition as a JSON object matching\n the transform grammar, keyed by resource. A resource-specific edge may\n only define its own resource. Empty means rows pass through unchanged."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourceColumnSelection"
+            },
+            "title": "columns",
+            "description": "columns narrows the columns read from each resource. An all-resource edge\n may configure several resources; a resource-specific edge may configure\n only its own resource. An omitted resource reads every column."
           }
         },
         "title": "PipelineEdge",
@@ -5796,6 +5804,24 @@
         "title": "ResourceColumn",
         "additionalProperties": false
       },
+      "ingestion.v1.ResourceColumnSelection": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "columns"
+          }
+        },
+        "title": "ResourceColumnSelection",
+        "additionalProperties": false
+      },
       "ingestion.v1.ResourceColumns": {
         "type": "object",
         "properties": {
@@ -5814,6 +5840,11 @@
             "type": "boolean",
             "title": "managed_incremental",
             "description": "Incremental state is owned by the source; no cursor column is required."
+          },
+          "selectableColumns": {
+            "type": "boolean",
+            "title": "selectable_columns",
+            "description": "The source reads only the columns an edge selects."
           }
         },
         "title": "ResourceColumns",
@@ -6067,6 +6098,14 @@
             ],
             "title": "execution_status",
             "description": "Present for continuous runs. records/bytes above reflect committed progress."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resources",
+            "description": "resources this run reads. Empty means every resource its route selects."
           }
         },
         "title": "RunInfo",
@@ -6152,6 +6191,22 @@
             ],
             "title": "worker_configuration",
             "description": "worker_configuration overrides the pipeline's own for this call only, field\n by field: an empty field inherits the pipeline's value. The resolved result\n is stamped onto each run, so editing the pipeline afterwards cannot change\n a run already requested."
+          },
+          "resyncResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resync_resources",
+            "description": "resync_resources names resources read from the beginning again by the\n runs this call produces. A bounded run forgets their checkpoints first. A\n live continuous run drains and hands over to a successor that snapshots\n them again on the same stream."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resources",
+            "description": "resources limits a bounded run to these routed resources. Empty runs every\n routed resource. A continuous run, or a change-stream route named in part,\n always runs all of its resources, so such a subset is rejected."
           }
         },
         "title": "RunPipelineRequest",

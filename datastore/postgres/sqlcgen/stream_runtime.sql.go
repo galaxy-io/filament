@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateStreamMembers = `-- name: ActivateStreamMembers :execrows
+UPDATE replication_stream_resources SET status = 2, activated_at = coalesce(activated_at, now()), error = NULL, updated_at = now()
+WHERE replication_stream_id = $1 AND tenant_id = $2
+ AND resource_name = ANY($3::text[]) AND status IN (0, 1, 4)
+`
+
+type ActivateStreamMembersParams struct {
+	StreamID      string
+	TenantID      string
+	ResourceNames []string
+}
+
+func (q *Queries) ActivateStreamMembers(ctx context.Context, arg ActivateStreamMembersParams) (int64, error) {
+	result, err := q.db.Exec(ctx, activateStreamMembers, arg.StreamID, arg.TenantID, arg.ResourceNames)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const activateStreamResource = `-- name: ActivateStreamResource :exec
 INSERT INTO replication_stream_resources(replication_stream_id,tenant_id,resource_name,status,bootstrap_mode,bootstrap_config)
 VALUES($1,$2,$3,2,'none','{}')
@@ -25,6 +45,21 @@ type ActivateStreamResourceParams struct {
 
 func (q *Queries) ActivateStreamResource(ctx context.Context, arg ActivateStreamResourceParams) error {
 	_, err := q.db.Exec(ctx, activateStreamResource, arg.StreamID, arg.TenantID, arg.ResourceName)
+	return err
+}
+
+const cancelSuccessorRun = `-- name: CancelSuccessorRun :exec
+UPDATE runs SET status = 4, ended_at = coalesce(ended_at, clock_timestamp()), updated_at = clock_timestamp()
+WHERE id = $1 AND tenant_id = $2 AND status = 7
+`
+
+type CancelSuccessorRunParams struct {
+	RunID    string
+	TenantID string
+}
+
+func (q *Queries) CancelSuccessorRun(ctx context.Context, arg CancelSuccessorRunParams) error {
+	_, err := q.db.Exec(ctx, cancelSuccessorRun, arg.RunID, arg.TenantID)
 	return err
 }
 
@@ -514,6 +549,32 @@ func (q *Queries) PendingContinuousRuns(ctx context.Context, arg PendingContinuo
 	return items, nil
 }
 
+const promoteStreamSuccessor = `-- name: PromoteStreamSuccessor :execrows
+UPDATE replication_streams SET current_run_id = $1, run_spec = $2,
+ desired_state = 'enabled', desired_revision = desired_revision + 1, updated_at = clock_timestamp()
+WHERE id = $3 AND tenant_id = $4 AND current_run_id IS NOT NULL
+`
+
+type PromoteStreamSuccessorParams struct {
+	RunID    pgtype.Text
+	RunSpec  []byte
+	StreamID string
+	TenantID string
+}
+
+func (q *Queries) PromoteStreamSuccessor(ctx context.Context, arg PromoteStreamSuccessorParams) (int64, error) {
+	result, err := q.db.Exec(ctx, promoteStreamSuccessor,
+		arg.RunID,
+		arg.RunSpec,
+		arg.StreamID,
+		arg.TenantID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const renewStreamAttempt = `-- name: RenewStreamAttempt :execrows
 UPDATE stream_attempts SET expires_at = GREATEST(expires_at, clock_timestamp() + $1::bigint * interval '1 microsecond')
 WHERE token = $2 AND tenant_id = $3 AND ended_at IS NULL AND expires_at > clock_timestamp()
@@ -559,6 +620,44 @@ func (q *Queries) ReplaceStoppedActivation(ctx context.Context, arg ReplaceStopp
 	return result.RowsAffected(), nil
 }
 
+const requestSuccessorRun = `-- name: RequestSuccessorRun :execrows
+UPDATE runs SET status = 0, requested_at = coalesce(requested_at, clock_timestamp()), updated_at = clock_timestamp()
+WHERE id = $1 AND tenant_id = $2 AND status = 7
+`
+
+type RequestSuccessorRunParams struct {
+	RunID    string
+	TenantID string
+}
+
+func (q *Queries) RequestSuccessorRun(ctx context.Context, arg RequestSuccessorRunParams) (int64, error) {
+	result, err := q.db.Exec(ctx, requestSuccessorRun, arg.RunID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const resetStreamMembers = `-- name: ResetStreamMembers :execrows
+UPDATE replication_stream_resources SET status = 0, activated_at = NULL, error = NULL, updated_at = now()
+WHERE replication_stream_id = $1 AND tenant_id = $2
+ AND resource_name = ANY($3::text[]) AND status = 2
+`
+
+type ResetStreamMembersParams struct {
+	StreamID      string
+	TenantID      string
+	ResourceNames []string
+}
+
+func (q *Queries) ResetStreamMembers(ctx context.Context, arg ResetStreamMembersParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resetStreamMembers, arg.StreamID, arg.TenantID, arg.ResourceNames)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const retireUnclaimedAttempt = `-- name: RetireUnclaimedAttempt :execrows
 UPDATE stream_attempts a SET ended_at=clock_timestamp(),termination='clean',reason='dispatch retired before worker claim'
 WHERE a.token=$1 AND a.tenant_id=$2 AND a.claimed_at IS NULL
@@ -576,6 +675,85 @@ func (q *Queries) RetireUnclaimedAttempt(ctx context.Context, arg RetireUnclaime
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const stopStreamForSuccessor = `-- name: StopStreamForSuccessor :execrows
+UPDATE replication_streams SET desired_state = 'stopped', desired_revision = desired_revision + 1, updated_at = clock_timestamp()
+WHERE id = $1 AND tenant_id = $2 AND current_run_id IS NOT NULL
+`
+
+type StopStreamForSuccessorParams struct {
+	StreamID string
+	TenantID string
+}
+
+func (q *Queries) StopStreamForSuccessor(ctx context.Context, arg StopStreamForSuccessorParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stopStreamForSuccessor, arg.StreamID, arg.TenantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const streamHasLiveRun = `-- name: StreamHasLiveRun :one
+SELECT EXISTS (SELECT 1 FROM replication_streams s JOIN runs r ON r.id = s.current_run_id AND r.tenant_id = s.tenant_id
+WHERE s.id = $1 AND s.tenant_id = $2 AND r.ended_at IS NULL)::boolean
+`
+
+type StreamHasLiveRunParams struct {
+	StreamID string
+	TenantID string
+}
+
+func (q *Queries) StreamHasLiveRun(ctx context.Context, arg StreamHasLiveRunParams) (bool, error) {
+	row := q.db.QueryRow(ctx, streamHasLiveRun, arg.StreamID, arg.TenantID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const streamSettled = `-- name: StreamSettled :one
+SELECT (NOT EXISTS (SELECT 1 FROM runs c WHERE c.id = s.current_run_id AND c.tenant_id = s.tenant_id AND c.ended_at IS NULL)
+ AND NOT EXISTS (SELECT 1 FROM stream_attempts a WHERE a.stream_id = s.id AND a.ended_at IS NULL))::boolean
+FROM replication_streams s WHERE s.id = $1 AND s.tenant_id = $2
+`
+
+type StreamSettledParams struct {
+	StreamID string
+	TenantID string
+}
+
+func (q *Queries) StreamSettled(ctx context.Context, arg StreamSettledParams) (bool, error) {
+	row := q.db.QueryRow(ctx, streamSettled, arg.StreamID, arg.TenantID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const streamSuccessor = `-- name: StreamSuccessor :one
+SELECT r.id, r.request FROM runs r
+WHERE r.tenant_id = $1 AND r.status = 7
+ AND r.request->'ReplicationStream'->>'ID' = $2::text
+ AND r.request->'ReplicationStream'->>'Generation' = $3::text
+ORDER BY r.created_at DESC LIMIT 1
+`
+
+type StreamSuccessorParams struct {
+	TenantID   string
+	StreamID   string
+	Generation string
+}
+
+type StreamSuccessorRow struct {
+	ID      string
+	Request []byte
+}
+
+func (q *Queries) StreamSuccessor(ctx context.Context, arg StreamSuccessorParams) (*StreamSuccessorRow, error) {
+	row := q.db.QueryRow(ctx, streamSuccessor, arg.TenantID, arg.StreamID, arg.Generation)
+	var i StreamSuccessorRow
+	err := row.Scan(&i.ID, &i.Request)
+	return &i, err
 }
 
 const syncContinuousRunPhase = `-- name: SyncContinuousRunPhase :exec

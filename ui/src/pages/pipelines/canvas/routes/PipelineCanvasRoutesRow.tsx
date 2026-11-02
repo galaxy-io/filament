@@ -2,9 +2,12 @@ import { type FC, memo } from "react";
 
 import { styled } from "@linaria/react";
 
+import Flex from "@galaxy-io/dls/layout/Flex";
+
 import {
   PIPELINE_CANVAS_ROUTES_LIST_PADDING_X,
   PIPELINE_CANVAS_ROUTES_ROW_HEIGHT,
+  PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import PipelineCanvasRoutesRowEdge from "@/pages/pipelines/canvas/routes/PipelineCanvasRoutesRowEdge";
@@ -19,11 +22,6 @@ const RowWrapper = styled.div`
 
   display: flex;
   align-items: center;
-`;
-
-const SourceSlot = styled.div`
-  width: ${PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}px;
-  flex-shrink: 0;
 `;
 
 interface PipelineCanvasRoutesRowProps {
@@ -44,7 +42,10 @@ const PipelineCanvasRoutesRow: FC<PipelineCanvasRoutesRowProps> = ({
   onAddSink,
 }) => (
   <RowWrapper>
-    <SourceSlot>
+    <Flex
+      basis={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
+      minWidth={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH}
+    >
       {route.groupIndex === 0 && (
         <PipelineCanvasRoutesSourceIsland
           route={route}
@@ -53,7 +54,7 @@ const PipelineCanvasRoutesRow: FC<PipelineCanvasRoutesRowProps> = ({
           onAddSink={onAddSink && (() => onAddSink(route.resource))}
         />
       )}
-    </SourceSlot>
+    </Flex>
     <PipelineCanvasRoutesRowEdge
       route={route}
       isSelected={isSelected}

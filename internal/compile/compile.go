@@ -53,36 +53,22 @@ type durableReplicationStreamStore interface {
 // per-route run requests. token salts each route's idempotency key. workerCfg
 // overrides the pipeline's own worker configuration field by field for this
 // call only; the resolved result is stamped onto every request, so a later edit
-// to the pipeline cannot reshape a run already requested.
-func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration) ([]CompiledRun, error) {
-	pipeline, err := c.Store.LoadPipeline(ctx, tenant, pipelineID)
-	if err != nil {
-		return nil, fmt.Errorf("load pipeline %q: %w", pipelineID, err)
-	}
-	if pipeline.GetDeletedAt() != 0 {
-		return nil, fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
-	}
-	options.Execution, err = resolveExecution(pipeline.GetExecutionMode(), options.Execution)
+// to the pipeline cannot reshape a run already requested. A non-empty resources
+// limits a bounded run to those resources; routes left with none do not run.
+func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resources, resync []string) ([]CompiledRun, error) {
+	pipeline, version, execution, err := c.loadRunnable(ctx, tenant, pipelineID, options.Execution)
 	if err != nil {
 		return nil, err
 	}
-	if options.Execution == filament.ExecutionContinuous {
-		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
-			return nil, fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
-		}
-	}
-	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
-	if errors.Is(err, filament.ErrNotFound) {
-		return nil, fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
-	}
-	if err != nil {
-		return nil, fmt.Errorf("load pipeline version: %w", err)
-	}
+	options.Execution = execution
 	if options.Execution == filament.ExecutionContinuous {
 		if scheduleID != "" {
 			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
 		}
-		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg)
+		if len(resources) > 0 {
+			return nil, fmt.Errorf("%w: continuous runs read every routed resource", ErrInvalid)
+		}
+		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg, resync)
 	}
 	nodes, connections, err := c.loadGraphConnections(ctx, tenant, version.GetGraph())
 	if err != nil {
@@ -90,6 +76,13 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	}
 
 	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateResync(groups, resync); err != nil {
+		return nil, err
+	}
+	groups, fullRoutes, err := subsetGroups(groups, version.GetGraph().GetEdges(), nodes, resources, resync)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +104,9 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 			return nil, err
 		}
 		cdc := filament.ReplicationFor(sourceSpec, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
+		if cdc && fullRoutes != nil && isPartialRoute(group, fullRoutes[key]) {
+			return nil, fmt.Errorf("%w: route %s reads a change stream, so it runs all of its resources", ErrInvalid, key)
+		}
 		ingestionTypes, err := compileIngestionTypes(group, cdc)
 		if err != nil {
 			return nil, err
@@ -142,6 +138,8 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
+				Columns:             routeColumns(group),
+				Resync:              routeResync(group, resync),
 				Options:             options,
 				ScheduleID:          scheduleID,
 				WorkerConfiguration: worker,
@@ -151,6 +149,123 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		}})
 	}
 	return compiled, nil
+}
+
+// loadRunnable loads a pipeline that can run and its current version, and
+// resolves the execution mode the run will use.
+func (c *Compiler) loadRunnable(ctx context.Context, tenant filament.TenantID, pipelineID string, execution filament.ExecutionMode) (*ingestionv1.Pipeline, *ingestionv1.PipelineVersion, filament.ExecutionMode, error) {
+	pipeline, err := c.Store.LoadPipeline(ctx, tenant, pipelineID)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("load pipeline %q: %w", pipelineID, err)
+	}
+	if pipeline.GetDeletedAt() != 0 {
+		return nil, nil, "", fmt.Errorf("%w: pipeline %q is deleted", ErrPrecondition, pipeline.GetId())
+	}
+	execution, err = resolveExecution(pipeline.GetExecutionMode(), execution)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if execution == filament.ExecutionContinuous {
+		if _, ok := c.Store.(filament.ContinuousRunStore); !ok {
+			return nil, nil, "", fmt.Errorf("%w: %w", ErrPrecondition, filament.ErrContinuousDisabled)
+		}
+	}
+	version, err := c.Store.LoadPipelineVersion(ctx, tenant, pipeline.GetId(), 0)
+	if errors.Is(err, filament.ErrNotFound) {
+		return nil, nil, "", fmt.Errorf("%w: pipeline %q has no version", ErrPrecondition, pipeline.GetId())
+	}
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("load pipeline version: %w", err)
+	}
+	return pipeline, version, execution, nil
+}
+
+// validateResync rejects a resync of a resource no route selects.
+func validateResync(groups []*routeGroup, resync []string) error {
+	for _, resource := range resync {
+		known := false
+		for _, group := range groups {
+			resources, _ := routeResources(group)
+			if slices.Contains(resources, resource) {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return fmt.Errorf("%w: resync names %q, which no route selects", ErrInvalid, resource)
+		}
+	}
+	return nil
+}
+
+// validateResources rejects a subset that names a resource no route selects,
+// or that leaves out a resource it asks to resync.
+func validateResources(groups []*routeGroup, resources, resync []string) error {
+	for _, resource := range resources {
+		known := slices.ContainsFunc(groups, func(group *routeGroup) bool {
+			selected, _ := routeResources(group)
+			return slices.Contains(selected, resource)
+		})
+		if !known {
+			return fmt.Errorf("%w: resources names %q, which no route selects", ErrInvalid, resource)
+		}
+	}
+	for _, resource := range resync {
+		if !slices.Contains(resources, resource) {
+			return fmt.Errorf("%w: resync names %q, which this run does not include", ErrInvalid, resource)
+		}
+	}
+	return nil
+}
+
+// subsetGroups regroups a bounded run's edges around the named resources and
+// returns the full grouping by route key, so a partial change-stream route can
+// be rejected. With no resources it returns groups unchanged and a nil map.
+func subsetGroups(groups []*routeGroup, edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, resources, resync []string) ([]*routeGroup, map[string]*routeGroup, error) {
+	if len(resources) == 0 {
+		return groups, nil, nil
+	}
+	if err := validateResources(groups, resources, resync); err != nil {
+		return nil, nil, err
+	}
+	full := make(map[string]*routeGroup, len(groups))
+	for _, group := range groups {
+		full[group.key] = group
+	}
+	selected, err := groupEdges(selectEdges(edges, resources), nodes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return selected, full, nil
+}
+
+// isPartialRoute reports whether a subset run reads fewer of a route's
+// resources than the route selects.
+func isPartialRoute(subset, full *routeGroup) bool {
+	selected, _ := routeResources(subset)
+	all, _ := routeResources(full)
+	return full.all || !slices.Equal(selected, all)
+}
+
+// routeResync returns the resync names this route selects, or nil.
+func routeResync(group *routeGroup, resync []string) []string {
+	resources, _ := routeResources(group)
+	var out []string
+	for _, resource := range resync {
+		if slices.Contains(resources, resource) {
+			out = append(out, resource)
+		}
+	}
+	return out
+}
+
+// routeColumns returns the route's column selections, or nil when every
+// resource reads every column, so requests without a selection stay unchanged.
+func routeColumns(group *routeGroup) map[string][]string {
+	if len(group.columns) == 0 {
+		return nil
+	}
+	return group.columns
 }
 
 func routeResources(group *routeGroup) (resources, selectors []string) {

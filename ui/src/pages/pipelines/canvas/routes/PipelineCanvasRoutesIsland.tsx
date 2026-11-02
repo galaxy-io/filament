@@ -8,16 +8,15 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { PIPELINE_CANVAS_ROUTES_ISLAND_HEIGHT } from "@/pages/pipelines/canvas/routes/constants";
 import { getPipelineCanvasRoutesActivateHandler } from "@/pages/pipelines/canvas/routes/utils";
 
-const Island = styled.div<{ $width: number; $isSelected: boolean }>`
-  width: ${({ $width }) => $width}px;
+const Island = styled.div<{ $width: number; $minWidth: number; $isSelected: boolean }>`
+  flex: 0 1 ${({ $width }) => $width}px;
+  min-width: ${({ $minWidth }) => $minWidth}px;
   height: ${PIPELINE_CANVAS_ROUTES_ISLAND_HEIGHT}px;
   padding: 0 ${t.space[8]} 0 ${t.space[4]};
-  flex-shrink: 0;
 
   display: flex;
   align-items: center;
   gap: ${t.space[8]};
-  min-width: 0;
 
   background-color: ${t.color.background.secondary};
   border: ${HAIRLINE_WIDTH} solid
@@ -40,12 +39,14 @@ const Island = styled.div<{ $width: number; $isSelected: boolean }>`
 
 interface PipelineCanvasRoutesIslandProps extends PropsWithChildren {
   width: number;
+  minWidth: number;
   isSelected: boolean;
   onSelect: () => void;
 }
 
 const PipelineCanvasRoutesIsland: FC<PipelineCanvasRoutesIslandProps> = ({
   width,
+  minWidth,
   isSelected,
   onSelect,
   children,
@@ -58,6 +59,7 @@ const PipelineCanvasRoutesIsland: FC<PipelineCanvasRoutesIslandProps> = ({
   return (
     <Island
       $width={width}
+      $minWidth={minWidth}
       $isSelected={isSelected}
       data-island
       data-selected={isSelected}
