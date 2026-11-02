@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cliupgrade "github.com/galaxy-io/filament/cmd/internal/cli/upgrade"
-	"github.com/galaxy-io/filament/cmd/internal/version"
+	"github.com/galaxy-io/filament/version"
 )
 
 const homebrewFormula = "galaxy-io/tap/filament"

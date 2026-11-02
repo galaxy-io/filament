@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
-	"github.com/galaxy-io/filament/cmd/internal/version"
+	"github.com/galaxy-io/filament/version"
 )
 
 func init() {
