@@ -31,6 +31,20 @@ to stable run IDs, preventing a transport retry from dispatching duplicates.
 resolved configuration is copied into each run so later pipeline edits cannot
 change work already requested.
 
+`resync_resources` names resources the runs read from the beginning again. A
+bounded run forgets their checkpoints before it starts. A continuous run hands
+over from the live run to this one on the same stream and reads a fresh
+baseline for each named table, as described in
+[Streaming](/pages/guides/concepts/streaming). A name no route selects is
+rejected with `invalid_argument`.
+
+`resources` limits a bounded run to the named routed resources. Empty runs
+every routed resource. A route left with none of them does not run, and the
+checkpoints of resources left out stay as they were. A name no route selects,
+a resync of a resource the subset leaves out, a subset on a continuous run and
+part of a change stream route are each rejected with `invalid_argument`. A
+change stream route runs all of its resources or none.
+
 A zero value asks the engine or sink to choose its normal default:
 
 | Field | Current behavior |

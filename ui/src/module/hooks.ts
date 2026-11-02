@@ -9,8 +9,6 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 
-import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-
 import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
 import {
   OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
@@ -71,8 +69,20 @@ export const useFilamentSearchUpdate = <TSearch extends object>() => {
 export const useFilamentFlowOpen = () => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   return useCallback(
-    (flow: Flow, connectorKind?: ConnectorKind) =>
-      void updateSearch((prev) => ({ ...prev, connectionId: undefined, flow, connectorKind })),
+    (
+      flow: Flow,
+      {
+        connectorKind,
+        pipelineId,
+      }: Pick<FilamentLayoutSearch, "connectorKind" | "pipelineId"> = {},
+    ) =>
+      void updateSearch((prev) => ({
+        ...prev,
+        connectionId: undefined,
+        flow,
+        connectorKind,
+        pipelineId,
+      })),
     [updateSearch],
   );
 };

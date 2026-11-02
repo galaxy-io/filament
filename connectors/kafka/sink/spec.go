@@ -12,6 +12,9 @@ func (*Sink) Spec() filament.SinkSpec {
 		policies[i].Atomicity = filament.AtomicityRecord
 		policies[i].Durability = filament.DurabilityAfterApply
 	}
+	// Preserve the unrestricted, record-durable append contract used by
+	// existing continuous runs, alongside bounded ingestion policies.
+	policies = append([]filament.WritePolicyCapability{{Mode: filament.WriteAppend, AcceptsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Atomicity: filament.AtomicityRecord, Durability: filament.DurabilityAfterApply}}, policies...)
 	fields := append(client.Fields(), []filament.ConfigField{
 		{Name: "topic", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Existing destination topic; use this or topic_prefix"},
 		{Name: "topic_prefix", Type: filament.FieldString, Scope: filament.ScopePipeline, Help: "Publish to prefix.<destination resource>"},
@@ -24,5 +27,5 @@ func (*Sink) Spec() filament.SinkSpec {
 		{Name: "max_in_flight_bytes", Type: filament.FieldInt, Default: defaultMaxInFlightBytes, Scope: filament.ScopePipeline},
 		{Name: "max_record_bytes", Type: filament.FieldInt, Default: 1 << 20, Scope: filament.ScopePipeline, Help: "512 bytes to 100 MiB, within max_in_flight_bytes"},
 	}...)
-	return filament.SinkSpec{Name: "kafka", DisplayName: client.DisplayName, DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL, Description: "Publish acknowledged append-only records to Kafka topics in bounded or continuous runs.", Version: "1", Maturity: filament.MaturityAlpha, Config: filament.ConfigSchema{Fields: fields}, Capabilities: filament.SinkCapabilities{EncodedIntegrity: true, PreferredBatchRows: 1000, PreferredBatchBytes: 4 << 20, WritePolicies: policies, Stream: &filament.StreamingSinkCapabilities{WritePolicies: []filament.WritePolicyCapability{{Mode: filament.WriteAppend, AcceptsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Atomicity: filament.AtomicityRecord, Durability: filament.DurabilityAfterApply}}}}}
+	return filament.SinkSpec{Name: "kafka", DisplayName: client.DisplayName, DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL, Description: "Publish acknowledged append-only records to Kafka topics in bounded or continuous runs.", Version: "1", Maturity: filament.MaturityAlpha, Config: filament.ConfigSchema{Fields: fields}, Capabilities: filament.SinkCapabilities{EncodedIntegrity: true, PreferredBatchRows: 1000, PreferredBatchBytes: 4 << 20, WritePolicies: policies, ReusableSession: true}}
 }

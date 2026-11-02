@@ -20,7 +20,6 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}...)},
 		SchemaField: "namespace",
 		Capabilities: filament.SinkCapabilities{
-			Transactional:       true,
 			Schematized:         true,
 			PreferredBatchBytes: defaultStageBufLimitBytes,
 			WritePolicies: commitDurableCapabilities(

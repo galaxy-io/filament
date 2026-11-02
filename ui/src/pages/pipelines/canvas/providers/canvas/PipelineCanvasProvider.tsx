@@ -13,7 +13,7 @@ import type { Connection, EdgeChange, NodeChange } from "@xyflow/react";
 
 import type { WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
-import type { PipelineNode } from "@/gen/ingestion/v1/pipelines_pb";
+import type { PipelineNode, PipelineVersion } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   type PipelineCanvasAction,
@@ -104,6 +104,15 @@ export const usePipelineCanvasActions = () => {
         dispatch({
           type: PipelineCanvasActionType.SET_EDGE_CONFIG,
           payload: { edgeId, data },
+        }),
+      settleGraph: (
+        version: PipelineVersion,
+        savedNodeConfigs: Set<NonNullable<PipelineNode["config"]>>,
+        savedEdgeData: Set<PipelineCanvasEdgeData>,
+      ) =>
+        dispatch({
+          type: PipelineCanvasActionType.SETTLE_GRAPH,
+          payload: { version, savedNodeConfigs, savedEdgeData },
         }),
       setRouteWriteMode: (
         source: CanvasEdge["source"],

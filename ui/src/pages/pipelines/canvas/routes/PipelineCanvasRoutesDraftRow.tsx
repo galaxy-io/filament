@@ -6,11 +6,7 @@ import { CheckIcon, XIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { InputSize } from "@galaxy-io/dls/inputs/Input";
-import SelectInput, {
-  SelectInputSize,
-  SelectInputVariant,
-  type SelectOption,
-} from "@galaxy-io/dls/inputs/SelectInput";
+import SelectInput, { SelectInputSize, type SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
@@ -44,13 +40,15 @@ import {
   PIPELINE_CANVAS_ROUTES_EDGE_CONTROL_INSET,
   PIPELINE_CANVAS_ROUTES_LIST_PADDING_X,
   PIPELINE_CANVAS_ROUTES_READ_MODE_SELECT_WIDTH,
+  PIPELINE_CANVAS_ROUTES_SINK_ISLAND_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH,
+  PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH,
   PIPELINE_CANVAS_ROUTES_WRITE_MODE_SELECT_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoutesDraftState } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesDraft";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
-import { getEdgeResourceStatus, hasSiblingIncrementalRead } from "@/pages/pipelines/canvas/utils";
+import { getEdgeResourceStatus } from "@/pages/pipelines/canvas/utils";
 import {
   getCompatibleWriteModes,
   getCursorSelectOptions,
@@ -185,16 +183,15 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
     fallback: effectiveReadMode,
   });
   const readMode = draft.readMode ?? defaultReadMode;
-  const routeHasIncremental =
-    readMode === ReadMode.INCREMENTAL || hasSiblingIncrementalRead(edges, draftEdge);
   const compatibleWriteModes = getCompatibleWriteModes(
     writeModeOptions,
-    routeHasIncremental ? [ReadMode.INCREMENTAL] : [],
+    readMode === ReadMode.INCREMENTAL ? [ReadMode.INCREMENTAL] : [],
   );
   const siblingWriteMode = siblingEdges.find(
     (edge) => edge.data?.writeMode !== undefined && edge.data.writeMode !== WriteMode.UNSPECIFIED,
   )?.data?.writeMode;
-  const preferredWriteMode = draft.writeMode ?? siblingWriteMode ?? effectiveWriteMode;
+  const preferredWriteMode =
+    draft.writeMode ?? (hasReadLevers ? undefined : siblingWriteMode) ?? effectiveWriteMode;
   const writeMode = compatibleWriteModes.includes(preferredWriteMode)
     ? preferredWriteMode
     : (compatibleWriteModes[0] ?? WriteMode.UNSPECIFIED);
@@ -215,14 +212,17 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
   const cursorSelectOptions = getCursorSelectOptions(cursorOptions);
 
   const handleAdd = () =>
-    draftState.add({
-      readMode,
-      writeMode,
-      cursors:
-        hasCursorSelect && cursor !== ""
-          ? [create(ResourceCursorConfigSchema, { resource, field: cursor, lookbackSeconds: 0n })]
-          : [],
-    });
+    draftState.add(
+      {
+        readMode,
+        writeMode,
+        cursors:
+          hasCursorSelect && cursor !== ""
+            ? [create(ResourceCursorConfigSchema, { resource, field: cursor, lookbackSeconds: 0n })]
+            : [],
+      },
+      hasReadLevers,
+    );
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;
@@ -233,7 +233,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
 
   return (
     <RowWrapper onKeyDown={handleKeyDown}>
-      <FlexItem grow={1} minWidth="max-content">
+      <FlexItem grow={1} minWidth={0}>
         <Widget variant={WidgetVariant.SECONDARY} isFlush>
           <Flex
             alignItems={AlignItems.CENTER}
@@ -248,8 +248,8 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
             <Flex
               alignItems={AlignItems.CENTER}
               gap={8}
-              width={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
-              shrink={0}
+              basis={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_WIDTH}
+              minWidth={PIPELINE_CANVAS_ROUTES_SOURCE_ISLAND_MIN_WIDTH}
             >
               <ConnectorTile
                 connector={sourceConnection?.connector ?? ""}
@@ -306,7 +306,6 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                         if (id !== null)
                           draftState.setConfig({ readMode: mapOptionIdToEnum(ReadMode, id) });
                       }}
-                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Read mode..."
                       isDisabled={isLoading}
@@ -323,7 +322,6 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       onChange={(id) => {
                         if (id !== null) draftState.setConfig({ cursor: id });
                       }}
-                      variant={SelectInputVariant.SECONDARY}
                       size={SelectInputSize.SMALL}
                       placeholder="Cursor..."
                       isDisabled={isLoading}
@@ -345,7 +343,6 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                       if (id !== null)
                         draftState.setConfig({ writeMode: mapOptionIdToEnum(WriteMode, id) });
                     }}
-                    variant={SelectInputVariant.SECONDARY}
                     size={SelectInputSize.SMALL}
                     placeholder="Write mode..."
                     isDisabled={isLoading}
@@ -353,7 +350,10 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                 </Box>
               </ControlsGroup>
             </EdgeArea>
-            <Box width={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH}>
+            <FlexItem
+              basis={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_WIDTH}
+              minWidth={PIPELINE_CANVAS_ROUTES_SINK_ISLAND_MIN_WIDTH}
+            >
               <SelectInput
                 ariaLabel="Sink"
                 fillWidth
@@ -366,7 +366,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                 size={SelectInputSize.MEDIUM}
                 isDisabled={sinkOptions.length <= 1}
               />
-            </Box>
+            </FlexItem>
             <Button
               icon={XIcon}
               ariaLabel="Cancel"

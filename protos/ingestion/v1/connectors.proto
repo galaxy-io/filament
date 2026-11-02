@@ -116,6 +116,8 @@ message ResourceColumns {
   repeated ResourceColumn columns = 2;
   // Incremental state is owned by the source; no cursor column is required.
   bool managed_incremental = 3;
+  // The source reads only the columns an edge selects.
+  bool selectable_columns = 4;
 }
 
 message GetResourceColumnsResponse {

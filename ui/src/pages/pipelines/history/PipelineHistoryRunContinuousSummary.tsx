@@ -1,13 +1,14 @@
 import type { FC } from "react";
 
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
-import { formatBytes, formatNumber } from "@galaxy-io/dls/utils/format";
 
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
+import PipelineRunRecords from "@/components/runs/PipelineRunRecords";
 import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
+import PipelineRunVolume from "@/components/runs/PipelineRunVolume";
 
 import { formatTimestamp } from "@/utils/format";
 
@@ -31,14 +32,8 @@ const PipelineHistoryRunContinuousSummary: FC<PipelineHistoryRunContinuousSummar
           />
         }
       />
-      <KeyValueListRow
-        label="Committed"
-        value={
-          <Text size={TextSize.BODY_SM}>
-            {formatNumber(run.records)} records · {formatBytes(run.bytes)}
-          </Text>
-        }
-      />
+      <KeyValueListRow label="Records" value={<PipelineRunRecords run={run} />} />
+      <KeyValueListRow label="Volume" value={<PipelineRunVolume run={run} />} />
       <KeyValueListRow
         label="Last commit"
         value={

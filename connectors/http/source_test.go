@@ -23,6 +23,41 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
+func TestSourceExtractKeepsLargeNumericCursor(t *testing.T) {
+	ctx := context.Background()
+	var cursors []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cursor := r.URL.Query().Get("start_cursor")
+		cursors = append(cursors, cursor)
+		w.Header().Set("Content-Type", "application/json")
+		if cursor == "" {
+			fmt.Fprint(w, `{"items":[{"id":"a"}],"next_cursor":9007199254740993,"has_more":true}`)
+			return
+		}
+		fmt.Fprint(w, `{"items":[{"id":"b"}],"has_more":false}`)
+	}))
+	defer api.Close()
+
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"manifest_path": writeTestManifest(t, api.URL),
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"items"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if len(cursors) != 2 || cursors[1] != "9007199254740993" {
+		t.Fatalf("start_cursor per request = %v, want second request to carry 9007199254740993", cursors)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want 2", len(sink.records))
+	}
+}
+
 func TestSourceExtractFromSeedsPaginationCursor(t *testing.T) {
 	ctx := context.Background()
 	var gotCursor string

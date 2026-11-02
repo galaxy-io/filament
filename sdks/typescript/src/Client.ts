@@ -3,6 +3,7 @@
 import { AuthClient } from "./api/resources/auth/client/Client.js";
 import { ConnectionClient } from "./api/resources/connection/client/Client.js";
 import { ConnectorClient } from "./api/resources/connector/client/Client.js";
+import { IngestionV1IngestionserviceClient } from "./api/resources/ingestionV1Ingestionservice/client/Client.js";
 import { MemberClient } from "./api/resources/member/client/Client.js";
 import { MetricsClient } from "./api/resources/metrics/client/Client.js";
 import { PipelineClient } from "./api/resources/pipeline/client/Client.js";
@@ -27,6 +28,7 @@ export class FilamentClient {
     protected _pipeline: PipelineClient | undefined;
     protected _connector: ConnectorClient | undefined;
     protected _run: RunClient | undefined;
+    protected _ingestionV1Ingestionservice: IngestionV1IngestionserviceClient | undefined;
     protected _metrics: MetricsClient | undefined;
 
     constructor(options: FilamentClient.Options) {
@@ -59,6 +61,10 @@ export class FilamentClient {
 
     public get run(): RunClient {
         return (this._run ??= new RunClient(this._options));
+    }
+
+    public get ingestionV1Ingestionservice(): IngestionV1IngestionserviceClient {
+        return (this._ingestionV1Ingestionservice ??= new IngestionV1IngestionserviceClient(this._options));
     }
 
     public get metrics(): MetricsClient {

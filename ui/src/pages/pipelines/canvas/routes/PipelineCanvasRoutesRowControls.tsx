@@ -86,6 +86,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
     ...getEdgeModeOptions(route.verdict, route.hasReadLevers),
     resource,
     defaultCursor,
+    hasReadLevers: route.hasReadLevers,
   });
 
   const cursorSelectOptions = getCursorSelectOptions(cursorOptions);

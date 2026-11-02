@@ -3084,6 +3084,173 @@ Optional CAS for continuous desired state. A stale revision is rejected.
 </dl>
 </details>
 
+## ingestion.v1.IngestionService
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">listtransformfunctions</a>(...) -> IngestionV1ListTransformFunctionsResponse</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Transformations; the function catalog and per-resource compile check a builder needs.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.listtransformfunctions(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**logical_type:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">validatetransform</a>(...) -> IngestionV1ValidateTransformResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.validatetransform(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_connection_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resource:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**transform:** `typing.Optional[GoogleProtobufStruct]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 ## Metrics
 <details><summary><code>client.metrics.<a href="src/filament/metrics/client.py">query_aggregate</a>(...) -> MetricsV1QueryAggregateResponse</code></summary>
 <dl>

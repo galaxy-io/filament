@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -133,10 +134,7 @@ func (c *Connector) paginate(
 
 		// Decode body for paginators that consume response paths (cursor, next_url).
 		// Root-array bodies decode as nil — ok, those pagers don't use body.
-		var bodyMap map[string]any
-		_ = json.Unmarshal(raw, &bodyMap)
-
-		state, err = pag.Next(resp, bodyMap, len(records))
+		state, err = pag.Next(resp, decodeBody(raw), len(records))
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("paginator next on %s: %w", res.Name, err)
 		}
@@ -145,6 +143,16 @@ func (c *Connector) paginate(
 			return totalRecords, pageCount, nil
 		}
 	}
+}
+
+// decodeBody is the paginators' view of a response body. Numbers stay
+// json.Number so a numeric cursor above 2^53 keeps its digits.
+func decodeBody(raw []byte) map[string]any {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var body map[string]any
+	_ = dec.Decode(&body)
+	return body
 }
 
 func (c *Connector) initialPaginationState(

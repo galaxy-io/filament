@@ -131,7 +131,7 @@ columns. Replace and append batches copy into the destination table. Upserts
 copy into a per-connection temporary table and merge into the destination with
 `ON CONFLICT`, inside one transaction.
 
-CDC merge batches are split into consecutive delete and non-delete ranges and
+For bounded runs, CDC merge batches are split into consecutive delete and non-delete ranges and
 applied in arrival order inside **one transaction per batch**. Each range is
 copied to a temporary row or key table before its upsert or delete statement. A
 merge against a keyless resource is an error.
@@ -142,17 +142,31 @@ checksum, so the engine records both the in-memory handoff and PostgreSQL
 serialization boundaries. This is not a query that reads committed rows back
 from the table.
 
-Batches commit as they are applied (autocommit), so partial data is visible in
-the destination mid-run. Delivery is at-least-once, and upsert and merge modes
-are idempotent through the primary key. `Commit` closes the pool. There is no
-end-of-run atomic swap.
+Bounded runs commit batches as they are applied, so partial data can be visible
+mid-run. `Commit` confirms those durable writes and `Close` releases the pool.
+There is no end-of-run atomic swap.
+
+Continuous planning prefers the sink's commit-durable append, upsert, and merge
+policies. One `Begin` opens the write transaction, all batches use that
+transaction, and `Commit` makes them durable together. The pool stays open for
+the next boundary. The runner then saves the epoch certificate before
+acknowledging the source. Existing saved policies retain their declared
+durability when the sink still supports that exact policy.
 
 ## Failure behavior
 
-On a failed run, `Abort` truncates replace tables. Append tables retain rows
-already written, so retrying a non-checkpointed append as a new run can produce
-duplicates. Upsert and merge tables are preserved because retries converge
-through the primary key; resumable extraction failures skip `Abort` entirely.
+A failed transactional write rolls back its pending rows and transactional
+schema changes. Earlier committed boundaries remain visible. A confirmed
+rollback can establish clean shutdown. An uncertain commit response or failed
+rollback can block automatic restart.
+
+For bounded writes, `Abort` clears only non-resumable replace tables. Append,
+upsert, and merge tables retain durable rows. Cleanup attempts every eligible
+table and reports all failures.
+
+Delivery remains at least once. A crash after destination commit but before
+certificate persistence can cause replay. Append can duplicate rows in that
+case. Upsert and merge use primary keys to converge when replayed.
 
 ## Related guides
 

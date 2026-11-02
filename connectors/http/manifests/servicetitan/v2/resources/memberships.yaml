@@ -1,0 +1,269 @@
+resources:
+  - name: membership_types
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/membership-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      discount: decimal?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      displayName: string?
+      discountMode: string?
+      locationTarget: string?
+      billingTemplateId: int64?
+      durationBilling: json?
+      discounts: json?
+      recurringServices: json?
+      tagTypeIds: json?
+      revenueRecognitionMode: string?
+      autoCalculateInvoiceTemplates: bool?
+      useMembershipPricingTable: bool?
+      showMembershipSavings: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: membership_types_export_token
+  - name: recurring_service_types
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-service-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      recurrenceType: string?
+      recurrenceInterval: int64?
+      recurrenceMonths: json?
+      durationType: string?
+      durationLength: int64?
+      invoiceTemplateId: int64?
+      businessUnitId: int64?
+      jobTypeId: int64?
+      priority: string?
+      campaignId: int64?
+      jobSummary: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_service_types_export_token
+  - name: memberships
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/memberships
+    primary_key: [id]
+    fields:
+      id: int64
+      from: string?
+      to: string?
+      memo: string?
+      active: bool?
+      status: string?
+      duration: int64?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      customerId: int64?
+      locationId: int64?
+      customerPo: string?
+      followUpOn: string?
+      soldById: int64?
+      renewedById: int64?
+      businessUnitId: int64?
+      membershipTypeId: int64?
+      activatedById: int64?
+      activatedFromId: int64?
+      billingTemplateId: int64?
+      billingFrequency: string?
+      renewalBillingFrequency: string?
+      followUpStatus: string?
+      cancellationDate: string?
+      nextScheduledBillDate: string?
+      renewalDuration: int64?
+      initialDeferredRevenue: decimal?
+      cancellationBalanceInvoiceId: int64?
+      cancellationInvoiceId: int64?
+      followUpCustomStatusId: int64?
+      paymentMethodId: int64?
+      paymentTypeId: int64?
+      recurringLocationId: int64?
+      renewalMembershipTaskId: int64?
+      customFields: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: memberships_export_token
+  - name: invoice_templates
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/invoice-templates
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      active: bool?
+      total: decimal?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      isSettingsTemplate: bool?
+      items: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoice_templates_export_token
+  - name: recurring_services
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-services
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      from: string?
+      to: string?
+      memo: string?
+      active: bool?
+      importId: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      membershipId: int64?
+      locationId: int64?
+      recurringServiceTypeId: int64?
+      durationType: string?
+      durationLength: int64?
+      invoiceTemplateId: int64?
+      invoiceTemplateForFollowingYearsId: int64?
+      firstVisitComplete: bool?
+      activatedFromId: int64?
+      allocation: decimal?
+      businessUnitId: int64?
+      jobTypeId: int64?
+      campaignId: int64?
+      priority: string?
+      jobSummary: string?
+      recurrenceType: string?
+      recurrenceInterval: int64?
+      recurrenceMonths: json?
+      recurrenceDaysOfWeek: json?
+      recurrenceWeek: string?
+      recurrenceDayOfNthWeek: string?
+      recurrenceDaysOfMonth: json?
+      jobStartTime: string?
+      estimatedPayrollCost: decimal?
+      preferredTechnicianIds: json?
+      tagTypeIds: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_services_export_token
+  - name: recurring_service_events
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/recurring-service-events
+    primary_key: [id]
+    fields:
+      id: int64
+      date: string?
+      active: bool?
+      jobId: int64?
+      status: string?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      membershipId: int64?
+      membershipName: string?
+      locationRecurringServiceId: int64?
+      locationRecurringServiceName: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: recurring_service_events_export_token
+  - name: membership_status_changes
+    path: /memberships/v2/tenant/{{ config.tenant_id }}/export/membership-status-changes
+    primary_key: [id]
+    fields:
+      id: int64
+      note: string?
+      oldStatus: string?
+      newStatus: string?
+      createdOn: string?
+      createdById: int64?
+      membershipId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore

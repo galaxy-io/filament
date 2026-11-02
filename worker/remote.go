@@ -255,6 +255,9 @@ func (r *remote) Inspect(ctx context.Context, source string, cfg filament.Config
 }
 
 func (r *remote) PlanReplicationStream(ctx context.Context, source string, req filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
+	if err := req.Execution.Validate(); err != nil {
+		return filament.ReplicationStreamPlan{}, err
+	}
 	ctx, cancel := deadline(ctx)
 	defer cancel()
 	var raw map[string]any
@@ -267,6 +270,7 @@ func (r *remote) PlanReplicationStream(ctx context.Context, source string, req f
 	}
 	resp, err := r.client.PlanReplicationStream(ctx, connect.NewRequest(&workerv1.PlanReplicationStreamRequest{
 		Source:              source,
+		ExecutionMode:       convert.ExecutionModeToProto(req.Execution),
 		SourceConnectionId:  req.SourceConnectionID,
 		ReplicationStreamId: req.ReplicationStreamID,
 		Config:              config,

@@ -16,7 +16,11 @@ import (
 
 // Apply validates the batch against the run's write policy and buffers it
 // for the resource's table, retaining its rows until commit (or spilling them).
-func (s *Sink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+	return s.applyWrite(ctx, b, opts)
+}
+
+func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
@@ -31,7 +35,7 @@ func (s *Sink) Apply(_ context.Context, b *arrowbatch.Batch, opts filament.Apply
 		s.mu.Unlock()
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
 	}
-	st := s.activeStageLocked()
+	st := s.active
 	s.mu.Unlock()
 
 	if err := policy.ValidateBatch(b.Resource, b); err != nil {

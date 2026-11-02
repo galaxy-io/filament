@@ -128,6 +128,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	defer teardownSource(ctx, deps.Log, src)
+	if err := SelectColumns(src, spec.Columns); err != nil {
+		em.failed(err, nil, false)
+		return nil
+	}
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
@@ -169,6 +173,18 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			return nil
 		}
 	}
+	// A resynced resource forgets its progress here, so the reads below start
+	// it from the beginning like a resource the route has never read.
+	for _, resource := range spec.Resync {
+		key, ok := spec.ResourceCheckpointKey(resource)
+		if !ok {
+			continue
+		}
+		if err := deps.DataStore.DeleteResourceCheckpoint(extractCtx, spec.Tenant, key); err != nil && !errors.Is(err, filament.ErrNotFound) {
+			em.failed(fmt.Errorf("resync %q: %w", resource, err), nil, false)
+			return nil
+		}
+	}
 	// Ordered reads (incremental cursors, CDC streams, checkpointed resume)
 	// cannot shard: parallel writers apply batches out of order, so a keyset
 	// cursor could persist behind rows already written.
@@ -190,11 +206,26 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		em.failed(fmt.Errorf("prepare sink resources: %w", err), nil, false)
 		return nil
 	}
+	defer func() {
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), replicationCleanupWait)
+		defer cancel()
+		if err := snk.Close(c); err != nil && deps.Log != nil {
+			deps.Log.Warn("close sink", filament.Field{Key: "error", Value: err.Error()})
+		}
+	}()
 	if err := snk.Open(extractCtx, sinkSpec); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
 		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
+		return nil
+	}
+
+	if err := snk.Begin(extractCtx); err != nil {
+		if emitControlledIfStopped(extractCtx, err, control, em) {
+			return nil
+		}
+		em.failed(fmt.Errorf("begin sink: %w", err), nil, false)
 		return nil
 	}
 

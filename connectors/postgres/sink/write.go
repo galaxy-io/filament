@@ -17,17 +17,25 @@ import (
 // Apply validates the batch against the run's write policy, then routes it: replace
 // and append COPY into the table, upsert folds through a temp table, merge applies
 // the change stream in order.
-func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if t.continuous {
-		return t.applyEpoch(ctx, b, opts)
+func (t *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (receipt filament.WriteReceipt, result error) {
+	defer func() {
+		if result != nil {
+			t.session.lifecycle.Fail(result)
+		}
+	}()
+	if err := t.session.lifecycle.CheckApply(); err != nil {
+		return filament.WriteReceipt{}, err
 	}
-	if opts.Epoch != nil {
-		return filament.WriteReceipt{}, filament.ErrEpochMismatch
+	if t.transactionalWrites {
+		t.writeMu.Lock()
+		defer t.writeMu.Unlock()
+		return t.applyWrite(ctx, b, opts)
 	}
+
 	if t.pool == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: write before open")
 	}
-	tbl := t.tables[b.Resource]
+	tbl := t.tableFor(b.Resource)
 	if tbl == nil {
 		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: no schema ensured for resource %q", b.Resource)
 	}
@@ -235,6 +243,23 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) 
 		return filament.WriteReceipt{}, err
 	}
 
+	r, err := t.mergeInTransaction(ctx, tx, tbl, b)
+	if err != nil {
+		return filament.WriteReceipt{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
+	}
+	t.written.Add(int64(r.Rows))
+	return r, nil
+}
+
+// mergeInTransaction shares ordered CDC application between batch and epoch commits.
+func (t *Sink) mergeInTransaction(ctx context.Context, tx pgx.Tx, tbl *table, b *arrowbatch.Batch) (filament.WriteReceipt, error) {
+	if tbl.upsertSQL == "" {
+		return filament.WriteReceipt{}, fmt.Errorf("postgres sink: merge on keyless resource %q", b.Resource)
+	}
+
 	var nbytes int64
 	rows := 0
 	var integrity writeIntegrity
@@ -262,10 +287,6 @@ func (t *Sink) writeMerge(ctx context.Context, tbl *table, b *arrowbatch.Batch) 
 		nbytes += nb
 		lo = hi
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return filament.WriteReceipt{}, copyError("commit merge", b.Resource, b.Seq, err)
-	}
-	t.written.Add(int64(rows))
 	return t.receipt(b, rows, nbytes, integrity), nil
 }
 

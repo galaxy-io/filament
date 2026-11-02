@@ -21,9 +21,9 @@ builds:
       - embedui
     ldflags:
       - -s -w
-      - -X github.com/galaxy-io/filament/cmd/internal/version.Version={{ .Version }}
-      - -X github.com/galaxy-io/filament/cmd/internal/version.Commit={{ .ShortCommit }}
-      - -X github.com/galaxy-io/filament/cmd/internal/version.Date={{ .CommitDate }}
+      - -X github.com/galaxy-io/filament/version.Version={{ .Version }}
+      - -X github.com/galaxy-io/filament/version.Commit={{ .ShortCommit }}
+      - -X github.com/galaxy-io/filament/version.Date={{ .CommitDate }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
-	"github.com/galaxy-io/filament/cmd/internal/version"
+	"github.com/galaxy-io/filament/version"
 )
 
 // banner is the one-line identity printed above every command.

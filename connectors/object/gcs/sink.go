@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
 	object "github.com/galaxy-io/filament/connectors/object/internal"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type sinkState uint8
@@ -26,6 +27,7 @@ const (
 
 // Sink adapts Filament batches and lifecycle calls to GCS resumable writers.
 type Sink struct {
+	sinkstate.SingleWrite
 	mu          sync.Mutex
 	state       sinkState
 	bucket      string
@@ -109,3 +111,17 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 	s.enc = make(map[string]*resourceEncoder)
 	return nil
 }
+
+// Begin checks that the object publication is ready. Repeated publications
+// require distinct object and manifest names before continuous can be advertised.
+func (s *Sink) Begin(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.state != stateOpen {
+		return fmt.Errorf("object sink: no open write boundary")
+	}
+	return s.SingleWrite.Begin(ctx)
+}
+
+// Close releases local session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { return s.Abort(ctx) }

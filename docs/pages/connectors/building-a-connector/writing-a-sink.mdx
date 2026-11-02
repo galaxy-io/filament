@@ -10,26 +10,48 @@ it handled.
 
 ## The run lifecycle
 
-Every sink implements:
+Every sink implements this interface.
 
 ```go
 type Sink interface {
     Spec() SinkSpec
     Open(ctx context.Context, run RunSpec) error
+    Begin(ctx context.Context) error
     Apply(ctx context.Context, b *arrowbatch.Batch, opts ApplyOptions) (WriteReceipt, error)
     Commit(ctx context.Context) error
     Abort(ctx context.Context) error
+    Close(ctx context.Context) error
     Name() string
 }
 ```
 
-The normal sequence is:
+The normal sequence follows these steps.
 
-1. `Open` prepares one run.
-2. A schema-aware sink receives `EnsureSchema` once per selected resource.
-3. `Apply` handles each batch under its resource's write policy.
-4. `Commit` establishes the sink's success boundary.
-5. `Abort` cleans up a run that cannot be safely continued.
+1. `Open` acquires session resources.
+2. `Begin` starts a finite write.
+3. A schema-aware sink receives `EnsureSchema` before the affected batches.
+4. `Apply` handles each batch under its resource's write policy.
+5. `Commit` confirms durability, or `Abort` cleans up an unfinished write.
+6. `Close` releases resources, including after a failed `Open`.
+
+Continuous runs use the same lifecycle. Set `ReusableSession` when repeated
+writes can share an open session. Otherwise the runner opens a fresh sink per
+boundary and restores the known schemas. Client and schema setup repeat for
+each fresh instance.
+Schema preparation can also happen before `Begin`, and inferred schemas can
+arrive during a write. Source epochs and positions remain inside the runner.
+
+Keep logical run identity separate from write identity. `RunSpec.Run` and
+`StartedAt` describe the logical run. Continuous destination sessions also
+receive `SinkWriteID` and `SinkWriteStartedAt`. Use `SinkWriteIdentity()` for
+staging or artifact names and retain `Run` in user-visible run references.
+For bounded runs, the helper returns the original run ID.
+
+A sink advertises one set of `WritePolicies` for both execution modes. Continuous
+admission requires compatible operations, ordering, keys, and durability, but
+no separate streaming-sink interface. Replace still requires bounded execution.
+See [Streaming connectors](/pages/connectors/building-a-connector/streaming)
+for boundary defaults, certification, and shutdown requirements.
 
 Some recovery-safe failures preserve accepted writes instead of calling
 `Abort`. That can happen only when every resource can resume and replay will

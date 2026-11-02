@@ -67,10 +67,7 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if activation.PipelineVersionID != cert.PipelineVersionID || activation.LastEpoch == math.MaxInt64 || cert.Ref.Epoch != activation.LastEpoch+1 {
 		return filament.CommittedEpoch{}, filament.ErrEpochConflict
 	}
-	if cert.Ref.MembershipRevision != stream.MembershipRevision {
-		return filament.CommittedEpoch{}, filament.ErrMembershipChanged
-	}
-	if err := validateEpochResources(ctx, q, stream, activation, cert); err != nil {
+	if err := validateEpochMembership(ctx, q, stream, activation, cert); err != nil {
 		return filament.CommittedEpoch{}, err
 	}
 	if err := validateEpochMessageSchemas(ctx, q, stream, activation, cert); err != nil {
@@ -87,12 +84,7 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
-	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{
-		StreamID: stream.ID, TenantID: stream.TenantID,
-		Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token,
-		Certificate: data, Positions: positions,
-		RunID: string(cert.Ref.Attempt.RunID), Records: cert.Records, Bytes: cert.Bytes,
-	})
+	row, err := insertEpoch(ctx, q, stream, cert, data, positions)
 	if err != nil {
 		return filament.CommittedEpoch{}, err
 	}
@@ -107,6 +99,61 @@ func (s *Store) CommitEpoch(ctx context.Context, request filament.EpochCommit) (
 		return filament.CommittedEpoch{}, err
 	}
 	return filament.CommittedEpoch{Certificate: cert, CommittedAt: row.CommittedAt.Time}, nil
+}
+
+// insertEpoch records the certificate, adds its totals to the run, and folds
+// its per-resource receipts into the run's resource rows, all in one
+// transaction so the counts never disagree.
+func insertEpoch(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, cert filament.EpochCertificate, data, positions []byte) (*sqlcgen.CreateStreamEpochRow, error) {
+	row, err := q.CreateStreamEpoch(ctx, sqlcgen.CreateStreamEpochParams{
+		StreamID: stream.ID, TenantID: stream.TenantID,
+		Epoch: cert.Ref.Epoch, AttemptToken: cert.Ref.Attempt.Token,
+		Certificate: data, Positions: positions,
+		RunID: string(cert.Ref.Attempt.RunID), Records: cert.Records, Bytes: cert.Bytes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, receipt := range cert.Receipts {
+		if err := q.AddResourceProgress(ctx, sqlcgen.AddResourceProgressParams{
+			RunID: string(cert.Ref.Attempt.RunID), ResourceName: receipt.Resource, TenantID: stream.TenantID,
+			Status:  int16(filament.RunRunning), //nolint:gosec // small enum
+			Records: receipt.Rows, Bytes: receipt.Bytes,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return row, nil
+}
+
+// validateEpochMembership fences an epoch certified under stale membership,
+// then admits the members whose baseline it carries before checking that
+// every resource it names is a member.
+func validateEpochMembership(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, cert filament.EpochCertificate) error {
+	if cert.Ref.MembershipRevision != stream.MembershipRevision {
+		return filament.ErrMembershipChanged
+	}
+	if err := activateEpochMembers(ctx, q, stream, cert.Coverage.Activated); err != nil {
+		return err
+	}
+	return validateEpochResources(ctx, q, stream, activation, cert)
+}
+
+// activateEpochMembers admits the pending members whose baseline this epoch
+// certifies. Their activation moves the membership revision, which the owner
+// reloads before binding its next epoch.
+func activateEpochMembers(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activated []string) error {
+	if len(activated) == 0 {
+		return nil
+	}
+	n, err := q.ActivateStreamMembers(ctx, sqlcgen.ActivateStreamMembersParams{StreamID: stream.ID, TenantID: stream.TenantID, ResourceNames: activated})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return nil
+	}
+	return q.BumpReplicationStreamMembershipRevision(ctx, sqlcgen.BumpReplicationStreamMembershipRevisionParams{ReplicationStreamID: stream.ID, TenantID: stream.TenantID})
 }
 
 func validateEpochResources(ctx context.Context, q *sqlcgen.Queries, stream *sqlcgen.ReplicationStream, activation *sqlcgen.GetStreamExecutionRow, cert filament.EpochCertificate) error {

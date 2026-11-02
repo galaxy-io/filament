@@ -273,6 +273,9 @@ func (c *compiler) expr(path string, e Expr) (node, argType, bool) {
 		return nil, argType{}, false
 	}
 	c.recordType(path, ret.logical)
+	if fn.bind != nil {
+		fn.exec = fn.bind(types)
+	}
 	return callNode{fn: fn, args: args}, argType{valueType: ret}, true
 }
 

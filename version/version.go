@@ -2,12 +2,14 @@
 package version
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime/debug"
 	"strings"
 )
 
-// Set at build time with -ldflags "-X github.com/galaxy-io/filament/cmd/internal/version.Version=...".
+// Set at build time with -ldflags "-X github.com/galaxy-io/filament/version.Version=...".
 var (
 	Version = "dev"
 	Commit  = "unknown"
@@ -44,4 +46,25 @@ func init() {
 // String renders the version with its commit and build date.
 func String() string {
 	return fmt.Sprintf("%s (%s, %s)", Version, Commit, Date)
+}
+
+// Info is the JSON body served by Handler.
+type Info struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Date    string `json:"date"`
+}
+
+// Handler serves the stamped version as JSON on GET /version.
+func Handler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(Info{Version: Version, Commit: Commit, Date: Date})
+	})
 }

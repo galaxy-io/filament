@@ -1,0 +1,226 @@
+resources:
+  - name: pricebook_categories
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/categories
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      name: string?
+      image: string?
+      active: bool?
+      source: string?
+      parentId: int64?
+      position: int64?
+      createdOn: string?
+      externalId: string?
+      modifiedOn: string?
+      categoryType: string?
+      hideInMobile: bool?
+      subcategories: json?
+      businessUnitIds: json?
+      skuImages: json?
+      skuVideos: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_categories_export_token
+  - name: pricebook_services
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/services
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      displayName: string?
+      warranty: json?
+      categories: json?
+      price: decimal?
+      memberPrice: decimal?
+      addOnPrice: decimal?
+      addOnMemberPrice: decimal?
+      taxable: bool?
+      account: string?
+      hours: decimal?
+      isLabor: bool?
+      recommendations: json?
+      upgrades: json?
+      assets: json?
+      serviceMaterials: json?
+      serviceEquipment: json?
+      active: bool?
+      paysCommission: bool?
+      bonus: decimal?
+      commissionBonus: decimal?
+      modifiedOn: string?
+      source: string?
+      externalId: string?
+      externalData: json?
+      cost: decimal?
+      createdOn: string?
+      soldByCommission: decimal?
+      defaultAssetUrl: string?
+      budgetCostCode: string?
+      budgetCostType: string?
+      businessUnitId: int64?
+      crossSaleGroup: string?
+      isPriceLocked: bool?
+      tags: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_services_export_token
+  - name: pricebook_equipment
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/equipment
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      cost: decimal?
+      bonus: decimal?
+      hours: decimal?
+      model: string?
+      price: decimal?
+      active: bool?
+      source: string?
+      typeId: int64?
+      taxable: bool?
+      createdOn: string?
+      addOnPrice: decimal?
+      categories: json?
+      externalId: string?
+      modifiedOn: string?
+      displayName: string?
+      isInventory: bool?
+      memberPrice: decimal?
+      externalData: json?
+      manufacturer: string?
+      primaryVendor: json?
+      unitOfMeasure: string?
+      paysCommission: bool?
+      commissionBonus: decimal?
+      addOnMemberPrice: decimal?
+      account: string?
+      assetAccount: string?
+      assets: json?
+      budgetCostCode: string?
+      budgetCostType: string?
+      costOfSaleAccount: string?
+      crossSaleGroup: string?
+      defaultAssetUrl: string?
+      dimensions: json?
+      displayInAmount: bool?
+      equipmentMaterials: json?
+      generalLedgerAccountId: int64?
+      isConfigurableEquipment: bool?
+      isCostLocked: bool?
+      isPriceLocked: bool?
+      manufacturerWarranty: json?
+      otherVendors: json?
+      recommendations: json?
+      serviceProviderWarranty: json?
+      upgrades: json?
+      variationsOrConfigurableEquipment: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_equipment_export_token
+  - name: pricebook_materials
+    path: /pricebook/v2/tenant/{{ config.tenant_id }}/export/materials
+    primary_key: [id]
+    fields:
+      description: string?
+      id: int64
+      code: string?
+      cost: decimal?
+      bonus: decimal?
+      hours: decimal?
+      price: decimal?
+      active: bool?
+      source: string?
+      account: string?
+      taxable: bool?
+      createdOn: string?
+      addOnPrice: decimal?
+      categories: json?
+      externalId: string?
+      modifiedOn: string?
+      createdById: int64?
+      displayName: string?
+      isInventory: bool?
+      memberPrice: decimal?
+      externalData: json?
+      primaryVendor: json?
+      unitOfMeasure: string?
+      businessUnitId: int64?
+      paysCommission: bool?
+      commissionBonus: decimal?
+      addOnMemberPrice: decimal?
+      activeIngredients: json?
+      assetAccount: string?
+      assets: json?
+      budgetCostCode: string?
+      budgetCostType: string?
+      chargeableByDefault: bool?
+      costOfSaleAccount: string?
+      costTypeId: int64?
+      deductAsJobCost: bool?
+      defaultAssetUrl: string?
+      displayInAmount: bool?
+      epaNumber: string?
+      generalLedgerAccountId: int64?
+      isChemical: bool?
+      isConfigurableMaterial: bool?
+      isCostLocked: bool?
+      isOtherDirectCost: bool?
+      isPriceLocked: bool?
+      otherVendors: json?
+      variationsOrConfigurableMaterials: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: pricebook_materials_export_token

@@ -17,7 +17,7 @@ Fast, calm and safe, in that order. When a choice trades one for another, the ea
 
 | | Means | Looks like |
 |---|---|---|
-| **Fast** | Zero to data flowing in minutes. Defaults that work. Every frequent action is one click or one key away. | The create wizard can be clicked through on defaults. `C` opens create, `/` searches, `⌘↵` saves. Run now starts a run from the header without a dialog. |
+| **Fast** | Zero to data flowing in minutes. Defaults that work. Every frequent action is one click or one key away. | The create wizard can be clicked through on defaults. `C` opens create, `/` searches, `⌘↵` saves. Run opens the run modal, where Run now starts the pipeline as configured in one more click. The pipelines list starts a run in one click. |
 | **Calm** | Quiet until something needs you. Every state explained. Nothing moves unless the data changed. | Monochrome. Status color only on what is failing or live. Polling only while something runs. One banner at a time. Skeletons, never a flash of stale data. |
 | **Safe** | Hard to break production by accident. | Canvas edits are a draft until Save. Previewing a version changes nothing. A connection is validated before it can be saved. Deletes confirm by typed name. |
 
@@ -98,11 +98,11 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** Anyone with access starts a run now and follows it to the end.
 
-**The path.** Pipeline header → **Run now** → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
+**The path.** Pipeline header → **Run** opens the run modal (`flow=RUN_PIPELINE`) → **Run now**, or **Start custom run** once a section reads Custom → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
 
 **How it should feel.** Live while it runs and still when it is done. Polling runs only while a run is active, and everything stops moving at the end. Durations and record counts are real numbers in mono.
 
-**What breaks it.** A confirmation before Run now. A spinner with no status. A finished run that keeps polling. Status shown by color alone.
+**What breaks it.** A confirmation before Run now. A custom run that hides what it changed (every section shows Default or Custom). A spinner with no status. A finished run that keeps polling. Status shown by color alone.
 
 ### 6. Triage a failure
 
@@ -147,7 +147,7 @@ The calls an engineer would otherwise guess at. Each follows from the flows abov
 | Bulk actions or row selection? | **Ask first.** No table has selection today. Propose the design and wait for a yes. |
 | Category color? | From the **one registry map** of domain concept to `RoleColor`. Transforms are blue, schedules are yellow. A new concept gets an entry there, never a hue picked in a feature. |
 | Status color? | Only for status, through `variant` or the run hue map. A healthy screen is monochrome. |
-| Tooltips on the canvas panel chrome? | **None** (decided 2026-10-12). The open panel, Back, Delete, Close and activity caret buttons use standard icons and sit under the cursor all the time, so tooltips there fired on every pass. Each keeps its `ariaLabel`. The exception covers that chrome only, every other icon-only control keeps its tooltip. |
+| Tooltips on the canvas panel chrome? | **None** (decided 2026-10-12). The open panel, Back, Delete and Close buttons and the activity header use standard icons and sit under the cursor all the time, so tooltips there fired on every pass. Each keeps its `ariaLabel`. The exception covers that chrome only, every other icon-only control keeps its tooltip. |
 | Something the DLS lacks? | **Compose, then request.** Build it from DLS parts with as little local `styled` as possible, then open a GitHub issue on `galaxy-io/dls` with the file path, a screenshot and the API you wish existed. |
 
 ## Keyboard

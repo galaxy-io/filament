@@ -1,0 +1,42 @@
+resources:
+  - name: calls
+    path: /telecom/v2/tenant/{{ config.tenant_id }}/export/calls
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      to: string?
+      job: json?
+      from: string?
+      lead: json?
+      agent: json?
+      active: bool?
+      reason: json?
+      status: string?
+      campaign: json?
+      customer: json?
+      duration: string?
+      location: json?
+      createdOn: string?
+      direction: string?
+      modifiedOn: string?
+      recordingUrl: string?
+      createdBy: json?
+      excuseMemo: string?
+      tag: string?
+      voiceMailPath: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: calls_export_token

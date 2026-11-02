@@ -34,7 +34,7 @@ const ObservabilitySetupChecklist: FC = () => {
 
   const handleStepClick = (step: ObservabilitySetupStep) => {
     const { flow, connectorKind } = OBSERVABILITY_SETUP_STEP_TO_FLOW_MAP[step];
-    openFlow(flow, connectorKind);
+    openFlow(flow, { connectorKind });
   };
 
   const getStepStatus = (step: ObservabilitySetupStep) => {

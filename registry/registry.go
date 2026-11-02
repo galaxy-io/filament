@@ -58,8 +58,10 @@ func (r *providerRegistry[P, S]) register(name string, maturity filament.Connect
 	if factory == nil {
 		panic("registry: nil " + r.kind + " factory for " + name)
 	}
-	if err := r.contracts(factory()); err != nil {
-		panic("registry: " + r.kind + " " + name + ": " + err.Error())
+	if r.contracts != nil {
+		if err := r.contracts(factory()); err != nil {
+			panic("registry: " + r.kind + " " + name + ": " + err.Error())
+		}
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -333,18 +335,6 @@ func NewSinks() *Sinks {
 	)}
 }
 
-// sinkContracts requires a sink that declares streaming capabilities to
-// implement the native epoch contract.
-func sinkContracts(sink filament.Sink) error {
-	if sink.Spec().Capabilities.Stream == nil {
-		return nil
-	}
-	if _, ok := sink.(filament.StreamingSink); !ok {
-		return errors.New("declares streaming capabilities but does not implement filament.StreamingSink")
-	}
-	return nil
-}
-
 var _ filament.SinkRegistry = (*Sinks)(nil)
 
 // Only returns an independent registry holding the named sinks.
@@ -380,4 +370,13 @@ func (r *Sinks) Spec(name string) (filament.SinkSpec, error) {
 // Specs returns every registered sink's spec, sorted by name.
 func (r *Sinks) Specs() []filament.SinkSpec {
 	return r.providers.specs()
+}
+
+func sinkContracts(s filament.Sink) error {
+	if s.Spec().Capabilities.ReusableSession {
+		if _, single := s.(interface{ SingleWriteOnly() }); single {
+			return fmt.Errorf("reusable session capability requires repeatable write boundaries")
+		}
+	}
+	return nil
 }

@@ -5,7 +5,9 @@ import { type FitViewOptions, type HandleType, Position } from "@xyflow/react";
 import type { Space } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
+import { PIPELINE_CANVAS_NODE_TABLE_LIST_MAX_HEIGHT } from "@/pages/pipelines/canvas/nodes/constants";
 import { PipelineCanvasEditMode } from "@/pages/pipelines/canvas/providers/canvas/types";
 import { PipelineCanvasNodeType, PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 
@@ -20,16 +22,16 @@ export const PIPELINE_CANVAS_FIT_PADDING: NonNullable<FitViewOptions["padding"]>
   left: `${PIPELINE_CANVAS_FIT_INSET_LEFT}px`,
   right: `${PIPELINE_CANVAS_FIT_INSET_Y}px`,
 };
-export const PIPELINE_CANVAS_FIT_VIEW_OPTIONS: FitViewOptions = {
-  padding: PIPELINE_CANVAS_FIT_PADDING,
-  maxZoom: PIPELINE_CANVAS_FIT_MAX_ZOOM,
-};
+export const PIPELINE_CANVAS_SOURCE_NODE_CHROME_HEIGHT = 130;
+export const PIPELINE_CANVAS_SOURCE_NODE_EXPECTED_HEIGHT =
+  PIPELINE_CANVAS_NODE_TABLE_LIST_MAX_HEIGHT + PIPELINE_CANVAS_SOURCE_NODE_CHROME_HEIGHT;
 export const PIPELINE_CANVAS_REVEAL_DURATION = 300;
 export const PIPELINE_CANVAS_REVEAL_ZOOM = 1.15;
 
 export const PIPELINE_CANVAS_SNAP_GRID: [number, number] = [20, 20];
 
 export const PIPELINE_CANVAS_PAN_ON_DRAG: number[] = [0, 1, 2];
+export const PIPELINE_CANVAS_NO_RUNS: RunInfo[] = [];
 
 export const PIPELINE_CANVAS_NODE_STACK_START_Y = 100;
 export const PIPELINE_CANVAS_NODE_STACK_HEIGHT = 120;

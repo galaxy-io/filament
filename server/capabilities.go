@@ -13,12 +13,13 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/convert"
+	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform"
 )
 
-// ValidatePipeline checks every edge of a graph: the per-resource read modes
-// and route-wide write modes the connector pair supports, their selected
-// combination, and any cursor or primary-key requirements.
+// ValidatePipeline checks every edge of a graph: the per-resource read and
+// write modes the connector pair supports, their selected combination, and any
+// cursor or primary-key requirements.
 func (a *Server) ValidatePipeline(ctx context.Context, req *connect.Request[ingestionv1.ValidatePipelineRequest]) (*connect.Response[ingestionv1.ValidatePipelineResponse], error) {
 	tenant, err := tenantFromContext(ctx)
 	if err != nil {
@@ -96,10 +97,16 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		if err != nil {
 			continue
 		}
-		if previous, ok := routeWriteModes[route]; ok && previous != writeMode {
-			edgeError(ev, "write_mode", "all resources on a source-to-destination route must use the same write mode")
+		// Standard bounded routes take a write mode per resource. CDC and
+		// continuous routes plan one write for the whole stream.
+		key, message := route, "all resources on a CDC or continuous route must use the same write mode"
+		if mode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+			key, message = route+"\x00"+edge.GetResource(), "edges for the same resource must use the same write mode"
+		}
+		if previous, ok := routeWriteModes[key]; ok && previous != writeMode {
+			edgeError(ev, "write_mode", message)
 		} else {
-			routeWriteModes[route] = writeMode
+			routeWriteModes[key] = writeMode
 		}
 	}
 
@@ -250,8 +257,89 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental, probes, ev)
 	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeColumns checks each column selection against the live schema:
+// the source must support selection, every column must exist, and the primary
+// key and the cursor an incremental read will use, configured or
+// auto-detected, must stay selected.
+func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, needsCursor bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if len(edge.GetColumns()) == 0 {
+		return
+	}
+	if !srcSpec.Resources.SelectableColumns {
+		edgeError(ev, "columns", fmt.Sprintf("connector %q does not support column selection", srcConn.Connector))
+		return
+	}
+	cursors := map[string]string{}
+	for _, cursor := range edge.GetCursors() {
+		cursors[cursor.GetResource()] = cursor.GetField()
+	}
+	for _, selection := range edge.GetColumns() {
+		resource := selection.GetResource()
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		switch {
+		case inspection.Status == filament.InspectFailed:
+			edgeError(ev, "columns", inspection.Message)
+			continue
+		case inspection.Schema == nil:
+			edgeError(ev, "columns", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
+			return
+		}
+		selected := map[string]bool{}
+		for _, name := range selection.GetColumns() {
+			selected[name] = true
+			if !slices.ContainsFunc(inspection.Schema.Fields, func(f rowmodel.Field) bool { return f.Name == name }) {
+				edgeError(ev, "columns", fmt.Sprintf("resource %q has no column %q", resource, name))
+			}
+		}
+		for _, key := range inspection.PrimaryKey {
+			if !selected[key] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep primary key column %q", resource, key))
+			}
+		}
+		if field := cursors[resource]; field != "" {
+			if !selected[field] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep cursor column %q", resource, field))
+			}
+			continue
+		}
+		if !needsCursor || inspection.ManagedIncremental {
+			continue
+		}
+		for _, column := range inspection.Columns {
+			if column.Recommended && !selected[column.Name] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep auto-detected cursor column %q", resource, column.Name))
+				break
+			}
+		}
+	}
+}
+
+// selectedSchema narrows a resource schema to an edge's column selection, so
+// transforms are checked against the columns the run will read.
+func selectedSchema(edge *ingestionv1.PipelineEdge, resource string, schema filament.RecordSchema) filament.RecordSchema {
+	for _, selection := range edge.GetColumns() {
+		if selection.GetResource() != resource {
+			continue
+		}
+		out := schema.Clone()
+		out.Fields = out.Fields[:0]
+		for _, field := range schema.Fields {
+			if slices.Contains(selection.GetColumns(), field.Name) {
+				out.Fields = append(out.Fields, field)
+			}
+		}
+		return out
+	}
+	return schema
 }
 
 // validateEdgeTransform compiles the edge's transform against the schema of
@@ -294,7 +382,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
 			return
 		}
-		if _, _, err := transform.Analyze(def, *inspection.Schema); err != nil {
+		if _, _, err := transform.Analyze(def, selectedSchema(edge, resource, *inspection.Schema)); err != nil {
 			transformErrors(ev, err)
 		}
 	}
@@ -697,13 +785,11 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 		selected = ingestionv1.WriteMode_WRITE_MODE_APPEND
 	}
 	ev.EffectiveWriteMode = selected
-	if caps := snkSpec.Capabilities.Stream; caps != nil {
-		seen := map[filament.WriteMode]bool{}
-		for _, candidate := range caps.WritePolicies {
-			if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
-				seen[candidate.Mode] = true
-			}
+	seen := map[filament.WriteMode]bool{}
+	for _, candidate := range snkSpec.Capabilities.WritePolicies {
+		if _, err := filament.PlanContinuousWrite(srcSpec, snkSpec, candidate.Mode); err == nil && !seen[candidate.Mode] && convert.WriteModeToProto(candidate.Mode) != ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			ev.SupportedWriteModes = append(ev.SupportedWriteModes, convert.WriteModeToProto(candidate.Mode))
+			seen[candidate.Mode] = true
 		}
 	}
 	if !runtimeSupported {
@@ -729,6 +815,7 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 	if compile.HasTransform(edge) {
 		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, false, probes, ev)
 	var resources []string
 	if edge.Resource != "" {
 		resources = []string{edge.Resource}

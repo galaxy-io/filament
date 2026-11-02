@@ -16,7 +16,7 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/nats/internal/connection"
 	"github.com/galaxy-io/filament/connectors/nats/internal/subject"
-	"github.com/galaxy-io/filament/internal/stream"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type publisher interface {
@@ -28,19 +28,17 @@ type publisher interface {
 // Already acknowledged messages survive aborts. Failed publishes may have
 // unknown outcomes, which prevent reporting a quiescent streaming session.
 type Sink struct {
-	mu                           sync.Mutex
-	conn                         *nats.Conn
-	publisher                    publisher
-	publications                 atomic.Pointer[publishTracker]
-	cfg                          config
-	js                           jetstream.JetStream
-	destinations                 map[string]*destination
-	namespace                    string
-	maxPayload                   int64
-	opened, closed, continuous   bool
-	failure, uncertain, closeErr error
-	lifecycle                    stream.SinkLifecycle
-	receipts                     map[string]filament.EpochReceipt
+	mu           sync.Mutex
+	conn         *nats.Conn
+	publisher    publisher
+	publications atomic.Pointer[publishTracker]
+	cfg          config
+	js           jetstream.JetStream
+	destinations map[string]*destination
+	namespace    string
+	maxPayload   int64
+	uncertain    error
+	lifecycle    sinkstate.Lifecycle
 }
 
 // New returns a sink ready to open for one run.
@@ -51,7 +49,6 @@ func (*Sink) Name() string { return "nats" }
 
 var (
 	_ filament.Sink              = (*Sink)(nil)
-	_ filament.StreamingSink     = (*Sink)(nil)
 	_ filament.ConfigValidatable = (*Sink)(nil)
 	_ filament.LiveValidatable   = (*Sink)(nil)
 )
@@ -78,11 +75,8 @@ func (s *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.opened {
+	if s.lifecycle.Opened() {
 		return errors.New("nats sink: already opened; create a new sink for another run")
-	}
-	if err := run.ValidateStreamAttempt(); err != nil {
-		return err
 	}
 	cfg := filament.NewConfig(run.Sink.Config)
 	if err := s.Validate(cfg); err != nil {
@@ -95,14 +89,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	for _, policy := range run.WritePolicies {
 		if policy.Capability.Mode != filament.WriteAppend {
 			return errors.New("nats sink: only append is supported")
-		}
-	}
-	continuous := run.Options.Execution.Normalize() == filament.ExecutionContinuous
-	var lifecycle stream.SinkLifecycle
-	if continuous {
-		lifecycle, err = stream.NewSinkLifecycle(*run.StreamAttempt)
-		if err != nil {
-			return err
 		}
 	}
 	conn, err := connection.Connect(ctx, cfg)
@@ -138,8 +124,8 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	namespace, _ := json.Marshal([]string{string(run.Tenant), run.PipelineID, run.SinkConnectionID})
 	s.namespace = string(namespace)
 	s.conn, s.publisher = conn, js
-	s.continuous, s.lifecycle = continuous, lifecycle
-	s.opened, ready = true, true
+	s.lifecycle.Open()
+	ready = true
 	return nil
 }
 
@@ -205,12 +191,7 @@ func (s *Sink) createStream(ctx context.Context, name, resource string) (jetstre
 }
 
 func (s *Sink) fail(err error) error {
-	if s.failure == nil {
-		s.failure = err
-	}
-	if s.continuous {
-		s.lifecycle.Fail(err)
-	}
+	s.lifecycle.Fail(err)
 	return err
 }
 
@@ -220,18 +201,8 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var empty filament.WriteReceipt
-	if !s.opened || s.closed {
-		return empty, errors.New("nats sink: session is not open")
-	}
-	if s.failure != nil {
-		return empty, s.failure
-	}
-	if s.continuous {
-		if err := s.lifecycle.CheckApply(opts.Epoch); err != nil {
-			return empty, err
-		}
-	} else if opts.Epoch != nil {
-		return empty, filament.ErrEpochMismatch
+	if err := s.lifecycle.CheckApply(); err != nil {
+		return empty, err
 	}
 	if err := ctx.Err(); err != nil {
 		return empty, s.fail(err)
@@ -256,52 +227,8 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	}
 	encodedCRC := encoded.crc
 	receipt := filament.WriteReceipt{URI: "nats://" + encoded.stream + "/" + b.Resource, Rows: b.NumRows(), Bytes: encoded.bytes, WriteCRC: b.IntegrityCRC(), EncodedCRC: &encodedCRC}
-	if s.continuous {
-		total := s.receipts[b.Resource]
-		total.Resource = b.Resource
-		total.Rows += int64(receipt.Rows)
-		total.Bytes += receipt.Bytes
-		s.receipts[b.Resource] = total
-	}
+
 	return receipt, nil
-}
-
-// Commit finalizes a bounded run. Every successful Apply is already durable.
-func (s *Sink) Commit(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.continuous {
-		return filament.ErrEpochMismatch
-	}
-	if !s.opened {
-		return errors.New("nats sink: session is not open")
-	}
-	if s.closed {
-		return s.closeErr
-	}
-	return s.close(ctx)
-}
-
-// Abort stops a bounded run without deleting published messages. A failure
-// already returned by Apply is not reported again; only cleanup errors are.
-func (s *Sink) Abort(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.continuous {
-		return filament.ErrEpochMismatch
-	}
-	if !s.opened || s.closed {
-		return nil
-	}
-	_ = s.close(ctx) // Abort reports only cleanup errors, not prior publication failures.
-	return ctx.Err()
-}
-
-func (s *Sink) close(ctx context.Context) error {
-	s.cleanupPublisher()
-	s.closed = true
-	s.closeErr = errors.Join(s.failure, s.uncertain, ctx.Err())
-	return s.closeErr
 }
 
 // cleanupPublisher releases SDK futures and reply subscriptions. This is local

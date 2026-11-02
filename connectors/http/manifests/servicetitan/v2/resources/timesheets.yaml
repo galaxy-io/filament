@@ -1,0 +1,36 @@
+resources:
+  - name: timesheet_activities
+    path: /timesheets/v2/tenant/{{ config.tenant_id }}/export/activities
+    primary_key: [id]
+    fields:
+      id: int64
+      memo: string?
+      jobId: int64?
+      active: bool?
+      endTime: string?
+      tagTypes: json?
+      createdOn: string?
+      projectId: int64?
+      startTime: string?
+      employeeId: int64?
+      modifiedOn: string?
+      laborTypeId: int64?
+      budgetCodeId: int64?
+      employeeType: string?
+      appointmentId: int64?
+      activityTypeId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_activities_export_token

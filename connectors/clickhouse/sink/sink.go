@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	clickhouseconnection "github.com/galaxy-io/filament/connectors/clickhouse/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type connection interface {
@@ -27,6 +28,7 @@ type connection interface {
 // with ReplacingMergeTree. Snapshot replacement writes into run-scoped staging
 // tables and swaps each resource into place only on Commit.
 type Sink struct {
+	sinkstate.SingleWrite
 	conn     connection
 	database string
 	run      filament.RunID
@@ -118,16 +120,15 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 
 	s.conn = conn
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.written.Store(0)
 	s.policies = run.WritePolicies
 	s.tables = map[string]*table{}
 	return nil
 }
 
-// Commit promotes any snapshot-replacement stages and closes the connection.
+// Commit promotes snapshot replacement stages. Close releases the connection.
 func (s *Sink) Commit(ctx context.Context) error {
-	defer s.release()
 	if s.conn == nil {
 		return nil
 	}
@@ -159,9 +160,8 @@ func existsTableQuery(qualifiedTable string) string {
 	return "EXISTS TABLE " + qualifiedTable
 }
 
-// Abort drops uncommitted snapshot stages and closes the connection.
+// Abort drops uncommitted snapshot stages.
 func (s *Sink) Abort(ctx context.Context) error {
-	defer s.release()
 	if s.conn == nil {
 		return nil
 	}
@@ -189,3 +189,6 @@ func stageTableName(run filament.RunID, resource string) string {
 	sum := sha256.Sum256([]byte(string(run) + "\x00" + resource))
 	return "__filament_stage_" + hex.EncodeToString(sum[:8])
 }
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { s.release(); return nil }

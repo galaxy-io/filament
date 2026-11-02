@@ -100,7 +100,16 @@ edge itself, so a table without a primary key blocks an upsert route before
 you save rather than failing at run time.
 
 Saving creates a new immutable pipeline version. In-flight runs keep executing
-against the version they started with.
+against the version they started with. Running a continuous pipeline again
+after a save hands the live stream over to the new version, so a table you
+added is read in full and joins the stream.
+
+The Run button opens the run modal. Run now starts the pipeline as configured.
+Changing a section makes it a custom run for that run only. Resources lists
+every routed resource, and one set to Resync is read from the beginning again.
+On a bounded pipeline with a standard source, unchecking a resource leaves it
+out of that run. Worker configuration overrides the pod template. Reset puts
+every section back to its default.
 
 <Frame caption="The pipeline canvas">
   <img className="block dark:hidden" src="/assets/images/filament-pipeline-canvas-light.png" alt="Pipeline canvas in light mode" />

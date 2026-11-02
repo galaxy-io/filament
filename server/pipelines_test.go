@@ -1,6 +1,9 @@
 package server
 
 import (
+	"errors"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/datastore/sqlite"
+	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/worker"
@@ -319,5 +323,141 @@ func TestCreatePipelineVersionRequiresPipelineScopedFields(t *testing.T) {
 	// A required field with a default is filled at run time and never blocks.
 	if err := version(map[string]any{"stream": "EVENTS"}); err != nil {
 		t.Fatalf("declared required field rejected: %v", err)
+	}
+}
+
+func TestCreatePipelineVersionAcceptsPerResourceWriteModes(t *testing.T) {
+	ctx := testCtx()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "mixed"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	version := func(source string, edges ...*ingestionv1.PipelineEdge) error {
+		_, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+			PipelineId: pipelineID,
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids[source]},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+				},
+				Edges: edges,
+			},
+		}))
+		return err
+	}
+
+	err = version("standard",
+		&ingestionv1.PipelineEdge{
+			FromNode: "src", ToNode: "snk", Resource: "orders",
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_INCREMENTAL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_UPSERT,
+			Cursors:   []*ingestionv1.ResourceCursorConfig{{Resource: "orders", Field: "updated_at"}},
+		},
+		&ingestionv1.PipelineEdge{
+			FromNode: "src", ToNode: "snk", Resource: "audit",
+			ReadMode:  ingestionv1.ReadMode_READ_MODE_FULL,
+			WriteMode: ingestionv1.WriteMode_WRITE_MODE_REPLACE,
+		},
+	)
+	if err != nil {
+		t.Fatalf("mixed write modes on a standard route: %v", err)
+	}
+	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]filament.IngestionType{"orders": filament.IngestionIncrementalUpsert, "audit": filament.IngestionFullReplace}
+	if len(runs) != 1 || !maps.Equal(runs[0].Submission.Request.IngestionTypes, want) {
+		t.Fatalf("compiled runs = %+v, want one run with %v", runs, want)
+	}
+
+	err = version("cdc",
+		&ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk", Resource: "orders", WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+		&ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk", Resource: "audit", WriteMode: ingestionv1.WriteMode_WRITE_MODE_MERGE},
+	)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "same write mode") {
+		t.Fatalf("mixed write modes on a CDC route: got %v, want invalid argument", err)
+	}
+}
+
+func TestCompileRunsASubsetOfResources(t *testing.T) {
+	ctx := testCtx()
+	api, ids := leverAPI(t)
+	pipelineResp, err := api.CreatePipeline(ctx, connect.NewRequest(&ingestionv1.CreatePipelineRequest{Name: "subset"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipelineID := pipelineResp.Msg.GetPipeline().GetId()
+	version := func(source string) {
+		t.Helper()
+		_, err := api.CreatePipelineVersion(ctx, connect.NewRequest(&ingestionv1.CreatePipelineVersionRequest{
+			PipelineId: pipelineID,
+			Graph: &ingestionv1.PipelineGraph{
+				Nodes: []*ingestionv1.PipelineNode{
+					{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids[source]},
+					{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["sink"]},
+				},
+				Edges: []*ingestionv1.PipelineEdge{
+					{FromNode: "src", ToNode: "snk", Resource: "orders", WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+					{FromNode: "src", ToNode: "snk", Resource: "customers", WriteMode: ingestionv1.WriteMode_WRITE_MODE_APPEND},
+				},
+			},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	compileSubset := func(resources, resync []string) ([]compile.CompiledRun, error) {
+		return api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{}, resources, resync)
+	}
+
+	version("standard")
+	runs, err := compileSubset([]string{"orders"}, []string{"orders"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || !slices.Equal(runs[0].Submission.Request.Resources, []string{"orders"}) || !slices.Equal(runs[0].Submission.Request.Resync, []string{"orders"}) {
+		t.Fatalf("compiled runs = %+v, want one run of orders", runs)
+	}
+	if _, err := compileSubset([]string{"orders"}, []string{"customers"}); !errors.Is(err, compile.ErrInvalid) {
+		t.Fatalf("resync outside the subset: got %v, want invalid", err)
+	}
+
+	version("cdc")
+	if _, err := compileSubset([]string{"orders"}, nil); !errors.Is(err, compile.ErrInvalid) {
+		t.Fatalf("part of a change-stream route: got %v, want invalid", err)
+	}
+	if _, err := compileSubset([]string{"customers", "orders"}, nil); err != nil {
+		t.Fatalf("every resource of a change-stream route: %v", err)
+	}
+}
+
+func TestValidateColumnSelections(t *testing.T) {
+	valid := []*ingestionv1.PipelineEdge{{
+		Resource: "users",
+		Columns:  []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", "email"}}},
+	}}
+	if err := validateColumnSelections(valid); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		edge *ingestionv1.PipelineEdge
+	}{
+		{"missing resource", &ingestionv1.PipelineEdge{Columns: []*ingestionv1.ResourceColumnSelection{{Columns: []string{"id"}}}}},
+		{"wrong resource", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: []string{"id"}}}}},
+		{"duplicate resource", &ingestionv1.PipelineEdge{Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id"}}, {Resource: "users", Columns: []string{"id"}}}}},
+		{"no columns", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users"}}}},
+		{"empty column", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", ""}}}}},
+		{"repeated column", &ingestionv1.PipelineEdge{Resource: "users", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "users", Columns: []string{"id", "id"}}}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := validateColumnSelections([]*ingestionv1.PipelineEdge{tt.edge}); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
 	}
 }

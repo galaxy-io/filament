@@ -203,6 +203,17 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 			return err
 		}
 		r.Request.ReplicationStream = &filament.StreamRef{ID: stream.ID, Generation: stream.Generation}
+		if r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
+			live, err := q.StreamHasLiveRun(ctx, sqlcgen.StreamHasLiveRunParams{StreamID: stream.ID, TenantID: string(r.Tenant)})
+			if err != nil {
+				return fmt.Errorf("datastore/postgres: inspect stream run: %w", err)
+			}
+			if live {
+				// The live run drains first. Its successor waits in the scheduled
+				// state, outside the one-active-run fence, until promotion.
+				r.Status = filament.RunScheduled
+			}
+		}
 	}
 	req, err := json.Marshal(r.Request)
 	if err != nil {
@@ -239,7 +250,12 @@ func (s *Store) createRun(ctx context.Context, r filament.RunState, desired *fil
 	}
 
 	if desired != nil && r.Request.Options.Execution.Normalize() == filament.ExecutionContinuous {
-		if err := initializeContinuousActivation(ctx, q, r); err != nil {
+		if r.Status == filament.RunScheduled {
+			err = queueStreamSuccessor(ctx, q, r)
+		} else {
+			err = initializeContinuousActivation(ctx, q, r)
+		}
+		if err != nil {
 			return err
 		}
 	}
