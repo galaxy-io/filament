@@ -1,0 +1,56 @@
+name: "CI: SDKs"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/openapi.json"
+      - "fern/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-generate
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate SDKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Pull requests opened with the default token do not trigger CI; the app's do.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.GX_NULL_APP_ID }}
+          private-key: ${{ secrets.GX_NULL_PRIVATE_KEY }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
+      - name: Install Fern
+        run: npm install -g "fern-api@$(jq -r .version fern/fern.config.json)"
+
+      - name: Generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          fern check
+          fern generate --group python
+          fern generate --group typescript
+
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: sdks/generate
+          delete-branch: true
+          add-paths: sdks
+          commit-message: "feat(sdks): regenerate from the API"
+          title: "feat(sdks): regenerate from the API"
+          body: "Regenerated from `api/openapi.json` by `CI: SDKs`. Merging releases the Python and TypeScript SDKs."
