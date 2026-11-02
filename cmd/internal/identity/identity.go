@@ -26,14 +26,10 @@ func FromEnv(ctx context.Context) (identity.Authenticator, error) {
 	case "":
 		return nil, nil
 	// Trusts identity headers from a gateway that authenticated the caller.
-	// AUTH_PROXY_TENANT is the one gateway tenant this deployment serves;
-	// any other is refused. Sign-in happens at the gateway.
+	// AUTH_PROXY_TENANT, when set, pins the one gateway tenant this
+	// deployment serves; any other is refused. Sign-in happens at the gateway.
 	case "proxy":
-		tenant := os.Getenv("AUTH_PROXY_TENANT")
-		if tenant == "" {
-			return nil, errors.New("identity: AUTH_PROXY_TENANT is required for AUTH_PROVIDER=proxy")
-		}
-		return proxy.New(tenant)
+		return proxy.New(os.Getenv("AUTH_PROXY_TENANT")), nil
 	// The machine-user token in AUTH_PAT.
 	case "zitadel":
 		pat := os.Getenv("AUTH_PAT")

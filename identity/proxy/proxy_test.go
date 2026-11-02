@@ -8,17 +8,18 @@ import (
 	"connectrpc.com/connect"
 )
 
-func TestNewRequiresTenant(t *testing.T) {
-	if _, err := New(""); err == nil {
-		t.Fatal("expected error")
+func TestAuthenticateUnpinned(t *testing.T) {
+	caller, err := New("").Authenticate(context.Background(), http.Header{TenantHeader: {"tenant-2"}, UserHeader: {"u1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if caller.TenantExternalID != "tenant-2" || caller.UserID != "u1" {
+		t.Fatalf("unexpected caller %+v", caller)
 	}
 }
 
 func TestAuthenticate(t *testing.T) {
-	a, err := New("tenant-1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	a := New("tenant-1")
 	for name, tc := range map[string]struct {
 		header  http.Header
 		code    connect.Code

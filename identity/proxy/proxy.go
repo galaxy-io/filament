@@ -26,29 +26,27 @@ const (
 	ServiceHeader = "X-Forwarded-Service"
 )
 
-// Authenticator reads callers off trusted gateway headers for one tenant.
+// Authenticator reads callers off trusted gateway headers.
 type Authenticator struct {
 	tenant string
 }
 
-// New returns an Authenticator serving tenant, the gateway's id for the one
-// tenant this deployment serves. A request for any other tenant is refused.
-func New(tenant string) (*Authenticator, error) {
-	if tenant == "" {
-		return nil, errors.New("proxy: tenant is required")
-	}
-	return &Authenticator{tenant: tenant}, nil
+// New returns an Authenticator. A non-empty tenant pins the deployment to
+// that gateway tenant and refuses any other; empty serves whatever tenant
+// the gateway names.
+func New(tenant string) *Authenticator {
+	return &Authenticator{tenant: tenant}
 }
 
 // Authenticate resolves the caller from the gateway headers. A missing
-// tenant or user is Unauthenticated; a tenant this deployment does not serve
-// is PermissionDenied.
+// tenant or user is Unauthenticated; a tenant other than the pinned one is
+// PermissionDenied.
 func (a *Authenticator) Authenticate(_ context.Context, header http.Header) (identity.Caller, error) {
 	tenant := header.Get(TenantHeader)
 	if tenant == "" {
 		return identity.Caller{}, connect.NewError(connect.CodeUnauthenticated, errors.New("no tenant header"))
 	}
-	if tenant != a.tenant {
+	if a.tenant != "" && tenant != a.tenant {
 		return identity.Caller{}, connect.NewError(connect.CodePermissionDenied, errors.New("tenant is not served here"))
 	}
 	if service := header.Get(ServiceHeader); service != "" {
