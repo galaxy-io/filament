@@ -18,21 +18,25 @@ config:
   client_secret:
     type: secret
     required: true
-    help: OAuth client secret
+    pattern: '^[\x21-\x7e]+\z'
+    help: OAuth client secret without spaces or line breaks
   app_key:
     type: secret
     required: true
-    help: Application key with read scopes for selected resources
+    pattern: '^[\x21-\x7e]+\z'
+    help: Application key with read scopes for selected resources, without spaces or line breaks
   environment_suffix:
     type: enum
     enum: ["", "-integration"]
+    enum_labels: {"": Production, "-integration": Integration}
     default: ""
-    help: Leave empty for production, or choose -integration for the integration environment
+    help: Choose the environment that issued the client ID and secret
 connection:
   base_url: https://api{{ config.environment_suffix }}.servicetitan.io
   auth:
     oauth2:
       token_url: https://auth{{ config.environment_suffix }}.servicetitan.io/connect/token
+      grant_type: client_credentials
       client_id: config.client_id
       client_secret: config.client_secret
   headers:

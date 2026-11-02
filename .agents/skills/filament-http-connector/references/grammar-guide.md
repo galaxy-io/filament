@@ -202,6 +202,9 @@ Types: `string bool int16 int32 int64 float32 float64 decimal date time timestam
 Use strings for opaque IDs, including long numeric identifiers. Use typed
 numeric columns for quantities and `timestamptz` for timestamps with offsets.
 In expanded fields, nullable is `nullable: true`, not a `?` in `type`.
+Fixed decimal fields may set `rounding: half_even` with `precision` and `scale`
+to round excess fractional digits. Without it, values that exceed the declared
+scale fail.
 `primary_key: []` is valid when rows have no stable identity. Do not manufacture
 a key from text or timestamps that can repeat.
 

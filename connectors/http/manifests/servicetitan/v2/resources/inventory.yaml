@@ -10,7 +10,7 @@ resources:
       isMobileCreationRestricted: bool?
       memo: string?
       deliveryOption: string?
-      defaultTaxRate: decimal?
+      defaultTaxRate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       contactInfo: json?
       address: json?
       createdOn: string?
@@ -97,17 +97,17 @@ resources:
     primary_key: [id]
     fields:
       id: int64
-      tax: decimal?
+      tax: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       date: string?
       items: json?
       jobId: int64?
-      total: decimal?
+      total: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       number: string?
       sentOn: string?
       status: string?
       typeId: int64?
       summary: string?
-      shipping: decimal?
+      shipping: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       vendorId: int64?
       createdOn: string?
       invoiceId: int64?
@@ -153,16 +153,16 @@ resources:
       vendorId: int64?
       createdOn: string?
       projectId: int64?
-      taxAmount: decimal?
+      taxAmount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       modifiedOn: string?
       returnDate: string?
       returnedOn: string?
       createdById: int64?
       customFields: json?
       externalData: json?
-      returnAmount: decimal?
+      returnAmount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       businessUnitId: int64?
-      shippingAmount: decimal?
+      shippingAmount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       purchaseOrderId: int64?
       referenceNumber: string?
       inventoryLocationId: int64?

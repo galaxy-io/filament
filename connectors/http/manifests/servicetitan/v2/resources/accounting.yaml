@@ -119,9 +119,9 @@ resources:
       isChargeable: bool?
       membershipTypeId: int64?
       generalLedgerAccount: json?
-      assetAccount: json?
+      assetAccount: json_string?
       businessUnit: json?
-      costOfSaleAccount: json?
+      costOfSaleAccount: json_string?
       createdById: int64?
       displayInAmount: bool?
       displayName: string?
@@ -134,7 +134,7 @@ resources:
       inventoryStatus: string?
       memberPrice: string?
       serviceDate: string?
-      soldHours: decimal?
+      soldHours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       technicianId: int64?
       raw: {path: $, type: json, mode: remainder}
     query:
