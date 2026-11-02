@@ -11,13 +11,14 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: sdk-generate
-  cancel-in-progress: true
-
 jobs:
   generate:
     name: Generate SDKs
+    # The pull request targets the branch the run checked out; only main releases.
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: sdk-generate
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
