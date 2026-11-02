@@ -91,7 +91,7 @@ jobs:
              | {
                  text: "Filament \($tag) is out",
                  blocks: [
-                   {type: "section", text: {type: "mrkdwn", text: ":fil: *Filament \($tag)* is out.\n\n\($body)"}},
+                   {type: "section", text: {type: "mrkdwn", text: ":fil-icon: *Filament \($tag)* is out.\n\n\($body)"}},
                    {type: "section", text: {type: "mrkdwn", text: $install}},
                    {type: "actions", elements: [
                      {type: "button", style: "primary", text: {type: "plain_text", text: "Read the docs"}, url: $docs},
