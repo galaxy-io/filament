@@ -14,7 +14,7 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
@@ -26,6 +26,7 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import PipelineCanvasPanelResourceColumnsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceColumnsSection";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelResourcePartitionsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourcePartitionsSection";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
 import PipelineCanvasPanelResourceTransformSectionError from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionError";
 import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
@@ -44,7 +45,9 @@ import {
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import {
   createResourceColumnSelections,
+  createResourcePartitionSelections,
   getEffectiveColumnSelection,
+  getEffectivePartitionSelection,
   getLockedColumnNames,
 } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
@@ -84,6 +87,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     defaultCursor,
     isManagedIncremental,
     isColumnSelectable,
+    partitions,
   } = options;
 
   const {
@@ -158,6 +162,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
         selected: next,
         columns: columns ?? NO_COLUMNS,
       }),
+    });
+
+  const selectedPartitions = getEffectivePartitionSelection({
+    stored: edge.data?.partitions?.find((candidate) => candidate.resource === resource)?.partitions,
+    partitions,
+  });
+  const partitionsError = getEdgeFieldError(verdict, PipelineResourceStatusField.PARTITIONS);
+  const handlePartitionsChange = (next: ResourceColumns["partitions"]) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      partitions: createResourcePartitionSelections({ resource, selected: next, partitions }),
     });
 
   return (
@@ -286,6 +303,15 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                 isDisabled={isReadOnly || isLoading}
                 error={columnsError}
                 onChange={handleColumnsChange}
+              />
+            )}
+            {partitions.length > 0 && (
+              <PipelineCanvasPanelResourcePartitionsSection
+                partitions={partitions}
+                selected={selectedPartitions}
+                isDisabled={isReadOnly || isLoading}
+                error={partitionsError}
+                onChange={handlePartitionsChange}
               />
             )}
             {isTransformable &&

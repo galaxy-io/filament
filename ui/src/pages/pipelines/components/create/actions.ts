@@ -1,6 +1,6 @@
 import type { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource, ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
@@ -21,6 +21,7 @@ export enum CreatePipelineModalActionType {
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
   SET_RESOURCE_COLUMNS = "SET_RESOURCE_COLUMNS",
+  SET_RESOURCE_PARTITIONS = "SET_RESOURCE_PARTITIONS",
   SET_RESOURCE_WRITE_MODE = "SET_RESOURCE_WRITE_MODE",
   SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
@@ -91,6 +92,15 @@ export interface SetResourceColumnsAction {
     sinkId: Connection["id"];
     resource: Resource["name"];
     columns: ResourceColumn["name"][];
+  };
+}
+
+export interface SetResourcePartitionsAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS;
+  payload: {
+    sinkId: Connection["id"];
+    resource: Resource["name"];
+    partitions: ResourceColumns["partitions"];
   };
 }
 
@@ -172,6 +182,7 @@ export type CreatePipelineModalAction =
   | SetResourceReadModeAction
   | SetResourceCursorAction
   | SetResourceColumnsAction
+  | SetResourcePartitionsAction
   | SetResourceWriteModeAction
   | SetSinkWriteModeAction
   | SetNodeConfigAction
