@@ -101,6 +101,22 @@ func (leverSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions
 	return filament.WriteReceipt{}, nil
 }
 
+// appendSink cannot upsert, like the object store sinks.
+type appendSink struct{ leverSink }
+
+func (appendSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
+		Name: "appendsink",
+		Capabilities: filament.SinkCapabilities{
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionFullAppend,
+				filament.IngestionFullReplace,
+				filament.IngestionCDCAppend,
+			),
+		},
+	}
+}
+
 // testCtx scopes a handler call to the default tenant the way the auth
 // interceptor would.
 func testCtx() context.Context {
@@ -116,6 +132,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
 	sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
+	sinks.Register("appendsink", func() filament.Sink { return appendSink{} })
 	api := New(worker.Local(sources, sinks), sqlite.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
@@ -140,6 +157,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 		"standard": create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, "standard", "leversource", nil),
 		"cdc":      create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, "cdc", "leversource", map[string]any{"replication": "cdc"}),
 		"sink":     create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, "sink", "leversink", nil),
+		"append":   create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, "append", "appendsink", nil),
 	}
 }
 
@@ -306,6 +324,28 @@ func TestValidatePipelineLevers(t *testing.T) {
 	})
 }
 
+func TestValidatePipelineDefaultsToAppendWithoutUpsert(t *testing.T) {
+	api, ids := leverAPI(t)
+	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: []*ingestionv1.PipelineNode{
+				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["append"]},
+			},
+			Edges: []*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders"}},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Msg.GetValid() {
+		t.Fatalf("valid = false: %v", resp.Msg)
+	}
+	if got := resp.Msg.GetEdges()[0].GetEffectiveWriteMode(); got != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+		t.Fatalf("effective write mode = %v, want append", got)
+	}
+}
+
 func TestValidatePipelineRejectsMixedCDCWriteModes(t *testing.T) {
 	api, ids := leverAPI(t)
 	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
@@ -401,6 +441,16 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	}
 	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
 		t.Fatal("CDC must reject a read mode")
+	}
+
+	appendNodes := nodes(ids["standard"])
+	appendNodes[1].ConnectionId = ids["append"]
+	edge = &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, appendNodes, []*ingestionv1.PipelineEdge{edge}); err != nil {
+		t.Fatal(err)
+	}
+	if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+		t.Fatalf("default write mode on a sink without upsert = %v, want append", edge.GetWriteMode())
 	}
 
 	edge = &ingestionv1.PipelineEdge{
