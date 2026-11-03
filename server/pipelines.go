@@ -218,6 +218,9 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
+			if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				writeMode = filament.DefaultWriteMode(readMode, sinkSpec)
+			}
 			edge.ReadMode = convert.ReadModeToProto(readMode)
 			edge.WriteMode = convert.WriteModeToProto(writeMode)
 			ingestionType, err = filament.IngestionFor(readMode, writeMode)

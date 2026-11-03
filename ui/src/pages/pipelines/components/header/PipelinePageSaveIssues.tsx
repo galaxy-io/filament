@@ -66,19 +66,21 @@ const PipelinePageSaveIssues: FC<PipelinePageSaveIssuesProps> = ({ issues, onSel
           onClick={edgeId === undefined ? undefined : () => onSelectResource(edgeId)}
         >
           <Flex
-            alignItems={AlignItems.CENTER}
+            alignItems={AlignItems.START}
             justifyContent={JustifyContent.SPACE_BETWEEN}
             gap={16}
             fillWidth
           >
-            <Flex gap={8} alignItems={AlignItems.CENTER} overflow="hidden">
-              <Icon
-                component={PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_ICON_MAP[issue.kind]}
-                size={16}
-                variant={IconVariant.SECONDARY}
-              />
-              <FlexItem shrink={1} minWidth={0} overflow="hidden">
-                <Text size={TextSize.BODY_MD} lineClamp={1}>
+            <Flex gap={8} alignItems={AlignItems.START} minWidth={0}>
+              <Flex height={20} shrink={0} alignItems={AlignItems.CENTER}>
+                <Icon
+                  component={PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_ICON_MAP[issue.kind]}
+                  size={16}
+                  variant={IconVariant.SECONDARY}
+                />
+              </Flex>
+              <FlexItem shrink={1} minWidth={0}>
+                <Text size={TextSize.BODY_MD}>
                   {issue[PIPELINE_PAGE_SAVE_ISSUE_KIND_TO_LABEL_FIELD_MAP[issue.kind]]}
                 </Text>
               </FlexItem>

@@ -59,7 +59,7 @@ func (s *Store) StartAttempt(ctx context.Context, req filament.StartAttemptReque
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return filament.Attempt{}, err
 	}
-	row, err := q.CreateStreamAttempt(ctx, sqlcgen.CreateStreamAttemptParams{StreamID: stream.ID, TenantID: stream.TenantID, ExecutionID: req.ExecutionID, DesiredRevision: req.ExpectedRevision, TtlUs: req.TTL.Microseconds()})
+	row, err := q.CreateStreamAttempt(ctx, sqlcgen.CreateStreamAttemptParams{StreamID: stream.ID, TenantID: stream.TenantID, ExecutionID: req.ExecutionID, DesiredRevision: req.ExpectedRevision, TtlUs: req.TTL.Microseconds(), DispatchVersion: req.DispatchVersion})
 	if err != nil {
 		return filament.Attempt{}, err
 	}
@@ -133,6 +133,16 @@ func (s *Store) RenewLease(ctx context.Context, lease filament.LeaseToken, ttl t
 		return filament.ErrLeaseExpired
 	}
 	return tx.Commit(ctx)
+}
+
+// YieldAttempt marks the live attempt so its worker drains and ends cleanly
+// while the stream stays enabled. An attempt that already ended is left alone.
+func (s *Store) YieldAttempt(ctx context.Context, lease filament.LeaseToken) error {
+	if err := lease.Attempt.Validate(); err != nil {
+		return err
+	}
+	_, err := s.q.YieldStreamAttempt(ctx, sqlcgen.YieldStreamAttemptParams{Token: lease.Attempt.Token, TenantID: string(lease.Tenant)})
+	return err
 }
 
 // EndAttempt conditionally records termination for the latest route attempt.
