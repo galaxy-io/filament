@@ -11,5 +11,5 @@ import (
 )
 
 func init() {
-	registry.RegisterSink("bigquery", true, func() filament.Sink { return sink.New() })
+	registry.RegisterSink("bigquery", false, func() filament.Sink { return sink.New() })
 }

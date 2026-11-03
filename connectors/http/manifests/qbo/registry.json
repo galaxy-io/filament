@@ -4,7 +4,7 @@
   "default_version": "v3",
   "versions": {
     "v3": {
-      "is_preview": true
+      "is_preview": false
     }
   }
 }

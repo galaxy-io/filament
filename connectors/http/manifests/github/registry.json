@@ -4,7 +4,7 @@
   "default_version": "2022-11-28",
   "versions": {
     "2022-11-28": {
-      "is_preview": true
+      "is_preview": false
     }
   }
 }

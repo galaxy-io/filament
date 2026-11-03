@@ -41,7 +41,7 @@ func TestLegacyHTTPConnectionWorkflows(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Catalog resolution must retain the actual schema, not merely recognize names.
-	if target.catalog.Sources["github"].IsPreview != true {
+	if target.catalog.Sources["github"].IsPreview != false {
 		t.Fatal("alias lost catalog preview flag")
 	}
 	bad := target.document.Sources["input"]

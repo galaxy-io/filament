@@ -29,32 +29,32 @@ the supported behavior.
 
 | Source | ID | Preview | Modes |
 |---|---|---|---|
-| [PostgreSQL](/pages/connectors/sources/postgres) | `postgres` | Yes | Full, incremental, CDC |
-| [Kafka](/pages/connectors/sources/kafka) | `kafka` | Yes | Full (bounded), continuous messages |
-| [MySQL](/pages/connectors/sources/mysql) | `mysql` | Yes | Full, incremental, CDC |
-| [NATS JetStream](/pages/connectors/sources/nats) | `nats` | Yes | Continuous retained-message consumption |
+| [PostgreSQL](/pages/connectors/sources/postgres) | `postgres` | No | Full, incremental, CDC |
+| [Kafka](/pages/connectors/sources/kafka) | `kafka` | No | Full (bounded), continuous messages |
+| [MySQL](/pages/connectors/sources/mysql) | `mysql` | No | Full, incremental, CDC |
+| [NATS JetStream](/pages/connectors/sources/nats) | `nats` | No | Continuous retained-message consumption |
 | [Apollo](/pages/connectors/sources/apollo) | `apollo` | Yes | Full |
 | [Attio](/pages/connectors/sources/attio) | `attio` | Yes | Full |
 | [FHIR](/pages/connectors/sources/fhir) | `fhir` | Yes | Full, incremental |
 | [FXMacroData](/pages/connectors/sources/fxmacrodata) | `fxmacrodata` | Yes | Full |
-| [GitHub](/pages/connectors/sources/github) | `github` | Yes | Full, incremental |
+| [GitHub](/pages/connectors/sources/github) | `github` | No | Full, incremental |
 | [Gong](/pages/connectors/sources/gong) | `gong` | Yes | Full |
 | [Granola](/pages/connectors/sources/granola) | `granola` | Yes | Full, incremental |
 | [HeyReach](/pages/connectors/sources/heyreach) | `heyreach` | Yes | Full |
 | [HubSpot](/pages/connectors/sources/hubspot) | `hubspot` | Yes | Full, incremental |
 | [Instantly](/pages/connectors/sources/instantly) | `instantly` | Yes | Full |
-| [Linear](/pages/connectors/sources/linear) | `linear` | Yes | Full, incremental |
+| [Linear](/pages/connectors/sources/linear) | `linear` | No | Full, incremental |
 | [Live Tennis API](/pages/connectors/sources/livetennisapi) | `livetennisapi` | Yes | Full |
 | [Mailchimp](/pages/connectors/sources/mailchimp) | `mailchimp` | Yes | Full, incremental (members) |
 | [monday.com](/pages/connectors/sources/monday) | `monday` | Yes | Full, incremental (audit logs) |
-| [Notion](/pages/connectors/sources/notion) | `notion` | Yes | Full, incremental |
+| [Notion](/pages/connectors/sources/notion) | `notion` | No | Full, incremental |
 | [Novada](/pages/connectors/sources/novada) | `novada` | Yes | Full |
 | [Pipedrive](/pages/connectors/sources/pipedrive) | `pipedrive` | Yes | Full, incremental |
 | [PostHog](/pages/connectors/sources/posthog) | `posthog` | Yes | Full, incremental |
-| [QuickBooks Online](/pages/connectors/sources/qbo) | `qbo` | Yes | Full, incremental (transactions) |
+| [QuickBooks Online](/pages/connectors/sources/qbo) | `qbo` | No | Full, incremental (transactions) |
 | [Resend](/pages/connectors/sources/resend) | `resend` | Yes | Full |
-| [ServiceTitan](/pages/connectors/sources/servicetitan) | `servicetitan` | Yes | Full, Incremental |
-| [Slack](/pages/connectors/sources/slack) | `slack` | Yes | Full, incremental |
+| [ServiceTitan](/pages/connectors/sources/servicetitan) | `servicetitan` | No | Full, Incremental |
+| [Slack](/pages/connectors/sources/slack) | `slack` | No | Full, incremental |
 | [Stripe](/pages/connectors/sources/stripe) | `stripe` | Yes | Full, incremental |
 | [Zoho CRM](/pages/connectors/sources/zoho) | `zoho` | Yes | Full |
 | [Sample](/pages/connectors/sources/sample) | `sample` | No | Full |
@@ -70,19 +70,19 @@ documented in
 
 | Sink | ID | Preview | Writes |
 |---|---|---|---|
-| [PostgreSQL](/pages/connectors/sinks/postgres) | `postgres` | Yes | Typed tables. Replace, append, upsert, and CDC merge |
-| [MySQL](/pages/connectors/sinks/mysql) | `mysql` | Yes | Typed tables. Same write policies as the PostgreSQL sink |
-| [NATS JetStream](/pages/connectors/sinks/nats) | `nats` | Yes | Acknowledged JSON messages; bounded and continuous append |
-| [Kafka](/pages/connectors/sinks/kafka) | `kafka` | Yes | Acknowledged JSON or raw messages. Bounded and continuous append |
-| [ClickHouse](/pages/connectors/sinks/clickhouse) | `clickhouse` | Yes | MergeTree tables. Atomic replace via staging, no CDC |
+| [PostgreSQL](/pages/connectors/sinks/postgres) | `postgres` | No | Typed tables. Replace, append, upsert, and CDC merge |
+| [MySQL](/pages/connectors/sinks/mysql) | `mysql` | No | Typed tables. Same write policies as the PostgreSQL sink |
+| [NATS JetStream](/pages/connectors/sinks/nats) | `nats` | No | Acknowledged JSON messages; bounded and continuous append |
+| [Kafka](/pages/connectors/sinks/kafka) | `kafka` | No | Acknowledged JSON or raw messages. Bounded and continuous append |
+| [ClickHouse](/pages/connectors/sinks/clickhouse) | `clickhouse` | No | MergeTree tables. Atomic replace via staging, no CDC |
 | [Databricks Zerobus](/pages/connectors/sinks/databricks-zerobus) | `databrickszerobus` | Yes | Delta tables through the Zerobus Ingest API. Append only. Worker `-libc` image only |
 | [MotherDuck](/pages/connectors/sinks/motherduck) | `motherduck` | Yes | Cloud DuckDB tables through the bulk appender. Worker `-libc` image only |
 | [Snowflake](/pages/connectors/sinks/snowflake) | `snowflake` | Yes | Typed tables loaded from staged Parquet batches |
 | [Amazon Redshift](/pages/connectors/sinks/redshift) | `redshift` | Yes | Typed tables loaded from S3-staged Parquet manifests |
 | [Meilisearch](/pages/connectors/sinks/meilisearch) | `meilisearch` | Yes | Search documents, one index per resource. Add or replace by primary key |
-| [Iceberg](/pages/connectors/sinks/iceberg) | `iceberg` | Yes | Parquet tables; data commits per resource at run end |
-| [Google BigQuery](/pages/connectors/sinks/bigquery) | `bigquery` | Yes | Typed tables through the Storage Write API. Snapshot, incremental, and CDC |
-| [Amazon S3](/pages/connectors/sinks/aws-s3) | `s3` | Yes | NDJSON objects, one per resource per run |
+| [Iceberg](/pages/connectors/sinks/iceberg) | `iceberg` | No | Parquet tables; data commits per resource at run end |
+| [Google BigQuery](/pages/connectors/sinks/bigquery) | `bigquery` | No | Typed tables through the Storage Write API. Snapshot, incremental, and CDC |
+| [Amazon S3](/pages/connectors/sinks/aws-s3) | `s3` | No | NDJSON objects, one per resource per run |
 | [Google Cloud Storage](/pages/connectors/sinks/gcs) | `gcs` | Yes | NDJSON, JSON, or Parquet objects, one per resource per run |
 | [stdout](/pages/connectors/sinks/standard-output) | `stdout` | No | NDJSON to standard output, the reference sink |
 
