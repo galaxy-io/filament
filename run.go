@@ -570,6 +570,17 @@ func WriteModesFor(read ReadMode) []WriteMode {
 	}
 }
 
+// DefaultWriteMode is the write mode an edge that names none resolves to:
+// upsert where the sink can upsert for read, append otherwise.
+func DefaultWriteMode(read ReadMode, sink SinkSpec) WriteMode {
+	for _, write := range []WriteMode{WriteUpsert, WriteAppend} {
+		if t, err := IngestionFor(read, write); err == nil && ValidateSinkIngestion(sink, t) == nil {
+			return write
+		}
+	}
+	return WriteUpsert
+}
+
 // String renders a read mode for messages and logs.
 func (m ReadMode) String() string {
 	switch m {

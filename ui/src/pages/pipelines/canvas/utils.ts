@@ -6,7 +6,7 @@ import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn, ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
 import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
@@ -54,6 +54,12 @@ export const getEdgeModeOptions = (
   effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,
   effectiveWriteMode: verdict?.effectiveWriteMode ?? WriteMode.UNSPECIFIED,
 });
+
+export const getEdgeFieldError = (
+  verdict: EdgeValidation | undefined,
+  field: ValidationError["field"],
+): ValidationError["message"] | undefined =>
+  verdict?.errors.find((error) => error.field === field)?.message;
 
 type PipelineCanvasEdgeStatusResources = Pick<
   PipelineCanvasEdgeResources,

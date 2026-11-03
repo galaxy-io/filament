@@ -19,6 +19,7 @@ import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 
+import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -37,6 +38,7 @@ import {
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import {
   getDefaultDestinationResource,
+  getEdgeFieldError,
   getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
@@ -145,9 +147,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     () => (columns ?? NO_COLUMNS).filter((column) => selectedColumnNames.includes(column.name)),
     [columns, selectedColumnNames],
   );
-  const columnsError = verdict?.errors.find(
-    (error) => error.field === PipelineResourceStatusField.COLUMNS,
-  )?.message;
+  const columnsError = getEdgeFieldError(verdict, PipelineResourceStatusField.COLUMNS);
   const handleColumnsChange = (next: ResourceColumn["name"][]) =>
     setEdgeConfig(edge.id, {
       readMode: configuredReadMode,
@@ -258,7 +258,10 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   }}
                   placeholder="Select a write mode..."
                   isDisabled={isReadOnly || isLoading}
-                  error={getFieldError(PipelineResourceStatusField.WRITE_MODE)}
+                  error={
+                    getFieldError(PipelineResourceStatusField.WRITE_MODE) ??
+                    getEdgeFieldError(verdict, PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD)
+                  }
                   variant={SelectInputVariant.TERTIARY}
                   fillWidth
                 />

@@ -235,6 +235,9 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 			edgeError(ev, "write_mode", err.Error())
 			return nil
 		}
+		if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			writeMode = filament.DefaultWriteMode(readMode, snkSpec)
+		}
 		ev.EffectiveReadMode = convert.ReadModeToProto(readMode)
 		ev.EffectiveWriteMode = convert.WriteModeToProto(writeMode)
 		supportedReadModes = supportedReadModesFor(srcSpec)
