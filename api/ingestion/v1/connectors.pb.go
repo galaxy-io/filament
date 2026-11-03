@@ -1000,8 +1000,10 @@ type ResourceColumns struct {
 	ManagedIncremental bool `protobuf:"varint,3,opt,name=managed_incremental,json=managedIncremental,proto3" json:"managed_incremental,omitempty"`
 	// The source reads only the columns an edge selects.
 	SelectableColumns bool `protobuf:"varint,4,opt,name=selectable_columns,json=selectableColumns,proto3" json:"selectable_columns,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The resource's partitions an edge may select; empty when it is not partitioned.
+	Partitions    []string `protobuf:"bytes,5,rep,name=partitions,proto3" json:"partitions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResourceColumns) Reset() {
@@ -1060,6 +1062,13 @@ func (x *ResourceColumns) GetSelectableColumns() bool {
 		return x.SelectableColumns
 	}
 	return false
+}
+
+func (x *ResourceColumns) GetPartitions() []string {
+	if x != nil {
+		return x.Partitions
+	}
+	return nil
 }
 
 type GetResourceColumnsResponse struct {
@@ -1194,12 +1203,15 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\awarning\x18\t \x01(\tR\awarning\x12'\n" +
 	"\x0fis_configurable\x18\n" +
 	" \x01(\bR\x0eisConfigurable\x12+\n" +
-	"\x11supports_lookback\x18\v \x01(\bR\x10supportsLookback\"\xc5\x01\n" +
+	"\x11supports_lookback\x18\v \x01(\bR\x10supportsLookback\"\xe5\x01\n" +
 	"\x0fResourceColumns\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x126\n" +
 	"\acolumns\x18\x02 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\x12/\n" +
 	"\x13managed_incremental\x18\x03 \x01(\bR\x12managedIncremental\x12-\n" +
-	"\x12selectable_columns\x18\x04 \x01(\bR\x11selectableColumns\"Y\n" +
+	"\x12selectable_columns\x18\x04 \x01(\bR\x11selectableColumns\x12\x1e\n" +
+	"\n" +
+	"partitions\x18\x05 \x03(\tR\n" +
+	"partitions\"Y\n" +
 	"\x1aGetResourceColumnsResponse\x12;\n" +
 	"\tresources\x18\x01 \x03(\v2\x1d.ingestion.v1.ResourceColumnsR\tresources*\x91\x01\n" +
 	"\x11ConnectorMaturity\x12\"\n" +

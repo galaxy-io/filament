@@ -260,9 +260,17 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
-	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental, probes, ev)
+	validateEdgeSelections(ctx, edge, from, *srcConn, srcSpec, chosen, probes, ev)
 	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeSelections checks the edge's column and partition selections
+// against the read the chosen ingestion type performs.
+func validateEdgeSelections(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, chosen filament.IngestionType, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	incremental := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
+	validateEdgeColumns(ctx, edge, from, srcConn, srcSpec, incremental, probes, ev)
+	validateEdgePartitions(ctx, edge, from, srcConn, incremental, probes, ev)
 }
 
 // validateEdgeColumns checks each column selection against the live schema:
@@ -321,6 +329,41 @@ func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, fr
 			if column.Recommended && !selected[column.Name] {
 				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep auto-detected cursor column %q", resource, column.Name))
 				break
+			}
+		}
+	}
+}
+
+// validateEdgePartitions checks each partition selection against the
+// resource's live partitions. A selection narrows what a full read backfills,
+// so an incremental read, which reads whatever moved past its cursor, rejects
+// one.
+func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, incremental bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if len(edge.GetPartitions()) == 0 {
+		return
+	}
+	if incremental {
+		edgeError(ev, "partitions", "partition selection applies to full reads and change streams, not incremental reads")
+		return
+	}
+	for _, selection := range edge.GetPartitions() {
+		resource := selection.GetResource()
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		if inspection.Status == filament.InspectFailed {
+			edgeError(ev, "partitions", inspection.Message)
+			continue
+		}
+		if len(inspection.Partitions) == 0 {
+			edgeError(ev, "partitions", fmt.Sprintf("resource %q is not partitioned", resource))
+			continue
+		}
+		for _, name := range selection.GetPartitions() {
+			if !slices.Contains(inspection.Partitions, name) {
+				edgeError(ev, "partitions", fmt.Sprintf("resource %q has no partition %q", resource, name))
 			}
 		}
 	}

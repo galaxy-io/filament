@@ -138,7 +138,8 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
-				Columns:             routeColumns(group),
+				Columns:             routeSelection(group.columns),
+				Partitions:          routeSelection(group.partitions),
 				Resync:              routeResync(group, resync),
 				Options:             options,
 				ScheduleID:          scheduleID,
@@ -259,13 +260,14 @@ func routeResync(group *routeGroup, resync []string) []string {
 	return out
 }
 
-// routeColumns returns the route's column selections, or nil when every
-// resource reads every column, so requests without a selection stay unchanged.
-func routeColumns(group *routeGroup) map[string][]string {
-	if len(group.columns) == 0 {
+// routeSelection returns a route's per-resource column or partition
+// selections, or nil when no resource narrows its read, so requests without a
+// selection stay unchanged.
+func routeSelection(selection map[string][]string) map[string][]string {
+	if len(selection) == 0 {
 		return nil
 	}
-	return group.columns
+	return selection
 }
 
 func routeResources(group *routeGroup) (resources, selectors []string) {

@@ -264,6 +264,7 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			Columns:            convert.CursorColumnsToProto(inspection.Columns),
 			ManagedIncremental: inspection.ManagedIncremental,
 			SelectableColumns:  spec.Resources.SelectableColumns,
+			Partitions:         inspection.Partitions,
 		})
 	}
 	return connect.NewResponse(response), nil

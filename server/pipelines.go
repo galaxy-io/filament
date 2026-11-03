@@ -104,6 +104,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validateColumnSelections(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := validatePartitionSelections(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -295,6 +298,36 @@ func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
 				}
 				if _, duplicate := names[name]; duplicate {
 					return fmt.Errorf("column selection for resource %q repeats column %q", resource, name)
+				}
+				names[name] = struct{}{}
+			}
+		}
+	}
+	return nil
+}
+
+func validatePartitionSelections(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		seen := make(map[string]struct{}, len(edge.GetPartitions()))
+		for _, selection := range edge.GetPartitions() {
+			resource := selection.GetResource()
+			if resource == "" {
+				return fmt.Errorf("partition selection resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("partition selection resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate partition selection for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+			names := make(map[string]struct{}, len(selection.GetPartitions()))
+			for _, name := range selection.GetPartitions() {
+				if name == "" {
+					return fmt.Errorf("partition selection for resource %q names an empty partition", resource)
+				}
+				if _, duplicate := names[name]; duplicate {
+					return fmt.Errorf("partition selection for resource %q repeats partition %q", resource, name)
 				}
 				names[name] = struct{}{}
 			}

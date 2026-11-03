@@ -207,6 +207,13 @@ func inspectResource(ctx context.Context, source filament.Source, resource strin
 		inspection.Columns = append(inspection.Columns, column)
 	}
 	inspection.Columns = append(inspection.Columns, ranked...)
+	if partitioned, ok := source.(filament.PartitionSelector); ok {
+		partitions, err := partitioned.Partitions(ctx, resource)
+		if err != nil {
+			return failed(fmt.Errorf("partitions of %q: %w", resource, err))
+		}
+		inspection.Partitions = partitions
+	}
 	return inspection
 }
 
