@@ -11,5 +11,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/iceberg"
 func init() {
-	registry.RegisterSink("iceberg", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
+	registry.RegisterSink("iceberg", true, func() filament.Sink { return sink.New() })
 }

@@ -13,6 +13,6 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/object"
 func init() {
-	registry.RegisterSink("gcs", filament.MaturityAlpha, func() filament.Sink { return objectgcs.New() })
-	registry.RegisterSink("s3", filament.MaturityAlpha, func() filament.Sink { return objects3.New() })
+	registry.RegisterSink("gcs", true, func() filament.Sink { return objectgcs.New() })
+	registry.RegisterSink("s3", true, func() filament.Sink { return objects3.New() })
 }

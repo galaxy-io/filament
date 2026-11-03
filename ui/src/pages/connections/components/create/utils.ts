@@ -2,8 +2,7 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import { getConnectorVersionPrefix } from "@/components/connections/utils";
 
-import type { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
-import { CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP } from "@/pages/connections/constants";
+import { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
 
 export const getConnectorVersions = (family: ConnectorSpec, catalog: ConnectorSpec[]) =>
   family.aliasTarget
@@ -19,6 +18,5 @@ export const isConnectorOnShelf = (
   connector: ConnectorSpec,
   shelf: CreateConnectionSelectorShelf,
 ): boolean => {
-  const maturity = CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP[shelf];
-  return maturity === undefined || connector.maturity === maturity;
+  return shelf === CreateConnectionSelectorShelf.ALL || connector.isPreview;
 };

@@ -4,7 +4,7 @@
   "default_version": "2022-06-28",
   "versions": {
     "2022-06-28": {
-      "maturity": "beta"
+      "is_preview": true
     }
   }
 }

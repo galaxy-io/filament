@@ -13,6 +13,6 @@ import (
 
 func init() {
 	registry.RegisterPositionCodec(source.PositionCodec, 0, source.LSNCodec{})
-	registry.RegisterSource("postgres", filament.MaturityBeta, func() filament.Source { return source.New() })
-	registry.RegisterSink("postgres", filament.MaturityBeta, func() filament.Sink { return sink.New() })
+	registry.RegisterSource("postgres", true, func() filament.Source { return source.New() })
+	registry.RegisterSink("postgres", true, func() filament.Sink { return sink.New() })
 }

@@ -9,5 +9,5 @@ import (
 //
 //	import _ "github.com/galaxy-io/filament/connectors/stdout"
 func init() {
-	registry.RegisterSink("stdout", filament.MaturityStable, func() filament.Sink { return New() })
+	registry.RegisterSink("stdout", false, func() filament.Sink { return New() })
 }
