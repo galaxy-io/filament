@@ -289,8 +289,14 @@ func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, fr
 	for _, cursor := range edge.GetCursors() {
 		cursors[cursor.GetResource()] = cursor.GetField()
 	}
+	seen := make(map[string]bool, len(edge.GetColumns()))
 	for _, selection := range edge.GetColumns() {
 		resource := selection.GetResource()
+		if seen[resource] {
+			edgeError(ev, "columns", fmt.Sprintf("duplicate column selection for resource %q", resource))
+			continue
+		}
+		seen[resource] = true
 		inspection, err := probes.resource(ctx, from, srcConn, resource)
 		if err != nil {
 			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
@@ -346,8 +352,14 @@ func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge,
 		edgeError(ev, "partitions", "partition selection applies to full reads and change streams, not incremental reads")
 		return
 	}
+	seen := make(map[string]bool, len(edge.GetPartitions()))
 	for _, selection := range edge.GetPartitions() {
 		resource := selection.GetResource()
+		if seen[resource] {
+			edgeError(ev, "partitions", fmt.Sprintf("duplicate partition selection for resource %q", resource))
+			continue
+		}
+		seen[resource] = true
 		inspection, err := probes.resource(ctx, from, srcConn, resource)
 		if err != nil {
 			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
@@ -862,6 +874,7 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
 	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, false, probes, ev)
+	validateEdgePartitions(ctx, edge, from, *srcConn, false, probes, ev)
 	var resources []string
 	if edge.Resource != "" {
 		resources = []string{edge.Resource}

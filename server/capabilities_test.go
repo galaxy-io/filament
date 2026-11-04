@@ -631,6 +631,10 @@ func TestValidateEdgePartitionsChecksLivePartitions(t *testing.T) {
 	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_11")}, true); len(errs) != 1 {
 		t.Fatalf("an incremental read must reject a partition selection: %v", errs)
 	}
+	duplicate := append(selection("orders", "orders_2026_11"), selection("orders", "orders_2026_11")...)
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Partitions: duplicate}, false); len(errs) != 1 {
+		t.Fatalf("a duplicate resource must fail like version creation does: %v", errs)
+	}
 }
 
 func TestSelectedSchemaNarrowsTransformAnalysis(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -274,6 +275,7 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 }
 
 func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
+	routes := map[string][]string{}
 	for _, edge := range edges {
 		seen := make(map[string]struct{}, len(edge.GetColumns()))
 		for _, selection := range edge.GetColumns() {
@@ -301,12 +303,16 @@ func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
 				}
 				names[name] = struct{}{}
 			}
+			if conflictingSelection(routes, edge, resource, selection.GetColumns()) {
+				return fmt.Errorf("conflicting column selection for resource %q", resource)
+			}
 		}
 	}
 	return nil
 }
 
 func validatePartitionSelections(edges []*ingestionv1.PipelineEdge) error {
+	routes := map[string][]string{}
 	for _, edge := range edges {
 		seen := make(map[string]struct{}, len(edge.GetPartitions()))
 		for _, selection := range edge.GetPartitions() {
@@ -331,9 +337,22 @@ func validatePartitionSelections(edges []*ingestionv1.PipelineEdge) error {
 				}
 				names[name] = struct{}{}
 			}
+			if conflictingSelection(routes, edge, resource, selection.GetPartitions()) {
+				return fmt.Errorf("conflicting partition selection for resource %q", resource)
+			}
 		}
 	}
 	return nil
+}
+
+// conflictingSelection reports whether another edge of the same route already
+// selected a different list for resource, the conflict compilation rejects.
+func conflictingSelection(routes map[string][]string, edge *ingestionv1.PipelineEdge, resource string, names []string) bool {
+	key := edge.GetFromNode() + "\x00" + edge.GetToNode() + "\x00" + resource
+	sorted := slices.Sorted(slices.Values(names))
+	previous, exists := routes[key]
+	routes[key] = sorted
+	return exists && !slices.Equal(previous, sorted)
 }
 
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as
