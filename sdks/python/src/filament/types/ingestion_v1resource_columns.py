@@ -24,6 +24,15 @@ class IngestionV1ResourceColumns(UniversalBaseModel):
     Incremental state is owned by the source; no cursor column is required.
     """
 
+    selectable_columns: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="selectableColumns"),
+        pydantic.Field(alias="selectableColumns", description="The source reads only the columns an edge selects."),
+    ] = None
+    """
+    The source reads only the columns an edge selects.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:

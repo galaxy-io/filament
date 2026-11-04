@@ -98,6 +98,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1requirement_kind import IngestionV1RequirementKind
     from .ingestion_v1resource import IngestionV1Resource
     from .ingestion_v1resource_column import IngestionV1ResourceColumn
+    from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
@@ -233,6 +234,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1RequirementKind": ".ingestion_v1requirement_kind",
     "IngestionV1Resource": ".ingestion_v1resource",
     "IngestionV1ResourceColumn": ".ingestion_v1resource_column",
+    "IngestionV1ResourceColumnSelection": ".ingestion_v1resource_column_selection",
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
@@ -392,6 +394,7 @@ __all__ = [
     "IngestionV1RequirementKind",
     "IngestionV1Resource",
     "IngestionV1ResourceColumn",
+    "IngestionV1ResourceColumnSelection",
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
     "IngestionV1ResourceValidation",
