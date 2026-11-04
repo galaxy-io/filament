@@ -54,7 +54,7 @@ type SinkSpec struct {
 	DarkLogoURL  string
 	LightLogoURL string
 	Version      string
-	Maturity     ConnectorMaturity
+	IsPreview    bool
 	Config       ConfigSchema
 	Capabilities SinkCapabilities
 

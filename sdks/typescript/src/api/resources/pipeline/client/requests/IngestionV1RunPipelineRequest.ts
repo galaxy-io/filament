@@ -29,4 +29,17 @@ export interface IngestionV1RunPipelineRequest {
      *  a run already requested.
      */
     workerConfiguration?: Filament.IngestionV1WorkerConfiguration;
+    /**
+     * resync_resources names resources read from the beginning again by the
+     *  runs this call produces. A bounded run forgets their checkpoints first. A
+     *  live continuous run drains and hands over to a successor that snapshots
+     *  them again on the same stream.
+     */
+    resyncResources?: string[];
+    /**
+     * resources limits a bounded run to these routed resources. Empty runs every
+     *  routed resource. A continuous run, or a change-stream route named in part,
+     *  always runs all of its resources, so such a subset is rejected.
+     */
+    resources?: string[];
 }

@@ -19,7 +19,7 @@ func (s *specSource) Spec() filament.ConnectorSpec { return filament.ConnectorSp
 
 func TestSourceAliases(t *testing.T) {
 	sources := NewSources()
-	sources.RegisterWithMaturity("example@v1", filament.MaturityBeta, func() filament.Source { return &specSource{name: "example@v1"} })
+	sources.RegisterWithPreview("example@v1", true, func() filament.Source { return &specSource{name: "example@v1"} })
 	sources.RegisterAlias("example", "example@v1")
 	first, err := sources.Resolve("example")
 	if err != nil {
@@ -33,7 +33,7 @@ func TestSourceAliases(t *testing.T) {
 		t.Fatal("alias must resolve fresh instances with concrete identity")
 	}
 	spec, err := sources.Spec("example")
-	if err != nil || spec.Maturity != filament.MaturityBeta {
+	if err != nil || spec.IsPreview != true {
 		t.Fatalf("alias spec: %+v, %v", spec, err)
 	}
 	if specs := sources.Specs(); len(specs) != 2 || specs[0].Name != "example" || specs[1].Name != "example@v1" || specs[0].AliasTarget != "example@v1" || specs[1].AliasTarget != "" {
@@ -67,11 +67,11 @@ func TestSourceAliases(t *testing.T) {
 func TestSourcesWithOverrides(t *testing.T) {
 	base := NewSources()
 	for _, name := range []string{"example@v1", "other"} {
-		base.RegisterWithMaturity(name, filament.MaturityBeta, func() filament.Source { return &specSource{name: name} })
+		base.RegisterWithPreview(name, true, func() filament.Source { return &specSource{name: name} })
 	}
 	base.RegisterAlias("example", "example@v1")
 	private := NewSources()
-	private.RegisterWithMaturity("example@v2", filament.MaturityAlpha, func() filament.Source { return &specSource{name: "example@v2"} })
+	private.RegisterWithPreview("example@v2", true, func() filament.Source { return &specSource{name: "example@v2"} })
 	private.Register("private@v3", func() filament.Source { return &specSource{name: "private@v3"} })
 	private.RegisterAlias("example", "example@v2")
 	private.RegisterAlias("private", "private@v3")
@@ -85,7 +85,7 @@ func TestSourcesWithOverrides(t *testing.T) {
 		}
 	}
 	spec, err := merged.Spec("example")
-	if err != nil || spec.Name != "example@v2" || spec.Maturity != filament.MaturityAlpha {
+	if err != nil || spec.Name != "example@v2" || spec.IsPreview != true {
 		t.Fatalf("override spec=%+v err=%v", spec, err)
 	}
 	original, err := base.Spec("example")
@@ -124,7 +124,7 @@ func TestSourcesWithOverridesRejectsRegistrationReplacement(t *testing.T) {
 		for _, replacementAlias := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/alias=%t", name, replacementAlias), func(t *testing.T) {
 				base := NewSources()
-				base.RegisterWithMaturity(name, filament.MaturityStable, func() filament.Source { return &specSource{name: name} })
+				base.RegisterWithPreview(name, false, func() filament.Source { return &specSource{name: name} })
 				private := NewSources()
 				if replacementAlias {
 					private.Register("replacement", func() filament.Source { return &specSource{name: "replacement"} })
@@ -136,7 +136,7 @@ func TestSourcesWithOverridesRejectsRegistrationReplacement(t *testing.T) {
 					t.Fatalf("replacement accepted: %v, %v", merged, err)
 				}
 				spec, err := base.Spec(name)
-				if err != nil || spec.Name != name || spec.Maturity != filament.MaturityStable {
+				if err != nil || spec.Name != name || spec.IsPreview != false {
 					t.Fatalf("original registration changed: %+v, %v", spec, err)
 				}
 			})

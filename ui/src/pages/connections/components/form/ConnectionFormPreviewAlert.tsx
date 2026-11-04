@@ -10,20 +10,17 @@ import { TextWeight } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import type { ConnectorMaturity, ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
 import { getConnectorFamilyName } from "@/components/connections/utils";
 
-import { CONNECTOR_MATURITY_TO_STATUS_MAP } from "@/pages/connections/constants";
-
 import { DOCUMENTATION_URL } from "@/constants";
 
-interface ConnectionFormMaturityAlertProps {
+interface ConnectionFormPreviewAlertProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
-  connectorMaturity: ConnectorMaturity;
   connectorApiVersion: ConnectorSpec["apiVersion"];
 }
 
@@ -32,15 +29,11 @@ const createDocsPath = (connectorName: ConnectorSpec["name"], connectorKind: Con
   return `/pages/connectors/${kindSegment}/${getConnectorFamilyName(connectorName).toLowerCase()}`;
 };
 
-const ConnectionFormMaturityAlert: FC<ConnectionFormMaturityAlertProps> = ({
+const ConnectionFormPreviewAlert: FC<ConnectionFormPreviewAlertProps> = ({
   connectorName,
   connectorKind,
-  connectorMaturity,
   connectorApiVersion,
 }) => {
-  const status = CONNECTOR_MATURITY_TO_STATUS_MAP[connectorMaturity];
-  if (!status) return null;
-
   return (
     <Box fillWidth>
       <Alert>
@@ -63,10 +56,10 @@ const ConnectionFormMaturityAlert: FC<ConnectionFormMaturityAlertProps> = ({
                 />
               </>
             )}
-            is
+            is in
             <Span>
               <Span variant={SpanVariant.PRIMARY} weight={TextWeight.MEDIUM}>
-                {status}
+                preview
               </Span>
               .
             </Span>
@@ -84,4 +77,4 @@ const ConnectionFormMaturityAlert: FC<ConnectionFormMaturityAlertProps> = ({
   );
 };
 
-export default ConnectionFormMaturityAlert;
+export default ConnectionFormPreviewAlert;

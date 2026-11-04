@@ -7,9 +7,10 @@ description: "Read ServiceTitan exports and supporting operational resources wit
 
 Connector ID `servicetitan`
 
-The ServiceTitan source uses the v2 REST APIs and is **alpha**. It provides
-72 selectable resources across accounting, jobs, inventory, customers, and
-other ServiceTitan API families.
+The ServiceTitan source uses the v2 REST APIs. It provides 72 selectable
+resources across accounting, jobs, inventory, customers, and other ServiceTitan
+API families. Shared pagination, projection, and checkpoint behavior have
+regression coverage. Live tenant reads have not been validated.
 
 Use `servicetitan@v2` to select API v2. `servicetitan` resolves to this
 default version.
