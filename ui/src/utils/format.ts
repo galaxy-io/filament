@@ -5,3 +5,6 @@ export const formatTimestamp = (unixMillis: bigint) =>
 
 export const formatVersion = (version: bigint | number | undefined) =>
   version ? `Version ${version}` : EMPTY_VALUE;
+
+export const formatServerVersion = (version: string) =>
+  /^\d/.test(version) ? `v${version}` : version;

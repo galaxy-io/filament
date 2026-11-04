@@ -38,7 +38,7 @@ func TestPostgresContinuousTransactionsAndResume(t *testing.T) {
  INSERT INTO continuous_rows VALUES (1, 'baseline');`)
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "replication": "cdc", "snapshot_mode": "none", "publication": "continuous_rows_pub",
+		"dsn": pg.DSN(), "replication": "cdc", "snapshot_mode": "none",
 	})); err != nil {
 		t.Fatal(err)
 	}

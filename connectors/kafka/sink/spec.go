@@ -27,5 +27,5 @@ func (*Sink) Spec() filament.SinkSpec {
 		{Name: "max_in_flight_bytes", Type: filament.FieldInt, Default: defaultMaxInFlightBytes, Scope: filament.ScopePipeline},
 		{Name: "max_record_bytes", Type: filament.FieldInt, Default: 1 << 20, Scope: filament.ScopePipeline, Help: "512 bytes to 100 MiB, within max_in_flight_bytes"},
 	}...)
-	return filament.SinkSpec{Name: "kafka", DisplayName: client.DisplayName, DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL, Description: "Publish acknowledged append-only records to Kafka topics in bounded or continuous runs.", Version: "1", Maturity: filament.MaturityAlpha, Config: filament.ConfigSchema{Fields: fields}, Capabilities: filament.SinkCapabilities{EncodedIntegrity: true, PreferredBatchRows: 1000, PreferredBatchBytes: 4 << 20, WritePolicies: policies, ReusableSession: true}}
+	return filament.SinkSpec{Name: "kafka", DisplayName: client.DisplayName, DarkLogoURL: client.DarkLogoURL, LightLogoURL: client.LightLogoURL, Description: "Publish acknowledged append-only records to Kafka topics in bounded or continuous runs.", Version: "1", IsPreview: false, Config: filament.ConfigSchema{Fields: fields}, Capabilities: filament.SinkCapabilities{EncodedIntegrity: true, PreferredBatchRows: 1000, PreferredBatchBytes: 4 << 20, WritePolicies: policies, ReusableSession: true}}
 }

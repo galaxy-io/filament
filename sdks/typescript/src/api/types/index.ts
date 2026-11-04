@@ -35,7 +35,6 @@ export * from "./IngestionV1ConfigField.js";
 export * from "./IngestionV1ConfigSchema.js";
 export * from "./IngestionV1Connection.js";
 export * from "./IngestionV1ConnectorKind.js";
-export * from "./IngestionV1ConnectorMaturity.js";
 export * from "./IngestionV1ConnectorSpec.js";
 export * from "./IngestionV1CreateConnectionResponse.js";
 export * from "./IngestionV1CreatePipelineNotifierResponse.js";

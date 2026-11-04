@@ -123,8 +123,8 @@ runtime or grammar behavior. Follow [validation.md](references/validation.md)
 for the checks to run. Fix failures in the changed scope and distinguish unrelated
 existing failures.
 
-New connectors start with `"maturity": "alpha"` in their registry version entry.
-Grammar validation and existing tests do not establish live fidelity. Promote maturity only when the user
+New connectors start with `"is_preview": true` in their registry version entry.
+Grammar validation and existing tests do not establish live fidelity. Clear the preview flag only when the user
 directs it based on live validation. If credentials or account features are
 unavailable, finish the implementation and state exactly which live checks remain.
 

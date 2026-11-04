@@ -44,7 +44,6 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1config_schema import IngestionV1ConfigSchema
     from .ingestion_v1connection import IngestionV1Connection
     from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-    from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
     from .ingestion_v1connector_spec import IngestionV1ConnectorSpec
     from .ingestion_v1create_connection_response import IngestionV1CreateConnectionResponse
     from .ingestion_v1create_pipeline_notifier_response import IngestionV1CreatePipelineNotifierResponse
@@ -180,7 +179,6 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ConfigSchema": ".ingestion_v1config_schema",
     "IngestionV1Connection": ".ingestion_v1connection",
     "IngestionV1ConnectorKind": ".ingestion_v1connector_kind",
-    "IngestionV1ConnectorMaturity": ".ingestion_v1connector_maturity",
     "IngestionV1ConnectorSpec": ".ingestion_v1connector_spec",
     "IngestionV1CreateConnectionResponse": ".ingestion_v1create_connection_response",
     "IngestionV1CreatePipelineNotifierResponse": ".ingestion_v1create_pipeline_notifier_response",
@@ -340,7 +338,6 @@ __all__ = [
     "IngestionV1ConfigSchema",
     "IngestionV1Connection",
     "IngestionV1ConnectorKind",
-    "IngestionV1ConnectorMaturity",
     "IngestionV1ConnectorSpec",
     "IngestionV1CreateConnectionResponse",
     "IngestionV1CreatePipelineNotifierResponse",

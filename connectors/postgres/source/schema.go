@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -51,6 +52,11 @@ func (s *Source) Schema(ctx context.Context, resource string) (rowmodel.Schema, 
 	pks, err := s.lookupPrimaryKey(ctx, s.schema, resource)
 	if err != nil {
 		return rowmodel.Schema{}, fmt.Errorf("lookup pk: %w", err)
+	}
+	for _, pk := range pks {
+		if !slices.ContainsFunc(cols, func(c column) bool { return c.name == pk.name }) {
+			return rowmodel.Schema{}, fmt.Errorf("resource %q: column selection omits primary key column %q", resource, pk.name)
+		}
 	}
 	return schemaOf(resource, cols, pkNames(pks)), nil
 }

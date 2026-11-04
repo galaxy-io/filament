@@ -42,7 +42,9 @@ func (c EpochCommit) ValidateCompletion(codecs CodecResolver) error {
 	if err != nil {
 		return err
 	}
-	completed, err := (Coverage{Positions: c.Completion.Positions()}).Canonicalize(codecs)
+	// Activated members are a claim about baselines, not positions the
+	// pipeline tracks, so they stand outside the position comparison.
+	completed, err := (Coverage{Positions: c.Completion.Positions(), Activated: cert.Coverage.Activated}).Canonicalize(codecs)
 	if err != nil {
 		return err
 	}

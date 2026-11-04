@@ -1,11 +1,11 @@
 import type { FC } from "react";
 
+import Spinner, { SpinnerSize } from "@galaxy-io/dls/feedback/Spinner";
 import EmptyLayout, { EmptyLayoutSize } from "@galaxy-io/dls/layout/EmptyLayout";
 import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 
 import PipelineCanvasNodeSourceIslandTableRow from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandTableRow";
-import PipelineCanvasNodeSourceIslandTableShimmer from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSourceIslandTableShimmer";
 import type { PipelineCanvasNodeTableInfo } from "@/pages/pipelines/canvas/types";
 
 import { IS_DEBUG } from "@/constants";
@@ -22,7 +22,11 @@ const PipelineCanvasNodeSourceIslandTableList: FC<PipelineCanvasNodeSourceIsland
   isLoading = false,
 }) => {
   if (isLoading) {
-    return <PipelineCanvasNodeSourceIslandTableShimmer />;
+    return (
+      <Flex justifyContent={JustifyContent.CENTER} padding={16} fillWidth>
+        <Spinner size={SpinnerSize.SMALL} ariaLabel="Loading resources" />
+      </Flex>
+    );
   }
 
   if (error) {

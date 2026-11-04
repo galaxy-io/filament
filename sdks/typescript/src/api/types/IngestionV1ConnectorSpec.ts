@@ -16,8 +16,8 @@ export interface IngestionV1ConnectorSpec {
     darkLogoUrl?: string | undefined;
     lightLogoUrl?: string | undefined;
     schemaField?: string | undefined;
-    maturity?: Filament.IngestionV1ConnectorMaturity | undefined;
     apiVersion?: string | undefined;
     /** Concrete registration selected by a source catalog alias; empty otherwise. */
     aliasTarget?: string | undefined;
+    isPreview?: boolean | undefined;
 }

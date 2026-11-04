@@ -21,6 +21,7 @@ import {
   PipelineEdgeSchema,
   PipelineGraphSchema,
   PipelineNodeSchema,
+  ResourceColumnSelectionSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
@@ -32,6 +33,7 @@ import {
   isResourceSelected,
 } from "@/pages/pipelines/components/create/rows";
 import type { CreatePipelineModalState } from "@/pages/pipelines/components/create/types";
+import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import { getEdgeValidationErrors } from "@/pages/pipelines/utils";
 
 import { useValidatePipelineQuery } from "@/api/queries/capabilities";
@@ -70,12 +72,25 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
     input: create(GetResourceColumnsRequestSchema, { connectionId, resources: resourceNames }),
     options: {
       ...PROBE_QUERY_OPTIONS,
-      enabled: isOpen && hasReadLevers && connectionId !== "" && resourceNames.length > 0,
+      enabled: isOpen && connectionId !== "" && resourceNames.length > 0,
     },
   });
 
-  const { sinkConnections, sinkWriteModes, nodeConfigs, resourceSelection, executionMode } = state;
+  const {
+    sinkConnections,
+    sinkWriteModes,
+    nodeConfigs,
+    resourceSelection,
+    resourceColumns,
+    executionMode,
+  } = state;
   const validationInput = useMemo(() => {
+    const createColumnSelections = (sinkId: Connection["id"], resource: string) =>
+      Object.entries(resourceColumns[sinkId] ?? {})
+        .filter(([name]) => resource === "" || name === resource)
+        .map(([name, columns]) =>
+          create(ResourceColumnSelectionSchema, { resource: name, columns }),
+        );
     const createSinkEdges = (sink: Connection) => {
       const writeMode =
         sinkWriteModes[sink.id] ??
@@ -91,6 +106,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
           resource,
           readMode: hasReadLevers ? ReadMode.FULL : ReadMode.UNSPECIFIED,
           writeMode,
+          columns: createColumnSelections(sink.id, resource),
         }),
       );
     };
@@ -124,6 +140,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
     sinkWriteModes,
     nodeConfigs,
     resourceSelection,
+    resourceColumns,
     executionMode,
     resources,
     hasReadLevers,
@@ -168,7 +185,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
   const isLoading =
     isLoadingResources ||
     isLoadingValidation ||
-    (hasReadLevers && resourceNames.length > 0 && isLoadingResourceColumns);
+    (resourceNames.length > 0 && isLoadingResourceColumns);
 
   const rowsBySink = useMemo(
     () =>
@@ -201,7 +218,19 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
   const issuesBySink = useMemo(() => {
     if (isLoading || discoverError) return {};
     const issues = getIssuesBySink(rowsBySink, sinks);
-    if (!isContinuous) return issues;
+    if (!isContinuous) {
+      return Object.fromEntries(
+        sinks.map((sink) => {
+          const sinkId = sink.connection.id;
+          const columnErrors = (validation?.edges ?? [])
+            .filter((edge) => edge.toNode === sinkId)
+            .flatMap((edge) => edge.errors)
+            .filter((error) => error.field === PipelineResourceStatusField.COLUMNS)
+            .map((error) => error.message);
+          return [sinkId, [...new Set([...(issues[sinkId] ?? []), ...columnErrors])]];
+        }),
+      );
+    }
     const graphErrors = [
       ...(validationError ? [validationError.message] : []),
       ...(validation?.errors ?? []).map((error) => error.message),

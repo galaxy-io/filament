@@ -77,7 +77,7 @@ export const useFilamentCommandItems = ({
 
     const openCreateFlow = (to: FilamentPath, flow: Flow, connectorKind?: ConnectorKind) => {
       if (mountedBase) {
-        openFlow(flow, connectorKind);
+        openFlow(flow, { connectorKind });
         return;
       }
       navigateFromBase(to, { search: { flow, connectorKind } });

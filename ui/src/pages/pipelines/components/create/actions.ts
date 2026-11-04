@@ -20,6 +20,7 @@ export enum CreatePipelineModalActionType {
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
+  SET_RESOURCE_COLUMNS = "SET_RESOURCE_COLUMNS",
   SET_RESOURCE_WRITE_MODE = "SET_RESOURCE_WRITE_MODE",
   SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
@@ -81,6 +82,15 @@ export interface SetResourceCursorAction {
     sinkId: Connection["id"];
     resource: Resource["name"];
     cursorField: ResourceColumn["name"];
+  };
+}
+
+export interface SetResourceColumnsAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_COLUMNS;
+  payload: {
+    sinkId: Connection["id"];
+    resource: Resource["name"];
+    columns: ResourceColumn["name"][];
   };
 }
 
@@ -161,6 +171,7 @@ export type CreatePipelineModalAction =
   | SetResourceSelectionAction
   | SetResourceReadModeAction
   | SetResourceCursorAction
+  | SetResourceColumnsAction
   | SetResourceWriteModeAction
   | SetSinkWriteModeAction
   | SetNodeConfigAction
