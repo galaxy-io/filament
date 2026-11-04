@@ -89,6 +89,7 @@ export * from "./IngestionV1Requirement.js";
 export * from "./IngestionV1RequirementKind.js";
 export * from "./IngestionV1Resource.js";
 export * from "./IngestionV1ResourceColumn.js";
+export * from "./IngestionV1ResourceColumnSelection.js";
 export * from "./IngestionV1ResourceColumns.js";
 export * from "./IngestionV1ResourceCursorConfig.js";
 export * from "./IngestionV1ResourceValidation.js";

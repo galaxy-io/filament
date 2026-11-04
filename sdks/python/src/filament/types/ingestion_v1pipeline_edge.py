@@ -8,6 +8,7 @@ from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
 from .google_protobuf_struct import GoogleProtobufStruct
 from .ingestion_v1read_mode import IngestionV1ReadMode
+from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
 from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
 from .ingestion_v1write_mode import IngestionV1WriteMode
 
@@ -60,6 +61,13 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
     transform is the edge's transform definition as a JSON object matching
      the transform grammar, keyed by resource. A resource-specific edge may
      only define its own resource. Empty means rows pass through unchanged.
+    """
+
+    columns: typing.Optional[typing.List[IngestionV1ResourceColumnSelection]] = pydantic.Field(default=None)
+    """
+    columns narrows the columns read from each resource. An all-resource edge
+     may configure several resources; a resource-specific edge may configure
+     only its own resource. An omitted resource reads every column.
     """
 
     if IS_PYDANTIC_V2:
