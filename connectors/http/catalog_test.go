@@ -7,7 +7,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 )
 
@@ -41,7 +40,7 @@ func TestEmbeddedCatalogRegistration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if spec.Name != entry.key() || spec.Version != entry.version || spec.Maturity != entry.maturity {
+			if spec.Name != entry.key() || spec.Version != entry.version || spec.IsPreview != entry.isPreview {
 				t.Fatalf("incorrect catalog identity: %#v", spec)
 			}
 			second := catalogSource(t, entry.key())
@@ -59,7 +58,7 @@ func TestEmbeddedCatalogRegistration(t *testing.T) {
 		for _, spec := range specs {
 			if spec.Name == entry.name {
 				aliases++
-				if entry.isDefault && (spec.Version != entry.version || spec.Maturity != entry.maturity) {
+				if entry.isDefault && (spec.Version != entry.version || spec.IsPreview != entry.isPreview) {
 					t.Fatalf("alias metadata = %#v", spec)
 				}
 			}
@@ -79,7 +78,7 @@ func TestEmbeddedCatalogRegistration(t *testing.T) {
 func testCatalog(t *testing.T) fstest.MapFS {
 	t.Helper()
 	registration := catalogRegistry{SchemaVersion: 1, Name: "example", DefaultVersion: "v2", Versions: map[string]catalogVersion{
-		"v1": {Maturity: filament.MaturityBeta}, "v2": {Maturity: filament.MaturityAlpha},
+		"v1": {IsPreview: true}, "v2": {IsPreview: true},
 	}}
 	data, err := json.Marshal(registration)
 	if err != nil {
@@ -102,7 +101,7 @@ func TestCatalogMultipleVersions(t *testing.T) {
 	}
 	sources := registry.NewSources()
 	for _, entry := range entries {
-		sources.RegisterWithMaturity(entry.key(), entry.maturity, entry.source)
+		sources.RegisterWithPreview(entry.key(), entry.isPreview, entry.source)
 	}
 	sources.RegisterAlias("example", "example@v2")
 	for _, key := range []string{"example@v1", "example@v2", "example"} {
@@ -154,9 +153,11 @@ func TestCatalogRejectsInvalidEntries(t *testing.T) {
 		{"unknown field", `{"schema_version":1,"extra":true}`, "unknown field"},
 		{"unsupported schema", `{"schema_version":2}`, "unsupported schema_version"},
 		{"name mismatch", `{"schema_version":1,"name":"other"}`, "name must match directory"},
-		{"missing default", `{"schema_version":1,"name":"example","versions":{"v1":{"maturity":"beta"}}}`, "default_version"},
-		{"invalid version", `{"schema_version":1,"name":"example","default_version":"../v1","versions":{"../v1":{"maturity":"beta"}}}`, "invalid API version"},
-		{"invalid maturity", `{"schema_version":1,"name":"example","default_version":"v1","versions":{"v1":{"maturity":"experimental"}}}`, "invalid maturity"},
+		{"missing default", `{"schema_version":1,"name":"example","versions":{"v1":{"is_preview":true}}}`, "default_version"},
+		{"missing preview", `{"schema_version":1,"name":"example","default_version":"v1","versions":{"v1":{}}}`, "is_preview is required"},
+		{"invalid version", `{"schema_version":1,"name":"example","default_version":"../v1","versions":{"../v1":{"is_preview":true}}}`, "invalid API version"},
+		{"invalid preview", `{"schema_version":1,"name":"example","default_version":"v1","versions":{"v1":{"is_preview":"experimental"}}}`, "is_preview must be a boolean"},
+		{"null preview", `{"schema_version":1,"name":"example","default_version":"v1","versions":{"v1":{"is_preview":null}}}`, "is_preview must be a boolean"},
 		{"trailing JSON", `{} {}`, "one JSON document"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -202,7 +203,7 @@ resources:
 func TestCatalogAPIVersionIdentifiers(t *testing.T) {
 	for _, version := range []string{"v2", "v8", "3.0", "2022-11-28", "2026-07", "2026-07-29.dahlia", "unversioned"} {
 		t.Run(version, func(t *testing.T) {
-			registration := catalogRegistry{SchemaVersion: 1, Name: "example", DefaultVersion: version, Versions: map[string]catalogVersion{version: {Maturity: filament.MaturityAlpha}}}
+			registration := catalogRegistry{SchemaVersion: 1, Name: "example", DefaultVersion: version, Versions: map[string]catalogVersion{version: {IsPreview: true}}}
 			data, err := json.Marshal(registration)
 			if err != nil {
 				t.Fatal(err)
@@ -242,7 +243,7 @@ func TestCatalogAPIVersionIdentifiers(t *testing.T) {
 func TestCatalogRejectsUnsafeAPIVersionPaths(t *testing.T) {
 	for _, version := range []string{"", ".", "..", "../v2", "v2/nested", "v2\\nested", "/v2", "v2@other", "v2?x", "v2 ", ".hidden"} {
 		t.Run(version, func(t *testing.T) {
-			registration := catalogRegistry{SchemaVersion: 1, Name: "example", DefaultVersion: version, Versions: map[string]catalogVersion{version: {Maturity: filament.MaturityAlpha}}}
+			registration := catalogRegistry{SchemaVersion: 1, Name: "example", DefaultVersion: version, Versions: map[string]catalogVersion{version: {IsPreview: true}}}
 			data, err := json.Marshal(registration)
 			if err != nil {
 				t.Fatal(err)

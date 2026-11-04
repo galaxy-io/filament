@@ -77,7 +77,7 @@ files in the report. A failed global link check is not a passing check just
 because its findings are unrelated.
 
 Inspect the final diff for unintended changes, debug fixtures, credentials,
-generated artifacts, and stale claims about coverage or maturity.
+generated artifacts, and stale claims about coverage or preview status.
 
 ## Live verification and completion
 
