@@ -24,11 +24,16 @@ func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		return err
 	}
 
-	// Sequential path: one worker, no cross-shard concurrency, so no snapshot to
-	// coordinate — read each shard in turn straight off the pool.
+	// Sequential path: one worker reads each shard in turn inside one snapshot,
+	// so a row moving between partitions mid-read is seen exactly once.
 	if opts.Parallelism <= 1 || len(shards) <= 1 {
+		snap, err := s.openSnapshot(ctx)
+		if err != nil {
+			return err
+		}
+		defer snap.close(ctx)
 		for _, sh := range shards {
-			if err := s.extractShard(ctx, sink, s.pool, sh, opts.Limit); err != nil {
+			if err := s.extractShard(ctx, sink, snap.tx, sh, opts.Limit); err != nil {
 				return fmt.Errorf("extract %q: %w", sh.table, err)
 			}
 		}

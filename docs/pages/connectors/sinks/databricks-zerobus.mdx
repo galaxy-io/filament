@@ -7,7 +7,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-databricks-dark.svg"
 
 Connector ID `databrickszerobus`
 
-The Databricks Zerobus sink (**alpha**) appends each resource to a Delta table in
+The Databricks Zerobus sink appends each resource to a Delta table in
 Unity Catalog through the [Zerobus Ingest API](https://docs.databricks.com/aws/en/ingestion/zerobus-overview)
 over Arrow Flight. With `create_table` on, the sink creates the destination schema
 and tables itself, so a first run needs one grant on the catalog.

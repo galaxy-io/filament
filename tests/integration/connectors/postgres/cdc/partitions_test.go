@@ -81,8 +81,10 @@ func TestPostgresPartitionedTableReadsItsPartitions(t *testing.T) {
 	if err := src.Extract(ctx, all, filament.ExtractOpts{Resources: []string{"events"}, Parallelism: 4}); err != nil {
 		t.Fatal(err)
 	}
-	if got := eventIDs(t, all.Records); len(got) != 9 {
-		t.Fatalf("full read = %v, want all nine rows", got)
+	full := eventIDs(t, all.Records)
+	slices.Sort(full)
+	if !slices.Equal(full, []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}) {
+		t.Fatalf("full read = %v, want ids 1 through 9", full)
 	}
 
 	if err := src.SelectPartitions(map[string][]string{"events": {"events_2026_10_eu"}}); err != nil {
@@ -121,6 +123,16 @@ func TestPostgresPartitionedTableReadsItsPartitions(t *testing.T) {
 	}
 	if err := src.Extract(ctx, &testutil.CollectSink{}, filament.ExtractOpts{Resources: []string{"events"}}); err == nil || !strings.Contains(err.Error(), "no partition") {
 		t.Fatalf("an unknown partition must fail the read: %v", err)
+	}
+
+	if _, err := pg.Pool().Exec(ctx, `CREATE TABLE plain (id bigint PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := src.SelectPartitions(map[string][]string{"plain": {"plain_1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := src.Extract(ctx, &testutil.CollectSink{}, filament.ExtractOpts{Resources: []string{"plain"}}); err == nil || !strings.Contains(err.Error(), "not partitioned") {
+		t.Fatalf("a selection on a plain table must fail the read: %v", err)
 	}
 }
 

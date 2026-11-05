@@ -29,7 +29,7 @@ func SourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 		Version:      spec.Version,
 		ApiVersion:   spec.APIVersion,
 		AliasTarget:  spec.AliasTarget,
-		Maturity:     ConnectorMaturityToProto(spec.Maturity),
+		IsPreview:    spec.IsPreview,
 		Modes:        ReplicationModesToProto(spec.Modes),
 		ConfigSchema: ConfigSchemaToProto(spec.Config),
 	}
@@ -38,10 +38,6 @@ func SourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 // sourceSpecFromProto restores the fields the public projection carries.
 func sourceSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.ConnectorSpec, error) {
 	config, err := ConfigSchemaFromProto(spec.GetConfigSchema())
-	if err != nil {
-		return filament.ConnectorSpec{}, err
-	}
-	maturity, err := ConnectorMaturityFromProto(spec.GetMaturity())
 	if err != nil {
 		return filament.ConnectorSpec{}, err
 	}
@@ -54,7 +50,7 @@ func sourceSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.ConnectorSpe
 		Version:      spec.GetVersion(),
 		APIVersion:   spec.GetApiVersion(),
 		AliasTarget:  spec.GetAliasTarget(),
-		Maturity:     maturity,
+		IsPreview:    spec.GetIsPreview(),
 		Config:       config,
 	}, nil
 }
@@ -70,7 +66,7 @@ func SinkSpecToProto(spec filament.SinkSpec) *ingestionv1.ConnectorSpec {
 		LightLogoUrl: spec.LightLogoURL,
 		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK,
 		Version:      spec.Version,
-		Maturity:     ConnectorMaturityToProto(spec.Maturity),
+		IsPreview:    spec.IsPreview,
 		ConfigSchema: ConfigSchemaToProto(spec.Config),
 		SchemaField:  spec.SchemaField,
 	}
@@ -81,10 +77,6 @@ func sinkSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.SinkSpec, erro
 	if err != nil {
 		return filament.SinkSpec{}, err
 	}
-	maturity, err := ConnectorMaturityFromProto(spec.GetMaturity())
-	if err != nil {
-		return filament.SinkSpec{}, err
-	}
 	return filament.SinkSpec{
 		Name:         spec.GetName(),
 		DisplayName:  spec.GetDisplayName(),
@@ -92,41 +84,10 @@ func sinkSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.SinkSpec, erro
 		DarkLogoURL:  spec.GetDarkLogoUrl(),
 		LightLogoURL: spec.GetLightLogoUrl(),
 		Version:      spec.GetVersion(),
-		Maturity:     maturity,
+		IsPreview:    spec.GetIsPreview(),
 		Config:       config,
 		SchemaField:  spec.GetSchemaField(),
 	}, nil
-}
-
-// ConnectorMaturityToProto maps a maturity marker; unknown is unspecified.
-func ConnectorMaturityToProto(maturity filament.ConnectorMaturity) ingestionv1.ConnectorMaturity {
-	switch maturity {
-	case filament.MaturityAlpha:
-		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_ALPHA
-	case filament.MaturityBeta:
-		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA
-	case filament.MaturityStable:
-		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE
-	default:
-		return ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED
-	}
-}
-
-// ConnectorMaturityFromProto accepts unspecified as the empty marker, since a
-// spec may leave maturity to its registration.
-func ConnectorMaturityFromProto(maturity ingestionv1.ConnectorMaturity) (filament.ConnectorMaturity, error) {
-	switch maturity {
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_UNSPECIFIED:
-		return "", nil
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_ALPHA:
-		return filament.MaturityAlpha, nil
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA:
-		return filament.MaturityBeta, nil
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE:
-		return filament.MaturityStable, nil
-	default:
-		return "", fmt.Errorf("unknown connector maturity %d", maturity)
-	}
 }
 
 // ConfigSchemaToProto encodes a config schema. A field typed secret is marked

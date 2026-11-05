@@ -32,7 +32,7 @@ import { getConnectionScopedFields, isFieldVisible } from "@/components/fields/u
 
 import { getConnectorVersions } from "@/pages/connections/components/create/utils";
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
-import ConnectionFormMaturityAlert from "@/pages/connections/components/form/ConnectionFormMaturityAlert";
+import ConnectionFormPreviewAlert from "@/pages/connections/components/form/ConnectionFormPreviewAlert";
 import {
   useConnectionFormActions,
   useConnectionFormState,
@@ -354,12 +354,13 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       onClose={onClose}
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
-        <ConnectionFormMaturityAlert
-          connectorName={connectorName}
-          connectorKind={connectorKind}
-          connectorMaturity={connector.maturity}
-          connectorApiVersion={connector.apiVersion}
-        />
+        {connector.isPreview && (
+          <ConnectionFormPreviewAlert
+            connectorName={connectorName}
+            connectorKind={connectorKind}
+            connectorApiVersion={connector.apiVersion}
+          />
+        )}
         {unplacedErrors.map((error) => (
           <Box key={`${error.field}:${error.message}`} fillWidth>
             <Alert variant={AlertVariant.ERROR}>{error.message}</Alert>

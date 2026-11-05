@@ -31,4 +31,10 @@ export interface IngestionV1PipelineEdge {
      *  only define its own resource. Empty means rows pass through unchanged.
      */
     transform?: Filament.GoogleProtobufStruct | undefined;
+    /**
+     * columns narrows the columns read from each resource. An all-resource edge
+     *  may configure several resources; a resource-specific edge may configure
+     *  only its own resource. An omitted resource reads every column.
+     */
+    columns?: Filament.IngestionV1ResourceColumnSelection[] | undefined;
 }

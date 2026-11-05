@@ -84,6 +84,9 @@ ORDER BY n.nspname, c.relname`
 		if schema != s.schema {
 			l.name = schema + "." + name
 		}
+		if slices.ContainsFunc(leaves, func(other leaf) bool { return other.name == l.name }) {
+			return nil, false, fmt.Errorf("postgres source: %q has two partitions named %q", table, l.name)
+		}
 		leaves = append(leaves, l)
 	}
 	if err := rows.Err(); err != nil {
@@ -101,6 +104,9 @@ func (s *Source) snapshotRelations(ctx context.Context, table string) ([]string,
 		return nil, err
 	}
 	if !partitioned {
+		if _, narrowed := s.partitions[table]; narrowed {
+			return nil, fmt.Errorf("postgres source: %q is not partitioned, so its partition selection cannot apply", table)
+		}
 		return []string{pgx.Identifier{s.schema, table}.Sanitize()}, nil
 	}
 	selected, narrowed := s.partitions[table]

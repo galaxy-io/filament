@@ -14,7 +14,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-motherduck-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-motherduck-light.svg",
 		Version:      "1",
-		Maturity:     filament.MaturityAlpha,
+		IsPreview:    true,
 		Config: filament.ConfigSchema{Fields: append(connection.Fields(), filament.ConfigField{
 			Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline,
 			Help: "Destination schema.",
