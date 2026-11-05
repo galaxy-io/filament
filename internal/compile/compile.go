@@ -422,10 +422,18 @@ func (c *Compiler) resolveNodeRef(ctx context.Context, node *ingestionv1.Pipelin
 		return filament.Ref{}, fmt.Errorf("%w: node %q references missing connection %q", ErrInvalid, node.GetId(), node.GetConnectionId())
 	}
 	overlay := structMap(node.GetConfig())
-	if schema, err := c.schemaFor(ctx, conn.Kind, conn.Connector); err == nil {
+	schema, err := c.schemaFor(ctx, conn.Kind, conn.Connector)
+	switch {
+	case err == nil:
 		if err := ValidateOverlayConfig(schema, overlay); err != nil {
 			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
 		}
+		if err := ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
+			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
+		}
+	case len(node.GetSecretRefs()) > 0 || len(overlay) > 0:
+		// Without the schema there is no telling which fields a node may set.
+		return filament.Ref{}, fmt.Errorf("%w: node %q: node config and secret refs need the connector schema: %v", ErrInvalid, node.GetId(), err)
 	}
 	return filament.Ref{
 		Connector:  conn.Connector,

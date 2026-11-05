@@ -691,18 +691,26 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		}
 		return err
 	}
+	// A run rejects a node that sets config or secret refs when the schema is
+	// unavailable, so report that here rather than calling the node valid.
+	unavailable := func(err error) error {
+		if len(node.GetSecretRefs()) > 0 || len(node.GetConfig().GetFields()) > 0 {
+			resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: connector schema unavailable: %s", node.GetId(), err.Error())})
+		}
+		return nil
+	}
 	var schema filament.ConfigSchema
 	switch conn.Kind {
 	case filament.ConnectorKindSource:
 		spec, err := a.worker.SourceSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	default:
@@ -715,6 +723,9 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 			validationErr.Field = fieldErr.Field
 		}
 		resp.Errors = append(resp.Errors, validationErr)
+	}
+	if err := compile.ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
+		resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: %s", node.GetId(), err.Error())})
 	}
 	return nil
 }
@@ -830,8 +841,11 @@ func (p *nodeInspections) resource(ctx context.Context, node *ingestionv1.Pipeli
 }
 
 func (p *nodeInspections) inspect(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.Inspection, error) {
-	config := compile.MergeConfig(conn.Config, convert.StructMap(node.GetConfig()))
-	if err := p.server.resolveConnectionSecrets(ctx, conn, config); err != nil {
+	// Resolve the node's config against the saved connection as the connector
+	// RPCs do.
+	// Inspection only ever runs against sources.
+	config, err := p.server.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, convert.StructMap(node.GetConfig()))
+	if err != nil {
 		return nil, err
 	}
 	return p.server.worker.Inspect(ctx, conn.Connector, filament.NewConfig(config), resources)
