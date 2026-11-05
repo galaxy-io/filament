@@ -9,4 +9,6 @@ export interface IngestionV1ResourceColumns {
     managedIncremental?: boolean | undefined;
     /** The source reads only the columns an edge selects. */
     selectableColumns?: boolean | undefined;
+    /** The resource's partitions an edge may select; empty when it is not partitioned. */
+    partitions?: string[] | undefined;
 }

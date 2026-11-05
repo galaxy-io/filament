@@ -92,6 +92,7 @@ export * from "./IngestionV1ResourceColumn.js";
 export * from "./IngestionV1ResourceColumnSelection.js";
 export * from "./IngestionV1ResourceColumns.js";
 export * from "./IngestionV1ResourceCursorConfig.js";
+export * from "./IngestionV1ResourcePartitionSelection.js";
 export * from "./IngestionV1ResourceValidation.js";
 export * from "./IngestionV1RunEvent.js";
 export * from "./IngestionV1RunEventFields.js";

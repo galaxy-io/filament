@@ -10,6 +10,7 @@ from .google_protobuf_struct import GoogleProtobufStruct
 from .ingestion_v1read_mode import IngestionV1ReadMode
 from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
 from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
+from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
 from .ingestion_v1write_mode import IngestionV1WriteMode
 
 
@@ -68,6 +69,16 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
     columns narrows the columns read from each resource. An all-resource edge
      may configure several resources; a resource-specific edge may configure
      only its own resource. An omitted resource reads every column.
+    """
+
+    partitions: typing.Optional[typing.List[IngestionV1ResourcePartitionSelection]] = pydantic.Field(default=None)
+    """
+    partitions narrows the partitions a full read or a change stream's
+     initial snapshot backfills from each partitioned resource. The change
+     stream still carries every partition, including ones created later. An
+     all-resource edge may configure several resources; a resource-specific
+     edge may configure only its own resource. An omitted resource backfills
+     every partition, and an empty selection backfills none.
     """
 
     if IS_PYDANTIC_V2:
