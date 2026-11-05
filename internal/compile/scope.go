@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/galaxy-io/filament"
 )
@@ -41,6 +42,25 @@ func ValidateOverlayConfig(schema filament.ConfigSchema, cfg map[string]any) err
 	for key := range cfg {
 		if scope, ok := scopes[key]; ok && scope == filament.ScopeConnection {
 			return fmt.Errorf("field %q is connection-scoped and cannot be overridden on the pipeline node", key)
+		}
+	}
+	return nil
+}
+
+// ValidateOverlaySecretRefs rejects pipeline-node secret refs a node may not
+// set. A node may only fill pipeline-scoped secret fields: a ref for a
+// connection field would swap out the connection's own secret, just as a
+// connection-scoped config key would. Refs in the connection-managed
+// namespace are minted for one connection's field, so a node never owns one.
+func ValidateOverlaySecretRefs(schema filament.ConfigSchema, refs map[string]string) error {
+	scopes := scopeByField(schema)
+	for field, ref := range refs {
+		top, _, _ := strings.Cut(field, ".")
+		if scopes[top] != filament.ScopePipeline {
+			return fmt.Errorf("secret ref for field %q: only pipeline-scoped fields can take a secret ref on the pipeline node", field)
+		}
+		if strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
+			return fmt.Errorf("secret ref for field %q belongs to a connection and cannot be used on a pipeline node", field)
 		}
 	}
 	return nil

@@ -46,6 +46,10 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	// A new connection owns no secrets yet.
+	if err := validateOwnedSecretRefs(refs, nil); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -111,7 +115,7 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	cfg := convert.StructMap(in.GetConfig())
 	refs := cloneStrings(in.GetSecretRefs())
 	canonicalizeConnectionConfig(schema, cfg, refs)
-	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
+	if err := checkUpdatedSecretRefs(schema, stored, cfg, refs); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
@@ -550,6 +554,41 @@ func validateSecretRefTenant(refs map[string]string, tenant string) error {
 	for field, ref := range refs {
 		if err := filament.ValidateConnectionSecretRef(ref, filament.TenantID(tenant)); err != nil {
 			return fmt.Errorf("secret ref for field %q: %w", field, err)
+		}
+	}
+	return nil
+}
+
+// checkUpdatedSecretRefs applies the secret-ref rules for an update of stored
+// to cfg, dropping from refs any saved secret that may not carry over.
+func checkUpdatedSecretRefs(schema filament.ConfigSchema, stored filament.Connection, cfg map[string]any, refs map[string]string) error {
+	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
+		return err
+	}
+	if err := validateOwnedSecretRefs(refs, stored.SecretRefs); err != nil {
+		return err
+	}
+	// Saved secrets go with the saved connection settings. When the update
+	// changes a connection field, keep only the secrets supplied again; one
+	// left blank is dropped rather than carried over.
+	if changedConnectionField(schema, stored.Config, cfg) != "" {
+		for field := range retainedSecretRefs(refs, cfg) {
+			delete(refs, field)
+		}
+	}
+	return nil
+}
+
+// validateOwnedSecretRefs rejects a caller-supplied ref in the
+// connection-managed namespace unless it is the ref the connection already
+// holds for that same field. The server mints every such ref for one field of
+// one connection, so any other is a different connection's or field's secret.
+// Refs outside the namespace are environment-style references the caller
+// names directly and are not checked here.
+func validateOwnedSecretRefs(refs, owned map[string]string) error {
+	for field, ref := range refs {
+		if strings.HasPrefix(ref, filament.ConnectionSecretPrefix) && owned[field] != ref {
+			return fmt.Errorf("secret ref for field %q is not one this connection holds", field)
 		}
 	}
 	return nil

@@ -406,7 +406,7 @@ type SecretRotator interface {
 }
 
 // ConnectionSecretPrefix namespaces the secret refs the connection API mints on
-// a tenant's behalf: connections/<tenant>/<connID>/<field>/v<version>.
+// a tenant's behalf: filament/<tenant>/<connID>/<field>/v<version>/<attempt>.
 const ConnectionSecretPrefix = "filament/"
 
 // ConnectionSecretRef builds the canonical ref for a connection-managed secret.
@@ -416,7 +416,7 @@ func ConnectionSecretRef(tenant, connID, field string, version int64) string {
 
 // ValidateConnectionSecretRef enforces the sole cross-tenant isolation rule for
 // the shared, ref-keyed secret store: a ref in the connection-managed namespace
-// (connections/<tenant>/...) may only be read or written by its owning tenant.
+// (filament/<tenant>/...) may only be read or written by its owning tenant.
 // Refs outside that namespace (e.g. env-style) carry no tenant and pass through.
 func ValidateConnectionSecretRef(ref string, tenant TenantID) error {
 	if !strings.HasPrefix(ref, ConnectionSecretPrefix) {

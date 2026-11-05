@@ -716,6 +716,9 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		}
 		resp.Errors = append(resp.Errors, validationErr)
 	}
+	if err := compile.ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
+		resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: %s", node.GetId(), err.Error())})
+	}
 	return nil
 }
 
@@ -830,8 +833,11 @@ func (p *nodeInspections) resource(ctx context.Context, node *ingestionv1.Pipeli
 }
 
 func (p *nodeInspections) inspect(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.Inspection, error) {
-	config := compile.MergeConfig(conn.Config, convert.StructMap(node.GetConfig()))
-	if err := p.server.resolveConnectionSecrets(ctx, conn, config); err != nil {
+	// Resolve the node's config against the saved connection as the connector
+	// RPCs do.
+	// Inspection only ever runs against sources.
+	config, err := p.server.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, convert.StructMap(node.GetConfig()))
+	if err != nil {
 		return nil, err
 	}
 	return p.server.worker.Inspect(ctx, conn.Connector, filament.NewConfig(config), resources)
