@@ -1,6 +1,14 @@
 # syntax=docker/dockerfile:1
 ARG DUCKDB_VERSION=v1.4.1
 
+FROM golang:1.26-trixie AS build
+ARG VERSION=dev
+WORKDIR /src
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    cd cmd/worker && GOWORK=off CGO_ENABLED=1 go build -buildvcs=false -trimpath \
+      -ldflags="-s -w -X github.com/galaxy-io/filament/version.Version=${VERSION}" -o /out/worker .
+
 FROM debian:13-slim AS extensions
 ARG DUCKDB_VERSION
 ARG TARGETARCH
@@ -12,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 FROM gcr.io/distroless/cc-debian13:nonroot
 
 COPY --from=extensions --chown=65532:65532 /extensions/.duckdb /home/nonroot/.duckdb
-COPY bin/filament/worker-libc /app
+COPY --from=build /out/worker /app
 
 ENV HOME=/home/nonroot
 USER 65532:65532
