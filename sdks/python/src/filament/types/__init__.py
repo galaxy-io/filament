@@ -44,7 +44,6 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1config_schema import IngestionV1ConfigSchema
     from .ingestion_v1connection import IngestionV1Connection
     from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-    from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
     from .ingestion_v1connector_spec import IngestionV1ConnectorSpec
     from .ingestion_v1create_connection_response import IngestionV1CreateConnectionResponse
     from .ingestion_v1create_pipeline_notifier_response import IngestionV1CreatePipelineNotifierResponse
@@ -99,6 +98,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1requirement_kind import IngestionV1RequirementKind
     from .ingestion_v1resource import IngestionV1Resource
     from .ingestion_v1resource_column import IngestionV1ResourceColumn
+    from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
@@ -180,7 +180,6 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ConfigSchema": ".ingestion_v1config_schema",
     "IngestionV1Connection": ".ingestion_v1connection",
     "IngestionV1ConnectorKind": ".ingestion_v1connector_kind",
-    "IngestionV1ConnectorMaturity": ".ingestion_v1connector_maturity",
     "IngestionV1ConnectorSpec": ".ingestion_v1connector_spec",
     "IngestionV1CreateConnectionResponse": ".ingestion_v1create_connection_response",
     "IngestionV1CreatePipelineNotifierResponse": ".ingestion_v1create_pipeline_notifier_response",
@@ -235,6 +234,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1RequirementKind": ".ingestion_v1requirement_kind",
     "IngestionV1Resource": ".ingestion_v1resource",
     "IngestionV1ResourceColumn": ".ingestion_v1resource_column",
+    "IngestionV1ResourceColumnSelection": ".ingestion_v1resource_column_selection",
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
@@ -340,7 +340,6 @@ __all__ = [
     "IngestionV1ConfigSchema",
     "IngestionV1Connection",
     "IngestionV1ConnectorKind",
-    "IngestionV1ConnectorMaturity",
     "IngestionV1ConnectorSpec",
     "IngestionV1CreateConnectionResponse",
     "IngestionV1CreatePipelineNotifierResponse",
@@ -395,6 +394,7 @@ __all__ = [
     "IngestionV1RequirementKind",
     "IngestionV1Resource",
     "IngestionV1ResourceColumn",
+    "IngestionV1ResourceColumnSelection",
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
     "IngestionV1ResourceValidation",

@@ -314,7 +314,7 @@ type ConnectorSpec struct {
 	LightLogoURL   string
 	Version        string
 	APIVersion     string
-	Maturity       ConnectorMaturity
+	IsPreview      bool
 	Modes          []ReadMode
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema

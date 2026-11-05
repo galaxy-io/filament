@@ -3835,16 +3835,6 @@
         ],
         "description": "ConnectorKind distinguishes a source from a sink in the catalog."
       },
-      "ingestion.v1.ConnectorMaturity": {
-        "type": "string",
-        "title": "ConnectorMaturity",
-        "enum": [
-          "CONNECTOR_MATURITY_UNSPECIFIED",
-          "CONNECTOR_MATURITY_ALPHA",
-          "CONNECTOR_MATURITY_BETA",
-          "CONNECTOR_MATURITY_STABLE"
-        ]
-      },
       "ingestion.v1.ConnectorSpec": {
         "type": "object",
         "properties": {
@@ -3899,14 +3889,6 @@
             "type": "string",
             "title": "schema_field"
           },
-          "maturity": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ingestion.v1.ConnectorMaturity"
-              }
-            ],
-            "title": "maturity"
-          },
           "apiVersion": {
             "type": "string",
             "title": "api_version"
@@ -3915,6 +3897,10 @@
             "type": "string",
             "title": "alias_target",
             "description": "Concrete registration selected by a source catalog alias; empty otherwise."
+          },
+          "isPreview": {
+            "type": "boolean",
+            "title": "is_preview"
           }
         },
         "title": "ConnectorSpec",

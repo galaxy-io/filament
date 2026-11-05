@@ -10,6 +10,6 @@ import (
 
 func init() {
 	registry.RegisterPositionCodec(source.PositionCodec, 0, source.OffsetCodec{})
-	registry.RegisterSource("kafka", filament.MaturityAlpha, func() filament.Source { return source.New() })
-	registry.RegisterSink("kafka", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
+	registry.RegisterSource("kafka", false, func() filament.Source { return source.New() })
+	registry.RegisterSink("kafka", false, func() filament.Sink { return sink.New() })
 }

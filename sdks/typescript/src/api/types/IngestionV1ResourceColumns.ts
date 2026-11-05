@@ -7,4 +7,6 @@ export interface IngestionV1ResourceColumns {
     columns?: Filament.IngestionV1ResourceColumn[] | undefined;
     /** Incremental state is owned by the source; no cursor column is required. */
     managedIncremental?: boolean | undefined;
+    /** The source reads only the columns an edge selects. */
+    selectableColumns?: boolean | undefined;
 }
