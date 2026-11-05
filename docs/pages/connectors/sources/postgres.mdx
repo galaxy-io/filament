@@ -197,6 +197,39 @@ repeat after a failure between destination success and checkpoint persistence.
     error. Set `REPLICA IDENTITY FULL` on that table.
 </Warning>
 
+## Partitioned tables
+
+A partitioned table is one resource. Discovery lists the parent and hides its
+partitions, and every read emits rows under the parent's name. A full read
+scans each leaf partition, including the leaves of sub-partitions. The `ctid`
+strategy reads a keyed partitioned table in key order instead, since its
+storage is split across partitions. A keyless partitioned table reads by ctid
+under every strategy.
+
+A resource may select which partitions to backfill. A full read, and the
+initial snapshot of a CDC stream, then read only those partitions. The change
+stream still carries every partition, including partitions created later, so a
+row changed in an unselected partition reaches the sink without a backfill.
+Deselect every partition to skip the backfill and stream changes only.
+A full read with a partition selection is not resumable and repeats in full
+after an interruption. Incremental reads do not accept a partition selection.
+
+CDC on a partitioned table needs PostgreSQL 13 or later. A managed publication
+sets `publish_via_partition_root`, so changes arrive under the parent's name.
+An administrator's publication must set it too. Each leaf partition's own
+replica identity applies, so a leaf with `REPLICA IDENTITY FULL` keeps the
+publication whole.
+
+<Warning>
+  Partition maintenance bypasses the change stream in these cases.
+
+  - `ATTACH PARTITION` of a table that already holds rows adds them without
+    WAL inserts. Resync the resource to read them.
+  - `DETACH PARTITION` removes rows without WAL deletes.
+  - A foreign table partition has no WAL and cannot be read by ctid, so a full
+    read or snapshot that includes one fails.
+</Warning>
+
 ## Keyless tables
 
 A table without a primary key is still readable in full. It falls back to the

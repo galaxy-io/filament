@@ -26,6 +26,7 @@ type routeGroup struct {
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
 	columns       map[string][]string // resource → selected source columns
+	partitions    map[string][]string // resource → partitions to backfill
 	transforms    map[string]any      // resource → steps, merged across the route's edges
 	destinations  map[string]string
 }
@@ -77,6 +78,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 				columns:       map[string][]string{},
+				partitions:    map[string][]string{},
 				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
@@ -96,6 +98,14 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				return nil, fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
 			}
 			group.columns[selection.GetResource()] = columns
+		}
+		for _, selection := range edge.GetPartitions() {
+			// An empty selection backfills no partition, so it stays distinct from none.
+			partitions := append([]string{}, slices.Sorted(slices.Values(selection.GetPartitions()))...)
+			if previous, exists := group.partitions[selection.GetResource()]; exists && !slices.Equal(previous, partitions) {
+				return nil, fmt.Errorf("%w: conflicting partition selection for resource %q", ErrInvalid, selection.GetResource())
+			}
+			group.partitions[selection.GetResource()] = partitions
 		}
 		resource := edge.GetResource()
 		if err := mergeTransform(group, edge); err != nil {

@@ -3570,7 +3570,7 @@
         "enum": [
           "NULL_VALUE"
         ],
-        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
+        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a `Value` with a `null_value`\n set as a JSON `null` regardless of the integer value, and so will round trip\n to a `0` value."
       },
       "google.protobuf.Struct": {
         "type": "object",
@@ -5399,6 +5399,14 @@
             },
             "title": "columns",
             "description": "columns narrows the columns read from each resource. An all-resource edge\n may configure several resources; a resource-specific edge may configure\n only its own resource. An omitted resource reads every column."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourcePartitionSelection"
+            },
+            "title": "partitions",
+            "description": "partitions narrows the partitions a full read or a change stream's\n initial snapshot backfills from each partitioned resource. The change\n stream still carries every partition, including ones created later. An\n all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource backfills\n every partition, and an empty selection backfills none."
           }
         },
         "title": "PipelineEdge",
@@ -5831,6 +5839,14 @@
             "type": "boolean",
             "title": "selectable_columns",
             "description": "The source reads only the columns an edge selects."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions",
+            "description": "The resource's partitions an edge may select; empty when it is not partitioned."
           }
         },
         "title": "ResourceColumns",
@@ -5854,6 +5870,24 @@
           }
         },
         "title": "ResourceCursorConfig",
+        "additionalProperties": false
+      },
+      "ingestion.v1.ResourcePartitionSelection": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions"
+          }
+        },
+        "title": "ResourcePartitionSelection",
         "additionalProperties": false
       },
       "ingestion.v1.ResourceValidation": {

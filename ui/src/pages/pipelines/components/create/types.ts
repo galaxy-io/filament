@@ -5,7 +5,7 @@ import type {
   WriteMode,
 } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource, ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
@@ -31,6 +31,10 @@ export interface CreatePipelineModalState {
   resourceReadModes: Record<Connection["id"], Record<Resource["name"], ReadMode>>;
   resourceCursors: Record<Connection["id"], Record<Resource["name"], ResourceColumn["name"]>>;
   resourceColumns: Record<Connection["id"], Record<Resource["name"], ResourceColumn["name"][]>>;
+  resourcePartitions: Record<
+    Connection["id"],
+    Record<Resource["name"], ResourceColumns["partitions"]>
+  >;
   resourceWriteModes: Record<Connection["id"], Record<Resource["name"], WriteMode>>;
   sinkWriteModes: Record<Connection["id"], WriteMode>;
   nodeConfigs: Record<Connection["id"], PipelineNodeConfig>;
@@ -59,6 +63,8 @@ export interface CreatePipelineModalResourceRow {
   selectedColumns: ResourceColumn["name"][];
   lockedColumns: ResourceColumn["name"][];
   isColumnSelectable: boolean;
+  partitions: ResourceColumns["partitions"];
+  selectedPartitions: ResourceColumns["partitions"];
   status?: PipelineResourceStatus;
 }
 
