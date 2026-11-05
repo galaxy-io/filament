@@ -33,6 +33,11 @@ class IngestionV1ResourceColumns(UniversalBaseModel):
     The source reads only the columns an edge selects.
     """
 
+    partitions: typing.Optional[typing.List[str]] = pydantic.Field(default=None)
+    """
+    The resource's partitions an edge may select; empty when it is not partitioned.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:
