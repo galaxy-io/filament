@@ -130,8 +130,8 @@ resource set.
 `versionId` and `lastSyncVersionId` for checking whether an entry changed after
 sync. `journal_entry_details` provides account, transaction, job, and pricebook
 item detail. `journal_entry_summaries` provides totals by account and business
-unit. The detail and summary endpoints are read for each journal entry. Their
-rows include `journalEntryId` but have no API-provided line ID.
+unit. The detail and summary endpoints are read for each journal entry with an
+ID. Their rows include `journalEntryId` but have no API-provided line ID.
 
 `bank_deposit_transactions` reads each deposit's transactions and includes
 `bankDepositId`. `credit_memo_items` links to `credit_memos` through
@@ -164,12 +164,12 @@ Full reads are the only supported mode for these resources:
   `technician_shifts`, `non_job_appointments`, and
   `membership_status_changes`.
 
-Use full replace for `journal_entry_details` and `journal_entry_summaries`.
-Neither has a stable line key. Full replace also removes rows missing from
-current-state lists when ServiceTitan deletes records. Use it for
-`technician_shifts`, which can be deleted upstream. Journal entry IDs and
-payment term IDs are nullable in the API schemas. Keyed writes reject records
-with null IDs.
+Use full replace for `journal_entries`, `journal_entry_details`,
+`journal_entry_summaries`, and `payment_terms`. ServiceTitan allows null IDs for
+journal entries and payment terms, so these resources have no primary key.
+Neither journal entry child resource has a stable line key. Full replace also
+removes rows missing from current-state lists when ServiceTitan deletes records.
+Use it for `technician_shifts`, which can be deleted upstream.
 
 ## Behavior
 

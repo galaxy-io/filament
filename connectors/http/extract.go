@@ -104,6 +104,7 @@ func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.
 
 func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resource, sink recordSink) error {
 	parents := c.snapshotCaptures(res.Parent.Resource)
+	parents = filterParentsWithPathParams(res, parents)
 	if res.Mode == "export" {
 		return c.runExport(ctx, res, sink, parents)
 	}
@@ -144,6 +145,27 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 	}
 
 	return nil
+}
+
+// A captured null path parameter cannot address a child resource. Keep the
+// parent row, but do not issue a request with an empty path segment.
+func filterParentsWithPathParams(res manifest.Resource, parents []Capture) []Capture {
+	filtered := parents[:0]
+	for _, parent := range parents {
+		valid := true
+		for _, ref := range res.Params {
+			if key, ok := strings.CutPrefix(ref, "parent."); ok {
+				if value, exists := parent[key]; exists && value == "" {
+					valid = false
+					break
+				}
+			}
+		}
+		if valid {
+			filtered = append(filtered, parent)
+		}
+	}
+	return filtered
 }
 
 // extractResource runs one resource end-to-end. Top-level resources may resume

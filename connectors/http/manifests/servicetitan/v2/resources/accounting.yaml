@@ -31,7 +31,7 @@ resources:
           more: hasMore
   - name: journal_entries
     path: /accounting/v2/tenant/{{ config.tenant_id }}/journal-entries
-    primary_key: [id]
+    primary_key: []
     fields:
       id: string?
       createdOn: string
@@ -682,7 +682,7 @@ resources:
           more: hasMore
   - name: payment_terms
     path: /accounting/v2/tenant/{{ config.tenant_id }}/payment-terms
-    primary_key: [id]
+    primary_key: []
     fields:
       id: int64?
       name: string?
