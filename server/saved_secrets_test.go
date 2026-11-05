@@ -208,13 +208,15 @@ func TestSavedConnectionConfig(t *testing.T) {
 		// mustWork rows are normal use: the call must still succeed and the
 		// connector must receive the saved credential.
 		mustWork bool
+		// rejected rows name another connector and must fail outright.
+		rejected bool
 	}{
 		{name: "validate/new host", call: validateWith(savedConnector, newHost)},
-		{name: "validate/different connector", call: validateWith(otherConnector, nil)},
+		{name: "validate/different connector", call: validateWith(otherConnector, nil), rejected: true},
 		{name: "discover/new host", call: discoverWith("", newHost)},
-		{name: "discover/different connector", call: discoverWith(otherConnector, nil)},
+		{name: "discover/different connector", call: discoverWith(otherConnector, nil), rejected: true},
 		{name: "columns/new host", call: columnsWith("", newHost)},
-		{name: "columns/different connector", call: columnsWith(otherConnector, nil)},
+		{name: "columns/different connector", call: columnsWith(otherConnector, nil), rejected: true},
 		{name: "validate pipeline/new host in node config", call: validatePipelineWith(newHost)},
 
 		{name: "validate/unchanged config", call: validateWith(savedConnector, unchanged), mustWork: true},
@@ -228,6 +230,9 @@ func TestSavedConnectionConfig(t *testing.T) {
 			// Rejecting the request is fine; what matters is the config each
 			// connector received.
 			err := tc.call(t, f.api, f.connectionID)
+			if tc.rejected && connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("connector mismatch: err = %v, want invalid argument", err)
+			}
 
 			for _, got := range *f.seen {
 				if got.password == savedPassword && (got.host != savedHost || got.connector != savedConnector) {
@@ -316,6 +321,16 @@ func TestUpdateConnectionSecretRefs(t *testing.T) {
 			want:         receivedConfig{connector: savedConnector, host: otherHost, password: "env-password"},
 		},
 		{
+			// A caller-named variable is not a saved secret, so it stays
+			// when a connection field changes.
+			name:         "secondary: env-style ref, new host",
+			target:       secondary,
+			submittedRef: seed(filament.DefaultTenantID, "PG_PASSWORD", "env-password"),
+			config:       map[string]any{"host": "db-c.example"},
+			mustWork:     true,
+			want:         receivedConfig{connector: savedConnector, host: "db-c.example", password: "env-password"},
+		},
+		{
 			name:     "primary: new host with new password",
 			target:   primary,
 			config:   map[string]any{"host": "new-db.internal", "password": "new-password"},
@@ -394,6 +409,9 @@ func TestChangedConnectionField(t *testing.T) {
 		// anyField accepts any changed field: switching branch changes
 		// several at once and which is reported first is unimportant.
 		anyField bool
+		// persisted rows are an update's full replacement config rather
+		// than a request laid over the saved one.
+		persisted bool
 	}{
 		{name: "nothing supplied", requested: nil},
 		{name: "same values", requested: map[string]any{"host": savedHost, "base_url": "https://api.example"}},
@@ -409,10 +427,17 @@ func TestChangedConnectionField(t *testing.T) {
 		// Switching to URL mode with a DSN: the DSN is the secret, so the
 		// method itself is what marks the new destination.
 		{name: "switch to url mode", requested: map[string]any{"connection_method": "url", "dsn": "postgres://db-b.example/db"}, anyField: true},
+
+		{name: "update keeps every saved field", requested: saved, persisted: true},
+		// The connection will run without base_url, so it changed.
+		{name: "update omits a saved field", requested: map[string]any{"connection_method": "fields", "host": savedHost}, persisted: true, want: "base_url"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := changedConnectionField(schema, saved, tc.requested)
+			if tc.persisted {
+				got = changedPersistedConnectionField(schema, saved, tc.requested)
+			}
 			switch {
 			case tc.anyField && got == "":
 				t.Fatal("changedConnectionField reported no change")

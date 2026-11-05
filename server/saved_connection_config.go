@@ -32,16 +32,30 @@ func (a *Server) savedConnectionConfig(ctx context.Context, conn filament.Connec
 	return overlayConfig(base, requested), nil
 }
 
-// changedConnectionField returns the first connection field whose value
-// differs between saved and saved-with-requested-laid-over-it, or "" when the
-// request leaves every connection field as saved. Pipeline-scoped fields may
-// change freely and secret fields are ignored; a field with no scope counts as
-// a connection field, as it does for pipeline nodes. Blank strings mean "not
-// supplied", absent fields take their schema default, and inactive branches
-// are pruned, so an unchanged edit form compares equal.
+// changedConnectionField returns the first connection field a request
+// changes when it is laid over the saved config, or "" when the request
+// leaves every connection field as saved. It is for requests that override
+// the saved config, where a blank or absent field means "not supplied".
 func changedConnectionField(schema filament.ConfigSchema, saved, requested map[string]any) string {
+	return changedConnectionFieldBetween(schema, saved, overlayConfig(saved, requested))
+}
+
+// changedPersistedConnectionField is changedConnectionField for an update
+// whose config replaces the saved one: a field absent from next is compared at
+// its schema default, because that is what the connection will use.
+func changedPersistedConnectionField(schema filament.ConfigSchema, saved, next map[string]any) string {
+	return changedConnectionFieldBetween(schema, saved, next)
+}
+
+// changedConnectionFieldBetween returns the first connection field whose value
+// differs between two full configs, or "". Pipeline-scoped fields may change
+// freely and secret fields are ignored; a field with no scope counts as a
+// connection field, as it does for pipeline nodes. Absent and blank fields
+// take their schema default and inactive branches are pruned, so an unchanged
+// edit form compares equal.
+func changedConnectionFieldBetween(schema filament.ConfigSchema, saved, next map[string]any) string {
 	before := comparableConnectionConfig(schema, saved)
-	after := comparableConnectionConfig(schema, overlayConfig(saved, requested))
+	after := comparableConnectionConfig(schema, next)
 	pipeline, defaults := pipelineFieldsAndDefaults(schema)
 	keys := make(map[string]bool, len(before)+len(after))
 	for key := range before {
@@ -78,6 +92,10 @@ func comparableConnectionConfig(schema filament.ConfigSchema, cfg map[string]any
 	// only means a malformed secret value, which is ignored here either way.
 	_, _ = extractSecretFields(schema.Fields, out, "", true)
 	for key, value := range out {
+		if text, ok := value.(string); ok && text == "" {
+			delete(out, key) // blank means unset, as cfg.String reads it
+			continue
+		}
 		out[key] = normalizeConfigValue(value)
 	}
 	return out

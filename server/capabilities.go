@@ -691,18 +691,26 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		}
 		return err
 	}
+	// A run rejects a node that sets config or secret refs when the schema is
+	// unavailable, so report that here rather than calling the node valid.
+	unavailable := func(err error) error {
+		if len(node.GetSecretRefs()) > 0 || len(node.GetConfig().GetFields()) > 0 {
+			resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: connector schema unavailable: %s", node.GetId(), err.Error())})
+		}
+		return nil
+	}
 	var schema filament.ConfigSchema
 	switch conn.Kind {
 	case filament.ConnectorKindSource:
 		spec, err := a.worker.SourceSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	default:

@@ -133,6 +133,13 @@ func (p *Provider) Read(ctx context.Context, ref string) (filament.Secret, error
 	if env.Value == nil {
 		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: not a filament envelope", ref)
 	}
+	// Filament records the owning tenant on every secret it saves. name maps
+	// other refs onto the same Secrets Manager secret (an unprefixed ref under
+	// a prefix, or an ARN), so such a secret is only returned for a ref in its
+	// tenant's connection-managed namespace.
+	if tenant := env.Meta["tenant"]; tenant != "" && !strings.HasPrefix(ref, filament.ConnectionSecretPrefix+tenant+"/") {
+		return filament.Secret{}, fmt.Errorf("secret/aws: read %q: %w", ref, ErrRefMismatch)
+	}
 	return filament.Secret{Value: env.Value, Meta: env.Meta}, nil
 }
 
@@ -188,16 +195,20 @@ func (p *Provider) write(ctx context.Context, ref string, s filament.Secret, cre
 	return nil
 }
 
+// ErrRefMismatch is returned by Read when a ref reaches a secret Filament saved
+// under a different ref.
+var ErrRefMismatch = errors.New("secret/aws: ref does not match the saved secret")
+
 // ErrUnmanaged is returned by Delete for a secret the provider cannot prove
 // Filament manages.
 var ErrUnmanaged = errors.New("secret/aws: refusing to delete an unmanaged secret")
 
 // Delete schedules the secret at ref for deletion using Secrets Manager's
-// default recovery window; deleting a missing ref is a no-op. Refs outside
-// the managed namespace (the configured prefix, or without one,
-// filament.ConnectionSecretPrefix) return ErrUnmanaged.
+// default recovery window; deleting a missing ref is a no-op. Only refs in
+// filament.ConnectionSecretPrefix are deleted; any other ref returns
+// ErrUnmanaged, since under a prefix it could name a connection's secret.
 func (p *Provider) Delete(ctx context.Context, ref string) error {
-	if p.prefix == "" && !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
+	if !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
 		return fmt.Errorf("delete %q: %w", ref, ErrUnmanaged)
 	}
 	_, err := p.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{

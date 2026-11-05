@@ -431,9 +431,9 @@ func (c *Compiler) resolveNodeRef(ctx context.Context, node *ingestionv1.Pipelin
 		if err := ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
 			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
 		}
-	case len(node.GetSecretRefs()) > 0:
-		// Without the schema there is no telling which fields a ref may fill.
-		return filament.Ref{}, fmt.Errorf("%w: node %q: secret refs need the connector schema: %v", ErrInvalid, node.GetId(), err)
+	case len(node.GetSecretRefs()) > 0 || len(overlay) > 0:
+		// Without the schema there is no telling which fields a node may set.
+		return filament.Ref{}, fmt.Errorf("%w: node %q: node config and secret refs need the connector schema: %v", ErrInvalid, node.GetId(), err)
 	}
 	return filament.Ref{
 		Connector:  conn.Connector,

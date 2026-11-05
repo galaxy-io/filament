@@ -46,8 +46,8 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	// A new connection owns no secrets yet.
-	if err := validateOwnedSecretRefs(refs, nil); err != nil {
+	// A new connection holds no secrets yet.
+	if err := validateOwnedSecretRefs(refs, filament.Connection{Tenant: tenant}); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
@@ -565,29 +565,40 @@ func checkUpdatedSecretRefs(schema filament.ConfigSchema, stored filament.Connec
 	if err := validateSecretRefTenant(refs, stored.Tenant); err != nil {
 		return err
 	}
-	if err := validateOwnedSecretRefs(refs, stored.SecretRefs); err != nil {
+	if err := validateOwnedSecretRefs(refs, stored); err != nil {
 		return err
 	}
 	// Saved secrets go with the saved connection settings. When the update
-	// changes a connection field, keep only the secrets supplied again; one
-	// left blank is dropped rather than carried over.
-	if changedConnectionField(schema, stored.Config, cfg) != "" {
-		for field := range retainedSecretRefs(refs, cfg) {
-			delete(refs, field)
+	// changes a connection field, keep only the secrets supplied again; a
+	// saved one left blank is dropped rather than carried over. The config
+	// replaces the saved one, so compare what will be persisted.
+	// Environment-style refs name a variable the caller chose, not a saved
+	// secret, so they stay.
+	if changedPersistedConnectionField(schema, stored.Config, cfg) != "" {
+		for field, ref := range retainedSecretRefs(refs, cfg) {
+			if strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
+				delete(refs, field)
+			}
 		}
 	}
 	return nil
 }
 
 // validateOwnedSecretRefs rejects a caller-supplied ref in the
-// connection-managed namespace unless it is the ref the connection already
-// holds for that same field. The server mints every such ref for one field of
-// one connection, so any other is a different connection's or field's secret.
-// Refs outside the namespace are environment-style references the caller
-// names directly and are not checked here.
-func validateOwnedSecretRefs(refs, owned map[string]string) error {
+// connection-managed namespace unless conn already holds it for that field and
+// it was minted for that field of conn. The server mints every such ref as
+// filament/<tenant>/<connection>/<field>/..., so any other is a different
+// connection's or field's secret; checking the segments too catches one saved
+// before this check existed. A new connection holds none. Refs outside the
+// namespace are environment-style references the caller names directly and
+// are not checked here.
+func validateOwnedSecretRefs(refs map[string]string, conn filament.Connection) error {
 	for field, ref := range refs {
-		if strings.HasPrefix(ref, filament.ConnectionSecretPrefix) && owned[field] != ref {
+		if !strings.HasPrefix(ref, filament.ConnectionSecretPrefix) {
+			continue
+		}
+		minted := filament.ConnectionSecretPrefix + conn.Tenant + "/" + conn.ID + "/" + field + "/"
+		if conn.SecretRefs[field] != ref || !strings.HasPrefix(ref, minted) {
 			return fmt.Errorf("secret ref for field %q is not one this connection holds", field)
 		}
 	}
