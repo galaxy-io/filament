@@ -165,11 +165,14 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return nil
 	}
 
-	seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+	// Check the high-water mark without advancing it, so a fold that fails is
+	// redelivered and applied instead of being skipped as already seen. Advance
+	// only after the fold succeeds, as the terminal path does.
+	hw, ok, err := m.ds.DedupHighWater(ctx, string(f.Tenant), f.Run)
 	if err != nil {
 		return err
 	}
-	if seen {
+	if ok && msg.Seq() <= hw {
 		if m.log != nil {
 			m.log.Debug("duplicate fact ignored",
 				filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
@@ -179,8 +182,14 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		}
 		return nil // already applied — idempotent no-op
 	}
-
-	return m.apply(ctx, f)
+	if err := m.apply(ctx, f); err != nil {
+		return err
+	}
+	// A crash between apply and this advance re-applies the fact on redelivery.
+	// Non-terminal folds are not idempotent (batch.written adds to the run totals),
+	// so that window can double count those totals.
+	_, err = m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+	return err
 }
 
 func terminalFactStatus(data any) (string, bool) {

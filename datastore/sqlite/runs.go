@@ -553,10 +553,11 @@ func (s *Store) DeleteResourceCheckpoint(ctx context.Context, tenant filament.Te
 	return nil
 }
 
-// DedupSeen reports whether seq has already been applied for (tenant, run),
-// advancing the run's high-water mark on the first call to see it. This
-// relies on the tracker processing each run's facts through one sequential
-// pump, so seq only ever increases per run.
+// DedupSeen advances the (tenant, run) high-water mark to seq and reports
+// whether seq was already at or below it. The tracker checks DedupHighWater
+// first and calls this only after the fold succeeds. This relies on the
+// tracker processing each run's facts through one sequential pump, so seq
+// only ever increases per run.
 func (s *Store) DedupSeen(ctx context.Context, tenant string, run filament.RunID, seq uint64) (bool, error) {
 	now := nowMillis()
 	_, err := s.q.AdvanceDedupSeen(ctx, sqlcgen.AdvanceDedupSeenParams{
@@ -573,4 +574,20 @@ func (s *Store) DedupSeen(ctx context.Context, tenant string, run filament.RunID
 		return false, fmt.Errorf("datastore/sqlite: dedup seen: %w", err)
 	}
 	return false, nil
+}
+
+// DedupHighWater returns the highest seq recorded for (tenant, run). ok is
+// false when the run has no dedup row yet.
+func (s *Store) DedupHighWater(ctx context.Context, tenant string, run filament.RunID) (uint64, bool, error) {
+	seq, err := s.q.GetDedupSeen(ctx, sqlcgen.GetDedupSeenParams{
+		TenantID: tenant,
+		RunID:    string(run),
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("datastore/sqlite: dedup high water: %w", err)
+	}
+	return uint64(seq), true, nil //nolint:gosec // stored from a uint64 seq, never negative
 }
