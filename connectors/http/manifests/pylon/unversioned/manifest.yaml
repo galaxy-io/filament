@@ -1,0 +1,1180 @@
+version: 1
+name: "pylon"
+display_name: "Pylon"
+description: "B2B customer support platform that brings customer conversations across Slack, Microsoft Teams, email, and chat into one workspace."
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-pylon-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-pylon-light.svg"
+config:
+  api_token: {"type": "secret", "required": true, "help": "Pylon API token from Settings > Integrations & dev > API tokens."}
+  region: {"type": "enum", "enum": ["us", "eu"], "default": "us", "help": "Region of your Pylon organization."}
+  custom_object_types: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated custom object type slugs. Required for custom_objects. Types cannot be discovered through the API."}
+  notebook_account_id: {"type": "string", "scope": "pipeline", "default": "", "help": "Account ID or external ID for notebook_notes."}
+  notebook_block_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated Notes block IDs copied from the account notebook UI. Required for notebook_notes."}
+  feature_request_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated feature request IDs. Required for feature_requests, which includes evidence. Search returns at most 1000 records."}
+  article_language: {"type": "string", "scope": "pipeline", "default": "", "help": "Language code for articles. Empty uses each knowledge base default language. Use separate pipelines and destinations for translations."}
+  theme_knowledge_base_id: {"type": "string", "scope": "pipeline", "default": "", "help": "Knowledge base ID for themes. active_themes discovers active themes without this setting."}
+  theme_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated theme IDs for themes. The API cannot enumerate inactive themes."}
+defaults:
+  method: "GET"
+field_sets:
+  custom_field:
+    created_at: "timestamptz?"
+    default_value: "string?"
+    default_values: "json?"
+    description: "string?"
+    id: "string"
+    is_read_only: "bool?"
+    label: "string?"
+    number_metadata: "json?"
+    object_type: "string?"
+    select_metadata: "json?"
+    slug: "string?"
+    source: "string?"
+    type: "string?"
+    updated_at: "timestamptz?"
+    raw: {"path": "$", "type": "json", "mode": "remainder"}
+connection:
+  base_url: "https://api.usepylon.com"
+  base_url_field: "region"
+  base_urls: {"us": "https://api.usepylon.com", "eu": "https://api.eu.usepylon.com"}
+  auth:
+    bearer: "config.api_token"
+  headers: {"Accept": "application/json"}
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 2
+    burst: 1
+resources:
+  - name: "organization"
+    path: "/me"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+      cardinality: "one"
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      user: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "accounts"
+    path: "/accounts"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      associated_account_ids: "json?"
+      channels: "json?"
+      created_at: "timestamptz?"
+      crm_settings: "json?"
+      custom_fields: "json?"
+      domain: "string?"
+      domains: "json?"
+      external_ids: "json?"
+      id: "string"
+      is_disabled: "bool?"
+      latest_customer_activity_time: "string?"
+      latest_vendor_activity_time: "string?"
+      logo_url: "string?"
+      name: "string?"
+      owner: "json?"
+      parent_account_id: "string?"
+      primary_domain: "string?"
+      subaccount_ids: "json?"
+      tags: "json?"
+      type: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture: {"account_id": "id"}
+
+  - name: "contacts"
+    path: "/contacts"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account: "json?"
+      avatar_url: "string?"
+      custom_fields: "json?"
+      email: "string?"
+      emails: "json?"
+      external_ids: "json?"
+      id: "string"
+      integration_user_ids: "json?"
+      name: "string?"
+      phone_numbers: "json?"
+      portal_role: "string?"
+      portal_role_id: "string?"
+      primary_phone_number: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issues"
+    path: "/issues/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account: "json?"
+      active_time_by_user: "json?"
+      active_time_seconds: "int64?"
+      assignee: "json?"
+      attachment_urls: "json?"
+      author_unverified: "bool?"
+      body_html: "string?"
+      business_hours_active_time_seconds: "int64?"
+      business_hours_first_response_seconds: "int64?"
+      business_hours_resolution_seconds: "int64?"
+      business_hours_time_in_status_seconds: "json?"
+      chat_widget_info: "json?"
+      child_issues: "json?"
+      created_at: "timestamptz?"
+      csat_responses: "json?"
+      custom_fields: "json?"
+      customer_portal_visible: "bool?"
+      external_incidents: "json?"
+      external_issues: "json?"
+      first_resolution_time: "timestamptz?"
+      first_response_assignee_id_at_breach: "string?"
+      first_response_breach_time: "timestamptz?"
+      first_response_resolving_user_id: "string?"
+      first_response_seconds: "int64?"
+      first_response_time: "timestamptz?"
+      follow_up: "json?"
+      id: "string"
+      is_issue_group: "bool?"
+      latest_message_time: "timestamptz?"
+      link: "string?"
+      next_reply: "json?"
+      number: "int64?"
+      number_of_touches: "int64?"
+      parent_issue_group: "json?"
+      requester: "json?"
+      resolution_assignee_id_at_breach: "string?"
+      resolution_breach_time: "timestamptz?"
+      resolution_resolving_user_id: "string?"
+      resolution_seconds: "int64?"
+      resolution_time: "timestamptz?"
+      slack: "json?"
+      snoozed_until_time: "timestamptz?"
+      source: "string?"
+      state: "string?"
+      tags: "json?"
+      team: "json?"
+      team_slas: "json?"
+      time_in_status_seconds: "json?"
+      title: "string?"
+      type: "string?"
+      updated_at: "timestamptz?"
+      workspace_email: "string?"
+      workspace_phone_number: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture: {"issue_id": "id"}
+
+  - name: "users"
+    path: "/users"
+    query: {"include_deactivated": "true"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      avatar_url: "string?"
+      email: "string?"
+      emails: "json?"
+      id: "string"
+      is_deactivated: "bool?"
+      name: "string?"
+      role: "json?"
+      role_id: "string?"
+      role_ids: "json?"
+      roles: "json?"
+      skills: "json?"
+      status: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "teams"
+    path: "/teams"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      assignment_configuration: "json?"
+      id: "string"
+      name: "string?"
+      schedule: "json?"
+      users: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "tags"
+    path: "/tags/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      hex_color: "string?"
+      id: "string"
+      object_type: "string?"
+      value: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "account_activities"
+    path: "/accounts/{id}/activities"
+    for_each: "accounts"
+    params: {"id": "parent.account_id"}
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["account_id", "id"]
+    fields:
+      account_id: {"path": "parent.account_id", "type": "string"}
+      activity_type: "json?"
+      body_html: "string?"
+      contact_id: "string?"
+      created_at: "timestamptz?"
+      happened_at: "timestamptz?"
+      id: "string"
+      link: "string?"
+      link_text: "string?"
+      updated_at: "timestamptz?"
+      user_id: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "account_email_activities"
+    path: "/accounts/{id}/email-activities"
+    for_each: "accounts"
+    params: {"id": "parent.account_id"}
+    query: {"limit": "20"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["account_id", "id"]
+    fields:
+      account_id: {"path": "parent.account_id", "type": "string"}
+      happened_at: "timestamptz?"
+      id: "string"
+      messages: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "account_relationships"
+    path: "/accounts/{account_id}/relationships"
+    for_each: "accounts"
+    params: {"account_id": "parent.account_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["account_id", "id"]
+    fields:
+      account_id: {"path": "parent.account_id", "type": "string"}
+      child_account_id: "string?"
+      created_at: "timestamptz?"
+      id: "string"
+      parent_account_id: "string?"
+      related_object_id: "string?"
+      relationship_type: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "activity_types"
+    path: "/activity-types"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      icon_url: "string?"
+      id: "string"
+      label: "string?"
+      slug: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issue_messages"
+    path: "/issues/{id}/messages"
+    for_each: "issues"
+    params: {"id": "parent.issue_id"}
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["issue_id", "id"]
+    fields:
+      issue_id: {"path": "parent.issue_id", "type": "string"}
+      author: "json?"
+      author_unverified: "bool?"
+      email_info: "json?"
+      file_urls: "json?"
+      id: "string"
+      is_private: "bool?"
+      message_html: "string?"
+      reactions: "json?"
+      slack_info: "json?"
+      source: "string?"
+      thread_id: "string?"
+      timestamp: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issue_threads"
+    path: "/issues/{id}/threads"
+    for_each: "issues"
+    params: {"id": "parent.issue_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["issue_id", "id"]
+    fields:
+      issue_id: {"path": "parent.issue_id", "type": "string"}
+      channel_id: "string?"
+      id: "string"
+      name: "string?"
+      source: "string?"
+      thread_id: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issue_followers"
+    path: "/issues/{id}/followers"
+    for_each: "issues"
+    params: {"id": "parent.issue_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["issue_id", "type", "id"]
+    fields:
+      issue_id: {"path": "parent.issue_id", "type": "string"}
+      id: "string"
+      type: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issue_survey_responses"
+    path: "/issues/{id}/survey-responses"
+    for_each: "issues"
+    params: {"id": "parent.issue_id"}
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["issue_id", "id"]
+    fields:
+      issue_id: {"path": "parent.issue_id", "type": "string"}
+      account_id: "string?"
+      answers: "json?"
+      contact_id: "string?"
+      excluded_at: "timestamptz?"
+      id: "string"
+      submitted_at: "timestamptz?"
+      survey_id: "string?"
+      survey_instance_id: "string?"
+      survey_type: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "_phone_issues"
+    path: "/issues/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data.#(source==\"phone\")#"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture_only: true
+    capture: {"issue_id": "id"}
+
+  - name: "issue_voice_calls"
+    path: "/issues/{id}/voice-calls"
+    for_each: "_phone_issues"
+    params: {"id": "parent.issue_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["issue_id", "id"]
+    fields:
+      issue_id: {"path": "parent.issue_id", "type": "string"}
+      created_at: "timestamptz?"
+      duration_sec: "int64?"
+      from_phone_number: "string?"
+      id: "string"
+      recordings: "json?"
+      to_phone_number: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "call_recordings"
+    path: "/call-recordings/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account_id: "string?"
+      calendar_event_id: "string?"
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      duration_ms: "int64?"
+      end_time: "timestamptz?"
+      external_id: "string?"
+      id: "string"
+      participant_emails: "json?"
+      source: "string?"
+      start_time: "timestamptz?"
+      summary: "string?"
+      title: "string?"
+      updated_at: "timestamptz?"
+      url: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "user_roles"
+    path: "/user-roles"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      slug: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "user_statuses"
+    path: "/user-statuses"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["slug"]
+    fields:
+      category: "string?"
+      is_archived: "bool?"
+      is_default_status: "bool?"
+      label: "string?"
+      slug: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "issue_statuses"
+    path: "/issue-statuses"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["slug"]
+    fields:
+      category: "string?"
+      is_archived: "bool?"
+      is_default_status: "bool?"
+      label: "string?"
+      slug: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "task_statuses"
+    path: "/task-statuses"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["slug"]
+    fields:
+      category: "string?"
+      is_archived: "bool?"
+      is_default_status: "bool?"
+      label: "string?"
+      slug: "string"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "ticket_forms"
+    path: "/ticket-forms"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      description_html: "string?"
+      fields: "json?"
+      id: "string"
+      is_public: "bool?"
+      name: "string?"
+      slug: "string?"
+      url: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "macros"
+    path: "/macros"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      actions: "json?"
+      created_at: "timestamptz?"
+      edit_visibility: "json?"
+      has_actions: "bool?"
+      id: "string"
+      macro_group_id: "string?"
+      name: "string?"
+      text_html: "string?"
+      text_type: "string?"
+      updated_at: "timestamptz?"
+      visibility: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "macro_groups"
+    path: "/macro-groups"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      created_at: "timestamptz?"
+      id: "string"
+      title: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "email_suppressions"
+    path: "/email-suppressions"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      bounce_details: "string?"
+      created_at: "timestamptz?"
+      email: "string?"
+      id: "string"
+      reason: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "training_data"
+    path: "/training-data"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      created_at: "timestamptz?"
+      documents: "json?"
+      exclude_from_kb_search: "bool?"
+      id: "string"
+      name: "string?"
+      scrape_status: "json?"
+      type: "string?"
+      updated_at: "timestamptz?"
+      visibility: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "tasks"
+    path: "/tasks"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account: "json?"
+      ai_instructions: "string?"
+      assignee: "json?"
+      blocked_by_task_ids: "json?"
+      blocks_task_ids: "json?"
+      body_html: "string?"
+      completed_at: "timestamptz?"
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      customer_portal_visible: "bool?"
+      due_date: "timestamptz?"
+      external_issues: "json?"
+      id: "string"
+      linked_issues: "json?"
+      milestone: "json?"
+      parent_task_id: "string?"
+      project: "json?"
+      status: "string?"
+      subtask_ids: "json?"
+      title: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture: {"task_id": "id"}
+
+  - name: "task_comments"
+    path: "/tasks/{id}/comments"
+    for_each: "tasks"
+    params: {"id": "parent.task_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["task_id", "id"]
+    fields:
+      task_id: {"path": "parent.task_id", "type": "string"}
+      author: "json?"
+      body_html: "string?"
+      created_at: "timestamptz?"
+      id: "string"
+      is_internal: "bool?"
+      last_edited_at: "timestamptz?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "projects"
+    path: "/projects/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account: "json?"
+      ai_instructions: "string?"
+      archived_at: "timestamptz?"
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      customer_portal_visible: "bool?"
+      description_html: "string?"
+      end_date: "timestamptz?"
+      id: "string"
+      is_archived: "bool?"
+      name: "string?"
+      owner_id: "string?"
+      progress: "float64?"
+      project_template: "json?"
+      start_date: "timestamptz?"
+      status: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "milestones"
+    path: "/milestones/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account: "json?"
+      created_at: "timestamptz?"
+      due_date: "timestamptz?"
+      id: "string"
+      name: "string?"
+      project: "json?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "surveys"
+    path: "/surveys"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      id: "string"
+      name: "string?"
+      type: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture: {"survey_id": "id"}
+
+  - name: "survey_responses"
+    path: "/surveys/{id}/responses"
+    for_each: "surveys"
+    params: {"id": "parent.survey_id"}
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["survey_id", "id"]
+    fields:
+      survey_id: {"path": "parent.survey_id", "type": "string"}
+      account_id: "string?"
+      answers: "json?"
+      contact_id: "string?"
+      excluded_at: "timestamptz?"
+      id: "string"
+      issue_id: "string?"
+      submitted_at: "timestamptz?"
+      survey_instance_id: "string?"
+      survey_type: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "knowledge_bases"
+    path: "/knowledge-bases"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      active_theme_id: "string?"
+      default_language: "string?"
+      id: "string"
+      slug: "string?"
+      supported_languages: "json?"
+      title: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    capture: {"knowledge_base_id": "id", "theme_id": "active_theme_id"}
+
+  - name: "articles"
+    path: "/knowledge-bases/{id}/articles"
+    for_each: "knowledge_bases"
+    params: {"id": "parent.knowledge_base_id"}
+    query: {"language": "{{ config.article_language }}", "media": "all", "limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["knowledge_base_id", "id"]
+    fields:
+      knowledge_base_id: {"path": "parent.knowledge_base_id", "type": "string"}
+      approval_info: "json?"
+      author_user_id: "string?"
+      collection_id: "string?"
+      created_at: "timestamptz?"
+      current_draft_content_html: "string?"
+      current_draft_content_markdown: "string?"
+      current_published_content_html: "string?"
+      current_published_content_markdown: "string?"
+      id: "string"
+      identifier: "string?"
+      is_published: "bool?"
+      is_unlisted: "bool?"
+      last_edited_at: "timestamptz?"
+      last_published_at: "timestamptz?"
+      slug: "string?"
+      tags: "json?"
+      title: "string?"
+      url: "string?"
+      visibility_config: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    omit_empty_query: true
+
+  - name: "collections"
+    path: "/knowledge-bases/{id}/collections"
+    for_each: "knowledge_bases"
+    params: {"id": "parent.knowledge_base_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["knowledge_base_id", "id"]
+    fields:
+      knowledge_base_id: {"path": "parent.knowledge_base_id", "type": "string"}
+      created_at: "timestamptz?"
+      description: "string?"
+      icon: "string?"
+      id: "string"
+      parent_collection_id: "string?"
+      slug: "string?"
+      title: "string?"
+      visibility_config: "json?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "active_themes"
+    path: "/knowledge-bases/{id}/themes/{theme_id}"
+    for_each: "knowledge_bases"
+    params: {"id": "parent.knowledge_base_id", "theme_id": "parent.theme_id"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+      cardinality: "one"
+    primary_key: ["knowledge_base_id", "id"]
+    fields:
+      knowledge_base_id: {"path": "parent.knowledge_base_id", "type": "string"}
+      assets: "json?"
+      has_unpublished_changes: "bool?"
+      id: "string"
+      name: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "article_feedback"
+    path: "/article-feedback"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      article_id: "string?"
+      comment: "string?"
+      id: "string"
+      knowledge_base_id: "string?"
+      score: "int64?"
+      submitted_at: "timestamptz?"
+      submitter: "json?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "account_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "account"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "issue_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "issue"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "contact_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "contact"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "task_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "task"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "project_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "project"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "meeting_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "meeting"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "opportunity_custom_fields"
+    path: "/custom-fields"
+    query: {"object_type": "opportunity"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    use_fields: ["custom_field"]
+
+  - name: "custom_objects"
+    path: "/custom-objects/{type}"
+    query: {"limit": "100"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["type", "id"]
+    fields:
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      id: "string"
+      name: "string?"
+      relations: "json?"
+      type: "string"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    for_each_config: "custom_object_types"
+    required_config: ["custom_object_types"]
+    params: {"type": "parent.custom_object_types"}
+    restart_on_resume: true
+
+  - name: "opportunities"
+    path: "/custom-objects/opportunity/search"
+    method: "POST"
+    body:
+      encoding: "json"
+      template:
+        limit: 100
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "body.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      id: "string"
+      name: "string?"
+      relations: "json?"
+      type: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+
+  - name: "notebook_notes"
+    path: "/accounts/{account_id}/notebook-blocks/{block_id}/notes"
+    query: {"limit": "20"}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: "pagination.cursor"
+          request: "query.cursor"
+          more: "pagination.has_next_page"
+          null_terminates: true
+      strict_records: true
+    primary_key: ["account_id", "block_id", "id"]
+    fields:
+      account_id: "string"
+      block_id: "string"
+      content_html: "string?"
+      created_at: "timestamptz?"
+      created_by_user_id: "string?"
+      id: "string"
+      title: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    required_config: ["notebook_account_id", "notebook_block_ids"]
+    for_each_config: "notebook_block_ids"
+    params: {"account_id": "config.notebook_account_id", "block_id": "parent.notebook_block_ids"}
+    restart_on_resume: true
+
+  - name: "feature_request_search"
+    path: "/feature-requests/search"
+    method: "POST"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+    primary_key: ["id"]
+    fields:
+      account_ids: "json?"
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      description: "string?"
+      evidence_count: "int64?"
+      external_issues: "json?"
+      id: "string"
+      portal_visible_to_account_ids: "json?"
+      request_status: "string?"
+      title: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    body:
+      encoding: "json"
+      template:
+        limit: 1000
+
+  - name: "feature_requests"
+    path: "/feature-requests/{id}"
+    query: {"fetch_evidence": "true"}
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+      cardinality: "one"
+    primary_key: ["id"]
+    fields:
+      created_at: "timestamptz?"
+      custom_fields: "json?"
+      description: "string?"
+      evidence: "json?"
+      evidence_count: "int64?"
+      external_issues: "json?"
+      id: "string"
+      portal_visible_to_account_ids: "json?"
+      request_status: "string?"
+      title: "string?"
+      updated_at: "timestamptz?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    for_each_config: "feature_request_ids"
+    required_config: ["feature_request_ids"]
+    params: {"id": "parent.feature_request_ids"}
+    restart_on_resume: true
+
+  - name: "themes"
+    path: "/knowledge-bases/{id}/themes/{theme_id}"
+    response:
+      records: "$.data"
+      pagination: "none"
+      strict_records: true
+      cardinality: "one"
+    primary_key: ["knowledge_base_id", "id"]
+    fields:
+      assets: "json?"
+      has_unpublished_changes: "bool?"
+      id: "string"
+      knowledge_base_id: "string"
+      name: "string?"
+      raw: {"path": "$", "type": "json", "mode": "remainder"}
+    for_each_config: "theme_ids"
+    required_config: ["theme_knowledge_base_id", "theme_ids"]
+    params: {"id": "config.theme_knowledge_base_id", "theme_id": "parent.theme_ids"}
+    restart_on_resume: true
+
+discovery:
+  mode: "static"
+  default_resources: ["accounts", "contacts", "issues", "users", "teams", "tags"]

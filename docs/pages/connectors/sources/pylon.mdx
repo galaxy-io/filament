@@ -1,0 +1,191 @@
+---
+title: "Pylon source connector"
+sidebarTitle: "Pylon"
+description: "Read customer support conversations, accounts, projects, and knowledge-base content from Pylon with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-pylon-dark.svg"
+---
+
+Connector ID `pylon`
+
+The Pylon source reads support issues and their messages, customer accounts,
+contacts, projects, tasks, surveys, and knowledge-base content. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. Its requests have been checked against the official
+API reference, but it has not been validated against a live Pylon account.
+Pylon does not expose an API version selector.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required. Secret. Pylon API token. |
+| `region` | Connection | `us` | `us` or `eu`, matching the organization's hosting region. |
+| `custom_object_types` | Pipeline | | Comma-separated custom object type slugs for `custom_objects`. |
+| `notebook_account_id` | Pipeline | | Account ID or external ID for `notebook_notes`. |
+| `notebook_block_ids` | Pipeline | | Comma-separated Notes block IDs from that account's notebook UI. |
+| `feature_request_ids` | Pipeline | | Comma-separated IDs for `feature_requests`, including their evidence. |
+| `article_language` | Pipeline | | Article language code. Empty uses each knowledge base's default language. |
+| `theme_knowledge_base_id` | Pipeline | | Knowledge base ID for the configured `themes` resource. |
+| `theme_ids` | Pipeline | | Comma-separated theme IDs for that knowledge base. |
+
+An administrator creates tokens under **Settings → Integrations & dev → API tokens**.
+Tokens use their assigned role or the current role of the user they act as.
+They do not expire, but deactivating the creating or acted-as user revokes them.
+An IP allowlist must permit your worker's outbound address. See
+[Pylon authentication](https://docs.usepylon.com/pylon-docs/developer/api/authentication).
+
+US connections use `https://api.usepylon.com`. EU connections use
+`https://api.eu.usepylon.com`. Connection testing calls `GET /me`.
+The token must be able to read every selected resource. Use organization-wide
+survey access for `survey_responses`. Pylon requires additional account and contact
+filters for scoped survey callers, which this connector does not supply.
+
+## Resources
+
+Accounts, contacts, issues, users, teams, and tags are selected by default.
+All other resources are optional. Selecting a child also reads its parent,
+but only selected resources are written to the destination.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `organization` | `GET /me` |  |
+| `accounts` | `GET /accounts` |  |
+| `contacts` | `GET /contacts` |  |
+| `issues` | `POST /issues/search` |  |
+| `users` | `GET /users` |  |
+| `teams` | `GET /teams` |  |
+| `tags` | `POST /tags/search` |  |
+| `account_activities` | `GET /accounts/{id}/activities` | `accounts` |
+| `account_email_activities` | `GET /accounts/{id}/email-activities` | `accounts` |
+| `account_relationships` | `GET /accounts/{account_id}/relationships` | `accounts` |
+| `activity_types` | `GET /activity-types` |  |
+| `issue_messages` | `GET /issues/{id}/messages` | `issues` |
+| `issue_threads` | `GET /issues/{id}/threads` | `issues` |
+| `issue_followers` | `GET /issues/{id}/followers` | `issues` |
+| `issue_survey_responses` | `GET /issues/{id}/survey-responses` | `issues` |
+| `issue_voice_calls` | `GET /issues/{id}/voice-calls` | Phone issues |
+| `call_recordings` | `POST /call-recordings/search` |  |
+| `user_roles` | `GET /user-roles` |  |
+| `user_statuses` | `GET /user-statuses` |  |
+| `issue_statuses` | `GET /issue-statuses` |  |
+| `task_statuses` | `GET /task-statuses` |  |
+| `ticket_forms` | `GET /ticket-forms` |  |
+| `macros` | `GET /macros` |  |
+| `macro_groups` | `GET /macro-groups` |  |
+| `email_suppressions` | `GET /email-suppressions` |  |
+| `training_data` | `GET /training-data` |  |
+| `tasks` | `GET /tasks` |  |
+| `task_comments` | `GET /tasks/{id}/comments` | `tasks` |
+| `projects` | `POST /projects/search` |  |
+| `milestones` | `POST /milestones/search` |  |
+| `surveys` | `GET /surveys` |  |
+| `survey_responses` | `GET /surveys/{id}/responses` | `surveys` |
+| `knowledge_bases` | `GET /knowledge-bases` |  |
+| `articles` | `GET /knowledge-bases/{id}/articles` | `knowledge_bases` |
+| `collections` | `GET /knowledge-bases/{id}/collections` | `knowledge_bases` |
+| `active_themes` | `GET /knowledge-bases/{id}/themes/{theme_id}` | `knowledge_bases` |
+| `article_feedback` | `GET /article-feedback` |  |
+| `account_custom_fields` | `GET /custom-fields` |  |
+| `issue_custom_fields` | `GET /custom-fields` |  |
+| `contact_custom_fields` | `GET /custom-fields` |  |
+| `task_custom_fields` | `GET /custom-fields` |  |
+| `project_custom_fields` | `GET /custom-fields` |  |
+| `meeting_custom_fields` | `GET /custom-fields` |  |
+| `opportunity_custom_fields` | `GET /custom-fields` |  |
+| `custom_objects` | `GET /custom-objects/{type}` |  |
+| `opportunities` | `POST /custom-objects/opportunity/search` | |
+| `notebook_notes` | `GET /accounts/{account_id}/notebook-blocks/{block_id}/notes` |  |
+| `feature_request_search` | `POST /feature-requests/search` |  |
+| `feature_requests` | `GET /feature-requests/{id}` |  |
+| `themes` | `GET /knowledge-bases/{id}/themes/{theme_id}` |  |
+
+Each row represents one API record. IDs are strings. Child tables carry the
+parent ID in their key, and followers also include their user or contact type.
+Status tables use their stable slug. Custom objects use the object type and ID.
+Nested custom fields, relationships, SLA data, survey answers, form definitions,
+macro actions, training documents, and recording segments remain JSON columns.
+Every resource includes a `raw` column for unmapped fields.
+
+Issue search has no creation-time window, so `issues` reads historical issues
+without the 365-day window required by `GET /issues`. Messages include internal
+notes and replies. Threads and followers are separate tables. `issue_voice_calls`
+scans issues and requests calls only for issues whose source is `phone`. It
+preserves transcript segments and audio links inside each call's recordings.
+`call_recordings` reads the separate meeting-recording metadata API.
+
+Articles include both draft and published HTML and Markdown, with embedded
+media retained. Collections preserve their parent collection ID. `active_themes`
+reads the active theme of each knowledge base, including draft and published
+asset contents. Use `themes` with configured IDs to read other themes. The API
+has no theme enumeration endpoint. Article feedback is read across knowledge bases.
+
+### Coverage limits
+
+- **Feature requests**. `feature_request_search` returns at most 1,000 records.
+  Pylon's schema exposes a limit but no cursor for this endpoint, despite its
+  description mentioning pagination. It is not a complete backfill for larger
+  accounts. `feature_requests` reads configured IDs with evidence and does not
+  depend on that search cap. See the
+  [feature request reference](https://docs.usepylon.com/pylon-docs/developer/api/api-reference/feature-requests).
+- **Custom objects and notebooks**. Supply type slugs and notebook block IDs.
+  Pylon does not provide endpoints to enumerate them. Notebook settings address
+  one account per pipeline. Custom object relationships remain in `relations`.
+  `opportunities` uses the documented opportunity search alias. Its additional
+  opportunity attributes are preserved in `raw`.
+- **Translations**. Articles use one language per run. Create separate pipelines
+  and destinations for other language codes listed in `knowledge_bases.supported_languages`.
+  The connector does not automatically read every translation.
+- **Milestones**. Pylon excludes milestones belonging to unlaunched projects
+  from search. Those are not discovered by this connector.
+- **Recordings and files**. Phone recordings appear only after their transcripts
+  finish processing. Meeting recordings contain metadata and summaries, not
+  a downloadable transcript body. Attachment and audio URLs are preserved,
+  but binary files are not downloaded. Phone audio URLs expire.
+- **Visibility**. Reads reflect the token's role and available product features.
+  Users include deactivated users. Removed records and records hidden by permissions
+  are not available as deletion events.
+
+The connector uses bulk list or search endpoints when their response includes
+the same record as a detail endpoint. It does not duplicate those reads.
+Account files, account highlights, attachment uploads, and message edits expose
+write operations rather than independent read collections. They are not separate
+resources. Audit logs are excluded. See the
+[full API reference](https://docs.usepylon.com/pylon-docs/developer/api/api-reference)
+for the upstream surface.
+
+## Modes
+
+All resources perform full reads. Incremental reads are not advertised. Changes
+to nested messages, evidence, transcripts, and related records do not have a
+verified common update cursor.
+
+Use **full upsert** to refresh rows, or **full replace** to remove rows no longer
+returned within the selected scope. Do not use the capped `feature_request_search`
+as a complete replacement for a feature-request dataset. Changing configured
+IDs or languages changes the scope of a full read.
+
+## Behavior
+
+- **Auth**. Every request sends the token as a Bearer credential to the selected
+  regional API host. Authentication and permission errors fail the read.
+- **Pagination**. Paginated endpoints follow `pagination.cursor` while
+  `pagination.has_next_page` is true. GET requests put the cursor in the query
+  and POST searches put it in the JSON body. Pages contain 100 records, except
+  notebook notes and account email activities, which use 20. Endpoints documented
+  to return all records without a cursor are read once. Feature-request search
+  is the capped exception described above.
+- **Rate limiting**. Requests are paced at two per second with a burst of one,
+  matching the 120-per-minute search allowance. Reference endpoints with a
+  30-per-minute allowance are fetched once per run. Pylon's
+  allowances are per organization and endpoint, shared with other clients.
+  The HTTP engine retries throttled requests and honors `Retry-After`.
+- **Recovery**. Top-level paginated reads can resume from saved page cursors.
+  Child reads restart from their parent listing. Configured-ID reads restart
+  their list of identifiers. Full upsert avoids duplicate rows when replaying.
+- **Parent selection**. Optional child reads may require many requests. Phone
+  calls scan issue search separately to select phone issues. Knowledge bases
+  without an active theme do not produce an active-theme request.
+
+See [Pylon API conventions](https://docs.usepylon.com/pylon-docs/developer/api/conventions)
+and [rate limits](https://docs.usepylon.com/pylon-docs/developer/api/rate-limits)
+for pagination and service limits.
