@@ -7,13 +7,6 @@ light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-pylon-light.svg"
 config:
   api_token: {"type": "secret", "required": true, "help": "Pylon API token from Settings > Integrations & dev > API tokens."}
   region: {"type": "enum", "enum": ["us", "eu"], "default": "us", "help": "Region of your Pylon organization."}
-  custom_object_types: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated custom object type slugs. Required for custom_objects. Types cannot be discovered through the API."}
-  notebook_account_id: {"type": "string", "scope": "pipeline", "default": "", "help": "Account ID or external ID for notebook_notes."}
-  notebook_block_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated Notes block IDs copied from the account notebook UI. Required for notebook_notes."}
-  feature_request_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated feature request IDs. Required for feature_requests, which includes evidence. Search returns at most 1000 records."}
-  article_language: {"type": "string", "scope": "pipeline", "default": "", "help": "Language code for articles. Empty uses each knowledge base default language. Use separate pipelines and destinations for translations."}
-  theme_knowledge_base_id: {"type": "string", "scope": "pipeline", "default": "", "help": "Knowledge base ID for themes. active_themes discovers active themes without this setting."}
-  theme_ids: {"type": "string", "scope": "pipeline", "default": "", "help": "Comma-separated theme IDs for themes. The API cannot enumerate inactive themes."}
 defaults:
   method: "GET"
 field_sets:
@@ -852,7 +845,7 @@ resources:
     path: "/knowledge-bases/{id}/articles"
     for_each: "knowledge_bases"
     params: {"id": "parent.knowledge_base_id"}
-    query: {"language": "{{ config.article_language }}", "media": "all", "limit": "100"}
+    query: {"media": "all", "limit": "100"}
     response:
       records: "$.data"
       pagination:
@@ -885,7 +878,6 @@ resources:
       url: "string?"
       visibility_config: "json?"
       raw: {"path": "$", "type": "json", "mode": "remainder"}
-    omit_empty_query: true
 
   - name: "collections"
     path: "/knowledge-bases/{id}/collections"
@@ -1020,33 +1012,6 @@ resources:
     primary_key: ["id"]
     use_fields: ["custom_field"]
 
-  - name: "custom_objects"
-    path: "/custom-objects/{type}"
-    query: {"limit": "100"}
-    response:
-      records: "$.data"
-      pagination:
-        cursor:
-          response: "pagination.cursor"
-          request: "query.cursor"
-          more: "pagination.has_next_page"
-          null_terminates: true
-      strict_records: true
-    primary_key: ["type", "id"]
-    fields:
-      created_at: "timestamptz?"
-      custom_fields: "json?"
-      id: "string"
-      name: "string?"
-      relations: "json?"
-      type: "string"
-      updated_at: "timestamptz?"
-      raw: {"path": "$", "type": "json", "mode": "remainder"}
-    for_each_config: "custom_object_types"
-    required_config: ["custom_object_types"]
-    params: {"type": "parent.custom_object_types"}
-    restart_on_resume: true
-
   - name: "opportunities"
     path: "/custom-objects/opportunity/search"
     method: "POST"
@@ -1074,35 +1039,7 @@ resources:
       updated_at: "timestamptz?"
       raw: {"path": "$", "type": "json", "mode": "remainder"}
 
-  - name: "notebook_notes"
-    path: "/accounts/{account_id}/notebook-blocks/{block_id}/notes"
-    query: {"limit": "20"}
-    response:
-      records: "$.data"
-      pagination:
-        cursor:
-          response: "pagination.cursor"
-          request: "query.cursor"
-          more: "pagination.has_next_page"
-          null_terminates: true
-      strict_records: true
-    primary_key: ["account_id", "block_id", "id"]
-    fields:
-      account_id: "string"
-      block_id: "string"
-      content_html: "string?"
-      created_at: "timestamptz?"
-      created_by_user_id: "string?"
-      id: "string"
-      title: "string?"
-      updated_at: "timestamptz?"
-      raw: {"path": "$", "type": "json", "mode": "remainder"}
-    required_config: ["notebook_account_id", "notebook_block_ids"]
-    for_each_config: "notebook_block_ids"
-    params: {"account_id": "config.notebook_account_id", "block_id": "parent.notebook_block_ids"}
-    restart_on_resume: true
-
-  - name: "feature_request_search"
+  - name: "feature_requests"
     path: "/feature-requests/search"
     method: "POST"
     response:
@@ -1127,53 +1064,6 @@ resources:
       encoding: "json"
       template:
         limit: 1000
-
-  - name: "feature_requests"
-    path: "/feature-requests/{id}"
-    query: {"fetch_evidence": "true"}
-    response:
-      records: "$.data"
-      pagination: "none"
-      strict_records: true
-      cardinality: "one"
-    primary_key: ["id"]
-    fields:
-      created_at: "timestamptz?"
-      custom_fields: "json?"
-      description: "string?"
-      evidence: "json?"
-      evidence_count: "int64?"
-      external_issues: "json?"
-      id: "string"
-      portal_visible_to_account_ids: "json?"
-      request_status: "string?"
-      title: "string?"
-      updated_at: "timestamptz?"
-      raw: {"path": "$", "type": "json", "mode": "remainder"}
-    for_each_config: "feature_request_ids"
-    required_config: ["feature_request_ids"]
-    params: {"id": "parent.feature_request_ids"}
-    restart_on_resume: true
-
-  - name: "themes"
-    path: "/knowledge-bases/{id}/themes/{theme_id}"
-    response:
-      records: "$.data"
-      pagination: "none"
-      strict_records: true
-      cardinality: "one"
-    primary_key: ["knowledge_base_id", "id"]
-    fields:
-      assets: "json?"
-      has_unpublished_changes: "bool?"
-      id: "string"
-      knowledge_base_id: "string"
-      name: "string?"
-      raw: {"path": "$", "type": "json", "mode": "remainder"}
-    for_each_config: "theme_ids"
-    required_config: ["theme_knowledge_base_id", "theme_ids"]
-    params: {"id": "config.theme_knowledge_base_id", "theme_id": "parent.theme_ids"}
-    restart_on_resume: true
 
 discovery:
   mode: "static"
