@@ -1,0 +1,50 @@
+resources:
+- name: services
+  path: "/v1/services"
+  method: GET
+  response:
+    records: "$.services"
+    pagination: none
+  primary_key:
+  - name
+  - usage
+  fields:
+    name: string
+    usage: string
+    ips: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: event_samples
+  path: "/v1/events/search"
+  method: POST
+  body:
+    encoding: json
+    template:
+      transactionIds:
+      - "{{ parent.transaction_ids }}"
+  required_config:
+  - transaction_ids
+  for_each_config: transaction_ids
+  restart_on_resume: true
+  response:
+    records: "$"
+    pagination: none
+  primary_key:
+  - id
+  fields:
+    id: string
+    customer_id: string?
+    event_type: string?
+    properties: json?
+    timestamp: timestamptz?
+    transaction_id: string?
+    is_duplicate: bool?
+    processed_at: timestamptz?
+    matched_customer: json?
+    matched_billable_metrics: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder

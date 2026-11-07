@@ -1,0 +1,149 @@
+resources:
+- name: threshold_notifications
+  path: "/v1/customer-alerts/list"
+  method: POST
+  for_each: customers
+  body:
+    encoding: json
+    template:
+      customer_id: "{{ parent.customer_id }}"
+      alert_statuses:
+      - enabled
+      - disabled
+      - archived
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key: []
+  fields:
+    customer_status: string?
+    triggered_by: string?
+    alert: json?
+    customer_id:
+      path: parent.customer_id
+      type: string
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: offset_notifications
+  path: "/v2/notifications/offset/list"
+  method: POST
+  body:
+    encoding: json
+    template:
+      archive_filter: ALL
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: cursor
+        request: body.cursor
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    id: string
+    name: string?
+    type: string?
+    policy: json?
+    environment_type: string?
+    created_at: timestamptz?
+    created_by: string?
+    archived_at: timestamptz?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: system_notifications
+  path: "/v2/notifications/system/list"
+  method: POST
+  body:
+    encoding: json
+    template: {}
+  response:
+    records: "$.data"
+    pagination: none
+    error:
+      path: cursor
+      when_present: true
+  primary_key: []
+  fields:
+    type: string?
+    is_enabled: bool?
+    policy: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: webhook_notifications
+  path: "/v1/webhooks/{webhook_id}/triggered_notifications"
+  method: POST
+  params:
+    webhook_id: parent.webhook_ids
+  body:
+    encoding: json
+    template:
+      start_date: "{{ config.webhook_start_date }}T00:00:00Z"
+  required_config:
+  - webhook_ids
+  - webhook_start_date
+  for_each_config: webhook_ids
+  restart_on_resume: true
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: body.next_page
+        null_terminates: true
+  primary_key:
+  - webhook_id
+  - id
+  fields:
+    id: string
+    webhook_id: string
+    customer_id: string?
+    notification_id: string?
+    notification_type: string?
+    first_attempted_at: timestamptz?
+    last_attempted_at: timestamptz?
+    last_response_status_code: decimal?
+    num_attempts: decimal?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+  capture:
+    webhook_id: webhook_id
+    triggered_notification_id: id
+- name: webhook_deliveries
+  path: "/v1/webhooks/{webhook_id}/triggered_notifications/{triggered_notification_id}"
+  method: GET
+  for_each: webhook_notifications
+  params:
+    webhook_id: parent.webhook_id
+    triggered_notification_id: parent.triggered_notification_id
+  response:
+    records: "$.data"
+    cardinality: one
+    pagination: none
+  primary_key:
+  - webhook_id
+  - id
+  fields:
+    id: string
+    webhook_id: string
+    customer_id: string?
+    notification_id: string?
+    notification_type: string?
+    notification_payload: string?
+    attempts: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder

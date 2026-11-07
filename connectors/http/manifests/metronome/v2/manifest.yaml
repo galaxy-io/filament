@@ -1,0 +1,128 @@
+# Metronome Contracts v2 with shared v1 endpoints and optional legacy Plans reads.
+# API contract https://api.metronome.com/v1/docs/openapi
+version: 1
+name: metronome
+display_name: Metronome
+description: Usage-based billing platform that meters product usage, manages pricing
+  and contracts, and generates invoices for subscriptions and consumption.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-metronome-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-metronome-light.svg
+api_version: v2
+config:
+  api_token:
+    type: secret
+    required: true
+    help: Metronome API token from Developer > API tokens with read access to selected
+      endpoints.
+  customer_archived_states:
+    type: enum
+    enum:
+    - false,true
+    - 'false'
+    - 'true'
+    enum_labels:
+      false,true: Active and archived
+      'false': Active only
+      'true': Archived only
+    default: false,true
+    help: Customer visibility for customers and customer-dependent resources.
+  start_date:
+    type: string
+    scope: pipeline
+    default: ''
+    format: date
+    help: Inclusive UTC start date for usage, invoice breakdowns, and legacy costs.
+      Use YYYY-MM-DD.
+    requires:
+    - end_date
+    before: end_date
+  end_date:
+    type: string
+    scope: pipeline
+    default: ''
+    format: date
+    help: Exclusive UTC end date for usage, invoice breakdowns, and legacy costs.
+      Use YYYY-MM-DD.
+    requires:
+    - start_date
+  rate_date:
+    type: string
+    scope: pipeline
+    default: ''
+    format: date
+    help: UTC date for rate snapshots and start of rate card schedules. Use YYYY-MM-DD.
+  webhook_start_date:
+    type: string
+    scope: pipeline
+    default: ''
+    format: date
+    help: Inclusive UTC date within the last 30 days for webhook history. Use YYYY-MM-DD.
+  usage_window_size:
+    type: enum
+    scope: pipeline
+    enum:
+    - hour
+    - day
+    - none
+    default: day
+    help: Aggregation window for usage and usage_groups.
+  usage_metric_id:
+    type: string
+    scope: pipeline
+    default: ''
+    help: Billable metric UUID for usage_groups.
+  usage_group_keys:
+    type: string
+    scope: pipeline
+    default: ''
+    help: JSON array of grouping keys for usage_groups, such as ["region","team"].
+      Supply every key in a compound group.
+  webhook_ids:
+    type: string
+    scope: pipeline
+    default: ''
+    help: Comma-separated webhook destination UUIDs for webhook history. The API does
+      not list destinations.
+  transaction_ids:
+    type: string
+    scope: pipeline
+    default: ''
+    help: Comma-separated known transaction IDs for event_samples. Sampling only,
+      within the last 34 days.
+  schedule_name:
+    type: string
+    scope: pipeline
+    default: ''
+    help: Known schedule name for customer and rate card named schedules. Requires
+      account access.
+connection:
+  base_url: https://api.metronome.com
+  auth:
+    bearer: config.api_token
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+includes:
+- resources/core.yaml
+- resources/contracts.yaml
+- resources/billing.yaml
+- resources/notifications.yaml
+- resources/administration.yaml
+- resources/optional.yaml
+- resources/legacy.yaml
+discovery:
+  mode: static
+  default_resources:
+  - billable_metrics
+  - customers
+  - products
+  - rate_cards
+  - pricing_units
+  - custom_field_keys
+  - billing_providers
+  - customer_billing_configurations
+  - contracts
+  - commits
+  - credits
+  - packages
+  - invoices

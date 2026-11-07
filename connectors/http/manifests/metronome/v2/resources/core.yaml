@@ -1,0 +1,272 @@
+resources:
+- name: billable_metrics
+  path: "/v1/billable-metrics"
+  method: GET
+  query:
+    limit: '50'
+    include_archived: 'true'
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    id: string
+    name: string?
+    event_type_filter: json?
+    property_filters: json?
+    aggregation_type: string?
+    aggregation_key: string?
+    group_keys: json?
+    custom_fields: json?
+    sql: string?
+    archived_at: timestamptz?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+  capture:
+    billable_metric_id: id
+- name: customers
+  path: "/v1/customers"
+  method: GET
+  query:
+    limit: '50'
+    only_archived: "{{ parent.customer_archived_states }}"
+  for_each_config: customer_archived_states
+  restart_on_resume: true
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    id: string
+    external_id: string?
+    ingest_aliases: json?
+    name: string?
+    customer_config: json?
+    custom_fields: json?
+    created_at: timestamptz?
+    archived_at: timestamptz?
+    updated_at: timestamptz?
+    current_billable_status: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+  capture:
+    customer_id: id
+- name: products
+  path: "/v1/contract-pricing/products/list"
+  method: POST
+  query:
+    limit: '50'
+  body:
+    encoding: json
+    template:
+      archive_filter: ALL
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    id: string
+    type: string?
+    archived_at: timestamptz?
+    initial: json?
+    current: json?
+    updates: json?
+    custom_fields: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: rate_cards
+  path: "/v1/contract-pricing/rate-cards/list"
+  method: POST
+  query:
+    limit: '50'
+  body:
+    encoding: json
+    template: {}
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    id: string
+    name: string?
+    created_at: timestamptz?
+    created_by: string?
+    description: string?
+    fiat_credit_type: json?
+    credit_type_conversions: json?
+    aliases: json?
+    custom_fields: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+  capture:
+    rate_card_id: id
+- name: pricing_units
+  path: "/v1/credit-types/list"
+  method: GET
+  query:
+    limit: '50'
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - id
+  fields:
+    name: string?
+    id: string
+    is_currency: bool?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: custom_field_keys
+  path: "/v1/customFields/listKeys"
+  method: POST
+  body:
+    encoding: json
+    template: {}
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - entity
+  - key
+  fields:
+    entity: string
+    key: string
+    enforce_uniqueness: bool?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: billing_providers
+  path: "/v1/listConfiguredBillingProviders"
+  method: POST
+  body:
+    encoding: json
+    template: {}
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: body.next_page
+        null_terminates: true
+  primary_key:
+  - delivery_method_id
+  fields:
+    billing_provider: string?
+    delivery_method_id: string
+    delivery_method: string?
+    delivery_method_configuration: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: customer_billing_configurations
+  path: "/v1/getCustomerBillingProviderConfigurations"
+  method: POST
+  for_each: customers
+  body:
+    encoding: json
+    template:
+      customer_id: "{{ parent.customer_id }}"
+      include_archived: true
+  response:
+    records: "$.data"
+    pagination: none
+  primary_key:
+  - id
+  fields:
+    id: string
+    billing_provider: string?
+    customer_id: string?
+    configuration: json?
+    delivery_method_id: string?
+    delivery_method: string?
+    delivery_method_configuration: json?
+    archived_at: timestamptz?
+    unbillable_invoices_configuration: json?
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+- name: customer_billable_metrics
+  path: "/v1/customers/{customer_id}/billable-metrics"
+  method: GET
+  for_each: customers
+  params:
+    customer_id: parent.customer_id
+  query:
+    limit: '50'
+    include_archived: 'true'
+    on_current_plan: 'false'
+  response:
+    records: "$.data"
+    pagination:
+      cursor:
+        response: next_page
+        request: query.next_page
+        null_terminates: true
+  primary_key:
+  - customer_id
+  - id
+  fields:
+    group_by: json?
+    group_keys: json?
+    name: string?
+    id: string
+    aggregate: string?
+    aggregate_keys: json?
+    filter: json?
+    aggregation_key: string?
+    event_type_filter: json?
+    property_filters: json?
+    custom_fields: json?
+    sql: string?
+    archived_at: timestamptz?
+    aggregation_type: string?
+    customer_id:
+      path: parent.customer_id
+      type: string
+    raw:
+      path: "$"
+      type: json
+      mode: remainder
+  capture:
+    billable_metric_id: id

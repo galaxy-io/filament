@@ -1,0 +1,251 @@
+---
+title: "Metronome source connector"
+sidebarTitle: "Metronome"
+description: "Read Metronome customers, contracts, billing, usage, and reference data with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-metronome-dark.svg"
+---
+
+Connector ID `metronome`
+
+The Metronome source provides 53 selectable resources through an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+It targets Contracts v2 with the shared v1 endpoints and optional legacy Plans
+reads. Use `metronome@v2` to pin this API selection. `metronome` resolves to it.
+The connector is in preview. Its API contracts and shared engine have been
+checked locally, but live account reads have not been validated.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required secret. API token with access to selected resources. |
+| `customer_archived_states` | Connection | `false,true` | Active and archived customers. `false` selects active only and `true` selects archived only. Also controls customer-dependent reads. |
+| `start_date` | Pipeline | | Inclusive UTC date for usage, invoice breakdowns, spend breakdowns, and legacy costs. |
+| `end_date` | Pipeline | | Exclusive UTC date for the same resources. Must be later than `start_date`. |
+| `rate_date` | Pipeline | | UTC date for rate snapshots and the start of rate card schedules. |
+| `usage_window_size` | Pipeline | `day` | `hour`, `day`, or `none` for usage aggregates. |
+| `usage_metric_id` | Pipeline | | Billable metric UUID for `usage_groups`. |
+| `usage_group_keys` | Pipeline | | JSON array of grouping keys for `usage_groups`, such as `["region","team"]`. |
+| `webhook_ids` | Pipeline | | Comma-separated webhook destination UUIDs for webhook history. |
+| `webhook_start_date` | Pipeline | | Inclusive UTC date within the last 30 days for webhook history. |
+| `transaction_ids` | Pipeline | | Comma-separated known transaction IDs for `event_samples`. |
+| `schedule_name` | Pipeline | | Known name for customer and rate card named schedule lookups. |
+
+Dates use `YYYY-MM-DD` and are sent at UTC midnight. Windowed resources require
+both `start_date` and `end_date`. Other resources do not require a date window.
+
+Create a token under **Developer → API tokens** in the Metronome app. Tokens
+inherit their creator's permissions unless Metronome applies narrower access.
+Use a read-only token for the intended environment and grant access to each
+selected endpoint, including POST reads. See
+[API authentication](https://docs.metronome.com/api-reference/authentication).
+Connection testing reads one billable-metrics page and requires access to that
+endpoint. Discovery alone does not test access.
+
+## Resources
+
+The default selection includes billable metrics, customers, products, rate cards,
+pricing units, custom field keys, account billing providers, customer billing
+configurations, contracts, commits, credits, packages, and invoices. All other
+resources are opt-in.
+
+### Customers and reference data
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `billable_metrics` | `GET /v1/billable-metrics` |  |
+| `customers` | `GET /v1/customers` |  |
+| `products` | `POST /v1/contract-pricing/products/list` |  |
+| `rate_cards` | `POST /v1/contract-pricing/rate-cards/list` |  |
+| `pricing_units` | `GET /v1/credit-types/list` |  |
+| `custom_field_keys` | `POST /v1/customFields/listKeys` |  |
+| `billing_providers` | `POST /v1/listConfiguredBillingProviders` |  |
+| `customer_billing_configurations` | `POST /v1/getCustomerBillingProviderConfigurations` | `customers` |
+| `customer_billable_metrics` | `GET /v1/customers/{customer_id}/billable-metrics` | `customers` |
+
+### Contracts, commitments, and packages
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `contracts` | `POST /v2/contracts/list` | `customers` |
+| `contract_edit_history` | `POST /v2/contracts/getEditHistory` | `contracts` |
+| `commits` | `POST /v1/contracts/customerCommits/list` | `customers` |
+| `credits` | `POST /v1/contracts/customerCredits/list` | `customers` |
+| `balances` | `POST /v1/contracts/customerBalances/list` | `customers` |
+| `seat_balances` | `POST /v1/contracts/seatBalances/list` | `contracts` |
+| `subscriptions` | `POST /v2/contracts/get` | `contracts` |
+| `subscription_quantity_history` | `POST /v1/contracts/getSubscriptionQuantityHistory` | `subscriptions` |
+| `subscription_seats_history` | `POST /v1/contracts/getSubscriptionSeatsHistory` | `subscriptions` |
+| `packages` | `POST /v1/packages/list` |  |
+| `package_contracts` | `POST /v1/packages/listContractsOnPackage` | `packages` |
+
+### Invoices, usage, and rates
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `invoices` | `GET /v1/customers/{customer_id}/invoices` | `customers` |
+| `invoice_breakdowns` | `GET /v1/customers/{customer_id}/invoices/breakdowns` | `customers` |
+| `usage` | `POST /v1/usage` |  |
+| `usage_groups` | `POST /v1/usage/groups` | `customers` |
+| `rate_card_rates` | `POST /v1/contract-pricing/rate-cards/getRates` | `rate_cards` |
+| `rate_card_rate_schedules` | `POST /v1/contract-pricing/rate-cards/getRateSchedule` | `rate_cards` |
+| `contract_rates` | `POST /v1/contracts/getContractRateSchedule` | `contracts` |
+| `net_balances` | `POST /v1/contracts/customerBalances/getNetBalance` | `customers, pricing_units` |
+| `net_quantity_balances` | `POST /v1/contracts/customerBalances/getNetBalance` | `customers` |
+
+### Notifications and webhook history
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `threshold_notifications` | `POST /v1/customer-alerts/list` | `customers` |
+| `offset_notifications` | `POST /v2/notifications/offset/list` |  |
+| `system_notifications` | `POST /v2/notifications/system/list` |  |
+| `webhook_notifications` | `POST /v1/webhooks/{webhook_id}/triggered_notifications` |  |
+| `webhook_deliveries` | `GET /v1/webhooks/{webhook_id}/triggered_notifications/{triggered_notification_id}` | `webhook_notifications` |
+
+### Administration and event samples
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `services` | `GET /v1/services` |  |
+| `event_samples` | `POST /v1/events/search` |  |
+
+### Account-specific features
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `approval_requests` | `GET /v1/approval_requests` |  |
+| `customer_revenue_configurations` | `POST /v1/getCustomerRevenueSystemConfigurations` | `customers` |
+| `historical_balances` | `POST /v1/contracts/historicalBalances/list` | `customers` |
+| `spend_invoice_breakdowns` | `POST /v1/customers/{customer_id}/invoices/spend-breakdowns` | `customers` |
+| `contract_named_schedules` | `POST /v1/contracts/listNamedSchedules` | `customers` |
+| `customer_named_schedules` | `POST /v1/customers/getNamedSchedule` | `customers` |
+| `rate_card_named_schedules` | `POST /v1/contract-pricing/rate-cards/getNamedSchedule` | `rate_cards` |
+
+### Legacy Plans and amendments
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `legacy_contracts` | `POST /v1/contracts/list` | `customers` |
+| `plans` | `GET /v1/plans` |  |
+| `plan_details` | `GET /v1/planDetails/{plan_id}` | `plans` |
+| `plan_charges` | `GET /v1/planDetails/{plan_id}/charges` | `plans` |
+| `plan_customers` | `GET /v1/planDetails/{plan_id}/customers` | `plans` |
+| `customer_plans` | `GET /v1/customers/{customer_id}/plans` | `customers` |
+| `customer_plan_adjustments` | `GET /v1/customers/{customer_id}/plans/{customer_plan_id}/priceAdjustments` | `customer_plans` |
+| `credit_grants` | `POST /v1/credits/listGrants` |  |
+| `credit_ledger_entries` | `POST /v1/credits/listEntries` |  |
+| `customer_costs` | `GET /v1/customers/{customer_id}/costs` | `customers` |
+
+Each list emits one row per returned object. Related line items, ledgers,
+contract terms, subscription schedules, package terms, notification policies,
+and webhook delivery attempts remain JSON arrays or objects. IDs remain strings,
+amounts and fractional quantities use decimal projections, and timestamps carry
+time zones. Every resource includes a `raw` remainder for additional fields.
+
+Contract responses can truncate embedded commits and credits. Use `commits` and
+`credits` for their complete paginated lists, including contract-level and archived
+records with ledgers and balances. `balances` provides the combined view.
+`seat_balances` includes all returned seats with their credits, commits, and ledgers.
+See [list customer contracts](https://docs.metronome.com/api-reference/contracts/list-customer-contracts-v2)
+and [list seat balances](https://docs.metronome.com/api-reference/credits-and-commits/list-seat-balances).
+
+`subscriptions` reads the subscription array from each contract detail. Quantity
+history includes past changes, while future quantity schedules remain on the
+subscription. Seat history returns schedule segments and assigned seat IDs.
+`net_balances` queries each customer and pricing unit separately, including custom
+units. `net_quantity_balances` queries quantity-based balances separately. These
+are current snapshots and include draft invoice deductions under the API default.
+
+`usage` reads all customers and metrics for the selected window without requesting
+truncated inline groupings. `usage_groups` reads one configured metric and grouping
+across the selected customers, following every grouping page. Supply the complete
+compound key in `usage_group_keys`. It is passed as a JSON array and must be valid
+JSON. Run separate pipelines for different metric and grouping combinations.
+See [paginated usage groupings](https://docs.metronome.com/api-reference/usage/get-usage-data-with-paginated-groupings).
+Rate snapshots use `rate_date`. Rate card schedules include segments from that
+date onward, including future changes. Invoice breakdowns emit daily windows.
+Spend breakdowns use the API's default presentation groups.
+
+Approval requests, revenue system configurations, historical balances, spend
+breakdowns, and named schedules come from the
+[official OpenAPI specification](https://api.metronome.com/v1/docs/openapi).
+These include feature-gated and private-preview APIs. Enable only resources your
+account supports. Customer and rate card named schedules require a known name
+because no listing endpoint enumerates their names. Contract named schedules use
+the listing endpoint and retain property-qualified schedules and all segments.
+
+Legacy Plans resources are optional for accounts that still use that deprecated
+product. `legacy_contracts` retains the v1 initial, current, and amendment views.
+`plan_details` adds minimums, overage rates, and plan credit-grant definitions.
+`plan_customers` includes past, current, and upcoming assignments. Legacy grants
+and ledgers exclude voided grants upstream. Legacy costs do not support plans
+with UNIQUE billable metrics. See the
+[legacy Plans reference](https://docs.metronome.com/api-reference/plans/list-plans).
+
+### Coverage boundaries
+
+The resource set reconciles the published Contracts and legacy Plans indexes
+with the official OpenAPI read operations. Individual lookups for customers,
+billable metrics, products, rate cards, invoices, packages, approval requests,
+contracts, offset notifications, and contract named schedules repeat data
+available through the included lists. Threshold-notification lists include
+customer evaluation status and configuration. Filtered point-in-time lookup
+variants are not separate resources.
+
+Audit logs, invoice PDF downloads, and generated embeddable dashboard URLs are not
+replicated.
+Write operations, invoice simulations, webhook reception, and endpoints without
+published request and response contracts are outside this source.
+
+`event_samples` looks up supplied transaction IDs from the last 34 days. It is
+not a raw-event export or an enumeration of all usage events. Webhook history
+requires known destination IDs and covers only the last 30 days. Neither API
+provides an unrestricted historical backfill. See
+[event search](https://docs.metronome.com/api-reference/usage/search-events) and
+[webhook history](https://docs.metronome.com/api-reference/webhooks/list-triggered-notifications-by-webhook).
+
+## Modes
+
+All resources use full reads. Creation dates, usage windows, and effective dates
+do not establish update-watermark semantics for mutable billing records.
+Repeated full reads refresh edited invoices, balances, ledgers, and contracts.
+Windowed reads cover only the configured interval.
+
+Use full replace for keyless resources. These include rate rows, usage aggregates,
+invoice breakdowns, seat-history segments, threshold and system notifications,
+named schedules, plan assignments and adjustments, legacy ledger batches, and
+legacy daily costs. Their upstream rows do not expose a suitable stable row ID.
+Other resources support upsert by the declared ID or parent-scoped key.
+Full upsert does not remove absent records. Full replace can reflect removals
+only within the selected visibility, interval, and upstream retention.
+
+## Behavior
+
+- **Auth** uses bearer authentication against `https://api.metronome.com`.
+- **Pagination** follows URL `next_page`, body `next_page`, or body `cursor` as
+  specified by each endpoint. Null cursors end a read. General listings request
+  50 rows, contracts request 20, commitment lists request 25, and seat history
+  requests 10. Short pages do not end a read while a continuation cursor exists.
+- **System notifications** use the documented single-request endpoint. Its
+  schema contains a nullable cursor but documents no continuation parameter.
+  A nonempty cursor fails the read instead of silently dropping more data.
+  Such a response requires upstream clarification of the continuation contract.
+- **Parents** are fetched for selected child resources even when the parent is
+  not selected for output. Customer reads walk active and archived lists by
+  default. Products, packages, contracts, commitments, billing configurations,
+  and threshold notifications explicitly request archived data where supported.
+  Other listings retain upstream visibility defaults.
+- **Recovery** restarts child reads and configured lookup loops. Ordinary
+  top-level cursor reads can resume saved pagination state. These checkpoints
+  are not update-based incremental replication.
+- **Rate limits** use the shared HTTP retry handling for 429 responses and server
+  errors, honoring `Retry-After` when supplied. Metronome reports whether a
+  throttle applies to the client or customer through
+  `X-Metronome-Rate-Limit-Type`. Event search is intended for limited sampling.
+  See [API status codes](https://docs.metronome.com/api-reference/status-codes).
+- **Errors** remain visible. Missing permissions, unavailable account features,
+  invalid grouping keys, and missing schedules are not converted into empty data.
+- **Consistency** follows the upstream reads. Requests across customers and API
+  families do not form an atomic billing snapshot. Archived status can change
+  while active and archived customer passes are running.
