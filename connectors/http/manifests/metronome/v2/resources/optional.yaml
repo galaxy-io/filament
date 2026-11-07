@@ -1,220 +1,220 @@
 resources:
-- name: approval_requests
-  path: "/v1/approval_requests"
-  method: GET
-  query:
-    limit: '50'
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key:
-  - id
-  fields:
-    id: string
-    status: string?
-    token_name: string?
-    created_at: timestamptz?
-    expires_at: timestamptz?
-    approval_url: string?
-    reviewed_by: string?
-    reviewed_at: timestamptz?
-    completed_at: timestamptz?
-    approval_request_payload: json?
-    response: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: customer_revenue_configurations
-  path: "/v1/getCustomerRevenueSystemConfigurations"
-  method: POST
-  for_each: customers
-  body:
-    encoding: json
-    template:
-      customer_id: "{{ parent.customer_id }}"
-      include_archived: true
-  response:
-    records: "$.data"
-    pagination: none
-  primary_key:
-  - id
-  fields:
-    id: string
-    customer_id: string?
-    delivery_method_id: string?
-    provider: string?
-    configuration: json?
-    delivery_method: string?
-    delivery_method_configuration: json?
-    archived_at: timestamptz?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: historical_balances
-  path: "/v1/contracts/historicalBalances/list"
-  method: POST
-  for_each: customers
-  body:
-    encoding: json
-    template:
-      customer_id: "{{ parent.customer_id }}"
-      include_ledgers: true
-      limit: 25
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: body.next_page
-        null_terminates: true
-  primary_key:
-  - customer_id
-  - id
-  fields:
-    customer_id:
-      path: parent.customer_id
-      type: string
-    id: string
-    type: string?
-    balance: decimal?
-    contract: json?
-    ledger: json?
-    moved_to_history_at: timestamptz?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: spend_invoice_breakdowns
-  path: "/v1/customers/{customer_id}/invoices/spend-breakdowns"
-  method: POST
-  for_each: customers
-  params:
-    customer_id: parent.customer_id
-  body:
-    encoding: json
-    template:
-      starting_on: "{{ config.start_date }}T00:00:00Z"
-      ending_before: "{{ config.end_date }}T00:00:00Z"
-      window_size: day
-      skip_zero_qty_line_items: false
-      limit: 50
-  required_config:
-  - start_date
-  - end_date
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: body.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    id: string?
-    customer_id: string?
-    credit_type: json?
-    line_items: json?
-    start_timestamp: timestamptz?
-    end_timestamp: timestamptz?
-    issued_at: timestamptz?
-    status: string?
-    type: string?
-    contract_id: string?
-    breakdown_start_timestamp: timestamptz?
-    breakdown_end_timestamp: timestamptz?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: contract_named_schedules
-  path: "/v1/contracts/listNamedSchedules"
-  method: POST
-  for_each: customers
-  body:
-    encoding: json
-    template:
-      customer_id: "{{ parent.customer_id }}"
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: body.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    contract_id: string?
-    schedule_name: string?
-    properties: json?
-    segments: json?
-    customer_id:
-      path: parent.customer_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: customer_named_schedules
-  path: "/v1/customers/getNamedSchedule"
-  method: POST
-  for_each: customers
-  body:
-    encoding: json
-    template:
-      customer_id: "{{ parent.customer_id }}"
-      schedule_name: "{{ config.schedule_name }}"
-  required_config:
-  - schedule_name
-  response:
-    records: "$.data"
-    pagination: none
-  primary_key: []
-  fields:
-    value: json?
-    starting_at: timestamptz?
-    ending_before: timestamptz?
-    customer_id:
-      path: parent.customer_id
-      type: string
-    schedule_name:
-      value: "{{ config.schedule_name }}"
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: rate_card_named_schedules
-  path: "/v1/contract-pricing/rate-cards/getNamedSchedule"
-  method: POST
-  for_each: rate_cards
-  body:
-    encoding: json
-    template:
-      rate_card_id: "{{ parent.rate_card_id }}"
-      schedule_name: "{{ config.schedule_name }}"
-  required_config:
-  - schedule_name
-  response:
-    records: "$.data"
-    pagination: none
-  primary_key: []
-  fields:
-    value: json?
-    starting_at: timestamptz?
-    ending_before: timestamptz?
-    rate_card_id:
-      path: parent.rate_card_id
-      type: string
-    schedule_name:
-      value: "{{ config.schedule_name }}"
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
+  - name: approval_requests
+    path: "/v1/approval_requests"
+    method: GET
+    query:
+      limit: '50'
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      status: string?
+      token_name: string?
+      created_at: timestamptz?
+      expires_at: timestamptz?
+      approval_url: string?
+      reviewed_by: string?
+      reviewed_at: timestamptz?
+      completed_at: timestamptz?
+      approval_request_payload: json?
+      response: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: customer_revenue_configurations
+    path: "/v1/getCustomerRevenueSystemConfigurations"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_archived: true
+    response:
+      records: "$.data"
+      pagination: none
+    primary_key:
+      - id
+    fields:
+      id: string
+      customer_id: string?
+      delivery_method_id: string?
+      provider: string?
+      configuration: json?
+      delivery_method: string?
+      delivery_method_configuration: json?
+      archived_at: timestamptz?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: historical_balances
+    path: "/v1/contracts/historicalBalances/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_ledgers: true
+        limit: 25
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key:
+      - customer_id
+      - id
+    fields:
+      customer_id:
+        path: parent.customer_id
+        type: string
+      id: string
+      type: string?
+      balance: decimal?
+      contract: json?
+      ledger: json?
+      moved_to_history_at: timestamptz?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: spend_invoice_breakdowns
+    path: "/v1/customers/{customer_id}/invoices/spend-breakdowns"
+    method: POST
+    for_each: customers
+    params:
+      customer_id: parent.customer_id
+    body:
+      encoding: json
+      template:
+        starting_on: "{{ config.start_date }}T00:00:00Z"
+        ending_before: "{{ config.end_date }}T00:00:00Z"
+        window_size: day
+        skip_zero_qty_line_items: false
+        limit: 50
+    required_config:
+      - start_date
+      - end_date
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      id: string?
+      customer_id: string?
+      credit_type: json?
+      line_items: json?
+      start_timestamp: timestamptz?
+      end_timestamp: timestamptz?
+      issued_at: timestamptz?
+      status: string?
+      type: string?
+      contract_id: string?
+      breakdown_start_timestamp: timestamptz?
+      breakdown_end_timestamp: timestamptz?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: contract_named_schedules
+    path: "/v1/contracts/listNamedSchedules"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      contract_id: string?
+      schedule_name: string?
+      properties: json?
+      segments: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: customer_named_schedules
+    path: "/v1/customers/getNamedSchedule"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        schedule_name: "{{ config.schedule_name }}"
+    required_config:
+      - schedule_name
+    response:
+      records: "$.data"
+      pagination: none
+    primary_key: []
+    fields:
+      value: json?
+      starting_at: timestamptz?
+      ending_before: timestamptz?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      schedule_name:
+        value: "{{ config.schedule_name }}"
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: rate_card_named_schedules
+    path: "/v1/contract-pricing/rate-cards/getNamedSchedule"
+    method: POST
+    for_each: rate_cards
+    body:
+      encoding: json
+      template:
+        rate_card_id: "{{ parent.rate_card_id }}"
+        schedule_name: "{{ config.schedule_name }}"
+    required_config:
+      - schedule_name
+    response:
+      records: "$.data"
+      pagination: none
+    primary_key: []
+    fields:
+      value: json?
+      starting_at: timestamptz?
+      ending_before: timestamptz?
+      rate_card_id:
+        path: parent.rate_card_id
+        type: string
+      schedule_name:
+        value: "{{ config.schedule_name }}"
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder

@@ -1,318 +1,318 @@
 resources:
-- name: legacy_contracts
-  path: "/v1/contracts/list"
-  method: POST
-  for_each: customers
-  body:
-    encoding: json
-    template:
-      customer_id: "{{ parent.customer_id }}"
-      include_archived: true
-      include_ledgers: true
-      include_balance: true
-      limit: 20
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: cursor
-        request: body.cursor
-        null_terminates: true
-  primary_key:
-  - id
-  fields:
-    id: string
-    archived_at: timestamptz?
-    customer_id: string?
-    package_id: string?
-    uniqueness_key: string?
-    initial: json?
-    current: json?
-    amendments: json?
-    custom_fields: json?
-    customer_billing_provider_configuration: json?
-    scheduled_charges_on_usage_invoices: string?
-    subscriptions: json?
-    spend_threshold_configuration: json?
-    prepaid_balance_threshold_configuration: json?
-    spend_trackers: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: plans
-  path: "/v1/plans"
-  method: GET
-  query:
-    limit: '50'
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key:
-  - id
-  fields:
-    id: string
-    name: string?
-    description: string?
-    custom_fields: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-  capture:
-    plan_id: id
-- name: plan_details
-  path: "/v1/planDetails/{plan_id}"
-  method: GET
-  for_each: plans
-  params:
-    plan_id: parent.plan_id
-  response:
-    records: "$.data"
-    cardinality: one
-    pagination: none
-  primary_key:
-  - id
-  fields:
-    id: string
-    name: string?
-    description: string?
-    minimums: json?
-    overage_rates: json?
-    credit_grants: json?
-    custom_fields: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: plan_charges
-  path: "/v1/planDetails/{plan_id}/charges"
-  method: GET
-  for_each: plans
-  params:
-    plan_id: parent.plan_id
-  query:
-    limit: '50'
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key:
-  - plan_id
-  - id
-  fields:
-    id: string
-    name: string?
-    charge_type: string?
-    product_id: string?
-    product_name: string?
-    quantity: decimal?
-    start_period: decimal?
-    tier_reset_frequency: decimal?
-    credit_type: json?
-    unit_conversion: json?
-    prices: json?
-    custom_fields: json?
-    plan_id:
-      path: parent.plan_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: plan_customers
-  path: "/v1/planDetails/{plan_id}/customers"
-  method: GET
-  for_each: plans
-  params:
-    plan_id: parent.plan_id
-  query:
-    limit: '50'
-    status: all
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    customer_details: json?
-    plan_details: json?
-    plan_id:
-      path: parent.plan_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: customer_plans
-  path: "/v1/customers/{customer_id}/plans"
-  method: GET
-  for_each: customers
-  params:
-    customer_id: parent.customer_id
-  query:
-    limit: '50'
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key:
-  - customer_id
-  - id
-  fields:
-    id: string
-    plan_id: string?
-    plan_name: string?
-    plan_description: string?
-    starting_on: timestamptz?
-    ending_before: timestamptz?
-    net_payment_terms_days: decimal?
-    trial_info: json?
-    custom_fields: json?
-    customer_id:
-      path: parent.customer_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-  capture:
-    customer_plan_id: id
-- name: customer_plan_adjustments
-  path: "/v1/customers/{customer_id}/plans/{customer_plan_id}/priceAdjustments"
-  method: GET
-  for_each: customer_plans
-  params:
-    customer_id: parent.customer_id
-    customer_plan_id: parent.customer_plan_id
-  query:
-    limit: '50'
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    charge_id: string?
-    charge_type: string?
-    start_period: decimal?
-    quantity: decimal?
-    prices: json?
-    customer_id:
-      path: parent.customer_id
-      type: string
-    customer_plan_id:
-      path: parent.customer_plan_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: credit_grants
-  path: "/v1/credits/listGrants"
-  method: POST
-  query:
-    limit: '50'
-  body:
-    encoding: json
-    template: {}
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key:
-  - id
-  fields:
-    id: string
-    name: string?
-    customer_id: string?
-    invoice_id: string?
-    uniqueness_key: string?
-    reason: string?
-    credit_grant_type: string?
-    effective_at: timestamptz?
-    expires_at: timestamptz?
-    priority: decimal?
-    grant_amount: json?
-    paid_amount: json?
-    balance: json?
-    deductions: json?
-    pending_deductions: json?
-    products: json?
-    custom_fields: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: credit_ledger_entries
-  path: "/v1/credits/listEntries"
-  method: POST
-  body:
-    encoding: json
-    template: {}
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    customer_id: string?
-    ledgers: json?
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
-- name: customer_costs
-  path: "/v1/customers/{customer_id}/costs"
-  method: GET
-  for_each: customers
-  params:
-    customer_id: parent.customer_id
-  query:
-    limit: '50'
-    starting_on: "{{ config.start_date }}T00:00:00Z"
-    ending_before: "{{ config.end_date }}T00:00:00Z"
-  required_config:
-  - start_date
-  - end_date
-  response:
-    records: "$.data"
-    pagination:
-      cursor:
-        response: next_page
-        request: query.next_page
-        null_terminates: true
-  primary_key: []
-  fields:
-    start_timestamp: timestamptz?
-    end_timestamp: timestamptz?
-    credit_types: json?
-    customer_id:
-      path: parent.customer_id
-      type: string
-    raw:
-      path: "$"
-      type: json
-      mode: remainder
+  - name: legacy_contracts
+    path: "/v1/contracts/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_archived: true
+        include_ledgers: true
+        include_balance: true
+        limit: 20
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      archived_at: timestamptz?
+      customer_id: string?
+      package_id: string?
+      uniqueness_key: string?
+      initial: json?
+      current: json?
+      amendments: json?
+      custom_fields: json?
+      customer_billing_provider_configuration: json?
+      scheduled_charges_on_usage_invoices: string?
+      subscriptions: json?
+      spend_threshold_configuration: json?
+      prepaid_balance_threshold_configuration: json?
+      spend_trackers: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: plans
+    path: "/v1/plans"
+    method: GET
+    query:
+      limit: '50'
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      name: string?
+      description: string?
+      custom_fields: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+    capture:
+      plan_id: id
+  - name: plan_details
+    path: "/v1/planDetails/{plan_id}"
+    method: GET
+    for_each: plans
+    params:
+      plan_id: parent.plan_id
+    response:
+      records: "$.data"
+      cardinality: one
+      pagination: none
+    primary_key:
+      - id
+    fields:
+      id: string
+      name: string?
+      description: string?
+      minimums: json?
+      overage_rates: json?
+      credit_grants: json?
+      custom_fields: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: plan_charges
+    path: "/v1/planDetails/{plan_id}/charges"
+    method: GET
+    for_each: plans
+    params:
+      plan_id: parent.plan_id
+    query:
+      limit: '50'
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - plan_id
+      - id
+    fields:
+      id: string
+      name: string?
+      charge_type: string?
+      product_id: string?
+      product_name: string?
+      quantity: decimal?
+      start_period: decimal?
+      tier_reset_frequency: decimal?
+      credit_type: json?
+      unit_conversion: json?
+      prices: json?
+      custom_fields: json?
+      plan_id:
+        path: parent.plan_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: plan_customers
+    path: "/v1/planDetails/{plan_id}/customers"
+    method: GET
+    for_each: plans
+    params:
+      plan_id: parent.plan_id
+    query:
+      limit: '50'
+      status: all
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      customer_details: json?
+      plan_details: json?
+      plan_id:
+        path: parent.plan_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: customer_plans
+    path: "/v1/customers/{customer_id}/plans"
+    method: GET
+    for_each: customers
+    params:
+      customer_id: parent.customer_id
+    query:
+      limit: '50'
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - customer_id
+      - id
+    fields:
+      id: string
+      plan_id: string?
+      plan_name: string?
+      plan_description: string?
+      starting_on: timestamptz?
+      ending_before: timestamptz?
+      net_payment_terms_days: decimal?
+      trial_info: json?
+      custom_fields: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+    capture:
+      customer_plan_id: id
+  - name: customer_plan_adjustments
+    path: "/v1/customers/{customer_id}/plans/{customer_plan_id}/priceAdjustments"
+    method: GET
+    for_each: customer_plans
+    params:
+      customer_id: parent.customer_id
+      customer_plan_id: parent.customer_plan_id
+    query:
+      limit: '50'
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      charge_id: string?
+      charge_type: string?
+      start_period: decimal?
+      quantity: decimal?
+      prices: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      customer_plan_id:
+        path: parent.customer_plan_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: credit_grants
+    path: "/v1/credits/listGrants"
+    method: POST
+    query:
+      limit: '50'
+    body:
+      encoding: json
+      template: {}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      name: string?
+      customer_id: string?
+      invoice_id: string?
+      uniqueness_key: string?
+      reason: string?
+      credit_grant_type: string?
+      effective_at: timestamptz?
+      expires_at: timestamptz?
+      priority: decimal?
+      grant_amount: json?
+      paid_amount: json?
+      balance: json?
+      deductions: json?
+      pending_deductions: json?
+      products: json?
+      custom_fields: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: credit_ledger_entries
+    path: "/v1/credits/listEntries"
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      customer_id: string?
+      ledgers: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: customer_costs
+    path: "/v1/customers/{customer_id}/costs"
+    method: GET
+    for_each: customers
+    params:
+      customer_id: parent.customer_id
+    query:
+      limit: '50'
+      starting_on: "{{ config.start_date }}T00:00:00Z"
+      ending_before: "{{ config.end_date }}T00:00:00Z"
+    required_config:
+      - start_date
+      - end_date
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      start_timestamp: timestamptz?
+      end_timestamp: timestamptz?
+      credit_types: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
