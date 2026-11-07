@@ -41,52 +41,6 @@ config:
     help: Exclusive UTC end date for usage, invoice breakdowns, and legacy costs. Use YYYY-MM-DD.
     requires:
       - start_date
-  rate_date:
-    type: string
-    scope: pipeline
-    default: ''
-    format: date
-    help: UTC date for rate snapshots and start of rate card schedules. Use YYYY-MM-DD.
-  webhook_start_date:
-    type: string
-    scope: pipeline
-    default: ''
-    format: date
-    help: Inclusive UTC date within the last 30 days for webhook history. Use YYYY-MM-DD.
-  usage_window_size:
-    type: enum
-    scope: pipeline
-    enum:
-      - hour
-      - day
-      - none
-    default: day
-    help: Aggregation window for usage and usage_groups.
-  usage_metric_id:
-    type: string
-    scope: pipeline
-    default: ''
-    help: Billable metric UUID for usage_groups.
-  usage_group_keys:
-    type: string
-    scope: pipeline
-    default: ''
-    help: JSON array of grouping keys for usage_groups, such as ["region","team"]. Supply every key in a compound group.
-  webhook_ids:
-    type: string
-    scope: pipeline
-    default: ''
-    help: Comma-separated webhook destination UUIDs for webhook history. The API does not list destinations.
-  transaction_ids:
-    type: string
-    scope: pipeline
-    default: ''
-    help: Comma-separated known transaction IDs for event_samples. Sampling only, within the last 34 days.
-  schedule_name:
-    type: string
-    scope: pipeline
-    default: ''
-    help: Known schedule name for customer and rate card named schedules. Requires account access.
 connection:
   base_url: https://api.metronome.com
   auth:

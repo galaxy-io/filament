@@ -115,7 +115,7 @@ resources:
       template:
         starting_on: "{{ config.start_date }}T00:00:00Z"
         ending_before: "{{ config.end_date }}T00:00:00Z"
-        window_size: "{{ config.usage_window_size }}"
+        window_size: day
     required_config:
       - start_date
       - end_date
@@ -139,87 +139,6 @@ resources:
         path: "$"
         type: json
         mode: remainder
-  - name: usage_groups
-    path: "/v1/usage/groups"
-    method: POST
-    for_each: customers
-    query:
-      limit: '50'
-    body:
-      encoding: raw
-      template: '{"customer_id":"{{ parent.customer_id }}","billable_metric_id":"{{ config.usage_metric_id }}","window_size":"{{ config.usage_window_size }}","starting_on":"{{ config.start_date }}T00:00:00Z","ending_before":"{{ config.end_date }}T00:00:00Z","group_key":{{ config.usage_group_keys }}}'
-    required_config:
-      - start_date
-      - end_date
-      - usage_metric_id
-      - usage_group_keys
-    response:
-      records: "$.data"
-      pagination:
-        cursor:
-          response: next_page
-          request: query.next_page
-          null_terminates: true
-    primary_key: []
-    fields:
-      starting_on: timestamptz?
-      ending_before: timestamptz?
-      group_key: string?
-      group_value: string?
-      group: json?
-      value: decimal?
-      customer_id:
-        path: parent.customer_id
-        type: string
-      billable_metric_id:
-        value: "{{ config.usage_metric_id }}"
-        type: string
-      raw:
-        path: "$"
-        type: json
-        mode: remainder
-    headers:
-      Content-Type: application/json
-  - name: rate_card_rates
-    path: "/v1/contract-pricing/rate-cards/getRates"
-    method: POST
-    for_each: rate_cards
-    query:
-      limit: '50'
-    body:
-      encoding: json
-      template:
-        rate_card_id: "{{ parent.rate_card_id }}"
-        at: "{{ config.rate_date }}T00:00:00Z"
-    required_config:
-      - rate_date
-    response:
-      records: "$.data"
-      pagination:
-        cursor:
-          response: next_page
-          request: query.next_page
-          null_terminates: true
-    primary_key: []
-    fields:
-      product_id: string?
-      product_name: string?
-      product_tags: json?
-      product_custom_fields: json?
-      pricing_group_values: json?
-      starting_at: timestamptz?
-      ending_before: timestamptz?
-      entitled: bool?
-      rate: json?
-      commit_rate: json?
-      billing_frequency: string?
-      rate_card_id:
-        path: parent.rate_card_id
-        type: string
-      raw:
-        path: "$"
-        type: json
-        mode: remainder
   - name: rate_card_rate_schedules
     path: "/v1/contract-pricing/rate-cards/getRateSchedule"
     method: POST
@@ -230,9 +149,7 @@ resources:
       encoding: json
       template:
         rate_card_id: "{{ parent.rate_card_id }}"
-        starting_at: "{{ config.rate_date }}T00:00:00Z"
-    required_config:
-      - rate_date
+        starting_at: "2000-01-01T00:00:00Z"
     response:
       records: "$.data"
       pagination:
@@ -271,9 +188,6 @@ resources:
       template:
         customer_id: "{{ parent.customer_id }}"
         contract_id: "{{ parent.contract_id }}"
-        at: "{{ config.rate_date }}T00:00:00Z"
-    required_config:
-      - rate_date
     response:
       records: "$.data"
       pagination:
