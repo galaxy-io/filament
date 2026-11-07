@@ -91,6 +91,12 @@ Types: `string | int | bool | duration | enum | object | secret | list`.
 Optional `scope: connection | pipeline`. A `list` declares its allowed values
 in `enum` and uses an array for `default`. See Slack's `conversation_types`.
 
+A resource can declare `required_config: [key]`, which fails the read when that
+setting is empty, and `for_each_config: key`, which repeats the resource once per
+comma-separated value and exposes each as `parent.<key>`. Keep the config block
+small and read [pitfalls.md](pitfalls.md#configuration-surface) before adding
+pipeline settings or either resource field.
+
 ## connection
 
 ```yaml
