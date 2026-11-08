@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"encoding/binary"
 	"strings"
 	"testing"
@@ -62,6 +63,58 @@ func TestValidateDecimals(t *testing.T) {
 		if err := validateDecimals("t", rowmodel.Schema{Fields: []rowmodel.Field{f}}); err == nil {
 			t.Errorf("%+v: expected an error", f)
 		}
+	}
+}
+
+func TestNumericModifier(t *testing.T) {
+	tests := []struct {
+		typ       string
+		precision int
+		scale     int
+		ok        bool
+	}{
+		{"numeric(12,2)", 12, 2, true},
+		{"NUMERIC(38, -2)", 38, -2, true},
+		{"decimal(10, 20)", 10, 20, true},
+		{"numeric", 0, 0, false},
+		{"numeric(12)", 0, 0, false},
+		{"numeric(1,2,3)", 0, 0, false},
+		{"text", 0, 0, false},
+	}
+	for _, tt := range tests {
+		precision, scale, ok := numericModifier(tt.typ)
+		if precision != tt.precision || scale != tt.scale || ok != tt.ok {
+			t.Errorf("numericModifier(%q) = %d, %d, %v; want %d, %d, %v",
+				tt.typ, precision, scale, ok, tt.precision, tt.scale, tt.ok)
+		}
+	}
+}
+
+func TestHasAnyNumericScale(t *testing.T) {
+	tests := []struct {
+		types []string
+		want  bool
+	}{
+		{[]string{"integer", "text"}, false},
+		{[]string{"numeric(12,2)", "text"}, false},
+		{[]string{"numeric(12,0)", "numeric(12,12)"}, false},
+		{[]string{"numeric", "numeric(12)"}, false},
+		{[]string{"integer", "numeric(12,-1)"}, true},
+		{[]string{"numeric(12,13)", "text"}, true},
+	}
+	for _, tt := range tests {
+		if got := hasAnyNumericScale(tt.types); got != tt.want {
+			t.Errorf("hasAnyNumericScale(%v) = %v, want %v", tt.types, got, tt.want)
+		}
+	}
+}
+
+// A sink without a pool fails on any query, so this also pins that plain decimal
+// columns never read the destination version.
+func TestCheckDestinationScalesSkipsVersionRead(t *testing.T) {
+	sink := &Sink{}
+	if err := sink.checkDestinationScales(context.Background(), "t", []string{"integer", "numeric(12,2)", "text"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

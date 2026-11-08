@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -77,6 +78,93 @@ func validateDecimals(resource string, model rowmodel.Schema) error {
 		if f.Logical == rowmodel.LogicalDecimal && !validDecimal(f) {
 			return blocked(resource, "unsupported decimal precision or scale")
 		}
+	}
+	return nil
+}
+
+// numericModifier splits a two-argument numeric or decimal column type into its
+// precision and scale. Types without both modifiers report ok=false.
+func numericModifier(typ string) (precision, scale int, ok bool) {
+	s := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(typ), " ", ""))
+	var body string
+	switch {
+	case strings.HasPrefix(s, "numeric(") && strings.HasSuffix(s, ")"):
+		body = s[len("numeric(") : len(s)-1]
+	case strings.HasPrefix(s, "decimal(") && strings.HasSuffix(s, ")"):
+		body = s[len("decimal(") : len(s)-1]
+	default:
+		return 0, 0, false
+	}
+	left, right, found := strings.Cut(body, ",")
+	if !found {
+		return 0, 0, false
+	}
+	precision, err := strconv.Atoi(left)
+	if err != nil {
+		return 0, 0, false
+	}
+	scale, err = strconv.Atoi(right)
+	if err != nil {
+		return 0, 0, false
+	}
+	return precision, scale, true
+}
+
+// anyNumericScale reports whether typ's scale modifier needs PostgreSQL 15, the
+// first release that accepts a negative scale or one above the precision.
+func anyNumericScale(typ string) bool {
+	precision, scale, ok := numericModifier(typ)
+	return ok && (scale < 0 || scale > precision)
+}
+
+// numericAnyScaleVersion is PostgreSQL 15's server_version_num.
+const numericAnyScaleVersion = 150000
+
+// serverVersion reads and caches the destination version. A failed read is not
+// cached, so a transient error does not pin the sink to a wrong answer.
+func (t *Sink) serverVersion(ctx context.Context) (int, error) {
+	t.versionMu.Lock()
+	defer t.versionMu.Unlock()
+	if t.versionCache != 0 {
+		return t.versionCache, nil
+	}
+	var raw string
+	if err := t.pool.QueryRow(ctx, "SHOW server_version_num").Scan(&raw); err != nil {
+		return 0, fmt.Errorf("read server version: %w", err)
+	}
+	version, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("parse server version %q: %w", raw, err)
+	}
+	t.versionCache = version
+	return version, nil
+}
+
+// hasAnyNumericScale reports whether any column type carries a scale that needs
+// PostgreSQL 15.
+func hasAnyNumericScale(types []string) bool {
+	for _, typ := range types {
+		if anyNumericScale(typ) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkDestinationScales blocks decimal columns the destination cannot declare.
+// The encoder accepts the full scale range, but older servers reject a negative
+// scale or a scale above the precision, and that DDL failure would surface as a
+// bare server error rather than a schema block.
+func (t *Sink) checkDestinationScales(ctx context.Context, resource string, types []string) error {
+	if !hasAnyNumericScale(types) {
+		return nil
+	}
+	version, err := t.serverVersion(ctx)
+	if err != nil {
+		return err
+	}
+	if version < numericAnyScaleVersion {
+		return blocked(resource, "negative decimal scale or scale above precision needs PostgreSQL 15 or later")
 	}
 	return nil
 }

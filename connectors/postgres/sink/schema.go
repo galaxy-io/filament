@@ -55,6 +55,9 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			cols[i] += " NOT NULL"
 		}
 	}
+	if err := t.checkDestinationScales(ctx, resource, types); err != nil {
+		return err
+	}
 	ddl := "CREATE TABLE IF NOT EXISTS " + qualified + " (\n\t" + strings.Join(cols, ",\n\t")
 	if len(schema.PrimaryKey) > 0 {
 		pk := make([]string, len(schema.PrimaryKey))

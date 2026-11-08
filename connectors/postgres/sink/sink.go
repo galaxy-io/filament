@@ -37,6 +37,11 @@ type Sink struct {
 	policies map[string]filament.WritePolicy
 	written  atomic.Int64
 
+	// versionMu guards the lazily read destination version, which gates type
+	// modifiers that only newer servers accept.
+	versionMu    sync.Mutex
+	versionCache int
+
 	// Bounded runs prepare tables before extraction. Continuous runs may also
 	// prepare inferred schemas on their single writer inside the active epoch.
 	tablesMu sync.RWMutex
