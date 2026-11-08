@@ -160,6 +160,7 @@
               "pages/connectors/sources/kafka",
               "pages/connectors/sources/nats",
               "pages/connectors/sources/apollo",
+              "pages/connectors/sources/asana",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/fhir",
               "pages/connectors/sources/fxmacrodata",
