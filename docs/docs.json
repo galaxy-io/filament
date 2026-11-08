@@ -78,14 +78,14 @@
       {
         "label": "Join the Slack community",
         "icon": "slack",
-        "href": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-4fxisnwat-Nuve8yUp6GK2qfUeuh3Abw"
+        "href": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ"
       }
     ]
   },
   "footer": {
     "socials": {
       "github": "https://github.com/galaxy-io/filament",
-      "slack": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-4fxisnwat-Nuve8yUp6GK2qfUeuh3Abw",
+      "slack": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ",
       "website": "https://www.getgalaxy.io/filament"
     }
   },
