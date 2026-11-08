@@ -37,6 +37,34 @@ func TestColumnType(t *testing.T) {
 	}
 }
 
+func TestValidateDecimals(t *testing.T) {
+	ok := []rowmodel.Field{
+		{Logical: rowmodel.LogicalDecimal},
+		{Logical: rowmodel.LogicalDecimal, Precision: 12, Scale: 2},
+		{Logical: rowmodel.LogicalDecimal, Precision: 38, Scale: -1000},
+		{Logical: rowmodel.LogicalDecimal, Precision: 38, Scale: 1000},
+		{Logical: rowmodel.LogicalString},
+	}
+	for _, f := range ok {
+		if err := validateDecimals("t", rowmodel.Schema{Fields: []rowmodel.Field{f}}); err != nil {
+			t.Errorf("%+v: unexpected error %v", f, err)
+		}
+	}
+	bad := []rowmodel.Field{
+		{Logical: rowmodel.LogicalDecimal, Scale: -1_000_000_000},
+		{Logical: rowmodel.LogicalDecimal, Scale: -1001},
+		{Logical: rowmodel.LogicalDecimal, Scale: 1001},
+		{Logical: rowmodel.LogicalDecimal, Precision: 1001},
+		{Logical: rowmodel.LogicalDecimal, Precision: -1},
+		{Logical: rowmodel.LogicalDecimal, Scale: 2},
+	}
+	for _, f := range bad {
+		if err := validateDecimals("t", rowmodel.Schema{Fields: []rowmodel.Field{f}}); err == nil {
+			t.Errorf("%+v: expected an error", f)
+		}
+	}
+}
+
 func TestStatements(t *testing.T) {
 	spec := New().Spec()
 	if !spec.Capabilities.EncodedIntegrity {
@@ -104,6 +132,11 @@ func TestNumericWire(t *testing.T) {
 		{decimal128.FromI64(1234), -2, numericWire(numericPos, 1, 0, 12, 3400)},                  // 1234 at scale -2 is 123400 at scale 0
 		{decimal128.FromI64(-1234), -2, numericWire(numericNeg, 1, 0, 12, 3400)},                 // -1234 at scale -2
 		{decimal128.FromI64(0), -2, numericWire(numericPos, 0, 0)},                               // 0 at scale -2
+		{decimal128.FromI64(5), -3, numericWire(numericPos, 0, 0, 5000)},                         // 5 at scale -3 is one group
+		{decimal128.FromI64(1), -1, numericWire(numericPos, 0, 0, 10)},                           // 1 at scale -1
+		{decimal128.FromI64(1234), -4, numericWire(numericPos, 1, 0, 1234)},                      // 1234 at scale -4
+		{decimal128.FromI64(1), -1000, numericWire(numericPos, 250, 0, 1)},                       // 10^1000, the scale floor
+		{decimal128.FromI64(0), -1000, numericWire(numericPos, 0, 0)},                            // 0 at the scale floor
 		{decimal128.New(0, 1<<63), 0, numericWire(numericPos, 4, 0, 922, 3372, 368, 5477, 5808)}, // 2^63
 	}
 	for _, c := range cases {

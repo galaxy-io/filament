@@ -280,6 +280,12 @@ func (t *Sink) prepareColumnTypes(ctx context.Context, resource string, model ro
 		checked, err := physicalSchema(resource, model)
 		return checked, nil, err
 	}
+	// Without a schema policy nothing checked the decimal range: the encoder
+	// would pad every value by -scale digits, and a scale like -1000000000
+	// allocates about a gigabyte per value before COPY starts.
+	if err := validateDecimals(resource, model); err != nil {
+		return rowmodel.Schema{}, nil, err
+	}
 	if model.Engine == engine {
 		builtin, err := t.builtinTypes(ctx, model)
 		return rowmodel.Schema{}, builtin, err

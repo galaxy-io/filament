@@ -383,24 +383,19 @@ func appendNumericSpecial(dst []byte, sign uint16) []byte {
 
 // appendNumeric appends the wire form of the magnitude digits with the decimal
 // point scale places from the right (fewer digits than scale means leading
-// fraction zeros), negated by neg, at dscale scale. Groups are written straight
-// into dst and normalized in place: no leading or trailing zero groups, zero is
-// ndigits 0.
+// fraction zeros), negated by neg, at dscale scale. A negative scale means
+// trailing zeros: 1234 at scale -2 is 123400 at scale 0, which is how
+// numeric_out writes it. Groups are written straight into dst and normalized
+// in place: no leading or trailing zero groups, zero is ndigits 0.
 func appendNumeric(dst []byte, neg bool, digits []byte, scale int) []byte {
+	pad := 0
 	if scale < 0 {
-		// A negative scale means trailing zeros: 1234 at scale -2 is 123400 at
-		// scale 0, which is how numeric_out writes it.
-		padded := make([]byte, len(digits)-scale)
-		copy(padded, digits)
-		for i := len(digits); i < len(padded); i++ {
-			padded[i] = '0'
-		}
-		digits, scale = padded, 0
+		pad, scale = -scale, 0
 	}
 	for len(digits) > scale && digits[0] == '0' {
 		digits = digits[1:]
 	}
-	intLen := len(digits) - scale // < 0: that many implicit fraction zeros
+	intLen := len(digits) + pad - scale // < 0: that many implicit fraction zeros
 	hdr := len(dst)
 	dst = append(dst, 0, 0, 0, 0, 0, 0, 0, 0)
 	weight := -1
@@ -409,14 +404,35 @@ func appendNumeric(dst []byte, neg bool, digits []byte, scale int) []byte {
 		if first == 0 {
 			first = 4
 		}
-		dst = binary.BigEndian.AppendUint16(dst, group(digits[:first]))
-		for i := first; i < intLen; i += 4 {
-			dst = binary.BigEndian.AppendUint16(dst, group(digits[i:i+4]))
+		if pad > 0 {
+			// The padded trailing zeros stay virtual: only the groups that
+			// overlap a real digit are written. Groups lying entirely in the
+			// padding are zeros, and normalization would drop them anyway, so a
+			// large negative scale costs its digits rather than its zeros.
+			for b, w := 0, first; b < len(digits); b, w = b+w, 4 {
+				real := min(b+w, len(digits)) - b
+				g := group(digits[b : b+real])
+				for j := real; j < w; j++ {
+					g *= 10
+				}
+				dst = binary.BigEndian.AppendUint16(dst, g)
+			}
+		} else {
+			dst = binary.BigEndian.AppendUint16(dst, group(digits[:first]))
+			for i := first; i < intLen; i += 4 {
+				dst = binary.BigEndian.AppendUint16(dst, group(digits[i:i+4]))
+			}
 		}
 		weight = (intLen - 1) / 4
 	}
 	lead := max(-intLen, 0)
-	frac := digits[max(intLen, 0):]
+	var frac []byte
+	switch {
+	case intLen < 0:
+		frac = digits
+	case intLen < len(digits):
+		frac = digits[intLen:]
+	}
 	for pos := 0; pos < scale; pos += 4 { // the last group is right-padded
 		var g uint16
 		for j := pos; j < pos+4; j++ {

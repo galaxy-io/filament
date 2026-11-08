@@ -50,7 +50,7 @@ func physicalSchema(resource string, source rowmodel.Schema) (rowmodel.Schema, e
 		if !validIdentifier(f.Name) || physicalLogical(typ) != f.Logical || f.Logical == rowmodel.LogicalUnknown {
 			return out, blocked(resource, fmt.Sprintf("unsupported field %q of type %q", f.Name, f.Logical))
 		}
-		if f.Logical == rowmodel.LogicalDecimal && (f.Precision < 0 || f.Precision > 1000 || f.Scale < -1000 || f.Scale > 1000 || f.Precision == 0 && f.Scale != 0) {
+		if f.Logical == rowmodel.LogicalDecimal && !validDecimal(f) {
 			return out, blocked(resource, "unsupported decimal precision or scale")
 		}
 		if source.Engine == engine && f.Native != "" && normalizeType(f.Native) != normalizeType(typ) {
@@ -59,6 +59,26 @@ func physicalSchema(resource string, source rowmodel.Schema) (rowmodel.Schema, e
 		out.Fields = append(out.Fields, rowmodel.Field{Name: f.Name, Logical: f.Logical, Native: normalizeType(typ), Nullable: f.Nullable && !slices.Contains(out.PrimaryKey, f.Name)})
 	}
 	return out, nil
+}
+
+// validDecimal reports whether a decimal field fits the precision and scale
+// ranges the numeric encoder and the destination type can represent. The binary
+// encoder pads each value by -scale digits, so an unbounded negative scale would
+// allocate that much memory per value.
+func validDecimal(f rowmodel.Field) bool {
+	return f.Precision >= 0 && f.Precision <= 1000 && f.Scale >= -1000 && f.Scale <= 1000 && (f.Precision != 0 || f.Scale == 0)
+}
+
+// validateDecimals rejects decimal fields the sink cannot encode. It runs for
+// sinks without a schema policy too, where physicalSchema is not consulted and
+// the source schema is installed as is.
+func validateDecimals(resource string, model rowmodel.Schema) error {
+	for _, f := range model.Fields {
+		if f.Logical == rowmodel.LogicalDecimal && !validDecimal(f) {
+			return blocked(resource, "unsupported decimal precision or scale")
+		}
+	}
+	return nil
 }
 
 func normalizeType(s string) string {
