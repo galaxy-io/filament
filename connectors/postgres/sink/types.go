@@ -387,6 +387,16 @@ func appendNumericSpecial(dst []byte, sign uint16) []byte {
 // into dst and normalized in place: no leading or trailing zero groups, zero is
 // ndigits 0.
 func appendNumeric(dst []byte, neg bool, digits []byte, scale int) []byte {
+	if scale < 0 {
+		// A negative scale means trailing zeros: 1234 at scale -2 is 123400 at
+		// scale 0, which is how numeric_out writes it.
+		padded := make([]byte, len(digits)-scale)
+		copy(padded, digits)
+		for i := len(digits); i < len(padded); i++ {
+			padded[i] = '0'
+		}
+		digits, scale = padded, 0
+	}
 	for len(digits) > scale && digits[0] == '0' {
 		digits = digits[1:]
 	}
