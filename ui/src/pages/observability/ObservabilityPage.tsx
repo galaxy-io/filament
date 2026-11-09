@@ -91,11 +91,7 @@ const ObservabilityPage: FC = () => {
   };
 
   if (!isComplete) {
-    return (
-      <PageLayout header="Observability">
-        <ObservabilitySetupChecklist />
-      </PageLayout>
-    );
+    return <ObservabilitySetupChecklist />;
   }
 
   return (

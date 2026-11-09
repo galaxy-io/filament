@@ -19,7 +19,7 @@ The shells Filament has and the rules a screen inside one follows. Reuse a shell
 
 `MainLayoutSidebar` is a DLS `SidebarNav` with `hasDividers={false}`, `ariaLabel` "Filament", one item per `FilamentNavItem` (`module/nav.ts` maps each to a label, icon, path and keywords), and a footer with the host's `sidebarFooter` above DLS `PoweredBy`. A new top-level destination is one `FilamentNavItem` member with an entry in each map, a `FilamentPath`, a `*RouteOptions` and its route files.
 
-Every page renders DLS `PageLayout`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
+Every page renders DLS `PageLayout`. The one exception is the Observability setup checklist, a full-page onboarding screen with no header row that renders its own `main` and `h1`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
 
 ## List page
 
