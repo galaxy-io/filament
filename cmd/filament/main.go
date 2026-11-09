@@ -28,7 +28,7 @@ func runMain() int {
 		configPath:  path,
 		contextPath: filepath.Join(filepath.Dir(path), "contexts.yaml"),
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 	if err := cli.run(ctx, os.Args[1:]); err != nil {
 		printCLIError(err)

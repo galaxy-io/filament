@@ -122,9 +122,10 @@ func (e Engine) Start(ctx context.Context, addr string, detach bool) (*Process, 
 		"INGESTION_ADDR="+addr,
 	)
 	cmd.Stdout, cmd.Stderr = log, log
-	// Its own session keeps a terminal interrupt from reaching it before the
-	// CLI asks it to stop.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	// A detached engine gets its own session so it outlives the terminal. A
+	// per-command engine shares the CLI's, so closing the terminal stops both
+	// rather than leaving an engine holding the store.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: detach}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start %s: %w", e.Binary, err)
 	}

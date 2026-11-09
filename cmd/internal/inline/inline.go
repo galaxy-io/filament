@@ -53,40 +53,50 @@ func Run(ctx context.Context, sources filament.SourceRegistry, sinks filament.Si
 	}()
 	go signals(runCtx, bus, spec, lines)
 
-	for {
+	var runErr error
+	var grace <-chan time.Time
+	finished, terminal := false, false
+	for !finished || !terminal {
 		select {
 		case message := <-subscription.C():
-			if err := forward(message, facts); err != nil {
+			ended, err := forward(message, facts)
+			if err != nil {
 				return err
 			}
-		case runErr := <-done:
-			// The terminal fact is queued before RunOne returns.
-			for {
-				select {
-				case message := <-subscription.C():
-					if err := forward(message, facts); err != nil {
-						return err
-					}
-				default:
-					return runErr
-				}
-			}
+			terminal = terminal || ended
+		case runErr = <-done:
+			// Delivery is asynchronous, so the terminal fact may still be queued.
+			// A run that fails before publishing one ends after the grace period.
+			finished, grace = true, time.After(terminalGrace)
+		case <-grace:
+			return runErr
 		}
 	}
+	return runErr
 }
 
-func forward(message eventbus.Message, facts io.Writer) error {
+// terminalGrace bounds the wait for a terminal fact once RunOne has returned.
+const terminalGrace = 5 * time.Second
+
+// forward writes one fact and reports whether it ends the run.
+func forward(message eventbus.Message, facts io.Writer) (bool, error) {
 	fact, err := events.Decode(message)
 	_ = message.Ack()
 	if err != nil {
-		return err
+		return false, err
 	}
 	data, err := events.Marshal(fact)
 	if err != nil {
-		return err
+		return false, err
 	}
-	_, err = facts.Write(append(data, '\n'))
-	return err
+	if _, err := facts.Write(append(data, '\n')); err != nil {
+		return false, err
+	}
+	switch fact.Name {
+	case events.RunCompleted.Name(), events.RunFailed.Name(), events.RunPartial.Name(), events.RunPaused.Name(), events.RunCanceled.Name():
+		return true, nil
+	}
+	return false, nil
 }
 
 // signals turns control lines into run lifecycle requests.
