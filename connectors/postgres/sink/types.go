@@ -410,9 +410,9 @@ func appendNumeric(dst []byte, neg bool, digits []byte, scale int) []byte {
 			// padding are zeros, and normalization would drop them anyway, so a
 			// large negative scale costs its digits rather than its zeros.
 			for b, w := 0, first; b < len(digits); b, w = b+w, 4 {
-				real := min(b+w, len(digits)) - b
-				g := group(digits[b : b+real])
-				for j := real; j < w; j++ {
+				used := min(b+w, len(digits)) - b
+				g := group(digits[b : b+used])
+				for j := used; j < w; j++ {
 					g *= 10
 				}
 				dst = binary.BigEndian.AppendUint16(dst, g)
