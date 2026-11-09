@@ -1,13 +1,14 @@
 set dotenv-load
 
 # Local defaults, matching docker-compose.yaml
-dsn := env('PERSISTENCE_DSN', 'postgresql://filament:filament@localhost:5432/filament?sslmode=disable')
-stack := ("PERSISTENCE_DSN='" + dsn + "'"
-  + " NATS_URL='" + env('NATS_URL', 'nats://localhost:4222') + "'"
-  + " NATS_STREAM='" + env('NATS_STREAM', 'EVENTBUS') + "'"
-  + " NATS_SUBJECTS='" + env('NATS_SUBJECTS', 'ingestion.v1.>') + "'"
-  + " ENCRYPTION_KEY='" + env('ENCRYPTION_KEY', '2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=') + "'"
-  + " WORKER_URL='" + env('WORKER_URL', 'http://localhost:8082') + "'")
+export PERSISTENCE_DSN := env('PERSISTENCE_DSN', 'postgresql://filament:filament@localhost:5432/filament?sslmode=disable')
+export NATS_URL := env('NATS_URL', 'nats://localhost:4222')
+export NATS_STREAM := env('NATS_STREAM', 'EVENTBUS')
+export NATS_SUBJECTS := env('NATS_SUBJECTS', 'ingestion.v1.>')
+# NOTE: This is a fake key for local development
+export ENCRYPTION_KEY := env('ENCRYPTION_KEY','2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=')
+export WORKER_URL := env('WORKER_URL', 'http://localhost:8082')
+
 container := 'bash scripts/container.sh'
 
 [private]
@@ -34,31 +35,31 @@ infra mode="up" scope="":
 # Migrate the local database
 [group('dev')]
 migrate:
-    cd cmd/server && PERSISTENCE_DSN='{{ dsn }}' GOWORK=off go run . -migrate
+    cd cmd/server && GOWORK=off go run . -migrate
 
 # Run the API server
 [group('dev')]
 server mode="": migrate
-    cd cmd/server && {{ stack }} \
-      AUTH_PROVIDER='{{ env('AUTH_PROVIDER', mode) }}' \
-      AUTH_ISSUER='{{ env('AUTH_ISSUER', if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" }) }}' \
+    cd cmd/server && \
+      AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
+      AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \
       AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
-      AUTH_CLIENT_ID='{{ env('AUTH_CLIENT_ID', 'filament') }}' \
-      AUTH_CLIENT_SECRET='{{ env('AUTH_CLIENT_SECRET', 'filament') }}' \
-      AUTH_ADMIN_USERNAME='{{ env('AUTH_ADMIN_USERNAME', 'admin') }}' \
-      AUTH_ADMIN_PASSWORD='{{ env('AUTH_ADMIN_PASSWORD', 'admin') }}' \
-      AUTH_UI_ORIGIN='{{ env('AUTH_UI_ORIGIN', 'http://localhost:5173') }}' \
+      AUTH_CLIENT_ID="${AUTH_CLIENT_ID:-filament}" \
+      AUTH_CLIENT_SECRET="${AUTH_CLIENT_SECRET:-filament}" \
+      AUTH_ADMIN_USERNAME="${AUTH_ADMIN_USERNAME:-admin}" \
+      AUTH_ADMIN_PASSWORD="${AUTH_ADMIN_PASSWORD:-admin}" \
+      AUTH_UI_ORIGIN="${AUTH_UI_ORIGIN:-http://localhost:5173}" \
       GOWORK=off go run .
 
 # Run the worker
 [group('dev')]
 worker:
-    cd cmd/worker && {{ stack }} WORKER_ADDR='{{ env('WORKER_ADDR', ':8082') }}' GOWORK=off go run . -serve -execute
+    cd cmd/worker && WORKER_ADDR="${WORKER_ADDR:-:8082}" GOWORK=off go run . -serve -execute
 
 # Run the control plane
 [group('dev')]
 control-plane:
-    cd cmd/control-plane && {{ stack }} DISPATCH_MODE='{{ env('DISPATCH_MODE', 'worker') }}' GOWORK=off go run .
+    cd cmd/control-plane && DISPATCH_MODE="${DISPATCH_MODE:-worker}" GOWORK=off go run .
 
 # Run the UI dev server
 [group('dev')]
