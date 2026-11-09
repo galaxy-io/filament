@@ -22,6 +22,7 @@ import ConnectionDrawerActions from "@/pages/connections/components/drawer/Conne
 import ConnectionDrawerHeader from "@/pages/connections/components/drawer/ConnectionDrawerHeader";
 import ConnectionDrawerJsonSection from "@/pages/connections/components/drawer/ConnectionDrawerJsonSection";
 import ConnectionDrawerPipelines from "@/pages/connections/components/drawer/ConnectionDrawerPipelines";
+import ConnectionDrawerWebhook from "@/pages/connections/components/drawer/ConnectionDrawerWebhook";
 
 import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 
@@ -124,6 +125,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           emptyMessage="This connection has no secret references."
         />
         <ConnectionDrawerPipelines connectionId={connection.id} />
+        {connection.connector === "webhook" && <ConnectionDrawerWebhook connection={connection} />}
       </Flex>
     );
   };

@@ -18,7 +18,7 @@ const CONNECTION_PIPELINES_INPUT = create(ListPipelinesRequestSchema, {
 });
 
 export const useConnectionPipelines = () => {
-  const { data, isError, isLoading } = useListPipelinesQuery({
+  const { data, isError, isLoading, refetch } = useListPipelinesQuery({
     input: CONNECTION_PIPELINES_INPUT,
   });
   const pipelines = useMemo(() => data?.pipelines ?? [], [data?.pipelines]);
@@ -34,5 +34,5 @@ export const useConnectionPipelines = () => {
     [pipelines],
   );
 
-  return { pipelines, connectionIdsByPipelineId, isError, isLoading };
+  return { pipelines, connectionIdsByPipelineId, isError, isLoading, refetch };
 };
