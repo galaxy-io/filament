@@ -152,18 +152,22 @@ Filament does not export logs through OTLP.
 
 Webhooks require the shared PostgreSQL datastore and NATS JetStream.
 The server verifies signed deliveries and stores them in a dedicated inbox.
-Workers consume the inbox after acceptance.
+Workers consume the inbox after acceptance. The control plane purges it.
 
 | Variable | Default | Description |
 |---|---|---|
-| `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path on the server |
+| `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path on the server and inbox retention on the control plane |
 | `WEBHOOK_MAX_IN_FLIGHT` | `64` | Maximum concurrent deliveries per server replica. Excess requests return `503` with `Retry-After` |
 | `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI then show full delivery URLs. Unset shows paths only |
 | `WEBHOOK_INBOX_MAX_BYTES` | — | Required inbox capacity in bytes when enabled |
 | `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required maximum stored message size in bytes when enabled |
 | `WEBHOOK_INBOX_REPLICAS` | — | Required JetStream replica count from 1 to 5 when enabled |
+| `WEBHOOK_INBOX_RETENTION_HOURS` | `168` | Control plane only. Hours a delivery stays in the inbox before it may be purged. Also how long a sender retry is recognized as a duplicate |
+| `WEBHOOK_INBOX_MAX_HOLD_HOURS` | `720` | Control plane only. Most hours a delivery no pipeline has read stays in the inbox. Past it the delivery is dropped and counted in `filament_webhook_expired_total`. At least the retention period |
 
-The Helm chart sets these through `server.webhooks`. Its webhooks toggle is
+The Helm chart sets the server values through `server.webhooks` and the
+retention through `controlPlane.webhookRetentionHours` and
+`controlPlane.webhookMaxHoldHours`. Its webhooks toggle is
 off by default. An endpoint's body limit may not exceed the inbox message limit
 minus 1 KiB reserved for delivery headers.
 

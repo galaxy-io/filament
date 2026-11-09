@@ -142,6 +142,8 @@ encryption to protect resolved connection credentials in transit.
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.serviceAccount.name | string | `""` | Existing ServiceAccount name for the control plane. When set, the chart does not create one. |
+| controlPlane.webhookMaxHoldHours | int | `720` | Most hours a webhook delivery no pipeline has read stays in the inbox. Past it the delivery is dropped. Must be at least `webhookRetentionHours`. |
+| controlPlane.webhookRetentionHours | int | `168` | Hours a webhook delivery stays in the inbox before it may be purged. Also the window in which a sender's retry is recognized as a duplicate. Applies when `server.webhooks.enabled` is true. |
 
 ## Worker parameters
 

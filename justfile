@@ -65,6 +65,7 @@ control-plane:
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
       DISPATCH_MODE="${DISPATCH_MODE:-worker}" \
       WORKER_URL="${WORKER_URL:-http://localhost:8082}" \
+      WEBHOOKS_ENABLED="${WEBHOOKS_ENABLED:-true}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       GOWORK=off go run .
 
