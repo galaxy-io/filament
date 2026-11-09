@@ -23,7 +23,7 @@ func (a *cliApp) statusCommand() *cobra.Command {
 }
 
 func (a *cliApp) status() error {
-	current, err := a.contextRegistry().Resolve(a.contextName)
+	current, err := a.selectContext()
 	if err != nil {
 		return err
 	}
@@ -39,11 +39,7 @@ func (a *cliApp) status() error {
 			[2]string{"Reachable", reachable},
 		)
 	} else {
-		configPath := current.Target.ConfigPath
-		if a.configOverride {
-			configPath = a.configPath
-		}
-		rows = append(rows, [2]string{"Config", configPath}, [2]string{"State", a.dbPath()})
+		rows = append(rows, [2]string{"Config", current.Target.ConfigPath}, [2]string{"State", a.dbPath()})
 		if state, running := a.readUpState(); running {
 			rows = append(rows,
 				[2]string{"Deployment", fmt.Sprintf("running (pid %d)", state.PID)},

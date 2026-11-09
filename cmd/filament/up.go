@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,8 +17,6 @@ import (
 
 	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
-	remotetarget "github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
 	"github.com/galaxy-io/filament/ui"
 )
 
@@ -31,9 +28,14 @@ func (a *cliApp) upCommand() *cobra.Command {
 		Short: "Run the local deployment and web UI",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := a.resolveLocalConfig(); err != nil {
+			selected, err := a.selectContext()
+			if err != nil {
 				return err
 			}
+			if selected.Target.Kind == contexts.KindRemote {
+				return fmt.Errorf("context %s is remote; up serves local contexts", selected.Name)
+			}
+			a.configPath = selected.Target.ConfigPath
 			if detach {
 				return a.upDetached(addr)
 			}
@@ -70,34 +72,14 @@ func (a *cliApp) up(ctx context.Context, addr string) error {
 	if err := a.recoverLocalRuns(ctx); err != nil {
 		return err
 	}
-	options, secrets, err := a.embeddedOptions()
+	local, err := a.serveLocal(ctx, addr, app.WithUI(ui.Handler()))
 	if err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
+	if _, err := fmt.Fprintf(a.stdout, "filament up\n  ui:     %s\n  api:    %s\n  config: %s\n  state:  %s\nCtrl-C to stop.\n", local.endpoint, local.endpoint, a.configPath, a.dbPath()); err != nil {
+		return errors.Join(err, local.stop())
 	}
-	done := make(chan error, 1)
-	go func() {
-		done <- app.Serve(ctx, listener, append(options, app.WithUI(ui.Handler()))...)
-	}()
-	endpoint := "http://" + listener.Addr().String()
-	target := localtarget.NewTarget(
-		localtarget.Store{Path: a.configPath},
-		remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
-		secrets,
-		localtarget.WithSources(a.sources),
-	)
-	if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
-		stop()
-		return errors.Join(fmt.Errorf("apply %s: %w", a.configPath, err), <-done)
-	}
-	if _, err := fmt.Fprintf(a.stdout, "filament up\n  ui:     %s\n  api:    %s\n  config: %s\n  state:  %s\nCtrl-C to stop.\n", endpoint, endpoint, a.configPath, a.dbPath()); err != nil {
-		stop()
-		return errors.Join(err, <-done)
-	}
-	return <-done
+	return local.wait()
 }
 
 // upState records the detached deployment so down and status can find it.
@@ -226,20 +208,4 @@ func answers(endpoint string) bool {
 	}
 	_ = response.Body.Close()
 	return true
-}
-
-// resolveLocalConfig points up at the selected context's document. A remote
-// selection is an error rather than a silent fallback.
-func (a *cliApp) resolveLocalConfig() error {
-	selected, err := a.contextRegistry().Resolve(a.contextName)
-	if err != nil {
-		return err
-	}
-	if selected.Target.Kind == contexts.KindRemote {
-		return fmt.Errorf("context %s is remote; up serves local contexts", selected.Name)
-	}
-	if !a.configOverride && selected.Target.ConfigPath != "" {
-		a.configPath = selected.Target.ConfigPath
-	}
-	return nil
 }

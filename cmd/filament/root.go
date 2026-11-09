@@ -24,6 +24,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		Version:       version.String(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		RunE:          a.menu(""),
 	}
 	root.SetIn(a.stdin)
 	root.SetOut(a.stdout)
@@ -41,7 +42,7 @@ func (a *cliApp) rootCommand() *cobra.Command {
 		a.connectionCommand("source"),
 		a.connectionCommand("sink"),
 		a.pipelineCommand(),
-		a.runCommandDefinition(),
+		a.runCommand(),
 		a.configCommand(),
 		a.upCommand(),
 		a.downCommand(),
@@ -58,8 +59,26 @@ func (a *cliApp) prepareTarget(cmd *cobra.Command, _ []string) error {
 	return a.initializeTarget(cmd.Context())
 }
 
-// dynamicCommand owns its own flag parsing because its flags come from connector schemas.
-func (a *cliApp) dynamicCommand(use, short string, help, run func(context.Context, []string) error) *cobra.Command {
+// targetGroup makes group's subcommands run against the selected target and
+// lets the group itself open its interactive menu or print help.
+func (a *cliApp) targetGroup(group *cobra.Command, section string) *cobra.Command {
+	group.RunE = a.menu(section)
+	group.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		if cmd == group {
+			return nil
+		}
+		return a.prepareTarget(cmd, nil)
+	}
+	return group
+}
+
+// withoutTarget overrides a group's target hook for a subcommand that does
+// not need a running deployment.
+func withoutTarget(*cobra.Command, []string) error { return nil }
+
+// dynamicCommand owns its own flag parsing because its flags come from
+// connector schemas. Its use line lists each form, separated by " | ".
+func (a *cliApp) dynamicCommand(use, short string, help func(context.Context, *cobra.Command, []string) error, run func(context.Context, []string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                   use,
 		Short:                 short,
@@ -67,18 +86,18 @@ func (a *cliApp) dynamicCommand(use, short string, help, run func(context.Contex
 		DisableFlagsInUseLine: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if helpRequested(args) {
-				return help(cmd.Context(), args)
+				return help(cmd.Context(), cmd, args)
 			}
 			return run(cmd.Context(), args)
 		},
 	}
 	cmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
-		_ = help(cmd.Context(), nil)
+		_ = help(cmd.Context(), cmd, nil)
 	})
 	return cmd
 }
 
-const usageTemplate = `{{heading "Usage:"}}{{if .Runnable}}
+const usageTemplate = `{{heading "Usage:"}}{{if and .Runnable (not .HasAvailableSubCommands)}}
   {{useLine .}}{{end}}{{if .HasAvailableSubCommands}}
   {{literal .CommandPath}} {{muted "[command]"}}{{end}}{{if .HasAvailableSubCommands}}
 
@@ -116,10 +135,7 @@ func (a *cliApp) installHelpStyle(root *cobra.Command) {
 }
 
 func flagUsages(p style.Painter, flags *pflag.FlagSet) string {
-	type entry struct {
-		plain, painted, usage string
-	}
-	entries := []entry{}
+	rows := []flagRow{}
 	flags.VisitAll(func(flag *pflag.Flag) {
 		if flag.Hidden {
 			return
@@ -137,15 +153,26 @@ func flagUsages(p style.Painter, flags *pflag.FlagSet) string {
 		if flag.DefValue != "" && flag.DefValue != "false" && flag.DefValue != "0" && flag.DefValue != "[]" {
 			usage += " " + p.Muted("(default "+flag.DefValue+")")
 		}
-		entries = append(entries, entry{plain: plain, painted: painted, usage: usage})
+		rows = append(rows, flagRow{plain: plain, painted: painted, usage: usage})
 	})
+	return strings.TrimRight(alignFlagRows(rows), "\n")
+}
+
+// flagRow is one help line: the flag as plain text for measuring, as painted
+// text for printing, and its usage.
+type flagRow struct {
+	plain, painted, usage string
+}
+
+// alignFlagRows indents rows and lines their usage up in one column.
+func alignFlagRows(rows []flagRow) string {
 	width := 0
-	for _, item := range entries {
-		width = max(width, len(item.plain))
+	for _, row := range rows {
+		width = max(width, len(row.plain))
 	}
 	var out strings.Builder
-	for _, item := range entries {
-		out.WriteString("  " + item.painted + strings.Repeat(" ", width-len(item.plain)) + "   " + item.usage + "\n")
+	for _, row := range rows {
+		out.WriteString("  " + row.painted + strings.Repeat(" ", width-len(row.plain)) + "   " + row.usage + "\n")
 	}
-	return strings.TrimRight(out.String(), "\n")
+	return out.String()
 }

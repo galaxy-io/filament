@@ -3,6 +3,8 @@ package dado
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/atterpac/dado/inline"
@@ -452,7 +454,7 @@ func (r *Renderer) pipelineTopologyForm(
 	fields := []inline.FormField{}
 	if existing == nil {
 		fields = append(fields, inline.NewTextField("name", "Pipeline name").SetValue(name).Required().
-			Validate(func(value string) error { return validateName("pipeline", value) }))
+			Validate(func(value string) error { return cliapp.ValidateName("pipeline", value) }))
 	}
 	fields = append(fields,
 		inline.NewSelectField("source", "Source", preferredChoices(sourceRef, sourceOptions)...).Required(),
@@ -514,7 +516,7 @@ func (r *Renderer) selectPipelineResources(ctx context.Context, initial []string
 
 		field := inline.NewTextField("resources", "Resources").SetValue(strings.Join(initial, ",")).
 			SetPlaceholder("comma-separated resource names").Required().Validate(func(value string) error {
-			selected := splitComma(value)
+			selected := cliapp.SplitComma(value)
 			if len(selected) == 0 {
 				return fmt.Errorf("select at least one resource or choose all resources")
 			}
@@ -523,14 +525,14 @@ func (r *Renderer) selectPipelineResources(ctx context.Context, initial []string
 		result, err := r.runInteractiveForm(ctx, inline.NewForm("Enter resource names").Add(field))
 		if interactivePrevious(err) {
 			value, _ := field.Value().(string)
-			initial = splitComma(value)
+			initial = cliapp.SplitComma(value)
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
 		value, _ := result["resources"].(string)
-		return splitComma(value), nil
+		return cliapp.SplitComma(value), nil
 	}
 }
 
@@ -653,7 +655,7 @@ func (r *Renderer) discoverPipelineResources(ctx context.Context, pipeline model
 
 func (r *Renderer) connectionOptions(kind string, connections map[string]model.Connection) []interactiveOption {
 	options := make([]interactiveOption, 0, len(connections))
-	for _, name := range sortedKeys(connections) {
+	for _, name := range slices.Sorted(maps.Keys(connections)) {
 		options = append(options, interactiveOption{
 			label: fmt.Sprintf("%s (%s)", name, r.connectorDisplayName(kind, connections[name].Type)),
 			value: name,

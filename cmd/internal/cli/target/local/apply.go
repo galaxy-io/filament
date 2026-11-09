@@ -9,7 +9,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/galaxy-io/filament"
@@ -44,7 +44,7 @@ func (t *Target) ApplyIfChanged(ctx context.Context, marker string) error {
 // by name. Entities the deployment holds but the document does not are left
 // alone: the document is an input, not the inventory.
 func (t *Target) Apply(ctx context.Context) error {
-	document, _, err := t.store.Load()
+	document, err := t.store.Load()
 	if err != nil {
 		return err
 	}
@@ -53,11 +53,7 @@ func (t *Target) Apply(ctx context.Context) error {
 		return err
 	}
 	for _, kind := range []string{"source", "sink"} {
-		connections := document.Sources
-		if kind == "sink" {
-			connections = document.Sinks
-		}
-		if err := t.applyConnections(ctx, kind, connections, catalog); err != nil {
+		if err := t.applyConnections(ctx, kind, document.Connections(kind), catalog); err != nil {
 			return err
 		}
 	}
@@ -75,7 +71,7 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 	for _, item := range existing {
 		current[item.Name] = item.Connection
 	}
-	for _, name := range sortedNames(wanted) {
+	for _, name := range slices.Sorted(maps.Keys(wanted)) {
 		desired := wanted[name]
 		live, ok := current[name]
 		// An unversioned document may have created a pinned HTTP connection.
@@ -125,7 +121,7 @@ func (t *Target) applyPipelines(ctx context.Context, wanted map[string]model.Pip
 	for _, item := range existing {
 		current[item.Name] = item.Pipeline
 	}
-	for _, name := range sortedNames(wanted) {
+	for _, name := range slices.Sorted(maps.Keys(wanted)) {
 		desired := wanted[name]
 		live, ok := current[name]
 		if !ok {
@@ -197,13 +193,4 @@ func connectionsEquivalent(live, desired model.Connection) bool {
 	return live.Type == desired.Type &&
 		maps.Equal(live.SecretRefs, desired.SecretRefs) &&
 		model.ConfigsEquivalent(live.Config, cliapp.ConfigWithoutSecretValues(desired.Config, desired.SecretRefs))
-}
-
-func sortedNames[V any](items map[string]V) []string {
-	names := make([]string, 0, len(items))
-	for name := range items {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }

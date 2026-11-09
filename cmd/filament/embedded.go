@@ -13,6 +13,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
+	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
+	remotetarget "github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/datastore/sqlite/metrics"
@@ -93,28 +95,50 @@ func (a *cliApp) secretKey() ([]byte, error) {
 	return key, nil
 }
 
-// startEmbedded boots the full stack on a loopback listener inside this
-// process and returns the endpoint to dial, the secrets provider, and a stop.
-func (a *cliApp) startEmbedded(ctx context.Context) (string, filament.Secrets, func(), error) {
+// localDeployment is the embedded deployment serving the state directory.
+type localDeployment struct {
+	target   *localtarget.Target
+	endpoint string
+	cancel   func()
+	done     chan error
+}
+
+// wait blocks until the deployment stops on its own.
+func (d localDeployment) wait() error { return <-d.done }
+
+// stop shuts the deployment down and waits for it.
+func (d localDeployment) stop() error {
+	d.cancel()
+	return d.wait()
+}
+
+// serveLocal boots the full stack on addr inside this process and applies the
+// document into it.
+func (a *cliApp) serveLocal(ctx context.Context, addr string, extra ...app.Option) (localDeployment, error) {
 	options, secrets, err := a.embeddedOptions()
 	if err != nil {
-		return "", nil, nil, err
+		return localDeployment{}, err
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("embedded listener: %w", err)
+		return localDeployment{}, fmt.Errorf("embedded listener: %w", err)
 	}
 	serveCtx, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		defer close(done)
-		_ = app.Serve(serveCtx, listener, options...)
+		done <- app.Serve(serveCtx, listener, append(options, extra...)...)
 	}()
-	stop := func() {
-		cancel()
-		<-done
+	deployment := localDeployment{endpoint: "http://" + listener.Addr().String(), cancel: cancel, done: done}
+	deployment.target = localtarget.NewTarget(
+		localtarget.Store{Path: a.configPath},
+		remotetarget.NewTarget(remotetarget.Options{Endpoint: deployment.endpoint}),
+		secrets,
+		localtarget.WithSources(a.sources),
+	)
+	if err := deployment.target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
+		return localDeployment{}, errors.Join(fmt.Errorf("apply %s: %w", a.configPath, err), deployment.stop())
 	}
-	return "http://" + listener.Addr().String(), secrets, stop, nil
+	return deployment, nil
 }
 
 // layeredSecrets stores in sqlite and reads through to the environment, so
