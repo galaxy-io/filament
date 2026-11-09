@@ -20,6 +20,7 @@ import { Route as AppFilamentSinksRouteImport } from './routes/_app/_filament/si
 import { Route as AppFilamentObservabilityRouteImport } from './routes/_app/_filament/observability'
 import { Route as AppFilamentSplatRouteImport } from './routes/_app/_filament/$'
 import { Route as AppFilamentPipelinesIndexRouteImport } from './routes/_app/_filament/pipelines/index'
+import { Route as AppFilamentWebhooksIdRouteImport } from './routes/_app/_filament/webhooks/$id'
 import { Route as AppFilamentSettingsTeamRouteImport } from './routes/_app/_filament/settings/team'
 import { Route as AppFilamentSettingsServiceAccountsRouteImport } from './routes/_app/_filament/settings/service-accounts'
 import { Route as AppFilamentPipelinesIdRouteImport } from './routes/_app/_filament/pipelines/$id'
@@ -83,6 +84,11 @@ const AppFilamentPipelinesIndexRoute =
     path: '/pipelines/',
     getParentRoute: () => AppFilamentRouteRoute,
   } as any)
+const AppFilamentWebhooksIdRoute = AppFilamentWebhooksIdRouteImport.update({
+  id: '/webhooks/$id',
+  path: '/webhooks/$id',
+  getParentRoute: () => AppFilamentRouteRoute,
+} as any)
 const AppFilamentSettingsTeamRoute = AppFilamentSettingsTeamRouteImport.update({
   id: '/settings/team',
   path: '/settings/team',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/pipelines/$id': typeof AppFilamentPipelinesIdRouteWithChildren
   '/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
   '/settings/team': typeof AppFilamentSettingsTeamRoute
+  '/webhooks/$id': typeof AppFilamentWebhooksIdRoute
   '/pipelines/': typeof AppFilamentPipelinesIndexRoute
   '/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/sources': typeof AppFilamentSourcesRoute
   '/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
   '/settings/team': typeof AppFilamentSettingsTeamRoute
+  '/webhooks/$id': typeof AppFilamentWebhooksIdRoute
   '/pipelines': typeof AppFilamentPipelinesIndexRoute
   '/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/_app/_filament/pipelines/$id': typeof AppFilamentPipelinesIdRouteWithChildren
   '/_app/_filament/settings/service-accounts': typeof AppFilamentSettingsServiceAccountsRoute
   '/_app/_filament/settings/team': typeof AppFilamentSettingsTeamRoute
+  '/_app/_filament/webhooks/$id': typeof AppFilamentWebhooksIdRoute
   '/_app/_filament/pipelines/': typeof AppFilamentPipelinesIndexRoute
   '/_app/_filament/pipelines/$id/canvas': typeof AppFilamentPipelinesIdCanvasRoute
   '/_app/_filament/pipelines/$id/history': typeof AppFilamentPipelinesIdHistoryRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/pipelines/$id'
     | '/settings/service-accounts'
     | '/settings/team'
+    | '/webhooks/$id'
     | '/pipelines/'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/sources'
     | '/settings/service-accounts'
     | '/settings/team'
+    | '/webhooks/$id'
     | '/pipelines'
     | '/pipelines/$id/canvas'
     | '/pipelines/$id/history'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/_app/_filament/pipelines/$id'
     | '/_app/_filament/settings/service-accounts'
     | '/_app/_filament/settings/team'
+    | '/_app/_filament/webhooks/$id'
     | '/_app/_filament/pipelines/'
     | '/_app/_filament/pipelines/$id/canvas'
     | '/_app/_filament/pipelines/$id/history'
@@ -324,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFilamentPipelinesIndexRouteImport
       parentRoute: typeof AppFilamentRouteRoute
     }
+    '/_app/_filament/webhooks/$id': {
+      id: '/_app/_filament/webhooks/$id'
+      path: '/webhooks/$id'
+      fullPath: '/webhooks/$id'
+      preLoaderRoute: typeof AppFilamentWebhooksIdRouteImport
+      parentRoute: typeof AppFilamentRouteRoute
+    }
     '/_app/_filament/settings/team': {
       id: '/_app/_filament/settings/team'
       path: '/settings/team'
@@ -405,6 +424,7 @@ interface AppFilamentRouteRouteChildren {
   AppFilamentPipelinesIdRoute: typeof AppFilamentPipelinesIdRouteWithChildren
   AppFilamentSettingsServiceAccountsRoute: typeof AppFilamentSettingsServiceAccountsRoute
   AppFilamentSettingsTeamRoute: typeof AppFilamentSettingsTeamRoute
+  AppFilamentWebhooksIdRoute: typeof AppFilamentWebhooksIdRoute
   AppFilamentPipelinesIndexRoute: typeof AppFilamentPipelinesIndexRoute
 }
 
@@ -418,6 +438,7 @@ const AppFilamentRouteRouteChildren: AppFilamentRouteRouteChildren = {
   AppFilamentSettingsServiceAccountsRoute:
     AppFilamentSettingsServiceAccountsRoute,
   AppFilamentSettingsTeamRoute: AppFilamentSettingsTeamRoute,
+  AppFilamentWebhooksIdRoute: AppFilamentWebhooksIdRoute,
   AppFilamentPipelinesIndexRoute: AppFilamentPipelinesIndexRoute,
 }
 

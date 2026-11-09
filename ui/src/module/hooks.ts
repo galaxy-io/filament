@@ -171,3 +171,6 @@ export const usePipelineHistorySearch = () =>
 
 export const usePipelineParams = () =>
   useParams({ strict: false, select: (params) => pipelineParamsSchema.parse(params) });
+
+export const useWebhookParams = () =>
+  useParams({ strict: false, select: (params) => pipelineParamsSchema.parse(params) });
