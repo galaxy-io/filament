@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
-	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
@@ -35,7 +32,7 @@ func (a *cliApp) runCommand() *cobra.Command {
 	return cmd
 }
 
-func (a *cliApp) startRun(ctx context.Context, args []string) (runErr error) {
+func (a *cliApp) startRun(ctx context.Context, args []string) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -49,29 +46,6 @@ func (a *cliApp) startRun(ctx context.Context, args []string) (runErr error) {
 	}
 	if err != nil {
 		return err
-	}
-	if name != "" && a.target.Target.Kind == contexts.KindLocal {
-		unlock, err := a.lockLocalRuns()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if ctx.Err() != nil {
-				// Stop the runner before folding its obituary. The embedded
-				// tracker has already stopped with the cancelled CLI context.
-				if a.stopEmbedded != nil {
-					a.stopEmbedded()
-					a.stopEmbedded = nil
-				}
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				runErr = errors.Join(runErr, a.recoverLocalRuns(cleanupCtx))
-				cancel()
-			}
-			unlock()
-		}()
-		if err := a.recoverLocalRuns(ctx); err != nil {
-			return err
-		}
 	}
 	if interactive := a.renderer(); interactive.Interactive() {
 		return interactive.RunRequest(ctx, request)

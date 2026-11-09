@@ -127,13 +127,13 @@ ui-check:
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-build (_each "GOWORK=off go build ./...")
 
-# build linux release binaries into bin/ (server, standalone, and filament embed ui/build; the worker -libc binary is cgo and builds inside its Dockerfile)
+# build linux release binaries into bin/ (server and standalone embed ui/build; the worker -libc binary is cgo and builds inside its Dockerfile)
 binaries: ui-build
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
-    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
+    GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 
 # build container images using the selected engine
 images: binaries
