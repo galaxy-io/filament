@@ -136,7 +136,7 @@ const ObservabilityPipelinesRow: FC<ObservabilityPipelinesRowProps> = ({
         </Flex>
       </ObservabilityPipelinesColumnCell>
       <ObservabilityPipelinesColumnCell column={ObservabilityPipelinesColumn.RUNS}>
-        <ObservabilityPipelinesRowRaised aria-label="Runs over time">
+        <ObservabilityPipelinesRowRaised role="group" aria-label="Runs over time">
           {cells.map((cell) => (
             <ObservabilityPipelinesBar key={cell.bucketStartMs.toString()} cell={cell} />
           ))}

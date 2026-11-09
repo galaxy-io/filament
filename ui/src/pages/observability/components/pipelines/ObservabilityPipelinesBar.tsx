@@ -14,13 +14,7 @@ import {
   OBSERVABILITY_PIPELINES_BAR_WIDTH,
 } from "@/pages/observability/components/pipelines/constants";
 import type { ObservabilityPipelinesCell } from "@/pages/observability/components/pipelines/types";
-import {
-  createObservabilityPipelinesBarSegments,
-  formatObservabilityPipelinesCellSummary,
-} from "@/pages/observability/components/pipelines/utils";
-import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
-
-import { useObservabilitySearch } from "@/module/hooks";
+import { createObservabilityPipelinesBarSegments } from "@/pages/observability/components/pipelines/utils";
 
 const ObservabilityPipelinesBarFrame = styled.span`
   display: flex;
@@ -42,25 +36,20 @@ interface ObservabilityPipelinesBarProps {
   cell: ObservabilityPipelinesCell;
 }
 
-const ObservabilityPipelinesBar: FC<ObservabilityPipelinesBarProps> = ({ cell }) => {
-  const { timeframe } = useObservabilitySearch();
-  const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-
-  return (
-    <Tooltip body={formatObservabilityPipelinesCellSummary(cell, granularity)}>
-      <Flex>
-        <ObservabilityPipelinesBarFrame>
-          {createObservabilityPipelinesBarSegments(cell).map((segment) => (
-            <ObservabilityPipelinesBarSegment
-              key={segment.status}
-              $hue={PIPELINE_RUN_STATUS_TO_HUE_MAP[segment.status]}
-              $height={segment.height}
-            />
-          ))}
-        </ObservabilityPipelinesBarFrame>
-      </Flex>
-    </Tooltip>
-  );
-};
+const ObservabilityPipelinesBar: FC<ObservabilityPipelinesBarProps> = ({ cell }) => (
+  <Tooltip body={cell.summary}>
+    <Flex>
+      <ObservabilityPipelinesBarFrame>
+        {createObservabilityPipelinesBarSegments(cell).map((segment) => (
+          <ObservabilityPipelinesBarSegment
+            key={segment.status}
+            $hue={PIPELINE_RUN_STATUS_TO_HUE_MAP[segment.status]}
+            $height={segment.height}
+          />
+        ))}
+      </ObservabilityPipelinesBarFrame>
+    </Flex>
+  </Tooltip>
+);
 
 export default ObservabilityPipelinesBar;

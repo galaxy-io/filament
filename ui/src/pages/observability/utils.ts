@@ -62,6 +62,11 @@ export const getBucketOffset = (granularity: MetricGranularity, start: Date, ind
     )
     .otherwise(() => start.getTime() + index * OBSERVABILITY_HOUR_MS);
 
+export const getObservabilityBucketCount = (timeframe: ObservabilityTimeframe) => {
+  const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+  return Math.round(durationMs / OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity]);
+};
+
 export const createTimeframeSince = (
   timeframe: ObservabilityTimeframe,
   bucketStartMs: number,

@@ -7,6 +7,7 @@ export interface ObservabilityPipelinesCell {
   status: RunStatus | undefined;
   completed: number;
   failed: number;
+  summary: string;
 }
 
 export interface ObservabilityPipelinesBarSegment {

@@ -18,7 +18,6 @@ import {
   type ObservabilityPipelinesCounts,
 } from "@/pages/observability/components/pipelines/types";
 import {
-  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
   OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/constants";
@@ -31,12 +30,8 @@ import {
   formatBucketKey,
   getBucketLabelFormatter,
   getBucketOffset,
+  getObservabilityBucketCount,
 } from "@/pages/observability/utils";
-
-export const getObservabilityPipelinesBucketCount = (timeframe: ObservabilityTimeframe) => {
-  const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  return Math.round(durationMs / OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity]);
-};
 
 export const getObservabilityPipelinesTrackWidth = (bucketCount: number) =>
   bucketCount * OBSERVABILITY_PIPELINES_BAR_WIDTH +
@@ -80,6 +75,19 @@ const getObservabilityPipelinesCellStatus = (
   return undefined;
 };
 
+const formatObservabilityPipelinesCellSummary = (
+  { bucketStartMs, status, completed, failed }: Omit<ObservabilityPipelinesCell, "summary">,
+  granularity: MetricGranularity,
+) => {
+  const parts = [
+    status === RunStatus.RUNNING ? "running" : undefined,
+    completed > 0 ? `${completed} completed` : undefined,
+    failed > 0 ? `${failed} failed` : undefined,
+  ].filter((part) => part !== undefined);
+  const label = getBucketLabelFormatter(granularity)(formatBucketKey(bucketStartMs));
+  return `${label} · ${parts.length > 0 ? parts.join(", ") : "No runs"}`;
+};
+
 export const createObservabilityPipelinesCells = (
   pipeline: Pipeline,
   health: ObservabilityPipelineHealth,
@@ -92,14 +100,14 @@ export const createObservabilityPipelinesCells = (
   const completed = completedCounts.get(pipeline.id);
   const failed = failedCounts.get(pipeline.id);
   const since = new Date(Number(createTimeframeSince(timeframe, bucketStartMs)));
-  const bucketCount = getObservabilityPipelinesBucketCount(timeframe);
+  const bucketCount = getObservabilityBucketCount(timeframe);
 
   return Array.from({ length: bucketCount }, (_, index) => {
     const cellStartMs = BigInt(getBucketOffset(granularity, since, index));
     const bucketKey = formatBucketKey(cellStartMs);
     const completedCount = completed?.get(bucketKey) ?? 0;
     const failedCount = failed?.get(bucketKey) ?? 0;
-    return {
+    const cell = {
       bucketStartMs: cellStartMs,
       status: getObservabilityPipelinesCellStatus(
         health === ObservabilityPipelineHealth.RUNNING && index === bucketCount - 1,
@@ -109,6 +117,7 @@ export const createObservabilityPipelinesCells = (
       completed: completedCount,
       failed: failedCount,
     };
+    return { ...cell, summary: formatObservabilityPipelinesCellSummary(cell, granularity) };
   });
 };
 
@@ -138,17 +147,4 @@ export const createObservabilityPipelinesBarSegments = ({
     { status: RunStatus.FAILED, height: failedHeight },
     { status: RunStatus.COMPLETED, height: height - failedHeight },
   ].filter((segment) => segment.height > 0);
-};
-
-export const formatObservabilityPipelinesCellSummary = (
-  { bucketStartMs, status, completed, failed }: ObservabilityPipelinesCell,
-  granularity: MetricGranularity,
-) => {
-  const parts = [
-    status === RunStatus.RUNNING ? "running" : undefined,
-    completed > 0 ? `${completed} completed` : undefined,
-    failed > 0 ? `${failed} failed` : undefined,
-  ].filter((part) => part !== undefined);
-  const label = getBucketLabelFormatter(granularity)(formatBucketKey(bucketStartMs));
-  return `${label} · ${parts.length > 0 ? parts.join(", ") : "No runs"}`;
 };

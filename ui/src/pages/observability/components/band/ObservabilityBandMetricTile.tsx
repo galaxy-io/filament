@@ -8,6 +8,8 @@ import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
+import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
+
 import { OBSERVABILITY_BAND_VIEW_KEY_TO_CONFIG_MAP } from "@/pages/observability/components/band/constants";
 import ObservabilityBandPivotSelect from "@/pages/observability/components/band/ObservabilityBandPivotSelect";
 import ObservabilityBandTile from "@/pages/observability/components/band/ObservabilityBandTile";
@@ -19,7 +21,7 @@ import {
   OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP,
   OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP,
 } from "@/pages/observability/constants";
-import { useObservabilityBandTotals } from "@/pages/observability/hooks/useObservabilityBandTotals";
+import { useObservabilityAggregateQuery } from "@/pages/observability/hooks/useObservabilityAggregateQuery";
 import { useObservabilityMetricInputs } from "@/pages/observability/hooks/useObservabilityMetricInputs";
 import type {
   ObservabilityBandPivotKey,
@@ -44,13 +46,13 @@ const ObservabilityBandMetricTile: FC<ObservabilityBandMetricTileProps> = ({
 }) => {
   const search = useObservabilitySearch();
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
-  const { createRankingInput } = useObservabilityMetricInputs();
-  const { getTotal, isLoading } = useObservabilityBandTotals();
+  const { createAggregateInput } = useObservabilityMetricInputs();
   const viewToConfigMap: Record<string, ObservabilityBandViewConfig> =
     OBSERVABILITY_BAND_VIEW_KEY_TO_CONFIG_MAP[viewKey];
   const view = search[viewKey];
   const pivot = search[pivotKey];
   const config = viewToConfigMap[view];
+  const { data, isLoading } = useObservabilityAggregateQuery(createAggregateInput(config.metric));
 
   const viewOptions = Object.entries(viewToConfigMap).map(([id, viewConfig]) => ({
     id,
@@ -89,7 +91,7 @@ const ObservabilityBandMetricTile: FC<ObservabilityBandMetricTileProps> = ({
       value={
         <Flex alignItems={AlignItems.BASELINE} gap={8} minWidth={0}>
           <Text size={TextSize.HEADING_SM} family={FontFamily.MONO}>
-            {config.format(getTotal(config.metric))}
+            {config.format(data?.rows[0]?.values[0] ?? 0)}
           </Text>
           <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
             {config.unit}
@@ -110,7 +112,7 @@ const ObservabilityBandMetricTile: FC<ObservabilityBandMetricTileProps> = ({
         <ObservabilityBandTopList
           title={config.topTitle}
           emptyText={config.emptyText}
-          input={createRankingInput(config.metric)}
+          input={createAggregateInput(config.metric, MetricDimension.PIPELINE_ID)}
           colors={getObservabilityBandTopColors(pivot, config.color)}
           format={config.format}
         />

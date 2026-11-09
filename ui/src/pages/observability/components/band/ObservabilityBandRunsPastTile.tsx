@@ -60,9 +60,10 @@ const ObservabilityBandRunsCounts = styled.div`
 
 const ObservabilityBandRunsPastTile: FC = () => {
   const { timeframe } = useObservabilitySearch();
-  const { statusCountsInput, createRankingInput, createSeriesInput } =
-    useObservabilityMetricInputs();
-  const { data, isLoading } = useObservabilityAggregateQuery(statusCountsInput);
+  const { createAggregateInput, createSeriesInput } = useObservabilityMetricInputs();
+  const { data, isLoading } = useObservabilityAggregateQuery(
+    createAggregateInput(Metric.RUN_COUNT, MetricDimension.STATUS),
+  );
   const { data: seriesData, isFetching } = useObservabilityTimeseriesQuery(
     createSeriesInput(Metric.RUN_COUNT, MetricDimension.STATUS, PIPELINE_RUN_EXECUTED_STATUSES),
   );
@@ -164,7 +165,9 @@ const ObservabilityBandRunsPastTile: FC = () => {
         <ObservabilityBandTopList
           title="Most failures"
           emptyText="No failed runs"
-          input={createRankingInput(Metric.RUN_COUNT, [RunStatus.FAILED])}
+          input={createAggregateInput(Metric.RUN_COUNT, MetricDimension.PIPELINE_ID, [
+            RunStatus.FAILED,
+          ])}
           colors={[PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.FAILED]]}
           format={formatObservabilityBandCount}
         />

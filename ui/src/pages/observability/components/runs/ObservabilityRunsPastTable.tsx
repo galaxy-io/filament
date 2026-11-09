@@ -23,9 +23,8 @@ import {
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_TIMESTAMP,
   OBSERVABILITY_RUNS_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/observability/components/runs/constants";
-import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
+import { useObservabilityMetricInputs } from "@/pages/observability/hooks/useObservabilityMetricInputs";
 import { ObservabilityRunsView } from "@/pages/observability/types";
-import { createTimeframeSince } from "@/pages/observability/utils";
 
 import { useFilamentNavigate, useObservabilitySearch } from "@/module/hooks";
 import { FilamentPath } from "@/module/paths";
@@ -93,9 +92,9 @@ const OBSERVABILITY_RUNS_PAST_TABLE_COLUMNS: TableColumn<RunInfo>[] = [
 
 const ObservabilityRunsPastTable: FC = () => {
   const navigate = useFilamentNavigate();
-  const { timeframe, statuses } = useObservabilitySearch();
+  const { statuses } = useObservabilitySearch();
 
-  const bucketStartMs = useObservabilityBucketStart(timeframe);
+  const { sinceMs } = useObservabilityMetricInputs();
 
   const windowedStatuses = useMemo(
     () => statuses.filter((status) => status !== RunStatus.SCHEDULED),
@@ -105,9 +104,9 @@ const ObservabilityRunsPastTable: FC = () => {
   const input = useMemo(
     () => ({
       status: windowedStatuses,
-      sinceMs: createTimeframeSince(timeframe, bucketStartMs),
+      sinceMs,
     }),
-    [timeframe, bucketStartMs, windowedStatuses],
+    [sinceMs, windowedStatuses],
   );
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =

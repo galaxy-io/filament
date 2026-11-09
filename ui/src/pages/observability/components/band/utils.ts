@@ -20,12 +20,13 @@ import type {
   ObservabilityBandRunsMetric,
   ObservabilityBandSeriesEntry,
 } from "@/pages/observability/components/band/types";
-import {
-  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
-  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
-} from "@/pages/observability/constants";
+import { OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP } from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import { formatBucketKey, getBucketOffset } from "@/pages/observability/utils";
+import {
+  formatBucketKey,
+  getBucketOffset,
+  getObservabilityBucketCount,
+} from "@/pages/observability/utils";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
@@ -64,11 +65,8 @@ export const getObservabilityBandUpcomingBounds = (
   timeframe: ObservabilityTimeframe,
   bucketStartMs: number,
 ) => {
-  const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
-  const bucketCount = Math.round(
-    durationMs / OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
-  );
-  return Array.from({ length: bucketCount + 1 }, (_, index) =>
+  const { granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+  return Array.from({ length: getObservabilityBucketCount(timeframe) + 1 }, (_, index) =>
     getBucketOffset(granularity, new Date(bucketStartMs), index),
   );
 };

@@ -6,7 +6,7 @@ import { ChartCurve, ChartSwatch, type ChartValueFormatter } from "@galaxy-io/dl
 import Flex from "@galaxy-io/dls/layout/Flex";
 import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
 
-import type { Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
+import { type Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import { OBSERVABILITY_BAND_CHART_HEIGHT } from "@/pages/observability/components/band/constants";
 import { mapObservabilityBandLines } from "@/pages/observability/components/band/utils";
@@ -31,8 +31,11 @@ const ObservabilityBandTimeseriesChart: FC<ObservabilityBandTimeseriesChartProps
   valueFormatter,
   isStacked,
 }) => {
-  const { createRankingInput, createSeriesInput, labelFormatter } = useObservabilityMetricInputs();
-  const { ranking } = useObservabilityBandRanking(createRankingInput(metric));
+  const { createAggregateInput, createSeriesInput, labelFormatter } =
+    useObservabilityMetricInputs();
+  const { ranking } = useObservabilityBandRanking(
+    createAggregateInput(metric, MetricDimension.PIPELINE_ID),
+  );
   const { data, isFetching } = useObservabilityTimeseriesQuery(createSeriesInput(metric, pivot));
 
   const { series, lines } = useMemo(

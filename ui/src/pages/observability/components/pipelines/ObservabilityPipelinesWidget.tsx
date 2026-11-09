@@ -37,7 +37,6 @@ import ObservabilityPipelinesRow from "@/pages/observability/components/pipeline
 import { ObservabilityPipelinesColumn } from "@/pages/observability/components/pipelines/types";
 import {
   createObservabilityPipelinesCells,
-  getObservabilityPipelinesBucketCount,
   getObservabilityPipelinesTrackWidth,
   mapObservabilityPipelinesSeries,
 } from "@/pages/observability/components/pipelines/utils";
@@ -45,6 +44,7 @@ import { OBSERVABILITY_DEFAULT_PIPELINES_PAGE } from "@/pages/observability/cons
 import { useObservabilityMetricInputs } from "@/pages/observability/hooks/useObservabilityMetricInputs";
 import { useObservabilityPipelines } from "@/pages/observability/hooks/useObservabilityPipelines";
 import { useObservabilityTimeseriesQuery } from "@/pages/observability/hooks/useObservabilityTimeseriesQuery";
+import { getObservabilityBucketCount } from "@/pages/observability/utils";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
 import { createFilamentHref, FilamentPath } from "@/module/paths";
@@ -160,9 +160,7 @@ const ObservabilityPipelinesWidget: FC = () => {
       }
     >
       <ObservabilityPipelinesFrame
-        $trackWidth={getObservabilityPipelinesTrackWidth(
-          getObservabilityPipelinesBucketCount(timeframe),
-        )}
+        $trackWidth={getObservabilityPipelinesTrackWidth(getObservabilityBucketCount(timeframe))}
       >
         <ObservabilityPipelinesHeader />
         <Box minHeight={hasPages ? OBSERVABILITY_PIPELINES_PAGE_MIN_HEIGHT : undefined}>
