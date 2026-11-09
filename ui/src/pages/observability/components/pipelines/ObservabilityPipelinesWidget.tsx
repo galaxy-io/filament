@@ -42,19 +42,13 @@ import {
   mapObservabilityPipelinesSeries,
 } from "@/pages/observability/components/pipelines/utils";
 import { OBSERVABILITY_DEFAULT_PIPELINES_PAGE } from "@/pages/observability/constants";
-import { useObservabilityBucketStart } from "@/pages/observability/hooks/useObservabilityBucketStart";
+import { useObservabilityMetricInputs } from "@/pages/observability/hooks/useObservabilityMetricInputs";
 import { useObservabilityPipelines } from "@/pages/observability/hooks/useObservabilityPipelines";
-import { useObservabilityRefetchInterval } from "@/pages/observability/hooks/useObservabilityRefetchInterval";
-import {
-  createObservabilityStatusFilter,
-  createObservabilityTimeseriesInput,
-} from "@/pages/observability/utils";
+import { useObservabilityTimeseriesQuery } from "@/pages/observability/hooks/useObservabilityTimeseriesQuery";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
 import { createFilamentHref, FilamentPath } from "@/module/paths";
 import type { ObservabilitySearch } from "@/module/schemas";
-
-import { useQueryTimeseriesQuery } from "@/api/queries/metrics";
 
 const ObservabilityPipelinesFrame = styled.div<{ $trackWidth: number }>`
   --observability-pipelines-track: ${({ $trackWidth }) => `${$trackWidth}px`};
@@ -94,40 +88,21 @@ const ObservabilityPipelinesFrame = styled.div<{ $trackWidth: number }>`
 `;
 
 const ObservabilityPipelinesWidget: FC = () => {
-  const refetchInterval = useObservabilityRefetchInterval();
   const updateSearch = useFilamentSearchUpdate<ObservabilitySearch>();
   const { timeframe, pipelinesPage } = useObservabilitySearch();
-  const bucketStartMs = useObservabilityBucketStart(timeframe);
+  const { bucketStartMs, createSeriesInput } = useObservabilityMetricInputs();
   const { entries } = useObservabilityPipelines();
   const pageCount = Math.max(1, Math.ceil(entries.length / OBSERVABILITY_PIPELINES_LIMIT));
   const page = Math.min(pipelinesPage, pageCount);
   const pageStart = (page - 1) * OBSERVABILITY_PIPELINES_LIMIT;
   const hasPages = pageCount > 1;
 
-  const { completedInput, failedInput } = useMemo(
-    () => ({
-      completedInput: createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
-        metrics: [Metric.RUN_COUNT],
-        groupBy: MetricDimension.PIPELINE_ID,
-        filters: [createObservabilityStatusFilter([RunStatus.COMPLETED])],
-      }),
-      failedInput: createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
-        metrics: [Metric.RUN_COUNT],
-        groupBy: MetricDimension.PIPELINE_ID,
-        filters: [createObservabilityStatusFilter([RunStatus.FAILED])],
-      }),
-    }),
-    [timeframe, bucketStartMs],
+  const { data: completedData } = useObservabilityTimeseriesQuery(
+    createSeriesInput(Metric.RUN_COUNT, MetricDimension.PIPELINE_ID, [RunStatus.COMPLETED]),
   );
-
-  const { data: completedData } = useQueryTimeseriesQuery({
-    input: completedInput,
-    options: { refetchInterval },
-  });
-  const { data: failedData } = useQueryTimeseriesQuery({
-    input: failedInput,
-    options: { refetchInterval },
-  });
+  const { data: failedData } = useObservabilityTimeseriesQuery(
+    createSeriesInput(Metric.RUN_COUNT, MetricDimension.PIPELINE_ID, [RunStatus.FAILED]),
+  );
 
   const rows = useMemo(() => {
     const completedCounts = mapObservabilityPipelinesSeries(completedData?.series ?? []);

@@ -2,18 +2,12 @@ import { useMemo } from "react";
 
 import type { QueryAggregateRequest } from "@/gen/metrics/v1/metrics_pb";
 
+import { useObservabilityAggregateQuery } from "@/pages/observability/hooks/useObservabilityAggregateQuery";
 import { useObservabilityPipelines } from "@/pages/observability/hooks/useObservabilityPipelines";
-import { useObservabilityRefetchInterval } from "@/pages/observability/hooks/useObservabilityRefetchInterval";
-
-import { useQueryAggregateQuery } from "@/api/queries/metrics";
 
 export const useObservabilityBandRanking = (input: QueryAggregateRequest) => {
-  const refetchInterval = useObservabilityRefetchInterval();
   const { pipelinesById } = useObservabilityPipelines();
-  const { data, isLoading } = useQueryAggregateQuery({
-    input,
-    options: { refetchInterval },
-  });
+  const { data, isLoading } = useObservabilityAggregateQuery(input);
 
   const ranking = useMemo(
     () =>

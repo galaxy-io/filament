@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
+import type { ToggleOption } from "@galaxy-io/dls/inputs/ToggleInput";
 
 import { ListRunsRequestSchema, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
@@ -17,6 +18,10 @@ export const OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP: Record<ObservabilityRunsView,
   [ObservabilityRunsView.PAST]: "Past",
   [ObservabilityRunsView.UPCOMING]: "Upcoming",
 };
+
+export const OBSERVABILITY_RUNS_VIEW_OPTIONS: ToggleOption<ObservabilityRunsView>[] = Object.values(
+  ObservabilityRunsView,
+).map((runsView) => ({ id: runsView, label: OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP[runsView] }));
 
 export const OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP: Record<ObservabilityRunsView, string> = {
   [ObservabilityRunsView.PAST]: "History",

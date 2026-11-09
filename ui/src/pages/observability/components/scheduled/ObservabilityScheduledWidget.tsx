@@ -1,6 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { css } from "@linaria/core";
 import { styled } from "@linaria/react";
 import { CalendarIcon } from "@phosphor-icons/react";
 
@@ -30,11 +29,6 @@ import { createFilamentHref, FilamentPath } from "@/module/paths";
 import { useListRunsQuery } from "@/api/queries/runs";
 
 import { formatTimestamp } from "@/utils/format";
-
-const OBSERVABILITY_SCHEDULED_WIDGET_CSS = css`
-  height: 100%;
-  min-height: 0;
-`;
 
 const ObservabilityScheduledRow = styled(RouterLink)`
   ${FOCUS_RING}
@@ -106,13 +100,7 @@ const ObservabilityScheduledWidget: FC = () => {
   };
 
   return (
-    <Widget
-      className={OBSERVABILITY_SCHEDULED_WIDGET_CSS}
-      header="Scheduled"
-      icon={CalendarIcon}
-      isFlush
-      gap={0}
-    >
+    <Widget header="Scheduled" icon={CalendarIcon} isFlush gap={0}>
       <FlexItem grow={1} basis={0} minHeight={0}>
         <ScrollArea>
           <Box variant={BoxVariant.PRIMARY} fillWidth>

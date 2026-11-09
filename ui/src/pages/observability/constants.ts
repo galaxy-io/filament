@@ -1,14 +1,18 @@
 import { create } from "@bufbuild/protobuf";
 
 import { ListPipelinesRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
-import { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
+import { MetricDimension, MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 import {
+  type ObservabilityBandPivotKey,
+  type ObservabilityBandViews,
   ObservabilityPipelineHealth,
   ObservabilityRefreshInterval,
   ObservabilityRunsView,
+  ObservabilityThroughputView,
   ObservabilityTimeframe,
   type ObservabilityTimeframeQuery,
+  ObservabilityUsageView,
 } from "@/pages/observability/types";
 
 export const OBSERVABILITY_WORDMARK_SIZE = 20;
@@ -33,6 +37,19 @@ export const OBSERVABILITY_DEFAULT_TIMEFRAME = ObservabilityTimeframe.TWENTY_FOU
 export const OBSERVABILITY_DEFAULT_RUNS_VIEW = ObservabilityRunsView.PAST;
 export const OBSERVABILITY_DEFAULT_PIPELINES_PAGE = 1;
 export const OBSERVABILITY_DEFAULT_REFRESH_INTERVAL = ObservabilityRefreshInterval.ONE_MINUTE;
+
+export const OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP: ObservabilityBandViews = {
+  throughput: ObservabilityThroughputView.RECORDS,
+  usage: ObservabilityUsageView.CPU,
+};
+
+export const OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP: Record<
+  ObservabilityBandPivotKey,
+  MetricDimension
+> = {
+  throughputPivot: MetricDimension.UNSPECIFIED,
+  usagePivot: MetricDimension.PIPELINE_ID,
+};
 
 const OBSERVABILITY_MINUTE_MS = 60 * 1000;
 export const OBSERVABILITY_HOUR_MS = 60 * OBSERVABILITY_MINUTE_MS;

@@ -1,62 +1,36 @@
+import { match } from "ts-pattern";
+
 import type { BarChartGroupDatum } from "@galaxy-io/dls/charts/BarChart";
 import type { LineChartLineDatum } from "@galaxy-io/dls/charts/LineChart";
-import {
-  EMPTY_VALUE,
-  formatBytes,
-  formatDuration,
-  formatNumber,
-} from "@galaxy-io/dls/utils/format";
+import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
+import { formatNumber } from "@galaxy-io/dls/utils/format";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
-import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
-import {
-  Metric,
-  MetricDimension,
-  type QueryTimeseriesRequest,
-  type Timeseries,
-} from "@/gen/metrics/v1/metrics_pb";
+import { type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import { MetricDimension, type Timeseries } from "@/gen/metrics/v1/metrics_pb";
 
 import { formatPipelineName } from "@/components/pipelines/utils";
 import {
-  PIPELINE_RUN_EXECUTED_STATUSES,
   PIPELINE_RUN_STATUS_TO_HUE_MAP,
   PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/components/runs/constants";
 
+import { OBSERVABILITY_BAND_PIPELINE_COLORS } from "@/pages/observability/components/band/constants";
+import type {
+  ObservabilityBandRunsMetric,
+  ObservabilityBandSeriesEntry,
+} from "@/pages/observability/components/band/types";
 import {
-  OBSERVABILITY_BAND_PIPELINE_COLORS,
-  OBSERVABILITY_BAND_TOTAL_METRICS,
-} from "@/pages/observability/components/band/constants";
-import type { ObservabilityBandRunsMetric } from "@/pages/observability/components/band/types";
+  OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
+  OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
+} from "@/pages/observability/constants";
 import type { ObservabilityTimeframe } from "@/pages/observability/types";
-import {
-  createObservabilityStatusFilter,
-  createObservabilityTimeseriesInput,
-  formatBucketKey,
-} from "@/pages/observability/utils";
+import { formatBucketKey, getBucketOffset } from "@/pages/observability/utils";
 
 import { mapOptionIdToEnum } from "@/utils/select";
 
 export const formatObservabilityBandCount = (value: number) =>
   formatNumber(value, { precision: 0 });
-
-export const formatObservabilityBandCpuAxis = (value: number) => formatDuration(value * 1_000);
-
-export const formatObservabilityBandCpu = (value: number) =>
-  value > 0 ? formatDuration(value * 1_000) : EMPTY_VALUE;
-
-export const formatObservabilityBandMemory = (value: number) =>
-  value > 0 ? formatBytes(value) : EMPTY_VALUE;
-
-export const createObservabilityBandRunsInput = (
-  timeframe: ObservabilityTimeframe,
-  bucketStartMs: number,
-): QueryTimeseriesRequest =>
-  createObservabilityTimeseriesInput(timeframe, bucketStartMs, {
-    metrics: [Metric.RUN_COUNT],
-    groupBy: MetricDimension.STATUS,
-    filters: [createObservabilityStatusFilter(PIPELINE_RUN_EXECUTED_STATUSES)],
-  });
 
 export const mapObservabilityBandRunsGroups = (
   series: Timeseries[],
@@ -86,40 +60,101 @@ export const mapObservabilityBandRunsGroups = (
     ],
   }));
 
-export const getObservabilityBandTotal = (values: number[], metric: Metric) =>
-  values[OBSERVABILITY_BAND_TOTAL_METRICS.indexOf(metric)] ?? 0;
-
-export const mapObservabilityBandPipelineLines = (
-  ranking: { pipeline: Pipeline }[],
-  series: Timeseries[],
+export const getObservabilityBandUpcomingBounds = (
+  timeframe: ObservabilityTimeframe,
+  bucketStartMs: number,
 ) => {
+  const { durationMs, granularity } = OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP[timeframe];
+  const bucketCount = Math.round(
+    durationMs / OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP[granularity],
+  );
+  return Array.from({ length: bucketCount + 1 }, (_, index) =>
+    getBucketOffset(granularity, new Date(bucketStartMs), index),
+  );
+};
+
+const isObservabilityBandRunWithin = (run: RunInfo, startMs: number, endMs: number) =>
+  Number(run.scheduledAt) >= startMs && Number(run.scheduledAt) < endMs;
+
+export const filterObservabilityBandUpcomingRuns = (runs: RunInfo[], bounds: number[]) =>
+  runs.filter((run) => isObservabilityBandRunWithin(run, bounds[0], bounds[bounds.length - 1]));
+
+export const mapObservabilityBandUpcomingGroups = (
+  runs: RunInfo[],
+  bounds: number[],
+): BarChartGroupDatum<ObservabilityBandRunsMetric>[] =>
+  bounds.slice(0, -1).map((startMs, bucketIndex) => ({
+    label: formatBucketKey(BigInt(startMs)),
+    bars: [
+      {
+        metric: "runs",
+        components: [
+          {
+            key: String(RunStatus.SCHEDULED),
+            label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[RunStatus.SCHEDULED],
+            value: runs.filter((run) =>
+              isObservabilityBandRunWithin(run, startMs, bounds[bucketIndex + 1]),
+            ).length,
+            color: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.SCHEDULED],
+          },
+        ],
+      },
+    ],
+  }));
+
+const getObservabilityBandPipelineEntries = (
+  series: Timeseries[],
+  ranking: { pipeline: Pipeline }[],
+): ObservabilityBandSeriesEntry[] => {
   const seriesByPipelineId = new Map(series.map((keySeries) => [keySeries.key, keySeries]));
-  const ranked = ranking.flatMap(({ pipeline }, index) => {
+  return ranking.flatMap(({ pipeline }, index) => {
     const keySeries = seriesByPipelineId.get(pipeline.id);
     return keySeries
       ? [
           {
-            pipeline,
-            keySeries,
+            key: pipeline.id,
+            label: formatPipelineName(pipeline, true),
             color:
               OBSERVABILITY_BAND_PIPELINE_COLORS[index % OBSERVABILITY_BAND_PIPELINE_COLORS.length],
+            points: keySeries.points,
           },
         ]
       : [];
   });
+};
+
+const getObservabilityBandStatusEntries = (series: Timeseries[]): ObservabilityBandSeriesEntry[] =>
+  series.flatMap(({ key, points }) => {
+    const status = mapOptionIdToEnum(RunStatus, key);
+    const color = PIPELINE_RUN_STATUS_TO_HUE_MAP[status];
+    return color ? [{ key, label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status], color, points }] : [];
+  });
+
+export const mapObservabilityBandLines = (
+  pivot: MetricDimension,
+  series: Timeseries[],
+  ranking: { pipeline: Pipeline }[],
+  label: string,
+  color: RoleColor,
+) => {
+  const entries = match(pivot)
+    .with(MetricDimension.PIPELINE_ID, () => getObservabilityBandPipelineEntries(series, ranking))
+    .with(MetricDimension.STATUS, () => getObservabilityBandStatusEntries(series))
+    .otherwise(() => [{ key: label, label, color, points: series[0]?.points ?? [] }]);
   return {
     series: Object.fromEntries(
-      ranked.map(({ pipeline, color }) => [
-        pipeline.id,
-        { label: formatPipelineName(pipeline, true), color },
-      ]),
+      entries.map((entry) => [entry.key, { label: entry.label, color: entry.color }]),
     ),
-    lines: ranked.map<LineChartLineDatum<string>>(({ pipeline, keySeries }) => ({
-      metric: pipeline.id,
-      points: keySeries.points.map((point) => ({
+    lines: entries.map<LineChartLineDatum<string>>(({ key, points }) => ({
+      metric: key,
+      showArea: pivot === MetricDimension.UNSPECIFIED,
+      points: points.map((point) => ({
         x: formatBucketKey(point.bucketStartMs),
         y: point.values[0],
       })),
     })),
   };
 };
+
+export const getObservabilityBandTopColors = (pivot: MetricDimension, color: RoleColor) =>
+  pivot === MetricDimension.PIPELINE_ID ? OBSERVABILITY_BAND_PIPELINE_COLORS : [color];

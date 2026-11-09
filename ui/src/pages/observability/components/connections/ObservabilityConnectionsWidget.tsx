@@ -1,6 +1,5 @@
 import { type FC, useMemo } from "react";
 
-import { css } from "@linaria/core";
 import { ArrowRightIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
@@ -29,11 +28,6 @@ import { createFilamentHref } from "@/module/paths";
 
 import { useSuspenseListConnectionsQuery } from "@/api/queries/connections";
 
-const OBSERVABILITY_CONNECTIONS_WIDGET_CSS = css`
-  height: 100%;
-  min-height: 0;
-`;
-
 interface ObservabilityConnectionsWidgetProps {
   kind: ConnectorKind;
 }
@@ -48,7 +42,6 @@ const ObservabilityConnectionsWidget: FC<ObservabilityConnectionsWidgetProps> = 
 
   return (
     <Widget
-      className={OBSERVABILITY_CONNECTIONS_WIDGET_CSS}
       header={CONNECTOR_KIND_TO_PLURAL_LABEL_MAP[kind]}
       icon={OBSERVABILITY_CONNECTOR_KIND_TO_ICON_MAP[kind]}
       isFlush

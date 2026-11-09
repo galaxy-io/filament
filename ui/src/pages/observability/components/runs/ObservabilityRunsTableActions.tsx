@@ -6,11 +6,6 @@ import MultiSelectInput, {
   MultiSelectInputSize,
   MultiSelectInputVariant,
 } from "@galaxy-io/dls/inputs/MultiSelectInput";
-import ToggleInput, {
-  ToggleInputSize,
-  ToggleInputVariant,
-  type ToggleOption,
-} from "@galaxy-io/dls/inputs/ToggleInput";
 import Box from "@galaxy-io/dls/layout/Box";
 import Text from "@galaxy-io/dls/text/Text";
 
@@ -22,8 +17,8 @@ import {
   OBSERVABILITY_RUNS_STATUS_OPTIONS,
   OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH,
   OBSERVABILITY_RUNS_UPCOMING_STATUS_OPTIONS,
-  OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP,
 } from "@/pages/observability/components/runs/constants";
+import ObservabilityRunsViewToggle from "@/pages/observability/components/runs/ObservabilityRunsViewToggle";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
 import { useFilamentSearchUpdate, useObservabilitySearch } from "@/module/hooks";
@@ -43,13 +38,6 @@ const ObservabilityRunsTableActions: FC = () => {
     [statuses],
   );
 
-  const handleViewChange = (nextView: ObservabilityRunsView) => {
-    void updateSearch((prev) => ({
-      ...prev,
-      runs: nextView,
-    }));
-  };
-
   const handleStatusChange = (ids: string[]) => {
     void updateSearch((prev) => ({
       ...prev,
@@ -57,24 +45,11 @@ const ObservabilityRunsTableActions: FC = () => {
     }));
   };
 
-  const switcherItems: ToggleOption<ObservabilityRunsView>[] = Object.values(
-    ObservabilityRunsView,
-  ).map((runsView) => ({
-    id: runsView,
-    label: OBSERVABILITY_RUNS_VIEW_TO_LABEL_MAP[runsView],
-  }));
   const isUpcoming = view === ObservabilityRunsView.UPCOMING;
 
   return (
     <>
-      <ToggleInput
-        size={ToggleInputSize.SMALL}
-        variant={ToggleInputVariant.PRIMARY}
-        options={switcherItems}
-        value={view}
-        onChange={handleViewChange}
-        ariaLabel="Runs view"
-      />
+      <ObservabilityRunsViewToggle />
       <Box width={OBSERVABILITY_RUNS_STATUS_SELECT_WIDTH}>
         <MultiSelectInput
           fillWidth

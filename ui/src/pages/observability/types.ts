@@ -20,6 +20,25 @@ export enum ObservabilityRunsView {
   UPCOMING = "UPCOMING",
 }
 
+export enum ObservabilityThroughputView {
+  RECORDS = "RECORDS",
+  VOLUME = "VOLUME",
+}
+
+export enum ObservabilityUsageView {
+  CPU = "CPU",
+  MEMORY = "MEMORY",
+}
+
+export interface ObservabilityBandViews {
+  throughput: ObservabilityThroughputView;
+  usage: ObservabilityUsageView;
+}
+
+export type ObservabilityBandViewKey = keyof ObservabilityBandViews;
+
+export type ObservabilityBandPivotKey = "throughputPivot" | "usagePivot";
+
 export interface ObservabilityTimeframeQuery {
   durationMs: number;
   granularity: MetricGranularity;

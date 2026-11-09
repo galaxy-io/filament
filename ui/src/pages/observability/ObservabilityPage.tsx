@@ -58,6 +58,10 @@ const ObservabilityBlockSide = styled.div`
   display: grid;
   grid-template-rows: minmax(0, 1fr) ${OBSERVABILITY_BLOCK_CONNECTIONS_HEIGHT}px ${OBSERVABILITY_BLOCK_CONNECTIONS_HEIGHT}px;
   gap: ${t.space[12]};
+
+  & > * {
+    min-height: 0;
+  }
 `;
 
 const ObservabilityBlock = styled.div`
