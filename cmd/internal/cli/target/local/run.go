@@ -80,11 +80,17 @@ func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe fu
 	}
 	defer t.closeRunSession(ref.ID, session)
 	runnerDone := session.run.Done()
+	// The exit error is reported only when the facts end without a terminal
+	// one, since a failed run exits as its run.failed fact is still queued.
+	var exitErr error
 
 	for {
 		select {
 		case fact, ok := <-session.run.Facts():
 			if !ok {
+				if exitErr != nil {
+					return model.RunResult{}, exitErr
+				}
 				return model.RunResult{}, fmt.Errorf("run event stream closed before completion")
 			}
 			switch fact.Name {
@@ -119,10 +125,7 @@ func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe fu
 				notifyRunObserver(observe, model.RunEvent{Run: ref.ID, Route: ref.Route, Status: "canceled", Final: true})
 				return model.RunResult{Runs: group.Runs, Status: "canceled"}, nil
 			}
-		case runErr := <-runnerDone:
-			if runErr != nil {
-				return model.RunResult{}, runErr
-			}
+		case exitErr = <-runnerDone:
 			runnerDone = nil
 		case <-ctx.Done():
 			return model.RunResult{}, ctx.Err()
