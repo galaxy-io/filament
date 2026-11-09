@@ -22,6 +22,7 @@ import {
 } from "@/pages/observability/components/connections/constants";
 import ObservabilityConnectionRow from "@/pages/observability/components/connections/ObservabilityConnectionRow";
 import { createObservabilityConnectionStats } from "@/pages/observability/components/connections/utils";
+import ObservabilityWidgetEmpty from "@/pages/observability/components/ObservabilityWidgetEmpty";
 import { useObservabilityPipelines } from "@/pages/observability/hooks/useObservabilityPipelines";
 
 import { createFilamentHref } from "@/module/paths";
@@ -59,17 +60,24 @@ const ObservabilityConnectionsWidget: FC<ObservabilityConnectionsWidgetProps> = 
       }
     >
       <FlexItem grow={1} basis={0} minHeight={0}>
-        <ScrollArea>
-          <Box variant={BoxVariant.PRIMARY} fillWidth>
-            {data.connections.map((connection) => (
-              <ObservabilityConnectionRow
-                key={connection.id}
-                connection={connection}
-                stats={stats.get(connection.id)}
-              />
-            ))}
-          </Box>
-        </ScrollArea>
+        {data.connections.length === 0 ? (
+          <ObservabilityWidgetEmpty
+            icon={OBSERVABILITY_CONNECTOR_KIND_TO_ICON_MAP[kind]}
+            header={`No ${CONNECTOR_KIND_TO_PLURAL_LABEL_MAP[kind].toLowerCase()}`}
+          />
+        ) : (
+          <ScrollArea>
+            <Box variant={BoxVariant.PRIMARY} fillWidth>
+              {data.connections.map((connection) => (
+                <ObservabilityConnectionRow
+                  key={connection.id}
+                  connection={connection}
+                  stats={stats.get(connection.id)}
+                />
+              ))}
+            </Box>
+          </ScrollArea>
+        )}
       </FlexItem>
     </Widget>
   );

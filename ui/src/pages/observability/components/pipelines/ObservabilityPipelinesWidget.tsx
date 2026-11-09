@@ -11,6 +11,7 @@ import {
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Box from "@galaxy-io/dls/layout/Box";
 import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 import Widget from "@galaxy-io/dls/widget/Widget";
@@ -20,6 +21,7 @@ import { Metric, MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import RouterLink from "@/components/RouterLink";
 
+import ObservabilityWidgetEmpty from "@/pages/observability/components/ObservabilityWidgetEmpty";
 import {
   OBSERVABILITY_PIPELINES_COLUMNS_NAME_AND_TRACK,
   OBSERVABILITY_PIPELINES_COLUMNS_NO_LAST_RUN,
@@ -159,54 +161,60 @@ const ObservabilityPipelinesWidget: FC = () => {
         />
       }
     >
-      <ObservabilityPipelinesFrame
-        $trackWidth={getObservabilityPipelinesTrackWidth(getObservabilityBucketCount(timeframe))}
-      >
-        <ObservabilityPipelinesHeader />
-        <Box minHeight={hasPages ? OBSERVABILITY_PIPELINES_PAGE_MIN_HEIGHT : undefined}>
-          {rows.map(({ pipeline, health, cells }) => (
-            <ObservabilityPipelinesRow
-              key={pipeline.id}
-              pipeline={pipeline}
-              health={health}
-              cells={cells}
-            />
-          ))}
-        </Box>
-        {hasPages && (
-          <Flex
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.SPACE_BETWEEN}
-            gap={8}
-            height={OBSERVABILITY_PIPELINES_FOOTER_HEIGHT}
-            padding={[0, 12]}
-          >
-            <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
-              {`${pageStart + 1}–${pageStart + rows.length} of ${entries.length}`}
-            </Text>
-            <Flex gap={4}>
-              <Button
-                icon={CaretLeftIcon}
-                size={ButtonSize.SMALL}
-                variant={ButtonVariant.TERTIARY}
-                ariaLabel="Previous page"
-                tooltip="Previous page"
-                isDisabled={page === OBSERVABILITY_DEFAULT_PIPELINES_PAGE}
-                onClick={handlePreviousPage}
+      {entries.length === 0 ? (
+        <FlexItem grow={1} minHeight={0}>
+          <ObservabilityWidgetEmpty icon={FlowArrowIcon} header="No pipelines" />
+        </FlexItem>
+      ) : (
+        <ObservabilityPipelinesFrame
+          $trackWidth={getObservabilityPipelinesTrackWidth(getObservabilityBucketCount(timeframe))}
+        >
+          <ObservabilityPipelinesHeader />
+          <Box minHeight={hasPages ? OBSERVABILITY_PIPELINES_PAGE_MIN_HEIGHT : undefined}>
+            {rows.map(({ pipeline, health, cells }) => (
+              <ObservabilityPipelinesRow
+                key={pipeline.id}
+                pipeline={pipeline}
+                health={health}
+                cells={cells}
               />
-              <Button
-                icon={CaretRightIcon}
-                size={ButtonSize.SMALL}
-                variant={ButtonVariant.TERTIARY}
-                ariaLabel="Next page"
-                tooltip="Next page"
-                isDisabled={page === pageCount}
-                onClick={handleNextPage}
-              />
+            ))}
+          </Box>
+          {hasPages && (
+            <Flex
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.SPACE_BETWEEN}
+              gap={8}
+              height={OBSERVABILITY_PIPELINES_FOOTER_HEIGHT}
+              padding={[0, 12]}
+            >
+              <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY} lineClamp={1}>
+                {`${pageStart + 1}–${pageStart + rows.length} of ${entries.length}`}
+              </Text>
+              <Flex gap={4}>
+                <Button
+                  icon={CaretLeftIcon}
+                  size={ButtonSize.SMALL}
+                  variant={ButtonVariant.TERTIARY}
+                  ariaLabel="Previous page"
+                  tooltip="Previous page"
+                  isDisabled={page === OBSERVABILITY_DEFAULT_PIPELINES_PAGE}
+                  onClick={handlePreviousPage}
+                />
+                <Button
+                  icon={CaretRightIcon}
+                  size={ButtonSize.SMALL}
+                  variant={ButtonVariant.TERTIARY}
+                  ariaLabel="Next page"
+                  tooltip="Next page"
+                  isDisabled={page === pageCount}
+                  onClick={handleNextPage}
+                />
+              </Flex>
             </Flex>
-          </Flex>
-        )}
-      </ObservabilityPipelinesFrame>
+          )}
+        </ObservabilityPipelinesFrame>
+      )}
     </Widget>
   );
 };

@@ -20,6 +20,7 @@ import PipelineName from "@/components/pipelines/PipelineName";
 import RouterLink from "@/components/RouterLink";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
 
+import ObservabilityWidgetEmpty from "@/pages/observability/components/ObservabilityWidgetEmpty";
 import { OBSERVABILITY_RUNS_SCHEDULED_INPUT } from "@/pages/observability/components/runs/constants";
 import { OBSERVABILITY_LIST_ROW_HEIGHT } from "@/pages/observability/constants";
 import { useObservabilityPipelines } from "@/pages/observability/hooks/useObservabilityPipelines";
@@ -70,15 +71,6 @@ const ObservabilityScheduledWidget: FC = () => {
         </Box>
       );
     }
-    if (runs.length === 0) {
-      return (
-        <Box padding={12}>
-          <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-            No scheduled runs
-          </Text>
-        </Box>
-      );
-    }
     return runs.map((run) => (
       <ObservabilityScheduledRow
         key={run.id}
@@ -102,11 +94,15 @@ const ObservabilityScheduledWidget: FC = () => {
   return (
     <Widget header="Scheduled" icon={CalendarIcon} isFlush gap={0}>
       <FlexItem grow={1} basis={0} minHeight={0}>
-        <ScrollArea>
-          <Box variant={BoxVariant.PRIMARY} fillWidth>
-            {renderRows()}
-          </Box>
-        </ScrollArea>
+        {!isLoading && runs.length === 0 ? (
+          <ObservabilityWidgetEmpty icon={CalendarIcon} header="No scheduled runs" />
+        ) : (
+          <ScrollArea>
+            <Box variant={BoxVariant.PRIMARY} fillWidth>
+              {renderRows()}
+            </Box>
+          </ScrollArea>
+        )}
       </FlexItem>
     </Widget>
   );

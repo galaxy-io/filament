@@ -95,6 +95,7 @@ export const useObservabilitySearch = () =>
 - No `PendingLayout` inside a dashboard. It would blank the whole card.
 - Gate loading UI on `isLoading`, which is false for a disabled query.
 - Table empty states are `EmptyLayout size={EmptyLayoutSize.SMALL}` with copy from `OBSERVABILITY_RUNS_EMPTY_STATE_TEXT_MAP[view]`. Charts get `[]` and draw empty axes.
+- The block's widgets show `ObservabilityWidgetEmpty` when they have nothing to list: a small `EmptyLayout` with a header only and the widget's icon in a 20px tile (`OBSERVABILITY_EMPTY_TILE_SIZE`) passed as `graphic`, smaller than the DLS 24px tile. The run wall shows "No pipelines" in place of its header and rows, Scheduled "No scheduled runs" once its query has loaded, and Sources and Sinks "No sources" and "No sinks". The empty state sits outside the `ScrollArea`.
 
 ## Charts
 
