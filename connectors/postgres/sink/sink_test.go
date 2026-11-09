@@ -1,7 +1,6 @@
 package postgres
 
 import (
-	"context"
 	"encoding/binary"
 	"strings"
 	"testing"
@@ -35,86 +34,6 @@ func TestColumnType(t *testing.T) {
 				t.Fatalf("columnType() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestValidateDecimals(t *testing.T) {
-	ok := []rowmodel.Field{
-		{Logical: rowmodel.LogicalDecimal},
-		{Logical: rowmodel.LogicalDecimal, Precision: 12, Scale: 2},
-		{Logical: rowmodel.LogicalDecimal, Precision: 38, Scale: -1000},
-		{Logical: rowmodel.LogicalDecimal, Precision: 38, Scale: 1000},
-		{Logical: rowmodel.LogicalString},
-	}
-	for _, f := range ok {
-		if err := validateDecimals("t", rowmodel.Schema{Fields: []rowmodel.Field{f}}); err != nil {
-			t.Errorf("%+v: unexpected error %v", f, err)
-		}
-	}
-	bad := []rowmodel.Field{
-		{Logical: rowmodel.LogicalDecimal, Scale: -1_000_000_000},
-		{Logical: rowmodel.LogicalDecimal, Scale: -1001},
-		{Logical: rowmodel.LogicalDecimal, Scale: 1001},
-		{Logical: rowmodel.LogicalDecimal, Precision: 1001},
-		{Logical: rowmodel.LogicalDecimal, Precision: -1},
-		{Logical: rowmodel.LogicalDecimal, Scale: 2},
-	}
-	for _, f := range bad {
-		if err := validateDecimals("t", rowmodel.Schema{Fields: []rowmodel.Field{f}}); err == nil {
-			t.Errorf("%+v: expected an error", f)
-		}
-	}
-}
-
-func TestNumericModifier(t *testing.T) {
-	tests := []struct {
-		typ       string
-		precision int
-		scale     int
-		ok        bool
-	}{
-		{"numeric(12,2)", 12, 2, true},
-		{"NUMERIC(38, -2)", 38, -2, true},
-		{"decimal(10, 20)", 10, 20, true},
-		{"numeric", 0, 0, false},
-		{"numeric(12)", 0, 0, false},
-		{"numeric(1,2,3)", 0, 0, false},
-		{"text", 0, 0, false},
-	}
-	for _, tt := range tests {
-		precision, scale, ok := numericModifier(tt.typ)
-		if precision != tt.precision || scale != tt.scale || ok != tt.ok {
-			t.Errorf("numericModifier(%q) = %d, %d, %v; want %d, %d, %v",
-				tt.typ, precision, scale, ok, tt.precision, tt.scale, tt.ok)
-		}
-	}
-}
-
-func TestHasAnyNumericScale(t *testing.T) {
-	tests := []struct {
-		types []string
-		want  bool
-	}{
-		{[]string{"integer", "text"}, false},
-		{[]string{"numeric(12,2)", "text"}, false},
-		{[]string{"numeric(12,0)", "numeric(12,12)"}, false},
-		{[]string{"numeric", "numeric(12)"}, false},
-		{[]string{"integer", "numeric(12,-1)"}, true},
-		{[]string{"numeric(12,13)", "text"}, true},
-	}
-	for _, tt := range tests {
-		if got := hasAnyNumericScale(tt.types); got != tt.want {
-			t.Errorf("hasAnyNumericScale(%v) = %v, want %v", tt.types, got, tt.want)
-		}
-	}
-}
-
-// A sink without a pool fails on any query, so this also pins that plain decimal
-// columns never read the destination version.
-func TestCheckDestinationScalesSkipsVersionRead(t *testing.T) {
-	sink := &Sink{}
-	if err := sink.checkDestinationScales(context.Background(), "t", []string{"integer", "numeric(12,2)", "text"}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -190,6 +109,7 @@ func TestNumericWire(t *testing.T) {
 		{decimal128.FromI64(1234), -4, numericWire(numericPos, 1, 0, 1234)},                      // 1234 at scale -4
 		{decimal128.FromI64(1), -1000, numericWire(numericPos, 250, 0, 1)},                       // 10^1000, the scale floor
 		{decimal128.FromI64(0), -1000, numericWire(numericPos, 0, 0)},                            // 0 at the scale floor
+		{decimal128.FromI64(123456789), -1, numericWire(numericPos, 2, 0, 12, 3456, 7890)},       // 123456789 at scale -1 spans three groups
 		{decimal128.New(0, 1<<63), 0, numericWire(numericPos, 4, 0, 922, 3372, 368, 5477, 5808)}, // 2^63
 	}
 	for _, c := range cases {

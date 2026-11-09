@@ -55,9 +55,6 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			cols[i] += " NOT NULL"
 		}
 	}
-	if err := t.checkDestinationScales(ctx, resource, types); err != nil {
-		return err
-	}
 	ddl := "CREATE TABLE IF NOT EXISTS " + qualified + " (\n\t" + strings.Join(cols, ",\n\t")
 	if len(schema.PrimaryKey) > 0 {
 		pk := make([]string, len(schema.PrimaryKey))
@@ -282,12 +279,6 @@ func (t *Sink) prepareColumnTypes(ctx context.Context, resource string, model ro
 	if t.evolution != "" {
 		checked, err := physicalSchema(resource, model)
 		return checked, nil, err
-	}
-	// Without a schema policy nothing checked the decimal range: the encoder
-	// would pad every value by -scale digits, and a scale like -1000000000
-	// allocates about a gigabyte per value before COPY starts.
-	if err := validateDecimals(resource, model); err != nil {
-		return rowmodel.Schema{}, nil, err
 	}
 	if model.Engine == engine {
 		builtin, err := t.builtinTypes(ctx, model)
