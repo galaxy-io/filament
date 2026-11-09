@@ -20,18 +20,19 @@ import (
 // capabilities are omitted; the worker contract carries those.
 func SourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
-		Name:         spec.Name,
-		DisplayName:  spec.DisplayName,
-		Description:  spec.Description,
-		DarkLogoUrl:  spec.DarkLogoURL,
-		LightLogoUrl: spec.LightLogoURL,
-		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-		Version:      spec.Version,
-		ApiVersion:   spec.APIVersion,
-		AliasTarget:  spec.AliasTarget,
-		IsPreview:    spec.IsPreview,
-		Modes:        ReplicationModesToProto(spec.Modes),
-		ConfigSchema: ConfigSchemaToProto(spec.Config),
+		Name:            spec.Name,
+		DisplayName:     spec.DisplayName,
+		Description:     spec.Description,
+		DarkLogoUrl:     spec.DarkLogoURL,
+		LightLogoUrl:    spec.LightLogoURL,
+		Kind:            ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+		Version:         spec.Version,
+		ApiVersion:      spec.APIVersion,
+		AliasTarget:     spec.AliasTarget,
+		IsPreview:       spec.IsPreview,
+		Modes:           ReplicationModesToProto(spec.Modes),
+		ConfigSchema:    ConfigSchemaToProto(spec.Config),
+		WebhookVerifier: spec.WebhookVerifier,
 	}
 }
 
@@ -42,16 +43,17 @@ func sourceSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.ConnectorSpe
 		return filament.ConnectorSpec{}, err
 	}
 	return filament.ConnectorSpec{
-		Name:         spec.GetName(),
-		DisplayName:  spec.GetDisplayName(),
-		Description:  spec.GetDescription(),
-		DarkLogoURL:  spec.GetDarkLogoUrl(),
-		LightLogoURL: spec.GetLightLogoUrl(),
-		Version:      spec.GetVersion(),
-		APIVersion:   spec.GetApiVersion(),
-		AliasTarget:  spec.GetAliasTarget(),
-		IsPreview:    spec.GetIsPreview(),
-		Config:       config,
+		Name:            spec.GetName(),
+		DisplayName:     spec.GetDisplayName(),
+		Description:     spec.GetDescription(),
+		DarkLogoURL:     spec.GetDarkLogoUrl(),
+		LightLogoURL:    spec.GetLightLogoUrl(),
+		Version:         spec.GetVersion(),
+		APIVersion:      spec.GetApiVersion(),
+		AliasTarget:     spec.GetAliasTarget(),
+		IsPreview:       spec.GetIsPreview(),
+		Config:          config,
+		WebhookVerifier: spec.GetWebhookVerifier(),
 	}, nil
 }
 

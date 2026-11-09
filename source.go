@@ -319,6 +319,9 @@ type ConnectorSpec struct {
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema
 	Resources      ResourceCapabilities
+	// WebhookVerifier names the webhook verifier that authenticates this
+	// source's deliveries. A source that sets it can own a webhook endpoint.
+	WebhookVerifier string
 }
 
 // ConfigSchema declares the fields a connector's Config accepts.
