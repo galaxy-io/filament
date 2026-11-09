@@ -12,7 +12,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
@@ -25,9 +24,8 @@ import (
 )
 
 type cliApp struct {
-	sources        filament.SourceRegistry
 	stdin          io.Reader
-	stopEmbedded   func()
+	stopEngine     func()
 	stdout         io.Writer
 	stderr         io.Writer
 	configPath     string
@@ -43,8 +41,8 @@ type cliApp struct {
 
 func (a *cliApp) run(ctx context.Context, args []string) error {
 	defer func() {
-		if a.stopEmbedded != nil {
-			a.stopEmbedded()
+		if a.stopEngine != nil {
+			a.stopEngine()
 		}
 	}()
 	saved, err := settings.Load(a.settingsPath())
@@ -62,6 +60,9 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	args, err = a.extractGlobalFlags(args)
 	if err != nil {
 		return err
+	}
+	if a.catalog.Sources == nil {
+		a.catalog = a.loadCatalog()
 	}
 	if err := a.printBanner(args); err != nil {
 		return err
@@ -139,18 +140,21 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		a.service = cliapp.NewService(remotetarget.NewTarget(options))
 	} else {
 		a.configPath = selected.Target.ConfigPath
-		local, err := a.serveLocal(ctx, "127.0.0.1:0")
+		target, stop, err := a.openLocal(ctx)
 		if err != nil {
 			return err
 		}
-		a.stopEmbedded = func() { _ = local.stop() }
-		a.service = cliapp.NewService(local.target)
+		a.stopEngine = stop
+		a.service = cliapp.NewService(target)
 	}
 	catalog, err := a.service.Catalog(ctx)
 	if err != nil {
 		return err
 	}
 	a.catalog = catalog
+	if selected.Target.Kind == contexts.KindLocal {
+		a.saveCatalog(catalog)
+	}
 	return nil
 }
 

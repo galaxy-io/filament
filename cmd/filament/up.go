@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -15,9 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
-	"github.com/galaxy-io/filament/ui"
 )
 
 func (a *cliApp) upCommand() *cobra.Command {
@@ -25,7 +21,7 @@ func (a *cliApp) upCommand() *cobra.Command {
 	var detach bool
 	cmd := &cobra.Command{
 		Use:   "up",
-		Short: "Run the local deployment and web UI",
+		Short: "Run the local engine and web UI",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			selected, err := a.selectContext()
@@ -36,10 +32,7 @@ func (a *cliApp) upCommand() *cobra.Command {
 				return fmt.Errorf("context %s is remote; up serves local contexts", selected.Name)
 			}
 			a.configPath = selected.Target.ConfigPath
-			if detach {
-				return a.upDetached(addr)
-			}
-			return a.up(cmd.Context(), addr)
+			return a.up(cmd.Context(), addr, detach)
 		},
 	}
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:8080", "Serve the UI and API on `ADDR`")
@@ -50,7 +43,7 @@ func (a *cliApp) upCommand() *cobra.Command {
 func (a *cliApp) downCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "down",
-		Short: "Stop the detached local deployment",
+		Short: "Stop the local engine started by up",
 		Args:  cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
 			return a.down()
@@ -58,32 +51,57 @@ func (a *cliApp) downCommand() *cobra.Command {
 	}
 }
 
-// up serves the same deployment every local command boots, on a stable
-// address with the web UI, until interrupted. The document is applied once
-// on boot; the database is the state from then on.
-func (a *cliApp) up(ctx context.Context, addr string) error {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-	unlock, err := a.lockLocalRuns()
+// up runs the local engine with the web UI on a stable address until
+// interrupted, recording it so other local commands attach instead of
+// starting their own. The document is applied once on start; the engine's
+// store is the state from then on.
+func (a *cliApp) up(ctx context.Context, addr string, detach bool) error {
+	if state, running := a.readUpState(); running {
+		return fmt.Errorf("already running (pid %d) on http://%s; stop it with filament down", state.PID, state.Addr)
+	}
+	local, err := a.engine(ctx)
 	if err != nil {
 		return err
 	}
-	defer unlock()
-	if err := a.recoverLocalRuns(ctx); err != nil {
-		return err
-	}
-	local, err := a.serveLocal(ctx, addr, app.WithUI(ui.Handler()))
+	process, err := local.Start(ctx, addr, detach)
 	if err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(a.stdout, "filament up\n  ui:     %s\n  api:    %s\n  config: %s\n  state:  %s\nCtrl-C to stop.\n", local.endpoint, local.endpoint, a.configPath, a.dbPath()); err != nil {
-		return errors.Join(err, local.stop())
+	stop := func() error {
+		if detach {
+			return syscall.Kill(process.PID, syscall.SIGTERM)
+		}
+		return process.Stop()
 	}
-	return local.wait()
+	if _, err := a.applyLocal(ctx, local, process.Endpoint); err != nil {
+		return errors.Join(err, stop())
+	}
+	if err := a.writeUpState(upState{PID: process.PID, Addr: addr, Config: a.configPath}); err != nil {
+		return errors.Join(err, stop())
+	}
+	mode := "Ctrl-C to stop."
+	if detach {
+		mode = "Stop with filament down."
+	}
+	if _, err := fmt.Fprintf(a.stdout, "filament up (pid %d)\n  ui:     %s\n  api:    %s\n  config: %s\n  state:  %s\n  log:    %s\n%s\n",
+		process.PID, process.Endpoint, process.Endpoint, a.configPath, a.dbPath(), local.LogPath(), mode); err != nil || detach {
+		return err
+	}
+	defer func() { _ = os.Remove(a.upStatePath()) }()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+	exited := make(chan error, 1)
+	go func() { exited <- process.Wait() }()
+	select {
+	case err := <-exited:
+		return err
+	case <-ctx.Done():
+		return process.Stop()
+	}
 }
 
-// upState records the detached deployment so down and status can find it.
-// One detached deployment per state directory.
+// upState records the running engine so other commands, down, and status
+// can find it. One engine per state directory.
 type upState struct {
 	PID    int    `json:"pid"`
 	Addr   string `json:"addr"`
@@ -91,54 +109,13 @@ type upState struct {
 }
 
 func (a *cliApp) upStatePath() string { return filepath.Join(a.stateDir(), "up.json") }
-func (a *cliApp) upLogPath() string   { return filepath.Join(a.stateDir(), "up.log") }
 
-// upDetached re-executes this binary as a session-leader child running up in
-// the foreground, waits for it to answer, and records it for down.
-func (a *cliApp) upDetached(addr string) error {
-	if state, running := a.readUpState(); running {
-		return fmt.Errorf("already running (pid %d) on http://%s; stop it with filament down", state.PID, state.Addr)
-	}
-	executable, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(a.stateDir(), 0o700); err != nil {
-		return err
-	}
-	logFile, err := os.OpenFile(a.upLogPath(), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = logFile.Close() }()
-	// #nosec G204 -- deliberately re-executes this same binary in the background
-	child := exec.Command(executable, "up", "--addr", addr, "--config", a.configPath)
-	child.Stdout = logFile
-	child.Stderr = logFile
-	child.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := child.Start(); err != nil {
-		return err
-	}
-	state := upState{PID: child.Process.Pid, Addr: addr, Config: a.configPath}
-	if err := a.writeUpState(state); err != nil {
-		_ = child.Process.Signal(syscall.SIGTERM)
-		return err
-	}
-	if err := awaitUp("http://"+addr, child.Process.Pid); err != nil {
-		_ = os.Remove(a.upStatePath())
-		return fmt.Errorf("%w; see %s", err, a.upLogPath())
-	}
-	_, err = fmt.Fprintf(a.stdout, "filament up (detached, pid %d)\n  ui:     http://%s\n  api:    http://%s\n  config: %s\n  log:    %s\nStop with filament down.\n",
-		state.PID, addr, addr, a.configPath, a.upLogPath())
-	return err
-}
-
-// down stops the detached deployment recorded by up -d.
+// down stops the engine recorded by up.
 func (a *cliApp) down() error {
 	state, running := a.readUpState()
 	if !running {
 		_ = os.Remove(a.upStatePath())
-		return errors.New("no detached deployment is running; start one with filament up -d")
+		return errors.New("no local engine is running; start one with filament up -d")
 	}
 	if err := syscall.Kill(state.PID, syscall.SIGTERM); err != nil {
 		return fmt.Errorf("stop pid %d: %w", state.PID, err)
@@ -177,35 +154,4 @@ func (a *cliApp) writeUpState(state upState) error {
 
 func processAlive(pid int) bool {
 	return syscall.Kill(pid, 0) == nil
-}
-
-// awaitUp polls the deployment until it answers, the child dies, or 15s pass.
-func awaitUp(endpoint string, pid int) error {
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		if !processAlive(pid) {
-			return errors.New("deployment exited during startup")
-		}
-		if answers(endpoint) {
-			return nil
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	return errors.New("deployment did not answer within 15s")
-}
-
-// answers reports whether the endpoint returns any HTTP response.
-func answers(endpoint string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
-	if err != nil {
-		return false
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return false
-	}
-	_ = response.Body.Close()
-	return true
 }

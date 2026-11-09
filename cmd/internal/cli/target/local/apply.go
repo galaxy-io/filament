@@ -88,7 +88,7 @@ func (t *Target) applyConnections(ctx context.Context, kind string, wanted map[s
 		if kind == "sink" {
 			schema = catalog.Sinks[desired.Type].Config
 		}
-		refs, err := t.secretRefs(ctx, kind, name, schema.Fields, desired.Config, "")
+		refs, err := environmentRefs(schema.Fields, desired.Config, "")
 		if err != nil {
 			return fmt.Errorf("%s %q: %w", kind, name, err)
 		}
@@ -141,11 +141,10 @@ func (t *Target) applyPipelines(ctx context.Context, wanted map[string]model.Pip
 	return nil
 }
 
-// secretRefs turns the document's secret values into deployment references:
-// env:NAME resolves through the deployment's environment provider, and a
-// plaintext value is stored under a reference owned by this entity. The
-// returned map is keyed by config path.
-func (t *Target) secretRefs(ctx context.Context, kind, name string, fields []filament.ConfigField, values map[string]any, parent string) (map[string]string, error) {
+// environmentRefs turns the document's env:NAME secret values into references
+// the engine resolves from its environment, keyed by config path. Plaintext
+// values stay in the config, and the engine stores them as it saves.
+func environmentRefs(fields []filament.ConfigField, values map[string]any, parent string) (map[string]string, error) {
 	refs := map[string]string{}
 	for _, field := range fields {
 		value, ok := values[field.Name]
@@ -157,7 +156,7 @@ func (t *Target) secretRefs(ctx context.Context, kind, name string, fields []fil
 			path = parent + "." + field.Name
 		}
 		if nested, ok := value.(map[string]any); ok && len(field.Fields) > 0 {
-			inner, err := t.secretRefs(ctx, kind, name, field.Fields, nested, path)
+			inner, err := environmentRefs(field.Fields, nested, path)
 			if err != nil {
 				return nil, err
 			}
@@ -173,13 +172,7 @@ func (t *Target) secretRefs(ctx context.Context, kind, name string, fields []fil
 		}
 		if envName, referenced := cliapp.EnvironmentReferenceName(text); referenced {
 			refs[path] = envName
-			continue
 		}
-		ref := "cli/" + kind + "/" + name + "/" + path
-		if err := t.secrets.Write(ctx, ref, filament.Secret{Tenant: filament.DefaultTenantID, Value: []byte(text)}); err != nil {
-			return nil, fmt.Errorf("store secret %q: %w", path, err)
-		}
-		refs[path] = ref
 	}
 	if len(refs) == 0 {
 		return nil, nil

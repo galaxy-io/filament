@@ -9,6 +9,7 @@ import (
 
 	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
+	"github.com/galaxy-io/filament/cmd/internal/cli/engine"
 )
 
 func (a *cliApp) statusCommand() *cobra.Command {
@@ -30,7 +31,7 @@ func (a *cliApp) status() error {
 	rows := [][2]string{{"Context", current.Name}, {"Kind", string(current.Target.Kind)}}
 	if current.Target.Kind == contexts.KindRemote {
 		reachable := "no"
-		if answers(current.Target.Endpoint) {
+		if engine.Answers(current.Target.Endpoint) {
 			reachable = "yes"
 		}
 		rows = append(rows,
@@ -44,7 +45,7 @@ func (a *cliApp) status() error {
 			rows = append(rows,
 				[2]string{"Deployment", fmt.Sprintf("running (pid %d)", state.PID)},
 				[2]string{"UI", "http://" + state.Addr},
-				[2]string{"Log", a.upLogPath()},
+				[2]string{"Log", engine.Engine{StateDir: a.stateDir()}.LogPath()},
 			)
 		} else {
 			rows = append(rows, [2]string{"Deployment", "per command; keep one running with filament up"})
