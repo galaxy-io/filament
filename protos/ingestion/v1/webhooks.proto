@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+// WebhookEndpointConfig is tenant-owned receiver configuration. Signing keys
+// are never returned by a read operation.
+message WebhookEndpointConfig {
+  string source_connection_id = 1;
+  string pipeline_id = 2;
+  string route_key = 3;
+  // Resource names accepted at /hooks/<source_connection_id>/<resource>. The
+  // bound pipeline decides where each one is written.
+  repeated string resources = 4;
+  bool enabled = 5;
+  int64 revision = 6;
+  int32 success_status = 7;
+  int64 max_body_bytes = 8;
+  bool has_signing_secret = 9;
+  bool route_ready = 10;
+  // Verifier that authenticates deliveries, set from the source connector.
+  string verifier = 11;
+  // Unix milliseconds until which the replaced signing key still verifies.
+  // Zero when no replaced key is active.
+  int64 previous_key_expires_at = 12;
+  // Whether a pipeline that reads this source is running or paused. While
+  // false, new deliveries get 503 so senders retry until a pipeline starts.
+  bool accepting = 13;
+  // Absolute URL deliveries go to, without the resource:
+  // <public base URL>/hooks/<source_connection_id>. Empty when the server has
+  // no public base URL configured.
+  string delivery_url = 14;
+}
+
+message PutWebhookEndpointRequest {
+  WebhookEndpointConfig endpoint = 1;
+  // Zero creates an endpoint. Updates must send the last observed revision.
+  int64 expected_revision = 2;
+  // Supply an imported provider key or ask Filament to mint one. Omit both on
+  // update to keep the current key. A newly supplied key replaces the old one,
+  // which keeps verifying for 72 hours so senders can switch over.
+  string imported_secret = 3;
+  bool mint_secret = 4;
+}
+
+message PutWebhookEndpointResponse {
+  WebhookEndpointConfig endpoint = 1;
+  // Returned only for a newly minted key. Store it for sender setup now.
+  string minted_secret = 2;
+}
+
+message GetWebhookEndpointRequest { string source_connection_id = 1; }
+message GetWebhookEndpointResponse { WebhookEndpointConfig endpoint = 1; }
