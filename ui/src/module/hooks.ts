@@ -11,6 +11,7 @@ import {
 
 import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
 import {
+  OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
   OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
   OBSERVABILITY_DEFAULT_RUNS_VIEW,
   OBSERVABILITY_DEFAULT_TIMEFRAME,
@@ -129,6 +130,7 @@ export const useObservabilitySearch = () =>
         timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
         refreshInterval: parsed.refreshInterval ?? OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
         runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
+        pipelinesPage: parsed.pipelinesPage ?? OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
         statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
       };
     },

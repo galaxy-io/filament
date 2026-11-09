@@ -1,3 +1,4 @@
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 export enum ObservabilityTimeframe {
@@ -19,17 +20,18 @@ export enum ObservabilityRunsView {
   UPCOMING = "UPCOMING",
 }
 
-export enum ObservabilityThroughputView {
-  RECORDS = "RECORDS",
-  VOLUME = "VOLUME",
-}
-
-export enum ObservabilityUsageView {
-  CPU = "CPU",
-  MEMORY = "MEMORY",
-}
-
 export interface ObservabilityTimeframeQuery {
   durationMs: number;
   granularity: MetricGranularity;
+}
+
+export enum ObservabilityPipelineHealth {
+  RUNNING = "RUNNING",
+  FAILING = "FAILING",
+  HEALTHY = "HEALTHY",
+}
+
+export interface ObservabilityPipelineEntry {
+  pipeline: Pipeline;
+  health: ObservabilityPipelineHealth;
 }

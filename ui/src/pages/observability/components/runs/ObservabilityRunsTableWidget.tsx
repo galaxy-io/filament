@@ -7,6 +7,7 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP } from "@/pages/observability/components/runs/constants";
 import ObservabilityRunsPastTable from "@/pages/observability/components/runs/ObservabilityRunsPastTable";
+import ObservabilityRunsTableActions from "@/pages/observability/components/runs/ObservabilityRunsTableActions";
 import ObservabilityRunsUpcomingTable from "@/pages/observability/components/runs/ObservabilityRunsUpcomingTable";
 import { ObservabilityRunsView } from "@/pages/observability/types";
 
@@ -30,6 +31,7 @@ const ObservabilityRunsTableWidget: FC = () => {
       gap={0}
       header={OBSERVABILITY_RUNS_VIEW_TO_TABLE_HEADER_MAP[view]}
       icon={ListIcon}
+      actions={<ObservabilityRunsTableActions />}
     >
       {view === ObservabilityRunsView.PAST ? (
         <ObservabilityRunsPastTable />

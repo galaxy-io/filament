@@ -3,14 +3,11 @@ import z from "zod";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
-import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
 
 import {
   ObservabilityRefreshInterval,
   ObservabilityRunsView,
-  ObservabilityThroughputView,
   ObservabilityTimeframe,
-  ObservabilityUsageView,
 } from "@/pages/observability/types";
 import { PipelineCanvasView } from "@/pages/pipelines/canvas/types";
 import { SettingsTeamView } from "@/pages/settings/types";
@@ -47,13 +44,8 @@ export const observabilitySearchSchema = z.object({
   timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
   refreshInterval: z.enum(ObservabilityRefreshInterval).optional().catch(undefined),
   runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
-  throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
-  throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
-  usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
-  usagePivot: z.enum(MetricDimension).optional().catch(undefined),
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-  runsStatus: z.enum(RunStatus).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 export type ObservabilitySearch = z.infer<typeof observabilitySearchSchema>;

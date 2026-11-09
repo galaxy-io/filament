@@ -1,10 +1,13 @@
 import { create } from "@bufbuild/protobuf";
 import { match } from "ts-pattern";
 
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
+import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import {
   type Metric,
-  type MetricDimension,
+  MetricDimension,
   type MetricFilter,
+  MetricFilterSchema,
   MetricGranularity,
   type QueryTimeseriesRequest,
   QueryTimeseriesRequestSchema,
@@ -19,7 +22,12 @@ import {
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
   OBSERVABILITY_WHEEL_LINE_PX,
 } from "@/pages/observability/constants";
-import type { ObservabilityTimeframe } from "@/pages/observability/types";
+import {
+  ObservabilityPipelineHealth,
+  type ObservabilityTimeframe,
+} from "@/pages/observability/types";
+
+import { isRunActive } from "@/utils/runs";
 
 export const formatBucketKey = (bucketStartMs: TimeseriesPoint["bucketStartMs"]) =>
   bucketStartMs.toString();
@@ -85,3 +93,20 @@ export const getObservabilityWheelDeltaPx = (event: WheelEvent, pageHeight: numb
     .with(WheelEvent.DOM_DELTA_LINE, () => event.deltaY * OBSERVABILITY_WHEEL_LINE_PX)
     .with(WheelEvent.DOM_DELTA_PAGE, () => event.deltaY * pageHeight)
     .otherwise(() => event.deltaY);
+
+export const createObservabilityStatusFilter = (statuses: RunStatus[]) =>
+  create(MetricFilterSchema, {
+    dimension: MetricDimension.STATUS,
+    values: statuses.map(String),
+  });
+
+export const getObservabilityPipelineHealth = (pipeline: Pipeline): ObservabilityPipelineHealth => {
+  const { lastRun } = pipeline;
+  if (lastRun && isRunActive(lastRun)) {
+    return ObservabilityPipelineHealth.RUNNING;
+  }
+  if (lastRun?.status === RunStatus.FAILED) {
+    return ObservabilityPipelineHealth.FAILING;
+  }
+  return ObservabilityPipelineHealth.HEALTHY;
+};

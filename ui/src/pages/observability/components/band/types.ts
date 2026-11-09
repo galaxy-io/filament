@@ -1,0 +1,1 @@
+export type ObservabilityBandRunsMetric = "runs";
