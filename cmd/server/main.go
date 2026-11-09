@@ -99,7 +99,10 @@ func run(ctx context.Context, migrateOnly bool) error {
 	)
 	healthState.Mount(mux)
 	mux.Handle("/version", version.Handler())
-	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Addr: addr, Handler: otelhttp.NewHandler(mux, "server"),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 	started := false
@@ -126,6 +129,14 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
+	webhooks, closeWebhooks, err := webhooksFromEnv(ctx, deps.Store, deps.Secrets, deps.Metrics)
+	if err != nil {
+		return err
+	}
+	if webhooks != nil {
+		defer closeWebhooks()
+		apiOpts = append(apiOpts, webhooks.apiOption())
+	}
 	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
@@ -134,6 +145,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
 	api.Mount(mux)
+	if webhooks != nil {
+		webhooks.receiver.Mount(mux)
+	}
 	mux.Handle("/", ui.Handler())
 	healthState.MarkStarted()
 	started = true

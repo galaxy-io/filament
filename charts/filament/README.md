@@ -114,6 +114,12 @@ encryption to protect resolved connection credentials in transit.
 | server.service.type | string | `"ClusterIP"` | Service type. |
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
+| server.webhooks.enabled | bool | `false` | Enable signed webhook ingestion on the server. |
+| server.webhooks.maxBytes | int | `1073741824` | Durable JetStream inbox capacity in bytes. |
+| server.webhooks.maxInFlight | int | `64` | Maximum concurrent webhook requests per server replica. |
+| server.webhooks.maxMessageBytes | int | `2097152` | Largest stored webhook message in bytes, including its envelope. |
+| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set. |
+| server.webhooks.replicas | int | `1` | JetStream replicas for the webhook inbox. |
 
 ## Control plane parameters
 

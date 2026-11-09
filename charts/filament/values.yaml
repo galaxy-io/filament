@@ -24,6 +24,19 @@ podLabels: {}
 existingSecret: ""
 
 server:
+  webhooks:
+    # -- Enable signed webhook ingestion on the server.
+    enabled: false
+    # -- Maximum concurrent webhook requests per server replica.
+    maxInFlight: 64
+    # -- Durable JetStream inbox capacity in bytes.
+    maxBytes: 1073741824
+    # -- Largest stored webhook message in bytes, including its envelope.
+    maxMessageBytes: 2097152
+    # -- JetStream replicas for the webhook inbox.
+    replicas: 1
+    # -- Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set.
+    publicBaseURL: ""
   # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 
@@ -437,6 +450,9 @@ nats:
         pvc:
           # -- PVC size for the vendored NATS JetStream file store.
           size: 10Gi
+    merge:
+      # -- Largest NATS message in bytes. Must be at least `server.webhooks.maxMessageBytes`.
+      max_payload: 2097152
   container:
     # -- Merged into the vendored NATS container spec. Sets resources so the
     # pod is not BestEffort QoS (first evicted under node pressure); the

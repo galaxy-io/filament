@@ -28,6 +28,11 @@ server mode="": migrate
       NATS_URL="${NATS_URL:-nats://localhost:4222}" \
       NATS_STREAM="${NATS_STREAM:-EVENTBUS}" \
       NATS_SUBJECTS="${NATS_SUBJECTS:-ingestion.v1.>}" \
+      WEBHOOKS_ENABLED="${WEBHOOKS_ENABLED:-true}" \
+      WEBHOOK_INBOX_MAX_BYTES="${WEBHOOK_INBOX_MAX_BYTES:-1073741824}" \
+      WEBHOOK_INBOX_MAX_MESSAGE_BYTES="${WEBHOOK_INBOX_MAX_MESSAGE_BYTES:-2097152}" \
+      WEBHOOK_INBOX_REPLICAS="${WEBHOOK_INBOX_REPLICAS:-1}" \
+      WEBHOOK_PUBLIC_BASE_URL="${WEBHOOK_PUBLIC_BASE_URL:-http://localhost:8080}" \
       ENCRYPTION_KEY="${ENCRYPTION_KEY:-2y4Ou1wAxZ3tReU064W61mal5sXl/2ymtS022pbizws=}" \
       AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
       AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \

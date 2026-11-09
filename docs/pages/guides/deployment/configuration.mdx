@@ -148,6 +148,33 @@ Filament does not export logs through OTLP.
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
 | `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
 
+### Webhooks
+
+Webhooks require the shared PostgreSQL datastore and NATS JetStream.
+The server verifies signed deliveries and stores them in a dedicated inbox.
+Workers consume the inbox after acceptance.
+
+| Variable | Default | Description |
+|---|---|---|
+| `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path on the server |
+| `WEBHOOK_MAX_IN_FLIGHT` | `64` | Maximum concurrent deliveries per server replica. Excess requests return `503` with `Retry-After` |
+| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI then show full delivery URLs. Unset shows paths only |
+| `WEBHOOK_INBOX_MAX_BYTES` | — | Required inbox capacity in bytes when enabled |
+| `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required maximum stored message size in bytes when enabled |
+| `WEBHOOK_INBOX_REPLICAS` | — | Required JetStream replica count from 1 to 5 when enabled |
+
+The Helm chart sets these through `server.webhooks`. Its webhooks toggle is
+off by default. An endpoint's body limit may not exceed the inbox message limit
+minus 1 KiB reserved for delivery headers.
+
+The inbox message limit may not exceed the NATS server's `max_payload`, which
+defaults to 1 MiB. The server refuses to start otherwise. The bundled Compose
+file and the chart's vendored NATS raise it to 2 MiB to match the default
+limit. Set it on any other NATS deployment.
+
+Expose only the `/hooks/` path to webhook senders. Every other path on the
+server listener is the API and UI.
+
 ### Authentication
 
 | Variable | Default | Description |
