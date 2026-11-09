@@ -178,13 +178,13 @@ proto-lint:
 
 # Check generated protos
 [group('check')]
-    proto-check:
-        #!/usr/bin/env bash
-        set -euo pipefail
-        buf generate
-        git diff --exit-code -- api
-        untracked="$(git ls-files --others --exclude-standard -- api)"
-        if [ -n "$untracked" ]; then echo "untracked generated files:"; echo "$untracked"; exit 1; fi
+proto-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    buf generate
+    git diff --exit-code -- api
+    untracked="$(git ls-files --others --exclude-standard -- api)"
+    if [ -n "$untracked" ]; then echo "untracked generated files:"; echo "$untracked"; exit 1; fi
 
 # Format HTTP manifests
 [group('check')]
