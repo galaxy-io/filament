@@ -9,6 +9,7 @@ import "ingestion/v1/notifiers.proto";
 import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/runs.proto";
 import "ingestion/v1/transformations.proto";
+import "ingestion/v1/version.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
@@ -65,4 +66,7 @@ service IngestionService {
 
   // Live progress; server-streams a run's facts with optional snapshot replay.
   rpc TailRun(TailRunRequest) returns (stream TailRunResponse);
+
+  // The build version stamped into the server binary.
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
 }
