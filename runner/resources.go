@@ -21,6 +21,19 @@ func SelectColumns(src filament.Source, columns map[string][]string) error {
 	return selector.SelectColumns(columns)
 }
 
+// SelectPartitions hands a run's per-resource partition selection to the
+// source, failing a run whose source cannot honor it like SelectColumns.
+func SelectPartitions(src filament.Source, partitions map[string][]string) error {
+	if len(partitions) == 0 {
+		return nil
+	}
+	selector, ok := src.(filament.PartitionSelector)
+	if !ok {
+		return fmt.Errorf("source %q does not support partition selection", src.Spec().Name)
+	}
+	return selector.SelectPartitions(partitions)
+}
+
 // PlanResources resolves a run's requested resources to concrete source
 // resources. An empty request means "all" for discoverable sources. Sources
 // with private selector semantics can override this through ResourcePlanner.

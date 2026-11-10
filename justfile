@@ -127,15 +127,11 @@ ui-check:
 # regenerate code, build the UI, and compile every Go module
 build: gen ui-build (_each "GOWORK=off go build ./...")
 
-# build linux release binaries into bin/ (server, standalone, and filament embed ui/build; the worker -libc build is cgo, so it compiles in a linux container)
+# build linux release binaries into bin/ (server, standalone, and filament embed ui/build; the worker -libc binary is cgo and builds inside its Dockerfile)
 binaries: ui-build
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/server -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/server .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/control-plane -trimpath -ldflags="-s -w" -o ../../bin/filament/control-plane .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/worker -trimpath -ldflags="-s -w" -o ../../bin/filament/worker .
-    bash scripts/container.sh run --rm --platform "linux/$(go env GOARCH)" \
-      -v "{{ justfile_directory() }}:/src" -v "$(go env GOMODCACHE):/go/pkg/mod" -v filament-go-build:/root/.cache/go-build \
-      -w /src/cmd/worker -e GOWORK=off -e CGO_ENABLED=1 -e GOFLAGS=-buildvcs=false \
-      golang:1.26-trixie go build -trimpath -ldflags="-s -w" -o ../../bin/filament/worker-libc .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/standalone -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/standalone .
     GOWORK=off CGO_ENABLED=0 GOOS=linux go build -C cmd/filament -tags embedui -trimpath -ldflags="-s -w" -o ../../bin/filament/filament .
 

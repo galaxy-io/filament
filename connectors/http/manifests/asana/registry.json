@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "asana",
+  "default_version": "1.0",
+  "versions": {
+    "1.0": {
+      "is_preview": true
+    }
+  }
+}

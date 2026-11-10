@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "metronome",
+  "default_version": "v2",
+  "versions": {
+    "v2": {
+      "is_preview": true
+    }
+  }
+}

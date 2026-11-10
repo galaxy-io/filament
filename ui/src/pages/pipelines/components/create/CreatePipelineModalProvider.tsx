@@ -27,6 +27,7 @@ import {
   type SetNodeConfigAction,
   type SetResourceColumnsAction,
   type SetResourceCursorAction,
+  type SetResourcePartitionsAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
   type SetResourceWriteModeAction,
@@ -104,6 +105,8 @@ export const useCreatePipelineModalActions = () => {
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR, payload }),
       setResourceColumns: (payload: SetResourceColumnsAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_COLUMNS, payload }),
+      setResourcePartitions: (payload: SetResourcePartitionsAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS, payload }),
       setResourceWriteMode: (payload: SetResourceWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE, payload }),
       setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>

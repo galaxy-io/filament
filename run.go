@@ -39,6 +39,9 @@ type RunSpec struct {
 	// Columns narrows each resource to the listed source columns; an absent
 	// resource reads every column.
 	Columns map[string][]string
+	// Partitions narrows the partitions each resource backfills; an absent
+	// resource backfills every partition.
+	Partitions map[string][]string
 	// Resync names resources read from the beginning again by this run.
 	Resync    []string
 	Source    Ref
@@ -59,15 +62,15 @@ type RunSpec struct {
 }
 
 // ChangedResources lists the resources both specs select whose read shape
-// differs between them, by column selection or destination. Such a resource
-// has to be read from the beginning again under the new shape.
+// differs between them, by column or partition selection or destination.
+// Such a resource has to be read from the beginning again under the new shape.
 func (s RunSpec) ChangedResources(previous RunSpec) []string {
 	var changed []string
 	for _, resource := range s.Resources {
 		if !slices.Contains(previous.Resources, resource) {
 			continue
 		}
-		if !sameColumnSelection(s.Columns[resource], previous.Columns[resource]) || s.WritePolicies[resource].DestinationResource != previous.WritePolicies[resource].DestinationResource {
+		if !sameColumnSelection(s.Columns[resource], previous.Columns[resource]) || !sameColumnSelection(s.Partitions[resource], previous.Partitions[resource]) || s.WritePolicies[resource].DestinationResource != previous.WritePolicies[resource].DestinationResource {
 			changed = append(changed, resource)
 		}
 	}
@@ -119,6 +122,8 @@ type RunRequest struct {
 	CursorConfigs     map[string]ResourceCursorConfig
 	// Columns narrows each resource to the listed source columns.
 	Columns map[string][]string `json:",omitempty"`
+	// Partitions narrows the partitions each resource backfills.
+	Partitions map[string][]string `json:",omitempty"`
 	// Resync names resources whose durable progress is discarded before this
 	// run reads them, so each one is read from the beginning again.
 	Resync     []string `json:",omitempty"`
@@ -570,6 +575,17 @@ func WriteModesFor(read ReadMode) []WriteMode {
 	}
 }
 
+// DefaultWriteMode is the write mode an edge that names none resolves to:
+// upsert where the sink can upsert for read, append otherwise.
+func DefaultWriteMode(read ReadMode, sink SinkSpec) WriteMode {
+	for _, write := range []WriteMode{WriteUpsert, WriteAppend} {
+		if t, err := IngestionFor(read, write); err == nil && ValidateSinkIngestion(sink, t) == nil {
+			return write
+		}
+	}
+	return WriteUpsert
+}
+
 // String renders a read mode for messages and logs.
 func (m ReadMode) String() string {
 	switch m {
@@ -899,6 +915,7 @@ func (s RunState) ExecutionSpec() RunSpec {
 		ReplicationStream: r.ReplicationStream,
 		CursorConfigs:     r.CursorConfigs,
 		Columns:           r.Columns,
+		Partitions:        r.Partitions,
 		Resync:            r.Resync,
 		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,

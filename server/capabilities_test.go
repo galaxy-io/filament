@@ -101,6 +101,22 @@ func (leverSink) Apply(context.Context, *arrowbatch.Batch, filament.ApplyOptions
 	return filament.WriteReceipt{}, nil
 }
 
+// appendSink cannot upsert, like the object store sinks.
+type appendSink struct{ leverSink }
+
+func (appendSink) Spec() filament.SinkSpec {
+	return filament.SinkSpec{
+		Name: "appendsink",
+		Capabilities: filament.SinkCapabilities{
+			WritePolicies: filament.WriteCapabilities(
+				filament.IngestionFullAppend,
+				filament.IngestionFullReplace,
+				filament.IngestionCDCAppend,
+			),
+		},
+	}
+}
+
 // testCtx scopes a handler call to the default tenant the way the auth
 // interceptor would.
 func testCtx() context.Context {
@@ -116,6 +132,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 	sinks := registry.NewSinks()
 	sinks.Register("leversink", func() filament.Sink { return leverSink{} })
 	sinks.Register("strictsink", func() filament.Sink { return strictSink{} })
+	sinks.Register("appendsink", func() filament.Sink { return appendSink{} })
 	api := New(worker.Local(sources, sinks), sqlite.NewMemory(), nil, nil)
 
 	create := func(kind ingestionv1.ConnectorKind, name, connector string, config map[string]any) string {
@@ -140,6 +157,7 @@ func leverAPI(t *testing.T) (*Server, map[string]string) {
 		"standard": create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, "standard", "leversource", nil),
 		"cdc":      create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, "cdc", "leversource", map[string]any{"replication": "cdc"}),
 		"sink":     create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, "sink", "leversink", nil),
+		"append":   create(ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, "append", "appendsink", nil),
 	}
 }
 
@@ -306,6 +324,28 @@ func TestValidatePipelineLevers(t *testing.T) {
 	})
 }
 
+func TestValidatePipelineDefaultsToAppendWithoutUpsert(t *testing.T) {
+	api, ids := leverAPI(t)
+	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
+		Graph: &ingestionv1.PipelineGraph{
+			Nodes: []*ingestionv1.PipelineNode{
+				{Id: "src", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, ConnectionId: ids["standard"]},
+				{Id: "snk", Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SINK, ConnectionId: ids["append"]},
+			},
+			Edges: []*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders"}},
+		},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Msg.GetValid() {
+		t.Fatalf("valid = false: %v", resp.Msg)
+	}
+	if got := resp.Msg.GetEdges()[0].GetEffectiveWriteMode(); got != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+		t.Fatalf("effective write mode = %v, want append", got)
+	}
+}
+
 func TestValidatePipelineRejectsMixedCDCWriteModes(t *testing.T) {
 	api, ids := leverAPI(t)
 	resp, err := api.ValidatePipeline(testCtx(), connect.NewRequest(&ingestionv1.ValidatePipelineRequest{
@@ -401,6 +441,16 @@ func TestNormalizeEdgeModes(t *testing.T) {
 	}
 	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, nodes(ids["cdc"]), []*ingestionv1.PipelineEdge{edge}); err == nil {
 		t.Fatal("CDC must reject a read mode")
+	}
+
+	appendNodes := nodes(ids["standard"])
+	appendNodes[1].ConnectionId = ids["append"]
+	edge = &ingestionv1.PipelineEdge{FromNode: "src", ToNode: "snk"}
+	if err := api.normalizeEdgeModes(testCtx(), filament.DefaultTenantID, appendNodes, []*ingestionv1.PipelineEdge{edge}); err != nil {
+		t.Fatal(err)
+	}
+	if edge.GetWriteMode() != ingestionv1.WriteMode_WRITE_MODE_APPEND {
+		t.Fatalf("default write mode on a sink without upsert = %v, want append", edge.GetWriteMode())
 	}
 
 	edge = &ingestionv1.PipelineEdge{
@@ -535,6 +585,55 @@ func TestValidateEdgeColumnsChecksSchemaKeysAndCursor(t *testing.T) {
 	}
 	if errs := validate("columnlever", autoCursor, false); len(errs) != 0 {
 		t.Fatalf("a full read needs no cursor: %v", errs)
+	}
+}
+
+// partitionLeverSource partitions "orders" over the lever fixture.
+type partitionLeverSource struct{ leverSource }
+
+func (partitionLeverSource) Partitions(_ context.Context, resource string) ([]string, error) {
+	if resource != "orders" {
+		return nil, nil
+	}
+	return []string{"orders_2026_10", "orders_2026_11"}, nil
+}
+
+func (partitionLeverSource) SelectPartitions(map[string][]string) error { return nil }
+
+func TestValidateEdgePartitionsChecksLivePartitions(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("partitionlever", func() filament.Source { return partitionLeverSource{} })
+	server := &Server{worker: worker.Local(sources, registry.NewSinks())}
+	from := &ingestionv1.PipelineNode{Id: "src"}
+	validate := func(edge *ingestionv1.PipelineEdge, incremental bool) []string {
+		t.Helper()
+		ev := &ingestionv1.EdgeValidation{}
+		validateEdgePartitions(context.Background(), edge, from, filament.Connection{Connector: "partitionlever"}, incremental, newNodeInspections(server, []*ingestionv1.PipelineEdge{edge}), ev)
+		var messages []string
+		for _, e := range ev.Errors {
+			messages = append(messages, e.GetField()+": "+e.GetMessage())
+		}
+		return messages
+	}
+	selection := func(resource string, partitions ...string) []*ingestionv1.ResourcePartitionSelection {
+		return []*ingestionv1.ResourcePartitionSelection{{Resource: resource, Partitions: partitions}}
+	}
+
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_11")}, false); len(errs) != 0 {
+		t.Fatalf("valid selection: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_12")}, false); len(errs) != 1 {
+		t.Fatalf("unknown partition: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "customers", Partitions: selection("customers", "customers_1")}, false); len(errs) != 1 {
+		t.Fatalf("unpartitioned resource: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_11")}, true); len(errs) != 1 {
+		t.Fatalf("an incremental read must reject a partition selection: %v", errs)
+	}
+	duplicate := append(selection("orders", "orders_2026_11"), selection("orders", "orders_2026_11")...)
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Partitions: duplicate}, false); len(errs) != 1 {
+		t.Fatalf("a duplicate resource must fail like version creation does: %v", errs)
 	}
 }
 

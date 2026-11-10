@@ -1,0 +1,109 @@
+---
+title: "Asana source connector"
+sidebarTitle: "Asana"
+description: "Read workspaces, projects, sections, tasks, users, tags, and custom fields from Asana with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-asana-dark.svg"
+---
+
+Connector ID `asana`
+
+The Asana source reads workspaces, users, teams, projects, sections, tasks,
+tags, and custom field definitions. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It has been validated against a live Asana
+workspace with a personal access token. It targets API version `1.0`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `access_token` | Connection | | Required. Secret. Asana personal access token or service account token. |
+
+Create a personal access token in the
+[Asana developer console](https://app.asana.com/0/my-apps). It reads what its
+user can see. A service account token, available to Enterprise administrators,
+reads every object in the organization. See
+[Asana authentication](https://developers.asana.com/docs/authentication).
+
+Connection testing calls `GET /workspaces`. Every request goes to
+`https://app.asana.com/api/1.0`.
+
+## Resources
+
+All resources except `teams` are selected by default. Selecting a child also
+reads its parents, but only selected resources are written to the destination.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `workspaces` | `GET /workspaces` |  |
+| `users` | `GET /users?workspace={workspace_gid}` | `workspaces` |
+| `teams` | `GET /workspaces/{workspace_gid}/teams` | `workspaces` |
+| `projects` | `GET /workspaces/{workspace_gid}/projects` | `workspaces` |
+| `sections` | `GET /projects/{project_gid}/sections` | `projects` |
+| `tasks` | `GET /tasks?project={project_gid}` | `projects` |
+| `tags` | `GET /workspaces/{workspace_gid}/tags` | `workspaces` |
+| `custom_fields` | `GET /workspaces/{workspace_gid}/custom_fields` | `workspaces` |
+
+IDs are Asana `gid` strings. Child tables carry their parent's `workspace_gid`
+or `project_gid`. A user who belongs to several workspaces has one row per
+workspace, keyed by `workspace_gid` and `gid`. A task that belongs to several
+projects has one row per project, keyed by `project_gid` and `gid`.
+
+Tasks include assignee, dates, completion, notes, memberships, tags, followers,
+and custom field values. The parent task of a subtask is the `parent_task` JSON
+column. Projects include their owner, team, status update, and custom field
+values. References to other objects remain JSON columns, and every resource
+includes a `raw` column for unmapped fields. Asana returns only requested fields,
+so `raw` does not contain the full object.
+
+`teams` is optional because teams exist only in organizations. Select it only
+when the token's workspaces are organizations.
+
+### Coverage limits
+
+- **Tasks outside projects**. Tasks are read through their projects. Tasks
+  that belong to no project, such as private tasks in a user's My Tasks list,
+  are not read.
+- **Subtasks**. Subtasks are read only when they are also added to a project.
+  Reading every subtask needs a request per task and is not included.
+- **Comments and attachments**. Task stories, comments, and attachments need
+  a request per task and are not included.
+- **Portfolios and goals**. Portfolios can only be listed by owner, and goals
+  require a paid plan. Neither is included.
+- **Large organizations**. Asana notes that listing projects in a workspace may
+  time out for very large domains.
+- **Visibility**. Reads reflect what the token's user can see. Removed
+  records and records hidden by permissions are not available as deletion events.
+
+## Modes
+
+`tasks` supports incremental reads on `modified_at`, sent to Asana as
+`modified_since`. Asana treats assigning, renaming, completing, commenting on,
+or adding a task to a project as modifying it. Changes to a task's
+subtasks do not modify the parent task. Tasks in every project share one
+watermark, and each run re-reads the five minutes before it to cover tasks
+modified while the scan runs. A project that becomes visible to the token later
+is read only from the current watermark, so its older tasks are missed until a
+full read.
+
+All other resources perform full reads. Use **full upsert** to refresh rows, or
+**full replace** to remove rows no longer returned. Incremental task reads do
+not detect deleted tasks. Run a periodic full replace of `tasks` to remove them.
+
+## Behavior
+
+- **Auth**. Every request sends the token as a Bearer credential.
+  Authentication and permission errors fail the read.
+- **Pagination**. Every endpoint is read 100 records at a time and follows
+  `next_page.offset` until `next_page` is null.
+- **Fields**. Each request names its fields with `opt_fields`, because Asana
+  returns compact records by default.
+- **Rate limiting**. Requests are paced at two per second with a burst of one,
+  below the 150-per-minute limit for free domains. Paid domains allow 1,500 per
+  minute. Limits apply per token and are shared with other clients using it.
+  The HTTP engine retries throttled requests and honors `Retry-After`.
+- **Parent selection**. Sections and tasks need one request per project, and
+  projects, users, tags, and custom fields need one per workspace.
+
+See [Asana pagination](https://developers.asana.com/docs/pagination) and
+[rate limits](https://developers.asana.com/docs/rate-limits) for service limits.
