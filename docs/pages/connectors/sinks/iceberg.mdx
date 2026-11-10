@@ -27,6 +27,7 @@ catalog. Rows remain staged until their resource commits.
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
+| `maintenance` | Connection | `true` | Compact, merge manifests, and expire snapshots after commits. See [table maintenance](#table-maintenance). |
 
 A `namespace` left empty is defaulted server-side to the normalized source
 connection name.
@@ -70,7 +71,8 @@ Iceberg tables. See
 ## Table management
 
 `EnsureSchema` creates the namespace and the table with
-`write.format.default=parquet`. For an existing table, evolution is
+`write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
+and `commit.manifest-merge.enabled`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
 collides with Iceberg's reserved metadata names gets a `_` suffix.
@@ -91,6 +93,23 @@ collides with Iceberg's reserved metadata names gets a `_` suffix.
 | unknown | `string` |
 
 Primary key fields become the table's identifier fields.
+
+### Table maintenance
+
+Continuous runs commit a snapshot per epoch, so small files and snapshots pile
+up. After a commit the sink maintains each table it wrote once 10 commits or
+10 minutes have passed since the last maintenance. It compacts small data files
+toward `write.target-file-size-bytes`, merges manifests, and expires snapshots.
+Each step is its own Iceberg commit.
+
+Retention follows the standard table properties
+`history.expire.max-snapshot-age-ms` (default 5 days) and
+`history.expire.min-snapshots-to-keep` (default 1). The sink records each run
+in the `filament.maintenance.last-run-ms` table property.
+
+Maintenance runs after the data commit, so a failure is logged and never fails
+the run. Set `maintenance` to `false` when the catalog or another engine
+maintains the tables, so the two do not compete for commits.
 
 Array columns are written as their source's literal text. A table created by an older
 Filament version with a `list` column for the same source column must be
