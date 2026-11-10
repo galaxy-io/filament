@@ -98,6 +98,8 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			icetable.MetadataDeleteAfterCommitEnabledKey: "true",
 			icetable.ManifestMergeEnabledKey:             "true",
 			maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
+			writeMergeModeKey:                            icetable.WriteModeMergeOnRead,
+			icetable.WriteDeleteModeKey:                  icetable.WriteModeMergeOnRead,
 		}),
 	}
 	if s.tableLocationRoot != "" {

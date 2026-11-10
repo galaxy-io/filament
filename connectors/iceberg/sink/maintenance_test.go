@@ -17,7 +17,8 @@ import (
 
 func TestMaintenanceCompactsExpiresAndStamps(t *testing.T) {
 	ctx := context.Background()
-	tbl := testTable(t, ctx, iceberg.Properties{
+	schema := iceberg.NewSchema(0, iceberg.NestedField{ID: 1, Name: "id", Type: iceberg.PrimitiveTypes.Int64, Required: true})
+	tbl := testTable(t, ctx, schema, iceberg.Properties{
 		maxSnapshotAgeKey:     "0",
 		minSnapshotsToKeepKey: "1",
 	})
@@ -54,7 +55,7 @@ func TestMaintenanceCompactsExpiresAndStamps(t *testing.T) {
 	}
 }
 
-func testTable(t *testing.T, ctx context.Context, props iceberg.Properties) *table.Table {
+func testTable(t *testing.T, ctx context.Context, schema *iceberg.Schema, props iceberg.Properties) *table.Table {
 	t.Helper()
 	cat, err := catalog.Load(ctx, "test", iceberg.Properties{
 		"type":            "sql",
@@ -69,7 +70,6 @@ func testTable(t *testing.T, ctx context.Context, props iceberg.Properties) *tab
 	if err := cat.CreateNamespace(ctx, catalog.ToIdentifier("ns"), nil); err != nil {
 		t.Fatal(err)
 	}
-	schema := iceberg.NewSchema(0, iceberg.NestedField{ID: 1, Name: "id", Type: iceberg.PrimitiveTypes.Int64, Required: true})
 	tbl, err := cat.CreateTable(ctx, catalog.ToIdentifier("ns", "t"), schema, catalog.WithProperties(props))
 	if err != nil {
 		t.Fatal(err)

@@ -15,24 +15,31 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
-// mutation is a buffer folded by key: the filter selecting every touched key,
-// and the surviving rows (each key's last non-delete version) in the table's
-// Arrow schema, ready to overwrite.
+// mutation is a buffer folded by key: the surviving rows (each key's last
+// non-delete version) in the table's Arrow schema, and every touched key either
+// as a copy-on-write filter or as merge-on-read equality-delete rows.
 type mutation struct {
-	filter iceberg.BooleanExpression
-	live   []arrow.RecordBatch // owned; release after use
+	touched int
+	filter  iceberg.BooleanExpression // copy-on-write only
+	live    []arrow.RecordBatch       // owned; release after use
+	deletes []arrow.RecordBatch       // merge-on-read only; owned
 }
 
 func (m *mutation) release() {
 	for _, b := range m.live {
 		b.Release()
 	}
-	m.live = nil
+	for _, b := range m.deletes {
+		b.Release()
+	}
+	m.live, m.deletes = nil, nil
 }
 
 // foldMutations scans the buffer once to find each key's last row, then a
-// second time to keep exactly those rows that are not deletes.
-func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []string, target *arrow.Schema) (*mutation, error) {
+// second time to keep exactly those rows that are not deletes. A non-nil
+// deleteTarget folds for merge-on-read, collecting one key row per touched key
+// in that schema instead of building a filter.
+func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []string, target, deleteTarget *arrow.Schema) (*mutation, error) {
 	keyIdx := make([]int, len(keys))
 	for n, k := range keys {
 		idx := rb.schema.FieldIndices(k)
@@ -50,7 +57,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	err := rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
 		for i := range int(rows.NumRows()) {
 			k := keyOf(rows, keyIdx, i)
-			if _, seen := last[k]; !seen {
+			if _, seen := last[k]; !seen && deleteTarget == nil {
 				lits := make([]any, len(keyIdx))
 				for n, c := range keyIdx {
 					lit, err := keyLiteral(rows.Column(c), i)
@@ -83,38 +90,35 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 
 	// Pass 2: keep each key's last row unless it is a delete, then conform the
 	// survivors (only they need the table's types).
-	m := &mutation{filter: expr}
+	m := &mutation{touched: len(last), filter: expr}
 	bi = 0
 	err = rb.stream(func(rows arrow.RecordBatch, ops []rowmodel.Operation) error {
-		mask := array.NewBooleanBuilder(memory.DefaultAllocator)
-		defer mask.Release()
 		n := int(rows.NumRows())
-		mask.Reserve(n)
-		kept := 0
+		lastRow := make([]bool, n)
+		keep := make([]bool, n)
 		for i := range n {
 			p := last[keyOf(rows, keyIdx, i)]
-			keep := p.batch == bi && p.row == i && (len(ops) == 0 || ops[i] != rowmodel.OpDelete)
-			mask.Append(keep)
-			if keep {
-				kept++
-			}
+			lastRow[i] = p.batch == bi && p.row == i
+			keep[i] = lastRow[i] && (len(ops) == 0 || ops[i] != rowmodel.OpDelete)
 		}
 		bi++
-		if kept == 0 {
+		live, err := selectRows(ctx, rows, keep, target)
+		if err != nil {
+			return err
+		}
+		if live != nil {
+			m.live = append(m.live, live)
+		}
+		if deleteTarget == nil {
 			return nil
 		}
-		filter := mask.NewArray()
-		defer filter.Release()
-		survivors, err := compute.FilterRecordBatch(ctx, rows, filter, compute.DefaultFilterOptions())
+		del, err := selectRows(ctx, rows, lastRow, deleteTarget)
 		if err != nil {
 			return err
 		}
-		defer survivors.Release()
-		live, err := conform(survivors, target)
-		if err != nil {
-			return err
+		if del != nil {
+			m.deletes = append(m.deletes, del)
 		}
-		m.live = append(m.live, live)
 		return nil
 	})
 	if err != nil {
@@ -122,6 +126,31 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 		return nil, err
 	}
 	return m, nil
+}
+
+// selectRows returns the masked rows conformed to target, or nil when the mask
+// selects none.
+func selectRows(ctx context.Context, rows arrow.RecordBatch, mask []bool, target *arrow.Schema) (arrow.RecordBatch, error) {
+	b := array.NewBooleanBuilder(memory.DefaultAllocator)
+	defer b.Release()
+	kept := 0
+	for _, keep := range mask {
+		b.Append(keep)
+		if keep {
+			kept++
+		}
+	}
+	if kept == 0 {
+		return nil, nil
+	}
+	filter := b.NewArray()
+	defer filter.Release()
+	selected, err := compute.FilterRecordBatch(ctx, rows, filter, compute.DefaultFilterOptions())
+	if err != nil {
+		return nil, err
+	}
+	defer selected.Release()
+	return conform(selected, target)
 }
 
 // keyOf renders row i's primary key as one string, for last-write-wins folding.
