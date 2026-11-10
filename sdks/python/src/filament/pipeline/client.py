@@ -281,6 +281,8 @@ class PipelineClient:
         client_token: typing.Optional[str] = OMIT,
         options: typing.Optional[IngestionV1RunOptions] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        resync_resources: typing.Optional[typing.Sequence[str]] = OMIT,
+        resources: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1RunPipelineResponse:
         """
@@ -306,6 +308,17 @@ class PipelineClient:
              by field: an empty field inherits the pipeline's value. The resolved result
              is stamped onto each run, so editing the pipeline afterwards cannot change
              a run already requested.
+
+        resync_resources : typing.Optional[typing.Sequence[str]]
+            resync_resources names resources read from the beginning again by the
+             runs this call produces. A bounded run forgets their checkpoints first. A
+             live continuous run drains and hands over to a successor that snapshots
+             them again on the same stream.
+
+        resources : typing.Optional[typing.Sequence[str]]
+            resources limits a bounded run to these routed resources. Empty runs every
+             routed resource. A continuous run, or a change-stream route named in part,
+             always runs all of its resources, so such a subset is rejected.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -333,6 +346,8 @@ class PipelineClient:
             client_token=client_token,
             options=options,
             worker_configuration=worker_configuration,
+            resync_resources=resync_resources,
+            resources=resources,
             request_options=request_options,
         )
         return _response.data
@@ -752,6 +767,8 @@ class AsyncPipelineClient:
         client_token: typing.Optional[str] = OMIT,
         options: typing.Optional[IngestionV1RunOptions] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
+        resync_resources: typing.Optional[typing.Sequence[str]] = OMIT,
+        resources: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1RunPipelineResponse:
         """
@@ -777,6 +794,17 @@ class AsyncPipelineClient:
              by field: an empty field inherits the pipeline's value. The resolved result
              is stamped onto each run, so editing the pipeline afterwards cannot change
              a run already requested.
+
+        resync_resources : typing.Optional[typing.Sequence[str]]
+            resync_resources names resources read from the beginning again by the
+             runs this call produces. A bounded run forgets their checkpoints first. A
+             live continuous run drains and hands over to a successor that snapshots
+             them again on the same stream.
+
+        resources : typing.Optional[typing.Sequence[str]]
+            resources limits a bounded run to these routed resources. Empty runs every
+             routed resource. A continuous run, or a change-stream route named in part,
+             always runs all of its resources, so such a subset is rejected.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -812,6 +840,8 @@ class AsyncPipelineClient:
             client_token=client_token,
             options=options,
             worker_configuration=worker_configuration,
+            resync_resources=resync_resources,
+            resources=resources,
             request_options=request_options,
         )
         return _response.data

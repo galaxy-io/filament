@@ -225,6 +225,7 @@ func InspectionsToProto(inspections []filament.Inspection) []*workerv1.Inspectio
 			Ranked:             inspection.Ranked,
 			ManagedIncremental: inspection.ManagedIncremental,
 			Schema:             schemaToProto(inspection.Schema),
+			Partitions:         inspection.Partitions,
 		})
 	}
 	return out
@@ -247,6 +248,7 @@ func InspectionsFromProto(inspections []*workerv1.Inspection) ([]filament.Inspec
 			Ranked:             inspection.GetRanked(),
 			ManagedIncremental: inspection.GetManagedIncremental(),
 			Schema:             schemaFromProto(inspection.GetName(), inspection.GetSchema()),
+			Partitions:         inspection.GetPartitions(),
 		})
 	}
 	return out, nil

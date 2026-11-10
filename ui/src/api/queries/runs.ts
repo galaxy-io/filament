@@ -36,6 +36,7 @@ import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 import {
   ACTIVE_PIPELINE_RUNS_PAGE_SIZE,
   ACTIVE_RUNS_REFETCH_INTERVAL,
+  SCHEDULED_REFETCH_MAX_INTERVAL,
 } from "@/api/queries/constants";
 import {
   createGetPipelineInput,
@@ -46,6 +47,7 @@ import {
 import {
   batchIterable,
   getNextPageParam,
+  getScheduledRefetchInterval,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
   type UseInfiniteQueryOptions,
@@ -68,22 +70,22 @@ export const createListRunsQueryKey = (input?: ListRunsRequest, transport?: Tran
   });
 };
 
-const SCHEDULED_REFETCH_MAX_INTERVAL = 60 * 1000;
 const IDLE_RUNS_REFETCH_INTERVAL = 30 * 1000;
 
-const getScheduledRefetchInterval = (runs: RunInfo[], floor: number) => {
-  const scheduled = runs.filter((run) => run.status === RunStatus.SCHEDULED);
-  if (scheduled.length === 0) return false as const;
-  const waits = scheduled.map((run) =>
-    run.scheduledAt ? Number(run.scheduledAt) - Date.now() : SCHEDULED_REFETCH_MAX_INTERVAL,
+const getRunsScheduledRefetchInterval = (runs: RunInfo[], floor: number) =>
+  getScheduledRefetchInterval(
+    runs
+      .filter((run) => run.status === RunStatus.SCHEDULED)
+      .map((run) =>
+        run.scheduledAt ? Number(run.scheduledAt) - Date.now() : SCHEDULED_REFETCH_MAX_INTERVAL,
+      ),
+    floor,
   );
-  return Math.min(Math.max(Math.min(...waits), floor), SCHEDULED_REFETCH_MAX_INTERVAL);
-};
 
 const getListRunsRefetchInterval = (runs: RunInfo[] | undefined) => {
   if (!runs) return false;
   if (runs.some((run) => isRunActive(run))) return ACTIVE_RUNS_REFETCH_INTERVAL;
-  return getScheduledRefetchInterval(runs, ACTIVE_RUNS_REFETCH_INTERVAL);
+  return getRunsScheduledRefetchInterval(runs, ACTIVE_RUNS_REFETCH_INTERVAL);
 };
 
 const getActiveRunsRefetchInterval = (
@@ -206,7 +208,7 @@ export const useSuspenseListRunsInfiniteQuery = ({
 const getGetRunRefetchInterval = (run: RunInfo | undefined) => {
   if (!run) return false;
   if (isRunActive(run)) return GET_RUN_REFETCH_INTERVAL;
-  return getScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
+  return getRunsScheduledRefetchInterval([run], GET_RUN_REFETCH_INTERVAL);
 };
 
 const createGetRunQueryKey = (input?: GetRunRequest, transport?: Transport) => {

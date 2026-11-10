@@ -113,6 +113,8 @@ message ResourceColumns {
   bool managed_incremental = 3;
   // The source reads only the columns an edge selects.
   bool selectable_columns = 4;
+  // The resource's partitions an edge may select; empty when it is not partitioned.
+  repeated string partitions = 5;
 }
 
 message GetResourceColumnsResponse {

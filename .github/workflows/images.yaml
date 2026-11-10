@@ -77,10 +77,11 @@ jobs:
         name: Build UI
         run: just ui-build
 
-      - name: Build
+      - if: matrix.cgo != '1'
+        name: Build
         env:
           GOWORK: off
-          CGO_ENABLED: ${{ matrix.cgo || '0' }}
+          CGO_ENABLED: "0"
           GOOS: linux
         run: go build -C $(dirname ${{ matrix.dockerfile }}) ${{ matrix.buildtags }} -trimpath -ldflags="-s -w -X github.com/galaxy-io/filament/version.Version=${{ inputs.tag }}" -o "$GITHUB_WORKSPACE/bin/${{ matrix.image }}${{ matrix.suffix }}" .
 
@@ -111,6 +112,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: VERSION=${{ inputs.tag }}
           push: ${{ inputs.publish }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

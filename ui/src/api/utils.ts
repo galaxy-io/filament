@@ -6,6 +6,8 @@ import { SortBy, SortingRequestSchema, SortOrder } from "@/gen/ingestion/v1/sort
 
 import type { ListSearchParams } from "@/module/schemas";
 
+import { SCHEDULED_REFETCH_MAX_INTERVAL } from "@/api/queries/constants";
+
 const DEFAULT_PAGE_SIZE = 25;
 
 export const INITIAL_PAGE_PARAM: MessageInitShape<typeof PaginationRequestSchema> = {
@@ -90,3 +92,8 @@ export async function* batchIterable<T>(
     await iterator.return?.();
   }
 }
+
+export const getScheduledRefetchInterval = (waits: number[], floor: number) =>
+  waits.length === 0
+    ? (false as const)
+    : Math.min(Math.max(Math.min(...waits), floor), SCHEDULED_REFETCH_MAX_INTERVAL);

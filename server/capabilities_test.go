@@ -588,6 +588,55 @@ func TestValidateEdgeColumnsChecksSchemaKeysAndCursor(t *testing.T) {
 	}
 }
 
+// partitionLeverSource partitions "orders" over the lever fixture.
+type partitionLeverSource struct{ leverSource }
+
+func (partitionLeverSource) Partitions(_ context.Context, resource string) ([]string, error) {
+	if resource != "orders" {
+		return nil, nil
+	}
+	return []string{"orders_2026_10", "orders_2026_11"}, nil
+}
+
+func (partitionLeverSource) SelectPartitions(map[string][]string) error { return nil }
+
+func TestValidateEdgePartitionsChecksLivePartitions(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("partitionlever", func() filament.Source { return partitionLeverSource{} })
+	server := &Server{worker: worker.Local(sources, registry.NewSinks())}
+	from := &ingestionv1.PipelineNode{Id: "src"}
+	validate := func(edge *ingestionv1.PipelineEdge, incremental bool) []string {
+		t.Helper()
+		ev := &ingestionv1.EdgeValidation{}
+		validateEdgePartitions(context.Background(), edge, from, filament.Connection{Connector: "partitionlever"}, incremental, newNodeInspections(server, []*ingestionv1.PipelineEdge{edge}), ev)
+		var messages []string
+		for _, e := range ev.Errors {
+			messages = append(messages, e.GetField()+": "+e.GetMessage())
+		}
+		return messages
+	}
+	selection := func(resource string, partitions ...string) []*ingestionv1.ResourcePartitionSelection {
+		return []*ingestionv1.ResourcePartitionSelection{{Resource: resource, Partitions: partitions}}
+	}
+
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_11")}, false); len(errs) != 0 {
+		t.Fatalf("valid selection: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_12")}, false); len(errs) != 1 {
+		t.Fatalf("unknown partition: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "customers", Partitions: selection("customers", "customers_1")}, false); len(errs) != 1 {
+		t.Fatalf("unpartitioned resource: %v", errs)
+	}
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Resource: "orders", Partitions: selection("orders", "orders_2026_11")}, true); len(errs) != 1 {
+		t.Fatalf("an incremental read must reject a partition selection: %v", errs)
+	}
+	duplicate := append(selection("orders", "orders_2026_11"), selection("orders", "orders_2026_11")...)
+	if errs := validate(&ingestionv1.PipelineEdge{FromNode: "src", Partitions: duplicate}, false); len(errs) != 1 {
+		t.Fatalf("a duplicate resource must fail like version creation does: %v", errs)
+	}
+}
+
 func TestSelectedSchemaNarrowsTransformAnalysis(t *testing.T) {
 	schema, _ := leverSource{}.Schema(context.Background(), "orders")
 	edge := &ingestionv1.PipelineEdge{Resource: "orders", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: []string{"id"}}}}

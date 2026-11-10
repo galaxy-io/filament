@@ -116,7 +116,7 @@ pages/pipelines
   - The default is `const X: FC<XProps> = ({ a, b = DEFAULT_B }) => { … };` then `export default X;`. Defaults go in the destructuring.
   - A component with no props is `const X: FC = () => …`. A component with children is `FC<PropsWithChildren<XProps>>`.
   - With `memo` (xyflow nodes and virtualized rows only), declare `const X: FC<XProps>` and export `export default memo(X);`.
-  - Two exceptions only. `forwardRef` components (`RouterLink`) stay `forwardRef<Element, XProps>(…)`. Generic components (`ObservabilityTimeseriesWidget`, `PipelineNotifierTable`) stay `const X = <T extends …>({ … }: XProps<T>) => …` because `FC` cannot carry a type parameter.
+  - Two exceptions only. `forwardRef` components (`RouterLink`) stay `forwardRef<Element, XProps>(…)`. Generic components (`PipelineNotifierTable`) stay `const X = <T extends …>({ … }: XProps<T>) => …` because `FC` cannot carry a type parameter.
 - **Props are a non-exported `interface XProps`** directly above the component. The only public props interface is `FilamentLayoutProps`. xyflow node props alias `NodeProps<…>` in `canvas/nodes/types.ts`.
 - **One export per file, default exported, filename equals the export.** The only extra named exports allowed are the component's own size or variant enum, or a data interface its callers build. Extra components get their own files.
 - **File order.** Imports, private constants and maps, styled components, `XProps`, `XState` with `DEFAULT_STATE`, the component, the default export. Inside a component, hooks first, then derived values, then `handleX` functions, then JSX.

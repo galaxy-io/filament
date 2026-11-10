@@ -78,14 +78,14 @@
       {
         "label": "Join the Slack community",
         "icon": "slack",
-        "href": "https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ"
+        "href": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ"
       }
     ]
   },
   "footer": {
     "socials": {
       "github": "https://github.com/galaxy-io/filament",
-      "slack": "https://join.slack.com/t/galaxy-filament/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ",
+      "slack": "https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ",
       "website": "https://www.getgalaxy.io/filament"
     }
   },
@@ -160,6 +160,7 @@
               "pages/connectors/sources/kafka",
               "pages/connectors/sources/nats",
               "pages/connectors/sources/apollo",
+              "pages/connectors/sources/asana",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/fhir",
               "pages/connectors/sources/fxmacrodata",
@@ -172,11 +173,13 @@
               "pages/connectors/sources/linear",
               "pages/connectors/sources/livetennisapi",
               "pages/connectors/sources/mailchimp",
+              "pages/connectors/sources/metronome",
               "pages/connectors/sources/monday",
               "pages/connectors/sources/notion",
               "pages/connectors/sources/novada",
               "pages/connectors/sources/pipedrive",
               "pages/connectors/sources/posthog",
+              "pages/connectors/sources/pylon",
               "pages/connectors/sources/qbo",
               "pages/connectors/sources/resend",
               "pages/connectors/sources/servicetitan",
