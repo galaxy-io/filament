@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 ARG DUCKDB_VERSION=v1.4.1
 
-# Go 1.26.11 rejects cgo archives with LLVM bitcode, which zerobus-sdk ships.
 FROM golang:1.26.10-trixie AS build
 ARG VERSION=dev
 WORKDIR /src
